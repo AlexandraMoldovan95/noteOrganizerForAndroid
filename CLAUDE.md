@@ -9,7 +9,7 @@ whether the desktop app's data format survives the trip to a phone, and
 what it would cost to work in Compose.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
-Python and Tkinter, fully offline, at version `0.73.161`. It lives at
+Python and Tkinter, fully offline, at version `0.73.165`. It lives at
 `D:\Projects\NoteOrganizer` and has **its own `CLAUDE.md` with its own
 rules**. Read that file before touching anything there.
 
@@ -97,6 +97,32 @@ document claims a measurement, verify it before acting on it.
 Two real bugs in one day were invisible in the source and obvious the
 moment the built app was photographed. Reading the code is not the same
 as running the thing.
+
+**Who verifies what (agreed 2026-09-13, and it holds in both projects).**
+On the desktop, four user-visible bugs shipped that its suite could not
+reach — each needed a restart, a sequence, a second visit, or what
+happens on the save *after* the change. The division that came out of it:
+
+- **Anything provable mechanically is proved before saying it is done.**
+  Here that means the emulator, not a unit test: install the APK, drive
+  it (`tools/emulator/`), pull the written file back and check it **in
+  the desktop's own Python**. A suite proves the code does what it says;
+  that proves the two programs agree about what a note is.
+- **What needs human perspective is named out loud** — whether a screen
+  reads as confusing, whether the safer answer is the one the eye lands
+  on. A script checks what it was told to check; it never notices that a
+  button *looks* like a trap. Those go to her, and into the desktop
+  project's test plan.
+
+### The pictures in this repo are ours, except the icons
+
+`app/src/main/res/mipmap-*/ic_launcher*.webp` are **Android Studio's
+default template icons** — the green robot in a circle. Nothing here drew
+them. Say so plainly wherever the subject comes up, and replace them
+before this project is shown anywhere: claiming authorship of a template
+is worse than having no icon, and the desktop app's icon is genuinely
+*drawn* at build time by `tools/make_icon.py` rather than stored, which
+is a far better thing to be able to say.
 
 ### Plain language
 

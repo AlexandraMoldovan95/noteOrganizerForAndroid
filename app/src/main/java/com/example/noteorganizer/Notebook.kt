@@ -1225,14 +1225,6 @@ object Notebook {
     }
 
     /**
-     * Creates notes from a pasted share code.
-     *
-     * Every note is CREATED, never matched against an existing one: a code
-     * carries no id, and guessing which note it "is" would be the merge
-     * problem in disguise. Importing twice gives two notes, which is
-     * visible and fixable; importing over the wrong note would not be.
-     */
-    /**
      * What a pasted code turns out to hold, before anything is written.
      *
      * Split out from the import so the screen can ASK before acting: a
@@ -1414,6 +1406,19 @@ object Notebook {
         }
     }
 
+    /**
+     * Creates notes from a pasted code, asking nothing.
+     *
+     * **Nothing in the app calls this any more.** The screen goes through
+     * [inspectShareCode] and [applyShareCode] instead, so that a code
+     * carrying a note this device already has can be a question rather
+     * than an instruction. What is left here is reached only by its own
+     * tests -- the same shape as the desktop's multi-tab machinery, which
+     * was carried for weeks before somebody asked whether anything could
+     * reach it. Either its checks move onto the real route and this goes,
+     * or it stays and this comment stops being true. It has not been
+     * decided; until it is, the comment is the honest half.
+     */
     fun importShareCode(load: Load, code: String): SaveResult {
         val file = load.file
             ?: return SaveResult.Failed("nu stiu unde sa scriu fisierul de notite")

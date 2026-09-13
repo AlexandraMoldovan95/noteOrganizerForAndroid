@@ -26,7 +26,7 @@ Plain JSON, no database. When the desktop app runs as its packaged
 
 Every note passes through one choke point in the desktop app
 (`normalize_note`), which coerces anything malformed into these defaults.
-Field for field, as of `0.73.161`:
+Field for field, as of `0.73.165`:
 
 ```jsonc
 {
@@ -117,10 +117,22 @@ decode in turn. Both were run and both passed, carrying diacritics, an
 emoji, formatting spans and a checklist intact. A test that only encodes
 and decodes with itself proves nothing about the thing it exists for.
 
-An import always CREATES. A code carries no id, so matching it against an
-existing note would be the merge problem in disguise: importing twice
-gives two notes, which is visible and fixable, where overwriting the
-wrong one is not.
+**An import used to always CREATE**, because a code carried no id and
+matching on the text would have been the merge problem in disguise:
+importing twice gave two notes, which is visible and fixable, where
+overwriting the wrong one is not. That reasoning was right, and it is
+what made the `uid` necessary rather than optional. Since the desktop's
+`0.73.159` a code carries the note's identity, so the far end can tell
+the difference between "another note that reads the same" and "the note
+you already have" — and asks. See [What a shared note is allowed to
+change](#what-a-shared-note-is-allowed-to-change).
+
+**Build the code from the STORED note, never from what is on screen.**
+`shareCodeFor` reads the note out of the array and encodes that. The
+desktop's editor did the opposite — it assembled a code from its editor
+snapshot — and so its codes silently went out without the identity,
+because identity is not something the screen holds. Fixed there in
+`0.73.165`; this app never had the bug, and this line is why.
 
 Two things the code field must do that are not obvious: turn autocorrect
 and auto-capitalisation OFF (a "helpfully" capitalised letter makes a
