@@ -48,6 +48,14 @@ the question "what should this do?" is answered by reading the Python,
 and `D:\Projects\NoteOrganizer\test_*.py` are its acceptance tests. Do
 not invent behaviour that the desktop app already defines.
 
+**And one gate now enforces the part that matters most.** `py
+tools/check_note_shape.py` reads that Python and fails when the two
+programs stop agreeing about what a note is — its fields, what a share
+code carries, what an arriving note may replace — and when the two places
+here that build a new note stop agreeing with each other. Run it before
+calling anything about the note format done; it is seconds. It reads the
+desktop's source and never writes to it, like everything else here.
+
 ## The data contract, and where it is written down
 
 Plain JSON, no database, shared byte for byte with the desktop app. The

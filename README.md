@@ -81,6 +81,27 @@ device. To try it against a real notebook, copy one in:
 That copy is yours to break — it is not the desktop's file, and nothing
 here ever reaches back to the machine that wrote it.
 
+## The gate that guards the contract
+
+    py tools/check_note_shape.py
+
+This project's whole premise is that both programs read and write the
+same file, and nothing enforced that: the agreement lives in two
+languages in two repositories, and drifts in silence — the code compiles,
+the tests pass, and the damage shows up on a real notebook that has
+travelled. It has already happened twice.
+
+So the gate reads the desktop's Python **as the specification** and
+compares four things: that a note here has the same fields the desktop
+gives one, that the two places building a new note agree with each other,
+that a share code carries what the desktop's codes carry, and that an
+arriving note replaces what the desktop lets one replace. It reads that
+source and never writes to it.
+
+Run it before calling anything about the note format done. Its own four
+kinds of drift were tried against it and all four turned it red — a gate
+that has never been seen failing is decoration.
+
 ## How it is tested
 
 The unit tests run on the JVM without a device, and they pin the rules
