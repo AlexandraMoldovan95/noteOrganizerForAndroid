@@ -155,12 +155,30 @@ class SharingTest {
     }
 
     // ---- importing ----
+    //
+    // These used to drive `importShareCode`, the one import route before
+    // a code carried a note's identity. The screen now inspects a code
+    // first, so a note this device already has can raise a question
+    // instead of being copied silently, and that is the only route there
+    // is. Checks that drive a function nothing calls keep it alive while
+    // proving nothing about what the app does -- and that one carried its
+    // own second copy of the new-note defaults, which is exactly how two
+    // copies of a rule drift apart without anyone noticing.
+
+    /** What the screen does: look first, then write with the answer. */
+    private fun bring(load: Notebook.Load, code: String,
+                      update: Boolean = false): SaveResult {
+        val found = Notebook.inspectShareCode(load, code)
+        if (found is Notebook.Inspection.Failed) return SaveResult.Failed(found.reason)
+        return Notebook.applyShareCode(
+            load, (found as Notebook.Inspection.Ready).notes, update)
+    }
 
     @Test
     fun `importing creates a note and never touches the others`() {
         val load = scratch("""[{"id": 4, "title": "veche", "un_camp": "pastreaza-ma"}]""")
         val code = Sharing.encode(listOf(note("""{"title": "primita", "body": "salut"}""")))
-        val result = Notebook.importShareCode(load, code)
+        val result = bring(load, code)
         assertTrue(result is SaveResult.Ok)
         assertEquals(1, (result as SaveResult.Ok).imported)
 
@@ -175,12 +193,12 @@ class SharingTest {
     @Test
     fun `an imported note arrives with the whole shape a note needs`() {
         val load = scratch("[]")
-        Notebook.importShareCode(load, Sharing.encode(listOf(note("""{"title": "x"}"""))))
+        bring(load, Sharing.encode(listOf(note("""{"title": "x"}"""))))
         val fresh = onDisk(load).getJSONObject(0)
-        for (field in listOf("id", "title", "body", "formatting", "comments", "category",
-                             "date", "color", "attachments", "updated", "created",
-                             "recurrence", "exceptions", "overrides", "pinned",
-                             "checklist", "paragraphs")) {
+        for (field in listOf("id", "uid", "title", "body", "formatting", "comments",
+                             "category", "date", "color", "attachments", "updated",
+                             "created", "recurrence", "exceptions", "overrides",
+                             "pinned", "checklist", "paragraphs")) {
             assertTrue("lipseste $field", fresh.has(field))
         }
         assertEquals("General", fresh.getString("category"))
@@ -188,16 +206,35 @@ class SharingTest {
     }
 
     @Test
-    fun `importing the same code twice makes two notes, on purpose`() {
-        // A code has no id, so there is nothing to match it against. Two
-        // notes is visible and fixable; overwriting the wrong one is not.
+    fun `importing the same code twice depends on whether it carries an identity`() {
+        // The old rule was: always create. A code carried no id, so there
+        // was nothing to match it against, and two notes are visible and
+        // fixable where overwriting the wrong one is not. That reasoning
+        // is exactly why the identity exists -- and it still governs the
+        // half of the world that has none.
         val load = scratch("[]")
-        val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
-        Notebook.importShareCode(load, code)
-        Notebook.importShareCode(load, code)
-        assertEquals(2, onDisk(load).length())
+        val anonymous = Sharing.encode(listOf(note("""{"title": "x"}""")))
+        bring(load, anonymous)
+        bring(load, anonymous)
+        assertEquals("un cod fara identitate face doua notite, ca inainte",
+            2, onDisk(load).length())
         assertEquals(listOf(1, 2),
             (0 until 2).map { onDisk(load).getJSONObject(it).getInt("id") })
+
+        // A code made from a note this device has SAVED carries that
+        // note's identity, and then the second arrival is recognised
+        // rather than guessed at -- which is the whole point of the
+        // field. Importing it still leaves two notes here, but now
+        // because that answer was chosen, not because nothing could tell.
+        val mine = Notebook.shareCodeFor(load, 1)!!
+        val found = Notebook.inspectShareCode(load, mine) as Notebook.Inspection.Ready
+        assertEquals("un cod facut de aici e recunoscut cand se intoarce",
+            1, found.known)
+        Notebook.applyShareCode(load, found.notes, update = false)
+        assertEquals(3, onDisk(load).length())
+        assertEquals("copia nu poate purta identitatea originalului",
+            onDisk(load).getJSONObject(0).getString("uid") ==
+                onDisk(load).getJSONObject(2).getString("uid"), false)
     }
 
     @Test
@@ -205,7 +242,7 @@ class SharingTest {
         val load = scratch("""[{"id": 9}]""")
         val code = Sharing.encode(
             listOf(note("""{"title": "a"}"""), note("""{"title": "b"}""")))
-        assertEquals(2, (Notebook.importShareCode(load, code) as SaveResult.Ok).imported)
+        assertEquals(2, (bring(load, code) as SaveResult.Ok).imported)
         val ids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getInt("id") }
         assertEquals(listOf(9, 10, 11), ids)
     }
@@ -214,7 +251,7 @@ class SharingTest {
     fun `a bad code is refused before anything is written`() {
         val load = scratch("""[{"id": 1}]""")
         val before = load.file!!.readText()
-        assertTrue(Notebook.importShareCode(load, "nu e un cod") is SaveResult.Failed)
+        assertTrue(bring(load, "nu e un cod") is SaveResult.Failed)
         assertEquals(before, load.file!!.readText())
     }
 
@@ -222,7 +259,7 @@ class SharingTest {
     fun `a notebook that cannot be read is never imported over`() {
         val load = scratch("{ nu e json")
         val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
-        assertTrue(Notebook.importShareCode(load, code) is SaveResult.Failed)
+        assertTrue(bring(load, code) is SaveResult.Failed)
         assertEquals("{ nu e json", load.file!!.readText())
     }
 

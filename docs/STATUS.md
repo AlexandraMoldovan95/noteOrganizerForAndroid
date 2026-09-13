@@ -74,7 +74,18 @@ contract":
     wording, whether to update the copy here or keep both. Nothing is
     written until the question is answered. See "What a shared note is
     allowed to change" below.
-15. 222 JVM unit tests, mutation-tested — the rules ported from Python are
+16. **One import route, not two.** `importShareCode` — the way a code
+    became notes before identity existed — stayed behind when the screen
+    moved to inspect-then-apply, reached only by its own six checks. It
+    was not merely dead: it carried a SECOND copy of the new-note
+    defaults, so a field added to the note shape would have rotted there
+    in silence while its tests went on passing. Removed on 2026-09-13,
+    its checks moved onto the route the screen actually uses, and the
+    four that matter re-proved with mutants. One of them changed meaning
+    on the way and says so: importing the same code twice still makes two
+    notes when the code carries no identity — which is most codes from
+    before — and is recognised when it carries one.
+17. 222 JVM unit tests, mutation-tested — the rules ported from Python are
    pinned, and each mutant was watched failing before being reverted. The
    identity work's own round: eleven mutants, four surviving the first
    pass. Three were weak checks, one was the code (see the candidate
