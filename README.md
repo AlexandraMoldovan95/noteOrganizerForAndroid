@@ -102,6 +102,19 @@ Run it before calling anything about the note format done. Its own four
 kinds of drift were tried against it and all four turned it red — a gate
 that has never been seen failing is decoration.
 
+## The test plan
+
+`qa/NoteOrganizer_Android_TestPlan.xlsx` — 34 cases across eight areas,
+the same shape as the desktop app's plan and kept here because the two
+projects are deliberately separate.
+
+Its "Who runs it" column is the point: **21** rows are already walked by
+unit tests, **12** are driven on the emulator by the tools in
+[tools/emulator/](tools/emulator/), and **11** need a person with a real
+phone in their hand — whether a tap lands, whether the keyboard covers
+what you are typing, whether it reads well at arm's length. Those eleven
+are the reason the file exists; a script cannot answer one of them.
+
 ## How it is tested
 
 The unit tests run on the JVM without a device, and they pin the rules
