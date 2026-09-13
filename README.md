@@ -59,9 +59,19 @@ surprise rather than a feature.
 Requirements: Android Studio (or a JDK plus the Android SDK) and an
 emulator or a phone with USB debugging on. Minimum Android 8.0 (API 26).
 
+`gradlew` needs a JDK and will not start without one — there is no
+system-wide Java on this machine, and the only JDK is the one bundled
+inside Android Studio:
+
+    set JAVA_HOME=C:\Programs\android_studio\jbr
+
     gradlew.bat assembleDebug          # build the APK
     gradlew.bat testDebugUnitTest      # 222 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
+
+The test task prints nothing useful when it fails; the results are XML in
+`app\build\test-results\testDebugUnitTest\`, and the count in those files
+is the only proof the tests actually ran.
 
 The app looks for `notes_data.json` in its own app-private folder on the
 device. To try it against a real notebook, copy one in:
