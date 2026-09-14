@@ -56,10 +56,16 @@ it survives a chat window. Anyone holding the code can read the note.
 
 ## Reading the documentation
 
+Start wherever your question is.
+
 | Document | What is in it |
 |---|---|
-| [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md) | What a note IS, in both programs — and the traps that come with re-implementing the same rules in a second language. Read before touching anything that reads or writes a note. |
 | [docs/STATUS.md](docs/STATUS.md) | What works, what was verified and how, what is deliberately unbuilt, and the questions still open. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the code is put together, and the handful of decisions that explain why it is that shape — including the one that explains the most code: a note has two representations on purpose. |
+| [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md) | What a note IS, in both programs — and the traps that come with re-implementing the same rules in a second language. Read before touching anything that reads or writes a note. |
+| [docs/ISSUES_LOG.md](docs/ISSUES_LOG.md) | What actually went wrong, how it was found, and what kind of failure it turned out to be. The most useful document here, and the least flattering. |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version, and how the numbers are decided. |
+| [qa/README.md](qa/README.md) | How this app is tested: four layers, and what only each one can catch. |
 | [CLAUDE.md](CLAUDE.md) | How work is done in this folder: the rules, the approvals, and the environment traps that cost a day each. |
 
 The desktop app is the specification. Where a rule here answers "what
@@ -140,6 +146,24 @@ Run it before calling anything about the note format done. Its own four
 kinds of drift were tried against it and all four turned it red — a gate
 that has never been seen failing is decoration.
 
+A second gate guards a different agreement:
+
+    py tools/check_layering.py
+
+`Notebook.kt`, `Sharing.kt`, `Tables.kt` and `Styling.kt` contain no
+`import android` and no `import androidx` — that is what lets their tests
+run on a laptop in seconds instead of on an emulator in minutes. The leak
+would be quiet: reach for `android.util.Base64` because it is first in
+the autocomplete and everything still compiles, still runs, and can no
+longer be tested without a device. So it is checked rather than
+remembered.
+
+Both gates run on every push, together with the unit tests — see
+[.github/workflows/tests.yml](.github/workflows/tests.yml). The contract
+gate fetches the desktop app in CI and is run with `--require-desktop`,
+because a check that quietly could not run reads exactly like a check
+that passed.
+
 ## The test plan
 
 `qa/NoteOrganizer_Android_TestPlan.xlsx` — 35 cases across nine areas,
@@ -150,8 +174,10 @@ Its "Who runs it" column is the point: **21** rows are already walked by
 unit tests, **12** are driven on the emulator by the tools in
 [tools/emulator/](tools/emulator/), and **12** need a person with a real
 phone in their hand — whether a tap lands, whether the keyboard covers
-what you are typing, whether it reads well at arm's length. Those eleven
-are the reason the file exists; a script cannot answer one of them.
+what you are typing, whether it reads well at arm's length. Those twelve
+are the reason the file exists; a script cannot answer one of them. (The
+three numbers exceed 35 because a row can carry two: a rule proved on the
+JVM whose screen still has to be looked at.)
 
 ## How it is tested
 
