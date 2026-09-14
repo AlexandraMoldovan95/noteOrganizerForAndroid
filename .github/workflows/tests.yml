@@ -63,15 +63,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Both repositories are private, so reading the desktop app needs a
+      # token of its own: a fine-grained personal access token with
+      # Contents: Read-only, scoped to that one repository, stored here as
+      # the secret DESKTOP_REPO_TOKEN.
+      #
+      # It is checked before it is used, because "Repository not found" is
+      # what a missing token looks like, and that sends the next person
+      # hunting for a repository that is right where it always was.
+      - name: The token this job needs
+        env:
+          TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::DESKTOP_REPO_TOKEN lipseste din secretele acestui repo."
+            echo "Settings -> Secrets and variables -> Actions -> New repository secret."
+            echo "Valoarea: un fine-grained PAT cu Contents: Read-only pe repo-ul desktop."
+            exit 1
+          fi
+
       # The desktop app is the specification. It is READ here and never
-      # written to, exactly as on a development machine. If this step ever
-      # fails because the repository has gone private, it needs a token
-      # with read access rather than a change to the gate.
+      # written to, exactly as on a development machine.
       - name: Fetch the desktop app, as the specification
         uses: actions/checkout@v4
         with:
           repository: AlexandraMoldovan95/noteOrganizer
           path: .desktop
+          token: ${{ secrets.DESKTOP_REPO_TOKEN }}
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:

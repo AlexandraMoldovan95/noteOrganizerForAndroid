@@ -80,6 +80,28 @@ source and never writes to it.
 All four of its own kinds of drift were tried against it and all four
 turned it red. Run it before calling anything about the note format done.
 
+## What runs on every push
+
+[.github/workflows/tests.yml](../.github/workflows/tests.yml) — three
+jobs, deliberately separate because they answer three different
+questions: do the rules still hold, is the rules layer still free of
+Android, and do the two programs still agree.
+
+The unit-test job does not trust Gradle's exit code alone: it runs
+`tools/check_test_results.py` afterwards — with `if: always()`, so it
+speaks even when the step before it failed — and the job goes red on zero
+tests, on a total below the floor, or on any failure. The results are
+kept as an artifact so a failure can be read rather than guessed at.
+
+**The one thing CI needs set up by hand.** Both repositories are private,
+so the contract job cannot read the desktop app with its own credentials.
+It needs a secret named `DESKTOP_REPO_TOKEN`: a fine-grained personal
+access token, **Contents: Read-only**, scoped to the desktop repository
+alone, added under *Settings → Secrets and variables → Actions*. The job
+checks for it first and says exactly this if it is missing, because
+"Repository not found" is what an absent token looks like and it sends
+the next person hunting for a repository that never moved.
+
 ## The emulator tools
 
 [`tools/emulator/`](../tools/emulator/) — three scripts, each written to
