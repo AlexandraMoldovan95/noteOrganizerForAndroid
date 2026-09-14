@@ -119,15 +119,30 @@ happens on the save *after* the change. The division that came out of it:
 - **What needs human perspective is named out loud** — whether a screen
   reads as confusing, whether the safer answer is the one the eye lands
   on. A script checks what it was told to check; it never notices that a
-  button *looks* like a trap. Those go to her, and into the desktop
-  project's test plan.
+  button *looks* like a trap. Those go to her, and into this project's own
+  test plan (`qa/NoteOrganizer_Android_TestPlan.xlsx`), marked NEEDS YOUR
+  EYE.
+
+### The three commands before a push
+
+None of them needs a device, and each one exists because something got
+past the others:
+
+    gradlew.bat testDebugUnitTest      # then read the XML, see qa/README
+    py tools/check_layering.py         # Android has not leaked into the rules
+    py tools/check_note_shape.py       # the two programs still agree
+
+CI runs all three ([.github/workflows/tests.yml](.github/workflows/tests.yml)),
+which is a safety net rather than a substitute: finding out on GitHub what
+a five-second command would have said on this machine wastes the round
+trip, and the contract gate needs a token in CI that it does not need here.
 
 ### Every picture in this repo is ours, and the icon is drawn from code
 
 The launcher icon used to be **Android Studio's template** — the green
 robot in a circle — and this section used to say so, because claiming
 authorship of a template is worse than having no icon at all. On
-**2026-09-15** it was replaced.
+**2026-09-14** it was replaced.
 
 `py tools/make_launcher_icon.py` draws it, by importing the DESKTOP app's
 `tools/make_icon.py` and asking for the same drawing at Android's sizes.
