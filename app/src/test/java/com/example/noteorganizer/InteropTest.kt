@@ -11,9 +11,16 @@ import org.junit.Test
  * all: **a code made by one program has to be readable by the other.**
  *
  * Both halves are real, not simulated. `desktop_code.txt` was produced by
- * the Windows app's own `encode_share_code`, from one of a real
- * notebook's notes. The code this test writes back out is then decoded by
- * that same Python. Neither side is asked to trust the other's word.
+ * the Windows app's own `encode_share_code`. The code this test writes
+ * back out is then decoded by that same Python. Neither side is asked to
+ * trust the other's word.
+ *
+ * The note inside the fixture is invented, on purpose. What gives this
+ * test its value is that the DESKTOP encoded it — not that somebody's
+ * real writing is sitting in it. It used to hold a real note, and a share
+ * code is not encryption: anyone who can read this repository can read
+ * the note. So the note is now written for the test, carrying exactly the
+ * properties the test cares about.
  *
  * If this file is missing, the test says so rather than passing quietly —
  * a cross-program check that silently skips is worse than none.
@@ -36,12 +43,14 @@ class InteropTest {
             decoded is Sharing.Decoded.Notes)
         val note = (decoded as Sharing.Decoded.Notes).notes.single()
 
-        // The note this was made from: title "mate", 3 formatting spans,
-        // 8 checklist rows, a comment.
-        assertEquals("mate", note.getString("title"))
+        // What the fixture's note carries: 3 formatting spans, 8 checklist
+        // rows, a comment. Regenerate it with the script in the desktop's
+        // own Python if it ever has to change.
+        assertEquals("Calcule pentru test", note.getString("title"))
         assertEquals(3, note.getJSONArray("formatting").length())
         assertEquals(8, note.getJSONArray("checklist").length())
-        assertEquals("bfdbdf", note.getString("comments"))
+        assertEquals("un comentariu, ca sa aiba si asta ce duce",
+            note.getString("comments"))
         // And the body's maths characters came through unharmed.
         assertTrue(note.getString("body").contains("√"))   // the root sign
     }

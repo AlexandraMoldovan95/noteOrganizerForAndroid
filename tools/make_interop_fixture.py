@@ -1,0 +1,104 @@
+"""Rebuild the interop fixture, using the DESKTOP's own encoder.
+
+`app/src/test/resources/desktop_code.txt` is the one thing in this
+repository that must not be made here: it is a share code produced by the
+Windows app's Python, and `InteropTest` proves this app can read it. A
+fixture this project generated itself would only prove it agrees with
+itself.
+
+The note inside it is invented, on purpose. The fixture's worth comes
+from WHO encoded it, not from whose writing is inside -- and a share code
+is not encryption, so anyone who can read this repository can read the
+note in it. It used to hold a real note from a real notebook.
+
+    py tools/make_interop_fixture.py
+    NOTEORGANIZER_HOME=... py tools/make_interop_fixture.py
+
+Reads the desktop's Python and writes only this repository's fixture. If
+the note below changes, the assertions in `InteropTest` change with it --
+the script prints what they should say.
+"""
+import io
+import os
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ANDROID = os.path.dirname(HERE)
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
+                       "desktop_code.txt")
+
+# Written for the test. The root and multiplication signs and the
+# Romanian diacritics are the point of the body: they are the characters
+# that break first when an encoding is wrong anywhere along the trip.
+NOTE = {
+    "title": "Calcule pentru test",
+    "body": "2 \u00d7 3 = 6\n\u221a16 = 4\n\u03c0 \u2248 3,14\n"
+            "Diacritice: \u0219tefan, ma\u0219in\u0103, \u021bara",
+    "category": "General",
+    "comments": "un comentariu, ca sa aiba si asta ce duce",
+    "checklist": [
+        {"text": "primul rand", "done": True},
+        {"text": "al doilea rand", "done": False},
+        {"text": "al treilea rand", "done": True},
+        {"text": "al patrulea rand", "done": False},
+        {"text": "al cincilea rand", "done": False},
+        {"text": "al saselea rand", "done": True},
+        {"text": "al saptelea rand", "done": False},
+        {"text": "al optulea rand", "done": False},
+    ],
+    "formatting": [
+        {"start": 0, "end": 9, "style": "bold"},
+        {"start": 10, "end": 16, "style": "italic"},
+        {"start": 17, "end": 26, "style": "underline"},
+    ],
+    "color": "",
+    "date": "",
+    "recurrence": None,
+    "paragraphs": {},
+}
+
+
+def main():
+    if not os.path.isdir(DESKTOP):
+        print("nu gasesc aplicatia desktop la %s" % DESKTOP)
+        print("(pune NOTEORGANIZER_HOME daca e in alta parte)")
+        return 2
+    sys.path.insert(0, DESKTOP)
+    try:
+        from noteorganizer.core.sharing import (encode_share_code,
+                                                decode_share_code)
+    except ImportError as problem:
+        print("nu pot importa codificatorul desktopului: %s" % problem)
+        return 2
+
+    code = encode_share_code([NOTE])
+
+    # Decoded by the same Python that made it, before anything is written:
+    # a fixture nobody has read back is a guess.
+    back = decode_share_code(code)
+    note = (back["notes"] if isinstance(back, dict) else back)[0]
+
+    print("cod produs de Python-ul desktopului: %d caractere" % len(code))
+    print()
+    print("Ce trebuie sa spuna InteropTest despre el:")
+    print('    assertEquals("%s", note.getString("title"))' % note["title"])
+    print('    assertEquals(%d, note.getJSONArray("formatting").length())'
+          % len(note.get("formatting") or []))
+    print('    assertEquals(%d, note.getJSONArray("checklist").length())'
+          % len(note.get("checklist") or []))
+    print('    assertEquals("%s", note.getString("comments"))'
+          % note.get("comments", ""))
+    print('    assertTrue(note.getString("body").contains("\u221a"))  -> %s'
+          % ("\u221a" in note.get("body", "")))
+
+    io.open(FIXTURE, "w", encoding="utf-8", newline="\n").write(code)
+    print()
+    print("scris: %s" % os.path.relpath(FIXTURE, ANDROID))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
