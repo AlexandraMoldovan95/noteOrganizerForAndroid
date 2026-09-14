@@ -93,7 +93,7 @@ contract":
     first attempt drew the mark at the full safe-zone size and the phone
     cropped its frame away at the corners, because a circle mask keeps
     only the circle inscribed in that square.
-17. 222 JVM unit tests, mutation-tested — the rules ported from Python are
+17. 221 JVM unit tests, mutation-tested — the rules ported from Python are
    pinned, and each mutant was watched failing before being reverted. The
    identity work's own round: eleven mutants, four surviving the first
    pass. Three were weak checks, one was the code (see the candidate

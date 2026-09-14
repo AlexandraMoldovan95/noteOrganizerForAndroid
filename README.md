@@ -86,7 +86,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 222 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 221 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in
@@ -162,7 +162,9 @@ Both gates run on every push, together with the unit tests — see
 [.github/workflows/tests.yml](.github/workflows/tests.yml). The contract
 gate fetches the desktop app in CI and is run with `--require-desktop`,
 because a check that quietly could not run reads exactly like a check
-that passed.
+that passed. Reading a private repository from another one needs a token:
+[qa/README.md](qa/README.md#what-runs-on-every-push) says which, and
+where it goes.
 
 ## The test plan
 
