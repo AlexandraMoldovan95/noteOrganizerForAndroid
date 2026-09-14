@@ -5,7 +5,7 @@
 An exploration, not a product yet: a Kotlin + Jetpack Compose project used
 to find out what an Android companion to **Note Organizer** would look
 like. Nothing here is decided. The first question being answered is
-whether the desktop app's data format survives the trip to a phone, and
+whether the desktop app's data format survives the trip to Android, and
 what it would cost to work in Compose.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
@@ -153,7 +153,7 @@ related. It reads that file and never writes to it, like everything else
 here that touches the desktop.
 
 What it produces: `mipmap-*/ic_launcher*.webp` at five densities for
-older phones, plus the two adaptive layers and the `mipmap-anydpi-v26`
+older devices, plus the two adaptive layers and the `mipmap-anydpi-v26`
 XML for Android 8 and later. The foreground is drawn at 66% and centred
 because the launcher crops to the middle 72 of 108 units — our mark is a
 square with a border, and a circle mask eats the corners of anything
@@ -246,7 +246,7 @@ wrong screen. The same hint passed through the field's own
 visible to a test. Prefer `decorationBox`, and when anchoring on
 something else, anchor on a real neighbour — an icon, a label.
 
-### org.json exists on the phone and is a stub on the computer
+### org.json exists on Android and is a stub on the computer
 
 The Android jar the JVM unit tests compile against contains signatures
 only: every call throws `Method ... not mocked`. Ten tests failed for

@@ -1,4 +1,4 @@
-# Note Organizer, on a phone
+# Note Organizer on Android
 
 An Android companion to [Note Organizer](https://github.com/AlexandraMoldovan95/noteOrganizer),
 the offline Windows notes app. It reads and writes the **same notes file**
@@ -7,12 +7,12 @@ server in between.
 
 This is an exploration rather than a product. It exists to answer two
 questions honestly: does the desktop app's data format survive the trip
-to a phone, and what does a phone-sized version of it actually cost?
+to Android, and what does a touch-sized version of it actually cost?
 
 ---
 
 <p align="center">
-  <img src="docs/screenshots/01-lista.png" alt="The note list on a phone" width="300">
+  <img src="docs/screenshots/01-lista.png" alt="The note list on Android" width="300">
 </p>
 
 <p align="center">
@@ -77,7 +77,7 @@ surprise rather than a feature.
 ## Building and running it
 
 Requirements: Android Studio (or a JDK plus the Android SDK) and an
-emulator or a phone with USB debugging on. Minimum Android 8.0 (API 26).
+emulator or a device with USB debugging on. Minimum Android 8.0 (API 26).
 
 `gradlew` needs a JDK and will not start without one — there is no
 system-wide Java on this machine, and the only JDK is the one bundled
@@ -112,7 +112,7 @@ icon is the first thing anybody sees of either. It reads that file and
 never writes to it, like everything else here that touches the desktop.
 
 What ships: `mipmap-*/ic_launcher*.webp` at five densities for older
-phones, plus the two adaptive layers and their `mipmap-anydpi-v26` XML
+devices, plus the two adaptive layers and their `mipmap-anydpi-v26` XML
 for Android 8 and later. **Android Studio's template icon — the green
 robot — is gone**, along with the two vector drawables it came with.
 

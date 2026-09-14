@@ -1,8 +1,8 @@
 # Changelog
 
-What changed in the phone app, newest first. The desktop app keeps its
-own changelog in its own repository; this one covers only what runs on a
-phone.
+What changed in the Android app, newest first. The desktop app keeps its
+own changelog in its own repository; this one covers only what runs on
+Android.
 
 ## How the numbers work
 

@@ -1,4 +1,4 @@
-# How the phone app is put together
+# How the Android app is put together
 
 The shape of the code, and the handful of decisions that explain why it
 is that shape rather than another. Read the first section if you only
@@ -21,7 +21,7 @@ One Activity, no fragments, no navigation library: the whole app is
 Compose, and which screen you are looking at is a variable in `App()`.
 Below that sit four files of plain Kotlin that know the rules — what a
 note is, how a table is written down, what a share code contains — and
-nothing about phones. That split is why 221 of the tests run on a laptop
+nothing about Android. That split is why 221 of the tests run on a laptop
 in seconds, with no emulator anywhere.
 
 There is no database, no network, no account and no background service.

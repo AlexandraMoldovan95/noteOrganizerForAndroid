@@ -4,7 +4,7 @@ Every image here is **this app running on an emulator** — nothing is a
 mockup, a render, or a picture from anywhere else. The launcher icon in
 them is not a picture at all: it is drawn from code by
 [`tools/make_launcher_icon.py`](../../tools/make_launcher_icon.py), which
-asks the desktop app's own drawing for the phone's sizes.
+asks the desktop app's own drawing for Android's sizes.
 
 ## They are taken by a script, not by hand
 
