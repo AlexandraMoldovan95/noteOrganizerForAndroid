@@ -159,10 +159,13 @@ explanations, explicit approvals, and questions rather than assumptions.
 Explain *why*, not just *what*. If two readings of a request are
 possible, ask.
 
-### Never write hiring or portfolio framing anywhere
+### The repository talks about the work, and about nothing else
 
-Not in code, commits, PRs, issues or docs. This is a standing rule
-carried over from the desktop project.
+Code, commits, PRs, issues and documentation describe what the software
+does, how it behaves and why it was built that way. They never describe
+the author's circumstances, plans or reasons for building it. Anything
+written for a reader is framed as readability: what the next person needs
+in order to understand this code. Carried over from the desktop project.
 
 ### No heredocs for code containing escapes
 
