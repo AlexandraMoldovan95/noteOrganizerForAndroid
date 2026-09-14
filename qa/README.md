@@ -82,10 +82,10 @@ turned it red. Run it before calling anything about the note format done.
 
 ## What runs on every push
 
-[.github/workflows/tests.yml](../.github/workflows/tests.yml) — three
-jobs, deliberately separate because they answer three different
-questions: do the rules still hold, is the rules layer still free of
-Android, and do the two programs still agree.
+Two workflows, three jobs, answering three different questions: do the
+rules still hold ([tests.yml](../.github/workflows/tests.yml)), is the
+rules layer still free of Android, and do the two programs still agree
+([gates.yml](../.github/workflows/gates.yml)).
 
 The unit-test job does not trust Gradle's exit code alone: it runs
 `tools/check_test_results.py` afterwards — with `if: always()`, so it
@@ -93,14 +93,35 @@ speaks even when the step before it failed — and the job goes red on zero
 tests, on a total below the floor, or on any failure. The results are
 kept as an artifact so a failure can be read rather than guessed at.
 
+### Kept cheap on purpose
+
+This is a private repository, so every minute is billed against the
+account's free allowance. Four measures, in order of how much they save:
+
+1. **Once per change, not twice.** Pushes are watched only on `main`;
+   work on a branch is covered by its pull request. A branch with an open
+   PR would otherwise run everything twice, on the push *and* on the PR.
+2. **Only when it could tell us something.** The Gradle job runs for
+   changes under `app/`, the build files or its own workflow — a
+   screenshot cannot break a test. The gates skip documentation.
+3. **A new push cancels the run it has already made pointless**
+   (`concurrency` with `cancel-in-progress`).
+4. **A timeout on every job.** The default is six hours; one hung job
+   would eat a fifth of the month's allowance on its own.
+
+Everything runs on Linux runners, which bill at 1× — Windows costs double
+a minute and macOS ten times. And `workflow_dispatch` is on both, so
+either can still be run by hand from the Actions tab.
+
 **The one thing CI needs set up by hand.** Both repositories are private,
 so the contract job cannot read the desktop app with its own credentials.
 It needs a secret named `DESKTOP_REPO_TOKEN`: a fine-grained personal
 access token, **Contents: Read-only**, scoped to the desktop repository
 alone, added under *Settings → Secrets and variables → Actions*. The job
 checks for it first and says exactly this if it is missing, because
-"Repository not found" is what an absent token looks like and it sends
-the next person hunting for a repository that never moved.
+"Repository not found" is what an absent token looks like — and what an
+**expired** one will look like, months from now, to somebody who has
+forgotten a token was ever involved.
 
 ## The emulator tools
 

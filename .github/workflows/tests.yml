@@ -1,18 +1,55 @@
-# Everything that can be checked without a device, checked on every push.
+# The unit tests. The expensive job, so it is the one kept on a leash.
 #
-# Three jobs, deliberately separate, because they answer three different
-# questions: do the rules still hold, is the rules layer still free of
-# Android, and do the two programs still agree about what a note is.
+# On a private repository every minute is billed against the account's
+# free allowance, so this runs when it can actually tell us something and
+# stays quiet otherwise:
+#
+#   * only when something that affects the build has changed -- a
+#     screenshot or a paragraph of documentation cannot break a test;
+#   * once per change, not twice: pushes are watched only on `main`, and
+#     work on a branch is covered by its pull request instead (a branch
+#     with an open PR would otherwise run everything twice, on the push
+#     AND on the PR);
+#   * a new push to the same branch cancels the run still going for the
+#     old one, which is a wasted run by definition;
+#   * and with a timeout, because the default is SIX HOURS. One hung job
+#     would eat a fifth of the month's allowance on its own.
 name: tests
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "tools/check_test_results.py"
+      - ".github/workflows/tests.yml"
   pull_request:
+    paths:
+      - "app/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "tools/check_test_results.py"
+      - ".github/workflows/tests.yml"
+  # So it can still be run by hand from the Actions tab when wanted.
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit:
     name: Unit tests on the JVM
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest     # Windows costs 2x a minute, macOS 10x
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +62,8 @@ jobs:
       # project compiles against; this installs it and accepts licences.
       - uses: android-actions/setup-android@v3
 
+      # Caches Gradle itself and the dependencies, so the runs after the
+      # first are minutes shorter -- the cheapest saving available.
       - uses: gradle/actions/setup-gradle@v4
 
       - run: chmod +x gradlew
@@ -46,60 +85,4 @@ jobs:
           name: test-results
           path: app/build/test-results/testDebugUnitTest/
           if-no-files-found: warn
-
-  layering:
-    name: The rules layer stays free of Android
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - run: python tools/check_layering.py
-
-  contract:
-    name: The two programs still agree
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Both repositories are private, so reading the desktop app needs a
-      # token of its own: a fine-grained personal access token with
-      # Contents: Read-only, scoped to that one repository, stored here as
-      # the secret DESKTOP_REPO_TOKEN.
-      #
-      # It is checked before it is used, because "Repository not found" is
-      # what a missing token looks like, and that sends the next person
-      # hunting for a repository that is right where it always was.
-      - name: The token this job needs
-        env:
-          TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
-        run: |
-          if [ -z "$TOKEN" ]; then
-            echo "::error::DESKTOP_REPO_TOKEN lipseste din secretele acestui repo."
-            echo "Settings -> Secrets and variables -> Actions -> New repository secret."
-            echo "Valoarea: un fine-grained PAT cu Contents: Read-only pe repo-ul desktop."
-            exit 1
-          fi
-
-      # The desktop app is the specification. It is READ here and never
-      # written to, exactly as on a development machine.
-      - name: Fetch the desktop app, as the specification
-        uses: actions/checkout@v4
-        with:
-          repository: AlexandraMoldovan95/noteOrganizer
-          path: .desktop
-          token: ${{ secrets.DESKTOP_REPO_TOKEN }}
-          persist-credentials: false
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      # --require-desktop turns "I could not find the desktop app, so I
-      # checked nothing" from a polite skip into a failure. A check that
-      # quietly does not run reads exactly like a check that passed.
-      - name: Compare the note's shape against the Python
-        env:
-          NOTEORGANIZER_HOME: ${{ github.workspace }}/.desktop
-        run: python tools/check_note_shape.py --require-desktop
+          retention-days: 14

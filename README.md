@@ -158,8 +158,10 @@ the autocomplete and everything still compiles, still runs, and can no
 longer be tested without a device. So it is checked rather than
 remembered.
 
-Both gates run on every push, together with the unit tests — see
-[.github/workflows/tests.yml](.github/workflows/tests.yml). The contract
+Both gates run on every push, beside the unit tests —
+[gates.yml](.github/workflows/gates.yml) and
+[tests.yml](.github/workflows/tests.yml), kept apart so a change to a gate
+does not drag a five-minute build along with it. The contract
 gate fetches the desktop app in CI and is run with `--require-desktop`,
 because a check that quietly could not run reads exactly like a check
 that passed. Reading a private repository from another one needs a token:

@@ -132,7 +132,8 @@ past the others:
     py tools/check_layering.py         # Android has not leaked into the rules
     py tools/check_note_shape.py       # the two programs still agree
 
-CI runs all three ([.github/workflows/tests.yml](.github/workflows/tests.yml)),
+CI runs all three ([tests.yml](.github/workflows/tests.yml) and
+[gates.yml](.github/workflows/gates.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what
 a five-second command would have said on this machine wastes the round
 trip, and the contract gate needs a token in CI that it does not need here.

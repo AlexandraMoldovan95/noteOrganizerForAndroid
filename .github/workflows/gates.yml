@@ -1,0 +1,88 @@
+# The two gates that need neither a device nor a build: seconds each.
+#
+# They live apart from the unit tests so that a change to a gate, or to a
+# tool, does not drag a five-minute Gradle build along with it. Same
+# economy as its neighbour: once per change rather than twice, cancel a
+# run the next push has already made pointless, and never for a change
+# that is only words.
+name: gates
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+  workflow_dispatch:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layering:
+    name: The rules layer stays free of Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: python tools/check_layering.py
+
+  contract:
+    name: The two programs still agree
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Both repositories are private, so reading the desktop app needs a
+      # token of its own: a fine-grained personal access token with
+      # Contents: Read-only, scoped to that one repository, stored here as
+      # the secret DESKTOP_REPO_TOKEN.
+      #
+      # It is checked before it is used, because "Repository not found" is
+      # what a missing token looks like, and that sends the next person
+      # hunting for a repository that is right where it always was. A
+      # token also EXPIRES: the same message is what a lapsed one looks
+      # like months from now.
+      - name: The token this job needs
+        env:
+          TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::DESKTOP_REPO_TOKEN lipseste (sau a expirat)."
+            echo "Settings -> Secrets and variables -> Actions -> New repository secret."
+            echo "Valoarea: un fine-grained PAT cu Contents: Read-only pe repo-ul desktop."
+            exit 1
+          fi
+
+      # The desktop app is the specification. It is READ here and never
+      # written to, exactly as on a development machine.
+      - name: Fetch the desktop app, as the specification
+        uses: actions/checkout@v4
+        with:
+          repository: AlexandraMoldovan95/noteOrganizer
+          path: .desktop
+          token: ${{ secrets.DESKTOP_REPO_TOKEN }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # --require-desktop turns "I could not find the desktop app, so I
+      # checked nothing" from a polite skip into a failure. A check that
+      # quietly does not run reads exactly like a check that passed.
+      - name: Compare the note's shape against the Python
+        env:
+          NOTEORGANIZER_HOME: ${{ github.workspace }}/.desktop
+        run: python tools/check_note_shape.py --require-desktop
