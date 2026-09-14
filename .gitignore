@@ -17,3 +17,7 @@ local.properties
 # The IDE's own state -- which emulator was picked, which files were open.
 # It changes every time the editor runs and says nothing about the project.
 .idea/
+
+# A byproduct of tools/make_launcher_icon.py --preview, regenerated on
+# demand. The icon itself is committed; a picture OF it is not.
+tools/launcher_preview.png

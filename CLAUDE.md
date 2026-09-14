@@ -122,15 +122,35 @@ happens on the save *after* the change. The division that came out of it:
   button *looks* like a trap. Those go to her, and into the desktop
   project's test plan.
 
-### The pictures in this repo are ours, except the icons
+### Every picture in this repo is ours, and the icon is drawn from code
 
-`app/src/main/res/mipmap-*/ic_launcher*.webp` are **Android Studio's
-default template icons** — the green robot in a circle. Nothing here drew
-them. Say so plainly wherever the subject comes up, and replace them
-before this project is shown anywhere: claiming authorship of a template
-is worse than having no icon, and the desktop app's icon is genuinely
-*drawn* at build time by `tools/make_icon.py` rather than stored, which
-is a far better thing to be able to say.
+The launcher icon used to be **Android Studio's template** — the green
+robot in a circle — and this section used to say so, because claiming
+authorship of a template is worse than having no icon at all. On
+**2026-09-15** it was replaced.
+
+`py tools/make_launcher_icon.py` draws it, by importing the DESKTOP app's
+`tools/make_icon.py` and asking for the same drawing at Android's sizes.
+Not a copy of it, and not a second icon that merely rhymes: the same
+code, so the two programs are one product rather than two that look
+related. It reads that file and never writes to it, like everything else
+here that touches the desktop.
+
+What it produces: `mipmap-*/ic_launcher*.webp` at five densities for
+older phones, plus the two adaptive layers and the `mipmap-anydpi-v26`
+XML for Android 8 and later. The foreground is drawn at 66% and centred
+because the launcher crops to the middle 72 of 108 units — our mark is a
+square with a border, and a circle mask eats the corners of anything
+larger.
+
+Two things that cost a run each, both written into the script: the
+design draws no tile, so **its corner pixel is transparent** and reading
+the background colour from there produced pure black under a dark navy
+icon; and the flat `.webp` files are what old launchers use, so they are
+the icon as-is rather than the cropped adaptive foreground.
+
+Screenshots of the app, when this project has any, are captures of it
+running on the emulator. Say so; nothing here comes from anywhere else.
 
 ### Plain language
 

@@ -81,6 +81,30 @@ device. To try it against a real notebook, copy one in:
 That copy is yours to break — it is not the desktop's file, and nothing
 here ever reaches back to the machine that wrote it.
 
+## The icon is the desktop's icon
+
+    py tools/make_launcher_icon.py
+
+It imports the desktop app's `tools/make_icon.py` and asks for the same
+drawing at Android's sizes — not a copy, and not a second icon that
+merely rhymes with the first. The two programs are one product, and an
+icon is the first thing anybody sees of either. It reads that file and
+never writes to it, like everything else here that touches the desktop.
+
+What ships: `mipmap-*/ic_launcher*.webp` at five densities for older
+phones, plus the two adaptive layers and their `mipmap-anydpi-v26` XML
+for Android 8 and later. **Android Studio's template icon — the green
+robot — is gone**, along with the two vector drawables it came with.
+
+The one number that matters is how big the mark is drawn inside the
+adaptive canvas. The system keeps only the middle 72 of 108 units and
+then masks that into a circle, so a square mark has to fit the circle
+*inscribed* in the safe square: 72/108 ÷ √2, about 47%. Drawn at the
+full 72/108 it came back from the phone with its frame cut off at every
+corner — and the preview that had approved it was composing the layers
+**without** the system's crop, so it flattered the icon by exactly the
+amount that mattered. The preview crops now too.
+
 ## The gate that guards the contract
 
     py tools/check_note_shape.py
@@ -104,13 +128,13 @@ that has never been seen failing is decoration.
 
 ## The test plan
 
-`qa/NoteOrganizer_Android_TestPlan.xlsx` — 34 cases across eight areas,
+`qa/NoteOrganizer_Android_TestPlan.xlsx` — 35 cases across nine areas,
 the same shape as the desktop app's plan and kept here because the two
 projects are deliberately separate.
 
 Its "Who runs it" column is the point: **21** rows are already walked by
 unit tests, **12** are driven on the emulator by the tools in
-[tools/emulator/](tools/emulator/), and **11** need a person with a real
+[tools/emulator/](tools/emulator/), and **12** need a person with a real
 phone in their hand — whether a tap lands, whether the keyboard covers
 what you are typing, whether it reads well at arm's length. Those eleven
 are the reason the file exists; a script cannot answer one of them.
