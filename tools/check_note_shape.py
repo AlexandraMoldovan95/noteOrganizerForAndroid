@@ -200,6 +200,14 @@ if model_py is None or sharing_py is None:
     print("SKIP: nu gasesc aplicatia desktop la %s" % DESKTOP)
     print("      (pune NOTEORGANIZER_HOME daca e in alta parte)")
     print("      Verificarile dintre cele doua programe nu au rulat.")
+    if "--require-desktop" in sys.argv:
+        # On a person's machine a skip is a courtesy: the desktop app may
+        # genuinely not be checked out there. In CI it is the very failure
+        # this gate exists to prevent, because a check that quietly does
+        # not run reads exactly like a check that passed.
+        print()
+        print("--require-desktop: aici un SKIP e o cadere, nu o trecere.")
+        sys.exit(1)
     model_py = sharing_py = None
 
 # ---- 1 & 2: what a new note is made of -------------------------------

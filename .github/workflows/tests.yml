@@ -1,0 +1,86 @@
+# Everything that can be checked without a device, checked on every push.
+#
+# Three jobs, deliberately separate, because they answer three different
+# questions: do the rules still hold, is the rules layer still free of
+# Android, and do the two programs still agree about what a note is.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests on the JVM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # The SDK the runner ships with may not have the platform this
+      # project compiles against; this installs it and accepts licences.
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: chmod +x gradlew
+
+      - name: Run the suites
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      # The task prints nothing useful when it fails and nothing at all
+      # when the tests never ran. The XML is the only proof, so it is
+      # read even when the step above has already failed.
+      - name: Prove the tests ran
+        if: always()
+        run: python3 tools/check_test_results.py
+
+      - name: Keep the results, so a failure can be read
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/test-results/testDebugUnitTest/
+          if-no-files-found: warn
+
+  layering:
+    name: The rules layer stays free of Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: python tools/check_layering.py
+
+  contract:
+    name: The two programs still agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The desktop app is the specification. It is READ here and never
+      # written to, exactly as on a development machine. If this step ever
+      # fails because the repository has gone private, it needs a token
+      # with read access rather than a change to the gate.
+      - name: Fetch the desktop app, as the specification
+        uses: actions/checkout@v4
+        with:
+          repository: AlexandraMoldovan95/noteOrganizer
+          path: .desktop
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # --require-desktop turns "I could not find the desktop app, so I
+      # checked nothing" from a polite skip into a failure. A check that
+      # quietly does not run reads exactly like a check that passed.
+      - name: Compare the note's shape against the Python
+        env:
+          NOTEORGANIZER_HOME: ${{ github.workspace }}/.desktop
+        run: python tools/check_note_shape.py --require-desktop
