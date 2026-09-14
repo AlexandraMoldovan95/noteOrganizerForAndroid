@@ -11,6 +11,20 @@ to a phone, and what does a phone-sized version of it actually cost?
 
 ---
 
+<p align="center">
+  <img src="docs/screenshots/01-lista.png" alt="The note list on a phone" width="300">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/02-nota.png" alt="A note open, with its formatting drawn" width="190">
+  <img src="docs/screenshots/03-tabel.png" alt="A table drawn as a grid" width="190">
+  <img src="docs/screenshots/04-cautare.png" alt="Search narrowing four notes to one" width="190">
+</p>
+
+<p align="center"><sub>The app running on an emulator, on a notebook written
+for the camera rather than anybody&rsquo;s real one &mdash;
+<a href="docs/screenshots/README.md">how these are made</a>.</sub></p>
+
 ## What it does today
 
 Open a note and read it with its styling intact. Search the whole
