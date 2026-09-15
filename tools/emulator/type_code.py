@@ -41,7 +41,7 @@ for m in re.finditer(r'text="([^"]*)"', xml):
         break
 
 if got == code:
-    print("tastat intreg: %d caractere, identice" % len(code))
+    print("typed in full: %d characters, identical" % len(code))
 else:
     print("NU s-a tastat corect: asteptat %d, primit %s"
           % (len(code), len(got) if got else "nimic"))

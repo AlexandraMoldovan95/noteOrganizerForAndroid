@@ -63,15 +63,15 @@ NOTE = {
 
 def main():
     if not os.path.isdir(DESKTOP):
-        print("nu gasesc aplicatia desktop la %s" % DESKTOP)
-        print("(pune NOTEORGANIZER_HOME daca e in alta parte)")
+        print("cannot find the desktop app at %s" % DESKTOP)
+        print("(set NOTEORGANIZER_HOME if it lives somewhere else)")
         return 2
     sys.path.insert(0, DESKTOP)
     try:
         from noteorganizer.core.sharing import (encode_share_code,
                                                 decode_share_code)
     except ImportError as problem:
-        print("nu pot importa codificatorul desktopului: %s" % problem)
+        print("cannot import the desktop encoder: %s" % problem)
         return 2
 
     code = encode_share_code([NOTE])
@@ -81,9 +81,10 @@ def main():
     back = decode_share_code(code)
     note = (back["notes"] if isinstance(back, dict) else back)[0]
 
-    print("cod produs de Python-ul desktopului: %d caractere" % len(code))
+    print("code produced by the desktop's own Python: %d characters"
+          % len(code))
     print()
-    print("Ce trebuie sa spuna InteropTest despre el:")
+    print("What InteropTest must say about it:")
     print('    assertEquals("%s", note.getString("title"))' % note["title"])
     print('    assertEquals(%d, note.getJSONArray("formatting").length())'
           % len(note.get("formatting") or []))
@@ -96,7 +97,7 @@ def main():
 
     io.open(FIXTURE, "w", encoding="utf-8", newline="\n").write(code)
     print()
-    print("scris: %s" % os.path.relpath(FIXTURE, ANDROID))
+    print("written: %s" % os.path.relpath(FIXTURE, ANDROID))
     return 0
 
 

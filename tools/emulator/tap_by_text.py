@@ -36,7 +36,7 @@ for match in pattern.finditer(xml):
         hits.append((text, (left + right) // 2, (top + bottom) // 2))
 
 if not hits:
-    print("nu am gasit %r pe ecran" % NEEDLE)
+    print("did not find %r on screen" % NEEDLE)
     sys.exit(1)
 
 text, x, y = hits[0]

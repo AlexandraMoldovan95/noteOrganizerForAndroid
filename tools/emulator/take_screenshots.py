@@ -170,9 +170,9 @@ def act(step):
             # The search box has no text of its own to aim at: its
             # placeholder is drawn behind the field, not in it.
             node = find(lambda n: n.get("class", "").endswith("EditText"))
-            what = "campul de cautare"
+            what = "the search field"
         if node is None:
-            print("   nu am gasit pe ecran: %s" % what)
+            print("   not found on screen: %s" % what)
             return False
         spot = centre(node)
         adb("shell", "input", "tap", str(spot[0]), str(spot[1]))
@@ -206,10 +206,10 @@ def on_screen(words):
 
 def main():
     if not os.path.exists(ADB):
-        print("adb nu e la %s" % ADB)
+        print("adb is not at %s" % ADB)
         return 2
     if "device" not in adb("devices").stdout:
-        print("Niciun emulator pornit. Porneste-l si incearca din nou.")
+        print("No emulator running. Start one and try again.")
         return 2
     if not os.path.isdir(OUT):
         os.makedirs(OUT)
@@ -226,7 +226,7 @@ def main():
             hide_keyboard()
             missing = on_screen(expect)
             if missing:
-                print("   ecranul nu spune: %s -- nu fotografiez"
+                print("   the screen does not say: %s -- not photographing"
                       % ", ".join(repr(m) for m in missing))
                 failed.append(name)
                 continue
@@ -239,10 +239,10 @@ def main():
 
     print()
     if failed:
-        print("NEFACUTE: %s" % ", ".join(failed))
+        print("NOT TAKEN: %s" % ", ".join(failed))
         return 1
-    print("Gata. Fiecare poza e aplicatia asta, pe un caiet scris pentru")
-    print("fotografie -- niciodata pe notitele cuiva.")
+    print("Done. Every picture is this app, on a notebook written for")
+    print("the camera -- never on anybody's real one.")
     return 0
 
 
