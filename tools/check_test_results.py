@@ -40,8 +40,9 @@ def main():
     where = os.path.join(sys.argv[1], "*.xml") if len(sys.argv) > 1 else RESULTS
     files = sorted(glob.glob(where))
     if not files:
-        print("NICIUN REZULTAT in %s" % RESULTS)
-        print("Testele nu au rulat. Un task care nu ruleaza nu e un task verde.")
+        print("NO RESULTS in %s" % where)
+        print("The tests did not run. A task that does not run is not a")
+        print("task that passed.")
         return 1
 
     total = failures = errors = skipped = 0
@@ -49,29 +50,29 @@ def main():
         try:
             suite = ET.parse(path).getroot()
         except ET.ParseError as problem:
-            print("XML stricat: %s (%s)" % (os.path.basename(path), problem))
+            print("Broken XML: %s (%s)" % (os.path.basename(path), problem))
             return 1
         total += int(suite.get("tests", 0))
         failures += int(suite.get("failures", 0))
         errors += int(suite.get("errors", 0))
         skipped += int(suite.get("skipped", 0))
-        print("  %-40s %s teste" % (os.path.basename(path)[:40],
+        print("  %-40s %s tests" % (os.path.basename(path)[:40],
                                     suite.get("tests", "?")))
 
     print()
-    print("%d teste, %d picate, %d erori, %d sarite, in %d fisiere"
+    print("%d tests, %d failed, %d errors, %d skipped, in %d files"
           % (total, failures, errors, skipped, len(files)))
 
     if failures or errors:
-        print("PICAT: vezi XML-urile de mai sus.")
+        print("FAILED: read the XML above.")
         return 1
     if total < FLOOR:
-        print("PREA PUTINE: %d sub pragul de %d." % (total, FLOOR))
-        print("Ori a disparut o suita fara sa spuna, ori pragul trebuie")
-        print("coborat in acelasi commit care sterge teste.")
+        print("TOO FEW: %d, under the floor of %d." % (total, FLOOR))
+        print("Either a suite stopped being discovered without saying so,")
+        print("or the floor belongs in the same commit that removes tests.")
         return 1
 
-    print("Testele au rulat, si au trecut.")
+    print("The tests ran, and they passed.")
     return 0
 
 

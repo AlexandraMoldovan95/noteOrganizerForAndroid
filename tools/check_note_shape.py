@@ -194,19 +194,19 @@ model_py = read(MODEL_PY)
 sharing_py = read(SHARING_PY)
 
 if notebook is None or sharing_kt is None:
-    print("nu gasesc sursele Kotlin")
+    print("cannot find the Kotlin sources")
     sys.exit(2)
 if model_py is None or sharing_py is None:
-    print("SKIP: nu gasesc aplicatia desktop la %s" % DESKTOP)
-    print("      (pune NOTEORGANIZER_HOME daca e in alta parte)")
-    print("      Verificarile dintre cele doua programe nu au rulat.")
+    print("SKIP: cannot find the desktop app at %s" % DESKTOP)
+    print("      (set NOTEORGANIZER_HOME if it lives somewhere else)")
+    print("      The checks between the two programs did not run.")
     if "--require-desktop" in sys.argv:
         # On a person's machine a skip is a courtesy: the desktop app may
         # genuinely not be checked out there. In CI it is the very failure
         # this gate exists to prevent, because a check that quietly does
         # not run reads exactly like a check that passed.
         print()
-        print("--require-desktop: aici un SKIP e o cadere, nu o trecere.")
+        print("--require-desktop: a SKIP here is a failure, not a pass.")
         sys.exit(1)
     model_py = sharing_py = None
 
@@ -215,17 +215,17 @@ if model_py is None or sharing_py is None:
 create = kotlin_function(notebook, "createNote")
 fill = kotlin_function(notebook, "fillNewNoteDefaults")
 if create is None or fill is None:
-    fail("gasesc cele doua locuri care construiesc o notita noua",
-         "createNote sau fillNewNoteDefaults si-au schimbat numele")
+    fail("I can find the two places that build a new note",
+         "createNote or fillNewNoteDefaults has been renamed")
 else:
     created = fields_written(create) - set(NOT_A_DEFAULT)
     filled = fields_written(fill) - set(NOT_A_DEFAULT)
     if created == filled:
-        ok("cele doua locuri care fac o notita noua numesc aceleasi campuri "
+        ok("the two places that make a new note name the same fields "
            "(%d)" % len(created))
     else:
-        fail("cele doua locuri care fac o notita noua numesc aceleasi campuri",
-             "doar in createNote: %s\ndoar in fillNewNoteDefaults: %s"
+        fail("the two places that make a new note name the same fields",
+             "only in createNote: %s\nonly in fillNewNoteDefaults: %s"
              % (sorted(created - filled) or "-", sorted(filled - created) or "-"))
 
     if model_py is not None:
@@ -235,11 +235,12 @@ else:
         missing = desktop_fields - phone_fields - set(NOT_ON_THE_PHONE)
         extra = phone_fields - desktop_fields
         if not missing and not extra:
-            ok("forma unei notite e aceeasi ca pe desktop (%d campuri)"
+            ok("a note has the same shape as on the desktop (%d fields)"
                % len(desktop_fields))
         else:
-            fail("forma unei notite e aceeasi ca pe desktop",
-                 "desktopul are si noi nu: %s\nnoi avem si desktopul nu: %s"
+            fail("a note has the same shape as on the desktop",
+                 "the desktop has and we do not: %s\n"
+                 "we have and the desktop does not: %s"
                  % (sorted(missing) or "-", sorted(extra) or "-"))
 
 # ---- 3: what a share code carries ------------------------------------
@@ -248,13 +249,14 @@ if sharing_py is not None:
     theirs = python_list(sharing_py, "SHAREABLE_FIELDS")
     ours = kotlin_list(sharing_kt, "SHAREABLE_FIELDS")
     if ours is None or theirs is None:
-        fail("gasesc lista de campuri pe care le poarta un cod, in ambele limbi")
+        fail("I can find the list of fields a code carries, in both languages")
     elif set(ours) == set(theirs):
-        ok("un cod poarta exact campurile pe care le poarta si pe desktop (%d)"
+        ok("a code carries exactly the fields it carries on the desktop (%d)"
            % len(theirs))
     else:
-        fail("un cod poarta exact campurile pe care le poarta si pe desktop",
-             "desktopul trimite si noi nu: %s\nnoi trimitem si desktopul nu: %s"
+        fail("a code carries exactly the fields it carries on the desktop",
+             "the desktop sends and we do not: %s\n"
+             "we send and the desktop does not: %s"
              % (sorted(set(theirs) - set(ours)) or "-",
                 sorted(set(ours) - set(theirs)) or "-"))
 
@@ -271,21 +273,22 @@ if model_py is not None:
                 ours = names
                 break
     if ours is None or theirs is None:
-        fail("gasesc ce inlocuieste o notita venita prin cod, in ambele limbi")
+        fail("I can find what an arriving note replaces, in both languages")
     elif set(ours) == set(theirs):
-        ok("o notita venita prin cod inlocuieste exact ce inlocuieste si pe "
-           "desktop (%d campuri)" % len(theirs))
+        ok("an arriving note replaces exactly what it replaces on the "
+           "desktop (%d fields)" % len(theirs))
     else:
-        fail("o notita venita prin cod inlocuieste exact ce inlocuieste si pe "
+        fail("an arriving note replaces exactly what it replaces on the "
              "desktop",
-             "desktopul inlocuieste si noi nu: %s\nnoi inlocuim si desktopul nu: %s"
+             "the desktop replaces and we do not: %s\n"
+             "we replace and the desktop does not: %s"
              % (sorted(set(theirs) - set(ours)) or "-",
                 sorted(set(ours) - set(theirs)) or "-"))
 
 print()
 if failures:
-    print("FORMA NOTITEI: %d neintelegere(i)." % len(failures))
-    print("Fiecare inseamna ca cele doua programe nu mai spun acelasi lucru")
-    print("despre acelasi fisier. Repara, sau adauga o exceptie CU motivul.")
+    print("THE NOTE'S SHAPE: %d disagreement(s)." % len(failures))
+    print("Each one means the two programs no longer say the same thing")
+    print("about the same file. Fix it, or add an exception WITH its reason.")
     sys.exit(1)
-print("FORMA NOTITEI: cele doua programe sunt de acord.")
+print("THE NOTE'S SHAPE: the two programs agree.")
