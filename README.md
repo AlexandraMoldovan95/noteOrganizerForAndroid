@@ -12,13 +12,13 @@ to Android, and what does a touch-sized version of it actually cost?
 ---
 
 <p align="center">
-  <img src="docs/screenshots/01-lista.png" alt="The note list on Android" width="300">
+  <img src="docs/screenshots/01-note-list.png" alt="The note list on Android" width="300">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/02-nota.png" alt="A note open, with its formatting drawn" width="190">
-  <img src="docs/screenshots/03-tabel.png" alt="A table drawn as a grid" width="190">
-  <img src="docs/screenshots/04-cautare.png" alt="Search narrowing four notes to one" width="190">
+  <img src="docs/screenshots/02-a-note.png" alt="A note open, with its formatting drawn" width="190">
+  <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="190">
+  <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="190">
 </p>
 
 <p align="center"><sub>The app running on an emulator, on a notebook written
