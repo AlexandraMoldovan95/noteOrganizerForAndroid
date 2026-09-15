@@ -43,11 +43,35 @@ trail is not lost, not to claim releases that were never cut.
   that missed the search box left the plain list on screen, and the
   picture was saved and filed as "search" anyway.
 
+- Two more gates, and CI to run all three on every push. The rules layer
+  is checked for Android imports (`tools/check_layering.py`), and the
+  unit-test job no longer trusts Gradle's exit code alone: it reads the
+  result XML afterwards (`tools/check_test_results.py`), because a task
+  that never ran prints exactly what a task with no failures prints.
+- The interop fixture stops carrying a real note. It held a share code
+  made from somebody's actual notebook; a share code is not encryption,
+  and this repository is on GitHub now. `tools/make_interop_fixture.py`
+  rebuilds it from an invented note, using the desktop's own encoder.
+
+### Removed
+
+- Android Studio's example test, which checked that 2 + 2 is 4 and was
+  counted in "222 unit tests". 221 now, all of them this project's.
+
 ### Changed
 
 - The launcher icon's provenance, the emulator tools and the screenshots
   are described where a reader meets them, rather than being folder
   contents nobody can account for.
+- It runs on **Android**, not on phones. The title said "Note Organizer,
+  on a phone", which is a claim about the platform that the platform does
+  not make — Android is on tablets and foldables too, and the minimum
+  here is an API level, not a form factor. Where the word stood in for
+  the platform it now says Android; where it means the thing somebody is
+  holding, it stays.
+- CI runs once per change rather than twice, skips what cannot break a
+  test, cancels runs a newer push has made pointless, and carries a
+  timeout on every job — the default being six hours.
 
 ---
 
