@@ -59,8 +59,18 @@ jobs:
           java-version: "21"
 
       # The SDK the runner ships with may not have the platform this
-      # project compiles against; this installs it and accepts licences.
+      # project compiles against; this accepts the licences so AGP can
+      # fetch what it needs.
+      #
+      # packages: '' is not an optimisation. Left at its default the
+      # action asks sdkmanager for `tools` -- the obsolete SDK Tools
+      # package, which Google has removed from the repository -- and the
+      # whole step dies on "Failed to find package 'tools'". Every step
+      # after it is then skipped, including the tests. We do not use that
+      # package; the platform itself is downloaded by the build.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       # Caches Gradle itself and the dependencies, so the runs after the
       # first are minutes shorter -- the cheapest saving available.
