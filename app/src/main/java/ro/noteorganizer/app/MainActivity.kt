@@ -621,8 +621,19 @@ fun NotebookScreen(
                     // Anything narrowing the list changes this line, not
                     // just the search box: a category filter left it saying
                     // "77 notite" over a list of one.
+                    // "citite din fisierul real" was left over from the
+                    // days when reading the file at all was the thing
+                    // being proved. It tells somebody opening the app
+                    // nothing, and it is the first line under its name.
+                    //
+                    // Agreement, the way the trash line below does it:
+                    // a count of one is a word, not a digit.
                     query.isEmpty() && category == ALL_CATEGORIES ->
-                        "${loaded.notes.size} notite citite din fisierul real"
+                        when (loaded.notes.size) {
+                            0 -> "nicio notita"
+                            1 -> "o notita"
+                            else -> "${loaded.notes.size} notite"
+                        }
                     else -> "${filtered.size} din ${loaded.notes.size} notite"
                 },
                 color = if (loaded.problem != null) WARN else SUBTEXT,
