@@ -17,8 +17,12 @@ android {
         // Android 7 is from 2016 and the version below this one.
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // See CHANGELOG.md: versionCode is the number of released version
+        // sections there, so the two cannot drift apart; versionName is
+        // the newest of them. Both were the template's 1 / "1.0" until
+        // 2026-09-15, and "1.0" was not true of an app still exploring.
+        versionCode = 5
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
