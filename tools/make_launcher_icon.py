@@ -71,11 +71,11 @@ def load_desktop_drawing():
     """The desktop's icon script, imported as a module."""
     script = os.path.join(DESKTOP, "tools", "make_icon.py")
     if not os.path.exists(script):
-        print("Nu gasesc aplicatia desktop la: %s" % DESKTOP)
-        print("Pune NOTEORGANIZER_HOME pe folderul ei si incearca din nou.")
-        print("(Iconita se deseneaza din acelasi cod ca a desktopului --")
-        print(" fara el nu desenez alta, ca sa nu ajunga doua icoane diferite")
-        print(" pentru acelasi produs.)")
+        print("Cannot find the desktop app at: %s" % DESKTOP)
+        print("Point NOTEORGANIZER_HOME at its folder and try again.")
+        print("(The icon is drawn by the same code as the desktop's --")
+        print(" without it no second icon is drawn here, so that one")
+        print(" product cannot end up wearing two different marks.)")
         return None
     import importlib.util
     spec = importlib.util.spec_from_file_location("desktop_make_icon", script)
@@ -167,7 +167,7 @@ def write_all(drawing):
         written.append(path)
 
     hexed = "#%02x%02x%02x" % ground[:3]
-    print("desenat din codul desktopului, fundal %s" % hexed)
+    print("drawn by the desktop's code, background %s" % hexed)
     for path in written:
         print("   %s" % os.path.relpath(path, ANDROID))
     return written

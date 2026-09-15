@@ -71,23 +71,24 @@ def main():
     if missing:
         # A renamed or moved file is not a pass. The gate would go quiet
         # about exactly the code it exists to watch.
-        print("NU GASESC: %s" % ", ".join(missing))
-        print("Daca fisierele s-au mutat, muta si lista RULES din acest gate.")
+        print("NOT FOUND: %s" % ", ".join(missing))
+        print("If those files moved, move the RULES list in this gate too.")
         return 1
 
     if leaked:
-        print("Stratul de reguli a capatat Android:")
+        print("Android has reached the rules layer:")
         for name, line, text in leaked:
             print("    %s:%d  %s" % (name, line, text))
         print()
-        print("Cele patru fisiere sunt testate pe JVM, fara emulator. Un")
-        print("singur import de-astea muta testele lor pe un dispozitiv.")
-        print("Daca chiar e nevoie de ceva din Android, muta bucata in")
-        print("RichText.kt / TableView.kt / MainActivity.kt, care au voie.")
+        print("Those four files are tested on the JVM, with no emulator.")
+        print("One import like this moves their tests onto a device.")
+        print("If something from Android is genuinely needed, move that")
+        print("piece into RichText.kt / TableView.kt / MainActivity.kt,")
+        print("which are allowed to know about it.")
         return 1
 
-    print("Stratul de reguli e curat: %s" % ", ".join(RULES))
-    print("(desenul are voie sa stie de Android: %s)" % ", ".join(DRAWS))
+    print("The rules layer is clean: %s" % ", ".join(RULES))
+    print("(the drawing may know about Android: %s)" % ", ".join(DRAWS))
     return 0
 
 
