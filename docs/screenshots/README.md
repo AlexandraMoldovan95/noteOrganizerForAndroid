@@ -41,10 +41,10 @@ this app.
 
 | File | What it shows |
 |---|---|
-| `01-lista.png` | The note list: colour stripe, headline, preview, and the category, date, table and checklist badges. The third card has no title, so it borrows its first line — set lighter, because a named note must still read as named |
-| `02-nota.png` | A note open with its formatting drawn and its checklist below, ticked rows struck through |
-| `03-tabel.png` | A table read as a grid rather than as the pipe rows it is stored as, with the right-aligned column the separator row asked for |
-| `04-cautare.png` | Search: one of four notes left, matched on a word in its body rather than its title |
+| `01-note-list.png` | The note list: colour stripe, headline, preview, and the category, date, table and checklist badges. The third card has no title, so it borrows its first line — set lighter, because a named note must still read as named |
+| `02-a-note.png` | A note open with its formatting drawn and its checklist below, ticked rows struck through |
+| `03-a-table.png` | A table read as a grid rather than as the pipe rows it is stored as, with the right-aligned column the separator row asked for |
+| `04-search.png` | Search: one of four notes left, matched on a word in its body rather than its title |
 
 **Current set:** captured 2026-09-14 on the emulator, in the app's only
 theme so far. Update this line whenever the set is recaptured.

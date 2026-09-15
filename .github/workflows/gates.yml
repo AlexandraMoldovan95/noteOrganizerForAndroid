@@ -26,8 +26,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  layering:
-    name: The rules layer stays free of Android
+  # Two boundaries that are easy to cross without noticing, in one cheap
+  # job: Android must stay out of the rules layer, and Romanian must stay
+  # out of anything written for a developer. Both were crossed once.
+  boundaries:
+    name: The boundaries hold
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -35,7 +38,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: python tools/check_layering.py
+      - name: Android stays out of the rules layer
+        run: python tools/check_layering.py
+      - name: English in everything written for a developer
+        run: python tools/check_english.py
 
   contract:
     name: The two programs still agree

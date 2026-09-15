@@ -68,16 +68,16 @@ NOTEBOOK = [
 # name, caption, the taps that get there, and what the screen must say
 # once it has arrived.
 SHOTS = [
-    ("01-lista", "The note list: cards with their headline, preview and badges",
+    ("01-note-list", "The note list: cards with their headline, preview and badges",
      [],
      ["Paine de casa", "Cheltuieli septembrie", "De citit", "4 notite"]),
-    ("02-nota", "A note open, with its styling drawn",
+    ("02-a-note", "A note open, with its styling drawn",
      [("tap_text", "Paine de casa")],
      ["Paine de casa", "faina", "Editeaza"]),
-    ("03-tabel", "A table drawn as a grid rather than as pipe rows",
+    ("03-a-table", "A table drawn as a grid rather than as pipe rows",
      [("back",), ("tap_text", "Cheltuieli")],
      ["Cheltuieli septembrie", "chirie", "1500"]),
-    ("04-cautare", "Search, by the desktop's own rule",
+    ("04-search", "Search, by the desktop's own rule",
      [("back",), ("tap_edit",), ("type", "prajitura")],
      ["prajitura", "1 din 4 notite", "Ideea pentru cadoul"]),
 ]
