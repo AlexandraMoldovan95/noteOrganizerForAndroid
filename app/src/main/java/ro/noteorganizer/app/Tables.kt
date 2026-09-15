@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 /**
  * Turning a run of pipe-delimited lines into something a screen can draw.

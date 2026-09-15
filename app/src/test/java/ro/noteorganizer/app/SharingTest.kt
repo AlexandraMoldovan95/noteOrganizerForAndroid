@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 import java.io.File
 import java.nio.file.Files

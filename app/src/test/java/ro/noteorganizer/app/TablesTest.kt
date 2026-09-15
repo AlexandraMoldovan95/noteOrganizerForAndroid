@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

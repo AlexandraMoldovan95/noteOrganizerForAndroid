@@ -1,4 +1,4 @@
-package com.example.noteorganizer.ui.theme
+package ro.noteorganizer.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

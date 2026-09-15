@@ -32,8 +32,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-SOURCE = os.path.join(ANDROID, "app", "src", "main", "java", "com",
-                      "example", "noteorganizer")
+SOURCE = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                      "noteorganizer", "app")
 
 # The rules layer: ported from Python, tested without a device.
 RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt"]

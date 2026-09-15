@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString

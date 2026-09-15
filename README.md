@@ -96,7 +96,7 @@ is the only proof the tests actually ran.
 The app looks for `notes_data.json` in its own app-private folder on the
 device. To try it against a real notebook, copy one in:
 
-    adb push notes_data.json /sdcard/Android/data/com.example.noteorganizer/files/
+    adb push notes_data.json /sdcard/Android/data/ro.noteorganizer.app/files/
 
 That copy is yours to break — it is not the desktop's file, and nothing
 here ever reaches back to the machine that wrote it.

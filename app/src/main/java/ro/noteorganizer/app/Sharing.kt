@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 import java.util.Base64
 import java.util.zip.Deflater

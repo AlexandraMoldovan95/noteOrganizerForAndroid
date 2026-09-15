@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 import org.json.JSONArray
 import org.json.JSONObject

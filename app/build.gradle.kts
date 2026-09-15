@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.noteorganizer"
+    namespace = "ro.noteorganizer.app"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.noteorganizer"
+        applicationId = "ro.noteorganizer.app"
         // Android 8.0. Raised from 7.0 for java.util.Base64, which a share
         // code needs: the alternative, android.util.Base64, exists only on
         // a device, so the encoding could not be tested on the computer.
