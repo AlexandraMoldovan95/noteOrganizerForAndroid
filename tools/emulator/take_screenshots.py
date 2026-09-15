@@ -29,7 +29,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk",
                    "platform-tools", "adb.exe")
-PACKAGE = "com.example.noteorganizer"
+PACKAGE = "ro.noteorganizer.app"
 FILES = "/sdcard/Android/data/%s/files" % PACKAGE
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(os.path.dirname(HERE))

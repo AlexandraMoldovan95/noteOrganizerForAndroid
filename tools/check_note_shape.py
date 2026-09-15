@@ -52,10 +52,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
 DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
 
-NOTEBOOK_KT = os.path.join(ANDROID, "app", "src", "main", "java", "com",
-                           "example", "noteorganizer", "Notebook.kt")
-SHARING_KT = os.path.join(ANDROID, "app", "src", "main", "java", "com",
-                          "example", "noteorganizer", "Sharing.kt")
+NOTEBOOK_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                           "noteorganizer", "app", "Notebook.kt")
+SHARING_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                          "noteorganizer", "app", "Sharing.kt")
 MODEL_PY = os.path.join(DESKTOP, "noteorganizer", "core", "model.py")
 SHARING_PY = os.path.join(DESKTOP, "noteorganizer", "core", "sharing.py")
 

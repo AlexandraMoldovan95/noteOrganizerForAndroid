@@ -1,4 +1,4 @@
-package com.example.noteorganizer
+package ro.noteorganizer.app
 
 /**
  * Applying and removing styles over a range of a note's body.
