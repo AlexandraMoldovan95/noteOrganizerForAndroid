@@ -63,9 +63,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -100,6 +110,18 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var color by mutableStateOf(note?.color ?: "")
     var date by mutableStateOf(note?.date ?: newDate)
     var pinned by mutableStateOf(note?.pinned ?: false)
+
+    /**
+     * Each line's indent and alignment, kept in step with the text as it
+     * changes; a list item's kind is its marker, in the text itself. A day
+     * of a series has none of its own -- the desktop keeps them with the
+     * series -- so day mode keeps none.
+     */
+    var props by mutableStateOf(linesOf(note))
+
+    private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> =
+        if (day != null || note == null) emptyMap()
+        else Paragraphs.propsOf(state.rawNote(note.id)?.opt("paragraphs"), note.body.split("\n").size)
 
     init {
         if (day != null && note != null) showDay(note.id, day)
@@ -143,10 +165,43 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** The end of the calculator's last insertion: the next goes after it. */
     private var calcMark: Int? = null
 
-    /** The body has changed: the places remembered in it move with the text. */
+    /** The body has changed: the places remembered in it move with the text, and the lines' properties too. */
     private fun follow(next: String) {
         caret = Calculator.follow(body, next, caret)
         calcMark = Calculator.follow(body, next, calcMark)
+        props = Paragraphs.follow(body, next, props)
+    }
+
+    /** A list, indent or alignment change, the styles carried through it exactly. */
+    private fun apply(done: Paragraphs.Done) {
+        spans = if (day != null) emptyList() else done.move(spans)
+        caret = Calculator.follow(body, done.body, caret)
+        calcMark = Calculator.follow(body, done.body, calcMark)
+        props = done.props
+        body = done.body
+        changed()
+    }
+
+    /** The field at [index] as the body now holds it, its cursor or selection from [from] to [to]. */
+    private fun fieldValue(index: Int, from: Int, to: Int = from): TextFieldValue? {
+        val segment = Editing.segments(body).getOrNull(index) ?: return null
+        val length = segment.text.codePointCount(0, segment.text.length)
+        fun local(at: Int) = segment.text.offsetByCodePoints(0, (at - segment.cpStart).coerceIn(0, length))
+        return TextFieldValue(segment.text, TextRange(local(from), local(to)))
+    }
+
+    /** The format bar's list and indent keys: the lines changed, the selection kept over the same words. */
+    fun applyLines(done: Paragraphs.Done?, index: Int, from: Int, to: Int) {
+        if (done == null) return
+        apply(done)
+        focused = fieldValue(index, done.movePoint(from), done.movePoint(to))
+        caret = done.movePoint(to)
+    }
+
+    /** The format bar's alignment keys. */
+    fun alignLines(first: Int, last: Int, align: String) {
+        props = Paragraphs.setAlign(body, props, first, last, align)
+        changed()
     }
 
     fun changed() {
@@ -170,10 +225,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 saved = target
                 return true
             }
-            Notebook.createNote(load, title, body, category, color, date, pinned, spans, comments = comments)
+            Notebook.createNote(load, title, body, category, color, date, pinned, spans,
+                                paragraphs = Paragraphs.extract(body, props), comments = comments)
         } else {
             Notebook.updateNote(load, id, title, body, category, color, date, pinned,
-                                formatting = spans, comments = comments)
+                                formatting = spans, comments = comments,
+                                paragraphs = Paragraphs.extract(body, props))
         }
         state.refresh()
         return when (result) {
@@ -204,6 +261,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         color = note.color
         date = note.date
         pinned = note.pinned
+        props = linesOf(note)
         if (day != null) showDay(note.id, day)
         focused = null
         // A body brought back whole: nothing remembered in the old one applies.
@@ -212,15 +270,30 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         saved = edits
     }
 
-    /** One prose field's new text, the body rebuilt around it. */
-    fun typeInto(segment: Editing.Segment, text: String) {
-        val next = Editing.replaceProse(body, segment, text)
-        if (next == body) return
+    /**
+     * One prose field's new text, the body rebuilt around it. In a list a
+     * keystroke can mean more than its character -- Enter continues the
+     * list, Backspace against a marker takes it away -- and then the field
+     * is given back rewritten, its cursor where it belongs: the value to
+     * show. Null when the text stands as typed.
+     */
+    fun typeInto(segment: Editing.Segment, typed: TextFieldValue, index: Int): TextFieldValue? {
+        val next = Editing.replaceProse(body, segment, typed.text)
+        if (next == body) return null
+        if (day == null) {
+            Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
+                apply(done)
+                val at = done.caret ?: return null
+                caret = at
+                return fieldValue(index, at)
+            }
+        }
         // A day's own text is plain: once typed in, it carries no styling.
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         follow(next)
         body = next
         changed()
+        return null
     }
 
     /** One table changed through the table rules, the body rebuilt around it. */
@@ -242,6 +315,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun insertCalculation(formula: String) {
         val placed = Calculator.place(body, formula, calcMark, caret)
         spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
+        props = Paragraphs.follow(body, placed.body, props)
         body = placed.body
         calcMark = placed.mark
         caret = placed.mark
@@ -714,17 +788,19 @@ private fun ProseField(
     BasicTextField(
         value = value,
         onValueChange = { next ->
-            if (next.text != segment.text) model.typeInto(segment, next.text)
+            // A keystroke that meant a list operation comes back rewritten.
+            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null) ?: next
             model.focus = index
-            model.focused = next
-            model.caret = caretIn(segment, next)
+            model.focused = shown
+            model.caret = caretIn(segment, shown)
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
-            TransformedText(paintFound(drawn, found, match, palette), OffsetMapping.Identity)
+            TransformedText(paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props),
+                            OffsetMapping.Identity)
         },
         onTextLayout = { layout = it },
-        textStyle = TextStyle(color = palette.text, fontSize = 16.sp, lineHeight = 24.sp),
+        textStyle = TextStyle(color = palette.text, fontSize = BODY_SIZE.sp, lineHeight = BODY_LINE_HEIGHT.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier
@@ -747,6 +823,54 @@ private fun ProseField(
             field()
         },
     )
+}
+
+/** One step of indent, as drawn -- the desktop's margin step, near enough. */
+private const val INDENT_STEP = 24
+
+/** The note's text: its size and the height of its lines, in sp. */
+private const val BODY_SIZE = 16
+private const val BODY_LINE_HEIGHT = 24
+
+/**
+ * The lines of one field with their indent and alignment, and a list
+ * item's wrapped lines hanging after its marker, as the desktop's margins
+ * draw them. [firstLine] is the field's first line in the whole body.
+ */
+private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Paragraphs.Props>): AnnotatedString {
+    val lines = text.text.split("\n")
+    val styled = lines.withIndex().any { (i, line) -> props[firstLine + i] != null || Paragraphs.parseListMarker(line).kind != null }
+    if (!styled) return text
+    // Every line its own paragraph, and the line breaks drawn as nothing:
+    // a paragraph always starts on a new line, and a break kept inside one
+    // drew an empty line after it (a list came out double-spaced), while a
+    // break left between two became an empty paragraph of its own. The
+    // stand-in is one character for one, so every position stays where
+    // the field's text has it.
+    val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
+    var at = 0
+    for ((i, line) in lines.withIndex()) {
+        val end = at + line.length + if (i < lines.lastIndex) 1 else 0
+        val p = props[firstLine + i]
+        val list = Paragraphs.parseListMarker(line).kind != null
+        val indent = (p?.indent ?: 0) * INDENT_STEP
+        val style = ParagraphStyle(
+            textAlign = when (p?.align) {
+                "center" -> TextAlign.Center
+                "right" -> TextAlign.End
+                else -> TextAlign.Start
+            },
+            textIndent = TextIndent(indent.sp, (indent + if (list) 16 else 0).sp),
+            // The field's own spacing, which a paragraph's style replaces --
+            // untrimmed: trimmed at a paragraph's first and last line, a
+            // one-line paragraph kept none of it and the lines bunched up.
+            lineHeight = BODY_LINE_HEIGHT.sp,
+            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+        )
+        if (end > at) paragraphs.add(AnnotatedString.Range(style, at, end))
+        at = end
+    }
+    return AnnotatedString(text.text.replace('\n', '​'), text.spanStyles, paragraphs)
 }
 
 /**
@@ -872,6 +996,69 @@ private fun FormatBar(model: EditorModel) {
                 palettePicker = if (palettePicker == "size") "" else "size"
             }
         }
+        // The lines the cursor or the selection covers: lists, depth and
+        // alignment, which need no selection -- the cursor's line will do.
+        // Not in the empty field under a table that ends the note: it has
+        // no line of its own until something is typed there.
+        val lineKeys = !segment.isVirtual
+        val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
+        val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
+        val lineText = model.body.split("\n").getOrElse(firstLine) { "" }
+        val kind = Paragraphs.parseListMarker(lineText).kind
+        val align = model.props[firstLine]?.align ?: "left"
+        fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
+            }
+            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
+            }
+            FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, -1))
+            }
+            FormatKey("⇥", false, lineKeys, said = stringResource(R.string.indent_more)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, 1))
+            }
+            for ((way, said) in listOf("left" to R.string.align_left, "center" to R.string.align_center,
+                                       "right" to R.string.align_right)) {
+                AlignKey(way, align == way && (way != "left" || lineKeys), lineKeys, stringResource(said)) {
+                    model.alignLines(firstLine, lastLine, way)
+                }
+            }
+        }
+    }
+}
+
+/** An alignment key: four lines, drawn as the text would sit. */
+@Composable
+private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    val ink = if (enabled) palette.text else palette.subtext.copy(alpha = 0.5f)
+    Box(
+        Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (on) palette.calendarHasNotes else palette.card)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = said },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(20.dp)) {
+            listOf(1f, 0.6f, 0.85f, 0.5f).forEachIndexed { i, share ->
+                val width = size.width * share
+                val x = when (align) {
+                    "center" -> (size.width - width) / 2
+                    "right" -> size.width - width
+                    else -> 0f
+                }
+                val y = size.height * (0.14f + i * 0.24f)
+                drawLine(ink, Offset(x, y), Offset(x + width, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            }
+        }
     }
 }
 
@@ -883,6 +1070,7 @@ private fun FormatKey(
     weight: FontWeight = FontWeight.Normal,
     italic: Boolean = false,
     decoration: TextDecoration? = null,
+    said: String? = null,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
@@ -891,7 +1079,8 @@ private fun FormatKey(
             .size(42.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (said != null) Modifier.semantics { contentDescription = said } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Text(

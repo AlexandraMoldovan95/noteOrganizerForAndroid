@@ -161,6 +161,15 @@
     <string name="delete_row">Delete row</string>
     <string name="delete_column">Delete column</string>
 
+    <!-- The format bar's line keys -->
+    <string name="list_bullet">Bullet list</string>
+    <string name="list_number">Numbered list</string>
+    <string name="indent_less">Less indent</string>
+    <string name="indent_more">More indent</string>
+    <string name="align_left">Align left</string>
+    <string name="align_center">Centre</string>
+    <string name="align_right">Align right</string>
+
     <!-- Templates: the desktop's words -->
     <string name="template_use">📎 Use template</string>
     <string name="template_save_as">🧩 Save as template</string>

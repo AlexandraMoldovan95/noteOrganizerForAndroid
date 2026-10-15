@@ -974,6 +974,9 @@ object Notebook {
         // Remapping those again would move them twice.
         formatting: List<FormatSpan>? = null,
         comments: String? = null,
+        // The same for the lines' lists, indents and alignment: an editor
+        // that changes them hands back what it kept in step with its text.
+        paragraphs: JSONArray? = null,
     ): SaveResult {
         val file = load.file
             ?: return SaveResult.Failed(NOWHERE)
@@ -1010,7 +1013,9 @@ object Notebook {
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
             (date != null && date.trim() != (note.opt("date") ?: "")) ||
             (pinned != null && pinned != (note.opt("pinned") == true)) ||
-            (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: ""))
+            (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: "")) ||
+            (paragraphs != null && Exporting.normalizeParagraphs(paragraphs, null) !=
+                Exporting.normalizeParagraphs(note.opt("paragraphs"), null))
         if (oldTitle == newTitle && oldBody == newBody && !metaChanged) {
             return SaveResult.Ok(id)          // nothing to write
         }
@@ -1036,7 +1041,7 @@ object Notebook {
         note.put("title", newTitle)
         note.put("body", newBody)
         note.put("formatting", spansToJson(moved.spans))
-        note.put("paragraphs", movedParagraphs(note, oldBody, newBody))
+        note.put("paragraphs", paragraphs ?: movedParagraphs(note, oldBody, newBody))
         if (category != null) {
             note.put("category", category.trim().ifEmpty { "General" })
         }

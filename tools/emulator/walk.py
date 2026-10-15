@@ -80,8 +80,15 @@ def find(label, exact=False):
     return None
 
 
-def tap(label, exact=False, wait=1.0):
+def tap(label, exact=False, wait=1.0, patience=3.0):
+    """Tap what says [label] -- looked for again for a moment before giving
+    up: the first start after an install drew a note's top bar before its
+    text, and a tap that looked once found the text not there yet."""
     at = find(label, exact)
+    deadline = time.time() + patience
+    while at is None and time.time() < deadline:
+        time.sleep(0.4)
+        at = find(label, exact)
     if at is None:
         fail("tap %r: not on the screen" % label)
         return False
@@ -314,6 +321,7 @@ def main():
     styles_through_an_edit(folder)
     templates(folder)
     sizes_and_faces(folder)
+    lists(folder)
     changes(folder)
 
     print()
@@ -1135,6 +1143,59 @@ def sizes_and_faces(folder):
           repr(spans))
     check("the face is Georgia", any(s.get("style") == "font_family" and s.get("value") == "Georgia" for s in spans),
           repr(spans))
+
+
+def lists(folder):
+    """The format bar's line keys and a list's keystrokes: lines numbered,
+    Enter continuing the list and numbering on, Enter on an empty item
+    leaving it, every line indented and centred -- and the file, its
+    paragraphs in the desktop's shape, the kind read off each marker."""
+    print("\n-- lists, depth and alignment --")
+    seed_inside([
+        {"id": 1, "uid": "walk-lists", "title": "Lists", "body": "milk\nbread\neggs",
+         "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Lists")
+    open_note("Lists")
+    tap("milk", wait=1.0)
+    adb("shell", "input", "keycombination", "113", "29")       # Ctrl+A
+    time.sleep(0.6)
+    tap("Numbered list", wait=1.0)
+
+    def note():
+        return (read_file("notes_data.json") or [{}])[0]
+
+    # Down to the last line and to its end, by the arrow keys: Ctrl+End,
+    # injected, left the selection standing, and Enter replaced it.
+    for _ in range(4):
+        adb("shell", "input", "keyevent", "20")                # down
+    adb("shell", "input", "keyevent", "123")                   # end of line
+    time.sleep(0.4)
+    adb("shell", "input", "keyevent", "66")                    # Enter
+    time.sleep(0.6)
+    type_text("jam")
+    adb("shell", "input", "keyevent", "66")
+    time.sleep(0.6)
+    adb("shell", "input", "keyevent", "66")                    # on the empty item: out
+    time.sleep(0.6)
+    type_text("after")
+    time.sleep(1.5)
+    # Lower case: the keyboard capitalises a line's first word as it likes.
+    check("numbered, continued by Enter, left by Enter on an empty item",
+          (note().get("body") or "").lower() == "1. milk\n2. bread\n3. eggs\n4. jam\nafter", repr(note().get("body")))
+
+    adb("shell", "input", "keycombination", "113", "29")
+    time.sleep(0.6)
+    tap("More indent", wait=0.8)
+    tap("Centre", wait=1.0)
+    shot(folder, "41-lists", "1. milk")
+    back_to("Search notes")
+    saved = note()
+    paragraphs = saved.get("paragraphs") or []
+    check("every line one deeper and centred, the items numbered by their markers",
+          paragraphs == [{"line": n, "kind": "number", "indent": 1, "align": "center"} for n in range(4)]
+          + [{"line": 4, "indent": 1, "align": "center"}], repr(paragraphs))
+    check("a deeper list counts from one again", saved.get("body", "").startswith("1. milk\n2. bread"),
+          repr(saved.get("body")))
 
 
 if __name__ == "__main__":
