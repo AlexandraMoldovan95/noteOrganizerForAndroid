@@ -310,7 +310,7 @@ fun NoteEditor(state: AppState, openId: Int) {
                      color = if (model.title.length >= 200) palette.dangerText else palette.subtext)
             }
             Text(
-                text = listOfNotNull(model.category, displayDate(model.date).ifEmpty { null }).joinToString("  ·  "),
+                text = listOfNotNull(model.category, Notebook.showDate(model.date).ifBlank { null }).joinToString("  ·  "),
                 color = palette.legibleOnCard(model.color.ifEmpty { state.load.categories[model.category] ?: palette.hex.getValue("accent") }),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 10.dp).clickable { details = true },
@@ -744,7 +744,7 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
             DetailRow(stringResource(R.string.date)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        displayDate(model.date).ifEmpty { stringResource(R.string.no_date) },
+                        Notebook.showDate(model.date).ifBlank { stringResource(R.string.no_date) },
                         color = palette.text,
                         fontSize = 15.sp,
                         modifier = Modifier.clickable { dating = true },
@@ -791,13 +791,6 @@ private fun DetailRow(label: String, content: @Composable () -> Unit) {
         Text(label, color = palette.subtext, fontSize = 14.sp, modifier = Modifier.weight(1f))
         content()
     }
-}
-
-/** "2026-10-17" as the desktop shows it everywhere: 17.10.2026. */
-fun displayDate(stored: String): String {
-    if (!Notebook.isDate(stored)) return ""
-    val (y, m, d) = stored.trim().split("-")
-    return "$d.$m.$y"
 }
 
 /** Android's own calendar picker, kept to the desktop's stored form. */

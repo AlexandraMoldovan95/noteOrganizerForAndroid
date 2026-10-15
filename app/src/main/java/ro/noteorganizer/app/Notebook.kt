@@ -183,7 +183,7 @@ data class Note(
             if (exceptions > 0) parts.append("   ✕").append(exceptions)
             if (overrides > 0) parts.append("   ✎").append(overrides)
         } else if (date.isNotEmpty()) {
-            parts.append("   📅 ").append(date)
+            parts.append("   📅 ").append(Notebook.showDate(date))
         }
         if (comments.isNotEmpty()) parts.append("   💬")
         if (attachments > 0) parts.append("   📎×").append(attachments)
@@ -1627,6 +1627,25 @@ object Notebook {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /**
+     * A stored date as the app shows it: "2026-10-17" -> "17.10.2026", the
+     * desktop's `show_date`. Anything that is not a stored date -- empty,
+     * or text that was typed into the field and kept as it was -- comes
+     * back as it was. The file keeps one form; only the eye gets the other.
+     *
+     * Python's `%m` and `%d` also read one digit, so "2026-1-5" is a date
+     * there and is one here.
+     */
+    fun showDate(value: String): String {
+        val parts = Regex("^(\\d{4})-(\\d{1,2})-(\\d{1,2})$").find(value.trim())
+            ?: return value
+        val (year, month, day) = parts.destructured
+        val m = month.toInt()
+        val d = day.toInt()
+        if (!isDate(String.format(Locale.US, "%s-%02d-%02d", year, m, d))) return value
+        return String.format(Locale.US, "%02d.%02d.%s", d, m, year)
     }
 
     private fun readNote(o: JSONObject): Note {

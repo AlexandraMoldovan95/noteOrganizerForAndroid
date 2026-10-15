@@ -132,6 +132,27 @@ class NotebookTest {
     }
 
     @Test
+    fun `a date is shown the desktop's way, and stored its own way`() {
+        // show_date in core/recurrence.py. The card used to print the
+        // stored form while the editor printed this one: the same date
+        // two ways on two screens, found by looking at a screenshot.
+        assertEquals("17.10.2026", Notebook.showDate("2026-10-17"))
+        assertEquals("05.01.2026", Notebook.showDate("2026-1-5"))
+        assertEquals("", Notebook.showDate(""))
+        // Not a date: shown exactly as it was typed, never guessed at.
+        assertEquals("32 January", Notebook.showDate("32 January"))
+        assertEquals("2026-02-30", Notebook.showDate("2026-02-30"))
+    }
+
+    @Test
+    fun `the card's tags line carries the date as the desktop draws it`() {
+        val json = """[{"id": 1, "category": "Work", "date": "2026-10-18",
+                         "checklist": [{"text": "a", "done": true}, {"text": "b"}]}]"""
+        assertEquals("Work   📅 18.10.2026   ☑ 1/2",
+            Notebook.parseNotes(json).single().tagLine())
+    }
+
+    @Test
     fun `two separated tables count as two`() {
         val json = """[{"id": 1, "body": "| a | b |\ntext\n| c | d |"}]"""
         assertEquals(2, Notebook.parseNotes(json).single().tableCount)
