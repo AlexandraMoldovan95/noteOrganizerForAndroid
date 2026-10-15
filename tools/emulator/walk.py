@@ -236,8 +236,10 @@ def main():
     check("Undo brings it back, and out of the Trash",
           trashed and any(n.get("title") == "Groceries" for n in notes)
           and not any(t.get("title") == "Groceries" for t in trash))
-    check("Undo opens the note it brought back", not screen_says("Groceries", "Auto-saved") or
-          not screen_says("Groceries"))
+    # In the editor, not on the list: the list says "Groceries" too, and an
+    # earlier form of this check passed there.
+    check("Undo opens the note it brought back",
+          not screen_says("Groceries") and bool(screen_says("Search notes")))
     back_to("Search notes")
 
     # ---- Settings ----
@@ -423,7 +425,9 @@ def seeded(folder):
     # A share code the desktop made, typed into the import panel.
     code = desktop_code({"uid": "from-desktop", "title": "From the desktop", "body": "made there",
                          "category": "General"})
-    if code:
+    if not code:
+        fail("a code the desktop made: the desktop's encoder could not be used, so nothing was tried")
+    else:
         back_to("Search notes")
         tap("Notes", exact=True)
         tap("⋮")
@@ -441,12 +445,29 @@ def seeded(folder):
     tap("Trash")
     shot(folder, "16-trash", "Kept for", "days left")
     trash = read_file("trash.json") or []
-    if trash:
-        tap(trash[-1].get("title") or "x")
+    if not trash:
+        fail("a note restored from the Trash page: the delete before it put nothing in the Trash")
+    else:
+        title = trash[-1].get("title") or "x"
+        tap(title)
         tap("Restore 1 selected", wait=1.5)
-        check("a note restored from the Trash page is back", not (read_file("trash.json") or []))
+        # Both halves read back: an unreadable trash.json must not pass as
+        # an empty one.
+        after = read_file("trash.json")
+        notes = read_file("notes_data.json") or []
+        check("a note restored from the Trash page is back",
+              after == [] and any(n.get("title") == title for n in notes), str(after)[:120])
 
-    # A backup, through Android's own picker.
+    # A backup, through Android's own picker. The emulator's Downloads keeps
+    # every backup earlier walks made (clearing the app does not reach it),
+    # so the one this walk made is the one that was not there before --
+    # never "the last name ls prints", which was the OLDEST, at the bottom
+    # of the picker's list where a tap can land on the screen's edge.
+    def backups():
+        listing = adb("shell", "ls", "/sdcard/Download")
+        return {line.strip() for line in listing.splitlines() if line.strip().endswith(".zip")}
+
+    earlier = backups()
     back_to("Your name")
     tap("Backup")
     tap("Export a backup", wait=3.0)
@@ -454,30 +475,35 @@ def seeded(folder):
         tap("SAVE", exact=True, wait=3.0) if find("SAVE") else tap("Save", exact=True, wait=3.0)
     settings = read_file("settings.json") or {}
     check("an export through the picker is remembered as the last", bool(settings.get("last_export_at")))
-    listing = adb("shell", "ls", "/sdcard/Download")
-    zips = [line.strip() for line in listing.splitlines() if line.strip().endswith(".zip")]
-    check("the backup is where the picker put it", bool(zips), listing[:200])
-    if zips:
+    made = sorted(backups() - earlier)
+    check("the backup is where the picker put it", len(made) == 1, str(made))
+    mine = made[0] if len(made) == 1 else None
+    if mine:
         local = os.path.join(folder, "phone_backup.zip")
         with open(local, "wb") as f:
-            f.write(adb("exec-out", "cat", "/sdcard/Download/" + zips[-1], binary=True))
+            f.write(adb("exec-out", "cat", "/sdcard/Download/" + mine, binary=True))
         print("     backup copied to", local)
 
     # The same backup, imported back: every note is already here, unchanged,
     # so the one question is the desktop's "Already here, unchanged", and
-    # skipping it changes nothing.
+    # skipping it changes nothing. The question has to be SEEN for that to
+    # mean anything: an import that never happened changes nothing too,
+    # and this check once passed over exactly that.
     before = read_file("notes_data.json")
     back_to("Backup", "Export a backup")
     tap("Import a backup", wait=3.0)
-    if zips and find(zips[-1], exact=True) is None:
+    if mine and find(mine, exact=True) is None:
         tap("Downloads", wait=2.0) if find("Downloads") else None
     # By its exact name: "Preview the file <name>" holds the same words, and
     # a tap there opens a preview instead of choosing the file.
-    if zips and tap(zips[-1], exact=True, wait=3.0):
+    asked = False
+    if mine and tap(mine, exact=True, wait=3.0):
         tap("Continue", exact=True, wait=1.5)
+        asked = not screen_says("Already here, unchanged", "Add copies anyway")
         shot(folder, "17-unchanged-question", "Already here, unchanged", "Add copies anyway")
         tap("Skip the", wait=2.0)
-        check("re-importing your own backup changes nothing", read_file("notes_data.json") == before)
+    check("re-importing your own backup asks, and skipping changes nothing",
+          asked and read_file("notes_data.json") == before)
 
 
 def foreground():
@@ -494,7 +520,9 @@ def outward(folder):
     # A code shared from another app, as WhatsApp sends it.
     code = desktop_code({"uid": "shared-in", "title": "Shared in", "body": "from a chat",
                          "category": "General"})
-    if code:
+    if not code:
+        fail("a code shared from another app: the desktop's encoder could not be used, so nothing was tried")
+    else:
         adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
             "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
         time.sleep(2.5)
