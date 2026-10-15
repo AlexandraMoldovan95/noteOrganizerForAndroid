@@ -18,7 +18,7 @@ import java.io.File
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
 /** One page of Settings, or the list of them. */
-enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, BACKUP, TRASH, STATS, ABOUT }
+enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, BACKUP, TRASH, STATS, ABOUT }
 
 /**
  * The app's state, and every action a screen can take on the notebook.
@@ -292,6 +292,18 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
             report(Organizing.restore(load, keys)) { ok ->
                 if (openAfterUndo || count == 1) openNote(ok.id)
             }
+        }
+    }
+
+    /**
+     * A new note from a template, opened. The note that was open is saved
+     * already -- the editor saves before it asks -- so nothing is replaced,
+     * and the desktop's "Replace current note?" has nothing to ask about.
+     */
+    fun useTemplate(template: JSONObject, said: String) {
+        report(Templates.newNote(load, template, load.categories.keys)) { ok ->
+            openNote(ok.id)
+            say(said)
         }
     }
 

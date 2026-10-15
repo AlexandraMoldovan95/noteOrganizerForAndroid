@@ -312,6 +312,7 @@ def main():
     finding(folder)
     exporting(folder)
     styles_through_an_edit(folder)
+    templates(folder)
     changes(folder)
 
     print()
@@ -1011,6 +1012,99 @@ def styles_through_an_edit(folder):
           any(s.get("style") == "font_size" and s.get("value") == 24 for s in spans), repr(spans))
     check("the list item typed into keeps its bullet",
           (note.get("paragraphs") or []) == [{"line": 1, "kind": "bullet"}], repr(note.get("paragraphs")))
+
+
+def desktop_normalize_template():
+    """The desktop's own normalize_template, when it is here."""
+    sys.path.insert(0, DESKTOP)
+    try:
+        from noteorganizer.core.storage import normalize_template
+        return normalize_template
+    except Exception as problem:  # noqa: BLE001 -- the walk goes on without it
+        print("     (the desktop's normalize_template could not be used: %s)" % problem)
+        return None
+
+
+def templates(folder):
+    """Templates: a note saved as one, its name asked about when taken, a
+    new note started from it with everything it held, one edited and one
+    deleted in Settings -- and templates.json read back each time, in the
+    shape the desktop's normalize_template keeps."""
+    print("\n-- templates --")
+    body = "• call mum\n| Day | Task |\n| --- | --- |\n| Mon | gym |"
+    seed_inside([
+        {"id": 1, "uid": "walk-tpl", "title": "Weekly plan", "body": body,
+         "formatting": [{"start": 2, "end": 6, "style": "bold"}],
+         "paragraphs": [{"line": 0, "kind": "bullet"}],
+         "checklist": [{"text": "groceries", "done": False}],
+         "comments": "every Sunday", "category": "Work",
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True, "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}, "Weekly plan")
+    normalize = desktop_normalize_template()
+
+    def on_disk():
+        return read_file("templates.json") or []
+
+    open_note("Weekly plan")
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    check("the name offered is the note's title", bool(find("Weekly plan", exact=True)))
+    tap("Save", exact=True, wait=1.5)
+    saved = on_disk()
+    check("one template, named after the note", [t.get("name") for t in saved] == ["Weekly plan"], repr(saved))
+    if saved:
+        t = saved[0]
+        check("it holds the note: text, styles, lines, comments, category, checklist",
+              t.get("body") == body and t.get("formatting") == [{"start": 2, "end": 6, "style": "bold"}]
+              and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}] and t.get("comments") == "every Sunday"
+              and t.get("category") == "Work" and t.get("checklist") == [{"text": "groceries", "done": False}],
+              repr(t))
+        if normalize is not None:
+            check("the file is already in the shape the desktop keeps", normalize(t) == t, repr(normalize(t)))
+
+    # The same name again: asked, never replaced silently.
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Save", exact=True, wait=1.2)
+    check("a name already taken asks first", not screen_says("Template name taken"))
+    tap("Replace", exact=True, wait=1.2)
+    check("replaced, still one", len(on_disk()) == 1)
+
+    # A new note from it: everything it held, ticks and all.
+    tap("⋮", exact=True)
+    tap("📎 Use template", wait=1.2)
+    shot(folder, "38-template-picker", "Use a template")
+    tap("🧩  Weekly plan", wait=2.0)
+    notes = read_file("notes_data.json") or []
+    check("a second note, started from the template", len(notes) == 2, str(len(notes)))
+    if len(notes) == 2:
+        new = notes[1]
+        check("it has the template's text, styles, lines, comments, category and checklist",
+              new.get("title") == "Weekly plan" and new.get("body") == body
+              and new.get("formatting") == [{"start": 2, "end": 6, "style": "bold"}]
+              and new.get("paragraphs") == [{"line": 0, "kind": "bullet"}]
+              and new.get("comments") == "every Sunday" and new.get("category") == "Work"
+              and new.get("checklist") == [{"text": "groceries", "done": False}], repr(new))
+    back_to("Search notes")
+
+    # Settings: one more checklist item, saved; then deleted for good.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("Weekly plan", exact=True, wait=1.5)
+    shot(folder, "39-template-editor", "Edit template")
+    tap("A new item", wait=0.8)
+    type_text("socks")
+    tap("+ Add", exact=True, wait=0.8)
+    tap("Save", exact=True, wait=1.5)
+    saved = on_disk()
+    check("the edit is saved, in its place",
+          len(saved) == 1 and [c.get("text") for c in saved[0].get("checklist", [])] == ["groceries", "socks"],
+          repr(saved))
+    tap("Delete template", wait=1.2)
+    check("deleting asks, and says it is for good", not screen_says("for good"))
+    tap("Delete", exact=True, wait=1.2)
+    check("gone", on_disk() == [], repr(on_disk()))
+    back_to("Search notes")
 
 
 if __name__ == "__main__":

@@ -41,7 +41,7 @@ RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
          "Themes.kt", "Settings.kt", "Files.kt", "Normalize.kt",
          "Importing.kt", "Backup.kt", "Organizing.kt", "Welcome.kt",
          "Editing.kt", "Startup.kt", "Recurrence.kt", "Days.kt", "Stats.kt",
-         "Calculator.kt", "Finding.kt", "PyText.kt", "Exporting.kt"]
+         "Calculator.kt", "Finding.kt", "PyText.kt", "Exporting.kt", "Templates.kt"]
 
 # The deliberate exceptions, named here so the list is a decision rather
 # than an omission: these exist to turn rules into pixels.
@@ -49,7 +49,8 @@ DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
          "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt",
          "AppState.kt", "Components.kt", "ImportFlow.kt", "NoteEditor.kt",
          "NotesScreen.kt", "SettingsScreens.kt", "CalendarScreen.kt",
-         "RepeatSheet.kt", "CalculatorPanel.kt", "FindBar.kt", "ExportFlow.kt"]
+         "RepeatSheet.kt", "CalculatorPanel.kt", "FindBar.kt", "ExportFlow.kt",
+         "TemplateScreens.kt"]
 
 
 def every_kotlin_file():

@@ -885,6 +885,9 @@ object Notebook {
         formatting: List<FormatSpan> = emptyList(),
         paragraphs: JSONArray? = null,
         comments: String = "",
+        // Items already of the note's shape -- {"text", "done"} -- as a
+        // template's checklist is once normalized.
+        checklist: JSONArray? = null,
     ): SaveResult {
         if (date.isNotBlank() && !isDate(date)) {
             return SaveResult.Failed(BAD_DATE)
@@ -926,7 +929,7 @@ object Notebook {
         note.put("overrides", JSONObject())
         note.put("moved", JSONObject())
         note.put("pinned", pinned)
-        note.put("checklist", JSONArray())
+        note.put("checklist", checklist ?: JSONArray())
         note.put("paragraphs", paragraphs ?: JSONArray())
 
         array.put(note)

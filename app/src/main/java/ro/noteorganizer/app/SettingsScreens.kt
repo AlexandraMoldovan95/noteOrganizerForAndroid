@@ -80,6 +80,7 @@ fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, o
             SettingsPage.NAME -> NamePage(state)
             SettingsPage.APPEARANCE -> AppearancePage(state)
             SettingsPage.CATEGORIES -> CategoriesPage(state)
+            SettingsPage.TEMPLATES -> TemplatesPage(state)
             SettingsPage.BACKUP -> BackupPage(state, backup)
             SettingsPage.TRASH -> TrashPage(state)
             SettingsPage.STATS -> StatsPage(state)
@@ -92,6 +93,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.NAME -> R.string.settings_name
     SettingsPage.APPEARANCE -> R.string.settings_appearance
     SettingsPage.CATEGORIES -> R.string.settings_categories
+    SettingsPage.TEMPLATES -> R.string.settings_templates
     SettingsPage.BACKUP -> R.string.settings_backup
     SettingsPage.TRASH -> R.string.settings_trash
     SettingsPage.STATS -> R.string.settings_stats
@@ -104,6 +106,7 @@ private fun SettingsList(state: AppState) {
         Triple(SettingsPage.NAME, R.string.settings_name, R.string.settings_name_sub),
         Triple(SettingsPage.APPEARANCE, R.string.settings_appearance, R.string.settings_appearance_sub),
         Triple(SettingsPage.CATEGORIES, R.string.settings_categories, R.string.settings_categories_sub),
+        Triple(SettingsPage.TEMPLATES, R.string.settings_templates, R.string.settings_templates_sub),
         Triple(SettingsPage.BACKUP, R.string.settings_backup, R.string.settings_backup_sub),
         Triple(SettingsPage.TRASH, R.string.settings_trash, R.string.settings_trash_sub),
         Triple(SettingsPage.STATS, R.string.settings_stats, R.string.settings_stats_sub),

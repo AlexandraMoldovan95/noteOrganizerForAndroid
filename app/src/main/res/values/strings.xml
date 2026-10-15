@@ -161,6 +161,43 @@
     <string name="delete_row">Delete row</string>
     <string name="delete_column">Delete column</string>
 
+    <!-- Templates: the desktop's words -->
+    <string name="template_use">📎 Use template</string>
+    <string name="template_save_as">🧩 Save as template</string>
+    <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
+    <string name="template_pick_title">Use a template</string>
+    <string name="template_started">New note started from template — edits here won\'t change the template</string>
+    <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>
+    <string name="template_save_title">Save as template</string>
+    <string name="template_saved">Saved template “%1$s”</string>
+    <string name="templates_not_saved">The templates couldn\'t be saved: %1$s</string>
+    <string name="template_taken_title">Template name taken</string>
+    <string name="template_taken_text">You already have a template named “%1$s”.\n\nReplace the old template with this one, or give this one another name?</string>
+    <string name="template_replace">Replace</string>
+    <string name="template_another_name">Another name</string>
+    <string name="settings_templates">Templates</string>
+    <string name="settings_templates_sub">Reusable starting points for new notes</string>
+    <string name="templates_intro">Reusable starting points for new notes. Create one here or use “🧩 Save as template” on any note. Pick one with “📎 Use template”. Editing a template only affects notes you make from it afterwards — notes already created stay as they are.</string>
+    <string name="templates_empty">No templates yet. Create one below, or use “Save as template” on a note.</string>
+    <string name="template_new">+ New template</string>
+    <string name="template_new_title">New template</string>
+    <string name="template_edit_title">Edit template</string>
+    <string name="template_field_name">Template name</string>
+    <string name="template_field_title">Note title (optional)</string>
+    <string name="template_field_body">Note body</string>
+    <string name="template_field_comments">Comments (optional)</string>
+    <string name="template_checklist">Checklist</string>
+    <string name="template_checklist_empty">No items yet — type below and tap Add.</string>
+    <string name="template_add_item">+ Add</string>
+    <string name="template_category">Category</string>
+    <string name="template_name_needed_title">Name needed</string>
+    <string name="template_name_needed">Give the template a name.</string>
+    <string name="template_delete_title">Delete template</string>
+    <string name="template_delete_text">Delete the template “%1$s” for good?\n\nTemplates don\'t go to the Trash — this can\'t be undone.</string>
+    <string name="template_save_changes_title">Save changes?</string>
+    <string name="template_save_changes_text">You changed this template. Save the changes before closing?</string>
+    <string name="template_dont_save">Don\'t save</string>
+
     <!-- Export one note: the desktop's words -->
     <string name="note_export">💾 Export as file</string>
     <string name="note_export_title">Export as file</string>

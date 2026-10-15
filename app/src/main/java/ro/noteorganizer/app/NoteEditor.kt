@@ -261,6 +261,11 @@ fun NoteEditor(state: AppState, openId: Int) {
     val calc = remember(model) { CalculatorState() }
     val exporter = rememberExporter(state)
     var exportAsk by remember { mutableStateOf(false) }
+    var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
+    var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
+    val templateNone = stringResource(R.string.template_none)
+    val templateNothing = stringResource(R.string.template_nothing)
+    val templateStarted = stringResource(R.string.template_started)
     val find = remember(model) { FindState() }
     val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -363,6 +368,45 @@ fun NoteEditor(state: AppState, openId: Int) {
                             // cursor was: that is where Insert writes.
                             focusManager.clearFocus()
                             calc.open = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.template_use)) },
+                        onClick = {
+                            menu = false
+                            val templates = Templates.load(state.dir)
+                            if (templates.isEmpty()) {
+                                state.say(templateNone)
+                            } else {
+                                // What is here is saved first: the template
+                                // starts a new note, it replaces nothing.
+                                model.save()
+                                pickTemplate = templates
+                            }
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.template_save_as)) },
+                        onClick = {
+                            menu = false
+                            model.save()
+                            val raw = state.rawNote(model.id)
+                            // The note as saved -- with its styles and lines --
+                            // or, on one day of a series, that day as shown.
+                            val tpl = if (day == null && raw != null) {
+                                Templates.fromNote("", raw.optString("title"), raw.optString("body"),
+                                    raw.optJSONArray("formatting"), raw.optJSONArray("paragraphs"),
+                                    raw.optString("comments"), raw.optString("category"), raw.optJSONArray("checklist"))
+                            } else {
+                                Templates.fromNote("", model.title, model.body, Templates.spansJson(model.spans), null,
+                                    model.comments, model.category, raw?.optJSONArray("checklist"))
+                            }
+                            if (Templates.hasContent(tpl.optString("title"), tpl.optString("body"),
+                                    tpl.optString("comments"), tpl.optJSONArray("checklist"))) {
+                                saveTemplate = tpl
+                            } else {
+                                state.say(templateNothing)
+                            }
                         },
                     )
                     DropdownMenuItem(
@@ -567,6 +611,19 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     if (details) DetailsSheet(state, model, note, onDismiss = { details = false })
+    pickTemplate?.let { templates ->
+        TemplatePicker(
+            templates,
+            onPick = { tpl ->
+                pickTemplate = null
+                state.useTemplate(tpl, templateStarted)
+            },
+            onDismiss = { pickTemplate = null },
+        )
+    }
+    saveTemplate?.let { tpl ->
+        SaveTemplateDialog(state, tpl, Templates.defaultName(tpl.optString("title")), onDone = { saveTemplate = null })
+    }
     if (exportAsk) {
         ExportDialog(
             onPick = { format ->
