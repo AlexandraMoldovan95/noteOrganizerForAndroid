@@ -133,6 +133,122 @@ object Organizing {
         return editEach(load, ids) { it.put("category", name) }
     }
 
+    // ---- attached files ----
+
+    /** A file handed over to attach: the name to show, and a way to put its bytes into a file. */
+    class Incoming(val name: String, val copyTo: (File) -> Unit)
+
+    /** What [attach] did: the write, how many files joined, and the names that would not copy. */
+    data class Attached(val result: SaveResult, val added: Int, val failed: List<String>)
+
+    private val STAMP: java.time.format.DateTimeFormatter =
+        java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSSSSS", Locale.US)
+
+    /**
+     * How many more files a note may take: the desktop's ceiling less what
+     * it holds. The ceiling is enforced by truncating when a note is read,
+     * which is right for a hostile code and wrong for a person's own files
+     * -- copied, listed, then silently dropped -- so adding asks first.
+     */
+    fun roomFor(load: Notebook.Load, id: Int): Int {
+        val note = load.raw?.let { a -> indexOfId(a, id).takeIf { it >= 0 }?.let { a.getJSONObject(it) } } ?: return 0
+        val held = (note.opt("attachments") as? JSONArray)?.length() ?: 0
+        return (Normalize.MAX_ATTACHMENTS - held).coerceAtLeast(0)
+    }
+
+    /**
+     * The name a file is kept under in the attachments folder: the moment,
+     * to the microsecond, then its own name -- the desktop's `add_attachment`
+     * -- and a name Windows will take, because a backup carries it there:
+     * no folder in it, none of `\ / : * ? " < > |` or a control character,
+     * no trailing dot or space.
+     */
+    fun storedName(display: String, now: java.time.LocalDateTime = java.time.LocalDateTime.now()): String {
+        // bareFileName has taken the folder and the trailing dots and spaces.
+        val own = Normalize.bareFileName(display)
+            .map { if (it < ' ' || it in "\\/:*?\"<>|") '_' else it }
+            .joinToString("").ifEmpty { "file" }
+        return STAMP.format(now) + "_" + own
+    }
+
+    /**
+     * [incoming] attached to note [id]: each copied into [attachmentsDir]
+     * under a name of its own, then the note written once with all of them.
+     * At most the room left -- the caller asks first, as the desktop does,
+     * and says which would not copy. A write that fails takes the copied
+     * files back out, so nothing is left in the folder that no note names.
+     */
+    fun attach(load: Notebook.Load, id: Int, attachmentsDir: File, incoming: List<Incoming>,
+               clock: () -> java.time.LocalDateTime = { java.time.LocalDateTime.now() }): Attached {
+        val file = load.file ?: return Attached(SaveResult.Failed(NOWHERE), 0, emptyList())
+        val array = load.raw ?: return Attached(SaveResult.Failed(UNREADABLE), 0, emptyList())
+        val index = indexOfId(array, id)
+        if (index < 0) return Attached(SaveResult.Failed("This note is no longer in the notes file."), 0, emptyList())
+        val room = roomFor(load, id)
+        if (room == 0) {
+            return Attached(SaveResult.Failed("A note can keep ${Normalize.MAX_ATTACHMENTS} attached files. " +
+                "Remove one to add another, or split this into two notes."), 0, emptyList())
+        }
+        attachmentsDir.mkdirs()
+        val copied = ArrayList<Pair<String, String>>()
+        val failed = ArrayList<String>()
+        for (one in incoming.take(room)) {
+            // Two files picked at once can share a microsecond and a name.
+            val base = storedName(one.name, clock())
+            var stored = base
+            var n = 2
+            while (File(attachmentsDir, stored).exists()) {
+                stored = base.substringBefore('_') + "-" + (n++) + "_" + base.substringAfter('_')
+            }
+            val target = File(attachmentsDir, stored)
+            try {
+                one.copyTo(target)
+                copied.add(Normalize.bareFileName(one.name).ifEmpty { stored } to stored)
+            } catch (e: Exception) {
+                target.delete()
+                failed.add(one.name)
+            }
+        }
+        if (copied.isEmpty()) return Attached(SaveResult.Failed("No file could be attached."), 0, failed)
+        val candidate = JSONArray(array.toString())
+        val note = candidate.getJSONObject(index)
+        val atts = note.opt("attachments") as? JSONArray ?: JSONArray().also { note.put("attachments", it) }
+        for ((display, stored) in copied) atts.put(JSONObject().put("filename", display).put("stored_as", stored))
+        note.put("updated", now())
+        write(file, candidate)?.let { problem ->
+            copied.forEach { File(attachmentsDir, it.second).delete() }
+            return Attached(SaveResult.Failed(problem), 0, failed)
+        }
+        replace(array, candidate)
+        return Attached(SaveResult.Ok(id), copied.size, failed)
+    }
+
+    /**
+     * The attached file [storedAs] taken off note [id], and its stored copy
+     * deleted -- the desktop's `remove_attachment`, which asks first, as the
+     * screen does. Spared when another note, or a note in the Trash, still
+     * uses the same stored file: the desktop's removal deletes it anyway.
+     */
+    fun detach(load: Notebook.Load, id: Int, storedAs: String, attachmentsDir: File?): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val index = indexOfId(array, id)
+        if (index < 0) return SaveResult.Failed("This note is no longer in the notes file.")
+        val candidate = JSONArray(array.toString())
+        val note = candidate.getJSONObject(index)
+        val atts = note.opt("attachments") as? JSONArray ?: return SaveResult.Failed("That file is no longer attached.")
+        val at = (0 until atts.length()).firstOrNull { (atts.opt(it) as? JSONObject)?.opt("stored_as") == storedAs }
+            ?: return SaveResult.Failed("That file is no longer attached.")
+        val removed = atts.getJSONObject(at)
+        atts.remove(at)
+        note.put("updated", now())
+        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        replace(array, candidate)
+        deleteFiles(listOf(JSONObject().put("attachments", JSONArray().put(removed))),
+                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir)
+        return SaveResult.Ok(id)
+    }
+
     // ---- Custom order: the list arranged by hand ----
 
     /**

@@ -306,6 +306,74 @@ class OrganizingTest {
             notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
     }
 
+    // ---- attached files ----
+
+    private fun incoming(name: String, text: String) = Organizing.Incoming(name) { it.writeText(text) }
+
+    @Test
+    fun `a stored name is the moment and the file's own name, and one Windows takes`() {
+        val at = java.time.LocalDateTime.of(2026, 10, 16, 9, 30, 5, 123456000)
+        assertEquals("20261016093005123456_map.png", Organizing.storedName("map.png", at))
+        assertEquals("20261016093005123456_a_b_c_d.txt", Organizing.storedName("a:b?c|d.txt", at))
+        assertEquals("20261016093005123456_report", Organizing.storedName("folder/report. ", at))
+        assertEquals("20261016093005123456_file", Organizing.storedName("...", at))
+    }
+
+    @Test
+    fun `files are copied in and listed in one write, and a second file with the same name is kept apart`() {
+        val load = notebook("""[{"id": 1, "title": "Trip", "updated": "2026-10-01 09:00:00"}]""")
+        // The same moment for both, as two files picked together can have.
+        val moment = java.time.LocalDateTime.of(2026, 10, 16, 9, 30, 5, 123456000)
+        val done = Organizing.attach(load, 1, attachments(load),
+            listOf(incoming("map.png", "MAP"), incoming("map.png", "MAP 2")), clock = { moment })
+        assertTrue(done.result is SaveResult.Ok)
+        assertEquals(2, done.added)
+        val atts = notesOnDisk(load).getJSONObject(0).getJSONArray("attachments")
+        assertEquals(2, atts.length())
+        val stored = (0 until 2).map { atts.getJSONObject(it).getString("stored_as") }
+        assertNotEquals(stored[0], stored[1])
+        assertEquals(listOf("MAP", "MAP 2"), stored.map { File(attachments(load), it).readText() })
+        assertEquals("map.png", atts.getJSONObject(0).getString("filename"))
+        assertNotEquals("2026-10-01 09:00:00", notesOnDisk(load).getJSONObject(0).getString("updated"))
+    }
+
+    @Test
+    fun `a full note takes no more, a copy that fails leaves nothing behind`() {
+        val many = JSONArray((1..Normalize.MAX_ATTACHMENTS).map {
+            JSONObject().put("filename", "f$it").put("stored_as", "f$it") })
+        val full = notebook(JSONArray().put(JSONObject().put("id", 1).put("attachments", many)).toString())
+        assertEquals(0, Organizing.roomFor(full, 1))
+        val refused = Organizing.attach(full, 1, attachments(full), listOf(incoming("x", "x"))).result
+        assertTrue("said in the desktop's words", refused is SaveResult.Failed && refused.reason.startsWith("A note can keep 200"))
+        assertTrue(attachments(full).listFiles().isNullOrEmpty())
+
+        val load = notebook("""[{"id": 1, "title": "Trip"}]""")
+        val broken = Organizing.Incoming("bad.bin") { it.writeText("half"); throw java.io.IOException("gone") }
+        val done = Organizing.attach(load, 1, attachments(load), listOf(broken, incoming("ok.txt", "OK")))
+        assertEquals(1, done.added)
+        assertEquals(listOf("bad.bin"), done.failed)
+        assertEquals(1, attachments(load).listFiles()!!.size)
+    }
+
+    @Test
+    fun `a file taken off a note is deleted, unless another note or the Trash still uses it`() {
+        val load = notebook("""
+            [{"id": 1, "attachments": [{"filename": "a", "stored_as": "a.png"}, {"filename": "b", "stored_as": "b.png"},
+                                       {"filename": "c", "stored_as": "c.png"}]},
+             {"id": 2, "attachments": [{"filename": "b", "stored_as": "b.png"}]}]
+        """.trimIndent(), trash = """[{"id": 9, "deleted_at": "2026-10-01 09:00:00",
+             "attachments": [{"filename": "c", "stored_as": "c.png"}]}]""")
+        listOf("a.png", "b.png", "c.png").forEach { File(attachments(load), it).writeText(it) }
+        assertTrue(Organizing.detach(load, 1, "a.png", attachments(load)) is SaveResult.Ok)
+        assertFalse(File(attachments(load), "a.png").exists())
+        assertTrue(Organizing.detach(load, 1, "b.png", attachments(load)) is SaveResult.Ok)
+        assertTrue("note 2 still shows it", File(attachments(load), "b.png").exists())
+        assertTrue(Organizing.detach(load, 1, "c.png", attachments(load)) is SaveResult.Ok)
+        assertTrue("a note in the Trash still has it", File(attachments(load), "c.png").exists())
+        assertEquals(0, notesOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+        assertTrue(Organizing.detach(load, 1, "b.png", attachments(load)) is SaveResult.Failed)
+    }
+
     // ---- Custom order, arranged by hand ----
 
     private val four = """

@@ -1,6 +1,11 @@
 package ro.noteorganizer.app
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -738,7 +743,7 @@ fun NoteEditor(state: AppState, openId: Int) {
 
             ChecklistSection(state, model)
             CommentsSection(model)
-            if (model.id != 0) AttachmentsSection(state, model.id)
+            AttachmentsSection(state, model)
             Spacer(Modifier.height(48.dp))
         }
 
@@ -1409,23 +1414,127 @@ private fun CommentsSection(model: EditorModel) {
     )
 }
 
-/** The note's attached files, each opened with the phone's own apps. */
+/**
+ * The note's attached files, each opened with the phone's own apps, taken
+ * off with ✕ -- which asks first, as the desktop does, the stored copy
+ * going with it -- and more added from Android's own file picker. A day of
+ * a series shows the series' files and adds none: they are never a day's.
+ */
 @Composable
-private fun AttachmentsSection(state: AppState, id: Int) {
+private fun AttachmentsSection(state: AppState, model: EditorModel) {
     val palette = LocalPalette.current
-    val files = state.attachmentsOf(id)
-    if (files.isEmpty()) return
-    SectionLabel(stringResource(R.string.files_label, files.size))
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val files = if (model.id == 0) emptyList() else state.attachmentsOf(model.id)
+    var removing by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var tooMany by remember { mutableStateOf<Pair<List<android.net.Uri>, Int>?>(null) }
+    val fullText = stringResource(R.string.attach_full, Normalize.MAX_ATTACHMENTS)
+
+    fun attach(uris: List<android.net.Uri>) {
+        val id = model.id
+        scope.launch {
+            // Copied off the picker's stream into the app's cache first,
+            // away from the screen's thread; moved into place by the write.
+            val copied = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                uris.mapNotNull { uri -> copyToCache(context, uri) }
+            }
+            state.attach(id, copied.map { (name, temp) ->
+                Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
+            }, unreadable = uris.size - copied.size)
+            copied.forEach { (_, temp) -> temp.delete() }
+        }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        // A new note is saved first: only a saved note can hold files.
+        if (!model.save(force = model.id == 0)) return@rememberLauncherForActivityResult
+        val room = Organizing.roomFor(state.load, model.id)
+        when {
+            room == 0 -> state.say(fullText)
+            uris.size > room -> tooMany = uris to room
+            else -> attach(uris)
+        }
+    }
+
+    if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "📎  $name",
+                color = palette.accentText,
+                fontSize = 15.sp,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { state.openFile?.invoke(File(state.attachments, stored), name) }
+                    .padding(vertical = 8.dp),
+            )
+            if (model.day == null) {
+                val removeLabel = stringResource(R.string.attach_remove_said, name)
+                Text("✕", color = palette.subtext, fontSize = 14.sp,
+                     modifier = Modifier
+                         .semantics { contentDescription = removeLabel }
+                         .clickable { removing = name to stored }
+                         .padding(10.dp))
+            }
+        }
+    }
+    if (model.day == null) {
         Text(
-            "📎  $name",
+            stringResource(R.string.attach_files),
             color = palette.accentText,
-            fontSize = 15.sp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { state.openFile?.invoke(File(state.attachments, stored), name) }
-                .padding(vertical = 8.dp),
+            fontSize = 14.sp,
+            modifier = Modifier.padding(top = 10.dp).clickable { picker.launch(arrayOf("*/*")) }.padding(vertical = 6.dp),
         )
+    }
+    removing?.let { (name, stored) ->
+        Ask(
+            title = stringResource(R.string.attach_remove_title),
+            text = stringResource(R.string.attach_remove_text, name),
+            confirm = stringResource(R.string.attach_remove_confirm),
+            onConfirm = {
+                removing = null
+                state.detach(model.id, stored)
+            },
+            onDismiss = { removing = null },
+            destructive = true,
+        )
+    }
+    tooMany?.let { (uris, room) ->
+        Ask(
+            title = stringResource(R.string.attach_too_many_title),
+            text = stringResource(R.string.attach_too_many_text, Normalize.MAX_ATTACHMENTS, room),
+            confirm = stringResource(R.string.attach_first_n, room),
+            onConfirm = {
+                tooMany = null
+                attach(uris.take(room))
+            },
+            onDismiss = { tooMany = null },
+        )
+    }
+}
+
+/**
+ * A picked document copied into the app's cache, with the name to show for
+ * it -- the provider's own, else the last part of its address. Null when it
+ * cannot be read.
+ */
+private fun copyToCache(context: android.content.Context, uri: android.net.Uri): Pair<String, File>? {
+    val name = try {
+        context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    } catch (e: Exception) {
+        null
+    } ?: uri.lastPathSegment?.substringAfterLast('/') ?: "file"
+    val temp = File(context.cacheDir, "attach_" + System.nanoTime())
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            temp.outputStream().use { input.copyTo(it, 1 shl 20) }
+        } ?: return null
+        name to temp
+    } catch (e: Exception) {
+        temp.delete()
+        null
     }
 }
 

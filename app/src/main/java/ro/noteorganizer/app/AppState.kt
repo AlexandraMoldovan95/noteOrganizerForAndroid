@@ -421,6 +421,23 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         putSetting(Settings.NOTE_SORT, order.label)
     }
 
+    /**
+     * Files handed over from the picker, attached to a note in one write --
+     * and said, when some could not be read or copied. The editor does not
+     * hold a note's files, so its next save has nothing to put back.
+     */
+    fun attach(id: Int, incoming: List<Organizing.Incoming>, unreadable: Int = 0) {
+        val done = Organizing.attach(load, id, attachments, incoming)
+        if (!report(done.result)) return
+        val missed = done.failed.size + unreadable
+        if (missed > 0) say(if (missed == 1) "One file could not be attached." else "$missed files could not be attached.")
+    }
+
+    /** An attached file taken off a note, its stored copy deleted unless another note uses it. */
+    fun detach(id: Int, storedAs: String) {
+        report(Organizing.detach(load, id, storedAs, attachments))
+    }
+
     /** A note dragged to just before or after another, in Custom order. */
     fun moveNote(id: Int, anchor: Int, before: Boolean, grouped: Boolean) {
         report(Organizing.moveNote(load, id, anchor, before, grouped))

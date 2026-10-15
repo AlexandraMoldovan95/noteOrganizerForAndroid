@@ -227,6 +227,7 @@ def main():
     move_day(folder)
     listing(folder)
     arranging(folder)
+    attaching(folder)
     statistics(folder)
     calculator(folder)
     finding(folder)
@@ -1430,6 +1431,44 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           order.index("Note 30") <= 2 and sorted(order) == ["Note %02d" % i for i in range(1, 31)],
           repr(order[:5]))
+
+
+def attaching(folder):
+    """Files attached from Android's own picker and taken off again: the
+    record and the stored copy read back off the phone, under a name the
+    desktop's folder takes; a removal that asks first, and deletes."""
+    print("\n-- attaching files --")
+    local = os.path.join(folder, "walk-receipt.txt")
+    with open(local, "w", encoding="utf-8") as f:
+        f.write("RECEIPT 120")
+    adb("push", local, "/sdcard/Download/walk-receipt.txt")
+    if not seed_inside([{"id": 1, "uid": "at-trip", "title": "Trip", "body": "fuel",
+                         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                       {"welcome_offered": True}, "Trip"):
+        return
+
+    def trip():
+        return note_by_uid("at-trip") or {}
+
+    open_note("Trip")
+    tap("+ Attach files", wait=3.0)
+    tap("walk-receipt.txt", exact=True, wait=3.0)
+    atts = trip().get("attachments") or []
+    stored = atts[0].get("stored_as", "") if atts else ""
+    check("a file picked is attached under its own name, kept under a stamped one",
+          len(atts) == 1 and atts[0].get("filename") == "walk-receipt.txt"
+          and re.fullmatch(r"\d{20}_walk-receipt\.txt", stored) is not None, json.dumps(atts))
+    kept = adb("exec-out", "run-as", PACKAGE, "cat", "%s/attachments/%s" % (NOTEBOOK, stored), binary=True)
+    check("its bytes are in the attachments folder", kept == b"RECEIPT 120", repr(kept[:40]))
+    shot(folder, "50-attached", "walk-receipt.txt", "Remove walk-receipt.txt")
+
+    tap("Remove walk-receipt.txt", wait=1.2)
+    check("removing a file asks first, and says the copy goes", not screen_says("can't be undone"))
+    tap_last("Remove", wait=1.5)
+    gone = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
+    check("removed: off the note, and its stored copy deleted",
+          not (trip().get("attachments") or []) and stored and stored not in gone, gone[:200])
+    back_to("Search notes")
 
 
 def turn(rotation):
