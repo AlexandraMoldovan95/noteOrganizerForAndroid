@@ -783,7 +783,37 @@ private fun FormatBar(model: EditorModel) {
     }
 
     Column(Modifier.fillMaxWidth().background(palette.sidebar)) {
-        if (palettePicker.isNotEmpty() && hasSelection) {
+        if ((palettePicker == "size" || palettePicker == "face") && hasSelection) {
+            // The desktop's two drop-downs, as a row of choices: Default
+            // takes the span away, so the note's own size or face shows.
+            val style = if (palettePicker == "size") "font_size" else "font_family"
+            val choices = if (palettePicker == "size") Fonts.SIZES.map { it.toString() } else Fonts.FAMILIES
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (choice in listOf(Fonts.DEFAULT) + choices) {
+                    Text(
+                        choice, color = palette.text, fontSize = 14.sp,
+                        fontFamily = when (Fonts.kindOf(choice)) {
+                            "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+                            "monospace" -> androidx.compose.ui.text.font.FontFamily.Monospace
+                            else -> null
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(palette.card)
+                            .clickable {
+                                model.spans = if (choice == Fonts.DEFAULT) clearStyle(model.spans, from, to, style)
+                                              else setStyle(model.spans, from, to, style, choice)
+                                model.changed()
+                                palettePicker = ""
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
+            }
+        } else if (palettePicker.isNotEmpty() && hasSelection) {
             val style = if (palettePicker == "text") "text_color" else "highlight"
             val colours = if (palettePicker == "text") Themes.PRESET_NOTE_COLORS else Themes.HIGHLIGHT_COLOR_PALETTE
             Row(
@@ -834,6 +864,12 @@ private fun FormatBar(model: EditorModel) {
             }
             FormatKey("🖍", "highlight" in active, hasSelection) {
                 palettePicker = if (palettePicker == "mark") "" else "mark"
+            }
+            FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium) {
+                palettePicker = if (palettePicker == "face") "" else "face"
+            }
+            FormatKey("12", "font_size" in active, hasSelection, weight = FontWeight.Medium) {
+                palettePicker = if (palettePicker == "size") "" else "size"
             }
         }
     }

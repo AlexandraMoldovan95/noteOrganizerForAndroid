@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -71,9 +72,16 @@ private fun styleOf(span: FormatSpan, surface: Color): SpanStyle? = when (span.s
     "font_size" -> span.value.toIntOrNull()
         ?.takeIf { it in 6..96 }
         ?.let { SpanStyle(fontSize = it.sp) }
-    // A desktop face name means nothing on a phone, which has its own
-    // fonts. Named here rather than silently skipped, so the screen can
-    // say what it could not honour.
+    // The Windows faces are not on a phone; each is drawn as the kind it
+    // is -- serifed, fixed-width or plain -- which is what it was chosen for.
+    "font_family" -> when (Fonts.kindOf(span.value)) {
+        "serif" -> SpanStyle(fontFamily = FontFamily.Serif)
+        "monospace" -> SpanStyle(fontFamily = FontFamily.Monospace)
+        "sans" -> SpanStyle(fontFamily = FontFamily.SansSerif)
+        else -> null
+    }
+    // Anything else is named here rather than silently skipped, so the
+    // screen can say what it could not honour.
     else -> null
 }
 

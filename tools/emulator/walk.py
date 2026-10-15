@@ -313,6 +313,7 @@ def main():
     exporting(folder)
     styles_through_an_edit(folder)
     templates(folder)
+    sizes_and_faces(folder)
     changes(folder)
 
     print()
@@ -1105,6 +1106,35 @@ def templates(folder):
     tap("Delete", exact=True, wait=1.2)
     check("gone", on_disk() == [], repr(on_disk()))
     back_to("Search notes")
+
+
+def sizes_and_faces(folder):
+    """A word chosen in the editor, given a size and a face from the
+    format bar's two new keys -- and the file, where both must be in the
+    shape the desktop keeps: the size a number, the face one of its own."""
+    print("\n-- sizes and faces --")
+    seed_inside([
+        {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style",
+         "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Faces")
+    open_note("Faces")
+    # Everything selected, as a keyboard's Ctrl+A does: Android's own
+    # "Select all" floats in a window of its own, which the screen's tree
+    # does not hold, so it cannot be found and tapped from here.
+    tap("plain words to style", wait=1.0)
+    adb("shell", "input", "keycombination", "113", "29")
+    time.sleep(0.8)
+    tap("12", exact=True, wait=0.8)
+    tap("20", exact=True, wait=0.8)
+    tap("Aa", exact=True, wait=0.8)
+    tap("Georgia", exact=True, wait=0.8)
+    shot(folder, "40-size-and-face", "Faces")
+    back_to("Search notes")
+    spans = ((read_file("notes_data.json") or [{}])[0]).get("formatting") or []
+    check("the size is the number 20", any(s.get("style") == "font_size" and s.get("value") == 20 for s in spans),
+          repr(spans))
+    check("the face is Georgia", any(s.get("style") == "font_family" and s.get("value") == "Georgia" for s in spans),
+          repr(spans))
 
 
 if __name__ == "__main__":

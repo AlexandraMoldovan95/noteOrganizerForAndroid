@@ -21,6 +21,30 @@ package ro.noteorganizer.app
  * That is exact where interval arithmetic by hand is where the bugs live.
  */
 
+/**
+ * The faces and sizes a note may carry: the desktop's FONT_FAMILIES and
+ * FONT_SIZES, the only values its normalize_formatting keeps. "Default"
+ * in a picker means no span at all -- the note's own size and face.
+ */
+object Fonts {
+    const val DEFAULT = "Default"
+    val SIZES = listOf(9, 10, 11, 12, 14, 16, 20, 24)
+    val FAMILIES = listOf("Segoe UI", "Arial", "Calibri", "Georgia", "Times New Roman",
+                          "Verdana", "Consolas", "Courier New")
+
+    /**
+     * The phone has none of these Windows faces; each is drawn as the kind
+     * it is -- serifed, fixed-width, or plain -- which is what the person
+     * chose it for. Null for a name that is not one of them.
+     */
+    fun kindOf(face: String): String? = when (face) {
+        "Georgia", "Times New Roman" -> "serif"
+        "Consolas", "Courier New" -> "monospace"
+        in FAMILIES -> "sans"
+        else -> null
+    }
+}
+
 /** Styles that cannot overlap each other share a group name. */
 fun styleGroup(style: String): String = when (style) {
     "bold", "italic", "bold_italic" -> "font"

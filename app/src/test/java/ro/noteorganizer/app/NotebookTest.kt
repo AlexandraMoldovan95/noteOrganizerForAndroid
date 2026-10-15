@@ -271,14 +271,17 @@ class NotebookTest {
 
     @Test
     fun `a style this screen cannot draw is admitted, not silently dropped`() {
+        // A face the desktop offers is drawn as its kind now (Consolas,
+        // fixed-width); one it does not offer is still admitted to.
         val json = """
             [{"id": 1, "body": "abc", "formatting": [
+              {"start": 0, "end": 3, "style": "font_family", "value": "Comic Sans"},
               {"start": 0, "end": 3, "style": "font_family", "value": "Consolas"},
               {"start": 0, "end": 3, "style": "bold"}]}]
         """.trimIndent()
         val rendered = renderBody(Notebook.parseNotes(json).single())
         assertEquals(setOf("font_family"), rendered.ignoredStyles)
-        assertEquals(1, rendered.text.spanStyles.size)
+        assertEquals("bold, and Consolas as fixed-width", 2, rendered.text.spanStyles.size)
     }
 
     @Test
@@ -465,6 +468,27 @@ class NotebookTest {
             compared++
         }
         assertTrue(compared > 300)
+    }
+
+    @Test
+    fun `a size and a face chosen on the phone are written as the desktop keeps them`() {
+        val load = scratch("[]")
+        val spans = setStyle(setStyle(emptyList(), 0, 3, "font_size", "20"), 4, 8, "font_family", "Georgia")
+        Notebook.createNote(load, "", "big text here", formatting = spans)
+        val written = onDisk(load).getJSONObject(0).getJSONArray("formatting")
+        val bySpan = (0 until written.length()).map { written.getJSONObject(it) }.associateBy { it.getString("style") }
+        assertEquals(20, bySpan.getValue("font_size").get("value"))
+        assertEquals("Georgia", bySpan.getValue("font_family").get("value"))
+        assertEquals("every choice the picker offers is one the desktop keeps",
+            Fonts.SIZES.map { FormatSpan(0, 1, "font_size", it.toString()) } +
+                Fonts.FAMILIES.map { FormatSpan(0, 1, "font_family", it) },
+            Exporting.normalizeFormatting(JSONArray(
+                Fonts.SIZES.map { JSONObject().put("start", 0).put("end", 1).put("style", "font_size").put("value", it) } +
+                    Fonts.FAMILIES.map { JSONObject().put("start", 0).put("end", 1).put("style", "font_family").put("value", it) })))
+        assertEquals("serif", Fonts.kindOf("Georgia"))
+        assertEquals("monospace", Fonts.kindOf("Courier New"))
+        assertEquals("sans", Fonts.kindOf("Calibri"))
+        assertEquals(null, Fonts.kindOf("Comic Sans"))
     }
 
     @Test

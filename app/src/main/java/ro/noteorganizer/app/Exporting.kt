@@ -40,9 +40,8 @@ object Exporting {
 
     private val ON_OFF = setOf("bold", "italic", "bold_italic", "underline", "strike")
     private val COLOURS = setOf("text_color", "highlight")
-    private val FONT_FAMILIES = listOf("Segoe UI", "Arial", "Calibri", "Georgia", "Times New Roman",
-                                       "Verdana", "Consolas", "Courier New")
-    private val FONT_SIZES = listOf(9L, 10L, 11L, 12L, 14L, 16L, 20L, 24L)
+    private val FONT_FAMILIES = Fonts.FAMILIES
+    private val FONT_SIZES = Fonts.SIZES.map { it.toLong() }
     private const val MAX_SPANS = 10_000
     private val BULLET_GLYPHS = listOf("•", "◦", "▪")
     private val LIST_KINDS = setOf("bullet", "number")
