@@ -1,6 +1,7 @@
 package ro.noteorganizer.app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
@@ -580,6 +581,7 @@ fun NoteEditor(state: AppState, openId: Int) {
     val cameFrom = if (day != null && raw != null) Recurrence.movedFrom(raw, day) else null
     var asking by remember { mutableStateOf<String?>(null) }
     var moving by remember { mutableStateOf(false) }
+    var walkingOff by remember { mutableStateOf<List<String>?>(null) }
 
     fun leave() {
         model.save()
@@ -833,6 +835,25 @@ fun NoteEditor(state: AppState, openId: Int) {
                     }
                 }
             }
+            // The whole series, with days whose own edits its repeat no longer
+            // reaches: no calendar shows them, so the note says so and offers
+            // the way to each -- the desktop's button under its banner.
+            val offDays = if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
+            if (offDays.isNotEmpty()) {
+                Text(
+                    pluralStringResource(R.plurals.off_schedule_banner, offDays.size, offDays.size),
+                    color = palette.accentText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(palette.card)
+                        .clickable { model.save(); walkingOff = offDays }
+                        .padding(12.dp),
+                )
+            }
             if (note?.hasPrevious == true) {
                 Row(
                     Modifier
@@ -938,6 +959,9 @@ fun NoteEditor(state: AppState, openId: Int) {
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
                       modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
         }
+    }
+    walkingOff?.let { days ->
+        OffScheduleQuestions(state, model.id, days, onDone = { walkingOff = null })
     }
     if (day != null && asking != null) {
         DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) {
@@ -1814,6 +1838,76 @@ internal fun DetailRow(label: String, content: @Composable () -> Unit) {
         Text(label, color = palette.subtext, fontSize = 14.sp, modifier = Modifier.weight(1f))
         content()
     }
+}
+
+/**
+ * The days off the schedule, one question each, in the desktop's words:
+ * make the day a note of its own, move it to the Trash, or leave it. Each
+ * day is looked at again when its turn comes -- an answer before it may
+ * have changed the note -- and leaving one changes nothing. What was done
+ * is said at the end.
+ */
+@Composable
+private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, onDone: () -> Unit) {
+    val palette = LocalPalette.current
+    var at by remember(days) { mutableIntStateOf(0) }
+    var made by remember(days) { mutableIntStateOf(0) }
+    var trashed by remember(days) { mutableIntStateOf(0) }
+
+    fun finish() {
+        val said = buildList {
+            if (made > 0) add(if (made == 1) "1 made a note of its own" else "$made made notes of their own")
+            if (trashed > 0) add("$trashed moved to the Trash")
+        }
+        if (said.isNotEmpty()) state.say("Days off the schedule: " + said.joinToString(", "))
+        onDone()
+    }
+
+    val raw = state.rawNote(id)
+    // The next day still keeping its edits off the schedule, from [at] on.
+    val next = (at until days.size).firstOrNull { i ->
+        raw != null && (raw.opt("overrides") as? org.json.JSONObject)?.has(days[i]) == true
+    }
+    LaunchedEffect(next) { if (next == null) finish() }
+    if (next == null || raw == null) return
+    val day = days[next]
+    val shown = Recurrence.effectiveNote(raw, day)
+    val title = (shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled"
+    val text = contentText(shown.opt("body") as? String ?: "").split(Regex("\\s+")).filter { it.isNotEmpty() }
+        .joinToString(" ").let { if (it.length > 160) it.take(160).trimEnd() + "…" else it }
+    val whenDay = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
+
+    fun answer(how: Days.Settle?) {
+        if (how != null && state.settleOffScheduleDay(id, day, how)) {
+            if (how == Days.Settle.NOTE) made += 1 else trashed += 1
+        }
+        at = next + 1
+    }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { answer(null) },
+        title = { Text(stringResource(R.string.off_schedule_title, next + 1, days.size)) },
+        text = {
+            Text(stringResource(R.string.off_schedule_text, whenDay, title,
+                                if (text.isEmpty()) "" else "\n$text", Recurrence.describe(raw), state.load.retentionDays))
+        },
+        confirmButton = {
+            TextButton(onClick = { answer(Days.Settle.NOTE) }) {
+                Text(stringResource(R.string.off_schedule_note), color = palette.accentText, fontWeight = FontWeight.Medium)
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { answer(null) }) { Text(stringResource(R.string.off_schedule_leave)) }
+                TextButton(onClick = { answer(Days.Settle.TRASH) }) {
+                    Text(stringResource(R.string.off_schedule_trash), color = palette.dangerText)
+                }
+            }
+        },
+        containerColor = palette.card,
+        titleContentColor = palette.text,
+        textContentColor = palette.subtext,
+    )
 }
 
 /** Android's own calendar picker, kept to the desktop's stored form. */

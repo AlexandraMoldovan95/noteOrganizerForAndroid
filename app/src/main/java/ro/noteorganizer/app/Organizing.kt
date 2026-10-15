@@ -33,7 +33,7 @@ object Organizing {
         return -1
     }
 
-    private fun maxId(array: JSONArray): Int {
+    internal fun maxId(array: JSONArray): Int {
         var max = 0
         for (i in 0 until array.length()) {
             val itsId = (array.opt(i) as? JSONObject)?.opt("id")

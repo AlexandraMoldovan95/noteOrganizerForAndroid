@@ -44,6 +44,16 @@
     <string name="day_edit_series">🔁 Edit the whole series</string>
     <string name="day_reset">↺ Reset this day</string>
     <string name="day_move">📅 Move this day…</string>
+    <!-- Days off the schedule: the desktop's words -->
+    <plurals name="off_schedule_banner">
+        <item quantity="one">✎ %d day\'s own edits are off the schedule — Show it</item>
+        <item quantity="other">✎ %d days\' own edits are off the schedule — Show them</item>
+    </plurals>
+    <string name="off_schedule_title">Day %1$d of %2$d off the schedule</string>
+    <string name="off_schedule_text">%1$s — “%2$s”%3$s\n\nThis day keeps its own edits, but the repeat (%4$s) no longer lands on it, so the calendar does not show it.\n\nA note of its own puts it back on the calendar, on its day. The Trash keeps it %5$d days.</string>
+    <string name="off_schedule_note">Make it a note</string>
+    <string name="off_schedule_trash">Move to the Trash</string>
+    <string name="off_schedule_leave">Leave it</string>
     <string name="day_delete">Delete this day</string>
     <string name="series_delete">Delete the whole series</string>
     <string name="day_banner">📅 Only this day: %1$s</string>

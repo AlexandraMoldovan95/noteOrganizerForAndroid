@@ -347,6 +347,10 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         }
     }
 
+    /** A day off its series' schedule made a note of its own, or that note sent to the Trash. */
+    fun settleOffScheduleDay(id: Int, day: String, how: Days.Settle): Boolean =
+        report(outside(listOf(id)) { Days.settleOffScheduleDay(load, id, day, how) })
+
     private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(outside(listOf(id)) { Days.setRepeat(load, id, rule) })

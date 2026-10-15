@@ -337,6 +337,69 @@ object Days {
         }
     }
 
+    // ---- days off the schedule ----
+
+    /** What becomes of a day off the schedule: a note of its own, or that note in the Trash. */
+    enum class Settle { NOTE, TRASH }
+
+    /**
+     * One day a series keeps its own edits for, which its repeat no longer
+     * lands on -- so no calendar shows it -- made a note of its own on its
+     * date, or that note moved straight to the Trash; either way taken out
+     * of the series. The desktop's `_settle_off_schedule_day`: the new note
+     * holds what the day showed -- title, text, comments, category, colour
+     * -- the series' formatting only where the day's text is the series' own
+     * (its offsets would land on the wrong letters anywhere else), and none
+     * of the checklist and the files, which were never the day's. A move
+     * that brought the day here goes too, or a rule brought back would draw
+     * it again. The Trash is written before the notes, as every delete is.
+     */
+    fun settleOffScheduleDay(load: Notebook.Load, id: Int, day: String, how: Settle): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val index = Organizing.indexOfId(array, id)
+        if (index < 0) return SaveResult.Failed(GONE)
+        val candidate = JSONArray(array.toString())
+        val note = candidate.getJSONObject(index)
+        val overrides = note.opt("overrides") as? JSONObject
+        if (!Recurrence.isRecurring(note) || overrides?.has(day) != true) {
+            return SaveResult.Failed("That day keeps nothing of its own any more.")
+        }
+        val shown = Recurrence.effectiveNote(note, day)
+        val sameBody = shown.opt("body") == note.opt("body")
+        val stamp = Files.now()
+        val freshId = Organizing.maxId(array) + 1
+        val fresh = Normalize.normalizeNote(JSONObject()
+            .put("id", freshId)
+            .put("title", shown.opt("title") as? String ?: "")
+            .put("body", shown.opt("body") as? String ?: "")
+            .put("formatting", if (sameBody) JSONArray((note.opt("formatting") as? JSONArray)?.toString() ?: "[]") else JSONArray())
+            .put("paragraphs", JSONArray((note.opt("paragraphs") as? JSONArray)?.toString() ?: "[]"))
+            .put("comments", shown.opt("comments") as? String ?: "")
+            .put("category", (shown.opt("category") as? String)?.ifEmpty { null } ?: note.opt("category") ?: "")
+            .put("color", shown.opt("color") as? String ?: "")
+            .put("date", day)
+            .put("created", stamp)
+            .put("updated", stamp))
+        overrides.remove(day)
+        Recurrence.movedFrom(note, day)?.let { (note.opt("moved") as? JSONObject)?.remove(it) }
+        note.put("updated", stamp)
+        if (how == Settle.TRASH) {
+            val trashFile = load.trashFile ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
+            if (trashFile.exists() && load.trashRaw == null) {
+                return SaveResult.Failed("The Trash could not be read, so nothing was changed in it.")
+            }
+            val trash = JSONArray((load.trashRaw ?: JSONArray()).toString()).put(JSONObject(fresh.toString()).put("deleted_at", stamp))
+            Organizing.write(trashFile, trash)?.let { return SaveResult.Failed(it) }
+            load.trashRaw?.let { Organizing.replace(it, trash) }
+        } else {
+            candidate.put(fresh)
+        }
+        Organizing.write(file, candidate)?.let { return SaveResult.Failed(it) }
+        Organizing.replace(array, candidate)
+        return SaveResult.Ok(freshId)
+    }
+
     /**
      * Whether turning the repeat off would take text a day holds on its own
      * -- the desktop's `_repeat_off_loses_days`. A day differing only in its

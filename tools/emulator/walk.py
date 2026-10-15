@@ -225,6 +225,7 @@ def main():
     outward(folder)
     calendar(folder)
     move_day(folder)
+    off_schedule(folder)
     listing(folder)
     arranging(folder)
     attaching(folder)
@@ -1363,6 +1364,42 @@ def move_day(folder):
           and ((back_home.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2",
           json.dumps({k: back_home.get(k) for k in ("moved", "overrides")}))
     back_to("📋 History")
+
+
+def off_schedule(folder):
+    """Days a series keeps its own edits for, which its repeat no longer
+    reaches: the note says so, and walks them one question at a time -- one
+    made a note of its own, one sent to the Trash -- each read back."""
+    print("\n-- days off the schedule --")
+    if not seed_inside([
+        {"id": 1, "uid": "os-series", "title": "Yoga", "body": "mat", "category": "General",
+         "date": "2026-10-06", "recurrence": {"freq": "weekly", "weekdays": [1]},
+         "overrides": {"2026-10-12": {"title": "Yoga in the park"}, "2026-10-19": {"title": "Yoga at home"}},
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+    ], {"welcome_offered": True}, "Yoga"):
+        return
+    open_note("Yoga")
+    check("the series says two days' edits are off its schedule",
+          not screen_says("2 days' own edits are off the schedule"))
+    tap("off the schedule", wait=1.5)
+    check("one question a day, in the desktop's words", not screen_says("Day 1 of 2 off the schedule", "Yoga in the park"))
+    shot(folder, "54-off-schedule", "Day 1 of 2 off the schedule")
+    tap("Make it a note", exact=True, wait=1.5)
+    check("then the next", not screen_says("Day 2 of 2 off the schedule", "Yoga at home"))
+    tap("Move to the Trash", exact=True, wait=1.0)
+    # At once: the message lasts a few seconds.
+    check("and what was done is said", not screen_says("1 made a note of its own, 1 moved to the Trash"))
+    notes = read_file("notes_data.json") or []
+    trash = read_file("trash.json") or []
+    series = next((n for n in notes if n.get("uid") == "os-series"), {})
+    made = [n for n in notes if n.get("title") == "Yoga in the park"]
+    check("one day a note of its own on its date, the other in the Trash, the series keeping neither",
+          len(made) == 1 and made[0].get("date") == "2026-10-12"
+          and [t.get("title") for t in trash] == ["Yoga at home"] and not (series.get("overrides") or {}),
+          json.dumps({"made": made, "trash": [t.get("title") for t in trash]})[:240])
+    # "own edits are": the summary said after says "off the schedule" too.
+    check("the banner is gone once nothing is off the schedule", find("own edits are off the schedule") is None)
+    back_to("Search notes")
 
 
 def arranging(folder):

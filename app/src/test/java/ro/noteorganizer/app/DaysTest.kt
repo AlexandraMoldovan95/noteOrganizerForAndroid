@@ -305,4 +305,63 @@ class DaysTest {
         // Every day still drawn: the 12th's on the 14th, the 19th's on the 12th.
         assertEquals(listOf("2026-10-05", "2026-10-12", "2026-10-14", "2026-10-26"), october(onDisk(load)))
     }
+
+    // ---- days off the schedule ----
+
+    /** A Monday series whose 12th keeps its own text, its repeat since moved to Tuesdays. */
+    private val offTheSchedule = """[{"id": 1, "uid": "s", "title": "Stand-up", "body": "agenda", "comments": "",
+        "category": "Work", "color": "", "date": "2026-10-05",
+        "formatting": [{"start": 0, "end": 6, "style": "bold"}],
+        "recurrence": {"freq": "weekly", "weekdays": [1]},
+        "checklist": [{"text": "x", "done": false}],
+        "attachments": [{"filename": "a", "stored_as": "a.png"}],
+        "overrides": {"2026-10-12": {"title": "Room 2", "body": "own text"}}}]"""
+
+    @Test
+    fun `a day off the schedule becomes a note of its own, on its date, with what it showed`() {
+        val load = scratch(offTheSchedule)
+        assertEquals(listOf("2026-10-12"), Recurrence.offScheduleDays(onDisk(load)))
+        val made = Days.settleOffScheduleDay(load, 1, "2026-10-12", Days.Settle.NOTE)
+        assertTrue(made is SaveResult.Ok)
+        val notes = JSONArray(load.file!!.readText())
+        val fresh = notes.getJSONObject(1)
+        assertEquals(2, fresh.getInt("id"))
+        assertEquals("Room 2", fresh.getString("title"))
+        assertEquals("own text", fresh.getString("body"))
+        assertEquals("2026-10-12", fresh.getString("date"))
+        assertEquals("Work", fresh.getString("category"))
+        assertEquals("its own text: the series' styling would land on the wrong letters",
+                     0, fresh.getJSONArray("formatting").length())
+        assertEquals("the checklist and files stay the series'", 0, fresh.getJSONArray("checklist").length())
+        assertEquals(0, fresh.getJSONArray("attachments").length())
+        assertTrue(fresh.optString("uid").isNotEmpty() && fresh.optString("uid") != "s")
+        assertTrue(Recurrence.offScheduleDays(notes.getJSONObject(0)).isEmpty())
+        assertFalse(notes.getJSONObject(0).getJSONObject("overrides").has("2026-10-12"))
+    }
+
+    @Test
+    fun `sent to the Trash it leaves the series too, and the series' styling goes where its text is its own`() {
+        val load = scratch(offTheSchedule.replace("\"body\": \"own text\"", "\"body\": \"agenda\""))
+        assertTrue(Days.settleOffScheduleDay(load, 1, "2026-10-12", Days.Settle.TRASH) is SaveResult.Ok)
+        val notes = JSONArray(load.file!!.readText())
+        assertEquals(1, notes.length())
+        assertFalse(notes.getJSONObject(0).getJSONObject("overrides").has("2026-10-12"))
+        val trashed = JSONArray(load.trashFile!!.readText()).getJSONObject(0)
+        assertEquals("Room 2", trashed.getString("title"))
+        assertTrue(trashed.optString("deleted_at").isNotEmpty())
+        assertEquals("the series' own text, so its styling fits", 1, trashed.getJSONArray("formatting").length())
+        val again = Days.settleOffScheduleDay(load, 1, "2026-10-12", Days.Settle.NOTE)
+        assertTrue(again is SaveResult.Failed && again.reason.startsWith("That day keeps nothing"))
+    }
+
+    @Test
+    fun `a day moved there takes its move with it`() {
+        // Monday the 12th was held on Wednesday the 14th; the repeat, now on
+        // Tuesdays, gives the 12th no more, so the move draws nothing.
+        val load = scratch(offTheSchedule
+            .replace("\"overrides\": {\"2026-10-12\"", "\"moved\": {\"2026-10-12\": \"2026-10-14\"}, \"overrides\": {\"2026-10-14\""))
+        assertEquals(listOf("2026-10-14"), Recurrence.offScheduleDays(onDisk(load)))
+        assertTrue(Days.settleOffScheduleDay(load, 1, "2026-10-14", Days.Settle.NOTE) is SaveResult.Ok)
+        assertEquals(0, onDisk(load).getJSONObject("moved").length())
+    }
 }
