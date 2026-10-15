@@ -156,6 +156,53 @@ object Editing {
     /** A body with a table put in, and the line the table starts on. */
     data class Inserted(val body: String, val firstLine: Int)
 
+    // ---- a table's caption ----
+
+    // Python's \d is any decimal digit, not only 0-9; re.match holds the start.
+    private val CAPTION_LABEL = Regex("^(?:Table|Tab\\.) \\p{Nd}+:")
+
+    /**
+     * A caption's label line, "Table 3: ..." -- or "Tab. 3:", as notes from
+     * before the labels went English have it. Prose that merely begins with
+     * the word is not one: the number and the colon are. The desktop's
+     * `is_caption_line`.
+     */
+    fun isCaptionLine(line: String): Boolean = CAPTION_LABEL.containsMatchIn(PyText.strip(line))
+
+    /** The line a caption keeps its source on: `is_source_line`. */
+    fun isSourceLine(line: String): Boolean = PyText.strip(line).startsWith("Source:")
+
+    /**
+     * The caption right under a table ending on line [last]: its label line
+     * and the source line after it, as line numbers -- only one touching its
+     * table belongs to it. Empty when the line under the table is not one.
+     */
+    fun captionLines(lines: List<String>, last: Int): List<Int> {
+        val label = last + 1
+        if (label !in lines.indices || !isCaptionLine(lines[label])) return emptyList()
+        return if (label + 1 in lines.indices && isSourceLine(lines[label + 1])) listOf(label, label + 1) else listOf(label)
+    }
+
+    /** A body with a caption put under a table: the label's line, and the placeholder to select, in code points. */
+    data class Captioned(val body: String, val line: Int, val selectStart: Int, val selectEnd: Int)
+
+    /**
+     * The desktop's "Add caption below…": a numbered label line and a source
+     * line under the table ending on line [last], ordinary text after that.
+     * Numbered after every caption the note already has, the older "Tab. N:"
+     * ones included, so an older note's count carries on; "description"
+     * comes selected, so typing replaces it.
+     */
+    fun addCaption(body: String, last: Int): Captioned {
+        val lines = body.split("\n")
+        val n = 1 + lines.count { isCaptionLine(it) }
+        val label = "Table $n: description"
+        val out = lines.take(last + 1) + label + "Source: " + lines.drop(last + 1)
+        val lineStart = out.take(last + 1).sumOf { it.codePointCount(0, it.length) + 1 }
+        val end = lineStart + label.length
+        return Captioned(out.joinToString("\n"), last + 1, end - "description".length, end)
+    }
+
     /**
      * `_insert_table`: a blank table at the cursor ([caret], in code points),
      * on lines of its own -- a break before it when the cursor's line holds

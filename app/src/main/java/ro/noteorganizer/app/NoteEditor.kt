@@ -221,14 +221,95 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         changed()
     }
 
-    /** The whole table left, centred or right on the page: its lines' alignment. */
+    /**
+     * The whole table left, centred or right on the page: its lines'
+     * alignment -- and its caption's, which goes with it: on the page the
+     * two are one block, as the desktop keeps them.
+     */
     fun placeTable(segment: Editing.Segment, align: String) {
-        var next = props
-        for (n in segment.firstLine..segment.lastLine) {
-            val p = (next[n] ?: Paragraphs.Props()).copy(align = align)
+        val caption = Editing.captionLines(body.split("\n"), segment.lastLine)
+        props = withAlign(props, (segment.firstLine..segment.lastLine) + caption, align)
+        changed()
+    }
+
+    private fun withAlign(from: Map<Int, Paragraphs.Props>, lines: Iterable<Int>, align: String?): Map<Int, Paragraphs.Props> {
+        var next = from
+        for (n in lines) {
+            val p = (next[n] ?: Paragraphs.Props()).copy(align = align ?: "left")
             next = if (p.plain) next - n else next + (n to p)
         }
-        props = next
+        return next
+    }
+
+    /** Asks the prose field at [index] to take the keyboard, with [value]'s selection. */
+    var focusAsk by mutableStateOf<Pair<Int, Int>?>(null)
+        private set
+
+    private fun ask(index: Int, value: TextFieldValue?) {
+        if (index < 0 || value == null) return
+        focus = index
+        focused = value
+        focusAsk = index to ((focusAsk?.second ?: 0) + 1)
+    }
+
+    /** The field asked has the keyboard: the ask is spent, and a field drawn later at that place is not asked again. */
+    fun focusTaken() {
+        focusAsk = null
+    }
+
+    /**
+     * The desktop's "Add caption below…": a numbered label line and a source
+     * line under the table, placed as the table is, no style carried onto
+     * them from its edge -- and "description" selected, so what is typed
+     * replaces it.
+     */
+    fun addCaption(segment: Editing.Segment) {
+        val made = Editing.addCaption(body, segment.lastLine)
+        val tableAlign = props[segment.firstLine]?.align
+        val lines = made.body.split("\n")
+        val from = lines.take(made.line).sumOf { it.codePointCount(0, it.length) + 1 }
+        val to = from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
+            lines[made.line + 1].codePointCount(0, lines[made.line + 1].length)
+        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans.let { moved ->
+            moved.map { it.style }.toSet().fold(moved) { acc, style -> clearStyle(acc, from, to, style) }
+        }
+        follow(made.body)
+        body = made.body
+        if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
+        changed()
+        val index = Editing.segments(body).indexOfFirst { !it.table && made.line in it.firstLine..it.lastLine }
+        ask(index, fieldValue(index, made.selectStart, made.selectEnd))
+    }
+
+    /** "Add a line above the table": an empty line there, the cursor on it. */
+    fun addLineAbove(segment: Editing.Segment) {
+        val lines = body.split("\n")
+        val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
+        val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
+        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        follow(next)
+        body = next
+        changed()
+        val index = Editing.segments(body).indexOfFirst { !it.table && segment.firstLine in it.firstLine..it.lastLine }
+        ask(index, fieldValue(index, at))
+    }
+
+    /**
+     * A column's width, hidden mark or fit: the separator line alone
+     * rewritten, or one put under the header row, placed as the table is.
+     */
+    fun editColumns(segment: Editing.Segment, change: (List<String>) -> List<String>) {
+        val lines = body.split("\n")
+        val table = lines.subList(segment.firstLine, segment.lastLine + 1)
+        val changedTable = change(table)
+        if (changedTable == table) return
+        val next = replaceTable(body, segment.firstLine..segment.lastLine, changedTable)
+        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        follow(next)
+        body = next
+        if (changedTable.size > table.size && day == null) {
+            props = withAlign(props, listOf(segment.firstLine + 1), props[segment.firstLine]?.align)
+        }
         changed()
     }
 
@@ -878,6 +959,15 @@ private fun ProseField(
     // The find bar's current match, scrolled into sight when it asks: the
     // line it is on, not merely this field, which may be pages long.
     val requester = remember { BringIntoViewRequester() }
+    // A caption just added, a line just made above a table: the keyboard
+    // here, at the place the model chose.
+    val focuser = remember { FocusRequester() }
+    LaunchedEffect(model.focusAsk) {
+        if (model.focusAsk?.first == index) {
+            focuser.requestFocus()
+            model.focusTaken()
+        }
+    }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     LaunchedEffect(reveal) {
         val at = match ?: return@LaunchedEffect
@@ -907,6 +997,7 @@ private fun ProseField(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
+            .focusRequester(focuser)
             .bringIntoViewRequester(requester)
             .onFocusChanged { focus ->
                 if (focus.isFocused) {
@@ -1753,6 +1844,28 @@ private fun CellSheet(model: EditorModel, segment: Editing.Segment, at: CellAt, 
                     Text(stringResource(R.string.delete_column), color = palette.dangerText)
                 }
             }
+            // The desktop sets a width by dragging a column's edge; a finger
+            // gets steps instead, four characters each, the width written in
+            // the separator as the desktop writes a dragged one.
+            val widthNow = table.columns.getOrNull(at.column)?.width
+                ?: minOf(table.charWidths.getOrElse(at.column) { 8 }, 26)
+            fun columns(edit: (List<String>) -> List<String>) {
+                model.editColumns(segment, edit)
+                onDone()
+            }
+            SheetSection(stringResource(R.string.column_width)) {
+                TextButton(onClick = { columns { setColumnWidth(it, at.column, widthNow + 4) } }) {
+                    Text(stringResource(R.string.column_wider))
+                }
+                TextButton(enabled = widthNow > 4, onClick = { columns { setColumnWidth(it, at.column, widthNow - 4) } }) {
+                    Text(stringResource(R.string.column_narrower))
+                }
+                TextButton(onClick = { columns { autofitColumn(it, at.column) } }) { Text(stringResource(R.string.column_autofit)) }
+                TextButton(onClick = { columns { hideColumn(it, at.column) } }) { Text(stringResource(R.string.column_hide)) }
+                TextButton(enabled = table.columns.any { it.hidden }, onClick = { columns { unhideAllColumns(it) } }) {
+                    Text(stringResource(R.string.column_unhide_all))
+                }
+            }
             SheetSection(stringResource(R.string.table_label)) {
                 if (wholeNote) {
                     for ((label, place) in listOf(R.string.table_left to "left", R.string.table_center to "center",
@@ -1760,6 +1873,8 @@ private fun CellSheet(model: EditorModel, segment: Editing.Segment, at: CellAt, 
                         TextButton(onClick = { model.placeTable(segment, place); onDone() }) { Text(stringResource(label)) }
                     }
                 }
+                TextButton(onClick = { onDone(); model.addCaption(segment) }) { Text(stringResource(R.string.table_caption)) }
+                TextButton(onClick = { onDone(); model.addLineAbove(segment) }) { Text(stringResource(R.string.table_line_above)) }
                 TextButton(onClick = { askDelete = true }) {
                     Text(stringResource(R.string.delete_table), color = palette.dangerText)
                 }

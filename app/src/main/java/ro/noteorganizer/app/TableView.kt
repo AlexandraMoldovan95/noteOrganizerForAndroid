@@ -81,8 +81,12 @@ fun TableView(
 ) {
     if (table.rows.isEmpty() || table.columns.isEmpty()) return
 
-    val widths = table.charWidths.map {
-        CHAR_WIDTH * minOf(it, MAX_COLUMN_CHARS).coerceAtLeast(1)
+    // A width set by hand -- the separator's dash count, more than three --
+    // is the column's width exactly, as the desktop draws it: wider than
+    // what it holds, or narrower, its words cut short with "…". A plain
+    // "---" sets none, and the column takes what it holds, up to the cap.
+    val widths = table.charWidths.mapIndexed { i, chars ->
+        CHAR_WIDTH * (table.columns.getOrNull(i)?.width ?: minOf(chars, MAX_COLUMN_CHARS)).coerceAtLeast(1)
     }
 
     // The theme's own colours: the grid lines are the hairline showing
@@ -139,7 +143,7 @@ fun TableView(
                     val align = cell.align.takeIf { it != CellAlign.LEFT } ?: column?.align
                     CellBox(cell, span, align, isHeader, editing,
                             found = here in found, current = here == current, reveal = reveal,
-                            fill = highlights[here]) {
+                            fill = highlights[here], clip = column?.width != null) {
                         onCellTap?.invoke(here)
                     }
                     c = last
@@ -161,6 +165,7 @@ private fun CellBox(
     current: Boolean = false,
     reveal: Int = 0,
     fill: Color? = null,
+    clip: Boolean = false,
     onTap: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
@@ -212,6 +217,11 @@ private fun CellBox(
                 CellAlign.RIGHT -> TextAlign.End
                 else -> TextAlign.Start
             },
+            // A column narrowed by hand cuts its words short rather than
+            // growing taller, as the desktop's does.
+            softWrap = !clip,
+            overflow = if (clip) androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                       else androidx.compose.ui.text.style.TextOverflow.Clip,
         )
     }
 }

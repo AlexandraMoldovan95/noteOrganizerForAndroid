@@ -18,7 +18,13 @@ package ro.noteorganizer.app
 /** Column alignment, as the separator's colons spell it. */
 enum class CellAlign { LEFT, CENTER, RIGHT }
 
-data class TableColumn(val align: CellAlign?, val hidden: Boolean)
+/**
+ * A column's mechanics, as its separator cell spells them: the colons'
+ * alignment, the hidden marker, and a [width] -- the cell's dashes and
+ * colons counted, when there are more than three. Three or fewer is
+ * markdown's way of writing any separator at all, not a size anyone set.
+ */
+data class TableColumn(val align: CellAlign?, val hidden: Boolean, val width: Int? = null)
 
 /**
  * One drawn cell. [lines] is the text split on the `<br>` marker, which is
@@ -500,7 +506,7 @@ fun mergeAnchors(rows: List<List<String>>): Map<Pair<Int, Int>, Pair<Int, Int>> 
     return anchorOf
 }
 
-/** The column mechanics a separator row spells out. */
+/** The column mechanics a separator row spells out: the desktop's `parse_separator`. */
 fun parseSeparator(line: String): List<TableColumn> = splitRow(line).map { cell ->
     if (cell == SEPARATOR_HIDDEN_MARK) return@map TableColumn(null, hidden = true)
     val left = cell.startsWith(":")
@@ -511,7 +517,68 @@ fun parseSeparator(line: String): List<TableColumn> = splitRow(line).map { cell 
         left -> CellAlign.LEFT
         else -> null
     }
-    TableColumn(align, hidden = false)
+    TableColumn(align, hidden = false, width = cell.length.takeIf { it > 3 })
+}
+
+/**
+ * Separator cells for [columns]: the desktop's `make_separator`. The width
+ * is kept exactly -- the dash count IS the width that was set -- so writing
+ * a separator again never forgets one.
+ */
+fun separatorCells(columns: List<TableColumn>): List<String> = columns.map { column ->
+    if (column.hidden) return@map SEPARATOR_HIDDEN_MARK
+    val width = maxOf(3, column.width ?: 3)
+    when (column.align) {
+        CellAlign.CENTER -> ":" + "-".repeat(maxOf(1, width - 2)) + ":"
+        CellAlign.RIGHT -> "-".repeat(maxOf(1, width - 1)) + ":"
+        CellAlign.LEFT -> ":" + "-".repeat(maxOf(1, width - 1))
+        null -> "-".repeat(width)
+    }
+}
+
+/**
+ * A column's width, hidden flag or fit changed by rewriting the separator
+ * line alone -- or putting one under the first row when the table has
+ * none, each column at its laid-out width. No data row is re-padded, so
+ * no style in the table moves: the desktop's `_grid_column_mechanics`,
+ * which learnt that a column drag through a full re-format took every
+ * cell's colour with it.
+ */
+fun withColumnMechanics(lines: List<String>, change: (MutableList<TableColumn>, List<List<String>>, List<List<CellAlign>>) -> Unit): List<String> {
+    if (lines.isEmpty()) return lines
+    val at = lines.take(2).indexOfFirst { isSeparatorRow(it) }
+    val data = lines.filterIndexed { i, _ -> i != at }
+    val rows = data.map { splitRow(it) }
+    val aligns = data.map { cellAlignments(it) }
+    val columns = if (at >= 0) parseSeparator(lines[at]).toMutableList()
+                  else layoutWidths(rows, aligns).map { TableColumn(null, false, it) }.toMutableList()
+    change(columns, rows, aligns)
+    val count = rows.maxOfOrNull { it.size } ?: 0
+    while (columns.size < count) columns.add(TableColumn(null, false))
+    val separator = "|" + separatorCells(columns).joinToString("|") { " $it " } + "|"
+    return if (at >= 0) lines.toMutableList().also { it[at] = separator }
+           else listOf(lines[0], separator) + lines.drop(1)
+}
+
+/** A column set to [width] characters, shown if it was hidden; four at least -- three reads back as no width. */
+fun setColumnWidth(lines: List<String>, column: Int, width: Int): List<String> = withColumnMechanics(lines) { cols, _, _ ->
+    if (column in cols.indices) cols[column] = cols[column].copy(width = maxOf(4, width), hidden = false)
+}
+
+/** A column fitted to what it holds: the desktop's "Autofit column width". */
+fun autofitColumn(lines: List<String>, column: Int): List<String> = withColumnMechanics(lines) { cols, rows, aligns ->
+    val widths = layoutWidths(rows, aligns)
+    if (column in cols.indices && column in widths.indices) cols[column] = cols[column].copy(width = widths[column], hidden = false)
+}
+
+/** A column hidden, or shown again. */
+fun hideColumn(lines: List<String>, column: Int, hidden: Boolean = true): List<String> = withColumnMechanics(lines) { cols, _, _ ->
+    if (column in cols.indices) cols[column] = cols[column].copy(hidden = hidden)
+}
+
+/** Every hidden column shown: "Unhide all columns". */
+fun unhideAllColumns(lines: List<String>): List<String> = withColumnMechanics(lines) { cols, _, _ ->
+    for (i in cols.indices) cols[i] = cols[i].copy(hidden = false)
 }
 
 /**

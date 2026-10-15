@@ -239,6 +239,7 @@ def main():
     lists(folder)
     new_table(folder)
     cell_menu(folder)
+    table_extras(folder)
     wide(folder)
     changes(folder)
 
@@ -1469,6 +1470,71 @@ def attaching(folder):
     gone = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
     check("removed: off the note, and its stored copy deleted",
           not (trip().get("attachments") or []) and stored and stored not in gone, gone[:200])
+    back_to("Search notes")
+
+
+def table_extras(folder):
+    """A table's caption, its columns' widths and a line above it: each
+    from the cell's menu, each read back from the file in the desktop's
+    shape -- the caption numbered and placed with its table, a width as
+    the separator's dashes, a hidden column as its "~"."""
+    print("\n-- captions, column widths, a line above --")
+    body = "\n".join(["| Item | Cost |", "| --- | ---: |", "| fuel | 120 |"])
+    if not seed_inside([
+        {"id": 1, "uid": "tx-costs", "title": "Costs", "body": body,
+         "paragraphs": [{"line": n, "align": "center"} for n in range(3)],
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Costs"):
+        return
+
+    def note():
+        return note_by_uid("tx-costs") or {}
+
+    def menu(cell, entry):
+        """A cell's sheet opened, scrolled until [entry] is in sight, and tapped."""
+        open_note("Costs")
+        tap(cell, exact=True, wait=1.2)
+        back(wait=0.8)                       # the keyboard down
+        for _ in range(4):
+            if find(entry, exact=True):
+                break
+            adb("shell", "input", "swipe", "540", "2000", "540", "900", "400")
+            time.sleep(0.8)
+        tap(entry, exact=True, wait=1.5)
+
+    menu("fuel", "Add caption below…")
+    type_text("Fuel costs")                  # typed over the selected placeholder
+    back()
+    time.sleep(1.5)
+    lines = (note().get("body") or "").split("\n")
+    check("a caption goes under its table, numbered, its placeholder typed over",
+          lines[3:5] == ["Table 1: Fuel costs", "Source: "], repr(lines))
+    check("the caption is placed as its table is",
+          {"line": 3, "align": "center"} in (note().get("paragraphs") or [])
+          and {"line": 4, "align": "center"} in (note().get("paragraphs") or []), repr(note().get("paragraphs")))
+    shot(folder, "52-caption", "Table 1: Fuel costs")
+    back_to("Search notes")
+
+    menu("fuel", "Wider")
+    check("a wider column is written as the separator's dashes",
+          (note().get("body") or "").split("\n")[1].split("|")[1].strip() == "-" * 8,
+          repr((note().get("body") or "").split("\n")[1]))
+    back_to("Search notes")
+    menu("120", "Hide column")
+    sep = (note().get("body") or "").split("\n")[1]
+    check("a hidden column is the separator's ~, and the grid leaves it out",
+          sep.split("|")[2].strip() == "~" and find("120", exact=True) is None, repr(sep))
+    back_to("Search notes")
+    menu("fuel", "Unhide all columns")
+    check("Unhide all brings it back", find("120", exact=True) is not None)
+    back_to("Search notes")
+
+    menu("fuel", "Add a line above the table")
+    type_text("Above")
+    back()
+    time.sleep(1.5)
+    check("a line above the table, the cursor on it", (note().get("body") or "").startswith("Above\n| Item"),
+          repr((note().get("body") or "")[:40]))
     back_to("Search notes")
 
 

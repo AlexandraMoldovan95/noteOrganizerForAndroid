@@ -508,4 +508,42 @@ class TablesTest {
         assertEquals(mapOf((0 to 1) to "#cdeac0"),
             Exporting.cellHighlights(empty, setStyle(emptyList(), pad0, pad1, "highlight", "#cdeac0"), 0, 0))
     }
+
+    // ---- column widths ----
+
+    @Test
+    fun `a separator says each column's width, alignment and hidden mark, as the desktop reads it`() {
+        // The desktop's parse_separator over the same lines.
+        assertEquals(listOf(TableColumn(null, false, null), TableColumn(CellAlign.CENTER, false, 5),
+                            TableColumn(null, true, null), TableColumn(CellAlign.RIGHT, false, 11)),
+                     parseSeparator("| --- | :---: | ~ | ----------: |"))
+        assertEquals(listOf(TableColumn(CellAlign.LEFT, false, null), TableColumn(null, false, null)),
+                     parseSeparator("| :- | -- |"))
+        // ...and its make_separator for these columns.
+        assertEquals(listOf("---", ":------:", "~", "-----:", ":----"), separatorCells(listOf(
+            TableColumn(null, false, null), TableColumn(CellAlign.CENTER, false, 8), TableColumn(null, true),
+            TableColumn(CellAlign.RIGHT, false, 6), TableColumn(CellAlign.LEFT, false, 5))))
+    }
+
+    @Test
+    fun `a column's width changes the separator line alone, and a table without one gets one under its header`() {
+        val table = listOf("| Item     | Cost     |", "| -------- | -------: |", "| fuel     |      120 |")
+        assertEquals(listOf(table[0], "| ------------ | -------: |", table[2]), setColumnWidth(table, 0, 12))
+        assertEquals("three or fewer reads back as no width, so four at least",
+                     "| ---- | -------: |", setColumnWidth(table, 0, 2)[1])
+        val hidden = hideColumn(table, 1)
+        assertEquals(listOf(table[0], "| -------- | ~ |", table[2]), hidden)
+        assertEquals("a hidden column comes back with no width of its own",
+                     "| -------- | --- |", unhideAllColumns(hidden)[1])
+        assertEquals("a width set shows the column again", "| -------- | ------ |", setColumnWidth(hidden, 1, 6)[1])
+        val bare = listOf("| Item | Cost |", "| fuel | 120 |")
+        assertEquals(listOf(bare[0], "| -------- | -------- |", bare[1]), autofitColumn(bare, 0))
+        assertEquals(listOf(bare[0], "| ---------- | -------- |", bare[1]), setColumnWidth(bare, 0, 10))
+        val long = listOf("| Item | Cost |", "| --- | --- |", "| a much longer item | 1 |")
+        assertEquals("autofit measures the data, never the separator",
+                     "| ------------------ | --- |", autofitColumn(long, 0)[1])
+        val widened = listOf("| A | B |", "| -------------- | --- |", "| x | y |")
+        assertEquals("a column widened by hand fits back to its words",
+                     "| -------- | --- |", autofitColumn(widened, 0)[1])
+    }
 }

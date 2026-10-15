@@ -168,4 +168,34 @@ class EditingTest {
         assertEquals(8, splitRow(Editing.insertTable("", 0, 1, 20).body.lines().first()).size)
         assertEquals(24, Editing.insertTable("", 0, 99, 2).body.trimEnd('\n').lines().size)
     }
+
+    // ---- a table's caption ----
+
+    @Test
+    fun `a caption line is a numbered label, not prose that begins with the word`() {
+        assertTrue(Editing.isCaptionLine("Table 3: fuel costs"))
+        assertTrue(Editing.isCaptionLine("  Tab. 12: before the labels went English"))
+        assertTrue("any decimal digit, as Python's \\d", Editing.isCaptionLine("Table ٣: x"))
+        assertFalse(Editing.isCaptionLine("Table of contents"))
+        assertFalse(Editing.isCaptionLine("Tables 3: x"))
+        assertFalse(Editing.isCaptionLine("See Table 3: x"))
+        assertTrue(Editing.isSourceLine(" Source: the bank"))
+        assertFalse(Editing.isSourceLine("Sources: none"))
+    }
+
+    @Test
+    fun `a caption goes under its table, numbered after the note's others, its placeholder selected`() {
+        val body = "Tab. 1: old\n| a | b |\n| - | - |\n| 1 | 2 |\nafter"
+        val added = Editing.addCaption(body, 3)
+        assertEquals("Tab. 1: old\n| a | b |\n| - | - |\n| 1 | 2 |\nTable 2: description\nSource: \nafter", added.body)
+        assertEquals(4, added.line)
+        val start = added.body.indexOf("description")
+        assertEquals(start to start + "description".length, added.selectStart to added.selectEnd)
+        val lines = added.body.split("\n")
+        assertEquals(listOf(4, 5), Editing.captionLines(lines, 3))
+        assertEquals("only one touching its table belongs to it", emptyList<Int>(), Editing.captionLines(lines, 2))
+        // Positions are code points: an emoji above counts once.
+        val emoji = Editing.addCaption("😀\n| a | b |", 1)
+        assertEquals(emoji.body.codePointCount(0, emoji.body.indexOf("description")), emoji.selectStart)
+    }
 }
