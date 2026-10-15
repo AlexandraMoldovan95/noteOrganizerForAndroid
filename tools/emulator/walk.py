@@ -226,6 +226,7 @@ def main():
     calendar(folder)
     move_day(folder)
     listing(folder)
+    arranging(folder)
     statistics(folder)
     calculator(folder)
     finding(folder)
@@ -1358,6 +1359,77 @@ def move_day(folder):
           and ((back_home.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2",
           json.dumps({k: back_home.get(k) for k in ("moved", "overrides")}))
     back_to("📋 History")
+
+
+def arranging(folder):
+    """Custom order, arranged by hand: chosen from another sort, it starts
+    from the order shown, every note placed; a card dragged by its handle
+    lands where it was let go; and a pinned note keeps its block. Each read
+    back from the file's "order" fields."""
+    print("\n-- Custom order, arranged by hand --")
+    if not seed_inside([
+        {"id": 1, "uid": "ar-b", "title": "Bravo", "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "ar-a", "title": "Alpha", "created": "2026-10-02 09:00:00", "updated": "2026-10-02 09:00:00"},
+        {"id": 3, "uid": "ar-d", "title": "Delta", "created": "2026-10-03 09:00:00", "updated": "2026-10-03 09:00:00"},
+        {"id": 4, "uid": "ar-p", "title": "Pinned", "pinned": True,
+         "created": "2026-10-04 09:00:00", "updated": "2026-10-04 09:00:00"},
+    ], {"welcome_offered": True, "note_sort": "Title A–Z"}, "Alpha"):
+        return
+
+    def placed():
+        notes = read_file("notes_data.json") or []
+        return [n.get("title") for n in sorted(notes, key=lambda n: n.get("order", 99))]
+
+    tap("Sort: Title A–Z", wait=1.0)
+    tap("Custom order", exact=True, wait=1.5)
+    check("Custom order starts from the order shown, every note placed",
+          placed() == ["Pinned", "Alpha", "Bravo", "Delta"]
+          and all("order" in n for n in read_file("notes_data.json") or []), repr(placed()))
+    shot(folder, "49-custom-order", "Drag to move Delta")
+
+    def drag(card, onto, above):
+        """A card's handle dragged to [above] pixels over the card [onto] --
+        a drag that cannot be aimed is a failure, not a step skipped."""
+        handle, target = find("Drag to move " + card), find(onto, exact=True)
+        if not handle or not target:
+            fail("drag %r onto %r: not on the screen" % (card, onto))
+            return
+        adb("shell", "input", "swipe", str(handle[0]), str(handle[1]), str(handle[0]), str(target[1] - above), "1500")
+        time.sleep(1.5)
+
+    drag("Delta", "Alpha", 40)
+    check("a card dragged by its handle lands where it is let go",
+          placed() == ["Pinned", "Delta", "Alpha", "Bravo"], repr(placed()))
+    # Above the pinned note it may not go: it stays first among the rest.
+    # (A pinned card's title starts with its pin.)
+    drag("Bravo", "📌 Pinned", 60)
+    check("a pinned note keeps its place above the rest",
+          placed() == ["Pinned", "Bravo", "Delta", "Alpha"], repr(placed()))
+
+    # A long list: the last card held at the top edge, the list scrolling
+    # under it. Its old place scrolls far out of sight, and a card that
+    # stayed there would be dropped by the list -- its drag with it.
+    many = [{"id": i, "uid": "ar-%02d" % i, "title": "Note %02d" % i, "order": i - 1,
+             "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"} for i in range(1, 31)]
+    if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    for _ in range(4):
+        adb("shell", "input", "swipe", "540", "1700", "540", "500", "200")
+        time.sleep(0.6)
+    handle, top = find("Drag to move Note 30"), find("Sort: Custom order")
+    if not handle or not top:
+        fail("the long list: the last card or the list's top not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], top[1] + 140, -60):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    time.sleep(9)                                    # held at the edge: the list scrolls
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(top[1] + 140))
+    time.sleep(1.5)
+    order = placed()
+    check("on a long list a card held at the edge rides the scroll to the top",
+          order.index("Note 30") <= 2 and sorted(order) == ["Note %02d" % i for i in range(1, 31)],
+          repr(order[:5]))
 
 
 def turn(rotation):

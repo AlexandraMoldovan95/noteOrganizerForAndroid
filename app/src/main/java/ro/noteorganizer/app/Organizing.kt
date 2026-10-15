@@ -133,6 +133,73 @@ object Organizing {
         return editEach(load, ids) { it.put("category", name) }
     }
 
+    // ---- Custom order: the list arranged by hand ----
+
+    /**
+     * Whether two notes may trade places in Custom order: both pinned or
+     * both not, and -- in a list grouped by category -- in the same group.
+     * A pinned note always stands above the rest and a group is its
+     * category, so a move across either would be undone by the next
+     * drawing. The desktop's `_same_list_block`.
+     */
+    fun sameBlock(a: Note, b: Note, grouped: Boolean): Boolean =
+        a.pinned == b.pinned && (!grouped || a.category == b.category)
+
+    /**
+     * Every note given its place in Custom order from the way [order]
+     * sorts them -- all of them, not only those a search or Show lets
+     * through, so what is hidden keeps its place among the rest. The
+     * desktop's `_place_notes_as_sorted`, for Custom order chosen before
+     * anything was placed: the list then stays as it was showing.
+     */
+    fun placeAsSorted(load: Notebook.Load, order: SortOrder,
+                      today: String = Recurrence.formatDate(java.time.LocalDate.now())): SaveResult {
+        val raw = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val byId = (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
+            .associateBy { (it.opt("id") as? Number)?.toInt() }
+        val sorted = sortNotes(load.notes, order, today) { note -> byId[note.id]?.let { Recurrence.nextOnOrAfter(it, today) } }
+        return numbered(load, sorted)
+    }
+
+    /**
+     * [id] put just before -- or, with [before] false, just after -- [anchor]
+     * in Custom order, and every note numbered again in one pass: the
+     * desktop's `_move_note`, made in Custom order. A move is not an edit,
+     * so no note's `updated` changes. Refused across a pinned note's
+     * block or, [grouped], a category's.
+     */
+    fun moveNote(load: Notebook.Load, id: Int, anchor: Int, before: Boolean, grouped: Boolean): SaveResult {
+        val all = sortNotes(load.notes, SortOrder.CUSTOM)
+        val note = all.firstOrNull { it.id == id }
+        val next = all.firstOrNull { it.id == anchor }
+        if (note == null || next == null) return SaveResult.Failed("Those notes are no longer in the notes file.")
+        if (note.id == next.id) return SaveResult.Ok(id)
+        if (!sameBlock(note, next, grouped)) {
+            return SaveResult.Failed(if (note.pinned != next.pinned) "A pinned note stays above the rest."
+                                     else "A note moves within its own category here.")
+        }
+        val arranged = all.filter { it.id != id }.toMutableList()
+        val at = arranged.indexOfFirst { it.id == anchor } + (if (before) 0 else 1)
+        arranged.add(at, note)
+        return numbered(load, arranged)
+    }
+
+    /** Each note's `order`, its place in [arranged]; one write, no stamp. */
+    private fun numbered(load: Notebook.Load, arranged: List<Note>): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val candidate = JSONArray(array.toString())
+        val place = arranged.withIndex().associate { (i, n) -> n.id to i }
+        for (i in 0 until candidate.length()) {
+            val note = candidate.opt(i) as? JSONObject ?: continue
+            val itsId = (note.opt("id") as? Number)?.toInt() ?: continue
+            place[itsId]?.let { note.put("order", it) }
+        }
+        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        replace(array, candidate)
+        return SaveResult.Ok(arranged.firstOrNull()?.id ?: 0)
+    }
+
     private fun editEach(load: Notebook.Load, ids: Collection<Int>, change: (JSONObject) -> Unit): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)

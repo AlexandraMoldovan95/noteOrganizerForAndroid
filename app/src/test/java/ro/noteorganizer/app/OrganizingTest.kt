@@ -305,4 +305,56 @@ class OrganizingTest {
         assertEquals(paragraphs.length(),
             notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
     }
+
+    // ---- Custom order, arranged by hand ----
+
+    private val four = """
+        [{"id": 1, "title": "Bread", "category": "Home", "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00", "order": 0},
+         {"id": 2, "title": "Alarm", "category": "Work", "created": "2026-10-02 09:00:00", "updated": "2026-10-02 09:00:00", "order": 1},
+         {"id": 3, "title": "Cakes", "category": "Home", "created": "2026-10-03 09:00:00", "updated": "2026-10-03 09:00:00", "order": 2},
+         {"id": 4, "title": "Dates", "category": "Work", "created": "2026-10-04 09:00:00", "updated": "2026-10-04 09:00:00", "pinned": true}]
+    """.trimIndent()
+
+    private fun orders(load: Notebook.Load): Map<Int, Int> {
+        val a = notesOnDisk(load)
+        return (0 until a.length()).map { a.getJSONObject(it) }.associate { it.getInt("id") to it.optInt("order", -1) }
+    }
+
+    @Test
+    fun `a note moved before or after another, every note numbered again, none stamped`() {
+        val load = notebook(four)
+        // The pinned note first, then the placed ones in their order.
+        assertEquals(listOf(4, 1, 2, 3), sortNotes(load.notes, SortOrder.CUSTOM).map { it.id })
+        assertTrue(Organizing.moveNote(load, 3, anchor = 1, before = true, grouped = false) is SaveResult.Ok)
+        assertEquals(mapOf(4 to 0, 3 to 1, 1 to 2, 2 to 3), orders(load))
+        assertEquals(listOf(4, 3, 1, 2), sortNotes(Notebook.load(dir(load)).notes, SortOrder.CUSTOM).map { it.id })
+        assertTrue(Organizing.moveNote(load, 3, anchor = 2, before = false, grouped = false) is SaveResult.Ok)
+        assertEquals(mapOf(4 to 0, 1 to 1, 2 to 2, 3 to 3), orders(load))
+        // A move is not an edit.
+        assertEquals("2026-10-03 09:00:00", notesOnDisk(load).getJSONObject(2).getString("updated"))
+    }
+
+    @Test
+    fun `a move stays inside its block -- pinned with pinned, and a category when grouped`() {
+        val load = notebook(four)
+        assertTrue(Organizing.moveNote(load, 1, anchor = 4, before = true, grouped = false) is SaveResult.Failed)
+        assertTrue(Organizing.moveNote(load, 1, anchor = 2, before = false, grouped = true) is SaveResult.Failed)
+        assertEquals(mapOf(1 to 0, 2 to 1, 3 to 2, 4 to -1), orders(load))
+        assertTrue(Organizing.moveNote(load, 1, anchor = 3, before = false, grouped = true) is SaveResult.Ok)
+        assertTrue(Organizing.moveNote(load, 1, anchor = 2, before = false, grouped = false) is SaveResult.Ok)
+    }
+
+    @Test
+    fun `Custom order chosen before anything was placed starts from the order shown, every note placed`() {
+        val load = notebook("""
+            [{"id": 1, "title": "Bread", "created": "2026-10-01 09:00:00"},
+             {"id": 2, "title": "Alarm", "created": "2026-10-02 09:00:00"},
+             {"id": 3, "title": "", "created": "2026-10-03 09:00:00"},
+             {"id": 4, "title": "Dates", "created": "2026-10-04 09:00:00", "pinned": true}]
+        """.trimIndent())
+        assertTrue(Organizing.placeAsSorted(load, SortOrder.TITLE_AZ) is SaveResult.Ok)
+        // As Title A-Z showed them: the pinned note first, the untitled last.
+        assertEquals(mapOf(4 to 0, 2 to 1, 1 to 2, 3 to 3), orders(load))
+        assertEquals(listOf(4, 2, 1, 3), sortNotes(Notebook.load(dir(load)).notes, SortOrder.CUSTOM).map { it.id })
+    }
 }

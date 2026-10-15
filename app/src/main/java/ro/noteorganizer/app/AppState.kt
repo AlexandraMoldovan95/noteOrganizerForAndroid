@@ -406,6 +406,26 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * The list's sort, kept under the desktop's key. Custom order chosen
+     * before anything was placed starts from the order the list was
+     * showing, as the desktop's does -- every note given its place first.
+     * The phone arranges only in Custom order, so the desktop's other path,
+     * a move made in another sort that replaces an arrangement made by
+     * hand, and the question it asks after, never arise here.
+     */
+    fun chooseSort(order: SortOrder, from: SortOrder) {
+        if (order == SortOrder.CUSTOM && from != SortOrder.CUSTOM && load.notes.none { it.order != null }) {
+            if (!report(Organizing.placeAsSorted(load, from))) return
+        }
+        putSetting(Settings.NOTE_SORT, order.label)
+    }
+
+    /** A note dragged to just before or after another, in Custom order. */
+    fun moveNote(id: Int, anchor: Int, before: Boolean, grouped: Boolean) {
+        report(Organizing.moveNote(load, id, anchor, before, grouped))
+    }
+
     fun setPinned(ids: Collection<Int>, pinned: Boolean) {
         report(outside(ids) { Organizing.setPinned(load, ids, pinned) })
     }

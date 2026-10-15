@@ -114,6 +114,9 @@ fun NoteCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     open: Boolean = false,
+    // Custom order's drag handle, at the card's right edge, when the list
+    // is arranged by hand.
+    handle: (@Composable () -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
     Row(
@@ -161,6 +164,7 @@ fun NoteCard(
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
+        if (handle != null) Box(Modifier.align(Alignment.CenterVertically)) { handle() }
     }
 }
 

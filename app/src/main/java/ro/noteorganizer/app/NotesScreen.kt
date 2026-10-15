@@ -12,8 +12,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DropdownMenu
@@ -76,8 +90,89 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             state.rawNote(note.id)?.let { Recurrence.nextOnOrAfter(it, today) }
         }
     }
-    val rows = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())
+    val laidOut = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())
     BackHandler(enabled = selecting) { selected = emptySet() }
+
+    // Custom order, arranged by hand: the handle on each card drags it. While
+    // it is dragged the card trades places with its neighbours as it passes
+    // them, so its own slot follows the finger -- a card left at its old
+    // slot would be dropped from the list by the first long scroll, and its
+    // drag with it -- and the one move is written when it is let go.
+    val listState = rememberLazyListState()
+    val arranging = order == SortOrder.CUSTOM && !selecting
+    var dragged by remember { mutableStateOf<Int?>(null) }
+    var dragBy by remember { mutableFloatStateOf(0f) }
+    var dragOrder by remember { mutableStateOf<List<Showing.Row>?>(null) }
+    val rows = dragOrder ?: laidOut
+    fun noteOf(row: Showing.Row?) = (row as? Showing.Row.Item)?.note
+
+    /** The dragged card one place up or down, when the place is in its block. */
+    fun trade(step: Int): Boolean {
+        val now = dragOrder ?: return false
+        val at = now.indexOfFirst { noteOf(it)?.id == dragged }
+        val other = noteOf(now.getOrNull(at + step)) ?: return false
+        val me = noteOf(now[at]) ?: return false
+        if (!Organizing.sameBlock(me, other, grouped)) return false
+        dragOrder = now.toMutableList().also { it[at] = it[at + step]; it[at + step] = now[at] }
+        return true
+    }
+
+    fun drop() {
+        val id = dragged
+        val final = dragOrder
+        dragged = null
+        dragBy = 0f
+        dragOrder = null
+        if (id == null || final == null || final == laidOut) return
+        val at = final.indexOfFirst { noteOf(it)?.id == id }
+        val next = noteOf(final.getOrNull(at + 1))
+        val previous = noteOf(final.getOrNull(at - 1))
+        when {
+            next != null && Organizing.sameBlock(noteOf(final[at])!!, next, grouped) ->
+                state.moveNote(id, next.id, before = true, grouped = grouped)
+            previous != null -> state.moveNote(id, previous.id, before = false, grouped = grouped)
+        }
+    }
+
+    /** The dragged card followed by the finger, trading places as it passes a neighbour's middle. */
+    fun follow(amount: Float) {
+        dragBy += amount
+        val info = listState.layoutInfo.visibleItemsInfo
+        val me = info.firstOrNull { it.key == dragged } ?: return
+        // A trade shows on the next frame; until then the layout is the old one.
+        if (me.index != (dragOrder ?: return).indexOfFirst { noteOf(it)?.id == dragged }) return
+        val centre = me.offset + me.size / 2 + dragBy
+        val below = info.firstOrNull { it.index == me.index + 1 }
+        val above = info.firstOrNull { it.index == me.index - 1 }
+        if (below != null && centre > below.offset + below.size / 2 && trade(1)) dragBy -= below.size
+        else if (above != null && centre < above.offset + above.size / 2 && trade(-1)) dragBy += above.size
+    }
+
+    // Near the list's top or bottom edge, a dragged card scrolls the list --
+    // and goes on trading places as the list passes under it, though the
+    // finger is still: otherwise its slot stayed behind, scrolled out of
+    // sight, and the card was no longer drawn under the finger at all.
+    val edge = with(LocalDensity.current) { 56.dp.toPx() }
+    LaunchedEffect(dragged) {
+        while (dragged != null) {
+            val info = listState.layoutInfo
+            val me = info.visibleItemsInfo.firstOrNull { it.key == dragged }
+            if (me != null) {
+                val top = me.offset + dragBy
+                val step = when {
+                    top < info.viewportStartOffset + edge -> -14f
+                    top + me.size > info.viewportEndOffset - edge -> 14f
+                    else -> 0f
+                }
+                if (step != 0f) {
+                    dragBy += listState.scrollBy(step)
+                    follow(0f)
+                }
+            }
+            delay(16)
+        }
+    }
+
 
     Box(Modifier.fillMaxSize().background(palette.bg)) {
         Column(Modifier.fillMaxSize()) {
@@ -161,7 +256,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         for (option in SortOrder.entries) {
                             DropdownMenuItem(
                                 text = { Text(option.label, fontWeight = if (option == order) FontWeight.Bold else FontWeight.Normal) },
-                                onClick = { sortMenu = false; state.putSetting(Settings.NOTE_SORT, option.label) },
+                                onClick = { sortMenu = false; state.chooseSort(option, from = order) },
                             )
                         }
                     }
@@ -227,7 +322,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         )
                     }
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
+                else -> LazyColumn(state = listState,
+                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
                     items(rows, key = { row ->
                         when (row) {
                             is Showing.Row.Header -> "h:" + row.category
@@ -242,19 +338,73 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                             }
                             is Showing.Row.Item -> {
                                 val note = row.note
-                                NoteCard(
-                                    note = note,
-                                    colour = noteColour(note, load.categories, palette.hex.getValue("accent")),
-                                    selected = note.id in selected,
-                                    selecting = selecting,
-                                    onClick = {
-                                        if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
-                                    },
-                                    onLongClick = { selected = selected.toggle(note.id) },
-                                    // Seen only where the list stays beside the
-                                    // note: on a phone the note covers it.
-                                    open = note.id == state.openId,
-                                )
+                                val lifted = note.id == dragged
+                                val moveLabel = stringResource(R.string.drag_to_move, note.headline)
+                                Box(
+                                    Modifier
+                                        .zIndex(if (lifted) 1f else 0f)
+                                        .graphicsLayer {
+                                            translationY = if (lifted) dragBy else 0f
+                                            shadowElevation = if (lifted) 8.dp.toPx() else 0f
+                                        },
+                                ) {
+                                    NoteCard(
+                                        note = note,
+                                        colour = noteColour(note, load.categories, palette.hex.getValue("accent")),
+                                        selected = note.id in selected,
+                                        selecting = selecting,
+                                        onClick = {
+                                            if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
+                                        },
+                                        onLongClick = { selected = selected.toggle(note.id) },
+                                        // Seen only where the list stays beside the
+                                        // note: on a phone the note covers it.
+                                        open = note.id == state.openId,
+                                        handle = if (!arranging) null else { {
+                                            Text(
+                                                "⠿",
+                                                color = palette.subtext,
+                                                fontSize = 22.sp,
+                                                modifier = Modifier
+                                                    .semantics { contentDescription = moveLabel }
+                                                    .pointerInput(note.id) {
+                                                        // Grabbed at the touch, not after the
+                                                        // finger has travelled: a hand that
+                                                        // presses the handle and pauses before
+                                                        // moving gave the card under it a long
+                                                        // press, and selection took the drag.
+                                                        awaitEachGesture {
+                                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                                            down.consume()
+                                                            dragged = note.id
+                                                            dragBy = 0f
+                                                            dragOrder = laidOut
+                                                            try {
+                                                                while (true) {
+                                                                    val change = awaitPointerEvent().changes
+                                                                        .firstOrNull { it.id == down.id } ?: break
+                                                                    if (!change.pressed) break
+                                                                    val moved = change.positionChange()
+                                                                    if (moved.y != 0f) {
+                                                                        change.consume()
+                                                                        follow(moved.y)
+                                                                    }
+                                                                }
+                                                                drop()
+                                                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                                                // Interrupted, nothing moves.
+                                                                dragged = null
+                                                                dragBy = 0f
+                                                                dragOrder = null
+                                                                throw e
+                                                            }
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                            )
+                                        } },
+                                    )
+                                }
                             }
                         }
                     }

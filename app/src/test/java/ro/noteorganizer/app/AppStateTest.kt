@@ -198,6 +198,23 @@ class AppStateTest {
     }
 
     @Test
+    fun customOrderStartsFromTheOrderShownOnlyWhenNothingIsPlacedYet() {
+        val s = state()
+        File(s.dir, "settings.json").writeText("{}")
+        s.reload()
+        s.chooseSort(SortOrder.CUSTOM, from = SortOrder.TITLE_ZA)
+        val placed = { s.rawNotes().associate { it.getInt("id") to it.optInt("order", -1) } }
+        assertEquals(mapOf(2 to 0, 1 to 1), placed())
+        assertEquals("Custom order", s.settings.optString(Settings.NOTE_SORT))
+        // Arranged by hand since: choosing Custom order again from another
+        // sort must not start it over from that sort.
+        s.moveNote(1, anchor = 2, before = true, grouped = false)
+        s.chooseSort(SortOrder.TITLE_AZ, from = SortOrder.CUSTOM)
+        s.chooseSort(SortOrder.CUSTOM, from = SortOrder.TITLE_ZA)
+        assertEquals(mapOf(1 to 0, 2 to 1), placed())
+    }
+
+    @Test
     fun theRailSavesTheNoteItLeaves() {
         val s = state()
         s.openNote(1)
