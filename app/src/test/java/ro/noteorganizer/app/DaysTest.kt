@@ -227,4 +227,82 @@ class DaysTest {
         Days.setRepeat(load, 1, null)
         assertNull(onDisk(load).opt("_prev"))
     }
+
+    // ---- a day held on another date ----
+
+    private fun october(note: JSONObject) =
+        Recurrence.expand(note, java.time.LocalDate.of(2026, 10, 1), java.time.LocalDate.of(2026, 10, 31))
+
+    @Test
+    fun `a day moved goes with its own edit, recorded by the date its rule gives it`() {
+        val load = scratch(series)
+        Days.saveDay(load, 1, "2026-10-12", "Stand-up, room 2", "agenda", "", "Work", "")
+        val (result, move) = Days.moveDay(load, 1, "2026-10-12", "2026-10-14")
+        assertTrue(result is SaveResult.Ok)
+        assertEquals(Days.DayMove(1, "s", "2026-10-12", "2026-10-12", "2026-10-14"), move)
+        val note = onDisk(load)
+        assertEquals("2026-10-14", note.getJSONObject("moved").getString("2026-10-12"))
+        assertEquals("Stand-up, room 2", note.getJSONObject("overrides").getJSONObject("2026-10-14").getString("title"))
+        assertFalse(note.getJSONObject("overrides").has("2026-10-12"))
+        assertEquals(listOf("2026-10-05", "2026-10-14", "2026-10-19", "2026-10-26"), october(note))
+        // Moved again, still recorded against the rule's date; home, the record goes.
+        Days.moveDay(load, 1, "2026-10-14", "2026-10-15")
+        assertEquals("2026-10-15", onDisk(load).getJSONObject("moved").getString("2026-10-12"))
+        Days.moveDay(load, 1, "2026-10-15", "2026-10-12")
+        assertFalse(onDisk(load).getJSONObject("moved").has("2026-10-12"))
+        assertTrue(onDisk(load).getJSONObject("overrides").has("2026-10-12"))
+    }
+
+    @Test
+    fun `a day cannot move onto another day of its series, nor to a date that is not one`() {
+        val load = scratch(series)
+        val (taken, move) = Days.moveDay(load, 1, "2026-10-12", "2026-10-19")
+        assertTrue(taken is SaveResult.Failed && taken.reason.startsWith("This series already has a day on"))
+        assertNull(move)
+        assertNull(onDisk(load).optJSONObject("moved"))
+        assertTrue(Days.moveDay(load, 1, "2026-10-12", "2026-13-40").first is SaveResult.Failed)
+        // Asked to stay where it is, nothing is written.
+        val (same, none) = Days.moveDay(load, 1, "2026-10-12", "2026-10-12")
+        assertTrue(same is SaveResult.Ok)
+        assertNull(none)
+        assertNull(onDisk(load).optJSONObject("moved"))
+    }
+
+    @Test
+    fun `a move's Undo puts the day back, unless it has moved on since`() {
+        val load = scratch(series)
+        val move = Days.moveDay(load, 1, "2026-10-12", "2026-10-14").second!!
+        assertTrue(Days.undoMoveDay(load, move) is SaveResult.Ok)
+        assertEquals(0, onDisk(load).getJSONObject("moved").length())
+        assertEquals(listOf("2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26"), october(onDisk(load)))
+        val again = Days.moveDay(load, 1, "2026-10-12", "2026-10-14").second!!
+        Days.moveDay(load, 1, "2026-10-14", "2026-10-16")
+        val late = Days.undoMoveDay(load, again)
+        assertTrue(late is SaveResult.Failed && late.reason.startsWith("That day has moved on since"))
+        assertEquals("2026-10-16", onDisk(load).getJSONObject("moved").getString("2026-10-12"))
+        // ...and when ANOTHER day has since taken the date it went to, the
+        // Undo must not move that one instead.
+        assertTrue(Days.moveDay(load, 1, "2026-10-19", "2026-10-14").first is SaveResult.Ok)
+        val stranger = Days.undoMoveDay(load, again)
+        assertTrue(stranger is SaveResult.Failed && stranger.reason.startsWith("That day has moved on since"))
+        assertEquals("2026-10-14", onDisk(load).getJSONObject("moved").getString("2026-10-19"))
+    }
+
+    @Test
+    fun `a day does not come home over another day moved onto its date`() {
+        // While the 12th is away on the 14th, the 19th is moved onto the
+        // 12th. The desktop let the first come home over it, and the second
+        // was drawn nowhere -- its move still in the file.
+        val load = scratch(series)
+        val away = Days.moveDay(load, 1, "2026-10-12", "2026-10-14").second!!
+        assertTrue(Days.moveDay(load, 1, "2026-10-19", "2026-10-12").first is SaveResult.Ok)
+        val undo = Days.undoMoveDay(load, away)
+        assertTrue(undo is SaveResult.Failed && undo.reason.startsWith("Another day of this series is there now"))
+        val home = Days.moveDay(load, 1, "2026-10-14", "2026-10-12").first
+        assertTrue(home is SaveResult.Failed && home.reason.startsWith("This series already has a day on"))
+        val reset = Days.resetDay(load, 1, "2026-10-14", dropText = false)
+        assertTrue(reset is SaveResult.Failed && reset.reason.startsWith("Another day of this series is on"))
+        // Every day still drawn: the 12th's on the 14th, the 19th's on the 12th.
+        assertEquals(listOf("2026-10-05", "2026-10-12", "2026-10-14", "2026-10-26"), october(onDisk(load)))
+    }
 }

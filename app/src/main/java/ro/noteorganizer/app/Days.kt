@@ -251,12 +251,90 @@ object Days {
         if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
         val origin = Recurrence.movedFrom(note, day)
         if (origin != null && sendHome) {
+            // Home only when nothing else is there now (see dayIsFree).
+            if (!dayIsFree(note, day, origin)) {
+                return@edit "Another day of this series is on " +
+                    "${Recurrence.parseDate(origin)?.let { Recurrence.showDay(it) } ?: origin} now, " +
+                    "so this day stays where it is."
+            }
             Recurrence.moveDay(note, day, origin)
             if (dropText) (note.opt("overrides") as? JSONObject)?.remove(origin)
         } else if (dropText) {
             (note.opt("overrides") as? JSONObject)?.remove(day)
         }
         null
+    }
+
+    // ---- a day held on another date ----
+
+    /**
+     * Whether [note]'s day now on [day] may be held on [to]: a date no
+     * other day of the series is on -- two days on one date would be one.
+     *
+     * The desktop's `_day_is_free` also takes the day's own date as free,
+     * whatever is on it now. But while a day is away, another can be moved
+     * onto its date; the first one's return then hid the second -- its move
+     * still in the file, drawn nowhere, because a moved day is not drawn
+     * where the series already has one. So its own date is free here only
+     * when it is empty, as any other.
+     */
+    fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
+        val target = Recurrence.parseDate(to) ?: return false
+        return to == day || Recurrence.expand(note, target, target) != listOf(to)
+    }
+
+    /** What [moveDay] did, for its Undo to undo: the date the rule gives the day, and where it was and went. */
+    data class DayMove(val id: Int, val uid: String, val origin: String, val from: String, val to: String)
+
+    /**
+     * Holds the day of a series now on [day] on [to] instead, still one day
+     * of its series -- the desktop's "📅 Move this day…", for a weekly
+     * meeting held on another day one week. Its own edit goes with it. A
+     * date another day of the series is on is refused, in the desktop's
+     * words; [to] being [day] already is nothing to do.
+     */
+    fun moveDay(load: Notebook.Load, id: Int, day: String, to: String): Pair<SaveResult, DayMove?> {
+        val target = Recurrence.parseDate(to) ?: return SaveResult.Failed("That is not a date.") to null
+        if (to == day) return SaveResult.Ok(id) to null
+        var move: DayMove? = null
+        val result = edit(load, id) { note ->
+            if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
+            if (!dayIsFree(note, day, to)) {
+                return@edit "This series already has a day on ${Recurrence.showDay(target)}. " +
+                    "A day can move only to a date the series does not have."
+            }
+            val origin = Recurrence.moveDay(note, day, to)
+            move = DayMove(id, note.opt("uid") as? String ?: "", origin, day, to)
+            null
+        }
+        return result to (if (result is SaveResult.Ok) move else null)
+    }
+
+    /**
+     * The Undo of [moveDay]: the day back where it was -- if it is still the
+     * day the rule gave it, still on the date it went to, and the date it
+     * left is still free. The note is found by its identity, which an id
+     * freed since may no longer name. The desktop's `_undo_day_move`.
+     */
+    fun undoMoveDay(load: Notebook.Load, move: DayMove): SaveResult {
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val id = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
+            .firstOrNull { move.uid.isNotEmpty() && it.opt("uid") == move.uid || move.uid.isEmpty() && it.opt("id") == move.id }
+            ?.let { (it.opt("id") as? Number)?.toInt() }
+            ?: return SaveResult.Failed("That note is no longer here.")
+        return edit(load, id) { note ->
+            val on = Recurrence.parseDate(move.to)
+            if (!Recurrence.isRecurring(note) || on == null ||
+                (Recurrence.movedFrom(note, move.to) ?: move.to) != move.origin ||
+                Recurrence.expand(note, on, on) != listOf(move.to)) {
+                return@edit "That day has moved on since, so it stays where it is."
+            }
+            if (!dayIsFree(note, move.to, move.from)) {
+                return@edit "Another day of this series is there now, so this one stays where it is."
+            }
+            Recurrence.moveDay(note, move.to, move.from)
+            null
+        }
     }
 
     /**

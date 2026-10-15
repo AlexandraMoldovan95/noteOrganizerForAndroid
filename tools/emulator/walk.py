@@ -224,6 +224,7 @@ def main():
     seeded(folder)
     outward(folder)
     calendar(folder)
+    move_day(folder)
     listing(folder)
     statistics(folder)
     calculator(folder)
@@ -652,6 +653,12 @@ def seed_inside(notes, settings, shows):
 def said(day):
     """A day as the calendar's cells name it: Monday, 12 October."""
     return "%s, %d %s" % (LONG_DAYS[day.weekday()], day.day, LONG_MONTHS[day.month - 1])
+
+
+def picker_day(day):
+    """A day as Android's own date picker names it: Wednesday, October 14,
+    2026 -- today's with "Today, " in front, which a part of it still finds."""
+    return "%s, %s %d, %d" % (LONG_DAYS[day.weekday()], LONG_MONTHS[day.month - 1], day.day, day.year)
 
 
 def calendar(folder):
@@ -1289,6 +1296,68 @@ def cell_menu(folder):
     tap_last("Delete", wait=1.2)
     back_to("Search notes")
     check("the table is gone", note().get("body") == "", repr(note().get("body")))
+
+
+def move_day(folder):
+    """One day of a series held on another date -- the desktop's "Move this
+    day…": refused onto a date the series already has, then moved with its
+    own edit, the editor following it, and put back by Undo. Each read back
+    from the file."""
+    from datetime import date, timedelta
+    print("\n-- one day of a series moved --")
+    today = date.today()
+    first = date(today.year, today.month, 1)
+    monday = first + timedelta(days=(7 - first.weekday()) % 7)
+    second, third = monday + timedelta(days=7), monday + timedelta(days=14)
+    to = second + timedelta(days=2)
+    if not seed_inside([
+        {"id": 1, "uid": "mv-standup", "title": "Stand-up", "body": "agenda", "category": "Work",
+         "date": monday.isoformat(), "recurrence": {"freq": "weekly", "weekdays": [0]},
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+    ], {"welcome_offered": True}, "Stand-up"):
+        return
+
+    def series():
+        return note_by_uid("mv-standup") or {}
+
+    tap("Calendar", exact=True, wait=1.5)
+    tap(said(second), wait=1.0)
+    open_note("Stand-up")
+    tap("Stand-up", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" room 2")
+    back()                                    # the keyboard down; the move saves what was typed
+
+    # Onto another Monday of the series: refused, in the desktop's words.
+    tap("Move this day", wait=1.5)
+    tap(picker_day(third), wait=0.6)
+    tap("OK", exact=True, wait=1.5)
+    check("a day cannot move onto another day of its series",
+          not screen_says("already has a day on") and not (series().get("moved") or {}),
+          json.dumps(series().get("moved")))
+
+    tap("Move this day", wait=1.5)
+    tap(picker_day(to), wait=0.6)
+    tap("OK", exact=True, wait=1.5)
+    moved = series()
+    check("the day goes to its new date with what was typed on it",
+          (moved.get("moved") or {}).get(second.isoformat()) == to.isoformat()
+          and ((moved.get("overrides") or {}).get(to.isoformat()) or {}).get("title") == "Stand-up room 2",
+          json.dumps({k: moved.get(k) for k in ("moved", "overrides")}))
+    # One look at the screen, then the photograph and the Undo at once: the
+    # offer lasts eight seconds, and each look takes one or two.
+    missing = screen_says("Only this day: " + said(to), "Moved to", "Undo")
+    check("the editor follows the day, and the move offers its Undo", not missing, str(missing))
+    adb("shell", "screencap", "-p", "/sdcard/shot.png")
+    with open(os.path.join(folder, "48-day-moved.png"), "wb") as f:
+        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
+    tap("Undo", wait=1.5)
+    back_home = series()
+    check("Undo puts it back, its own edit with it",
+          not (back_home.get("moved") or {})
+          and ((back_home.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2",
+          json.dumps({k: back_home.get(k) for k in ("moved", "overrides")}))
+    back_to("📋 History")
 
 
 def turn(rotation):

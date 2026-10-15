@@ -329,6 +329,26 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * One day of a series held on another date -- the desktop's "📅 Move
+     * this day…", for a weekly meeting held on another day one week. The
+     * editor open on the day saves first and follows it there; the Undo
+     * puts it back while it still can.
+     */
+    fun moveDay(id: Int, day: String, to: String) {
+        val (result, move) = outside(listOf(id)) { Days.moveDay(load, id, day, to) }
+        if (!report(result) || move == null) return
+        if (openId == id && openDay == day) openDay = to
+        offerUndo("Moved to ${shownDay(to)}") {
+            report(outside(listOf(move.id)) { Days.undoMoveDay(load, move) }) {
+                if (openId == move.id && openDay == move.to) openDay = move.from
+                say("Moved back to ${shownDay(move.from)}")
+            }
+        }
+    }
+
+    private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
+
     fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(outside(listOf(id)) { Days.setRepeat(load, id, rule) })
 
     /**

@@ -43,6 +43,7 @@
     <string name="day_edit_this">✏ Edit this day</string>
     <string name="day_edit_series">🔁 Edit the whole series</string>
     <string name="day_reset">↺ Reset this day</string>
+    <string name="day_move">📅 Move this day…</string>
     <string name="day_delete">Delete this day</string>
     <string name="series_delete">Delete the whole series</string>
     <string name="day_banner">📅 Only this day: %1$s</string>

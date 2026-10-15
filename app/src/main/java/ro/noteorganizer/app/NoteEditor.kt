@@ -418,6 +418,7 @@ fun NoteEditor(state: AppState, openId: Int) {
     val ownEdit = day != null && (raw?.opt("overrides") as? org.json.JSONObject)?.has(day) == true
     val cameFrom = if (day != null && raw != null) Recurrence.movedFrom(raw, day) else null
     var asking by remember { mutableStateOf<String?>(null) }
+    var moving by remember { mutableStateOf(false) }
 
     fun leave() {
         model.save()
@@ -631,10 +632,15 @@ fun NoteEditor(state: AppState, openId: Int) {
                 ) {
                     Text(stringResource(R.string.day_banner, Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day),
                          color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Wrapping: three ways out of one day do not fit a
+                    // phone's width on one line.
+                    androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium,
                              modifier = Modifier.clickable { model.save(); state.openWholeSeries() })
+                        Text(stringResource(R.string.day_move), color = palette.accentText, fontSize = 13.sp,
+                             fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
                         if (ownEdit || cameFrom != null) {
                             Text(stringResource(R.string.day_reset), color = palette.accentText, fontSize = 13.sp,
                                  fontWeight = FontWeight.Medium, modifier = Modifier.clickable { model.save(); asking = "reset" })
@@ -756,6 +762,14 @@ fun NoteEditor(state: AppState, openId: Int) {
         }
     }
 
+    if (moving && day != null) {
+        // The calendar opened on the day being moved; what was typed goes
+        // with it -- the move saves it first.
+        DateDialog(day, onPick = { to ->
+            moving = false
+            state.moveDay(model.id, day, to)
+        }) { moving = false }
+    }
     if (details) DetailsSheet(state, model, note, onDismiss = { details = false })
     if (tableAsk) {
         TablePicker(
