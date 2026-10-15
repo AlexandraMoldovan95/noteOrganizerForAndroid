@@ -136,12 +136,12 @@ class NotebookTest {
         // show_date in core/recurrence.py. The card used to print the
         // stored form while the editor printed this one: the same date
         // two ways on two screens, found by looking at a screenshot.
-        assertEquals("17.10.2026", Notebook.showDate("2026-10-17"))
-        assertEquals("05.01.2026", Notebook.showDate("2026-1-5"))
-        assertEquals("", Notebook.showDate(""))
+        assertEquals("17.10.2026", Recurrence.showDate("2026-10-17"))
+        assertEquals("05.01.2026", Recurrence.showDate("2026-1-5"))
+        assertEquals("", Recurrence.showDate(""))
         // Not a date: shown exactly as it was typed, never guessed at.
-        assertEquals("32 January", Notebook.showDate("32 January"))
-        assertEquals("2026-02-30", Notebook.showDate("2026-02-30"))
+        assertEquals("32 January", Recurrence.showDate("32 January"))
+        assertEquals("2026-02-30", Recurrence.showDate("2026-02-30"))
     }
 
     @Test
@@ -149,6 +149,16 @@ class NotebookTest {
         val json = """[{"id": 1, "category": "Work", "date": "2026-10-18",
                          "checklist": [{"text": "a", "done": true}, {"text": "b"}]}]"""
         assertEquals("Work   📅 18.10.2026   ☑ 1/2",
+            Notebook.parseNotes(json).single().tagLine())
+    }
+
+    @Test
+    fun `the card's tags line says the repeat rule in the desktop's words`() {
+        // describe_recurrence, whole: it used to be "weekly ×2".
+        val json = """[{"id": 1, "category": "Work", "date": "2026-10-05",
+                         "recurrence": {"freq": "weekly", "interval": 2, "weekdays": [0, 3], "count": 6},
+                         "exceptions": ["2026-10-19"], "overrides": {"2026-11-02": {"title": "x"}}}]"""
+        assertEquals("Work   🔁 Every 2 weeks on Mon, Thu, 6 times   ✕1   ✎1",
             Notebook.parseNotes(json).single().tagLine())
     }
 

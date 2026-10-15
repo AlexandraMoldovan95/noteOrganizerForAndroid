@@ -17,11 +17,10 @@ import org.json.JSONObject
  */
 object Normalize {
 
-    /** The desktop's ceilings: anti-bomb limits, not budgets. */
+    /** The desktop's ceilings: anti-bomb limits, not budgets. A repeat's
+     *  own two live with the rule, in [Recurrence]. */
     const val MAX_CHECKLIST_ITEMS = 1000
     const val MAX_ATTACHMENTS = 200
-    const val MAX_RECURRENCE_INTERVAL = 1000
-    const val MAX_OCCURRENCES = 5000
 
     /** NOTE_DEFAULTS, field for field, in the desktop's order. */
     private val TEXT_FIELDS = listOf("title", "body", "comments", "date", "color",
@@ -54,12 +53,91 @@ object Normalize {
         val order = raw.opt("order")
         if (order is Number && order.toDouble().isFinite()) out.put("order", order)
         out.put("recurrence", normalizeRecurrence(raw.opt("recurrence")))
+        // A date written another readable way (day first, from an older code
+        // or a hand edit) is stored in the one form the calendar places notes
+        // by; one nobody can read is kept as it came.
+        val date = out.getString("date")
+        if (date.isNotEmpty() && Recurrence.parseDate(date) == null) {
+            Recurrence.readDate(date)?.let { out.put("date", Recurrence.formatDate(it)) }
+        }
+        // A rule with no first day cannot be placed on a calendar: it becomes
+        // a one-off note instead of silently disappearing.
+        if (out.getJSONObject("recurrence").getString("freq").isNotEmpty() &&
+            Recurrence.parseDate(out.getString("date")) == null) {
+            out.put("recurrence", normalizeRecurrence(null))
+        }
+        out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
+        out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
+        out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
         // The rescue copy is carried through, as the desktop carries it:
         // dropped here, "Restore previous" would promise what the file no
         // longer holds.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", JSONObject(it.toString())) }
+        return out
+    }
+
+    /** The deleted days of a series: real dates only, each once, in order. */
+    private fun cleanExceptions(days: JSONArray): JSONArray {
+        val kept = sortedSetOf<String>()
+        for (i in 0 until days.length()) {
+            val day = days.opt(i) as? String ?: continue
+            if (Recurrence.parseDate(day) != null) kept.add(day)
+        }
+        return JSONArray(kept.toList())
+    }
+
+    /**
+     * Days held on another date: both real dates, never the same one, no two
+     * days on one date, and no move of a deleted day. Capped as a rule's
+     * days are: each is worked out on every calendar draw.
+     */
+    private fun cleanMoves(moved: JSONObject, exceptions: JSONArray): JSONObject {
+        val deleted = (0 until exceptions.length()).map { exceptions.getString(it) }.toSet()
+        val out = JSONObject()
+        val heldOn = HashSet<String>()
+        val pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
+            .sortedWith(compareBy({ it.first }, { it.second }))
+        for ((orig, new) in pairs) {
+            if (Recurrence.parseDate(orig) != null && Recurrence.parseDate(new) != null && orig != new &&
+                new !in heldOn && orig !in deleted) {
+                out.put(orig, new)
+                heldOn.add(new)
+                if (out.length() >= Recurrence.MAX_OCCURRENCES) break
+            }
+        }
+        return out
+    }
+
+    /** Each day's own edit, under a real date, in the shape a load gives it. */
+    private fun cleanOverrides(overrides: JSONObject): JSONObject {
+        val out = JSONObject()
+        for (day in overrides.keys()) {
+            if (Recurrence.parseDate(day) == null) continue
+            val patch = overrides.opt(day) as? JSONObject ?: continue
+            out.put(day, cleanOverride(patch))
+        }
+        return out
+    }
+
+    /**
+     * The desktop's `clean_override`: only the fields a day may replace, as
+     * text, a colour that cannot be drawn dropped -- not the whole edit. A
+     * category this device lacks is the importer's to file under General,
+     * as it files the note's own.
+     */
+    fun cleanOverride(patch: JSONObject): JSONObject {
+        val out = JSONObject()
+        for (key in Recurrence.OVERRIDABLE_FIELDS) {
+            val value = patch.opt(key) as? String ?: continue
+            if (key == "color") {
+                val colour = Notebook.sanitizeColor(value)
+                if (colour.isNotEmpty()) out.put(key, colour)
+            } else {
+                out.put(key, value)
+            }
+        }
         return out
     }
 
@@ -104,50 +182,8 @@ object Normalize {
     fun bareFileName(name: String): String =
         name.replace('\\', '/').substringAfterLast('/').trimEnd('.', ' ')
 
-    /**
-     * `normalize_recurrence`: every field checked on its own, anything
-     * unexpected degrading to "does not repeat" rather than to a crash.
-     * The end date is kept only in its stored form, YYYY-MM-DD.
-     */
-    fun normalizeRecurrence(value: Any?): JSONObject {
-        val out = JSONObject()
-            .put("freq", "").put("interval", 1).put("weekdays", JSONArray())
-            .put("month_days", JSONArray()).put("month_day_policy", "clamp")
-            .put("end", "").put("count", 0)
-        val rule = value as? JSONObject ?: return out
-        val freq = rule.opt("freq") as? String
-        out.put("freq", if (freq in listOf("daily", "weekly", "monthly", "yearly")) freq else "")
-        out.put("interval", wholeNumber(rule.opt("interval"))?.coerceIn(1, MAX_RECURRENCE_INTERVAL) ?: 1)
-        out.put("weekdays", sortedInts(rule.opt("weekdays"), 0..6))
-        out.put("month_days", sortedInts(rule.opt("month_days"), 1..31))
-        val policy = rule.opt("month_day_policy") as? String
-        out.put("month_day_policy", if (policy == "skip") "skip" else "clamp")
-        val end = rule.opt("end") as? String ?: ""
-        out.put("end", if (Notebook.isDate(end)) end.trim() else "")
-        out.put("count", wholeNumber(rule.opt("count"))?.coerceIn(0, MAX_OCCURRENCES) ?: 0)
-        return out
-    }
-
-    /** `int(value)` as Python takes it: a whole number, or digits as text. */
-    private fun wholeNumber(value: Any?): Int? = when (value) {
-        is Boolean -> if (value) 1 else 0
-        is Int -> value
-        is Long -> value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
-        is Number -> value.toDouble().toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
-        is String -> value.trim().toIntOrNull()
-        else -> null
-    }
-
-    private fun sortedInts(value: Any?, range: IntRange): JSONArray {
-        val list = value as? JSONArray ?: return JSONArray()
-        val kept = sortedSetOf<Int>()
-        for (i in 0 until list.length()) {
-            val v = list.opt(i)
-            if (v is Int && v in range) kept.add(v)
-            else if (v is Long && v in range.first.toLong()..range.last.toLong()) kept.add(v.toInt())
-        }
-        return JSONArray(kept.toList())
-    }
+    /** `normalize_recurrence`, which lives with the rest of the rule: [Recurrence.normalize]. */
+    fun normalizeRecurrence(value: Any?): JSONObject = Recurrence.normalize(value)
 
     // ---- the same note? ----
 

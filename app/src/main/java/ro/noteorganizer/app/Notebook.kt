@@ -36,6 +36,8 @@ data class Note(
     val checklist: List<ChecklistItem> = emptyList(),
     val recurrenceFreq: String = "",
     val recurrenceInterval: Int = 1,
+    /** The rule in words, as the desktop's card says it: "Every 2 weeks on Mon, Thu". */
+    val recurrenceLabel: String = "",
     val exceptions: Int = 0,
     val overrides: Int = 0,
     /** Only a trashed note carries this: "YYYY-MM-DD HH:MM:SS". */
@@ -179,11 +181,11 @@ data class Note(
     fun tagLine(): String {
         val parts = StringBuilder(category)
         if (isRecurring) {
-            parts.append("   🔁 ").append(describeRecurrence())
+            parts.append("   🔁 ").append(recurrenceLabel)
             if (exceptions > 0) parts.append("   ✕").append(exceptions)
             if (overrides > 0) parts.append("   ✎").append(overrides)
         } else if (date.isNotEmpty()) {
-            parts.append("   📅 ").append(Notebook.showDate(date))
+            parts.append("   📅 ").append(Recurrence.showDate(date))
         }
         if (comments.isNotEmpty()) parts.append("   💬")
         if (attachments > 0) parts.append("   📎×").append(attachments)
@@ -196,16 +198,6 @@ data class Note(
         }
         return parts.toString()
     }
-
-    /**
-     * Deliberately shorter than the desktop's `describe_recurrence`, which
-     * spells out weekdays, month-day policies and end conditions. This is
-     * the smallest app; the full sentence is a decision for later, not an
-     * omission that slipped through.
-     */
-    private fun describeRecurrence(): String =
-        if (recurrenceInterval > 1) "$recurrenceFreq ×$recurrenceInterval"
-        else recurrenceFreq
 }
 
 /**
@@ -1612,41 +1604,13 @@ object Notebook {
         if (isHexColor(value)) value.trim() else fallback
 
     /**
-     * True for "YYYY-MM-DD" naming a day that exists.
+     * True for a stored date naming a day that exists -- the desktop's
+     * `parse_date`, asked of [Recurrence], so "a date" means one thing here.
      *
      * Not lenient: left lenient, "2026-02-30" would quietly become the 2nd
      * of March, and a note would show a date the user never chose.
      */
-    fun isDate(value: String): Boolean {
-        val v = value.trim()
-        if (!Regex("^\\d{4}-\\d{2}-\\d{2}$").matches(v)) return false
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        format.isLenient = false
-        return try {
-            format.parse(v) != null
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * A stored date as the app shows it: "2026-10-17" -> "17.10.2026", the
-     * desktop's `show_date`. Anything that is not a stored date -- empty,
-     * or text that was typed into the field and kept as it was -- comes
-     * back as it was. The file keeps one form; only the eye gets the other.
-     *
-     * Python's `%m` and `%d` also read one digit, so "2026-1-5" is a date
-     * there and is one here.
-     */
-    fun showDate(value: String): String {
-        val parts = Regex("^(\\d{4})-(\\d{1,2})-(\\d{1,2})$").find(value.trim())
-            ?: return value
-        val (year, month, day) = parts.destructured
-        val m = month.toInt()
-        val d = day.toInt()
-        if (!isDate(String.format(Locale.US, "%s-%02d-%02d", year, m, d))) return value
-        return String.format(Locale.US, "%02d.%02d.%s", d, m, year)
-    }
+    fun isDate(value: String): Boolean = Recurrence.parseDate(value) != null
 
     private fun readNote(o: JSONObject): Note {
         val rule = o.opt("recurrence") as? JSONObject
@@ -1666,6 +1630,7 @@ object Notebook {
             checklist = readChecklist(o.opt("checklist") as? JSONArray),
             recurrenceFreq = rule?.str("freq") ?: "",
             recurrenceInterval = rule?.intOr("interval", 1) ?: 1,
+            recurrenceLabel = Recurrence.describe(o),
             exceptions = o.arrayLength("exceptions"),
             overrides = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
             deletedAt = o.str("deleted_at"),

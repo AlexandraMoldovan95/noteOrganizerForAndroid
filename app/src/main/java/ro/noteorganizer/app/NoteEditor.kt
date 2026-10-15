@@ -310,7 +310,7 @@ fun NoteEditor(state: AppState, openId: Int) {
                      color = if (model.title.length >= 200) palette.dangerText else palette.subtext)
             }
             Text(
-                text = listOfNotNull(model.category, Notebook.showDate(model.date).ifBlank { null }).joinToString("  ·  "),
+                text = listOfNotNull(model.category, Recurrence.showDate(model.date).ifBlank { null }).joinToString("  ·  "),
                 color = palette.legibleOnCard(model.color.ifEmpty { state.load.categories[model.category] ?: palette.hex.getValue("accent") }),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 10.dp).clickable { details = true },
@@ -744,7 +744,7 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
             DetailRow(stringResource(R.string.date)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        Notebook.showDate(model.date).ifBlank { stringResource(R.string.no_date) },
+                        Recurrence.showDate(model.date).ifBlank { stringResource(R.string.no_date) },
                         color = palette.text,
                         fontSize = 15.sp,
                         modifier = Modifier.clickable { dating = true },
