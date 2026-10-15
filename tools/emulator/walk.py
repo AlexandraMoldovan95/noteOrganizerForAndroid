@@ -270,6 +270,7 @@ def main():
 
     seeded(folder)
     outward(folder)
+    changes(folder)
 
     print()
     if failures:
@@ -522,25 +523,43 @@ def outward(folder):
     back_to("Your name")
     back()
 
-    # The phone's dark mode, followed.
-    adb("shell", "pm", "clear", PACKAGE)
-    adb("shell", "cmd", "uimode", "night", "yes")
-    start_app()
-    shot(folder, "20-follows-dark", "Welcome to Note Organizer")
-    adb("shell", "cmd", "uimode", "night", "no")
-    time.sleep(2.0)
 
-    # Large letters, and the phone on its side.
+def changes(folder):
+    """The phone changing under an OPEN note: going dark (followed, by
+    default), larger letters, turned on its side. Each is a configuration
+    change, and each used to rebuild the Activity and drop the person back
+    on the list. These were photographs of the LIST once, which is why
+    they never noticed."""
+    print("\n-- the phone changing under an open note --")
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("shell", "cmd", "uimode", "night", "no")
+    start_app()
+    tap("Welcome to Note Organizer", wait=1.5)
+
+    def still_in_note():
+        return not screen_says("Welcome to Note Organizer") and bool(screen_says("Search notes"))
+
+    adb("shell", "cmd", "uimode", "night", "yes")
+    time.sleep(2.5)
+    check("the phone going dark leaves the note open", still_in_note())
+    shot(folder, "20-follows-dark", "Welcome to Note Organizer")
     adb("shell", "settings", "put", "system", "font_scale", "1.3")
     time.sleep(2.0)
-    tap("Welcome to Note Organizer", wait=1.5)
+    check("larger letters leave the note open", still_in_note())
     shot(folder, "21-large-letters", "Welcome to Note Organizer")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
-    back_to("Search notes")
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
     adb("shell", "settings", "put", "system", "user_rotation", "1")
     time.sleep(2.5)
-    shot(folder, "22-landscape", "Search notes")
+    check("turning the phone leaves the note open", still_in_note())
+    shot(folder, "22-landscape-note", "Welcome to Note Organizer")
+    adb("shell", "settings", "put", "system", "user_rotation", "0")
+    adb("shell", "cmd", "uimode", "night", "no")
+    time.sleep(2.0)
+    back_to("Search notes")
+    adb("shell", "settings", "put", "system", "user_rotation", "1")
+    time.sleep(2.5)
+    shot(folder, "23-landscape", "Search notes")
     adb("shell", "settings", "put", "system", "user_rotation", "0")
     time.sleep(1.5)
 
