@@ -18,7 +18,7 @@ import java.io.File
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
 /** One page of Settings, or the list of them. */
-enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, BACKUP, TRASH, STATS, ABOUT }
+enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, BACKUP, TRASH, DUPLICATES, STATS, ABOUT }
 
 /**
  * The app's state, and every action a screen can take on the notebook.
@@ -436,6 +436,22 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     /** An attached file taken off a note, its stored copy deleted unless another note uses it. */
     fun detach(id: Int, storedAs: String) {
         report(Organizing.detach(load, id, storedAs, attachments))
+    }
+
+    /**
+     * The ticked copies of each group of duplicates to the Trash, their files
+     * handed to a copy kept -- with the Undo every move to the Trash offers
+     * here. A copy open in the editor goes with its last words in it.
+     */
+    fun cleanUpDuplicates(groups: List<List<Int>>, remove: Set<Int>) {
+        val result = outside(remove, writes = false) { Organizing.cleanUpDuplicates(load, groups, remove, attachments) }
+        if (!report(result)) return
+        val count = (result as SaveResult.Ok).imported
+        val keys = load.trash.takeLast(count).map { Organizing.TrashKey(it.id, it.deletedAt) }
+        if (openId != null && openId in remove) closeNote()
+        offerUndo(if (count == 1) "Moved 1 duplicate to the Trash" else "Moved $count duplicates to the Trash") {
+            report(Organizing.restore(load, keys))
+        }
     }
 
     /** A note dragged to just before or after another, in Custom order. */

@@ -228,6 +228,7 @@ def main():
     listing(folder)
     arranging(folder)
     attaching(folder)
+    duplicates(folder)
     statistics(folder)
     calculator(folder)
     finding(folder)
@@ -1469,6 +1470,60 @@ def attaching(folder):
     check("removed: off the note, and its stored copy deleted",
           not (trip().get("attachments") or []) and stored and stored not in gone, gone[:200])
     back_to("Search notes")
+
+
+def put_bytes_inside(path, data):
+    """A file of any kind written into the app's own notebook folder."""
+    local = os.path.join(os.environ.get("TEMP", "."), "walk_bytes_" + os.path.basename(path))
+    with open(local, "wb") as f:
+        f.write(data)
+    staging = "/data/local/tmp/walk_bytes"
+    adb("push", local, staging)
+    os.remove(local)
+    adb("shell", "chmod", "644", staging)
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", "%s/%s" % (NOTEBOOK, os.path.dirname(path) or "."))
+    adb("shell", "run-as", PACKAGE, "cp", staging, "%s/%s" % (NOTEBOOK, path))
+    adb("shell", "rm", "-f", staging)
+
+
+def duplicates(folder):
+    """Settings -> Duplicates: the groups found by the desktop's own key,
+    the copies ticked "all but first" moved to the Trash after a question,
+    and the file one of them carried handed, as a copy of its own, to the
+    note kept. Each read back from the files."""
+    print("\n-- duplicates --")
+    if not seed_inside([
+        {"id": 1, "uid": "dp-1", "title": "Trip", "body": "fuel", "created": "2026-10-01 09:00:00",
+         "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "dp-2", "title": "Trip (copy)", "body": "fuel ", "created": "2026-10-02 09:00:00",
+         "updated": "2026-10-02 09:00:00", "attachments": [{"filename": "map.png", "stored_as": "dp_map.png"}]},
+        {"id": 3, "uid": "dp-3", "title": "Plan", "body": "p", "created": "2026-10-03 09:00:00",
+         "updated": "2026-10-03 09:00:00"},
+        {"id": 4, "uid": "dp-4", "title": "Plan", "body": "p", "created": "2026-10-04 09:00:00",
+         "updated": "2026-10-04 09:00:00"},
+    ], {"welcome_offered": True}, "Trip"):
+        return
+    put_bytes_inside("attachments/dp_map.png", b"MAP")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Duplicates", exact=True, wait=1.5)
+    check("two groups found, by the desktop's key", not screen_says("Found 2 group(s)", "“Trip” — 2 copies"),
+          str(screen_says("Found 2 group(s)", "“Trip” — 2 copies")))
+    check("the group with a file says it will be merged", not screen_says("differing attachments"))
+    shot(folder, "51-duplicates", "Found 2 group(s)")
+    tap("Tick all but first", wait=0.8)
+    tap("Move ticked duplicates", wait=1.2)
+    check("cleaning up asks first", not screen_says("Move 1 selected note(s) to the Trash?"))
+    tap_last("Move to Trash", wait=1.5)
+    notes = read_file("notes_data.json") or []
+    trash = read_file("trash.json") or []
+    kept = next((n for n in notes if n.get("uid") == "dp-1"), {})
+    merged = (kept.get("attachments") or [{}])[0].get("stored_as", "")
+    check("the copy goes to the Trash, its file handed to the note kept, as a copy of its own",
+          [t.get("uid") for t in trash] == ["dp-2"] and len(notes) == 3
+          and merged.endswith("_dp_map.png") and merged != "dp_map.png", json.dumps(kept)[:240])
+    check("the other group is left as it was", [n.get("uid") for n in notes if n.get("title") == "Plan"] == ["dp-3", "dp-4"])
+    back_to("Your name")
+    back()
 
 
 def turn(rotation):

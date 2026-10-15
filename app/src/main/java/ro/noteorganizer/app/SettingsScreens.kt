@@ -83,6 +83,7 @@ fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, o
             SettingsPage.TEMPLATES -> TemplatesPage(state)
             SettingsPage.BACKUP -> BackupPage(state, backup)
             SettingsPage.TRASH -> TrashPage(state)
+            SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
             SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback)
         }
@@ -96,6 +97,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.TEMPLATES -> R.string.settings_templates
     SettingsPage.BACKUP -> R.string.settings_backup
     SettingsPage.TRASH -> R.string.settings_trash
+    SettingsPage.DUPLICATES -> R.string.settings_duplicates
     SettingsPage.STATS -> R.string.settings_stats
     SettingsPage.ABOUT -> R.string.settings_about
 }
@@ -109,6 +111,7 @@ private fun SettingsList(state: AppState) {
         Triple(SettingsPage.TEMPLATES, R.string.settings_templates, R.string.settings_templates_sub),
         Triple(SettingsPage.BACKUP, R.string.settings_backup, R.string.settings_backup_sub),
         Triple(SettingsPage.TRASH, R.string.settings_trash, R.string.settings_trash_sub),
+        Triple(SettingsPage.DUPLICATES, R.string.settings_duplicates, R.string.settings_duplicates_sub),
         Triple(SettingsPage.STATS, R.string.settings_stats, R.string.settings_stats_sub),
         Triple(SettingsPage.ABOUT, R.string.settings_about, R.string.settings_about_sub),
     )
@@ -133,6 +136,129 @@ private fun PageColumn(content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         content()
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+// ---- Duplicates ----
+
+/**
+ * The desktop's duplicates panel: the notebook's groups of the same note
+ * twice, a tick on each copy to remove, the rest kept. The ticked copies go
+ * to the Trash after a question, their files handed to a copy kept.
+ */
+@Composable
+private fun DuplicatesPage(state: AppState) {
+    val palette = LocalPalette.current
+    val groups = remember(state.revision) { Organizing.duplicateGroups(state.load) }
+    var ticked by remember(groups) { mutableStateOf(setOf<Int>()) }
+    var asking by remember { mutableStateOf<Set<Int>?>(null) }
+    val nothing = stringResource(R.string.dup_nothing)
+
+    fun ask(remove: Set<Int>) {
+        if (remove.isEmpty()) state.say(nothing) else asking = remove
+    }
+
+    PageColumn {
+        Text(stringResource(R.string.dup_explain), color = palette.subtext, fontSize = 14.sp,
+             modifier = Modifier.padding(bottom = 12.dp))
+        if (groups.isEmpty()) {
+            Text(stringResource(R.string.dup_none), color = palette.subtext, fontSize = 15.sp)
+            return@PageColumn
+        }
+        Text(stringResource(R.string.dup_found, groups.size, groups.sumOf { it.size - 1 }),
+             color = palette.subtext, fontSize = 13.sp)
+        Text(stringResource(R.string.dup_merge_note), color = palette.accentText, fontSize = 13.sp,
+             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, modifier = Modifier.padding(bottom = 10.dp))
+        for (group in groups) {
+            val notes = group.mapNotNull { state.rawNote(it) }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(palette.card)
+                    .padding(12.dp),
+            ) {
+                val title = notes.firstOrNull()?.optString("title")?.trim()?.ifEmpty { null } ?: "(untitled)"
+                Text(stringResource(R.string.dup_group, title.take(36), group.size), color = palette.text,
+                     fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                val withFiles = notes.map { (it.optJSONArray("attachments")?.length() ?: 0) > 0 }
+                if (withFiles.any { it } && withFiles.toSet().size > 1) {
+                    Text(stringResource(R.string.dup_files_differ), color = palette.accentText, fontSize = 12.sp,
+                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                }
+                for (note in notes) {
+                    val id = note.optInt("id")
+                    val created = note.optString("created")
+                    val updated = note.optString("updated")
+                    var meta = if (created.isNotEmpty()) "created ${Recurrence.showDate(created.take(10))}" else ""
+                    if (updated.isNotEmpty() && updated != created) meta += " · updated ${Recurrence.showDate(updated.take(10))}"
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { ticked = if (id in ticked) ticked - id else ticked + id }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(if (id in ticked) "☑" else "☐", color = palette.accentText, fontSize = 18.sp,
+                             modifier = Modifier.padding(end = 10.dp))
+                        Text(if (meta.isEmpty()) stringResource(R.string.dup_delete_copy_plain)
+                             else stringResource(R.string.dup_delete_copy, meta),
+                             color = palette.text, fontSize = 14.sp)
+                    }
+                }
+                Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Text(stringResource(R.string.dup_all_but_first), color = palette.accentText, fontSize = 13.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { ticked = ticked - group.toSet() + group.drop(1) })
+                    Text(stringResource(R.string.dup_clear), color = palette.subtext, fontSize = 13.sp,
+                         modifier = Modifier.clickable { ticked = ticked - group.toSet() })
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        // The precise action in the accent; the sweeping one outlined in the
+        // warning's colour, as the desktop paints the two (its finding C-6).
+        Text(
+            stringResource(R.string.dup_move),
+            color = palette.onAccent,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(palette.accent)
+                .clickable { ask(ticked) }
+                .padding(14.dp),
+        )
+        if (groups.size > 1) {
+            Text(
+                stringResource(R.string.dup_clean_all, groups.size),
+                color = palette.dangerText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, palette.dangerText, RoundedCornerShape(10.dp))
+                    .clickable { ask(groups.flatMap { it.drop(1) }.toSet()) }
+                    .padding(14.dp),
+            )
+        }
+    }
+    asking?.let { remove ->
+        Ask(
+            title = stringResource(R.string.dup_ask_title),
+            text = stringResource(R.string.dup_ask_text, remove.size, state.load.retentionDays),
+            confirm = stringResource(R.string.move_to_trash),
+            onConfirm = {
+                asking = null
+                state.cleanUpDuplicates(groups, remove)
+                ticked = emptySet()
+            },
+            onDismiss = { asking = null },
+        )
     }
 }
 

@@ -317,6 +317,24 @@
     <string name="settings_backup_sub">Your whole notebook in one file</string>
     <string name="settings_trash">Trash</string>
     <string name="settings_trash_sub">Recently deleted notes</string>
+    <string name="settings_duplicates">Duplicates</string>
+    <string name="settings_duplicates_sub">The same note twice, cleaned up</string>
+    <!-- Duplicates: the desktop's panel, in its words -->
+    <string name="dup_explain">Notes with the same title, text, comments and category (ignoring case, spacing, date and colour). Tick the copies you want to remove — the rest are kept.</string>
+    <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
+    <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
+    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>
+    <string name="dup_group">“%1$s” — %2$d copies</string>
+    <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy</string>
+    <string name="dup_delete_copy">Delete this copy (%1$s)</string>
+    <string name="dup_delete_copy_plain">Delete this copy</string>
+    <string name="dup_all_but_first">Tick all but first</string>
+    <string name="dup_clear">Clear</string>
+    <string name="dup_move">🧹  Move ticked duplicates to Trash</string>
+    <string name="dup_clean_all">🧹✨  Clean up ALL %1$d groups (keep first in each)</string>
+    <string name="dup_nothing">Tick the duplicates you want to remove first.</string>
+    <string name="dup_ask_title">Move duplicates to Trash</string>
+    <string name="dup_ask_text">Move %1$d selected note(s) to the Trash? You can restore them within %2$d days.</string>
     <string name="settings_stats">Statistics</string>
     <string name="settings_stats_sub">A quick snapshot of your notes</string>
     <string name="stats_explain">A quick snapshot of your notes.</string>

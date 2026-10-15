@@ -133,6 +133,72 @@ object Organizing {
         return editEach(load, ids) { it.put("category", name) }
     }
 
+    // ---- duplicates ----
+
+    /**
+     * Notes that are the same note twice: equal in title -- a trailing
+     * "(copy)" aside -- text and comments, case and spacing aside, and in
+     * category, checklist and repeat. Date, colour, pin and files do not
+     * count. The desktop's `find_duplicate_groups`, on its own key, the one
+     * the import's look-alike question asks too. Groups of two or more, each
+     * in the notebook's order, by id.
+     */
+    fun duplicateGroups(load: Notebook.Load): List<List<Int>> {
+        val raw = load.raw ?: return emptyList()
+        val groups = LinkedHashMap<String, MutableList<Int>>()
+        for (i in 0 until raw.length()) {
+            val note = raw.opt(i) as? JSONObject ?: continue
+            val id = (note.opt("id") as? Number)?.toInt() ?: continue
+            groups.getOrPut(Normalize.dupKey(note)) { ArrayList() }.add(id)
+        }
+        return groups.values.filter { it.size > 1 }
+    }
+
+    /**
+     * The ticked copies ([remove]) of each group to the Trash, and their
+     * files handed to the first copy of the group left. Each file is copied
+     * for it: the copy going to the Trash keeps its own, and the Trash's
+     * purge deletes those. A group ticked whole goes whole. The desktop's
+     * `_cleanup_selected_duplicates`, after its question -- the files are
+     * merged only once it is answered, or every No would copy them again.
+     */
+    fun cleanUpDuplicates(load: Notebook.Load, groups: List<List<Int>>, remove: Set<Int>,
+                          attachmentsDir: File?): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val going = groups.flatten().filter { it in remove }.toSet()
+        if (going.isEmpty()) return SaveResult.Failed("Tick the duplicates you want to remove first.")
+        val candidate = JSONArray(array.toString())
+        var grew = false
+        for (group in groups) {
+            if (group.none { it in going }) continue
+            val keptAt = group.firstOrNull { it !in going }?.let { indexOfId(candidate, it) }?.takeIf { it >= 0 } ?: continue
+            val kept = candidate.getJSONObject(keptAt)
+            val merged = kept.opt("attachments") as? JSONArray ?: JSONArray().also { kept.put("attachments", it) }
+            val seen = (0 until merged.length())
+                .mapNotNull { (merged.opt(it) as? JSONObject)?.opt("stored_as") as? String }.toMutableSet()
+            for (id in group.filter { it in going }) {
+                val at = indexOfId(candidate, id).takeIf { it >= 0 } ?: continue
+                val atts = candidate.getJSONObject(at).opt("attachments") as? JSONArray ?: continue
+                for (j in 0 until atts.length()) {
+                    val att = atts.opt(j) as? JSONObject ?: continue
+                    val stored = att.opt("stored_as") as? String ?: continue
+                    if (!seen.add(stored)) continue
+                    // A file that cannot be copied is left with the copy in
+                    // the Trash, never shared with one the purge will empty.
+                    val copy = attachmentsDir?.let { Importing.copyAttachment(it, stored) } ?: continue
+                    merged.put(JSONObject(att.toString()).put("stored_as", copy))
+                    grew = true
+                }
+            }
+        }
+        if (grew) {
+            write(file, candidate)?.let { return SaveResult.Failed(it) }
+            replace(array, candidate)
+        }
+        return trashNotes(load, going)
+    }
+
     // ---- attached files ----
 
     /** A file handed over to attach: the name to show, and a way to put its bytes into a file. */

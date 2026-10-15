@@ -306,6 +306,71 @@ class OrganizingTest {
             notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
     }
 
+    // ---- duplicates ----
+
+    @Test
+    fun `duplicates are the same text twice, a copy's suffix and spacing aside, never a different checklist`() {
+        val load = notebook("""
+            [{"id": 1, "title": "Groceries", "body": "milk  and eggs", "category": "Home", "date": "2026-10-01"},
+             {"id": 2, "title": "Groceries (copy)", "body": "Milk and eggs ", "category": "Home", "color": "#ff0000", "pinned": true},
+             {"id": 3, "title": "Groceries", "body": "milk and eggs", "category": "Home",
+              "checklist": [{"text": "bread", "done": false}]},
+             {"id": 4, "title": "Groceries", "body": "milk and eggs", "category": "Work"},
+             {"id": 5, "title": "groceries (copy) (copy)", "body": "milk and eggs", "category": "Home"}]
+        """.trimIndent())
+        assertEquals(listOf(listOf(1, 2, 5)), Organizing.duplicateGroups(load))
+    }
+
+    @Test
+    fun `cleaning up moves the ticked copies to the Trash, their files copied to the copy kept`() {
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "b"},
+             {"id": 2, "title": "Trip (copy)", "body": "b", "attachments": [{"filename": "map", "stored_as": "map.png"}]},
+             {"id": 3, "title": "Trip", "body": "b", "attachments": [{"filename": "map", "stored_as": "map.png"}]},
+             {"id": 4, "title": "Plan", "body": "p"}, {"id": 5, "title": "Plan", "body": "p"}]
+        """.trimIndent())
+        File(attachments(load), "map.png").writeText("MAP")
+        val groups = Organizing.duplicateGroups(load)
+        assertEquals(listOf(listOf(1, 2, 3), listOf(4, 5)), groups)
+        assertTrue(Organizing.cleanUpDuplicates(load, groups, setOf(2, 3, 4, 5), attachments(load)) is SaveResult.Ok)
+        val left = notesOnDisk(load)
+        assertEquals("a group ticked whole goes whole", listOf(1), (0 until left.length()).map { left.getJSONObject(it).getInt("id") })
+        val merged = left.getJSONObject(0).getJSONArray("attachments")
+        assertEquals("one file, though two copies listed it", 1, merged.length())
+        val stored = merged.getJSONObject(0).getString("stored_as")
+        assertNotEquals("its own copy, not the Trash's", "map.png", stored)
+        assertEquals("MAP", File(attachments(load), stored).readText())
+        assertEquals(4, trashOnDisk(load).length())
+        val none = Organizing.cleanUpDuplicates(load, groups, emptySet(), attachments(load))
+        assertTrue(none is SaveResult.Failed && none.reason.startsWith("Tick the duplicates"))
+    }
+
+    @Test
+    fun `the copy kept is the first one not ticked, wherever it stands`() {
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "b", "attachments": [{"filename": "a", "stored_as": "a.png"}]},
+             {"id": 2, "title": "Trip", "body": "b"},
+             {"id": 3, "title": "Trip", "body": "b"}]
+        """.trimIndent())
+        File(attachments(load), "a.png").writeText("A")
+        assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2, 3)), setOf(1, 3), attachments(load)) is SaveResult.Ok)
+        val left = notesOnDisk(load)
+        assertEquals(1, left.length())
+        assertEquals(2, left.getJSONObject(0).getInt("id"))
+        assertEquals("the first copy's file went to the one kept", 1, left.getJSONObject(0).getJSONArray("attachments").length())
+    }
+
+    @Test
+    fun `only a copy in a group goes -- a tick left on a note no longer one is ignored`() {
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "b"}, {"id": 2, "title": "Trip", "body": "b"},
+             {"id": 3, "title": "Plan", "body": "p"}]
+        """.trimIndent())
+        assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2, 3), attachments(load)) is SaveResult.Ok)
+        val left = notesOnDisk(load)
+        assertEquals(listOf(1, 3), (0 until left.length()).map { left.getJSONObject(it).getInt("id") })
+    }
+
     // ---- attached files ----
 
     private fun incoming(name: String, text: String) = Organizing.Incoming(name) { it.writeText(text) }
