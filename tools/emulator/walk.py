@@ -311,6 +311,7 @@ def main():
     calculator(folder)
     finding(folder)
     exporting(folder)
+    styles_through_an_edit(folder)
     changes(folder)
 
     print()
@@ -984,6 +985,32 @@ def exporting(folder):
             start_app()
         back_to("Search notes")
 
+
+def styles_through_an_edit(folder):
+    """What the desktop set, through a letter typed on the phone: a size,
+    drawn and written back as the number the desktop keeps (it once came in
+    empty and went back with no value, which the desktop dropped), and a
+    list item's bullet, kept on the line typed into (it was dropped on
+    every letter)."""
+    print("\n-- desktop styles through a phone edit --")
+    seed_inside([
+        {"id": 1, "uid": "walk-sizes", "title": "Sizes", "body": "Big heading\n• small print",
+         "formatting": [{"start": 0, "end": 11, "style": "font_size", "value": 24}],
+         "paragraphs": [{"line": 1, "kind": "bullet"}],
+         "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Sizes")
+    open_note("Sizes")
+    shot(folder, "37-desktop-size", "Big heading")
+    tap("small print", wait=1.0)
+    type_text("x")
+    back_to("Search notes")
+    note = (read_file("notes_data.json") or [{}])[0]
+    spans = note.get("formatting") or []
+    check("the edit was saved", "x" in note.get("body", ""), repr(note.get("body")))
+    check("the size goes back as the desktop's number",
+          any(s.get("style") == "font_size" and s.get("value") == 24 for s in spans), repr(spans))
+    check("the list item typed into keeps its bullet",
+          (note.get("paragraphs") or []) == [{"line": 1, "kind": "bullet"}], repr(note.get("paragraphs")))
 
 
 if __name__ == "__main__":

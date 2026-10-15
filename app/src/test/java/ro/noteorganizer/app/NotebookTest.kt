@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -417,6 +418,56 @@ class NotebookTest {
         JSONArray(load.file!!.readText())
 
     @Test
+    fun `a font size the desktop set is read, and written back as the desktop's number`() {
+        // The desktop stores a size as a number; read as text alone it came
+        // in empty, and the next save on the phone wrote it back with no
+        // value at all -- which the desktop's normalize_formatting drops.
+        val load = scratch("""
+            [{"id": 1, "body": "big text here",
+              "formatting": [{"start": 0, "end": 3, "style": "font_size", "value": 20},
+                             {"start": 4, "end": 8, "style": "text_color", "value": "#ff0000"}]}]
+        """.trimIndent())
+        assertEquals(FormatSpan(0, 3, "font_size", "20"), load.notes[0].formatting[0])
+        Notebook.updateNote(load, 1, "", "big text here!")
+        val written = onDisk(load).getJSONObject(0).getJSONArray("formatting")
+        assertEquals("a number, as the desktop keeps it", 20, written.getJSONObject(0).get("value"))
+        assertEquals("#ff0000", written.getJSONObject(1).get("value"))
+        // The editor's own spans travel the same road.
+        Notebook.updateNote(load, 1, "", "big text here!!", formatting = Notebook.refreshed(load).notes[0].formatting)
+        assertEquals(20, onDisk(load).getJSONObject(0).getJSONArray("formatting").getJSONObject(0).get("value"))
+    }
+
+    /**
+     * The class the font size belonged to: a value the phone reads or
+     * writes in a shape the desktop's gatekeepers refuse. Every note in the
+     * export fixture -- styles valid and not, sizes as numbers, text and
+     * true/false -- goes through a save on the phone, and what the desktop
+     * would keep of its styles and its paragraph lines must come back
+     * exactly. (Spans past the end of the text are left out: they style
+     * nothing, and an edit at the end rightly moves them.)
+     */
+    @Test
+    fun `whatever styling the desktop would keep survives a save on the phone`() {
+        val stream = javaClass.classLoader?.getResourceAsStream("export_cases.json")
+        val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
+        var compared = 0
+        for (i in 0 until cases.length()) {
+            val note = JSONObject(cases.getJSONObject(i).getJSONObject("note").toString()).put("id", 1)
+            val body = note.getString("body")
+            val length = body.codePointCount(0, body.length)
+            fun kept(n: JSONObject) = Exporting.normalizeFormatting(n.opt("formatting")).filter { it.end <= length }
+            fun lines(n: JSONObject, text: String) = Exporting.normalizeParagraphs(n.opt("paragraphs"), text.split("\n").size)
+            val load = scratch(JSONArray().put(note).toString())
+            Notebook.updateNote(load, 1, note.optString("title"), "$body!")
+            val written = onDisk(load).getJSONObject(0)
+            assertEquals("note #$i: styles", kept(note), kept(written))
+            assertEquals("note #$i: paragraph lines", lines(note, body), lines(written, "$body!"))
+            compared++
+        }
+        assertTrue(compared > 300)
+    }
+
+    @Test
     fun `a captured note lands with the whole default shape`() {
         val load = scratch("[]")
         val result = Notebook.createNote(load, "Title", "Body")
@@ -658,6 +709,24 @@ class NotebookTest {
     fun `a marker on a line that was edited away is dropped`() {
         val moved = remapParagraphLines("a\nb\nc", "a\nc", listOf(1))
         assertEquals(emptyMap<Int, Int>(), moved)
+    }
+
+    @Test
+    fun `typing into a list item keeps its bullet`() {
+        // The edit was inside the line, so the line is still the bullet's:
+        // this once dropped it, on every letter typed into a list item.
+        assertEquals(mapOf(0 to 0, 1 to 1), remapParagraphLines("• milk\n• bread", "• milk!\n• bread", listOf(0, 1)))
+        assertEquals("two lines rewritten in one edit stay two lines",
+            mapOf(1 to 1, 2 to 2), remapParagraphLines("a\nb\nc\nd", "a\nB\nC\nd", listOf(1, 2)))
+        val load = scratch("""
+            [{"id": 1, "body": "• milk\nplain",
+              "paragraphs": [{"line": 0, "kind": "bullet", "indent": 1}]}]
+        """.trimIndent())
+        Notebook.updateNote(load, 1, "", "• milk and eggs\nplain")
+        val kept = onDisk(load).getJSONObject(0).getJSONArray("paragraphs")
+        assertEquals(1, kept.length())
+        assertEquals("bullet", kept.getJSONObject(0).getString("kind"))
+        assertEquals(1, kept.getJSONObject(0).getInt("indent"))
     }
 
     @Test

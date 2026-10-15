@@ -490,6 +490,12 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
 
     val oldSuffixStart = a.size - suffix
     val delta = b.size - a.size
+    // As many lines in the edited stretch after as before: its lines were
+    // typed INTO, not added or taken away, and each keeps what it was --
+    // as a line on the desktop keeps its bullet while text is typed in it.
+    // Without this, typing a letter into a list item on the phone dropped
+    // its bullet, its indent or its centring.
+    val inPlace = delta == 0
 
     // old line -> new line, so a caller can carry each marker's KIND with
     // it. Returning a bare list nearly shipped a bug: drop one line and
@@ -502,9 +508,10 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
                 val moved = line + delta
                 if (moved in b.indices) kept[line] = moved
             }
-            // A line inside the edited region: whatever it marked may no
-            // longer exist. Dropping the marker loses a bullet; keeping it
-            // puts a bullet on a stranger's line.
+            inPlace -> kept[line] = line
+            // A line inside an edit that added or removed lines: whatever it
+            // marked may no longer exist. Dropping the marker loses a
+            // bullet; keeping it puts a bullet on a stranger's line.
             else -> Unit
         }
     }
@@ -1616,7 +1623,12 @@ object Notebook {
             o.put("start", span.start)
             o.put("end", span.end)
             o.put("style", span.style)
-            if (span.value.isNotEmpty()) o.put("value", span.value)
+            if (span.value.isNotEmpty()) {
+                // Back as the number the desktop keeps a size as: "20" in
+                // quotes is a size its normalize_formatting refuses.
+                val size = if (span.style == "font_size") span.value.toIntOrNull() else null
+                o.put("value", size ?: span.value)
+            }
             array.put(o)
         }
         return array
@@ -1624,11 +1636,25 @@ object Notebook {
 
     private fun movedParagraphs(note: JSONObject, old: String, new: String): JSONArray {
         val source = note.opt("paragraphs") as? JSONArray ?: return JSONArray()
+        val oldLines = old.split("\n").size
         val byLine = LinkedHashMap<Int, JSONObject>()
         for (i in 0 until source.length()) {
             val o = source.opt(i) as? JSONObject ?: continue
-            val line = o.opt("line")
-            if (line is Number) byLine[line.toInt()] = o
+            // The entry the desktop's normalize_paragraphs would keep for a
+            // line, and only that one. A line is a whole number -- or
+            // true/false, which Python counts as 1 and 0; not 1.0, which it
+            // refuses. Within the text as it was: a line past its end is
+            // dropped there, and an edit adding lines must not revive it.
+            // The FIRST usable entry for a line wins, as there; a later one
+            // for the same line once replaced it here.
+            val line = when (val raw = o.opt("line")) {
+                is Int -> raw
+                is Long -> if (raw in 0..Int.MAX_VALUE.toLong()) raw.toInt() else continue
+                is Boolean -> if (raw) 1 else 0
+                else -> continue
+            }
+            if (line < 0 || line >= oldLines || line in byLine || !worthKeeping(o)) continue
+            byLine[line] = o
         }
         val survivors = remapParagraphLines(old, new, byLine.keys.toList())
         val kept = JSONArray()
@@ -1644,6 +1670,19 @@ object Notebook {
             kept.put(moved)
         }
         return kept
+    }
+
+    /**
+     * Whether the desktop records an entry at all: a list kind, a centred
+     * or right alignment, or an indent. A plain left line has none, and an
+     * entry for one does not claim its line there.
+     */
+    private fun worthKeeping(o: JSONObject): Boolean {
+        val kind = o.opt("kind")
+        val align = o.opt("align")
+        val indent = o.opt("indent")
+        return kind == "bullet" || kind == "number" || align == "center" || align == "right" ||
+            ((indent is Int || indent is Long) && (indent as Number).toLong() > 0)
     }
 
     /** RECURRENCE_DEFAULTS, field for field. "" freq means a one-off note. */
@@ -1750,7 +1789,19 @@ object Notebook {
             val start = o.intOr("start", -1)
             val end = o.intOr("end", -1)
             if (start < 0 || end <= start) continue
-            out.add(FormatSpan(start, end, style, o.str("value")))
+            // A colour or a face is text in the desktop's file, but a size
+            // is a NUMBER: read as text alone, every size the desktop set
+            // came in empty -- not drawn, and written back without a value,
+            // which the desktop then dropped on its next start. And ONLY a
+            // number: a size in quotes is one the desktop refuses, and read
+            // here it went back out as a number the desktop then honoured.
+            val v = o.opt("value")
+            val value = if (style == "font_size") {
+                if (v is Int || v is Long) v.toString() else ""
+            } else {
+                v as? String ?: ""
+            }
+            out.add(FormatSpan(start, end, style, value))
         }
         return out
     }
