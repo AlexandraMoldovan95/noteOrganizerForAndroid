@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -52,6 +53,9 @@ private val CHAR_WIDTH = 8.2.dp
  */
 private const val MAX_COLUMN_CHARS = 26
 
+/** What a cell adds to its text's width: its padding, and the grid line inside it. */
+private val CELL_EXTRA = 12.dp
+
 /** Where a tapped cell sits, in the table's own row/column numbering. */
 data class CellAt(val row: Int, val column: Int)
 
@@ -59,6 +63,9 @@ data class CellAt(val row: Int, val column: Int)
  * [found] are the cells the find bar matched, [current] the one it is on --
  * outlined, as the desktop draws a box on its grid -- and [reveal] counts
  * the requests to scroll that one into sight, sideways as well as down.
+ * [place] is where the table sits on the page -- left, centred or right,
+ * the alignment of its lines -- and [highlights] the cells a highlight
+ * covers whole, in the colour to fill them with.
  */
 @Composable
 fun TableView(
@@ -69,6 +76,8 @@ fun TableView(
     found: Set<CellAt> = emptySet(),
     current: CellAt? = null,
     reveal: Int = 0,
+    place: String = "left",
+    highlights: Map<CellAt, Color> = emptyMap(),
 ) {
     if (table.rows.isEmpty() || table.columns.isEmpty()) return
 
@@ -78,8 +87,16 @@ fun TableView(
 
     // The theme's own colours: the grid lines are the hairline showing
     // through, the header row the accent's tint.
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = when (place) {
+            "center" -> Alignment.TopCenter
+            "right" -> Alignment.TopEnd
+            else -> Alignment.TopStart
+        },
+    ) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .horizontalScroll(rememberScrollState())
             .background(LocalPalette.current.hairline)
     ) {
@@ -103,8 +120,11 @@ fun TableView(
                         continue
                     }
                     val here = CellAt(r, c)
-                    // A merged cell is as wide as the columns it swallows,
-                    // plus the grid lines that no longer separate them.
+                    // A merged cell is as wide as the cells it swallows,
+                    // each with its padding and its grid line -- the whole
+                    // CELL_EXTRA a cell adds to its text. Counting only the
+                    // line drew a merged cell short of the columns under it,
+                    // the grid showing through at its right.
                     val last = minOf(c + cell.colSpan, row.size)
                     var span = 0.dp
                     var counted = 0
@@ -113,15 +133,20 @@ fun TableView(
                         span += widths.getOrElse(i) { CHAR_WIDTH }
                         counted += 1
                     }
-                    if (counted > 1) span += 1.dp * (counted - 1)
-                    CellBox(cell, span, column?.align, isHeader, editing,
-                            found = here in found, current = here == current, reveal = reveal) {
+                    if (counted > 1) span += CELL_EXTRA * (counted - 1)
+                    // The cell's own padding speaks first, as the desktop
+                    // reads it; a column's separator colons after that.
+                    val align = cell.align.takeIf { it != CellAlign.LEFT } ?: column?.align
+                    CellBox(cell, span, align, isHeader, editing,
+                            found = here in found, current = here == current, reveal = reveal,
+                            fill = highlights[here]) {
                         onCellTap?.invoke(here)
                     }
                     c = last
                 }
             }
         }
+    }
     }
 }
 
@@ -135,6 +160,7 @@ private fun CellBox(
     found: Boolean = false,
     current: Boolean = false,
     reveal: Int = 0,
+    fill: Color? = null,
     onTap: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
@@ -144,7 +170,7 @@ private fun CellBox(
     }
     Box(
         modifier = Modifier
-            .width(width + 12.dp)
+            .width(width + CELL_EXTRA)
             .fillMaxHeight()
             // The 1dp gap is not a border: the grid's own background shows
             // through it, which is one drawn rectangle instead of four
@@ -153,6 +179,7 @@ private fun CellBox(
             .bringIntoViewRequester(requester)
             .background(when {
                 found -> findAllColour(palette)
+                fill != null -> fill
                 isHeader -> palette.calendarHasNotes
                 else -> palette.card
             })

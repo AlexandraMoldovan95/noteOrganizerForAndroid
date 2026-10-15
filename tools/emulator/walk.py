@@ -323,6 +323,7 @@ def main():
     sizes_and_faces(folder)
     lists(folder)
     new_table(folder)
+    cell_menu(folder)
     changes(folder)
 
     print()
@@ -1224,6 +1225,58 @@ def new_table(folder):
     check("the table sits on its own lines under the text, its first cell written",
           lines[0] == "intro" and len(lines) == 4 and lines[1].startswith("| Day") and lines[3] == "",
           repr(body))
+
+
+def cell_menu(folder):
+    """The cell's menu: a cell highlighted pipe to pipe, a cell merged into
+    the one on its left, the table centred on the page -- and the file,
+    where each is what the desktop writes. Then the table deleted, asked."""
+    print("\n-- the cell menu --")
+    body = "\n".join(["| Item | Cost |", "| --- | --- |", "| fuel | 120 |", "| tolls | 45 |"])
+    seed_inside([
+        {"id": 1, "uid": "walk-cells", "title": "Cells", "body": body,
+         "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Cells")
+
+    def note():
+        return (read_file("notes_data.json") or [{}])[0]
+
+    def sheet(cell, to_the_end=False):
+        open_note("Cells")
+        tap(cell, exact=True, wait=1.2)
+        back(wait=0.8)                       # the keyboard down, the sheet's actions in sight
+        if to_the_end:
+            # The table's own actions close the sheet, below its fold.
+            adb("shell", "input", "swipe", "540", "2100", "540", "700", "400")
+            time.sleep(1.0)
+
+    sheet("120")
+    tap("Highlight colour 1", wait=1.2)
+    sheet("45")
+    tap("Merge with cell to the left", wait=1.2)
+    sheet("fuel", to_the_end=True)
+    tap("Center table on page", wait=1.2)
+    shot(folder, "43-cell-menu", "Item")
+    back_to("Search notes")
+    saved = note()
+    lines = saved.get("body", "").split("\n")
+    span = next((s for s in saved.get("formatting") or [] if s.get("style") == "highlight"), None)
+    line2_start = sum(len(lines[n]) + 1 for n in range(2))
+    pipes = [i for i, ch in enumerate(lines[2]) if ch == "|"] if len(lines) > 2 else []
+    check("the highlight lies pipe to pipe over the cell",
+          span is not None and len(pipes) > 2
+          and (span["start"], span["end"]) == (line2_start + pipes[1] + 1, line2_start + pipes[2]), repr(span))
+    check("the merge is the desktop's marker", len(lines) > 3 and lines[3].replace(" ", "") == "|tolls|<|", repr(lines))
+    check("the table is centred: its lines' alignment",
+          (saved.get("paragraphs") or []) == [{"line": n, "align": "center"} for n in range(4)],
+          repr(saved.get("paragraphs")))
+
+    sheet("fuel", to_the_end=True)
+    tap("Delete table", wait=1.0)
+    check("deleting the table asks first", not screen_says("Delete this table and everything in it?"))
+    tap_last("Delete", wait=1.2)
+    back_to("Search notes")
+    check("the table is gone", note().get("body") == "", repr(note().get("body")))
 
 
 if __name__ == "__main__":

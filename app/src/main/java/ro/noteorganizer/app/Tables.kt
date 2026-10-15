@@ -24,11 +24,13 @@ data class TableColumn(val align: CellAlign?, val hidden: Boolean)
  * One drawn cell. [lines] is the text split on the `<br>` marker, which is
  * the line break a table cell draws. [checked] is non-null only when the
  * whole cell is a checkbox, which is a control rather than a word.
+ * [align] is what the cell's own padding says, as `cell_alignments` reads it.
  */
 data class TableCell(
     val lines: List<String>,
     val checked: Boolean? = null,
     val colSpan: Int = 1,
+    val align: CellAlign = CellAlign.LEFT,
 )
 
 /**
@@ -228,6 +230,13 @@ class TableEdit(private val original: List<String>) {
      */
     private var surgical: Pair<Int, Int>? = null
 
+    /**
+     * Whether anything changed at all. Nothing did -- a marker asked for on
+     * the separator, the last row asked to go -- and the table's lines come
+     * back as they were, not re-padded into a change nobody made.
+     */
+    private var touched = false
+
     val rowCount: Int get() = rows.size
     val columnCount: Int get() = rows.maxOfOrNull { it.size } ?: 0
 
@@ -246,6 +255,7 @@ class TableEdit(private val original: List<String>) {
             // on the next read, silently changing the table's shape.
             rows[row][column] = text.replace("|", "/").trim()
             surgical = row to column
+            touched = true
         }
         return this
     }
@@ -256,6 +266,25 @@ class TableEdit(private val original: List<String>) {
         val at = (row + 1).coerceIn(0, rows.size)
         rows.add(at, MutableList(columnCount) { "" })
         aligns.add(at, MutableList(columnCount) { CellAlign.LEFT })
+        touched = true
+        return this
+    }
+
+    /**
+     * A new row above [row]. Above the header, it becomes the header, and the
+     * separator keeps its place under the first row: pushed down a line, it
+     * stopped being read as one -- only the first two rows are looked at --
+     * and its dashes turned into a row of the table.
+     */
+    fun insertRowBefore(row: Int): TableEdit {
+        insertRowAfter(row - 1)
+        val at = row.coerceIn(0, rows.size - 1)
+        if (separatorAt >= 0 && at <= separatorAt) {
+            val separator = rows.removeAt(separatorAt + 1)
+            val separatorAligns = aligns.removeAt(separatorAt + 1)
+            rows.add(separatorAt, separator)
+            aligns.add(separatorAt, separatorAligns)
+        }
         return this
     }
 
@@ -266,6 +295,7 @@ class TableEdit(private val original: List<String>) {
         if (rows.size <= 1 || row !in rows.indices) return this
         rows.removeAt(row)
         aligns.removeAt(row)
+        touched = true
         return this
     }
 
@@ -278,6 +308,69 @@ class TableEdit(private val original: List<String>) {
             rows[r].add(at, if (r == separatorAt) "---" else "")
             aligns[r].add(at, CellAlign.LEFT)
         }
+        touched = true
+        return this
+    }
+
+    /**
+     * `_grid_set_marker`: the cell becomes a merge marker -- "<" joins it to
+     * the cell on its left, "^" to the one above -- which is how a merge is
+     * written down. A marker with nothing to join stays plain text.
+     */
+    fun setMarker(row: Int, column: Int, marker: String): TableEdit {
+        pad()
+        if (row in rows.indices && row != separatorAt && column in 0 until columnCount) {
+            rows[row][column] = marker
+            surgical = row to column
+            touched = true
+        }
+        return this
+    }
+
+    /** The data rows -- the separator is mechanics, not a row -- as file rows. */
+    private fun dataRows(): List<Int> = rows.indices.filter { it != separatorAt }
+
+    /**
+     * `_grid_split`: the merge that covers this cell undone -- every cell it
+     * swallowed emptied of its marker, the anchor keeping its text.
+     */
+    fun split(row: Int, column: Int): TableEdit {
+        surgical = null
+        pad()
+        val data = dataRows()
+        val at = data.indexOf(row)
+        if (at < 0) return this
+        val anchors = mergeAnchors(data.map { rows[it] })
+        val anchor = anchors[at to column] ?: (at to column)
+        for ((covered, owner) in anchors) {
+            if (owner == anchor) {
+                rows[data[covered.first]][covered.second] = ""
+                touched = true
+            }
+        }
+        return this
+    }
+
+    /** Whether this cell is the anchor of a merge -- something to split. */
+    fun isMerged(row: Int, column: Int): Boolean {
+        val data = dataRows()
+        val at = data.indexOf(row)
+        if (at < 0) return false
+        return mergeAnchors(data.map { rows[it] }).values.any { it == (at to column) }
+    }
+
+    /**
+     * `_grid_set_alignment` for one cell: its padding says left, centre or
+     * right. A merge marker's padding says nothing, and is left alone.
+     */
+    fun setAlignment(row: Int, column: Int, align: CellAlign): TableEdit {
+        surgical = null
+        pad()
+        if (row in rows.indices && row != separatorAt && column in 0 until columnCount &&
+            rows[row][column] != MERGE_LEFT_MARK && rows[row][column] != MERGE_UP_MARK) {
+            aligns[row][column] = align
+            touched = true
+        }
         return this
     }
 
@@ -289,10 +382,12 @@ class TableEdit(private val original: List<String>) {
             if (column < rows[r].size) rows[r].removeAt(column)
             if (column < aligns[r].size) aligns[r].removeAt(column)
         }
+        touched = true
         return this
     }
 
     fun lines(): List<String> {
+        if (!touched) return original
         surgical?.let { (row, column) ->
             val rewritten = rewriteOneCell(row, column)
             if (rewritten != null) return rewritten
@@ -452,6 +547,7 @@ fun parseTable(lines: List<String>): TableBlock {
     for (r in grid.indices) {
         if (r == separatorAt) continue                   // mechanics, not content
         val row = ArrayList<TableCell?>(width)
+        val padding = cellAlignments(lines[r])
         for (c in 0 until width) {
             if (anchors.containsKey(r to c)) {
                 row.add(null)                            // swallowed by an anchor
@@ -463,6 +559,7 @@ fun parseTable(lines: List<String>): TableBlock {
                     lines = value.split(BREAK_MARK),
                     checked = checkboxState(value),
                     colSpan = colSpans[r to c] ?: 1,
+                    align = padding.getOrElse(c) { CellAlign.LEFT },
                 )
             )
         }

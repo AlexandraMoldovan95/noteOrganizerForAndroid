@@ -174,6 +174,25 @@
     <string name="table_tap_again">Tap a square to choose the size; tap it again, or Insert, to make the table.</string>
     <string name="table_insert_button">Insert</string>
 
+    <!-- The cell menu: the desktop's words -->
+    <string name="cell_align">Align cell</string>
+    <string name="cell_highlight">Highlight cell</string>
+    <string name="cell_merge">Merge</string>
+    <string name="merge_left">Merge with cell to the left</string>
+    <string name="merge_up">Merge with cell above</string>
+    <string name="split_cell">Split merged cell</string>
+    <string name="rows_label">Rows</string>
+    <string name="columns_label">Columns</string>
+    <string name="row_above">+ Row above</string>
+    <string name="column_left">+ Column to the left</string>
+    <string name="table_label">Table</string>
+    <string name="table_left">Table left on page</string>
+    <string name="table_center">Center table on page</string>
+    <string name="table_right">Table right on page</string>
+    <string name="delete_table">Delete table</string>
+    <string name="delete_table_text">Delete this table and everything in it?</string>
+    <string name="highlight_colour">Highlight colour %1$d</string>
+
     <!-- Templates: the desktop's words -->
     <string name="template_use">📎 Use template</string>
     <string name="template_save_as">🧩 Save as template</string>

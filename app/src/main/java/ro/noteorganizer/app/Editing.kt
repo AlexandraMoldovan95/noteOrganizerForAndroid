@@ -140,6 +140,19 @@ object Editing {
         return formatTable(List(r) { List(c) { "" } }, List(r) { List(c) { CellAlign.LEFT } })
     }
 
+    /**
+     * `_grid_delete_table`: lines [first]..[last] gone with the break after
+     * them -- or, when they end the note, the break before them stays, as
+     * the desktop's text keeps its line.
+     */
+    fun deleteLines(body: String, first: Int, last: Int): String {
+        val lines = body.split("\n")
+        val a = first.coerceIn(0, lines.lastIndex)
+        val b = last.coerceIn(a, lines.lastIndex)
+        val kept = lines.subList(0, a) + lines.subList(b + 1, lines.size)
+        return if (b == lines.lastIndex && a > 0) (kept + "").joinToString("\n") else kept.joinToString("\n")
+    }
+
     /** A body with a table put in, and the line the table starts on. */
     data class Inserted(val body: String, val firstLine: Int)
 

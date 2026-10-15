@@ -417,4 +417,95 @@ class TablesTest {
         assertEquals(CellAlign.RIGHT, t.columns[1].align)
         assertFalse(t.columns[0].hidden)
     }
+
+    // ---- the cell menu ----
+
+    private val grid = listOf("| A | B | C |", "| --- | --- | --- |", "| a | b | c |", "| d | e | f |")
+
+    @Test
+    fun `merging writes the desktop's marker into the cell`() {
+        val left = TableEdit(grid).setMarker(2, 1, "<").lines()
+        assertEquals(listOf("a", "<", "c"), splitRow(left[2]))
+        assertEquals("the merge is read back as one wide cell", 2, parseTable(left).rows[1][0]!!.colSpan)
+        val up = TableEdit(grid).setMarker(3, 0, "^").lines()
+        assertEquals("^", splitRow(up[3])[0])
+        assertEquals("the separator is never a cell", grid[1], TableEdit(grid).setMarker(1, 0, "<").lines()[1])
+    }
+
+    @Test
+    fun `splitting empties every cell the merge swallowed, the anchor keeps its text`() {
+        val merged = TableEdit(grid).setMarker(2, 1, "<").lines().let { TableEdit(it).setMarker(2, 2, "<").lines() }
+        assertTrue(TableEdit(merged).isMerged(2, 0))
+        assertFalse(TableEdit(merged).isMerged(3, 0))
+        val split = TableEdit(merged).split(2, 2).lines()
+        assertEquals("split from a swallowed cell, too", listOf("a", "", ""), splitRow(split[2]))
+        assertFalse(TableEdit(split).isMerged(2, 0))
+        // Another merge in the same table is left alone.
+        val two = TableEdit(merged).setMarker(3, 1, "<").lines()
+        val one = TableEdit(two).split(2, 0).lines()
+        assertEquals(listOf("d", "<", "f"), splitRow(one[3]))
+        assertTrue(TableEdit(one).isMerged(3, 0))
+    }
+
+    @Test
+    fun `a cell's alignment is its padding, and the drawn cell reads it back`() {
+        val centred = TableEdit(grid).setAlignment(2, 1, CellAlign.CENTER).lines()
+        assertEquals(CellAlign.CENTER, cellAlignments(centred[2])[1])
+        assertEquals(CellAlign.CENTER, parseTable(centred).rows[1][1]!!.align)
+        assertEquals("the others stay left", CellAlign.LEFT, parseTable(centred).rows[1][0]!!.align)
+        val marker = TableEdit(grid).setMarker(2, 1, "<").lines()
+        assertEquals("a marker's padding says nothing", cellAlignments(marker[2]),
+            cellAlignments(TableEdit(marker).setAlignment(2, 1, CellAlign.RIGHT).lines()[2]))
+    }
+
+    @Test
+    fun `a row above the header becomes the header, the separator staying under the first row`() {
+        val lines = TableEdit(grid).insertRowBefore(0).lines()
+        assertEquals(5, lines.size)
+        assertTrue("still the separator", isSeparatorRow(lines[1]))
+        assertEquals(listOf("", "", ""), splitRow(lines[0]))
+        assertEquals("the old header is the first data row", listOf("A", "B", "C"), splitRow(lines[2]))
+        val below = TableEdit(grid).insertRowBefore(2).lines()
+        assertEquals("above a data row, simply above it", listOf("", "", ""), splitRow(below[2]))
+        assertTrue(isSeparatorRow(below[1]))
+    }
+
+    @Test
+    fun `nothing changed is no change to the table's lines`() {
+        val untidy = listOf("| a |b|", "|c| d |")
+        assertEquals(untidy, TableEdit(untidy).setMarker(5, 0, "<").lines())
+        assertEquals(listOf("| a | b |"), TableEdit(listOf("| a | b |")).removeRow(0).lines())
+    }
+
+    @Test
+    fun `a table deleted takes its lines and the break after them`() {
+        assertEquals("before\nafter", Editing.deleteLines("before\n| a | b |\n| c | d |\nafter", 1, 2))
+        assertEquals("closing the note, the line before keeps its break", "before\n",
+            Editing.deleteLines("before\n| a | b |", 1, 1))
+        assertEquals("", Editing.deleteLines("| a | b |", 0, 0))
+    }
+
+    @Test
+    fun `a cell's highlight lies pipe to pipe, and colours the cell as the export does`() {
+        val body = "intro\n" + grid.joinToString("\n")
+        val (from, to) = Exporting.cellRange(body, 3, 1)!!
+        assertEquals(" b ", body.substring(from, to))
+        val spans = setStyle(emptyList(), from, to, "highlight", "#fff3b0")
+        assertEquals(mapOf((2 to 1) to "#fff3b0"), Exporting.cellHighlights(body, spans, 1, 4))
+        val page = Exporting.noteToHtml(body, org.json.JSONArray().put(org.json.JSONObject()
+            .put("start", from).put("end", to).put("style", "highlight").put("value", "#fff3b0")))
+        // The desktop's own page for this note, byte for byte.
+        assertTrue("the export fills the same cell",
+            "<td style=\"background-color:#fff3b0;\"><span style=\"background-color:#fff3b0;\">b</span></td>" in page)
+        val words = "| milk | bread |"
+        val (m0, _) = Exporting.cellRange(words, 0, 0)!!
+        assertEquals("a highlight on part of a cell does not fill it", emptyMap<Pair<Int, Int>, String>(),
+            Exporting.cellHighlights(words, setStyle(emptyList(), m0 + 1, m0 + 3, "highlight", "#fff3b0"), 0, 0))
+        assertNull("no such cell", Exporting.cellRange(body, 3, 5))
+        // An empty cell's highlight rides its padding, and still fills it.
+        val empty = "| a |   |"
+        val (pad0, pad1) = Exporting.cellRange(empty, 0, 1)!!
+        assertEquals(mapOf((0 to 1) to "#cdeac0"),
+            Exporting.cellHighlights(empty, setStyle(emptyList(), pad0, pad1, "highlight", "#cdeac0"), 0, 0))
+    }
 }

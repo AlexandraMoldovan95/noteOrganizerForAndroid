@@ -273,6 +273,50 @@ object Exporting {
         return aligns
     }
 
+    /**
+     * Which cells of the table on lines [first]..[last] a highlight covers
+     * whole -- the rule the export colours a cell by, so the phone shows
+     * what the page would: keyed by the line's place in the table and the
+     * cell's column, valued with the colour.
+     */
+    fun cellHighlights(body: String, spans: List<FormatSpan>, first: Int, last: Int): Map<Pair<Int, Int>, String> {
+        val highlights = spans.filter { it.style == "highlight" }
+        if (highlights.isEmpty()) return emptyMap()
+        val lines = body.split("\n")
+        var offset = 0
+        for (n in 0 until first) offset += lines[n].codePointCount(0, lines[n].length) + 1
+        val out = HashMap<Pair<Int, Int>, String>()
+        for (n in first..last.coerceAtMost(lines.lastIndex)) {
+            val line = lines[n]
+            val cps = codePoints(line)
+            if (isTableRow(line)) {
+                val pipes = pipePositions(line, cps)
+                for ((c, bounds) in cellBounds(cps).withIndex()) {
+                    var a = offset + bounds.first
+                    var b = offset + bounds.second
+                    if (a == b && c + 1 < pipes.size) {
+                        a = offset + pipes[c] + 1
+                        b = offset + pipes[c + 1]
+                    }
+                    if (b > a) highlights.firstOrNull { it.start <= a && it.end >= b }?.let { out[(n - first) to c] = it.value }
+                }
+            }
+            offset += cps.size + 1
+        }
+        return out
+    }
+
+    /** Where a whole cell sits, pipe to pipe, in code points of the body: a cell highlight's range. */
+    fun cellRange(body: String, line: Int, column: Int): Pair<Int, Int>? {
+        val lines = body.split("\n")
+        val text = lines.getOrNull(line) ?: return null
+        var offset = 0
+        for (n in 0 until line) offset += lines[n].codePointCount(0, lines[n].length) + 1
+        val pipes = pipePositions(text, codePoints(text))
+        if (column + 1 >= pipes.size || pipes[column] + 1 >= pipes[column + 1]) return null
+        return (offset + pipes[column] + 1) to (offset + pipes[column + 1])
+    }
+
     /** `separator_index`: the first separator in a block's first two rows. */
     private fun separatorIndex(block: List<String>): Int? =
         block.take(2).indexOfFirst { isSeparatorRow(it) }.takeIf { it >= 0 }
