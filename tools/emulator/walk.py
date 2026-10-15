@@ -269,6 +269,7 @@ def main():
     shot(folder, "09-greeting", "Hi Maria,", "Search notes")
 
     seeded(folder)
+    outward(folder)
 
     print()
     if failures:
@@ -460,6 +461,88 @@ def seeded(folder):
         with open(local, "wb") as f:
             f.write(adb("exec-out", "cat", "/sdcard/Download/" + zips[-1], binary=True))
         print("     backup copied to", local)
+
+    # The same backup, imported back: every note is already here, unchanged,
+    # so the one question is the desktop's "Already here, unchanged", and
+    # skipping it changes nothing.
+    before = read_file("notes_data.json")
+    back_to("Backup", "Export a backup")
+    tap("Import a backup", wait=3.0)
+    if zips and find(zips[-1], exact=True) is None:
+        tap("Downloads", wait=2.0) if find("Downloads") else None
+    # By its exact name: "Preview the file <name>" holds the same words, and
+    # a tap there opens a preview instead of choosing the file.
+    if zips and tap(zips[-1], exact=True, wait=3.0):
+        tap("Continue", exact=True, wait=1.5)
+        shot(folder, "17-unchanged-question", "Already here, unchanged", "Add copies anyway")
+        tap("Skip the", wait=2.0)
+        check("re-importing your own backup changes nothing", read_file("notes_data.json") == before)
+
+
+def foreground():
+    """The package of the activity on top -- the app, the browser, a viewer."""
+    out = adb("shell", "dumpsys", "activity", "activities")
+    match = re.search(r"mResumedActivity: ActivityRecord\{\S+ \S+ ([\w.]+)/", out) or \
+        re.search(r"topResumedActivity=ActivityRecord\{\S+ \S+ ([\w.]+)/", out)
+    return match.group(1) if match else ""
+
+
+def outward(folder):
+    """The doors to the rest of the phone, and how the app looks under its settings."""
+    print("\n-- the doors to the rest of the phone --")
+    # A code shared from another app, as WhatsApp sends it.
+    code = desktop_code({"uid": "shared-in", "title": "Shared in", "body": "from a chat",
+                         "category": "General"})
+    if code:
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+        time.sleep(2.5)
+        shot(folder, "18-shared-in", "Import a code", "Import")
+        tap("Import", exact=True, wait=2.0)
+        check("a code shared from another app is imported", note_by_uid("shared-in") is not None)
+
+    # A note shared out: Android's own sheet opens over the app.
+    back_to("Search notes")
+    tap("Bread", exact=True, wait=1.5)
+    tap("🔗", wait=2.5)
+    check("sharing a note opens Android's share sheet", foreground() != PACKAGE or find("Share") is not None,
+          foreground())
+    shot(folder, "19-share-sheet")
+    back(1.5)
+    back_to("Search notes")
+
+    # Feedback opens the browser on the site's form.
+    tap("Settings", exact=True)
+    tap("About")
+    tap("Send feedback", wait=4.0)
+    opened = foreground()
+    check("Send feedback opens a browser, not the app", opened not in ("", PACKAGE), opened)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.0)
+    back_to("Your name")
+    back()
+
+    # The phone's dark mode, followed.
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("shell", "cmd", "uimode", "night", "yes")
+    start_app()
+    shot(folder, "20-follows-dark", "Welcome to Note Organizer")
+    adb("shell", "cmd", "uimode", "night", "no")
+    time.sleep(2.0)
+
+    # Large letters, and the phone on its side.
+    adb("shell", "settings", "put", "system", "font_scale", "1.3")
+    time.sleep(2.0)
+    tap("Welcome to Note Organizer", wait=1.5)
+    shot(folder, "21-large-letters", "Welcome to Note Organizer")
+    adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    back_to("Search notes")
+    adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
+    adb("shell", "settings", "put", "system", "user_rotation", "1")
+    time.sleep(2.5)
+    shot(folder, "22-landscape", "Search notes")
+    adb("shell", "settings", "put", "system", "user_rotation", "0")
+    time.sleep(1.5)
 
 
 
