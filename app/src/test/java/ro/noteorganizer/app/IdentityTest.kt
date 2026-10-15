@@ -168,7 +168,7 @@ class IdentityTest {
             .put("title", "Nou")
             .put("body", "corp")
             .put("comments", "comentariu venit")
-            .put("category", "Scoala")
+            .put("category", "Work")
             .put("date", "2026-09-20")
             .put("color", "#ff0000")
             .put("formatting", JSONArray().put(JSONObject()
@@ -181,7 +181,7 @@ class IdentityTest {
 
         val note = onDisk(load).getJSONObject(0)
         assertEquals("comentariu venit", note.getString("comments"))
-        assertEquals("Scoala", note.getString("category"))
+        assertEquals("Work", note.getString("category"))
         assertEquals("2026-09-20", note.getString("date"))
         assertEquals("#ff0000", note.getString("color"))
         assertEquals(1, note.getJSONArray("formatting").length())
@@ -338,6 +338,21 @@ class IdentityTest {
         assertTrue(Notebook.applyShareCode(load, listOf(JSONObject().put("title", "x")), false)
             is SaveResult.Ok)
         assertEquals("the unreadable bytes are still kept", "{ not json", kept.readText())
+    }
+
+    @Test
+    fun `a category this device does not have files the note under General`() {
+        // normalize_note on the desktop: a share code brings a category's
+        // NAME, never its colour, so a name nothing here knows is General.
+        // Only a backup brings its categories along (see ImportingTest).
+        val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old", "category": "Work"}]""")
+        val code = Sharing.encode(listOf(
+            JSONObject().put("uid", "abc").put("title", "New").put("category", "Nowhere"),
+            JSONObject().put("uid", "fresh").put("title", "Other").put("category", "Nowhere")))
+        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        val all = onDisk(load)
+        assertEquals("General", all.getJSONObject(0).getString("category"))
+        assertEquals("General", all.getJSONObject(1).getString("category"))
     }
 
     // ---- the rescue copy, whole, and the way back ----

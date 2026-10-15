@@ -1271,120 +1271,47 @@ object Notebook {
             val notes: List<JSONObject>,
             /** How many of them are notes this device already has. */
             val known: Int,
+            /** The questions this import raises; see [Importing]. */
+            val plan: Importing.Plan,
         ) : Inspection()
     }
 
+    /**
+     * What a pasted code holds, sorted by [Importing.plan] -- matched by
+     * identity, not resemblance: matching on the text would say "new note"
+     * exactly when a note has been edited, which is the only time anyone
+     * sends one back.
+     */
     fun inspectShareCode(load: Load, code: String): Inspection {
         val decoded = Sharing.decode(code)
         if (decoded is Sharing.Decoded.Failed) return Inspection.Failed(decoded.reason)
         val notes = (decoded as Sharing.Decoded.Notes).notes
-        val array = load.raw
-        var known = 0
-        if (array != null) {
-            for (note in notes) {
-                if (findByUid(array, note.opt("uid") as? String) != null) known += 1
-            }
-        }
-        return Inspection.Ready(notes, known)
+        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
+        return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
     }
 
     /**
-     * The note that IS this one, or null.
-     *
-     * Identity, not resemblance: matching on the text would say "new
-     * note" exactly when a note has been edited, which is the only time
-     * anyone sends one back.
-     */
-    private fun findByUid(array: JSONArray, uid: String?): JSONObject? {
-        val at = indexByUid(array, uid)
-        return if (at < 0) null else array.opt(at) as? JSONObject
-    }
-
-    /**
-     * Where that note sits, or -1.
-     *
-     * The position, not just the object, because a write replaces the
-     * entry rather than editing it -- see [applyShareCode].
-     */
-    private fun indexByUid(array: JSONArray, uid: String?): Int {
-        val wanted = uid?.trim()
-        // An empty identity is not an identity. Notes that reached this
-        // device before the desktop minted any carry none, and letting
-        // "" match "" would make every one of them the same note.
-        if (wanted.isNullOrEmpty()) return -1
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            if ((o.opt("uid") as? String)?.trim() == wanted) return i
-        }
-        return -1
-    }
-
-    /**
-     * Writes an inspected code's notes.
-     *
-     * [update] decides what happens to the ones this device already has:
-     * true replaces their content in place, false adds them beside the
-     * originals with fresh identities. Notes nothing here matches are
-     * always created either way.
+     * Writes a code's notes. [update] answers the one question the old
+     * panel asked: true replaces the notes this device already has, false
+     * adds them beside the originals without their identity. Notes nothing
+     * here matches are added either way. The screen now asks every
+     * question through [Importing]; this is that route with one answer.
      */
     fun applyShareCode(
         load: Load,
         notes: List<JSONObject>,
         update: Boolean,
     ): SaveResult {
-        val file = load.file
-            ?: return SaveResult.Failed(NOWHERE)
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
         if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
-        val array = load.raw ?: JSONArray()
-        val candidate = copyOf(array)
-        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-
-        var maxId = 0
-        for (i in 0 until candidate.length()) {
-            val o = candidate.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() > maxId) maxId = itsId.toInt()
+        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
+        val answers = Importing.Answers(update = update, copyUnchanged = !update)
+        return when (val result = Importing.apply(load, plan, answers, attachmentsDir = null)) {
+            is Importing.Result.Failed -> SaveResult.Failed(result.reason)
+            is Importing.Result.Done ->
+                SaveResult.Ok(result.outcome.firstId,
+                              imported = result.outcome.added + result.outcome.updated)
         }
-
-        var created = 0
-        var updated = 0
-        var firstId = 0
-        for (shared in notes) {
-            val at = indexByUid(candidate, shared.opt("uid") as? String)
-            if (at >= 0 && update) {
-                // The candidate array holds the SAME note objects as the
-                // live one -- copying an array copies references. So the
-                // update is made on a copy that replaces the entry here;
-                // editing the note in place would change what the screen
-                // shows before the write has had a chance to fail.
-                val mine = JSONObject((candidate.opt(at) as JSONObject).toString())
-                if (applySharedUpdate(mine, shared, now)) candidate.put(at, mine)
-                updated += 1
-                val itsId = mine.opt("id")
-                if (firstId == 0 && itsId is Number) firstId = itsId.toInt()
-                continue
-            }
-            val note = JSONObject(shared.toString())
-            // A copy the user asked to keep SEPARATE must not wear the
-            // identity of the note it came from: one note with two ids is
-            // the collision the field exists to prevent.
-            if (at >= 0) note.remove("uid")
-            maxId += 1
-            if (firstId == 0) firstId = maxId
-            note.put("id", maxId)
-            fillNewNoteDefaults(note, now)
-            candidate.put(note)
-            created += 1
-        }
-
-        val problem = writeAtomic(file, candidate)
-        if (problem != null) return SaveResult.Failed(problem)
-        // Only now does the array the screen reads change.
-        load.raw?.let { live ->
-            while (live.length() > 0) live.remove(live.length() - 1)
-            for (i in 0 until candidate.length()) live.put(candidate.get(i))
-        }
-        return SaveResult.Ok(firstId, imported = created + updated)
     }
 
     /**
@@ -1463,7 +1390,7 @@ object Notebook {
      *
      * @return whether the note changed.
      */
-    private fun applySharedUpdate(
+    internal fun applyUpdate(
         note: JSONObject,
         incoming: JSONObject,
         now: String,
@@ -1548,29 +1475,6 @@ object Notebook {
             if (itsId is Number && itsId.toInt() == id) return i
         }
         return -1
-    }
-
-    /** The fields a code never carries, filled as a new note fills them. */
-    private fun fillNewNoteDefaults(note: JSONObject, now: String) {
-        note.put("attachments", JSONArray())
-        note.put("exceptions", JSONArray())
-        note.put("overrides", JSONObject())
-        note.put("moved", JSONObject())
-        note.put("pinned", false)
-        note.put("updated", now)
-        note.put("created", now)
-        if (!note.has("recurrence")) note.put("recurrence", defaultRecurrence())
-        if (!note.has("uid")) {
-            note.put("uid", java.util.UUID.randomUUID().toString())
-        }
-        for (field in listOf("title", "body", "comments", "category", "date", "color")) {
-            if (!note.has(field)) {
-                note.put(field, if (field == "category") "General" else "")
-            }
-        }
-        for (field in listOf("formatting", "paragraphs", "checklist")) {
-            if (!note.has(field)) note.put(field, JSONArray())
-        }
     }
 
     /** The desktop's rule for when an edit deserves a rescue copy. */
