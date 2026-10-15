@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -204,6 +205,18 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         changed()
     }
 
+    /** A blank table at the cursor -- the end, when it was never in the note. The line it starts on. */
+    fun insertTable(rows: Int, columns: Int): Int {
+        val length = body.codePointCount(0, body.length)
+        val made = Editing.insertTable(body, caret ?: length, rows, columns)
+        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans
+        follow(made.body)
+        body = made.body
+        focused = null
+        changed()
+        return made.firstLine
+    }
+
     fun changed() {
         edits += 1
         status = null
@@ -336,6 +349,7 @@ fun NoteEditor(state: AppState, openId: Int) {
     val exporter = rememberExporter(state)
     var exportAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
+    var tableAsk by remember { mutableStateOf(false) }
     var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
     val templateNone = stringResource(R.string.template_none)
     val templateNothing = stringResource(R.string.template_nothing)
@@ -671,7 +685,7 @@ fun NoteEditor(state: AppState, openId: Int) {
             CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
                             onClose = { closeCalculator(calc, focusManager) })
         } else if (model.focus != null) {
-            if (day == null) FormatBar(model)
+            if (day == null) FormatBar(model) { tableAsk = true }
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
                       modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
         }
@@ -685,6 +699,19 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     if (details) DetailsSheet(state, model, note, onDismiss = { details = false })
+    if (tableAsk) {
+        TablePicker(
+            onPick = { rows, columns ->
+                tableAsk = false
+                // The new table's first cell, open for typing -- as the
+                // desktop opens it the moment the table is made.
+                val first = model.insertTable(rows, columns)
+                Editing.segments(model.body).firstOrNull { it.table && it.firstLine == first }
+                    ?.let { cell = it to CellAt(0, 0) }
+            },
+            onDismiss = { tableAsk = false },
+        )
+    }
     pickTemplate?.let { templates ->
         TemplatePicker(
             templates,
@@ -889,7 +916,7 @@ private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
  * menu does not reach.
  */
 @Composable
-private fun FormatBar(model: EditorModel) {
+private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
     val palette = LocalPalette.current
     val segments = Editing.segments(model.body)
     val index = model.focus ?: return
@@ -1029,8 +1056,62 @@ private fun FormatBar(model: EditorModel) {
                     model.alignLines(firstLine, lastLine, way)
                 }
             }
+            FormatKey("▦", false, true, said = stringResource(R.string.table_insert), onClick = onTable)
         }
     }
+}
+
+/**
+ * The desktop's size grid: the shape of a table is what is chosen, and a
+ * grid shows it. Two columns at least -- a one-column run of pipes is not
+ * a table row -- and the caption names the size as it is pointed at.
+ */
+@Composable
+private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
+    val palette = LocalPalette.current
+    var rows by remember { mutableIntStateOf(2) }
+    var columns by remember { mutableIntStateOf(2) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.table_size, rows, columns)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Every column drawn, so the squares lit are the table's
+                // shape; the first column chooses two, the least a table
+                // has. (The desktop's grid starts at its second column, and
+                // lights one column of squares for a two-column table.)
+                for (r in 1..Editing.TABLE_ROWS) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (c in 1..Editing.TABLE_COLUMNS) {
+                            val inside = r <= rows && c <= columns
+                            val wide = maxOf(2, c)
+                            Box(
+                                Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(if (inside) palette.accent else palette.inset)
+                                    .clickable {
+                                        // A first tap shows the shape; tapping the
+                                        // shape already shown makes it.
+                                        if (r == rows && wide == columns) onPick(r, wide) else { rows = r; columns = wide }
+                                    },
+                            )
+                        }
+                    }
+                }
+                Text(stringResource(R.string.table_tap_again), color = palette.subtext, fontSize = 12.sp,
+                     modifier = Modifier.padding(top = 6.dp))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onPick(rows, columns) }) {
+                Text(stringResource(R.string.table_insert_button), color = palette.accentText)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        containerColor = palette.card,
+        titleContentColor = palette.text,
+    )
 }
 
 /** An alignment key: four lines, drawn as the text would sit. */
@@ -1408,23 +1489,32 @@ private fun cellTextAt(table: TableBlock, at: CellAt): String {
 @Composable
 private fun CellSheet(table: TableBlock, at: CellAt, onChange: ((TableEdit) -> TableEdit) -> Unit, onDismiss: () -> Unit) {
     val palette = LocalPalette.current
-    var draft by remember(at) { mutableStateOf(cellTextAt(table, at)) }
+    var draft by remember(at) {
+        val text = cellTextAt(table, at)
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
     val row = table.fileRow(at.row)
+    // Ready to type into, as the desktop's cell editor is the moment it opens.
+    val typing = remember { FocusRequester() }
+    LaunchedEffect(at) { typing.requestFocus() }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
                 label = { Text(stringResource(R.string.cell)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(typing),
             )
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { draft = if (checkboxState(draft) == null) "[ ]" else "" }) {
+                TextButton(onClick = {
+                    val next = if (checkboxState(draft.text) == null) "[ ]" else ""
+                    draft = TextFieldValue(next, TextRange(next.length))
+                }) {
                     Text(stringResource(R.string.cell_checkbox))
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
-                    onClick = { onChange { it.setCell(row, at.column, draft) } },
+                    onClick = { onChange { it.setCell(row, at.column, draft.text) } },
                     colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
                 ) { Text(stringResource(R.string.save)) }
             }

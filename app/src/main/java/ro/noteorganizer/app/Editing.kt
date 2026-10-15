@@ -128,4 +128,50 @@ object Editing {
         val map = codePointOffsets(segment.text, listOf(fromUtf16, toUtf16))
         return (segment.cpStart + (map[fromUtf16] ?: 0)) to (segment.cpStart + (map[toUtf16] ?: 0))
     }
+
+    /** The desktop's picker: up to 6 rows (24 by number) and 2 to 8 columns. */
+    const val TABLE_ROWS = 6
+    const val TABLE_COLUMNS = 8
+
+    /** `blank_table`: a new empty table, padded as the desktop pads one. */
+    fun blankTable(rows: Int, columns: Int): List<String> {
+        val r = maxOf(1, rows)
+        val c = maxOf(1, columns)
+        return formatTable(List(r) { List(c) { "" } }, List(r) { List(c) { CellAlign.LEFT } })
+    }
+
+    /** A body with a table put in, and the line the table starts on. */
+    data class Inserted(val body: String, val firstLine: Int)
+
+    /**
+     * `_insert_table`: a blank table at the cursor ([caret], in code points),
+     * on lines of its own -- a break before it when the cursor's line holds
+     * something or a table sits right above, so two tables never fuse into
+     * one; a break after it, so there is somewhere to carry on writing, and
+     * a second one when a table follows right below. A cursor past the end
+     * -- the empty field under a table that closes the note -- is a new line
+     * there.
+     */
+    fun insertTable(body: String, caret: Int, rows: Int, columns: Int): Inserted {
+        val r = rows.coerceIn(1, TABLE_ROWS * 4)
+        val c = columns.coerceIn(2, TABLE_COLUMNS)
+        var text = body
+        val length = body.codePointCount(0, body.length)
+        var at = caret.coerceAtLeast(0)
+        if (at > length) {
+            text = body + "\n"
+            at = length + 1
+        }
+        val cut = text.offsetByCodePoints(0, at)
+        val lines = text.split("\n")
+        val lineNo = text.substring(0, cut).count { it == '\n' }
+        val line = lines[lineNo]
+        val above = lines.getOrElse(lineNo - 1) { "" }
+        val below = lines.getOrElse(lineNo + 1) { "" }
+        val before = if (PyText.strip(line).isNotEmpty() || isTableRow(above)) "\n" else ""
+        val after = "\n" + if (isTableRow(below)) "\n" else ""
+        val block = blankTable(r, c).joinToString("\n")
+        return Inserted(text.substring(0, cut) + before + block + after + text.substring(cut),
+                        lineNo + if (before.isNotEmpty()) 1 else 0)
+    }
 }

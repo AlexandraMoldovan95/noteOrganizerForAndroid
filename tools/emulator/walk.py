@@ -322,6 +322,7 @@ def main():
     templates(folder)
     sizes_and_faces(folder)
     lists(folder)
+    new_table(folder)
     changes(folder)
 
     print()
@@ -1196,6 +1197,33 @@ def lists(folder):
           + [{"line": 4, "indent": 1, "align": "center"}], repr(paragraphs))
     check("a deeper list counts from one again", saved.get("body", "").startswith("1. milk\n2. bread"),
           repr(saved.get("body")))
+
+
+def new_table(folder):
+    """A table made from the format bar: the size grid, the table on lines
+    of its own after the cursor's line, its first cell open for typing --
+    and the file, which holds a table the desktop reads as one."""
+    print("\n-- a new table --")
+    seed_inside([
+        {"id": 1, "uid": "walk-table", "title": "Plan", "body": "intro",
+         "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Plan")
+    open_note("Plan")
+    tap("intro", wait=1.0)
+    adb("shell", "input", "keyevent", "123")                   # end of line
+    time.sleep(0.4)
+    tap("Insert table", wait=1.2)
+    shot(folder, "42-table-size", "2 x 2 table")
+    tap("Insert", exact=True, wait=1.5)
+    check("the new table's first cell is open for typing", not screen_says("Cell"))
+    type_text("Day")
+    tap("Save", exact=True, wait=1.2)
+    back_to("Search notes")
+    body = ((read_file("notes_data.json") or [{}])[0]).get("body") or ""
+    lines = body.split("\n")
+    check("the table sits on its own lines under the text, its first cell written",
+          lines[0] == "intro" and len(lines) == 4 and lines[1].startswith("| Day") and lines[3] == "",
+          repr(body))
 
 
 if __name__ == "__main__":

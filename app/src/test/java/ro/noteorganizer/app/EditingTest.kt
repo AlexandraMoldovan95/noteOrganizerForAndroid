@@ -124,4 +124,48 @@ class EditingTest {
         assertEquals(listOf(FormatSpan(0, 5, "bold")),
             Editing.localSpans(moved, Editing.segments(edited).first()).filter { it.style == "bold" })
     }
+
+    // ---- a new table ----
+
+    private val pad = " ".repeat(10)
+
+    @Test
+    fun `a blank table is padded as the desktop's blank_table pads one`() {
+        // The desktop's own output, for 1 x 2, 2 x 3 and 3 x 8.
+        assertEquals(listOf("|$pad|$pad|"), Editing.blankTable(1, 2))
+        assertEquals(List(2) { "|$pad|$pad|$pad|" }, Editing.blankTable(2, 3))
+        assertEquals(List(3) { "|" + List(8) { pad }.joinToString("|") + "|" }, Editing.blankTable(3, 8))
+    }
+
+    @Test
+    fun `a table at the cursor goes on lines of its own`() {
+        val row = "|$pad|$pad|"
+        val split = Editing.insertTable("hello world", 5, 1, 2)
+        assertEquals("the line is broken around it", "hello\n$row\n world", split.body)
+        assertEquals(1, split.firstLine)
+        assertEquals("an empty line takes it as it is", Editing.Inserted("$row\n", 0), Editing.insertTable("", 0, 1, 2))
+    }
+
+    @Test
+    fun `two tables never fuse into one`() {
+        val row = "|$pad|$pad|"
+        val under = Editing.insertTable("| a | b |\n", 10, 1, 2)
+        assertEquals("a line between it and the table above", "| a | b |\n\n$row\n", under.body)
+        assertEquals(2, under.firstLine)
+        // Two blank lines, as the desktop's _insert_table leaves them: its
+        // "\n\n" after the table, and the line break that was already there.
+        val over = Editing.insertTable("x\n| a | b |", 1, 1, 2)
+        assertEquals("and the table below", "x\n$row\n\n\n| a | b |", over.body)
+        val after = Editing.insertTable("| a | b |", 10, 1, 2)
+        assertEquals("the empty field under a closing table", "| a | b |\n\n$row\n", after.body)
+        assertEquals(tableBlocks(after.body).size, 2)
+    }
+
+    @Test
+    fun `a size is held to the desktop's picker`() {
+        assertEquals("two columns at least", 2, splitRow(Editing.blankTable(1, 1).first()).size + 1)
+        assertEquals(2, splitRow(Editing.insertTable("", 0, 1, 1).body.lines().first()).size)
+        assertEquals(8, splitRow(Editing.insertTable("", 0, 1, 20).body.lines().first()).size)
+        assertEquals(24, Editing.insertTable("", 0, 99, 2).body.trimEnd('\n').lines().size)
+    }
 }
