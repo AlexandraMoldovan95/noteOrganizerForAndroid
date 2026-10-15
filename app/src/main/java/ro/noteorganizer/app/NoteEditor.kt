@@ -280,7 +280,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         state.refresh()
         return when (result) {
             is SaveResult.Ok -> {
-                if (id == 0) id = result.id
+                if (id == 0) {
+                    id = result.id
+                    state.newNoteSaved(id)
+                }
                 saved = target
                 problem = null
                 status = if (follows) "follows" else "saved"
@@ -374,7 +377,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 @Composable
 fun NoteEditor(state: AppState, openId: Int) {
     val palette = LocalPalette.current
-    val model = remember(openId, state.openDay) {
+    // Not keyed on the id: a new note's first save gives it one, and the
+    // editor goes on as it was.
+    val model = remember(state.opening, state.openDay) {
         EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
     }
     val calc = remember(model) { CalculatorState() }
@@ -436,8 +441,8 @@ fun NoteEditor(state: AppState, openId: Int) {
         state.flush = { model.save() }
         onDispose { state.flush = null }
     }
-    // Written from outside while open -- updated by a code shared in over
-    // it -- and saved first by whatever wrote it: read
+    // Written from outside while open -- pinned from the list beside it,
+    // updated by an import -- and saved first by whatever wrote it: read
     // back, so the next save cannot put the old fields back.
     val rewrittenAt = remember(model) { state.openNoteRewritten }
     LaunchedEffect(model, state.openNoteRewritten) {

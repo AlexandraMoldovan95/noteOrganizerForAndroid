@@ -251,6 +251,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                         if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
                                     },
                                     onLongClick = { selected = selected.toggle(note.id) },
+                                    // Seen only where the list stays beside the
+                                    // note: on a phone the note covers it.
+                                    open = note.id == state.openId,
                                 )
                             }
                         }

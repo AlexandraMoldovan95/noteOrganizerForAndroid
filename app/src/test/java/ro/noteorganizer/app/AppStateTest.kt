@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,9 +12,9 @@ import java.io.File
 import java.nio.file.Files as NioFiles
 
 /**
- * The open note and everything else that can reach it: a code shared in
- * from another app arrives over it, and every action of the list and the
- * calendar can be pointed at the very note the editor holds.
+ * The open note and everything else that can reach it. On a phone the
+ * editor covers the screen; on a wide one the list stays beside it, and
+ * the list can pin, move, copy or share the very note the editor holds.
  *
  * The editor keeps its own copy of every field and writes them all back
  * when it saves, so the order is the whole rule: what it holds is saved
@@ -43,6 +44,44 @@ class AppStateTest {
     }
 
     private fun AppState.pinnedOnDisk(id: Int) = rawNote(id)?.optBoolean("pinned") == true
+
+    @Test
+    fun anotherCardTappedSavesTheOpenNoteFirst() {
+        val s = state()
+        s.openNote(1)
+        val seen = ArrayList<String>()
+        s.flush = { seen.add("flush while ${s.openId} open") }
+        val before = s.opening
+        s.openNote(2)
+        assertEquals(listOf("flush while 1 open"), seen)
+        assertEquals(2, s.openId)
+        assertEquals(before + 1, s.opening)
+    }
+
+    @Test
+    fun theOpenNotesOwnCardChangesNothing() {
+        val s = state()
+        s.openNote(1)
+        val before = s.opening
+        s.openNote(1)
+        assertEquals(before, s.opening)
+    }
+
+    @Test
+    fun aSecondNewNoteIsAFreshEditor() {
+        val s = state()
+        s.newNote()
+        val first = s.opening
+        s.newNoteSaved(3)
+        assertEquals(3, s.openId)
+        s.newNote()
+        assertEquals(0, s.openId)
+        assertEquals(first + 1, s.opening)
+        // A save that reaches it only once it is no longer new changes nothing.
+        s.openNote(2)
+        s.newNoteSaved(9)
+        assertEquals(2, s.openId)
+    }
 
     @Test
     fun aPinFromTheListLandsOnTheWordsJustTypedAndIsReadBack() {
@@ -158,4 +197,15 @@ class AppStateTest {
         assertEquals(rewritten + 1, s.openNoteRewritten)
     }
 
+    @Test
+    fun theRailSavesTheNoteItLeaves() {
+        val s = state()
+        s.openNote(1)
+        var flushed = false
+        s.flush = { flushed = true }
+        s.saveAndCloseNote()
+        assertTrue(flushed)
+        assertNull(s.openId)
+        assertFalse(s.openDay != null)
+    }
 }

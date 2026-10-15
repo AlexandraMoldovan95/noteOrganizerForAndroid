@@ -9,10 +9,12 @@
 <resources>
     <string name="app_name">Note Organizer</string>
 
-    <!-- The bar at the bottom -->
+    <!-- The bar at the bottom; on a wide screen, the rail down the left -->
     <string name="nav_notes">Notes</string>
     <string name="nav_calendar">Calendar</string>
     <string name="nav_settings">Settings</string>
+    <!-- A wide screen's second pane, before a note is opened in it -->
+    <string name="pick_a_note">Pick a note to open it here, or tap + for a new one.</string>
 
     <!-- The calendar: the desktop's words wherever it has them -->
     <string name="cal_today">Today</string>

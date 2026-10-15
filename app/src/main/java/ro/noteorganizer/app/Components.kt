@@ -100,6 +100,9 @@ fun Dot(colour: String, size: Int = 12) {
  * headline, the first words, and the tags line in a readable shade of the
  * note's colour. A headline borrowed from the text, for a note with no
  * title, is set lighter than a real one.
+ *
+ * [open] outlines the card of the note open beside the list, on a screen
+ * wide enough for both; a selected card is filled as well.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -110,6 +113,7 @@ fun NoteCard(
     selecting: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    open: Boolean = false,
 ) {
     val palette = LocalPalette.current
     Row(
@@ -119,7 +123,7 @@ fun NoteCard(
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) palette.calendarHasNotes else palette.card)
-            .then(if (selected) Modifier.border(2.dp, palette.accent, RoundedCornerShape(12.dp)) else Modifier)
+            .then(if (selected || open) Modifier.border(2.dp, palette.accent, RoundedCornerShape(12.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Box(Modifier.width(5.dp).fillMaxHeight().background(hexColor(colour)))

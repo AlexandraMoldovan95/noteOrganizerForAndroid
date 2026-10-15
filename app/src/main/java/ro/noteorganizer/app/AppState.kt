@@ -59,6 +59,15 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     var openId by mutableStateOf<Int?>(null)
 
     /**
+     * Counts the notes opened: each gets an editor of its own, scrolled to
+     * its top, its sheets shut. On a wide screen the editor stays on screen
+     * from one note to the next, and a second new note is "note 0" again,
+     * like the first.
+     */
+    var opening by mutableIntStateOf(0)
+        private set
+
+    /**
      * The one day of a repeating note the editor is open on -- the
      * desktop's day mode -- or null for the note as a whole.
      */
@@ -109,8 +118,8 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
 
     /**
      * Moves each time something other than the editor wrote the note open
-     * in it: a code shared in over it, which updated it; the list's pin
-     * or category; a day reset from the calendar. The editor holds
+     * in it: the list's pin or category beside it on a wide screen, a day
+     * reset from the calendar, an import that updated it. The editor holds
      * its own copy of every field and writes them all back when it saves,
      * so it reads the note again from the file when this moves -- or its
      * next save would quietly put the old fields back.
@@ -188,21 +197,44 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
      * is simply the note.
      */
     fun openNote(id: Int, day: String? = null) {
-        openDay = if (day != null && rawNote(id)?.let { Recurrence.isRecurring(it) } == true) day else null
+        // On a wide screen the list stays beside the note, and a tap on
+        // another card replaces it: what it holds is saved first.
+        flush?.invoke()
+        val onDay = if (day != null && rawNote(id)?.let { Recurrence.isRecurring(it) } == true) day else null
+        // Its own card tapped again: the note stays as it is, cursor and all.
+        if (id == openId && onDay == openDay) return
+        openDay = onDay
         newNoteDate = ""
         openId = id
+        opening += 1
     }
 
     fun newNote(date: String = "") {
+        flush?.invoke()
         openDay = null
         newNoteDate = date
         openId = 0
+        opening += 1
+    }
+
+    /**
+     * A new note's first save: it is that note now. Its card is outlined as
+     * the open one, and a change to it from the list reaches the editor.
+     */
+    fun newNoteSaved(id: Int) {
+        if (openId == 0) openId = id
     }
 
     fun closeNote() {
         openId = null
         openDay = null
         newNoteDate = ""
+    }
+
+    /** The open note saved and closed: a wide screen's rail leaving it. */
+    fun saveAndCloseNote() {
+        flush?.invoke()
+        closeNote()
     }
 
     /**

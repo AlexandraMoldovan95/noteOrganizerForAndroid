@@ -16,19 +16,38 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -217,28 +236,102 @@ fun AppRoot(state: AppState, version: String) {
         if (state.tab == Tab.CALENDAR && state.showHistory) state.showHistory = false else state.tab = Tab.NOTES
     }
 
-    Box(Modifier.fillMaxSize().background(palette.bg)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(palette.bg)) {
         val open = state.openId
-        if (open != null) {
-            NoteEditor(state, open)
-        } else {
-            Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f).statusBarsPadding()) {
-                    when (state.tab) {
-                        Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
-                        Tab.CALENDAR -> CalendarScreen(state)
-                        Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+        // Material's window widths: from a medium window -- a phone on its
+        // side, a small tablet -- the bar moves to a rail down the left
+        // edge, where a short, wide screen can spare it; from an expanded
+        // one the note opens beside the notes or the calendar, and the list
+        // stays in reach. Settings has no note to sit beside.
+        val wide = maxWidth >= RAIL_FROM
+        val panesFit = maxWidth >= TWO_PANES_FROM
+        val twoPanes = panesFit && state.tab != Tab.SETTINGS
+        val listWidth = (maxWidth * 0.38f).coerceIn(320.dp, 420.dp)
+        val tabContent: @Composable () -> Unit = {
+            when (state.tab) {
+                Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
+                Tab.CALENDAR -> CalendarScreen(state)
+                Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+            }
+        }
+        val goTo = { tab: Tab ->
+            // On two panes the note stays open beside the notes and the
+            // calendar; anywhere else the rail leaves it, saved -- as Back
+            // would.
+            if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote()
+            state.tab = tab
+            state.settingsPage = null
+        }
+        // One shape at every width, the rail, the panes and the bar each
+        // there or not: the list and the editor keep their places in it, so
+        // turning the phone moves them without rebuilding them -- an editor
+        // built again would lose its find bar, its cursor and whatever it
+        // had not saved yet, and the list its selection.
+        val tabShown = open == null || twoPanes
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                if (wide) {
+                    NavigationRail(
+                        containerColor = palette.sidebar,
+                        windowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+                            .only(WindowInsetsSides.Vertical + WindowInsetsSides.Start),
+                    ) {
+                        for ((tab, label, mark) in TABS) {
+                            NavigationRailItem(
+                                selected = state.tab == tab,
+                                onClick = { goTo(tab) },
+                                icon = { Text(mark, fontSize = 20.sp) },
+                                label = { Text(stringResource(label)) },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = palette.text,
+                                    selectedTextColor = palette.text,
+                                    unselectedIconColor = palette.subtext,
+                                    unselectedTextColor = palette.subtext,
+                                    indicatorColor = palette.calendarHasNotes,
+                                ),
+                            )
+                        }
                     }
                 }
+                // Beside the rail, the edges are kept here, once, for
+                // whatever is drawn inside -- the editor's own paddings then
+                // find nothing left to add. On a phone each screen keeps its
+                // own, as it always has.
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .then(if (!wide) Modifier else Modifier
+                            .consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start))
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.End + WindowInsetsSides.Bottom))),
+                ) {
+                    Row(Modifier.fillMaxSize()) {
+                        if (tabShown) {
+                            Box(
+                                (if (twoPanes) Modifier.width(listWidth) else Modifier.weight(1f))
+                                    .fillMaxHeight()
+                                    .then(if (wide) Modifier else Modifier.statusBarsPadding()),
+                            ) { tabContent() }
+                        }
+                        if (twoPanes) VerticalDivider(color = palette.hairline)
+                        if (open != null) {
+                            Box(Modifier.weight(1f).fillMaxHeight()) {
+                                key(state.opening) { NoteEditor(state, open) }
+                            }
+                        } else if (twoPanes) {
+                            Box(Modifier.weight(1f).fillMaxHeight()) { NothingOpen() }
+                        }
+                    }
+                }
+            }
+            // On a phone the note covers the bar, as it always has.
+            if (!wide && open == null) {
                 NavigationBar(containerColor = palette.sidebar) {
-                    for ((tab, label, mark) in listOf(
-                        Triple(Tab.NOTES, R.string.nav_notes, "≣"),
-                        Triple(Tab.CALENDAR, R.string.nav_calendar, "📅"),
-                        Triple(Tab.SETTINGS, R.string.nav_settings, "⚙"),
-                    )) {
+                    for ((tab, label, mark) in TABS) {
                         NavigationBarItem(
                             selected = state.tab == tab,
-                            onClick = { state.tab = tab; state.settingsPage = null },
+                            onClick = { goTo(tab) },
                             icon = { Text(mark, fontSize = 20.sp) },
                             label = { Text(stringResource(label)) },
                             colors = NavigationBarItemDefaults.colors(
@@ -256,13 +349,17 @@ fun AppRoot(state: AppState, version: String) {
         // Above the bar at the bottom, and on the list above the + as well:
         // a message that half covers the button it sits next to reads as
         // a mistake.
-        val onList = open == null && state.tab == Tab.NOTES
+        val listShown = state.tab == Tab.NOTES && tabShown
         SnackbarHost(
             state.snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = if (open != null) 8.dp else if (onList) 160.dp else 80.dp),
+                .padding(bottom = when {
+                    open != null && !twoPanes -> 8.dp
+                    !wide -> if (listShown) 160.dp else 80.dp
+                    else -> if (listShown) 88.dp else 16.dp
+                }),
         )
     }
 
@@ -297,6 +394,29 @@ fun AppRoot(state: AppState, version: String) {
             backupPlan = null
             contents.folder?.deleteRecursively()
         }
+    }
+}
+
+/** The three places, in the bar's order and the rail's. */
+private val TABS = listOf(
+    Triple(Tab.NOTES, R.string.nav_notes, "≣"),
+    Triple(Tab.CALENDAR, R.string.nav_calendar, "📅"),
+    Triple(Tab.SETTINGS, R.string.nav_settings, "⚙"),
+)
+
+/** Material's medium window: the rail. */
+private val RAIL_FROM = 600.dp
+
+/** Material's expanded window: the note beside the list. */
+private val TWO_PANES_FROM = 840.dp
+
+/** The second pane before a note is picked: what it is for. */
+@Composable
+private fun NothingOpen() {
+    val palette = LocalPalette.current
+    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Text(stringResource(R.string.pick_a_note), color = palette.subtext, fontSize = 15.sp,
+             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 

@@ -220,7 +220,36 @@ def main():
     print("installing", APK)
     adb("install", "-r", APK, check=True)
 
-    # ---- a brand-new notebook ----
+    brand_new(folder)
+    seeded(folder)
+    outward(folder)
+    calendar(folder)
+    listing(folder)
+    statistics(folder)
+    calculator(folder)
+    finding(folder)
+    exporting(folder)
+    styles_through_an_edit(folder)
+    templates(folder)
+    sizes_and_faces(folder)
+    lists(folder)
+    new_table(folder)
+    cell_menu(folder)
+    wide(folder)
+    changes(folder)
+
+    print()
+    if failures:
+        print("%d step(s) failed." % len(failures))
+        return 1
+    print("Every step did what it should, on the phone and in the file.")
+    return 0
+
+
+def brand_new(folder):
+    """A brand-new notebook: the welcome note, a note typed, a selection and
+    a pin, the Trash and its Undo, Settings' theme and name."""
+    print("\n-- a brand-new notebook --")
     adb("shell", "pm", "clear", PACKAGE)
     start_app()
     notes = read_file("notes_data.json")
@@ -240,13 +269,16 @@ def main():
     tap("Title")
     type_text("Groceries")
     tap("Write your note")
-    type_text("milk and eggs")
+    # A capital already: the body starts its sentences with one, and the
+    # keyboard applies that to typed-in text on some runs and not on others
+    # -- "milk" came back "Milk" once, after many runs that kept it.
+    type_text("Milk and eggs")
     time.sleep(1.5)
-    shot(folder, "03-editor", "Groceries", "milk and eggs")
+    shot(folder, "03-editor", "Groceries", "Milk and eggs")
     check("Back leaves the editor for the list", back_to("Search notes"))
     notes = read_file("notes_data.json") or []
     written = [n for n in notes if n.get("title") == "Groceries"]
-    check("a typed note reaches the file, title and body", bool(written) and written[0].get("body") == "milk and eggs",
+    check("a typed note reaches the file, title and body", bool(written) and written[0].get("body") == "Milk and eggs",
           json.dumps(written)[:200])
     if written:
         n = written[0]
@@ -309,29 +341,6 @@ def main():
     check("the list greets by name", not screen_says("Hi Maria,", "Search notes"),
           str(screen_says("Hi Maria,", "Search notes")))
     shot(folder, "09-greeting", "Hi Maria,", "Search notes")
-
-    seeded(folder)
-    outward(folder)
-    calendar(folder)
-    listing(folder)
-    statistics(folder)
-    calculator(folder)
-    finding(folder)
-    exporting(folder)
-    styles_through_an_edit(folder)
-    templates(folder)
-    sizes_and_faces(folder)
-    lists(folder)
-    new_table(folder)
-    cell_menu(folder)
-    changes(folder)
-
-    print()
-    if failures:
-        print("%d step(s) failed." % len(failures))
-        return 1
-    print("Every step did what it should, on the phone and in the file.")
-    return 0
 
 
 # ---- the second walk: a notebook written for the camera ----
@@ -778,8 +787,10 @@ def changes(folder):
     start_app()
     open_note("Welcome to Note Organizer")
 
+    # By the editor's own "ⓘ": on its side the phone keeps the list beside
+    # the note, and "the list is gone" no longer means "the note is open".
     def still_in_note():
-        return not screen_says("Welcome to Note Organizer") and bool(screen_says("Search notes"))
+        return not screen_says("Welcome to Note Organizer", "ⓘ")
 
     adb("shell", "cmd", "uimode", "night", "yes")
     time.sleep(2.5)
@@ -1104,12 +1115,13 @@ def templates(folder):
     tap("Weekly plan", exact=True, wait=1.5)
     shot(folder, "39-template-editor", "Edit template")
     tap("A new item", wait=0.8)
-    type_text("socks")
+    # A capital already, as in a new note's body: the field capitalises.
+    type_text("Socks")
     tap("+ Add", exact=True, wait=0.8)
     tap("Save", exact=True, wait=1.5)
     saved = on_disk()
     check("the edit is saved, in its place",
-          len(saved) == 1 and [c.get("text") for c in saved[0].get("checklist", [])] == ["groceries", "socks"],
+          len(saved) == 1 and [c.get("text") for c in saved[0].get("checklist", [])] == ["groceries", "Socks"],
           repr(saved))
     tap("Delete template", wait=1.2)
     check("deleting asks, and says it is for good", not screen_says("for good"))
@@ -1277,6 +1289,179 @@ def cell_menu(folder):
     tap_last("Delete", wait=1.2)
     back_to("Search notes")
     check("the table is gone", note().get("body") == "", repr(note().get("body")))
+
+
+def turn(rotation):
+    """The phone turned: 0 upright, 1 on its side."""
+    adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
+    adb("shell", "settings", "put", "system", "user_rotation", str(rotation))
+    time.sleep(2.5)
+
+
+def count(label):
+    """How many nodes say exactly [label]: a card and the editor both may."""
+    return sum(1 for t, d, _ in nodes() if label in (t, d))
+
+
+def bounds(label):
+    """The on-screen boxes of the nodes whose text is exactly [label].
+    A node scrolled out of a pane is still in the tree -- counting
+    nodes says it is there -- but its box is cut to what shows."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return []
+    out = []
+    for node in root.iter("node"):
+        if node.get("text", "") == label:
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                out.append(tuple(box))
+    return out
+
+
+def wide(folder):
+    """A wide window -- the phone on its side. The bar becomes a rail, and
+    a note opens beside the list, which stays in reach: so the list can
+    change the very note the editor holds. Each change is read back from
+    the file, where the editor's next save must not undo it, nor it lose
+    what the editor held. Then a code shared in over an open note, the
+    phone upright, as it always could. Then a medium window, where the
+    note takes the list's place beside the rail."""
+    print("\n-- a wide window --")
+    if not seed_inside([
+        {"id": 1, "uid": "w-groceries", "title": "Groceries", "body": "milk", "category": "General",
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:02:00"},
+        {"id": 2, "uid": "w-plans", "title": "Plans", "body": "trip", "category": "General",
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:01:00"},
+    ], {"welcome_offered": True}, "Groceries"):
+        return
+
+    def groceries():
+        return note_by_uid("w-groceries") or {}
+
+    # Turned with something half done: a selection on the list, then a
+    # find bar in an open note. The layout changes around them; they must
+    # not be built again, which would drop both.
+    long_press("Plans")
+    turn(1)
+    check("a selection survives the phone turning", not screen_says("1 selected"))
+    back()
+    turn(0)
+    open_note("Groceries")
+    tap("⋮", wait=1.0)
+    tap("Find in note", wait=1.0)
+    type_text("milk")
+    turn(1)
+    check("an open find bar survives the phone turning", not screen_says("Close find"))
+    back_to("Pick a note")
+
+    turn(1)
+    notes_at, settings_at = find("Notes", exact=True), find("Settings", exact=True)
+    check("on its side the bar is a rail down the left edge",
+          bool(notes_at and settings_at) and notes_at[0] < 300 and settings_at[0] < 300
+          and notes_at[1] < settings_at[1], "%s %s" % (notes_at, settings_at))
+    check("the second pane waits for a note", not screen_says("Search notes", "Pick a note"))
+    shot(folder, "44-wide-list", "Search notes", "Pick a note")
+
+    open_note("Groceries")
+    check("a note opens beside the list, which stays", not screen_says("Search notes", "Plans", "ⓘ"))
+    # The editor's body, not the card's first words: the last of the two.
+    tap_last("milk", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" and eggs")
+    back()                                    # the keyboard down
+    shot(folder, "45-wide-note", "Groceries", "milk and eggs", "ⓘ")
+
+    # Pinned from the list while open: the pin must reach the file, and the
+    # editor -- which writes every field it holds -- must not put it back.
+    long_press("Groceries")
+    tap("📌", wait=1.0)
+    check("pinned from the list beside the open note", groceries().get("pinned") is True
+          and groceries().get("body") == "milk and eggs", json.dumps(groceries())[:200])
+    tap_last("milk and eggs", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" and bread")
+    # On its side the keyboard covers the list: down first, which also lets
+    # the autosave run. Whether a card tapped BEFORE it saves the words is
+    # a race no tap through adb can win reliably -- AppStateTest holds it.
+    back(wait=1.5)
+    saved = groceries()
+    check("the editor's next save keeps the pin it did not make", saved.get("pinned") is True
+          and saved.get("body") == "milk and eggs and bread", json.dumps(saved)[:200])
+    tap("Plans", exact=True, wait=1.5)
+    # Its title SHOWN: the editor stays on screen from note to note, and
+    # once kept the last note's scroll, the new title above the pane --
+    # where it was still in the tree, so counting it passed over that.
+    titles = sorted(bounds("Plans"))
+    shown = titles[-1][3] - titles[-1][1] if len(titles) == 2 else 0
+    check("another card's note takes the pane, its title in sight", count("trip") == 2 and shown >= 40,
+          "boxes %s" % titles)
+
+    tap("Calendar", exact=True, wait=1.5)
+    check("the note stays open beside the calendar", not screen_says("📋 History", "ⓘ", "trip"))
+    shot(folder, "46-wide-calendar", "📋 History", "ⓘ")
+    tap("Settings", exact=True, wait=1.5)
+    check("Settings has no note beside it: the note is closed", not screen_says("Your name") and find("ⓘ") is None)
+    tap("Notes", exact=True, wait=1.2)
+
+    # Two new notes in a row: the second + must give a second, empty note
+    # -- both are "note 0" until saved, and the pane once stayed on the first.
+    tap("+", exact=True, wait=1.5)
+    tap("Title", exact=True, wait=0.6)
+    type_text("First new")
+    back(wait=1.5)
+    tap("+", exact=True, wait=1.5)
+    check("a second + beside a new note opens another, empty", find("Title", exact=True) is not None
+          and count("First new") == 1, str(count("First new")))
+    tap("Title", exact=True, wait=0.6)
+    type_text("Second new")
+    back(wait=1.5)
+    titles = [n.get("title") for n in read_file("notes_data.json") or []]
+    check("both new notes reach the file", "First new" in titles and "Second new" in titles, repr(titles))
+    back_to("Pick a note")
+
+    # Upright: a code shared in from another app over the open note, the
+    # very note it updates. The editor must show the update, and its next
+    # save keep it -- before, it held the old words and put them back.
+    turn(0)
+    open_note("Groceries")
+    code = desktop_code({"uid": "w-groceries", "title": "Groceries", "body": "milk, from the desktop",
+                         "category": "General", "updated": "2026-10-15 10:00:00"})
+    if not code:
+        fail("a code over an open note: the desktop's encoder could not be used, so nothing was tried")
+    else:
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+        time.sleep(2.5)
+        tap("Import", exact=True, wait=1.5)
+        tap("Update this note", wait=1.5)
+        check("the open note shows the update", not screen_says("milk, from the desktop", "ⓘ"))
+        tap_last("milk, from the desktop", wait=0.6)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        type_text(" ok")
+        back()
+        time.sleep(1.5)
+        check("the editor's next save keeps the update", groceries().get("body") == "milk, from the desktop ok",
+              repr(groceries().get("body")))
+    back_to("Search notes")
+
+    # A medium window -- 685 by 411 on its side, a small tablet's width:
+    # the rail, and the note in the list's place.
+    adb("shell", "wm", "size", "1080x1800")
+    turn(1)
+    # The pinned note, at the top: a short window shows few cards.
+    open_note("Groceries")
+    check("a medium window opens the note in the list's place, beside the rail",
+          find("Search notes") is None and find("Settings", exact=True) is not None)
+    shot(folder, "47-medium-note", "milk, from the desktop", "ⓘ")
+    tap("Notes", exact=True, wait=1.5)
+    check("the rail leaves the note for the list", not screen_says("Search notes") and find("ⓘ") is None)
+    adb("shell", "wm", "size", "reset")
+    turn(0)
 
 
 if __name__ == "__main__":

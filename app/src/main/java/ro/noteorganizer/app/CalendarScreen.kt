@@ -344,6 +344,8 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
         if (files > 0) append("  📎×$files")
     }
     val colour = Days.colourOf(shown, state.load.categories, palette.hex.getValue("accent"))
+    // Open beside the calendar on a wide screen: this day, or its whole series.
+    val open = state.openId == id && (state.openDay == null || state.openDay == day)
     Box {
         Row(
             Modifier
@@ -352,6 +354,7 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
                 .height(IntrinsicSize.Min)
                 .clip(RoundedCornerShape(10.dp))
                 .background(palette.card)
+                .then(if (open) Modifier.border(2.dp, palette.accent, RoundedCornerShape(10.dp)) else Modifier)
                 .combinedClickable(onClick = { state.openNote(id, day) }, onLongClick = { menu = true }),
             verticalAlignment = Alignment.CenterVertically,
         ) {
