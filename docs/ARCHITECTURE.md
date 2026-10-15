@@ -10,7 +10,8 @@ the surprises live.
 - [Decision: a note has two representations, on purpose](#decision-a-note-has-two-representations-on-purpose)
 - [Decision: write to a copy, then to disk, then to the screen](#decision-write-to-a-copy-then-to-disk-then-to-the-screen)
 - [Decision: the rules layer knows nothing about Android](#decision-the-rules-layer-knows-nothing-about-android)
-- [Decision: no ViewModel, no repository, no injection](#decision-no-viewmodel-no-repository-no-injection)
+- [Decision: one state object, no ViewModel, no injection](#decision-one-state-object-no-viewmodel-no-injection)
+- [Decision: the notebook is the app's own](#decision-the-notebook-is-the-apps-own)
 - [Decision: `org.json`, and the trap that comes with it](#decision-orgjson-and-the-trap-that-comes-with-it)
 - [The desktop is the specification](#the-desktop-is-the-specification)
 - [Where this will hurt next](#where-this-will-hurt-next)
@@ -18,44 +19,69 @@ the surprises live.
 ## The short version
 
 One Activity, no fragments, no navigation library: the whole app is
-Compose, and which screen you are looking at is a variable in `App()`.
-Below that sit four files of plain Kotlin that know the rules — what a
-note is, how a table is written down, what a share code contains — and
-nothing about Android. That split is why 221 of the tests run on a laptop
-in seconds, with no emulator anywhere.
+Compose, and which screen you are looking at is a value in one state
+object, `AppState`. Below the screens sit fourteen files of plain Kotlin
+that know the rules — what a note is, how a table is written down, what a
+backup may contain, which theme is which — and nothing about Android.
+That split is why 317 tests run on a laptop in seconds, with no emulator
+anywhere.
 
 There is no database, no network, no account and no background service.
 The app reads and writes the same JSON files the desktop app reads and
-writes, in the app's own folder on the device.
+writes, in its own private folder on the device. The only doors out are
+Android's own: the file picker for a backup, the share sheet for a code,
+a temporary grant for an attached file, and the browser for feedback.
 
-The app draws no popups and no dialogs either — one place where its
-words deliberately differ from the desktop's. What the desktop draws as a
-popup (a list anchored to a button) or a dialog (a question that holds
-the window until it is answered) is a **panel** here, drawn inside the
-screen rather than over it: the sort and category choices, the colour
-choice, the share code, and the import with its "already here" question.
-On a phone, a menu floating over the list hides the very thing the
-choice is about. The Trash, which the desktop keeps in Settings →
-Recently deleted, is a screen of its own here, opened from a 🗑 chip
-above the list that appears only while the Trash holds something.
+Words follow the desktop's: a **popup** is anchored to what opened it (a
+menu, a bottom sheet), a **dialog** holds the screen until it is
+answered (the import's questions, "Delete for good?"). The Trash, which
+the desktop keeps in Settings → Recently deleted, is Settings → Trash
+here.
 
 ## The map
 
-About 4,800 lines of Kotlin, in seven files that matter.
+About 8,400 lines of Kotlin. The rules are 5,100 of them, in files that
+import nothing from Android; the drawing is 3,300, in files that may.
+
+**The rules** — ported from the desktop's Python, tested on the JVM:
+
+| File | Lines | What lives there | The desktop's |
+|---|---|---|---|
+| `Notebook.kt` | 1,730 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Importing.kt` | 530 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Tables.kt` | 490 | The table grammar: pipe rows to a grid and back, and `TableEdit` | `tables.py` |
+| `Organizing.kt` | 450 | Duplicate, pin, move, categories (add, recolour, rename everywhere, delete), the Trash for good, restore | `storage.py`, the settings page |
+| `Themes.kt` | 350 | The eight themes, the palettes, and the contrast rules that pick legible words | `themes.py` |
+| `Backup.kt` | 270 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
+| `Normalize.kt` | 240 | The parts of `normalize_note` a writer needs, `_dup_key`, `content_signature` | `model.py` |
+| `Styling.kt` | 240 | Format spans over a selection: what covers it, toggling, setting, clearing | `richtext.py` |
+| `Settings.kt` | 230 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
+| `Sharing.kt` | 190 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
+| `Editing.kt` | 130 | A body cut into prose and tables for the editor, word count, reading time | the editor |
+| `Welcome.kt` | 95 | The welcome note a new notebook opens on | `welcome.py` |
+| `Files.kt` | 95 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Startup.kt` | 80 | What happens before the first screen: copy-in, welcome, purge | the entry file's start |
+
+**The drawing** — turns rules into pixels, checked on the emulator:
 
 | File | Lines | What lives there |
 |---|---|---|
-| `MainActivity.kt` | 1,850 | Every screen, as 18 composables: the list, a note, the editor, the Trash, the share and import panels, the format bar, the cell editor. Holds the app's state |
-| `Notebook.kt` | 1,665 | The `Note` model and everything about reading and writing the notebook: load, create, update, trash, restore, checklists, categories, sorting, search |
-| `Tables.kt` | 494 | The table grammar — parsing pipe rows into a grid, laying one back out, and editing it (`TableEdit`) |
-| `Styling.kt` | 241 | Format spans over a selection: what styles cover it, toggling, setting and clearing them |
-| `TableView.kt` | 173 | The grid, drawn |
-| `Sharing.kt` | 171 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe to touch |
-| `RichText.kt` | 100 | A note plus its spans, turned into a Compose `AnnotatedString` |
+| `NoteEditor.kt` | 870 | The one screen for reading and writing a note: autosave, the format bar, checklist, comments, files, details, restore |
+| `SettingsScreens.kt` | 580 | Settings and its six pages |
+| `NotesScreen.kt` | 360 | The list: greeting, search, sort and show, selection, the + button |
+| `MainActivity.kt` | 350 | The Activity: the notebook's folder, the doors to the rest of the phone, the bottom bar, Back |
+| `ImportFlow.kt` | 280 | The code dialog and the import's questions, in the desktop's words |
+| `AppState.kt` | 220 | The app's state, and every action a screen can take on the notebook |
+| `Components.kt` | 210 | The note card, swatches, the shared dialog |
+| `TableView.kt` | 160 | The grid, drawn |
+| `RichText.kt` | 100 | A note plus its spans, turned into an `AnnotatedString` |
+| `ui/theme/` | 160 | A palette as Compose colours, and Material 3 mapped onto it |
 
-The tests mirror it: `NotebookTest` (110 checks), `TablesTest` (47),
-`StylingTest` (23), `IdentityTest` (20), `SharingTest` (19),
-`InteropTest` (2).
+The tests mirror the rules: `NotebookTest` (113), `TablesTest` (47),
+`IdentityTest` (30), `StylingTest` (23), `SharingTest` (21),
+`SettingsTest` (17), `OrganizingTest` (16), `ImportingTest` (16),
+`BackupTest` (11), `EditingTest` (10), `ThemesTest` (7), `StartupTest`
+(4), `InteropTest` (2).
 
 ## Decision: a note has two representations, on purpose
 
@@ -66,14 +92,17 @@ model the screen draws — and `raw: JSONArray`, the array exactly as it
 was parsed from the file.
 
 `Note` deliberately reads only what the screen needs. It does not carry
-`attachments`, `exceptions` or `overrides`, and it cannot carry a field
+every field of `exceptions` or `overrides`, and it cannot carry a field
 that a future desktop version adds and this app has never heard of.
 
 So a write **never rebuilds the file from `Note`**. Serialising that
 model back would silently delete the parts it never read — from every
 note in the file, on the first save, invisibly. Writes work on `raw`:
 they append to the array that was read, or replace one entry inside it,
-and leave every other byte alone.
+and leave every other byte alone. The same rule holds one level down,
+inside a note: a paragraph entry renumbered by an edit is copied whole,
+not rebuilt from the two fields this app expected it to have
+([the story](ISSUES_LOG.md#a-centred-line-that-came-back-as-a-bullet)).
 
 The rule this comes from is the desktop's, and it is written out, with
 the guards every write carries, in
@@ -82,12 +111,13 @@ the guards every write carries, in
 
 ## Decision: write to a copy, then to disk, then to the screen
 
-Every write in `Notebook.kt` follows the same three steps:
+Every write in the rules layer follows the same three steps:
 
 1. build a **candidate** — a copy of the array, with the change applied;
 2. write the candidate to a sibling `.tmp`, `sync()` it, rename it over
-   the real file;
-3. only now update the in-memory array the screen is reading.
+   the real file (`Files.writeAtomic`);
+3. only now update the in-memory array the screen is reading, and let
+   `AppState` refresh the screen from it.
 
 If step 2 fails, the screen never showed a change the file does not have,
 and the failure comes back as a `SaveResult.Failed` carrying a reason to
@@ -99,51 +129,88 @@ Two traps live here, and both have drawn blood:
   same note objects as the live array, so editing a note "in the copy"
   edits what is on the screen. A note being changed must be rebuilt from
   its own text first. See the [issues log](ISSUES_LOG.md#an-update-that-reached-the-screen-before-it-reached-the-file).
-- **The file may exist and not parse.** Then `raw` is null and every
-  write refuses, rather than replacing a file it could not understand
-  with one it invented.
+- **The file may exist and not parse.** Its bytes are copied aside first
+  and the app starts from an empty array, as the desktop does. Only when
+  even the copy cannot be made is `raw` null — and then every write
+  refuses, rather than replacing a file nobody has kept.
 
 ## Decision: the rules layer knows nothing about Android
 
-`Notebook.kt`, `Tables.kt`, `Styling.kt` and `Sharing.kt` contain **zero**
-`import android` and **zero** `import androidx`. This is not a
-coincidence to be preserved by good intentions; it is the same rule the
-desktop keeps between its `core/` layer and tkinter, and it buys two
-things:
+The fourteen files in the first table contain **zero** `import android`
+and **zero** `import androidx`. This is not a coincidence to be preserved
+by good intentions; it is the same rule the desktop keeps between its
+`core/` layer and tkinter, and it buys two things:
 
-- the tests for those four files run on the JVM, with no device and no
-  emulator — which is why there are 221 of them and why running them
+- the tests for those files run on the JVM, with no device and no
+  emulator — which is why there are 317 of them and why running them
   costs seconds;
 - the rules can be read, and compared against the Python they were ported
   from, without Compose in the way.
-
-`RichText.kt` and `TableView.kt` are the deliberate exceptions: they
-exist to turn rules into pixels, so they import Compose and are checked
-on the emulator instead.
 
 The rule is checked rather than remembered:
 
     py tools/check_layering.py
 
+It lists both sides by name. A new `.kt` file that is on neither list
+fails the gate, because left to default, a rules file nobody listed
+would be free to import Android with the gate printing "clean" over it.
+
 The leak it guards against would be quiet: reach for
 `android.util.Base64` because it is first in the autocomplete and
 everything still compiles, still runs, and can no longer be tested
-without a device.
+without a device. The same habit puts a display rule in the right place:
+[a date shown one way](ISSUES_LOG.md#the-same-date-written-two-ways)
+lives in the rules, where every screen can ask for it.
 
-## Decision: no ViewModel, no repository, no injection
+## Decision: one state object, no ViewModel, no injection
 
-`App()` holds the whole of the app's state in a handful of
-`remember { mutableStateOf(...) }` values — which note is open, whether
-the editor is up, whether the Trash is showing — and passes callbacks
-down. There is no ViewModel, no DI container, no repository interface and
-no abstraction over the file.
+`AppState` holds what the app is showing — the tab, the settings page,
+the open note, the loaded notebook, the message waiting to be said — and
+every action a screen can take on the notebook. Screens read it and call
+it; it calls the rules layer and refreshes itself from what was written.
+There is no ViewModel, no DI container, no repository interface and no
+abstraction over the file.
 
-At 4,800 lines and one screen at a time, those layers would be ceremony:
-every one of them exists to decouple things that are not currently
-coupled. The cost is named rather than hidden — see
-[Where this will hurt next](#where-this-will-hurt-next) — and the day
-the app survives process death, or writes from more than one place at
-once, is the day this stops being the right answer.
+At this size those layers would be ceremony: every one of them exists to
+decouple things that are not currently coupled. One class does what they
+would, and is short enough to read in one sitting.
+
+Two things it does on purpose:
+
+- **The notebook is held with `neverEqualPolicy()`.** A setting is saved
+  inside the object that was read, so the refreshed notebook compares
+  equal to the old one and Compose would skip the redraw. Every refresh
+  is a redraw ([the story](ISSUES_LOG.md#a-setting-saved-and-a-switch-that-did-not-move)).
+- **The editor saves through hooks the Activity calls.** A note is saved
+  0.8 seconds after the last change, on Back, and in `onStop` — because
+  most notes on a phone are left by Home or by switching apps, not by
+  Back.
+
+## Decision: the notebook is the app's own
+
+Until Phase 1 the app read a notebook from its external files folder,
+where `adb push` could put a copy of the desktop's. Now it lives in
+`filesDir/notebook/`: private, no permission needed, gone with the app —
+which is why Settings → Backup says it is the way to keep a copy.
+
+`Startup.prepare` runs before the first screen:
+
+1. A notebook found in the older folder is **copied** in, once, the first
+   time there is none here — never moved.
+2. A notebook that did not exist until this start gets the welcome note,
+   once.
+3. The Trash is emptied of what has outlived its window, sparing files a
+   note still uses.
+
+It returns one line worth saying at the top of the list, or nothing.
+
+The doors out are all the system's, so the app needs no permission at
+all: the file picker (`CreateDocument` / `OpenDocument`) for a backup,
+the share sheet for a code, an intent filter for text shared in, and a
+`FileProvider` that grants one attached file to the app that opens it,
+for as long as it is open. A backup is written and read on
+`Dispatchers.IO`; everything else is small enough for the main thread
+([for now](#where-this-will-hurt-next)).
 
 ## Decision: `org.json`, and the trap that comes with it
 
@@ -152,38 +219,43 @@ so the whole app has no JSON dependency at all.
 
 The trap: the SDK jar that JVM unit tests compile against contains only
 *stubs* of those classes, and every one of them throws "not mocked" at
-runtime. Without a real implementation on the test classpath, every test
-that parses a note fails for a reason that has nothing to do with the
-code being tested. Hence the single line in `app/build.gradle.kts`:
+runtime. Hence the single line in `app/build.gradle.kts`:
 
     testImplementation("org.json:json:20240303")
 
-Test scope only. The app itself keeps using the platform's own.
+Test scope only. The app itself keeps using the platform's own — and the
+two are **not the same library**. On the computer, a decimal arrives as a
+`BigDecimal` rather than a `Double`, and a `JSONObject` forgets the order
+of its keys. A rule that depends on either is written so it holds for
+both: whole numbers checked as whole numbers, whatever class they arrive
+as; and an order that matters kept in an ordered map, tested there
+([the story](ISSUES_LOG.md#the-tests-json-library-is-not-the-phones)).
 
 ## The desktop is the specification
 
 Where a rule here answers *"what should this do?"*, the answer comes from
 reading the desktop app's Python — including where the Python is arguably
 the worse choice, because a difference between the two programs is a
-surprise rather than a feature. The one deliberate exception, and the
-reason for it, is in
-[STATUS.md](STATUS.md#the-one-deliberate-difference-from-the-desktop).
+surprise rather than a feature. The deliberate exceptions, each with its
+reason, are in
+[STATUS.md](STATUS.md#where-it-differs-from-the-desktop-on-purpose).
 
-That agreement is not left to memory. `tools/check_note_shape.py` reads
-the desktop's source **as the specification** and compares four things:
-that a note here has the same fields the desktop gives one, that the two
-places building a new note agree, that a share code carries what the
-desktop's codes carry, and that an arriving note replaces what the
-desktop lets one replace. It reads that source and never writes to it —
-the dependency runs one way, always.
+That agreement is not left to memory. Two gates read the desktop's source
+**as the specification**, and never write to it:
 
-It runs in CI beside the layering gate, in
-[gates.yml](../.github/workflows/gates.yml), kept apart from the unit
-tests in [tests.yml](../.github/workflows/tests.yml) so a change to a gate
-does not drag a five-minute build along with it. There it fetches the
-desktop app and is run with `--require-desktop`, because a check that
-quietly could not run reads exactly like a check that passed. Reading a
-private repository from another one needs a token:
+- `tools/check_note_shape.py` compares what a note is: its fields, the
+  two places here that build a new one, what a share code carries, and
+  what an arriving note — from a code or from a backup — may replace.
+- `tools/check_palettes.py` compares the eight themes colour for colour,
+  the category and note colours, the highlight palette, and the colours
+  the contrast rules choose for words on a fill.
+
+Both run in CI, in [gates.yml](../.github/workflows/gates.yml), kept apart
+from the unit tests in [tests.yml](../.github/workflows/tests.yml) so a
+change to a gate does not drag a five-minute build along with it. There
+they fetch the desktop app and are run with `--require-desktop`, because
+a check that quietly could not run reads exactly like a check that
+passed. Reading a private repository from another one needs a token:
 [qa/README.md](../qa/README.md#what-runs-on-every-push) says which, and
 where it goes.
 
@@ -191,14 +263,15 @@ where it goes.
 
 Named here so nobody has to discover them by surprise:
 
-- **The file is read and written on the UI thread.** Fine for half a
-  megabyte; not fine for an app that synchronises, and not fine on a slow
-  phone with a large notebook.
-- **State does not survive process death.** Compose's `remember` is not
-  `rememberSaveable`, and nothing is persisted about where you were.
-- **`MainActivity.kt` is 1,850 lines.** It is one file because every
-  screen shares the same state and the same callbacks; the moment a
-  screen needs state the others do not, that is the seam to split on —
-  not before, and not by line count.
-- **One screen size and one theme have been seen.** There is no light
-  theme, no tablet layout, and no landscape work.
+- **Notes are written on the main thread.** Fine for the notebooks seen
+  so far — the largest real one is half a megabyte — and not fine for one
+  ten times that on a slow phone. A backup already moved off it.
+- **Where you were does not survive the process being killed.** The note
+  is saved before that can happen (`onStop`), but the app reopens on the
+  list rather than in the note.
+- **One column everywhere.** A tablet, a foldable or landscape gets the
+  phone's layout stretched; in landscape the + button covers the last
+  card. A rail and two panes for wide screens are Phase 2.
+- **`Notebook.kt` is 1,730 lines.** It is the note model and every write
+  to a note; the seam to split on is the day a group of writes needs
+  state the others do not — not before, and not by line count.

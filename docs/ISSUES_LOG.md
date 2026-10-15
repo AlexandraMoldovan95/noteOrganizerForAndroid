@@ -7,11 +7,19 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Four of the eight are about the
+**the code**, or in **the design**. Seven of the sixteen are about the
 checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-15](#checks-that-were-also-true-when-nothing-happened) | checking | "Re-importing changes nothing" passed over an import that never happened | A check must be false when the action is skipped, not only when it goes wrong |
+| [2026-10-15](#turning-the-phone-closed-the-note) | code | Turning the phone, or its dark mode coming on, closed the note being written | A walk that photographs the list after a change never sees what the change did to an open note |
+| [2026-10-15](#the-same-date-written-two-ways) | code | The card printed `2026-10-18`, the editor `18.10.2026` | A display rule written inside one screen is a rule the next screen does not know |
+| [2026-10-15](#a-setting-saved-and-a-switch-that-did-not-move) | code | The file said "off", the switch stayed on | Compose redraws on a *different* value; an object changed in place and set again is "no change" |
+| [2026-10-15](#two-android-defaults-that-were-wrong-here) | design | Back on Settings closed the app; Undo was gone before a thumb could reach it | A framework's default is a decision too, and the walk on the phone is where it shows |
+| [2026-10-15](#a-centred-line-that-came-back-as-a-bullet) | code | The first edit on the phone turned a centred desktop line into a bullet | Carry the whole entry, not the fields you expect it to have |
+| [2026-10-15](#a-pass-printed-over-a-build-that-failed) | checking | The result checker reported "221 passed" after a build that never compiled | Results older than the code are not results |
+| [2026-10-15](#the-tests-json-library-is-not-the-phones) | checking | On the computer, `7.5` arrived as a `BigDecimal` and a map forgot its order | The test classpath's library is a different library |
 | [2026-09-14](#a-photograph-of-the-wrong-screen-filed-as-proof) | checking | A screenshot tool saved the wrong screen and labelled it "search" | A tool that captures whatever is there produces documentation that *looks* like proof |
 | [2026-09-14](#the-preview-that-flattered-the-icon) | checking | The launcher icon came back from the phone with its corners cut off | A preview that skips the system's step approves what the system will reject |
 | [2026-09-13](#a-dead-route-carrying-a-second-copy-of-the-rules) | code | `importShareCode` survived as an unreachable route holding its own copy of the new-note defaults | Dead code that duplicates a *rule* rots silently while its tests keep passing |
@@ -21,9 +29,207 @@ checking.
 | [2026-09-12](#a-new-note-saved-without-its-formatting) | code | The toolbar worked, the screen drew bold, the file held none of it | Read the file, not the screen |
 | [2026-09-12](#a-list-of-titles-would-have-been-a-list-of-blanks) | design | 48 of 77 real notes have no title at all | Design against the real notebook, not against the example one |
 
-Two findings still open are at the [end](#still-open).
+Findings still open, and those closed since, are at the
+[end](#still-open).
 
 ---
+
+## Checks that were also true when nothing happened
+
+**2026-10-15.** The final emulator walk reported all its checks passed —
+and three failed steps on the way. The backup it was meant to import back
+had never been chosen: the picker held every backup earlier runs had
+made, and the walk took the last name `ls` printed, which was the
+*oldest*, at the bottom of the list, where the tap landed on the edge of
+the screen. No import happened. And the check, "re-importing your own
+backup changes nothing", passed — because nothing is exactly what an
+import that never happens changes.
+
+A sweep of the walk for the same shape found three more:
+
+* "Undo opens the note it brought back" was satisfied by the list, which
+  says "Groceries" too.
+* "A note restored from the Trash page is back" read an unreadable
+  `trash.json` as an empty one.
+* The two checks that need a code from the desktop's own encoder were
+  skipped in silence when it could not be loaded.
+
+**The class:** a check whose condition is also met when the step it
+checks never ran. It cannot tell "done right" from "not done", so it
+only ever fails for the second-worst outcome. The walk had met it once
+already — the Undo check's comment records the same lesson about a note
+that never left — which is why it gets its own story now.
+
+**The fix:** the walk imports the backup that appeared with *this*
+export; the re-import check requires the question to have been seen;
+the Undo check requires the editor, not the list; the restore check
+reads both files back; and a test that cannot run says so as a failure.
+Each was shown failing on the case it had passed over.
+
+## Turning the phone closed the note
+
+**2026-10-15.** Found while writing the documentation, by reading the
+manifest rather than by any check: the Activity declared no
+`configChanges`. So on every configuration change — the phone turned on
+its side, its dark mode switching on at sunset, larger letters, a split
+screen — Android destroyed the Activity and built a new one. All of the
+app's state lives inside it, in Compose's `remember`, and went with it.
+
+Turned on the emulator with a note open, the app came back on the list.
+The note itself was safe — the editor saves in `onStop`, which runs
+before the Activity goes — but the person was thrown out of what they
+were writing. And with "Follow the phone" on by default, the dark mode
+coming on in the evening would have done the same to anyone mid-note.
+
+The walk had photographed landscape and large letters for weeks. It
+photographed them **on the list**, where a rebuilt Activity looks exactly
+like one that was never touched, and the large-letters shot opened a
+note *after* the change instead of before it.
+
+**The class:** a check placed where the failure cannot show. A
+configuration change can only lose state that exists, so it has to be
+made with state in hand — a note open, mid-edit.
+
+**The fix:** the Activity declares the changes it handles itself —
+orientation, size, dark mode, density, font scale, keyboard — and
+Compose redraws with the new configuration instead of the app being
+rebuilt; the theme follows the phone live, status bar included. The
+walk now opens a note *first*, then turns the phone dark, grows its
+letters and turns it on its side, checking after each that the note is
+still open. All three checks were run against the old build first and
+failed there.
+
+What is left is named in [ARCHITECTURE](ARCHITECTURE.md#where-this-will-hurt-next):
+if Android kills the process while the app is in the background, it
+reopens on the list. The note is saved; where the person was is not.
+
+## The same date, written two ways
+
+**2026-10-15.** The documentation pictures were retaken for the English
+app, and looked at before being committed. The list's card said
+`📅 2026-10-18`; the same note open in the editor said `18.10.2026`.
+
+The desktop shows a date one way everywhere — `show_date`, in its
+`core/recurrence.py`: `17.10.2026`, with anything that is not a date shown
+exactly as it was typed. The phone had ported that rule, but into the
+editor's drawing code, as a helper the editor called. The card is drawn
+from the rules layer's `tagLine()`, which had never heard of it and
+printed the stored form.
+
+**The class:** a rule about what the user SEES, living inside one screen.
+The next screen to show the same thing does not inherit it; it writes its
+own, or none.
+
+**The fix:** `Notebook.showDate` in the rules layer, the one place every
+screen asks — checked against the desktop's own `show_date` on the same
+inputs, including the ones that are not dates, and pinned by three
+mutants. No test could have caught it before, because no test had ever
+read the card's tags line.
+
+## A setting saved, and a switch that did not move
+
+**2026-10-15.** The emulator walk turned "Follow the phone" off and read
+`settings.json`: off. The check passed. The photograph showed the switch
+still on.
+
+The app keeps the loaded notebook, settings included, in one Compose
+state. Saving a setting changed that `JSONObject` in place and assigned
+the same object back — and Compose redraws when a state's value is
+*different*. The same object, changed inside, compares equal to itself.
+The file was right and the screen kept drawing the past.
+
+**The class:** a mutable object inside state that compares by equality.
+Every write here goes through the same state, so the fix had to be there
+rather than at the switch.
+
+**The fix:** the state is created with `neverEqualPolicy()`, so every
+assignment redraws. The walk's check now looks at the screen as well as
+the file — which is the point of reading both.
+
+## Two Android defaults that were wrong here
+
+**2026-10-15.** Both found by walking the built app, neither visible in
+the code, because neither was written down anywhere: they were what
+Android does when nobody says otherwise.
+
+* **Back on the Settings tab closed the app.** With nothing handling
+  Back, a press on the root screen finishes the Activity. On a phone with
+  two tabs, the person expects the Notes tab — the way back to where
+  they started — not the home screen. Now Back leaves a settings page for
+  the list of pages, and the Settings tab for Notes.
+* **"Moved to Trash · Undo" was gone before a thumb could reach it.**
+  The short snackbar lasts about four seconds; the walk's own tap missed
+  it, and a person reading the line first and reaching for the button
+  second would have too. It now stays for eight seconds and goes on its
+  own.
+
+**The class:** a framework's default is a decision, and an unexamined one.
+The first was found by the walk's next step landing on the launcher; the
+second by a check that could not find the button it had to press.
+
+## A centred line that came back as a bullet
+
+**2026-10-15.** The desktop keeps a note's line styling in `paragraphs`:
+bullets and numbers, but also a line's alignment and indent — and a
+centred line has an entry with **no `kind` at all**. When an edit moves
+lines up or down, the phone renumbers those entries. It rebuilt each one
+as `{"line", "kind"}`, with `"bullet"` as the default kind.
+
+So the first edit on the phone of any note with a centred heading turned
+the heading into a bullet, and dropped every indent and alignment in the
+note, silently. Found by reading the desktop's `paragraphs` format while
+porting the welcome note, which centres its title.
+
+**The class:** a writer that rebuilds a record from the fields it expects
+it to have. It is the [partial reader](DATA_FORMAT.md#a-partial-reader-must-not-become-a-total-writer)
+rule again, one level down: inside a note, too, what this app does not
+read must survive what it writes.
+
+**The fix:** the whole entry is copied and only its line number changes.
+A test carries a centred line and an indented, right-aligned number
+through an edit.
+
+## A pass printed over a build that failed
+
+**2026-10-15.** `tools/check_test_results.py` exists because Gradle's
+console says nothing useful about tests: it reads the result XML and
+counts. After a change that did not compile, it printed **"221 passed"**.
+
+The build had failed before the tests ran, so no new XML was written —
+and the XML from the previous, successful run was still in the folder.
+The checker read yesterday's results and reported them as today's. In CI
+a fresh checkout has no old XML, so it could only lie on a developer's
+machine, which is exactly where it is trusted most.
+
+**The class:** a verdict read from an artefact without asking when the
+artefact was made — the same family as
+[the silent mutant](#a-silent-mutant-is-not-a-passing-one).
+
+**The fix:** results older than the newest Kotlin source are refused, by
+name, with the advice to run the tests again.
+
+## The test's JSON library is not the phone's
+
+**2026-10-15.** The unit tests run on the computer, where Android's
+`org.json` is only a stub, so a real `org.json` is put on the test
+classpath ([why](ARCHITECTURE.md#decision-orgjson-and-the-trap-that-comes-with-it)).
+It has the same names and different habits:
+
+* **It reads `7.5` as a `BigDecimal`**; Android reads it as a `Double`.
+  The Trash's retention window refused decimals by checking for
+  `Double` — so on the computer a hand-edited `7.5` slipped through as
+  some other `Number` and became 7. The desktop accepts whole numbers
+  only, so the rule is now written that way: anything else is the
+  default, whatever class it arrives as.
+* **Its `JSONObject` does not keep insertion order**; Android's does.
+  The order of the categories is the order in Settings, and a rename
+  must keep a category in its place — a rule no test could pin on an
+  object that shuffles its keys. That rule now lives in a function over
+  an ordered map (`Organizing.renamed`), tested there.
+
+**The class:** a test passing or failing for a reason that belongs to
+the test's tools rather than to the code. Neither would have shown on a
+phone; both would have made a test say something untrue.
 
 ## A photograph of the wrong screen, filed as proof
 
@@ -212,19 +418,39 @@ example notebook always has titles; that is what makes it an example.
 Findings, not failures: each one waits on a change in the desktop
 repository rather than here.
 
-### A mismatch in the DESKTOP app, to be fixed there
+### The DESKTOP's automatic Trash purge can delete a file a living note uses
 
-`trash_retention_days`' docstring says a hand-edited `0` or `-3` "reads as
-the default". The code is `max(1, min(days, 365))`, which clamps them to
-**one day**; only a value that is not a whole number at all reaches the
-default. Both behaviours are safe — neither makes the purge take
-everything — but the two statements disagree, and this project follows
-the code. Worth a one-line docstring fix in the desktop repository.
+Found 2026-10-15, while porting the purge. When a note leaves the Trash
+for good, its attached files are deleted with it. The desktop's manual
+"Delete for good" and "Empty Trash" pass a *spare* list — the files the
+notes in the app still use — so a shared file survives. Its automatic
+purge at startup (`purge_expired_trash` in `core/storage.py`) calls the
+same helper **without** one.
+
+A stored file is shared between two notes only in older notebooks, or
+after a hand edit, so this is rare. But the startup purge is the one
+deletion nobody watches, and on such a notebook it can remove a file a
+living note still shows. The phone's purge spares those files
+([the difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+The desktop fix is one argument; removing a single attachment in its
+`ui/attachments.py` calls the same helper without one too, and is worth
+checking in the same change.
 
 ### A deliberate difference worth porting back
 
 Search here folds diacritics; the desktop compares the letters as typed.
 What the folding does, and why it is worth having, is in
-[STATUS.md](STATUS.md#the-one-deliberate-difference-from-the-desktop) —
-the one place this app's rules knowingly differ from the Python's. This
-one should stop being a difference by the desktop adopting it.
+[STATUS.md](STATUS.md#where-it-differs-from-the-desktop-on-purpose),
+beside the other places this app's rules knowingly differ from the
+Python's. This one should stop being a difference by the desktop
+adopting it.
+
+## Closed since
+
+### A mismatch in the DESKTOP's retention docstring
+
+Opened 2026-09-13: `trash_retention_days`' docstring said a hand-edited
+`0` or `-3` "reads as the default", while the code clamps them to one
+day. Both safe, but the two statements disagreed. **Closed** — the
+desktop's docstring now says what the code does ("clamped to 1-365"),
+and this app follows the same code.

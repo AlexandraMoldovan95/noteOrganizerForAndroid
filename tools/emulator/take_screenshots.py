@@ -7,15 +7,21 @@ so remaking them is one command rather than an afternoon of tapping.
 It seeds a small, tidy notebook of its own first: a real notebook is
 somebody's private writing, and a documentation screenshot is the one
 place it must never end up. The notes below are written for the picture.
+The app's data is cleared first (`pm clear`) and the notebook is written
+straight into the app's own folder through `run-as`, which a debug build
+allows -- so the first screen is the list, with no "brought in" notice
+and no welcome note in the way.
 
-Every shot names what must be ON the screen before the shutter opens, and
-a shot whose screen does not say so is not saved. A screenshot tool that
-photographs whatever happens to be there is how a wrong picture ends up
-in the documentation looking like proof.
+Every shot names what must be ON the screen before the shutter opens --
+and, where it matters, what must be GONE from it. A shot whose screen
+does not say so is not saved. A screenshot tool that photographs whatever
+happens to be there is how a wrong picture ends up in the documentation
+looking like proof.
 
     py tools/emulator/take_screenshots.py
 
-Needs: a running emulator with the app installed, and adb on the SDK path.
+Needs: a running emulator with the debug app installed, and adb on the
+SDK path. Writes only inside the app's own storage on the emulator.
 """
 import io
 import json
@@ -23,85 +29,136 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk",
                    "platform-tools", "adb.exe")
 PACKAGE = "ro.noteorganizer.app"
-FILES = "/sdcard/Android/data/%s/files" % PACKAGE
+NOTEBOOK = "files/notebook"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(ANDROID, "docs", "screenshots")
 
 # Written for the camera: short enough to read at phone size, real
-# enough to show what the app is for.
-NOTEBOOK = [
-    {"id": 1, "title": "Paine de casa",
-     "body": "500g faina\n300ml apa calduta\n10g sare\n\nFramantat 10 minute, "
-             "crescut 2 ore, copt 45 de minute la 220 de grade.",
-     "category": "General", "date": "2026-09-20",
-     "checklist": [{"text": "faina", "done": True},
-                   {"text": "drojdie", "done": True},
-                   {"text": "seminte", "done": False}],
-     "formatting": [{"start": 0, "end": 10, "style": "bold"}],   # "500g faina"
-     "created": "2026-09-14 09:12:00", "updated": "2026-09-14 09:40:00"},
-    {"id": 2, "title": "Cheltuieli septembrie",
-     "body": "| Ce | Cat |\n| --- | ---: |\n| chirie | 1500 |\n"
-             "| curent | 180 |\n| internet | 60 |",
+# enough to show what the app is for -- a headline, a preview, the
+# badges, a checklist, a table, a pinned note and one with no title.
+NOTES = [
+    {"id": 1, "uid": "shot-bread", "title": "Home-made bread",
+     "body": "500 g flour\n300 ml warm water\n10 g salt\n\nKnead for 10 "
+             "minutes, let it rise for 2 hours, bake for 45 minutes at 220 °C.",
+     "category": "Personal", "date": "2026-10-18", "color": "#f9c74f",
+     "checklist": [{"text": "flour", "done": True},
+                   {"text": "yeast", "done": True},
+                   {"text": "seeds", "done": False}],
+     "formatting": [{"start": 0, "end": 11, "style": "bold"}],   # "500 g flour"
+     "created": "2026-10-14 09:12:00", "updated": "2026-10-14 09:40:00"},
+    {"id": 2, "uid": "shot-expenses", "title": "September expenses",
+     "body": "| What | How much |\n| --- | ---: |\n| rent | 1500 |\n"
+             "| electricity | 180 |\n| internet | 60 |",
      "category": "General",
-     "created": "2026-09-13 18:00:00", "updated": "2026-09-13 18:20:00"},
-    {"id": 3, "title": "",
-     "body": "Ideea pentru cadoul de ziua Anei: o plimbare cu barca si "
-             "prajitura de la locul din centru.",
-     "category": "General",
-     "created": "2026-09-12 21:05:00", "updated": "2026-09-12 21:05:00"},
-    {"id": 4, "title": "De citit",
-     "body": "cartea imprumutata de la Radu\narticolul despre somn",
-     "category": "General",
-     "checklist": [{"text": "capitolul 1", "done": True},
-                   {"text": "capitolul 2", "done": False}],
-     "created": "2026-09-10 08:00:00", "updated": "2026-09-11 07:30:00"},
+     "created": "2026-10-13 18:00:00", "updated": "2026-10-13 18:20:00"},
+    {"id": 3, "uid": "shot-idea", "title": "",
+     "body": "An idea for Ana's birthday: a boat trip, then cake from the "
+             "little place in the centre.",
+     "category": "Ideas",
+     "created": "2026-10-12 21:05:00", "updated": "2026-10-12 21:05:00"},
+    {"id": 4, "uid": "shot-reading", "title": "To read",
+     "body": "the book borrowed from Radu\nthe article about sleep",
+     "category": "Work", "pinned": True,
+     "checklist": [{"text": "chapter 1", "done": True},
+                   {"text": "chapter 2", "done": False}],
+     "created": "2026-10-10 08:00:00", "updated": "2026-10-11 07:30:00"},
 ]
 
-# name, caption, the taps that get there, and what the screen must say
-# once it has arrived.
+SETTINGS = {
+    "username": "Maria",
+    "categories": {"General": "#7c5cff", "Work": "#4cc9f0",
+                   "Personal": "#f9c74f", "Ideas": "#f77f00",
+                   "Urgent": "#ff5c7c"},
+    "welcome_offered": True,
+    # Light for the main set, whatever the emulator's own mode is today.
+    "phone_theme_follows_phone": False,
+    "theme": "light",
+}
+
+# The last shot: the same list in a dark theme.
+DARK = dict(SETTINGS, theme="dark")
+
+# name, what it shows, the steps that get there, what the screen must
+# say, and what it must NOT say once it has arrived.
 SHOTS = [
-    ("01-note-list", "The note list: cards with their headline, preview and badges",
+    ("01-note-list", "The note list: greeting, cards, badges, a pinned note",
      [],
-     ["Paine de casa", "Cheltuieli septembrie", "De citit", "4 notite"]),
-    ("02-a-note", "A note open, with its styling drawn",
-     [("tap_text", "Paine de casa")],
-     ["Paine de casa", "faina", "Editeaza"]),
+     ["Hi Maria,", "Home-made bread", "September expenses", "To read"], []),
+    ("02-a-note", "A note open in the editor, its styling and checklist drawn",
+     [("tap", "Home-made bread")],
+     ["Home-made bread", "500 g flour", "yeast"], []),
     ("03-a-table", "A table drawn as a grid rather than as pipe rows",
-     [("back",), ("tap_text", "Cheltuieli")],
-     ["Cheltuieli septembrie", "chirie", "1500"]),
-    ("04-search", "Search, by the desktop's own rule",
-     [("back",), ("tap_edit",), ("type", "prajitura")],
-     ["prajitura", "1 din 4 notite", "Ideea pentru cadoul"]),
+     [("back_to", "Search notes"), ("tap", "September expenses")],
+     ["September expenses", "electricity", "1500"], []),
+    ("04-search", "Search narrowing four notes to one, on a word in its body",
+     [("back_to", "Search notes"), ("tap", "Search notes"), ("type", "boat")],
+     ["boat trip"], ["Home-made bread", "September expenses"]),
+    ("05-appearance", "Settings, Appearance: following the phone, eight themes",
+     [("clear_search",), ("tap_exact", "Settings"), ("tap", "Appearance")],
+     ["Follow the phone", "Soft Lavender", "Midnight Purple"], []),
+    ("06-dark", "The same list in Midnight Purple",
+     [("settings", DARK)],
+     ["Hi Maria,", "Home-made bread", "To read"], []),
 ]
 
 
-def adb(*args, **kwargs):
+def adb(*args, binary=False):
     env = dict(os.environ)
     env["MSYS_NO_PATHCONV"] = "1"   # or a bash shell rewrites /sdcard/...
-    kwargs.setdefault("env", env)
-    return subprocess.run([ADB] + list(args), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", **kwargs)
+    out = subprocess.run([ADB] + list(args), capture_output=True, env=env)
+    return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
+
+
+def put(name, value):
+    """A file written straight into the app's own notebook folder."""
+    fd, local = tempfile.mkstemp(suffix=".json")
+    with io.open(fd, "w", encoding="utf-8") as f:
+        json.dump(value, f, ensure_ascii=False, indent=2)
+    staging = "/data/local/tmp/shot_" + name
+    adb("push", local, staging)
+    os.remove(local)
+    adb("shell", "chmod", "644", staging)
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", NOTEBOOK)
+    adb("shell", "run-as", PACKAGE, "cp", staging, "%s/%s" % (NOTEBOOK, name))
+    adb("shell", "rm", "-f", staging)
+
+
+def read(name):
+    data = adb("exec-out", "run-as", PACKAGE, "cat",
+               "%s/%s" % (NOTEBOOK, name), binary=True)
+    try:
+        return json.loads(data.decode("utf-8"))
+    except ValueError:
+        return None
+
+
+def restart():
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "am", "start", "-n", "%s/.MainActivity" % PACKAGE)
+    time.sleep(4)
 
 
 def seed():
     """A notebook written for the camera, in place of anybody's real one."""
-    local = os.path.join(HERE, "_docs_notebook.json")
-    io.open(local, "w", encoding="utf-8").write(
-        json.dumps(NOTEBOOK, ensure_ascii=False, indent=2))
-    adb("push", local, FILES + "/notes_data.json")
-    adb("shell", "rm", "-f", FILES + "/trash.json")
-    os.remove(local)
-    adb("shell", "am", "force-stop", PACKAGE)
-    adb("shell", "am", "start", "-n", "%s/.MainActivity" % PACKAGE)
-    time.sleep(4)
+    adb("shell", "pm", "clear", PACKAGE)
+    put("notes_data.json", NOTES)
+    put("settings.json", SETTINGS)
+    restart()
+    titles = [n.get("title") for n in read("notes_data.json") or []]
+    if titles != [n["title"] for n in NOTES]:
+        print("The seeded notebook did not arrive as written: %s" % titles)
+        return False
+    return True
 
 
 def demo_status_bar(on):
@@ -120,8 +177,10 @@ def demo_status_bar(on):
                         "-e", "plugged", "false"],
                        ["command", "network", "-e", "wifi", "show",
                         "-e", "level", "4"],
-                       ["command", "network", "-e", "mobile", "show",
-                        "-e", "level", "4", "-e", "datatype", "none"],
+                       # The mobile icon is left off: in demo mode it is
+                       # drawn white whatever the page behind it, which
+                       # on a light theme reads as a smudge.
+                       ["command", "network", "-e", "mobile", "hide"],
                        ["command", "notifications", "-e", "visible", "false"]):
             adb("shell", "am", "broadcast", "-a", "com.android.systemui.demo",
                 "-e", *extras)
@@ -130,58 +189,44 @@ def demo_status_bar(on):
             "-e", "command", "exit")
 
 
-NODE = re.compile(r"<node[^>]*>")
-ATTR = re.compile(r'(\w[\w-]*)="([^"]*)"')
-
-
 def nodes():
-    """What is on the screen right now, as a list of dicts."""
+    """The screen's UI tree, fresh: (text, description, centre, class)."""
     adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    dump = os.path.join(HERE, "_ui.xml")
-    adb("pull", "/sdcard/ui.xml", dump)
-    xml = io.open(dump, encoding="utf-8", errors="replace").read()
-    os.remove(dump)
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode(
+        "utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return []
     found = []
-    for match in NODE.finditer(xml):
-        found.append(dict(ATTR.findall(match.group(0))))
+    for node in root.iter("node"):
+        bounds = [int(n) for n in re.findall(r"\d+", node.get("bounds", ""))]
+        if len(bounds) != 4:
+            continue
+        centre = ((bounds[0] + bounds[2]) // 2, (bounds[1] + bounds[3]) // 2)
+        found.append((node.get("text", ""), node.get("content-desc", ""),
+                      centre, node.get("class", "")))
     return found
 
 
-def centre(node):
-    left, top, right, bottom = (
-        int(n) for n in re.findall(r"\d+", node.get("bounds", "")))
-    return (left + right) // 2, (top + bottom) // 2
+def screen_text():
+    return "   ".join(t or d for t, d, _c, _k in nodes())
 
 
-def find(match):
-    for node in nodes():
-        if match(node):
-            return node
-    return None
+def tap(label, exact=False):
+    for text, desc, centre, _kind in nodes():
+        for value in (text, desc):
+            if value and ((value == label) if exact else (label in value)):
+                adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
+                time.sleep(1.5)
+                return True
+    print("   not found on screen: %r" % label)
+    return False
 
 
-def act(step):
-    kind = step[0]
-    if kind in ("tap_text", "tap_edit"):
-        if kind == "tap_text":
-            node = find(lambda n: step[1] in n.get("text", ""))
-            what = repr(step[1])
-        else:
-            # The search box has no text of its own to aim at: its
-            # placeholder is drawn behind the field, not in it.
-            node = find(lambda n: n.get("class", "").endswith("EditText"))
-            what = "the search field"
-        if node is None:
-            print("   not found on screen: %s" % what)
-            return False
-        spot = centre(node)
-        adb("shell", "input", "tap", str(spot[0]), str(spot[1]))
-    elif kind == "type":
-        adb("shell", "input", "text", step[1])
-    elif kind == "back":
-        adb("shell", "input", "keyevent", "KEYCODE_BACK")
-    time.sleep(2)
-    return True
+def keyboard_up():
+    return "mInputShown=true" in adb("shell", "dumpsys", "input_method")
 
 
 def hide_keyboard():
@@ -191,48 +236,86 @@ def hide_keyboard():
     a BACK with no keyboard up leaves the screen we came to photograph.
     """
     for _ in range(3):
-        shown = adb("shell", "dumpsys", "input_method").stdout
-        if "mInputShown=true" not in shown:
+        if not keyboard_up():
             return
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
         time.sleep(1)
 
 
-def on_screen(words):
-    """Every word the shot promised, actually drawn."""
-    text = "   ".join(n.get("text", "") for n in nodes())
-    return [word for word in words if word not in text]
+def act(step):
+    kind = step[0]
+    if kind == "tap":
+        return tap(step[1])
+    if kind == "tap_exact":
+        return tap(step[1], exact=True)
+    if kind == "type":
+        adb("shell", "input", "text", step[1].replace(" ", "%s"))
+        time.sleep(1.5)
+        return True
+    if kind == "back_to":
+        # Back until the screen says it; the first Back with the keyboard
+        # up only closes the keyboard.
+        for _ in range(4):
+            if step[1] in screen_text():
+                return True
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            time.sleep(1.2)
+        return step[1] in screen_text()
+    if kind == "clear_search":
+        # The search box keeps its words; select them all and delete, so
+        # the next screen is not reached through a filtered list.
+        for _text, _desc, centre, cls in nodes():
+            if cls.endswith("EditText"):
+                adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
+                adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+                for _ in range(12):
+                    adb("shell", "input", "keyevent", "KEYCODE_DEL")
+                break
+        hide_keyboard()
+        return True
+    if kind == "settings":
+        put("settings.json", step[1])
+        restart()
+        return True
+    raise ValueError(kind)
 
 
 def main():
     if not os.path.exists(ADB):
         print("adb is not at %s" % ADB)
         return 2
-    if "device" not in adb("devices").stdout:
+    if "\tdevice" not in adb("devices"):
         print("No emulator running. Start one and try again.")
         return 2
-    if not os.path.isdir(OUT):
-        os.makedirs(OUT)
+    os.makedirs(OUT, exist_ok=True)
 
-    seed()
+    if not seed():
+        return 1
     demo_status_bar(True)
     failed = []
     try:
-        for name, caption, steps, expect in SHOTS:
+        for name, caption, steps, present, absent in SHOTS:
             print("-- %s: %s" % (name, caption))
             if not all(act(step) for step in steps):
                 failed.append(name)
                 continue
             hide_keyboard()
-            missing = on_screen(expect)
-            if missing:
-                print("   the screen does not say: %s -- not photographing"
-                      % ", ".join(repr(m) for m in missing))
+            time.sleep(0.8)
+            text = screen_text()
+            missing = [w for w in present if w not in text]
+            still = [w for w in absent if w in text]
+            if missing or still:
+                print("   the screen does not say %s%s -- not photographing"
+                      % (", ".join(repr(m) for m in missing),
+                         (" and still says %s" % ", ".join(repr(s) for s in still))
+                         if still else ""))
                 failed.append(name)
                 continue
             adb("shell", "screencap", "-p", "/sdcard/shot.png")
+            data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
             target = os.path.join(OUT, name + ".png")
-            adb("pull", "/sdcard/shot.png", target)
+            with open(target, "wb") as f:
+                f.write(data)
             print("   %s" % os.path.relpath(target, ANDROID))
     finally:
         demo_status_bar(False)

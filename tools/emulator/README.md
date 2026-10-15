@@ -9,23 +9,30 @@ mechanically is proved on the real app before it is called done, and the
 judgement calls a script cannot make are named out loud instead. These
 are the hands that do the first half.
 
-## The three tools
+## The four tools
 
 Each one is kept because it survives a specific way the emulator lies to
 a script. The first two were written during the identity work and lived
 in a temporary folder until 2026-09-13, which meant the next session
 would have written them again; the third came with the documentation
-pictures on 2026-09-14.
+pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15.
 
 | Tool | What it does | Why it exists |
 |---|---|---|
+| `walk.py <folder>` | installs the debug build, starts from nothing (`pm clear`) and walks the app the way a person would — 33 checks in four parts — reading the notebook the app wrote through `run-as` after each step, and photographing the screens | a suite proves the code does what it says; this proves the built app does it on a phone, on the screen **and** in the file. What it checks: [qa/README.md](../../qa/README.md#the-emulator-walk) |
 | `tap_by_text.py "Some label"` | dumps the live UI tree, finds the node whose text contains the label, taps its centre | tapping remembered coordinates lands on whatever moved into that spot; the dump is taken FRESH every time |
-| `take_screenshots.py` | seeds a notebook written for the camera, walks four screens and photographs each one | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen before the shutter opens — a screen that does not say them is not photographed |
+| `take_screenshots.py` | writes a notebook made for the camera straight into the app's own storage, walks six screens and photographs each one | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen — and those that must be gone — before the shutter opens; a screen that does not say them is not photographed |
 | `type_code.py <file> <x> <y>` | taps the field at (x, y), types the file's contents in 100-character pieces, then dumps the UI and compares what arrived against the original | `adb shell input text` truncated a 634-character share code at 181 — silently. A code cut short is indistinguishable from a damaged one, so the typing is verified rather than assumed |
 
-All three need the SDK's `adb` on the machine
-(`%LOCALAPPDATA%\Android\Sdk\platform-tools`), and all three are
-Windows-flavoured.
+All four need the SDK's `adb` on the machine
+(`%LOCALAPPDATA%\Android\Sdk\platform-tools`), and all four are
+Windows-flavoured. They write only inside the app's own storage on the
+emulator, never anywhere a real notebook lives.
+
+**Start the emulator without a window.** `emulator -avd <name> -no-window`
+runs it headless: the scripts see and photograph its screen through
+`adb`, and nothing appears on — or rearranges — the desktop of the
+machine they run on.
 
 ## Before the first run on a fresh emulator
 

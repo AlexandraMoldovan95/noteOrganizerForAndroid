@@ -33,7 +33,102 @@ trail is not lost, not to claim releases that were never cut.
 
 ## [Unreleased]
 
+Phase 1: from a viewer for the desktop's file to a notes app of its own,
+ready for a store listing. What it covers, and what is left for Phases 2
+and 3, is in [docs/STATUS.md](docs/STATUS.md).
+
+### Added
+
+- **A notebook of its own**, in the app's private storage. A notebook an
+  earlier build left in the shared folder is copied in once — never
+  moved — and a brand-new one opens on a welcome note written for the
+  phone. A file that will not parse is kept aside as
+  `notes_data_corrupt_<stamp>.json`, as the desktop keeps one, instead of
+  stopping every write.
+- **One screen for reading and writing**, saving itself 0.8 seconds after
+  the last change, on Back and when the app leaves the screen.
+- Checklist rows dragged into a new order; comments; attached files
+  opened in the phone's own apps; note details with Android's calendar,
+  the colour swatches, the pin, and the word count with reading time.
+- **"↩ Restore previous"**: the desktop's `_prev` rescue copy, restorable
+  on the phone — the text, and everything an update replaced.
+- Long press to select: pin, move to a category, duplicate, share as one
+  code, or move several notes to the Trash, with Undo for eight seconds.
+- Categories managed in Settings: add, recolour, rename everywhere —
+  repeating days and rescue copies included — and delete with a question
+  about the notes filed under it.
+- **The Trash as a page**: restore several, delete for good, empty, and
+  the window (7 to 90 days). It empties itself at start, sparing any file
+  a note still uses.
+- **The desktop's backup `.zip`**, both ways, through Android's file
+  picker: export the whole notebook, import one with the desktop's guards
+  and its three questions. Nothing is removed by an import, and a note
+  already here is only replaced when the person chooses to update it.
+- Share codes arrive from any app through Android's share sheet.
+- **The desktop's eight themes** and **"Follow the phone"**, on by
+  default, under keys of the phone's own so the desktop's theme is never
+  changed by it. Settings also holds the name the list greets with, and
+  About: the version, the welcome note, and Send feedback.
+
+### Changed
+
+- **The interface is English**, in the desktop's own words wherever the
+  desktop already has words for the same thing. The rules layer's
+  messages too.
+- The screens are rebuilt on Material 3, coloured from the desktop's
+  palettes, with a bottom bar for Notes and Settings; the 1,850-line
+  `MainActivity.kt` became twelve drawing files beside fourteen rules
+  files ([the map](docs/ARCHITECTURE.md#the-map)).
+- An update arriving by code or backup keeps the whole `_prev`, not only
+  the text, and an update that would change nothing leaves the note
+  untouched. A category the device does not have files the note under
+  "General", as `normalize_note` does.
+- The startup categories, the highlight palette and the category
+  colours are the desktop's, and a deleted category no longer comes back.
+- A share code whose version is not a number is refused as damaged, as
+  the desktop refuses it.
+
+### Fixed
+
+- The first edit on the phone of a note with a centred or indented line
+  turned that line into a bullet and dropped every alignment and indent
+  in the note: paragraph entries were rebuilt from two fields instead of
+  copied whole.
+- Turning the phone, its dark mode coming on, or larger letters closed
+  the note being written and went back to the list.
+- The card printed a date as the file stores it (`2026-10-18`), the editor
+  as the desktop shows it (`18.10.2026`); both now show the desktop's.
+- A new note was missing the desktop's `moved` field, which the
+  note-shape gate caught after the desktop's `0.92.374`.
+
 ### Testing
+
+- 317 JVM unit tests in thirteen suites, from 221 in six; every new rule
+  mutation-tested, about seventy mutants in all.
+- `tools/check_palettes.py`: the themes and colours compared with the
+  desktop's Python, in CI beside the note-shape gate.
+- `tools/check_test_results.py` refuses results older than the code — it
+  once printed "221 passed" over a build that had not compiled.
+- `tools/check_layering.py` fails on a Kotlin file it has not been told
+  about, rather than leaving it unchecked.
+- `tools/check_english.py` reads the app too, now that it speaks English;
+  four files may carry diacritics, for the search that folds them, but no
+  Romanian words.
+- `tools/emulator/walk.py`: 33 checks in four parts on the built app,
+  reading the file after every step — and failing when a step never ran,
+  after four checks were found that passed over exactly that. A backup
+  made through the phone's picker was read by the desktop's own import
+  functions.
+- The documentation screenshots retaken in English, six of them, the
+  notebook written straight into the app's storage.
+- The test plan grows from 35 cases to 57.
+
+### Earlier, before Phase 1
+
+The entries below were collected under [Unreleased] before Phase 1
+began, and ship with it.
+
+#### Testing
 
 - Four documentation screenshots, taken on the emulator by
   `tools/emulator/take_screenshots.py`. The script seeds a notebook
@@ -53,12 +148,12 @@ trail is not lost, not to claim releases that were never cut.
   and this repository is on GitHub now. `tools/make_interop_fixture.py`
   rebuilds it from an invented note, using the desktop's own encoder.
 
-### Removed
+#### Removed
 
 - Android Studio's example test, which checked that 2 + 2 is 4 and was
-  counted in "222 unit tests". 221 now, all of them this project's.
+  counted in "222 unit tests". 221 then, all of them this project's.
 
-### Changed
+#### Changed
 
 - The launcher icon's provenance, the emulator tools and the screenshots
   are described where a reader meets them, rather than being folder

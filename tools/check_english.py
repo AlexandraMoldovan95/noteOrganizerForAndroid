@@ -89,18 +89,9 @@ TEXT = (".py", ".md", ".txt", ".yml", ".yaml", ".json", ".kt", ".kts",
 ALLOWED = {
     "tools/check_english.py":
         "this gate: the wordlist it searches for is necessarily Romanian",
-    "CHANGELOG.md":
-        "explains that search folds diacritics, which cannot be explained "
-        "without printing both spellings",
-    "docs/STATUS.md":
-        "the same diacritics explanation, and it quotes the app's own "
-        "buttons ('Adauga ca notita noua') where the wording is the point",
     "docs/ISSUES_LOG.md":
-        "quotes the search placeholder the app draws, in the story about a "
-        "tap that could not find it",
-    "tools/emulator/take_screenshots.py":
-        "its seeded notebook and the words each shot waits for are the OLD "
-        "Romanian screen; it is rewritten with the new screenshots",
+        "quotes the search placeholder the app drew when it spoke Romanian, "
+        "in the story about a tap that could not find it",
 }
 
 # Files where the LETTERS are allowed but the words are still read. Search
@@ -115,6 +106,11 @@ MARKS_ONLY = {
         "a share code must carry diacritics through untouched",
     "app/src/test/java/ro/noteorganizer/app/InteropTest.kt":
         "the desktop's own code carries diacritics, and they must arrive",
+    "CHANGELOG.md":
+        "explains that search folds diacritics, which cannot be explained "
+        "without printing both spellings",
+    "docs/STATUS.md":
+        "the same explanation, where the app's differences are listed",
 }
 
 

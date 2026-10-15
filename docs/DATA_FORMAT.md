@@ -22,6 +22,7 @@ that reads or writes what it covers.
 ## Contents
 
 - [The data contract](#the-data-contract)
+  - [Settings the two apps share](#settings-the-two-apps-share)
 - [A note](#a-note)
   - [Where `uid` comes from, and who may mint one](#where-uid-comes-from-and-who-may-mint-one)
   - [Recurrence](#recurrence)
@@ -45,6 +46,10 @@ that reads or writes what it covers.
   - [Build the code from the stored note, never from what is on screen](#build-the-code-from-the-stored-note-never-from-what-is-on-screen)
   - [The code field on a phone](#the-code-field-on-a-phone)
   - [What a shared note is allowed to change](#what-a-shared-note-is-allowed-to-change)
+- [Backups](#backups)
+  - [What a backup holds](#what-a-backup-holds)
+  - [The guards on the way in](#the-guards-on-the-way-in)
+  - [The questions, and what joins without asking](#the-questions-and-what-joins-without-asking)
 - [Writing the file](#writing-the-file)
   - [A partial reader must not become a total writer](#a-partial-reader-must-not-become-a-total-writer)
   - [A delete touches two files, so the ORDER of the writes is the safety](#a-delete-touches-two-files-so-the-order-of-the-writes-is-the-safety)
@@ -54,22 +59,51 @@ that reads or writes what it covers.
 
 Plain JSON, no database. When the desktop app runs as its packaged
 `.exe`, its files are in `%APPDATA%\NoteOrganizer\`; this app keeps its
-copy of the notebook in its own folder on the device
-([how to put one there](../README.md#building-and-running-it)).
+own notebook in its private storage, in `files/notebook/`, where no other
+app can read it. The files are the same files, byte for byte in shape;
+a notebook moves between the two as a [backup](#backups), and single
+notes as [share codes](#share-codes).
 
 | File | Holds |
 |---|---|
 | `notes_data.json` | the notes, as a JSON array |
-| `settings.json` | theme, sort, filter, last-open note, categories |
+| `settings.json` | name, theme, sort, filter, categories, the Trash's window, and more ([below](#settings-the-two-apps-share)) |
 | `trash.json` | deleted notes awaiting purge — the Trash |
 | `templates.json` | saved templates |
 | `attachments/` | files attached to notes |
+
+A file that exists and will not parse is **kept aside, not refused**: its
+bytes are copied beside it as `<name>_corrupt_<yyyyMMdd_HHmmss>.json`
+(once per distinct content), and the app opens without it and says where
+the copy is — the desktop's answer, so that a broken file costs a
+message, not a phone that cannot take a single note.
+
+### Settings the two apps share
+
+`settings.json` is read with the desktop's own keys — `username`,
+`theme`, `note_sort`, `note_filter`, `categories`, `trash_retention_days`,
+`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a backup
+carries the person's choices both ways. A key the phone does not use is
+kept, never dropped.
+
+The phone adds three keys of its own, for **"Follow the phone"**:
+`phone_theme_follows_phone` (on unless turned off), `phone_theme_light`
+and `phone_theme_dark`. They are separate on purpose: the desktop reads
+`theme` and ignores these, so following the phone's dark mode can never
+change the theme the desktop opens in. With following off, the phone
+writes `theme`, as the desktop does.
+
+The categories are an ordered map of name to colour, and the order is the
+order Settings shows. Categories found on notes but missing from the map
+are adopted with a colour, as the desktop's `load_categories` does.
 
 ## A note
 
 Every note passes through one choke point in the desktop app
 (`normalize_note`), which coerces anything malformed into these defaults.
-Field for field, as of `0.73.165`:
+Field for field, as of the desktop's `0.95.382` — and
+`tools/check_note_shape.py` fails the day this list and the Python's
+stop agreeing:
 
 ```jsonc
 {
@@ -93,11 +127,20 @@ Field for field, as of `0.73.165`:
   "recurrence": {},         // the repeat rule; "" freq = one-off. See below
   "exceptions": [],         // ["YYYY-MM-DD", ...] dates removed from a series
   "overrides": {},          // {"YYYY-MM-DD": {partial note}, ...}
+  "moved": {},              // {"YYYY-MM-DD": "YYYY-MM-DD"}: a day of a series
+                            //   held on another date (desktop 0.92.374)
   "pinned": false,          // bool — pinned notes float to the top
   "checklist": [],          // [{"text": str, "done": bool}, ...]
-  "paragraphs": []          // [{"line": int, "kind": "bullet"|"number"}, ...]
+  "paragraphs": []          // [{"line": int, "kind": "bullet"|"number",
+                            //   "indent": int, "align": str}, ...] -- an entry
+                            //   may have NO kind: a centred line is one
 }
 ```
+
+Two more keys travel beside these and are kept whole, though they are not
+defaults: `_prev`, the one-step rescue copy
+([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
+and `order`, the desktop's custom order.
 
 ### Where `uid` comes from, and who may mint one
 
@@ -370,7 +413,7 @@ with `| --- |` measures nothing at all. One was.
 
 Share codes are the transfer mechanism between the two programs, and
 interop is the test. What the user sees of them is in the
-[README](../README.md#what-it-does-today); this is what they contain and
+[README](../README.md#what-it-does); this is what they contain and
 what they may do.
 
 ### What a code carries
@@ -432,10 +475,12 @@ never carries files**: it holds text, and a note's attachments live
 beside the notebook. Replacing them from a code would empty them.
 
 The old version goes into `_prev` first — the desktop's own one-step
-rescue, which its editor restores from with "↩ Restore previous". So an
-update accepted by mistake on the phone is one button away from being
-undone on the machine that has the button. The phone still cannot restore
-from `_prev` itself.
+rescue — and both apps restore from it with **"↩ Restore previous"**. So
+an update accepted by mistake is one button away from being undone, on
+either device. `_prev` holds the text fields and, after an update, every
+other field the update replaced; restoring puts all of them back and
+spends the copy. An update that would change nothing does not touch the
+note at all, so it cannot spend a rescue copy on nothing.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the
@@ -445,6 +490,63 @@ notes into one, which is the collision the field exists to prevent.
 The update itself is written the way every write is, with one trap of its
 own: [a copy of the array is not a copy of the
 notes](#a-copy-of-the-array-is-not-a-copy-of-the-notes).
+
+## Backups
+
+A backup is the whole notebook in one `.zip`, the same file the desktop's
+Settings → Backup writes and reads, so a backup made on either device
+restores on the other. It is how a notebook moves; a share code is how a
+note does.
+
+### What a backup holds
+
+`notes_data.json`, `settings.json`, `templates.json`, `trash.json`, and
+every attached file under `attachments/`. An export is built in a scratch
+folder first and checked by the import's own rules before it is handed
+to the file picker: a backup this app wrote must be one it agrees to read
+back.
+
+### The guards on the way in
+
+A backup arrives from anywhere, so reading one is guarded as the
+desktop's `_safe_extract_zip` guards it, with the desktop's numbers —
+these are what a hostile archive could do, not a size cap:
+
+| Guard | Value |
+|---|---|
+| `MAX_BACKUP_FILES` | 100,000 entries |
+| Decompression bomb | any entry, or the backup as a whole, expanding to over 50 MB **and** to more than 100 times its packed size |
+| Disk margin | 200 MB must stay free after unpacking — the attached files counted twice, since on a phone the unpacking and the notebook share one disk |
+
+And one step stricter than the desktop: **only the names a backup is made
+of are unpacked at all** — the four data files by their exact names, and
+attached files only as `attachments/<bare name>`. `../x`, an absolute
+path and a nested folder are refused before a byte is written. The sizes
+the guards read are the archive's own claim, so an entry that unpacks to
+more than it declared is stopped at what it declared.
+
+### The questions, and what joins without asking
+
+A backup's notes go through the same planner a share code does, and the
+desktop's three questions are asked before anything is written:
+
+1. Notes this device already has, by `uid`, that arrive **changed**:
+   update them, or add them as new notes. The question says when the
+   arriving copy is *older* than the one here.
+2. Notes that arrive **exactly as they are** here: skip them, or add
+   copies.
+3. New notes that **look identical** to one here (the desktop's
+   `_dup_key`: title, text, comments, category, checklist and repeat
+   rule): skip them, or import them anyway.
+
+Then the rest joins without replacing anything: the backup's categories
+(a name already here keeps its own colour), its painted calendar days, a
+template only when none here has its name, and its Trash — an entry
+already in this Trash is skipped, so re-importing your own backup changes
+nothing. A file another note here already uses is given a copy of its
+own, so deleting one note can never take another's file with it. The
+writes go in the desktop's order: settings, templates, the Trash, and
+the notes last.
 
 ## Writing the file
 
@@ -478,10 +580,19 @@ Restoring mirrors it: the notebook first. If the trash cannot be read at
 all, the delete refuses to start rather than proceeding without a
 rescue copy.
 
-**The phone never purges.** The countdown is read and shown; running it
-out is the desktop's job, because the desktop is also what can delete a
-purged note's attachment files. A phone that emptied the Trash without
-them would leave orphans on every machine sharing the folder.
+**The Trash empties itself when the app starts**, of every note older
+than `trash_retention_days` (1 to 365, default 30; anything that is not
+a whole number is the default). A note whose `deleted_at` cannot be read
+is never removed: better kept too long than gone too soon. Until
+2026-10-15 the phone never purged, because it read a folder it shared
+with the desktop and the desktop owned the purge; with a notebook of its
+own, the reason went and so did the rule.
+
+When a note leaves the Trash for good, its attached files go with it —
+**except any file a note still uses**, living or still in the Trash, and
+any stored name that tries to point outside the attachments folder. The
+desktop's automatic purge does not spare them yet
+([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses)).
 
 A rollback must never edit the shared array in place: `JSONArray.remove`
 shifts everything left, so putting a note back at its old index

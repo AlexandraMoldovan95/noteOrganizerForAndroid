@@ -2,14 +2,17 @@
 
 ## What this is
 
-An exploration, not a product yet: a Kotlin + Jetpack Compose project used
-to find out what an Android companion to **Note Organizer** would look
-like. Nothing here is decided. The first question being answered is
-whether the desktop app's data format survives the trip to Android, and
-what it would cost to work in Compose.
+The Android companion to **Note Organizer**, in Kotlin and Jetpack
+Compose. It began as an exploration — does the desktop's data format
+survive the trip to Android? — and since **2026-10-15** it is being built
+into a real app, in three phases: what the phone does today, what comes
+next and what is deliberately not built are in
+[docs/STATUS.md](docs/STATUS.md). The interface is English, as the
+desktop's is. No sync: notes move by share code or backup, and an
+arriving copy never overwrites a note without the person choosing.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
-Python and Tkinter, fully offline, at version `0.73.165`. It lives at
+Python and Tkinter, fully offline, at version `0.95.382`. It lives at
 `D:\Projects\NoteOrganizer` and has **its own `CLAUDE.md` with its own
 rules**. Read that file before touching anything there.
 
@@ -33,28 +36,31 @@ matter for anything planned here:
 
 | layer | lines | what it is |
 |---|---|---|
-| `noteorganizer/core/` | ~5,250 in 14 modules | data and rules — **never imports tkinter** |
-| `noteorganizer/ui/` + the entry file | ~18,600 | the desktop interface |
+| `noteorganizer/core/` | ~8,400 in 18 modules | data and rules — **never imports tkinter** |
+| `noteorganizer/ui/` + the entry file | ~32,500 | the desktop interface |
 
 So there is no "port". Four fifths of that app *is* the desktop
 interface, and any Android version rewrites the interface whatever the
-technology. What is portable is ~4,500 lines of rules: recurrence, rich
-text, tables, the note model, share codes. The rest of `core/` —
-filesystem paths, the single-instance lock, the clipboard — is desktop
-too.
+technology. What is portable is the rules: recurrence, rich text,
+tables, the note model, share codes, backups, themes. The rest of
+`core/` — filesystem paths, the single-instance lock, the clipboard — is
+desktop too. Here the rules are fourteen Kotlin files with no Android in
+them ([the map](docs/ARCHITECTURE.md#the-map)).
 
 **The Python is the specification.** When a rule is re-implemented here,
 the question "what should this do?" is answered by reading the Python,
 and `D:\Projects\NoteOrganizer\test_*.py` are its acceptance tests. Do
 not invent behaviour that the desktop app already defines.
 
-**And one gate now enforces the part that matters most.** `py
+**And two gates enforce the parts that matter most.** `py
 tools/check_note_shape.py` reads that Python and fails when the two
 programs stop agreeing about what a note is — its fields, what a share
 code carries, what an arriving note may replace — and when the two places
-here that build a new note stop agreeing with each other. Run it before
-calling anything about the note format done; it is seconds. It reads the
-desktop's source and never writes to it, like everything else here.
+here that build a new note stop agreeing with each other. `py
+tools/check_palettes.py` does the same for the themes and colours. Run
+them before calling anything about the note format or the look done;
+they take seconds. They read the desktop's source and never write to it,
+like everything else here.
 
 ## The data contract, and where it is written down
 
@@ -123,16 +129,22 @@ happens on the save *after* the change. The division that came out of it:
   test plan (`qa/NoteOrganizer_Android_TestPlan.xlsx`), marked NEEDS YOUR
   EYE.
 
-### The three commands before a push
+### The commands before a push
 
 None of them needs a device, and each one exists because something got
 past the others:
 
-    gradlew.bat testDebugUnitTest      # then read the XML, see qa/README
+    gradlew.bat testDebugUnitTest      # then:
+    py tools/check_test_results.py     # the XML, refused if older than the code
     py tools/check_layering.py         # Android has not leaked into the rules
-    py tools/check_note_shape.py       # the two programs still agree
+    py tools/check_note_shape.py       # the two programs agree on a note
+    py tools/check_palettes.py         # ... and on the themes and colours
+    py tools/check_english.py          # the repository is English
 
-CI runs all three ([tests.yml](.github/workflows/tests.yml) and
+And for a change anybody will see, the walk on the emulator
+(`py tools/emulator/walk.py <folder>`), with its photographs looked at.
+
+CI runs all of the first six ([tests.yml](.github/workflows/tests.yml) and
 [gates.yml](.github/workflows/gates.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what
 a five-second command would have said on this machine wastes the round
@@ -165,8 +177,18 @@ the background colour from there produced pure black under a dark navy
 icon; and the flat `.webp` files are what old launchers use, so they are
 the icon as-is rather than the cropped adaptive foreground.
 
-Screenshots of the app, when this project has any, are captures of it
-running on the emulator. Say so; nothing here comes from anywhere else.
+Screenshots of the app are captures of it running on the emulator, made
+by `tools/emulator/take_screenshots.py` on a notebook written for the
+camera ([how](docs/screenshots/README.md)). Say so; nothing here comes
+from anywhere else.
+
+### The emulator runs without a window
+
+Start it with `-no-window`. The scripts see, tap and photograph it
+through `adb`, so a window adds nothing — and an emulator window, or a
+probe that moves windows around, can rearrange the desktop of the
+machine it runs on. Photographs are of the emulator's screen only, never
+of the computer's.
 
 ### Plain language
 
