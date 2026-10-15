@@ -54,7 +54,7 @@ by choice, the same choice the desktop app made.
 **A share code is not encryption.** It is text, compressed and encoded so
 it survives a chat window. Anyone holding the code can read the note.
 
-## Reading the documentation
+## Documentation
 
 Start wherever your question is.
 
@@ -66,13 +66,14 @@ Start wherever your question is.
 | [docs/ISSUES_LOG.md](docs/ISSUES_LOG.md) | What actually went wrong, how it was found, and what kind of failure it turned out to be. The most useful document here, and the least flattering. |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version, and how the numbers are decided. |
 | [qa/README.md](qa/README.md) | How this app is tested: four layers, and what only each one can catch. |
+| [tools/emulator/README.md](tools/emulator/README.md) | The scripts that drive the emulator — tap, type, photograph — and the ways the emulator lies to a script. |
+| [docs/screenshots/README.md](docs/screenshots/README.md) | Where the pictures come from, and how one command remakes them. |
 | [CLAUDE.md](CLAUDE.md) | How work is done in this folder: the rules, the approvals, and the environment traps that cost a day each. |
 
 The desktop app is the specification. Where a rule here answers "what
 should this do?", the answer comes from reading its Python, not from
-inventing behaviour — including in the places where the Python is
-arguably the worse choice, because a difference between the two is a
-surprise rather than a feature.
+inventing behaviour
+([why, and how it is enforced](docs/ARCHITECTURE.md#the-desktop-is-the-specification)).
 
 ## Building and running it
 
@@ -101,101 +102,50 @@ device. To try it against a real notebook, copy one in:
 That copy is yours to break — it is not the desktop's file, and nothing
 here ever reaches back to the machine that wrote it.
 
-## The icon is the desktop's icon
+### The icon is the desktop's icon
 
     py tools/make_launcher_icon.py
 
 It imports the desktop app's `tools/make_icon.py` and asks for the same
 drawing at Android's sizes — not a copy, and not a second icon that
-merely rhymes with the first. The two programs are one product, and an
-icon is the first thing anybody sees of either. It reads that file and
-never writes to it, like everything else here that touches the desktop.
+merely rhymes with the first. It reads that file and never writes to it,
+like everything else here that touches the desktop. Android Studio's
+template icon — the green robot — is gone. What ships is listed in the
+[changelog](CHANGELOG.md#050--2026-09-14); why the mark is drawn at 47%
+of the canvas is in the
+[issues log](docs/ISSUES_LOG.md#the-preview-that-flattered-the-icon).
 
-What ships: `mipmap-*/ic_launcher*.webp` at five densities for older
-devices, plus the two adaptive layers and their `mipmap-anydpi-v26` XML
-for Android 8 and later. **Android Studio's template icon — the green
-robot — is gone**, along with the two vector drawables it came with.
+## How it is checked
 
-The one number that matters is how big the mark is drawn inside the
-adaptive canvas. The system keeps only the middle 72 of 108 units and
-then masks that into a circle, so a square mark has to fit the circle
-*inscribed* in the safe square: 72/108 ÷ √2, about 47%. Drawn at the
-full 72/108 it came back from the phone with its frame cut off at every
-corner — and the preview that had approved it was composing the layers
-**without** the system's crop, so it flattered the icon by exactly the
-amount that mattered. The preview crops now too.
+| Check | Run it with | What it catches |
+|---|---|---|
+| Unit tests, on the JVM | `gradlew.bat testDebugUnitTest` | A rule ported from Python that does not match the Python |
+| The contract gate | `py tools/check_note_shape.py` | The two programs quietly disagreeing about what a note *is* |
+| The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
+| The language gate | `py tools/check_english.py` | Romanian reaching anything written for a developer; the app's own Romanian words are exempt |
+| The emulator tools | [tools/emulator/](tools/emulator/) | A rule that is right and a screen that is wrong |
+| The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
-## The gate that guards the contract
-
-    py tools/check_note_shape.py
-
-This project's whole premise is that both programs read and write the
-same file, and nothing enforced that: the agreement lives in two
-languages in two repositories, and drifts in silence — the code compiles,
-the tests pass, and the damage shows up on a real notebook that has
-travelled. It has already happened twice.
-
-So the gate reads the desktop's Python **as the specification** and
-compares four things: that a note here has the same fields the desktop
-gives one, that the two places building a new note agree with each other,
-that a share code carries what the desktop's codes carry, and that an
-arriving note replaces what the desktop lets one replace. It reads that
-source and never writes to it.
-
-Run it before calling anything about the note format done. Its own four
-kinds of drift were tried against it and all four turned it red — a gate
-that has never been seen failing is decoration.
-
-A second gate guards a different agreement:
-
-    py tools/check_layering.py
-
-`Notebook.kt`, `Sharing.kt`, `Tables.kt` and `Styling.kt` contain no
-`import android` and no `import androidx` — that is what lets their tests
-run on a laptop in seconds instead of on an emulator in minutes. The leak
-would be quiet: reach for `android.util.Base64` because it is first in
-the autocomplete and everything still compiles, still runs, and can no
-longer be tested without a device. So it is checked rather than
-remembered.
-
-Both gates run on every push, beside the unit tests —
-[gates.yml](.github/workflows/gates.yml) and
-[tests.yml](.github/workflows/tests.yml), kept apart so a change to a gate
-does not drag a five-minute build along with it. The contract
-gate fetches the desktop app in CI and is run with `--require-desktop`,
-because a check that quietly could not run reads exactly like a check
-that passed. Reading a private repository from another one needs a token:
-[qa/README.md](qa/README.md#what-runs-on-every-push) says which, and
-where it goes.
-
-## The test plan
-
-`qa/NoteOrganizer_Android_TestPlan.xlsx` — 35 cases across nine areas,
-the same shape as the desktop app's plan and kept here because the two
-projects are deliberately separate.
-
-Its "Who runs it" column is the point: **21** rows are already walked by
-unit tests, **12** are driven on the emulator by the tools in
-[tools/emulator/](tools/emulator/), and **12** need a person with a real
-phone in their hand — whether a tap lands, whether the keyboard covers
-what you are typing, whether it reads well at arm's length. Those twelve
-are the reason the file exists; a script cannot answer one of them. (The
-three numbers exceed 35 because a row can carry two: a rule proved on the
-JVM whose screen still has to be looked at.)
-
-## How it is tested
-
-The unit tests run on the JVM without a device, and they pin the rules
-that were ported from Python rather than the screens. Every one of them
-has been watched failing: the check is broken on purpose, the suite is
-run, and the failure is read before the break is reverted. A mutant that
-produces no test results at all is not a passing one — that has happened
-three times here, for three different reasons, and
-[docs/STATUS.md](docs/STATUS.md) keeps the list.
+The unit tests pin the rules that were ported from Python rather than the
+screens, and every one of them has been watched failing — broken on
+purpose, run, read, reverted. A mutant that produces no test results at
+all is not a passing one; that has happened three times here, for three
+different reasons
+([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
 
 The parts that matter most are not judged by this app at all. A note
 captured on the phone is pulled back and checked **in the desktop's own
-Python**: every pre-existing note identical field for field, the new note
-passing the desktop's `normalize_note` unchanged, every id unique. A
-suite proves the code does what it says it does; that proves the two
-programs agree about what a note is.
+Python** ([what was compared](docs/STATUS.md#how-each-part-was-verified)).
+A suite proves the code does what it says it does; that proves the two
+programs agree about what a note is. Run the contract gate before calling
+anything about the note format done
+([why it exists](qa/README.md#the-gate-between-the-two-programs)).
+
+The test plan has 35 cases — the same shape as the desktop app's plan,
+kept here because the two projects are deliberately separate. Its "Who
+runs it" column says which cases a unit test or the emulator already
+walks, and which twelve need a person with a real phone in their hand:
+whether a tap lands, whether the keyboard covers what you are typing,
+whether it reads well at arm's length. Those twelve are the reason the
+file exists; a script cannot answer one of them. The full map, and what
+runs in CI on every push: [qa/README.md](qa/README.md).

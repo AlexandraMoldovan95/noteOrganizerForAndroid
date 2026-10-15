@@ -28,13 +28,24 @@ There is no database, no network, no account and no background service.
 The app reads and writes the same JSON files the desktop app reads and
 writes, in the app's own folder on the device.
 
+The app draws no popups and no dialogs either — one place where its
+words deliberately differ from the desktop's. What the desktop draws as a
+popup (a list anchored to a button) or a dialog (a question that holds
+the window until it is answered) is a **panel** here, drawn inside the
+screen rather than over it: the sort and category choices, the colour
+choice, the share code, and the import with its "already here" question.
+On a phone, a menu floating over the list hides the very thing the
+choice is about. The Trash, which the desktop keeps in Settings →
+Recently deleted, is a screen of its own here, opened from a 🗑 chip
+above the list that appears only while the Trash holds something.
+
 ## The map
 
 About 4,800 lines of Kotlin, in seven files that matter.
 
 | File | Lines | What lives there |
 |---|---|---|
-| `MainActivity.kt` | 1,850 | Every screen, as 18 composables: the list, a note, the editor, the trash, the share and import panels, the format bar, the cell editor. Holds the app's state |
+| `MainActivity.kt` | 1,850 | Every screen, as 18 composables: the list, a note, the editor, the Trash, the share and import panels, the format bar, the cell editor. Holds the app's state |
 | `Notebook.kt` | 1,665 | The `Note` model and everything about reading and writing the notebook: load, create, update, trash, restore, checklists, categories, sorting, search |
 | `Tables.kt` | 494 | The table grammar — parsing pipe rows into a grid, laying one back out, and editing it (`TableEdit`) |
 | `Styling.kt` | 241 | Format spans over a selection: what styles cover it, toggling, setting and clearing them |
@@ -64,9 +75,10 @@ note in the file, on the first save, invisibly. Writes work on `raw`:
 they append to the array that was read, or replace one entry inside it,
 and leave every other byte alone.
 
-The rule this comes from is the desktop's, and it is written out in
-[DATA_FORMAT.md](DATA_FORMAT.md): *a partial reader must not become a
-total writer.*
+The rule this comes from is the desktop's, and it is written out, with
+the guards every write carries, in
+[DATA_FORMAT.md](DATA_FORMAT.md#a-partial-reader-must-not-become-a-total-writer):
+*a partial reader must not become a total writer.*
 
 ## Decision: write to a copy, then to disk, then to the screen
 
@@ -109,17 +121,27 @@ things:
 exist to turn rules into pixels, so they import Compose and are checked
 on the emulator instead.
 
+The rule is checked rather than remembered:
+
+    py tools/check_layering.py
+
+The leak it guards against would be quiet: reach for
+`android.util.Base64` because it is first in the autocomplete and
+everything still compiles, still runs, and can no longer be tested
+without a device.
+
 ## Decision: no ViewModel, no repository, no injection
 
 `App()` holds the whole of the app's state in a handful of
 `remember { mutableStateOf(...) }` values — which note is open, whether
-the editor is up, whether the trash is showing — and passes callbacks
+the editor is up, whether the Trash is showing — and passes callbacks
 down. There is no ViewModel, no DI container, no repository interface and
 no abstraction over the file.
 
 At 4,800 lines and one screen at a time, those layers would be ceremony:
 every one of them exists to decouple things that are not currently
-coupled. The cost is named rather than hidden — see below — and the day
+coupled. The cost is named rather than hidden — see
+[Where this will hurt next](#where-this-will-hurt-next) — and the day
 the app survives process death, or writes from more than one place at
 once, is the day this stops being the right answer.
 
@@ -144,7 +166,8 @@ Where a rule here answers *"what should this do?"*, the answer comes from
 reading the desktop app's Python — including where the Python is arguably
 the worse choice, because a difference between the two programs is a
 surprise rather than a feature. The one deliberate exception, and the
-reason for it, is in [STATUS.md](STATUS.md).
+reason for it, is in
+[STATUS.md](STATUS.md#the-one-deliberate-difference-from-the-desktop).
 
 That agreement is not left to memory. `tools/check_note_shape.py` reads
 the desktop's source **as the specification** and compares four things:
@@ -153,6 +176,16 @@ places building a new note agree, that a share code carries what the
 desktop's codes carry, and that an arriving note replaces what the
 desktop lets one replace. It reads that source and never writes to it —
 the dependency runs one way, always.
+
+It runs in CI beside the layering gate, in
+[gates.yml](../.github/workflows/gates.yml), kept apart from the unit
+tests in [tests.yml](../.github/workflows/tests.yml) so a change to a gate
+does not drag a five-minute build along with it. There it fetches the
+desktop app and is run with `--require-desktop`, because a check that
+quietly could not run reads exactly like a check that passed. Reading a
+private repository from another one needs a token:
+[qa/README.md](../qa/README.md#what-runs-on-every-push) says which, and
+where it goes.
 
 ## Where this will hurt next
 

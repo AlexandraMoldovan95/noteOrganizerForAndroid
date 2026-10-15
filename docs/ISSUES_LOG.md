@@ -5,18 +5,21 @@ out to be a *kind* of. Each entry is here because the mechanism can
 recur — a bug that could only ever happen once is a changelog line, not a
 story.
 
-Newest first.
+Newest first. The *Kind* column says where the failure lived: in **the
+checking** (a tool or a test whose verdict could not be trusted), in
+**the code**, or in **the design**. Four of the eight are about the
+checking.
 
-| Date | What happened | The lesson |
-|---|---|---|
-| [2026-09-14](#a-photograph-of-the-wrong-screen-filed-as-proof) | A screenshot tool saved the wrong screen and labelled it "search" | A tool that captures whatever is there produces documentation that *looks* like proof |
-| [2026-09-14](#the-preview-that-flattered-the-icon) | The launcher icon came back from the phone with its corners cut off | A preview that skips the system's step approves what the system will reject |
-| [2026-09-13](#a-dead-route-carrying-a-second-copy-of-the-rules) | `importShareCode` survived as an unreachable route holding its own copy of the new-note defaults | Dead code that duplicates a *rule* rots silently while its tests keep passing |
-| [2026-09-13](#an-update-that-reached-the-screen-before-it-reached-the-file) | Copying a JSON array copies references, so an edit changed the live note before the write could fail | Copy the container, and you have copied nothing |
-| [2026-09-13](#a-mutant-runner-that-left-the-code-broken) | A runner crashed mid-round and exited with a mutated `Notebook.kt` still on disk | Restore in a `finally`; a tool that can break the code is worse than what it hunts |
-| [2026-09-12](#a-silent-mutant-is-not-a-passing-one) | Three mutants "survived" without the tests ever running | A verdict counts only if the suite reached its checks |
-| [2026-09-12](#a-new-note-saved-without-its-formatting) | The toolbar worked, the screen drew bold, the file held none of it | Read the file, not the screen |
-| [2026-09-12](#a-list-of-titles-would-have-been-a-list-of-blanks) | 48 of 77 real notes have no title at all | Design against the real notebook, not against the example one |
+| Date | Kind | What happened | The lesson |
+|---|---|---|---|
+| [2026-09-14](#a-photograph-of-the-wrong-screen-filed-as-proof) | checking | A screenshot tool saved the wrong screen and labelled it "search" | A tool that captures whatever is there produces documentation that *looks* like proof |
+| [2026-09-14](#the-preview-that-flattered-the-icon) | checking | The launcher icon came back from the phone with its corners cut off | A preview that skips the system's step approves what the system will reject |
+| [2026-09-13](#a-dead-route-carrying-a-second-copy-of-the-rules) | code | `importShareCode` survived as an unreachable route holding its own copy of the new-note defaults | Dead code that duplicates a *rule* rots silently while its tests keep passing |
+| [2026-09-13](#an-update-that-reached-the-screen-before-it-reached-the-file) | code | Copying a JSON array copies references, so an edit changed the live note before the write could fail | Copy the container, and you have copied nothing |
+| [2026-09-13](#a-mutant-runner-that-left-the-code-broken) | checking | A runner crashed mid-round and exited with a mutated `Notebook.kt` still on disk | Restore in a `finally`; a tool that can break the code is worse than what it hunts |
+| [2026-09-12](#a-silent-mutant-is-not-a-passing-one) | checking | Three mutants "survived" without the tests ever running | A verdict counts only if the suite reached its checks |
+| [2026-09-12](#a-new-note-saved-without-its-formatting) | code | The toolbar worked, the screen drew bold, the file held none of it | Read the file, not the screen |
+| [2026-09-12](#a-list-of-titles-would-have-been-a-list-of-blanks) | design | 48 of 77 real notes have no title at all | Design against the real notebook, not against the example one |
 
 Two findings still open are at the [end](#still-open).
 
@@ -123,7 +126,8 @@ see a copy being made of something that was already copied.
 
 **The class:** "I made a copy" is not the same as "nothing shared". Every
 place in `Notebook.kt` that builds a candidate was walked for the same
-mistake.
+mistake, and the rule now stands with the format's
+[rules for writing the file](DATA_FORMAT.md#a-copy-of-the-array-is-not-a-copy-of-the-notes).
 
 ## A mutant runner that left the code broken
 
@@ -205,7 +209,11 @@ example notebook always has titles; that is what makes it an example.
 
 ## Still open
 
-**A mismatch in the DESKTOP app, to be fixed there.**
+Findings, not failures: each one waits on a change in the desktop
+repository rather than here.
+
+### A mismatch in the DESKTOP app, to be fixed there
+
 `trash_retention_days`' docstring says a hand-edited `0` or `-3` "reads as
 the default". The code is `max(1, min(days, 365))`, which clamps them to
 **one day**; only a value that is not a whole number at all reaches the
@@ -213,12 +221,10 @@ default. Both behaviours are safe — neither makes the purge take
 everything — but the two statements disagree, and this project follows
 the code. Worth a one-line docstring fix in the desktop repository.
 
-**A deliberate difference worth porting back.** Search here folds
-diacritics; the desktop compares the letters as typed. It is a one-way
-widening — the folded search finds everything the strict one finds and
-more — and the reason is the language: Romanian diacritics get dropped
-constantly when typing on a phone, and a notebook written half with them
-is unsearchable under a strict rule. Every other rule here matches the
-Python deliberately, including where the Python is arguably worse,
-because a difference is a surprise rather than a feature. This one should
-stop being a difference by the desktop adopting it.
+### A deliberate difference worth porting back
+
+Search here folds diacritics; the desktop compares the letters as typed.
+What the folding does, and why it is worth having, is in
+[STATUS.md](STATUS.md#the-one-deliberate-difference-from-the-desktop) —
+the one place this app's rules knowingly differ from the Python's. This
+one should stop being a difference by the desktop adopting it.
