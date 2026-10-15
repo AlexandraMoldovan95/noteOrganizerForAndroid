@@ -55,14 +55,8 @@ object Calculator {
 
     private class CalcError : Exception()
 
-    /**
-     * Python's `str.isspace()`, written out: the JVM's whitespace leaves out
-     * the no-break space and the next-line character, which Python counts.
-     */
-    private fun isSpace(cp: Int): Boolean =
-        cp in 0x09..0x0D || cp in 0x1C..0x20 || cp == 0x85 || cp == 0xA0 || cp == 0x1680 ||
-            cp in 0x2000..0x200A || cp == 0x2028 || cp == 0x2029 || cp == 0x202F ||
-            cp == 0x205F || cp == 0x3000
+    /** Python's spaces, which the JVM's whitespace does not quite match. */
+    private fun isSpace(cp: Int): Boolean = PyText.isSpace(cp)
 
     /**
      * The text cut into numbers and one-character symbols. A digit is any

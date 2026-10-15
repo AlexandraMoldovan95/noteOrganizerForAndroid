@@ -310,6 +310,7 @@ def main():
     statistics(folder)
     calculator(folder)
     finding(folder)
+    exporting(folder)
     changes(folder)
 
     print()
@@ -915,6 +916,73 @@ def finding(folder):
     notes = read_file("notes_data.json") or []
     check("finding never changed the note", bool(notes) and notes[0].get("body") == body,
           "body: %r" % (notes[0].get("body") if notes else None))
+
+
+def desktop_export():
+    """The desktop's own export of a note, through the fixture tool's
+    fingerprinted copy -- or a reason it cannot be had here."""
+    sys.path.insert(0, os.path.join(ANDROID, "tools"))
+    try:
+        import make_export_fixture
+        return make_export_fixture.desktop_export()
+    except Exception as problem:  # noqa: BLE001 -- the walk goes on without it
+        return "the fixture tool could not be used: %s" % problem
+
+
+def exporting(folder):
+    """Export as file, both formats, through Android's own "save as" -- and
+    the file read back off the phone and compared, byte for byte, with what
+    the desktop's renderer writes for the same note. Then Open."""
+    print("\n-- export a note as a file --")
+    body = "\n".join(["Fuel and tolls", "• keep receipts", "| Item | Cost |", "| --- | ---: |",
+                      "| fuel |   120 |", "| tolls |  45.5 |", "the end"])
+    seed_inside([
+        {"id": 1, "uid": "walk-export", "title": "Trip: day 1/2", "body": body,
+         "formatting": [{"start": 0, "end": 4, "style": "bold"},
+                        {"start": 9, "end": 14, "style": "highlight", "value": "#fff3b0"}],
+         "paragraphs": [{"line": 1, "kind": "bullet"}],
+         "checklist": [{"text": "book the hotel", "done": True}],
+         "comments": "paid by card",
+         "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Trip: day 1/2")
+
+    def downloads():
+        listing = adb("shell", "ls", "/sdcard/Download")
+        return {line.strip() for line in listing.splitlines() if line.strip()}
+
+    desktop = desktop_export()
+    for fmt, label, ext in (("html", "Web page (.html)", ".html"), ("txt", "Plain text (.txt)", ".txt")):
+        earlier = downloads()
+        open_note("Trip: day 1/2")
+        tap("⋮", exact=True)
+        tap("💾 Export as file", wait=1.2)
+        tap(label, wait=3.0)
+        check("the picker offers the desktop's file name (%s)" % fmt, bool(find("Trip_ day 1_2" + ext)),
+              " | ".join(t for t, d, _ in nodes() if t)[:200])
+        if find("SAVE") is not None or find("Save") is not None:
+            tap("SAVE", exact=True, wait=3.0) if find("SAVE") else tap("Save", exact=True, wait=3.0)
+        made = sorted(f for f in downloads() - earlier if f.endswith(ext))
+        check("one %s file is where the picker put it" % fmt, len(made) == 1, str(made))
+        check("the message says where it went", not screen_says("Exported to"))
+        if fmt == "html":
+            shot(folder, "36-exported", "Exported to")
+        if len(made) == 1:
+            written = adb("exec-out", "cat", "/sdcard/Download/" + made[0], binary=True).decode("utf-8")
+            with open(os.path.join(folder, "phone_export" + ext), "w", encoding="utf-8", newline="") as f:
+                f.write(written)
+            if isinstance(desktop, str):
+                fail("the desktop's export to compare with: %s" % desktop)
+            else:
+                compose, _name = desktop
+                note = (read_file("notes_data.json") or [{}])[0]
+                title = (note.get("title") or "").strip() or "Untitled note"
+                check("the phone's %s file is the desktop's, byte for byte" % fmt,
+                      written == compose(note, fmt, title))
+        if fmt == "html":
+            tap("Open", exact=True, wait=3.0)
+            check("Open shows the page in another app", foreground() not in ("", PACKAGE), foreground())
+            start_app()
+        back_to("Search notes")
 
 
 

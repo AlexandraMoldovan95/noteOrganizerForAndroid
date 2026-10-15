@@ -259,6 +259,8 @@ fun NoteEditor(state: AppState, openId: Int) {
         EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
     }
     val calc = remember(model) { CalculatorState() }
+    val exporter = rememberExporter(state)
+    var exportAsk by remember { mutableStateOf(false) }
     val find = remember(model) { FindState() }
     val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -368,6 +370,14 @@ fun NoteEditor(state: AppState, openId: Int) {
                         onClick = {
                             menu = false
                             if (model.save(force = model.id == 0)) state.duplicate(model.id)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.note_export)) },
+                        onClick = {
+                            menu = false
+                            // The note as saved is what goes out: saved first.
+                            if (model.save(force = model.id == 0)) exportAsk = true
                         },
                     )
                     if (day != null) {
@@ -557,6 +567,15 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     if (details) DetailsSheet(state, model, note, onDismiss = { details = false })
+    if (exportAsk) {
+        ExportDialog(
+            onPick = { format ->
+                exportAsk = false
+                exporter.export(model.id, format)
+            },
+            onDismiss = { exportAsk = false },
+        )
+    }
     cell?.let { (segment, at) ->
         CellSheet(
             table = parseTable(segment.text.split("\n")),

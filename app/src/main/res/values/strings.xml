@@ -161,6 +161,16 @@
     <string name="delete_row">Delete row</string>
     <string name="delete_column">Delete column</string>
 
+    <!-- Export one note: the desktop's words -->
+    <string name="note_export">💾 Export as file</string>
+    <string name="note_export_title">Export as file</string>
+    <string name="note_export_html">Web page (.html) — full formatting; opens in a browser or Word</string>
+    <string name="note_export_txt">Plain text (.txt)</string>
+    <string name="note_exported_to">Exported to %1$s.</string>
+    <string name="note_export_no_files">Attached files aren\'t part of a note export — use Settings → Backup for those.</string>
+    <string name="note_export_failed">Export failed: the file couldn\'t be written.</string>
+    <string name="note_export_open">Open</string>
+
     <!-- Find in note -->
     <string name="find_in_note">🔍 Find in note</string>
     <string name="find_hint">Find in this note</string>

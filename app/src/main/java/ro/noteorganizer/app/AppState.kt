@@ -155,6 +155,15 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         scope.launch { snackbar.showSnackbar(message, withDismissAction = true) }
     }
 
+    /** A message with one thing to do about it: "Exported to…", Open. */
+    fun offer(message: String, action: String, onAction: () -> Unit) {
+        scope.launch {
+            val answer = snackbar.showSnackbar(message, actionLabel = action,
+                duration = SnackbarDuration.Long, withDismissAction = true)
+            if (answer == SnackbarResult.ActionPerformed) onAction()
+        }
+    }
+
     fun putSetting(key: String, value: Any?): Boolean {
         val settings = load.settings ?: return false
         return report(Settings.put(settings, key, value))
