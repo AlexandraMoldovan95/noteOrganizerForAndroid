@@ -15,6 +15,13 @@ The XML in app/build/test-results/ is the only proof. This reads it.
 Fails when there are no result files, when the total is zero, when the
 total falls below the floor below, or when anything failed or errored.
 
+And when the results are OLDER than the code. A build that fails to
+compile leaves the last run's XML exactly where it was, so this gate once
+printed "221 tests passed" under a Gradle run that had just failed --
+the silent-mutant failure again, one level up. A result file older than
+the newest source file is from some other version of the code, and is
+refused as such.
+
 The floor is not a target to grow; it is a tripwire. If a whole suite
 stops being discovered, the count quietly halves and every run stays
 green. When tests are deliberately removed, lower it in the same commit.
@@ -33,6 +40,21 @@ RESULTS = os.path.join(ANDROID, "app", "build", "test-results",
 
 FLOOR = 200
 
+SOURCES = os.path.join(ANDROID, "app", "src")
+
+
+def newest_source():
+    """The newest Kotlin file the tests could have been built from."""
+    newest, name = 0.0, None
+    for root, _dirs, files in os.walk(SOURCES):
+        for file in files:
+            if file.endswith(".kt"):
+                path = os.path.join(root, file)
+                stamp = os.path.getmtime(path)
+                if stamp > newest:
+                    newest, name = stamp, path
+    return newest, name
+
 
 def main():
     # An optional directory, so this gate can be pointed at a fabricated
@@ -44,6 +66,19 @@ def main():
         print("The tests did not run. A task that does not run is not a")
         print("task that passed.")
         return 1
+
+    if len(sys.argv) <= 1:
+        newest, name = newest_source()
+        stale = [path for path in files if os.path.getmtime(path) < newest]
+        if stale:
+            print("STALE RESULTS: %d of %d result file(s) predate %s."
+                  % (len(stale), len(files), os.path.relpath(name, ANDROID)))
+            for path in stale[:5]:
+                print("    %s" % os.path.basename(path))
+            print("They are from an earlier run, not from this code: the")
+            print("build failed, or that suite no longer exists. Clear")
+            print("app/build/test-results and run the tests again.")
+            return 1
 
     total = failures = errors = skipped = 0
     for path in files:
