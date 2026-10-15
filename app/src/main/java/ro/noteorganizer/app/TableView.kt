@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ro.noteorganizer.app.ui.theme.LocalPalette
 
 /**
  * A table, drawn as a grid.
@@ -35,14 +36,6 @@ import androidx.compose.ui.unit.sp
  * tables twenty columns across, and twenty columns crushed into a phone's
  * width is not a table, it is a smear.
  */
-
-private val GRID_LINE = Color(0xFF1E1E2F)
-private val CELL_BG = Color(0xFF34345A)
-private val HEADER_BG = Color(0xFF3C3C68)
-private val CELL_TEXT = Color(0xFFF2F2F7)
-
-/** While editing, every cell reads as a target rather than as text. */
-private val EDIT_BG = Color(0xFF44446E)
 
 /** One character of the monospaced face at the size used below. */
 private val CHAR_WIDTH = 8.2.dp
@@ -70,10 +63,12 @@ fun TableView(
         CHAR_WIDTH * minOf(it, MAX_COLUMN_CHARS).coerceAtLeast(1)
     }
 
+    // The theme's own colours: the grid lines are the hairline showing
+    // through, the header row the accent's tint.
     Column(
         modifier = modifier
             .horizontalScroll(rememberScrollState())
-            .background(GRID_LINE)
+            .background(LocalPalette.current.hairline)
     ) {
         table.rows.forEachIndexed { r, row ->
             val isHeader = r < table.headerRows
@@ -125,6 +120,7 @@ private fun CellBox(
     editing: Boolean = false,
     onTap: (() -> Unit)? = null,
 ) {
+    val palette = LocalPalette.current
     Box(
         modifier = Modifier
             .width(width + 12.dp)
@@ -133,13 +129,7 @@ private fun CellBox(
             // through it, which is one drawn rectangle instead of four
             // lines per cell.
             .padding(end = 1.dp, bottom = 1.dp)
-            .background(
-                when {
-                    editing -> EDIT_BG
-                    isHeader -> HEADER_BG
-                    else -> CELL_BG
-                }
-            )
+            .background(if (isHeader) palette.calendarHasNotes else palette.card)
             .then(
                 if (editing && onTap != null) Modifier.clickable { onTap() } else Modifier
             )
@@ -159,7 +149,7 @@ private fun CellBox(
                 false -> "☐"
                 null -> cell.lines.joinToString("\n")
             },
-            color = CELL_TEXT,
+            color = palette.text,
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,

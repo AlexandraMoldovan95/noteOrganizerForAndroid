@@ -40,12 +40,14 @@ SOURCE = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
 RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
          "Themes.kt", "Settings.kt", "Files.kt", "Normalize.kt",
          "Importing.kt", "Backup.kt", "Organizing.kt", "Welcome.kt",
-         "Editing.kt"]
+         "Editing.kt", "Startup.kt"]
 
 # The deliberate exceptions, named here so the list is a decision rather
 # than an omission: these exist to turn rules into pixels.
 DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
-         "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt"]
+         "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt",
+         "AppState.kt", "Components.kt", "ImportFlow.kt", "NoteEditor.kt",
+         "NotesScreen.kt", "SettingsScreens.kt"]
 
 
 def every_kotlin_file():

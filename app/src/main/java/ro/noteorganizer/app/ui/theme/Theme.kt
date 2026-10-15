@@ -1,58 +1,52 @@
 package ro.noteorganizer.app.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
-
+/**
+ * The app drawn in one of the desktop's themes.
+ *
+ * The palette is handed down as [LocalPalette] for this app's own drawing,
+ * and mapped onto Material 3's colour roles so the parts Android draws --
+ * bottom sheets, dialogs, the navigation bar, the snackbar, the date
+ * picker -- wear the same theme rather than Android's own purple.
+ */
 @Composable
-fun NoteOrganizerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+fun AppTheme(palette: Palette, content: @Composable () -> Unit) {
+    val base = if (palette.isDark) darkColorScheme() else lightColorScheme()
+    val scheme = base.copy(
+        primary = palette.accent,
+        onPrimary = palette.onAccent,
+        primaryContainer = palette.calendarHasNotes,
+        onPrimaryContainer = palette.text,
+        secondary = palette.accent,
+        onSecondary = palette.onAccent,
+        secondaryContainer = palette.calendarHasNotes,
+        onSecondaryContainer = palette.text,
+        tertiary = palette.accent,
+        background = palette.bg,
+        onBackground = palette.text,
+        surface = palette.bg,
+        onSurface = palette.text,
+        surfaceVariant = palette.card,
+        onSurfaceVariant = palette.subtext,
+        surfaceContainerLowest = palette.bg,
+        surfaceContainerLow = palette.card,
+        surfaceContainer = palette.sidebar,
+        surfaceContainerHigh = palette.card,
+        surfaceContainerHighest = palette.inset,
+        inverseSurface = palette.text,
+        inverseOnSurface = palette.bg,
+        inversePrimary = palette.accent,
+        error = palette.danger,
+        onError = palette.onDanger,
+        outline = palette.hairline,
+        outlineVariant = palette.hairline,
     )
+    MaterialTheme(colorScheme = scheme, typography = Typography) {
+        CompositionLocalProvider(LocalPalette provides palette) { content() }
+    }
 }

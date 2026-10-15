@@ -101,6 +101,25 @@ object Editing {
     }
 
     /**
+     * Words a person wrote: a table's pipes and dashes are not words, so
+     * the count reads the body the way search does.
+     */
+    fun wordCount(body: String): Int =
+        contentText(body).split(Regex("\\s+")).count { it.isNotEmpty() }
+
+    /**
+     * The desktop's `reading_time`: at 200 words a minute, the slow end of
+     * adult reading -- a reader who finishes early has lost nothing. Python
+     * rounds a half to the even neighbour, and so does this.
+     */
+    fun readingTime(words: Int, wpm: Int = 200): String {
+        if (words <= 0) return ""
+        if (words < wpm) return "under a minute to read"
+        val minutes = Math.rint(words.toDouble() / wpm).toInt()
+        return "about $minutes minute${if (minutes == 1) "" else "s"} to read"
+    }
+
+    /**
      * A selection inside a segment's field -- UTF-16 indices, as a text
      * field reports them -- as code points in the whole body, which is what
      * the spans are counted in.

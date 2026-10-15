@@ -159,6 +159,8 @@ object Backup {
         val settings: JSONObject?,
         /** The unpacked attached files, or null when it carried none. */
         val attachments: File?,
+        /** Where it was unpacked: removed once the import is over. */
+        val folder: File? = null,
     ) {
         fun extras(): Importing.Extras = Importing.Extras(
             categories = settings?.opt(Settings.CATEGORIES) as? JSONObject,
@@ -239,6 +241,7 @@ object Backup {
             templates = optionalArray(TEMPLATES),
             settings = settings,
             attachments = attachments,
+            folder = into,
         ))
     }
 

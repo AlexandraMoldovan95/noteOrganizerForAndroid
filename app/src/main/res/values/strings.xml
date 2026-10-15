@@ -1,3 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the app says, in one place. English, as the desktop speaks;
+  where the desktop already has words for the same thing, they are its
+  words, so a person who knows one app reads the other. The few messages
+  the rules layer writes (why a save failed, why a code was refused) live
+  in that Kotlin, which knows nothing about Android.
+-->
 <resources>
-    <string name="app_name">NoteOrganizer</string>
+    <string name="app_name">Note Organizer</string>
+
+    <!-- The bar at the bottom -->
+    <string name="nav_notes">Notes</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Everywhere -->
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="save">Save</string>
+    <string name="add">Add</string>
+    <string name="delete">Delete</string>
+    <string name="show">Show</string>
+    <string name="continue_label">Continue</string>
+    <string name="colour">Colour</string>
+    <string name="colour_none">No colour of its own</string>
+    <string name="category">Category</string>
+    <string name="date">Date</string>
+    <string name="days">days</string>
+
+    <!-- The list -->
+    <string name="greeting">Hi %1$s,</string>
+    <string name="search_hint">Search notes…</string>
+    <string name="clear_search">Clear the search</string>
+    <string name="sort_label">Sort: %1$s</string>
+    <string name="show_label">Show: %1$s</string>
+    <string name="show_all">All</string>
+    <string name="no_notes">No notes yet. Tap + to write your first.</string>
+    <string name="no_match">No note matches your search.</string>
+    <string name="import_code">Import a code</string>
+    <string name="pin">Pin</string>
+    <string name="unpin">Unpin</string>
+    <string name="duplicate">Duplicate</string>
+    <string name="share_code">Share as a code</string>
+    <string name="move_to_trash">Move to Trash</string>
+    <string name="select_all">Select all</string>
+    <string name="unselect_all">Unselect all</string>
+    <string name="choose_category">Move to category</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+
+    <!-- The editor -->
+    <string name="title_hint">Title</string>
+    <string name="body_hint">Write your note…</string>
+    <string name="auto_saved">Auto-saved</string>
+    <string name="not_saved">Not saved</string>
+    <string name="not_saved_because">Not saved: %1$s</string>
+    <string name="restore_banner">An earlier version of this note is kept.</string>
+    <string name="restore_previous">↩ Restore previous</string>
+    <string name="restore_title">Restore previous version</string>
+    <string name="restore_text_only">Bring back the earlier version of this note\'s text? The current text will be replaced.</string>
+    <string name="restore_text_with">Bring back this note as it was before it was updated? Its text comes back, and so do its %1$s. What the note holds now will be replaced.</string>
+    <string name="restore_confirm">Restore</string>
+    <string name="select_to_format">Select some text to format it</string>
+    <string name="add_checklist">+ Add a checklist</string>
+    <string name="checklist_label">Checklist · %1$d/%2$d</string>
+    <string name="checklist_new">A new item…</string>
+    <string name="add_comments">+ Add comments</string>
+    <string name="comments_label">Comments</string>
+    <string name="files_label">Attached files · %1$d</string>
+    <string name="no_app_opens">No app on this phone opens this kind of file.</string>
+    <string name="note_details">Note details</string>
+    <string name="no_date">No date</string>
+    <string name="repeats_note">This note repeats. Its date can be changed, but not cleared: clearing it would delete the repeat too.</string>
+    <string name="pin_to_top">📌 Pin to top</string>
+    <string name="cell">Cell</string>
+    <string name="cell_checkbox">☐ Checkbox</string>
+    <string name="row_below">+ Row below</string>
+    <string name="column_right">+ Column to the right</string>
+    <string name="delete_row">Delete row</string>
+    <string name="delete_column">Delete column</string>
+
+    <!-- Importing a code -->
+    <string name="import_code_explain">Paste a code someone sent you. It holds a note\'s words, never its files, and is not encrypted: anyone with the code can read it.</string>
+    <string name="import_code_hint">A code starts with %1$s</string>
+    <string name="paste">Paste</string>
+    <string name="import_action">Import</string>
+
+    <!-- The import's questions: the desktop's own words -->
+    <string name="q_same_note_title">Same note, a different version</string>
+    <string name="q_same_note_text">Updating replaces what is on this device; you can undo it with “↩ Restore previous”. Adding leaves both, so you can compare them and delete one.</string>
+    <string name="q_known_title">%1$d notes you already have</string>
+    <string name="q_known_text">%1$d of the %2$d notes in this %3$s are already here, edited elsewhere.\n\nUpdating replaces this device\'s copies; each one can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
+    <string name="q_older_one">It is OLDER than the copy on this device.</string>
+    <string name="q_older_many">%1$d of them are OLDER than the copy on this device.</string>
+    <string name="q_update_this">Update this note</string>
+    <string name="q_update_n">Update the %1$d</string>
+    <string name="q_add_new">Add as a new note</string>
+    <string name="q_add_new_n">Add them as new notes</string>
+    <string name="q_unchanged_title">Already here, unchanged</string>
+    <string name="q_unchanged_all">All %1$d notes in this %2$s are already here: the %2$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_unchanged_some">%1$d of the %2$d notes in this %3$s are already here: the %3$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_skip_n">Skip the %1$d</string>
+    <string name="q_add_copies">Add copies anyway</string>
+    <string name="q_duplicates_title">Possible duplicates</string>
+    <string name="q_duplicates_text">%1$d of the %2$d new notes in this %3$s look identical to notes you already have (same title, text, comments, category, checklist and repeat rule).</string>
+    <string name="q_skip_duplicates">Skip the %1$d duplicates</string>
+    <string name="q_import_all">Import all anyway</string>
+    <string name="q_all_imported_title">All notes already imported</string>
+    <string name="q_all_imported_text">All %1$d new notes in this %2$s look identical to notes you already have. Import them anyway as new copies?</string>
+    <string name="q_import_anyway">Import anyway</string>
+
+    <!-- Settings -->
+    <string name="settings_name">Your name</string>
+    <string name="settings_name_sub">The greeting above your notes</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_sub">Eight themes, light and dark, or follow the phone</string>
+    <string name="settings_categories">Categories</string>
+    <string name="settings_categories_sub">Add, rename, recolour or delete</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_sub">Your whole notebook in one file</string>
+    <string name="settings_trash">Trash</string>
+    <string name="settings_trash_sub">Recently deleted notes</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_sub">Version, the welcome note, and sending feedback</string>
+    <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
+    <string name="follow_phone">Follow the phone</string>
+    <string name="follow_phone_sub">Dark when the phone is dark, light when it is light, in the two themes you choose below.</string>
+    <string name="themes_dark">Dark</string>
+    <string name="themes_light">Light</string>
+    <string name="add_category">Add a category</string>
+    <string name="category_name">Name</string>
+    <string name="general_protected">“General” can\'t be renamed or deleted: it is where notes go when their category does.</string>
+    <string name="delete_category">Delete category</string>
+    <string name="delete_category_empty">Delete “%1$s”? No note is filed under it.</string>
+    <plurals name="delete_category_with">
+        <item quantity="one">“%1$s” has %2$d note. What should happen to it?</item>
+        <item quantity="other">“%1$s” has %2$d notes. What should happen to them?</item>
+    </plurals>
+    <string name="category_days_move">%1$d repeating notes have a day filed under “%2$s”; those days move to “General” either way.</string>
+    <string name="move_them_general">Move them to “General” (keep the notes)</string>
+    <string name="delete_notes_too">Delete the notes too (restorable for %1$d days)</string>
+    <string name="delete_the_category">Delete the category</string>
+    <plurals name="note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="backup_explain">One .zip file holding every note, your settings, the attached files, the templates and the Trash. It is the same file the desktop app makes and reads, so it moves a notebook between the two.</string>
+    <string name="backup_export">Export a backup</string>
+    <string name="backup_never">No backup made yet. It is the only copy of your notes outside this phone.</string>
+    <string name="backup_last">Last exported: %1$s</string>
+    <string name="backup_import">Import a backup</string>
+    <string name="backup_import_explain">Adds the backup\'s notes to yours. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
+    <string name="exporting">Exporting…</string>
+    <string name="importing">Reading the backup…</string>
+    <string name="export_done">Backup saved.</string>
+    <string name="export_failed">Couldn\'t create the backup: %1$s</string>
+    <string name="import_notes_title">Import notes</string>
+    <string name="import_notes_text">This will ADD the notes from that backup to your current list. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
+    <string name="trash_window">Kept for %1$d days, then removed automatically.</string>
+    <string name="trash_empty">The Trash is empty.</string>
+    <string name="trash_unknown">deleted (date unknown)</string>
+    <string name="trash_next_start">removed the next time the app starts</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
+    <plurals name="restore_n">
+        <item quantity="one">↩ Restore %d selected</item>
+        <item quantity="other">↩ Restore %d selected</item>
+    </plurals>
+    <string name="delete_forever">Delete for good</string>
+    <plurals name="delete_forever_text">
+        <item quantity="one">Delete this note for good? This can\'t be undone.</item>
+        <item quantity="other">Delete these %d notes for good? This can\'t be undone.</item>
+    </plurals>
+    <string name="empty_trash">Empty Trash</string>
+    <plurals name="empty_trash_text">
+        <item quantity="one">Delete the %d note in the Trash for good, and its attached files? This can\'t be undone.</item>
+        <item quantity="other">Delete all %d notes in the Trash for good, and their attached files? This can\'t be undone.</item>
+    </plurals>
+    <string name="shorter_window">Keep deleted notes for less time</string>
+    <plurals name="shorter_window_text">
+        <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes it for good the next time the app starts. This can\'t be undone.</item>
+        <item quantity="other">The Trash holds %1$d notes older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes them for good the next time the app starts. This can\'t be undone.</item>
+    </plurals>
+    <string name="keep_for_days">Keep for %1$d days</string>
+    <string name="about_version">Note Organizer for Android, version %1$s</string>
+    <string name="about_storage">Your notes are kept on this phone, in the app\'s own storage, where no other app can read them. Uninstalling the app removes them too, so Settings → Backup is the way to keep a copy, or to move them.</string>
+    <string name="welcome_note">Welcome note</string>
+    <string name="welcome_note_sub">The note this app opened with on its first start. Bring it back here if you deleted it.</string>
+    <string name="feedback">Feedback</string>
+    <string name="feedback_sub">Something not working, slow, or an idea? Tell us — it takes a minute. Your browser opens a short form; nothing from your notes is sent.</string>
+    <string name="send_feedback">Send feedback</string>
+    <string name="no_browser">There is no browser on this phone to open the form in.</string>
 </resources>

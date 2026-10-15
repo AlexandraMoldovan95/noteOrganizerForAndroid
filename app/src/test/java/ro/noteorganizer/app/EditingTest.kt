@@ -98,6 +98,17 @@ class EditingTest {
     }
 
     @Test
+    fun `words and reading time are the desktop's`() {
+        assertEquals(4, Editing.wordCount("one two\n| three | four |\n| --- | --- |"))
+        assertEquals("", Editing.readingTime(0))
+        assertEquals("under a minute to read", Editing.readingTime(199))
+        assertEquals("about 1 minute to read", Editing.readingTime(200))
+        // 500 / 200 = 2.5: Python's round gives 2, not 3.
+        assertEquals("about 2 minutes to read", Editing.readingTime(500))
+        assertEquals("about 4 minutes to read", Editing.readingTime(700))
+    }
+
+    @Test
     fun `an edit in one field keeps the styling of every other field where it was`() {
         val body = "first\n$table\nsecond word"
         val parts = Editing.segments(body)

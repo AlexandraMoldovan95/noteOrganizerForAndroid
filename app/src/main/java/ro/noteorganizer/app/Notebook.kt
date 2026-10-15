@@ -709,6 +709,20 @@ object Notebook {
     }
 
     /**
+     * The same notebook, read again from the arrays in memory rather than
+     * from the disk. After a write succeeded those arrays ARE what the files
+     * hold, so parsing them is all a refresh needs; reading half a megabyte
+     * back off the flash after every autosave would cost a weak phone for
+     * nothing.
+     */
+    fun refreshed(load: Load): Load = load.copy(
+        notes = load.raw?.let { notesOf(it) } ?: emptyList(),
+        trash = load.trashRaw?.let { notesOf(it) } ?: emptyList(),
+        categories = load.settings?.let { Settings.categories(it.raw, load.raw) } ?: load.categories,
+        retentionDays = load.settings?.let { Settings.retentionDays(it.raw) } ?: load.retentionDays,
+    )
+
+    /**
      * The first of [dirs] that holds a notebook, else the first of them --
      * where a new notebook would go.
      */
@@ -780,6 +794,7 @@ object Notebook {
         pinned: Boolean = false,
         formatting: List<FormatSpan> = emptyList(),
         paragraphs: JSONArray? = null,
+        comments: String = "",
     ): SaveResult {
         if (date.isNotBlank() && !isDate(date)) {
             return SaveResult.Failed(BAD_DATE)
@@ -809,7 +824,7 @@ object Notebook {
         note.put("title", mendSurrogates(title))
         note.put("body", mendSurrogates(body))
         note.put("formatting", spansToJson(formatting))
-        note.put("comments", "")
+        note.put("comments", mendSurrogates(comments))
         note.put("category", category.trim().ifEmpty { "General" })
         note.put("date", date.trim())
         note.put("color", sanitizeColor(color))

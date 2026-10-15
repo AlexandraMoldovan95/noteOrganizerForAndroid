@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the attachments folder can be offered to another app, one tapped
+     file at a time. The notes themselves never leave this way. -->
+<paths>
+    <files-path name="attachments" path="notebook/attachments/" />
+</paths>
