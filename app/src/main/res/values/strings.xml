@@ -161,6 +161,20 @@
     <string name="delete_row">Delete row</string>
     <string name="delete_column">Delete column</string>
 
+
+    <!-- The calculator: the desktop's panel, its words -->
+    <string name="calculator">🧮 Calculator</string>
+    <string name="calc_close">Close the calculator</string>
+    <string name="calc_more">More functions  ▾</string>
+    <string name="calc_less">More functions  ▴</string>
+    <string name="calc_insert">⬇ Insert into note</string>
+    <string name="calc_inserted">Added to the note: %1$s</string>
+    <string name="calc_history">History  ▾</string>
+    <string name="calc_history_open">History  ▲</string>
+    <string name="calc_clear">Clear</string>
+    <string name="calc_none_yet">No calculations yet.</string>
+    <string name="calc_tap_line">Tap a line to insert it into the note</string>
+
     <!-- Importing a code -->
     <string name="import_code_explain">Paste a code someone sent you. It holds a note\'s words, never its files, and is not encrypted: anyone with the code can read it.</string>
     <string name="import_code_hint">A code starts with %1$s</string>

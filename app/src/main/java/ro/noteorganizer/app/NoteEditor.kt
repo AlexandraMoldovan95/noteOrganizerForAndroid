@@ -8,13 +8,16 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +58,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -125,6 +129,22 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var focus by mutableStateOf<Int?>(null)
     var focused by mutableStateOf<TextFieldValue?>(null)
 
+    /**
+     * Where the cursor last was in the body, in code points -- kept when
+     * the field lets go of it, as the desktop's insert mark is, so the
+     * calculator writes where the person was writing.
+     */
+    var caret: Int? = null
+
+    /** The end of the calculator's last insertion: the next goes after it. */
+    private var calcMark: Int? = null
+
+    /** The body has changed: the places remembered in it move with the text. */
+    private fun follow(next: String) {
+        caret = Calculator.follow(body, next, caret)
+        calcMark = Calculator.follow(body, next, calcMark)
+    }
+
     fun changed() {
         edits += 1
         status = null
@@ -182,6 +202,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         pinned = note.pinned
         if (day != null) showDay(note.id, day)
         focused = null
+        // A body brought back whole: nothing remembered in the old one applies.
+        caret = null
+        calcMark = null
         saved = edits
     }
 
@@ -191,6 +214,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         if (next == body) return
         // A day's own text is plain: once typed in, it carries no styling.
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        follow(next)
         body = next
         changed()
     }
@@ -201,18 +225,37 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val next = replaceTable(body, segment.firstLine..segment.lastLine, change(TableEdit(lines)).lines())
         if (next == body) return
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        follow(next)
         body = next
+        changed()
+    }
+
+    /**
+     * A calculation into the note: the whole sum, "5+3=8", at the cursor the
+     * first time and then each on its own line after the one before -- the
+     * desktop's Insert into note.
+     */
+    fun insertCalculation(formula: String) {
+        val placed = Calculator.place(body, formula, calcMark, caret)
+        spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
+        body = placed.body
+        calcMark = placed.mark
+        caret = placed.mark
+        // The field's own copy of its text is stale now: it takes the body's.
+        focused = null
         changed()
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun NoteEditor(state: AppState, openId: Int) {
     val palette = LocalPalette.current
     val model = remember(openId, state.openDay) {
         EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
     }
+    val calc = remember(model) { CalculatorState() }
+    val focusManager = LocalFocusManager.current
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -231,6 +274,8 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     BackHandler { leave() }
+    // Back closes the calculator first, the note after.
+    BackHandler(enabled = calc.open) { closeCalculator(calc, focusManager) }
     // Saved a moment after the last change, as the desktop's autosave is,
     // and when the app goes to the background -- where most notes on a
     // phone are left, by Home or by switching apps rather than by Back.
@@ -274,6 +319,16 @@ fun NoteEditor(state: AppState, openId: Int) {
             Box {
                 IconButton(onClick = { menu = true }) { Text("⋮", fontSize = 20.sp, color = palette.text) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.calculator)) },
+                        onClick = {
+                            menu = false
+                            // The note lets go of the keyboard, keeping where its
+                            // cursor was: that is where Insert writes.
+                            focusManager.clearFocus()
+                            calc.open = true
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.duplicate)) },
                         onClick = {
@@ -414,7 +469,13 @@ fun NoteEditor(state: AppState, openId: Int) {
             Spacer(Modifier.height(48.dp))
         }
 
-        if (model.focus != null) {
+        // The calculator stands aside while the keyboard is up for the note --
+        // the two together would leave no note to see -- and comes back when
+        // it goes down. Typed into, its own display keeps it in place.
+        if (calc.open && (!WindowInsets.isImeVisible || calc.displayFocused)) {
+            CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
+                            onClose = { closeCalculator(calc, focusManager) })
+        } else if (model.focus != null) {
             if (day == null) FormatBar(model)
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
                       modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
@@ -462,6 +523,13 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 }
 
+private fun closeCalculator(calc: CalculatorState, focusManager: androidx.compose.ui.focus.FocusManager) {
+    // The display's keyboard goes with it, if it was up.
+    if (calc.displayFocused) focusManager.clearFocus()
+    calc.displayFocused = false
+    calc.open = false
+}
+
 /** "a", "a and b", "a, b and c" -- how the desktop's question lists things. */
 private fun joinWithAnd(items: List<String>): String = when (items.size) {
     0 -> ""
@@ -487,6 +555,7 @@ private fun ProseField(model: EditorModel, index: Int, segment: Editing.Segment,
             if (next.text != segment.text) model.typeInto(segment, next.text)
             model.focus = index
             model.focused = next
+            model.caret = caretIn(segment, next)
         },
         visualTransformation = { text ->
             TransformedText(renderBody(Note(body = text.text, formatting = local), palette.bg).text, OffsetMapping.Identity)
@@ -501,6 +570,7 @@ private fun ProseField(model: EditorModel, index: Int, segment: Editing.Segment,
                 if (focus.isFocused) {
                     model.focus = index
                     if (model.focused?.text != segment.text) model.focused = value
+                    model.caret = caretIn(segment, value)
                 } else if (model.focus == index) {
                     model.focus = null
                 }
@@ -512,6 +582,15 @@ private fun ProseField(model: EditorModel, index: Int, segment: Editing.Segment,
             field()
         },
     )
+}
+
+/**
+ * The cursor of a field as a place in the whole body, in code points: the
+ * field's start plus what comes before the cursor in its own text.
+ */
+private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
+    val end = value.selection.end.coerceIn(0, value.text.length)
+    return segment.cpStart + value.text.codePointCount(0, end)
 }
 
 /**

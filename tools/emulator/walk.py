@@ -102,6 +102,24 @@ def tap_last(label, wait=1.0):
     return True
 
 
+def open_note(title, limit=10.0):
+    """Tap a note open and wait for the EDITOR, not for a fixed time. The
+    first start after an install is slower, and a step that followed a
+    fixed pause once found itself still on the list -- where "⋮" is the
+    list's own menu, so the note's was never opened. "ⓘ" is drawn by the
+    editor alone."""
+    if not tap(title, wait=0.3):
+        return False
+    deadline = time.time() + limit
+    while time.time() < deadline:
+        if find("ⓘ", exact=True):
+            time.sleep(0.5)
+            return True
+        time.sleep(0.4)
+    fail("open %r: the editor did not appear" % title)
+    return False
+
+
 def long_press(label):
     at = find(label)
     if at is None:
@@ -202,7 +220,7 @@ def main():
     check("the welcome note is remembered", settings.get("welcome_offered") is True and bool(settings.get("welcome_note_uid")))
     shot(folder, "01-new-notebook", "Welcome to Note Organizer", "Search notes")
 
-    tap("Welcome to Note Organizer")
+    open_note("Welcome to Note Organizer")
     shot(folder, "02-welcome-note", "Welcome to Note Organizer", "Write")
     back_to("Search notes")
 
@@ -286,6 +304,8 @@ def main():
     outward(folder)
     calendar(folder)
     listing(folder)
+    statistics(folder)
+    calculator(folder)
     changes(folder)
 
     print()
@@ -367,7 +387,7 @@ def seeded(folder):
     shot(folder, "10-copied-in", "Bread", "October budget", "Meeting notes", "brought into")
 
     # A table, edited from one cell.
-    tap("October budget", wait=1.5)
+    open_note("October budget")
     shot(folder, "11-table", "October budget", "rent", "1500")
     tap("1500")
     if find("Cell") is not None:
@@ -408,7 +428,7 @@ def seeded(folder):
     check("a category chosen in the details is saved", bread.get("category") == "Work", bread.get("category"))
 
     # Restore previous.
-    tap("Meeting notes", wait=1.5)
+    open_note("Meeting notes")
     shot(folder, "14-restore-banner", "An earlier version", "Restore previous")
     tap("Restore previous")
     tap("Restore", exact=True, wait=1.5)
@@ -634,7 +654,7 @@ def calendar(folder):
 
     # One day of the series, on its own.
     tap(said(second), wait=1.0)
-    tap("Stand-up", wait=1.5)
+    open_note("Stand-up")
     check("a day of a series opens in day mode", not screen_says("Only this day"))
     shot(folder, "25-day-mode", "Only this day", "Whole series")
     tap("Stand-up", exact=True, wait=0.8)
@@ -683,7 +703,7 @@ def calendar(folder):
 
     # A repeat set from the sheet, on the dated note.
     tap(said(other), wait=1.0)
-    tap("Dentist", wait=1.5)
+    open_note("Dentist")
     tap("ⓘ", wait=1.2)
     tap("Does not repeat", wait=1.5)
     tap("Monthly", exact=True, wait=0.8)
@@ -738,7 +758,7 @@ def changes(folder):
     adb("shell", "pm", "clear", PACKAGE)
     adb("shell", "cmd", "uimode", "night", "no")
     start_app()
-    tap("Welcome to Note Organizer", wait=1.5)
+    open_note("Welcome to Note Organizer")
 
     def still_in_note():
         return not screen_says("Welcome to Note Organizer") and bool(screen_says("Search notes"))
@@ -766,6 +786,84 @@ def changes(folder):
     shot(folder, "23-landscape", "Search notes")
     adb("shell", "settings", "put", "system", "user_rotation", "0")
     time.sleep(1.5)
+
+
+def statistics(folder):
+    """Settings -> Statistics over a notebook whose figures are known."""
+    print("\n-- Statistics --")
+    seed_inside([
+        {"id": 1, "uid": "walk-s1", "title": "One", "category": "Work",
+         "created": "2026-10-13 09:00", "updated": "2026-10-15 08:00",
+         "checklist": [{"text": "x", "done": False}]},
+        {"id": 2, "uid": "walk-s2", "title": "Two", "category": "General",
+         "created": "2026-10-02 09:00", "updated": "2026-10-02 09:00"},
+        {"id": 3, "uid": "walk-s3", "title": "Three", "category": "Personal",
+         "created": "2025-06-01 09:00", "updated": "2025-06-01 09:00"},
+    ], {"welcome_offered": True, "first_launch_date": "2026-09-01",
+        "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f"}}, "Three")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Statistics", wait=1.5)
+    check("the page counts the notebook's notes and says since when",
+          not screen_says("Total notes", "Using Note Organizer since 01.09.2026"),
+          str(screen_says("Total notes", "Using Note Organizer since 01.09.2026")))
+    shot(folder, "31-statistics", "Total notes")
+    back_to("Search notes")
+
+
+def calculator(folder):
+    """The editor's calculator: keys, an answer inserted at the end of the
+    note, the next on its own line after it, a line of the history put in
+    again -- and the panel standing aside while the keyboard is up for the
+    note. Then the FILE, which is what the inserts did."""
+    print("\n-- the calculator --")
+    seed_inside([
+        {"id": 1, "uid": "walk-sums", "title": "Trip costs", "body": "Fuel and tolls:\n",
+         "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Trip costs")
+    open_note("Trip costs")
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+
+    def press(*keys):
+        for key in keys:
+            tap(key, exact=True, wait=0.3)
+
+    insert = "⬇ Insert into note"
+    check("the menu opens the panel, Insert waiting for an answer", not screen_says(insert, "More functions"))
+    press("1", "2", "0", "+", "4", "5", ".", "5", "=")
+    check("equals shows the answer", bool(find("165.5", exact=True)))
+    tap(insert)
+    check("Insert says what it put in the note", not screen_says("Added to the note: 120+45.5=165.5"))
+    press("×", "2", "=")
+    tap(insert)
+    shot(folder, "32-calculator", insert, "Fuel and tolls:")
+
+    # The note's own field takes the keyboard: the panel steps aside, and
+    # comes back when the keyboard goes down.
+    tap("Fuel and tolls:", wait=1.5)
+    check("the panel stands aside while the keyboard is up for the note", bool(screen_says(insert)))
+    back(wait=1.5)
+    check("and is back when the keyboard is down", not screen_says(insert))
+
+    tap("More functions")
+    press("√", "9", "=")
+    press("5", "÷", "0", "=")
+    check("a division by zero says Error", bool(find("Error", exact=True)))
+    tap("History")
+    check("the history keeps the answers, newest first, and says what a tap does",
+          not screen_says("√9=3", "165.5×2=331", "120+45.5=165.5", "Tap a line to insert it into the note"))
+    shot(folder, "33-calculator-history", "√9=3", "Tap a line to insert it into the note")
+    tap("120+45.5=165.5", exact=True)
+
+    back(wait=1.2)
+    check("Back closes the panel and leaves the note open",
+          bool(screen_says(insert)) and not screen_says("Fuel and tolls:"))
+    back_to("Search notes")
+    notes = read_file("notes_data.json") or []
+    body = notes[0].get("body") if notes else None
+    want = "Fuel and tolls:\n120+45.5=165.5\n165.5×2=331\n120+45.5=165.5"
+    check("the file holds each sum on its own line, in the order inserted", body == want,
+          "body: %r" % body)
 
 
 
