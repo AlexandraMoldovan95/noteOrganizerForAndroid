@@ -169,6 +169,78 @@ class EditingTest {
         assertEquals(24, Editing.insertTable("", 0, 99, 2).body.trimEnd('\n').lines().size)
     }
 
+    // ---- Undo and Redo ----
+
+    @Test
+    fun `typing in one burst is one step, a pause or another kind of change starts the next`() {
+        val h = Editing.History<String>(pause = 1000)
+        h.record("", Editing.History.TYPING, 0)
+        h.record("a", Editing.History.TYPING, 300)
+        h.record("ab", Editing.History.TYPING, 600)
+        h.record("abc", "bold", 700)
+        h.record("abc*", Editing.History.TYPING, 800)
+        h.record("abc*d", Editing.History.TYPING, 5000)
+        assertEquals("after the pause", "abc*d", h.undo("abc*de"))
+        assertEquals("the typing after the bold", "abc*", h.undo("abc*d"))
+        assertEquals("the bold", "abc", h.undo("abc*"))
+        assertEquals("the first burst whole", "", h.undo("abc"))
+        assertEquals(null, h.undo(""))
+        assertFalse(h.canUndo)
+    }
+
+    @Test
+    fun `Redo brings back what Undo took, until something new is done`() {
+        val h = Editing.History<String>()
+        h.record("one", "bold", 0)
+        h.record("two", "bold", 10)
+        assertEquals("two", h.undo("three"))
+        assertEquals("one", h.undo("two"))
+        assertTrue(h.canRedo)
+        assertEquals("two", h.redo("one"))
+        assertEquals("three", h.redo("two"))
+        assertFalse(h.canRedo)
+        assertEquals("two", h.undo("three"))
+        h.record("two", "italic", 20)
+        assertFalse("a new change forgets the way forward", h.canRedo)
+        // An undo ends a burst: typing after it is a step of its own.
+        val t = Editing.History<String>()
+        t.record("", Editing.History.TYPING, 0)
+        assertEquals("", t.undo("a"))
+        t.record("", Editing.History.TYPING, 100)
+        t.record("x", Editing.History.TYPING, 200)
+        assertEquals("", t.undo("xy"))
+        assertFalse(t.canUndo)
+        // ...also with steps still behind it: typing after an Undo must not
+        // join the burst before, which the Undo already took back.
+        val u = Editing.History<String>()
+        u.record("", "bold", 0)
+        u.record("b", Editing.History.TYPING, 100)
+        assertEquals("b", u.undo("bc"))
+        u.record("b", Editing.History.TYPING, 150)
+        assertEquals("b", u.undo("bx"))
+        assertEquals("", u.undo("b"))
+    }
+
+    @Test
+    fun `typing in another field is a step of its own, however soon`() {
+        val h = Editing.History<String>(pause = 1000)
+        h.record("", Editing.History.TYPING + ":title", 0)
+        h.record("T", Editing.History.TYPING, 100)
+        h.record("T b", Editing.History.TYPING, 200)
+        assertEquals("T", h.undo("T bo"))
+        assertEquals("", h.undo("T"))
+    }
+
+    @Test
+    fun `at most the limit is kept, the oldest steps forgotten first`() {
+        val h = Editing.History<Int>(limit = 3)
+        for (i in 0 until 5) h.record(i, "step", i * 10L)
+        assertEquals(4, h.undo(5))
+        assertEquals(3, h.undo(4))
+        assertEquals(2, h.undo(3))
+        assertEquals(null, h.undo(2))
+    }
+
     // ---- a table's caption ----
 
     @Test

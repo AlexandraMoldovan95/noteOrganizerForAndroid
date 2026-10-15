@@ -156,6 +156,69 @@ object Editing {
     /** A body with a table put in, and the line the table starts on. */
     data class Inserted(val body: String, val firstLine: Int)
 
+    /**
+     * The editor's Undo and Redo: the states a note went through, newest
+     * last. Typing is one step per pause -- letters typed within [pause] of
+     * each other, of the same kind, join the step before -- so one Undo
+     * takes back a word or a burst of words, not a letter; a format, a list
+     * key, a table edit is a step of its own. At most [limit] steps are
+     * kept. A new change after an Undo forgets what Redo would have brought
+     * back, as every editor's does.
+     */
+    class History<T>(private val limit: Int = 200, private val pause: Long = 1000) {
+        private val past = ArrayDeque<T>()
+        private val future = ArrayDeque<T>()
+        private var lastKind: String? = null
+        private var lastAt = Long.MIN_VALUE
+
+        val canUndo: Boolean get() = past.isNotEmpty()
+        val canRedo: Boolean get() = future.isNotEmpty()
+
+        /**
+         * [before] is the state just before a change of [kind] made at [now]
+         * (milliseconds). A change of "typing" soon after another joins it:
+         * the state kept is the one before the first.
+         */
+        fun record(before: T, kind: String, now: Long) {
+            // Typing joins typing in the same field: "typing", "typing:title".
+            val joins = kind.startsWith(TYPING) && kind == lastKind && now - lastAt in 0..pause && past.isNotEmpty()
+            if (!joins) {
+                past.addLast(before)
+                while (past.size > limit) past.removeFirst()
+            }
+            future.clear()
+            lastKind = kind
+            lastAt = now
+        }
+
+        /** The state to go back to, given the one on screen now -- kept for Redo. */
+        fun undo(current: T): T? {
+            val back = past.removeLastOrNull() ?: return null
+            future.addLast(current)
+            lastKind = null
+            return back
+        }
+
+        /** The state Undo left, given the one on screen now. */
+        fun redo(current: T): T? {
+            val forward = future.removeLastOrNull() ?: return null
+            past.addLast(current)
+            lastKind = null
+            return forward
+        }
+
+        /** Everything forgotten: the note was read again from the file. */
+        fun clear() {
+            past.clear()
+            future.clear()
+            lastKind = null
+        }
+
+        companion object {
+            const val TYPING = "typing"
+        }
+    }
+
     // ---- a table's caption ----
 
     // Python's \d is any decimal digit, not only 0-9; re.match holds the start.

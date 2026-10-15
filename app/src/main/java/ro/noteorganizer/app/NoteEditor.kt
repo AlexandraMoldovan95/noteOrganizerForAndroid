@@ -1,6 +1,11 @@
 package ro.noteorganizer.app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
@@ -156,6 +161,60 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     private var saved = 0
     var status by mutableStateOf<String?>(null)
     var problem by mutableStateOf<String?>(null)
+
+    // ---- Undo and Redo ----
+
+    /**
+     * What Undo takes back: the note's words and their styling -- title,
+     * text, spans, lines, comments -- as the desktop's Ctrl+Z does. A note's
+     * details are not words: a colour or a date set stays set.
+     */
+    private data class Snap(val title: String, val body: String, val spans: List<FormatSpan>,
+                            val props: Map<Int, Paragraphs.Props>, val comments: String)
+
+    private fun snap() = Snap(title, body, spans, props, comments)
+    private val history = Editing.History<Snap>()
+
+    /** The note as the last change left it: what the next change records as "before". */
+    private var settled: Snap? = null
+
+    init {
+        settled = snap()
+    }
+
+    var canUndo by mutableStateOf(false)
+        private set
+    var canRedo by mutableStateOf(false)
+        private set
+
+    private fun steps() {
+        canUndo = history.canUndo
+        canRedo = history.canRedo
+    }
+
+    fun undo() {
+        history.undo(snap())?.let { restore(it) }
+    }
+
+    fun redo() {
+        history.redo(snap())?.let { restore(it) }
+    }
+
+    private fun restore(to: Snap) {
+        title = to.title
+        body = to.body
+        spans = to.spans
+        props = to.props
+        comments = to.comments
+        // Places remembered in the old text mean nothing in this one.
+        focused = null
+        caret = null
+        calcMark = null
+        settled = to
+        steps()
+        edits += 1
+        status = null
+    }
 
     /** Which prose field has the cursor, and its value -- selection and all. */
     var focus by mutableStateOf<Int?>(null)
@@ -335,7 +394,19 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return made.firstLine
     }
 
-    fun changed() {
+    /**
+     * Something changed; the autosave runs a moment after. When the words or
+     * their styling changed, the note as it was goes into the history --
+     * [kind] typing joining the step before when it comes soon after it.
+     */
+    fun changed(kind: String = "edit") {
+        val now = snap()
+        val before = settled
+        if (before != null && before != now) {
+            history.record(before, kind, System.currentTimeMillis())
+            steps()
+        }
+        settled = now
         edits += 1
         status = null
     }
@@ -398,9 +469,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         props = linesOf(note)
         if (day != null) showDay(note.id, day)
         focused = null
-        // A body brought back whole: nothing remembered in the old one applies.
+        // A body brought back whole: nothing remembered in the old one applies
+        // -- the steps of Undo included, which would put the old one back.
         caret = null
         calcMark = null
+        history.clear()
+        settled = snap()
+        steps()
         saved = edits
     }
 
@@ -426,7 +501,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         follow(next)
         body = next
-        changed()
+        changed(Editing.History.TYPING)
         return null
     }
 
@@ -542,10 +617,34 @@ fun NoteEditor(state: AppState, openId: Int) {
             .background(palette.bg)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .imePadding(),
+            .imePadding()
+            // A keyboard plugged into a tablet: the desktop's own keys.
+            .onPreviewKeyEvent { event ->
+                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isCtrlPressed) {
+                    return@onPreviewKeyEvent false
+                }
+                when {
+                    event.key == androidx.compose.ui.input.key.Key.Z && event.isShiftPressed -> { model.redo(); true }
+                    event.key == androidx.compose.ui.input.key.Key.Z -> { model.undo(); true }
+                    event.key == androidx.compose.ui.input.key.Key.Y -> { model.redo(); true }
+                    else -> false
+                }
+            },
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
+            // Undo and Redo, the desktop's Ctrl+Z and Ctrl+Y: the note's
+            // words and their styling, a step at a time.
+            val undoSaid = stringResource(R.string.undo)
+            val redoSaid = stringResource(R.string.redo)
+            IconButton(enabled = model.canUndo, onClick = { model.undo() },
+                       modifier = Modifier.semantics { contentDescription = undoSaid }) {
+                Text("↶", fontSize = 22.sp, color = if (model.canUndo) palette.text else palette.hairline)
+            }
+            IconButton(enabled = model.canRedo, onClick = { model.redo() },
+                       modifier = Modifier.semantics { contentDescription = redoSaid }) {
+                Text("↷", fontSize = 22.sp, color = if (model.canRedo) palette.text else palette.hairline)
+            }
             Spacer(Modifier.weight(1f))
             Text(
                 text = when {
@@ -757,7 +856,7 @@ fun NoteEditor(state: AppState, openId: Int) {
                 onValueChange = {
                     // The desktop's ceiling: far more than a title needs.
                     model.title = it.take(200)
-                    model.changed()
+                    model.changed(Editing.History.TYPING + ":title")
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
@@ -1492,7 +1591,7 @@ private fun CommentsSection(model: EditorModel) {
     SectionLabel(stringResource(R.string.comments_label))
     BasicTextField(
         value = model.comments,
-        onValueChange = { model.comments = it; model.changed() },
+        onValueChange = { model.comments = it; model.changed(Editing.History.TYPING + ":comments") },
         textStyle = TextStyle(color = palette.text, fontSize = 15.sp, lineHeight = 22.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -1882,7 +1981,8 @@ private fun CellSheet(model: EditorModel, segment: Editing.Segment, at: CellAt, 
         }
     }
     if (askDelete) {
-        // No Undo on the phone yet: asked, where the desktop's Ctrl+Z would do.
+        // Asked, though Undo would bring it back: a whole table is the most a
+        // tap in a sheet can take away, and the arrow above is easy to miss.
         Ask(
             title = stringResource(R.string.delete_table),
             text = stringResource(R.string.delete_table_text),

@@ -240,6 +240,7 @@ def main():
     new_table(folder)
     cell_menu(folder)
     table_extras(folder)
+    undoing(folder)
     wide(folder)
     changes(folder)
 
@@ -1535,6 +1536,47 @@ def table_extras(folder):
     time.sleep(1.5)
     check("a line above the table, the cursor on it", (note().get("body") or "").startswith("Above\n| Item"),
           repr((note().get("body") or "")[:40]))
+    # Undo takes back the table's changes too: the word, then the line.
+    tap("Undo", exact=True, wait=0.8)
+    tap("Undo", exact=True, wait=2.0)
+    check("Undo takes back the word typed, then the line made above the table",
+          (note().get("body") or "").startswith("| Item"), repr((note().get("body") or "")[:40]))
+    back_to("Search notes")
+
+
+def undoing(folder):
+    """Undo and Redo: two bursts of typing, a pause between, taken back one
+    burst at a time and brought back -- from the editor's buttons and from a
+    keyboard's Ctrl+Z -- each read back from the file the autosave wrote."""
+    print("\n-- undo and redo --")
+    if not seed_inside([{"id": 1, "uid": "un-1", "title": "Draft", "body": "first",
+                         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                       {"welcome_offered": True}, "Draft"):
+        return
+
+    def body():
+        time.sleep(1.5)                      # the autosave
+        return (note_by_uid("un-1") or {}).get("body")
+
+    open_note("Draft")
+    tap_last("first", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" second")
+    time.sleep(1.5)                          # a pause: the next burst is a step of its own
+    type_text(" third")
+    back()                                   # the keyboard down
+    check("typed", body() == "first second third", repr(body()))
+    tap("Undo", exact=True, wait=1.0)
+    check("Undo takes back the last burst of typing", body() == "first second", repr(body()))
+    shot(folder, "53-undo", "first second", "Redo")
+    tap("Undo", exact=True, wait=1.0)
+    check("and the one before it", body() == "first", repr(body()))
+    tap("Redo", exact=True, wait=1.0)
+    check("Redo brings it back", body() == "first second", repr(body()))
+    # Ctrl+Z from a keyboard is not walked: with no hardware keyboard the
+    # emulator's on-screen one takes the keys first and hands the text
+    # field its own small undo, so what a tablet with a keyboard would do
+    # cannot be seen here.
     back_to("Search notes")
 
 
