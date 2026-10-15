@@ -340,6 +340,126 @@ class IdentityTest {
         assertEquals("the unreadable bytes are still kept", "{ not json", kept.readText())
     }
 
+    // ---- the rescue copy, whole, and the way back ----
+
+    @Test
+    fun `an update keeps everything it replaced, not only the words`() {
+        // The desktop's apply_shared_update: "Restore previous" brings the
+        // checklist's ticks back too, and the date and the repeat rule.
+        val load = scratch("""
+            [{"id": 7, "uid": "abc", "title": "Old", "body": "old body",
+              "category": "Work", "date": "2026-01-02", "color": "#e63946",
+              "checklist": [{"text": "milk", "done": true}],
+              "recurrence": {"freq": "weekly", "interval": 1}}]
+        """.trimIndent())
+        val code = Sharing.encode(listOf(JSONObject()
+            .put("uid", "abc").put("title", "New").put("body", "new body")
+            .put("category", "General").put("date", "").put("color", "")
+            .put("checklist", JSONArray())))
+        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        val prev = onDisk(load).getJSONObject(0).getJSONObject("_prev")
+        assertEquals("Work", prev.getString("category"))
+        assertEquals("2026-01-02", prev.getString("date"))
+        assertEquals("#e63946", prev.getString("color"))
+        assertTrue(prev.getJSONArray("checklist").getJSONObject(0).getBoolean("done"))
+        assertEquals("weekly", prev.getJSONObject("recurrence").getString("freq"))
+    }
+
+    @Test
+    fun `an update that changes nothing leaves the note and its rescue copy alone`() {
+        // Otherwise the one earlier version is replaced by a duplicate of
+        // what is already there -- the desktop's shared_update_changes.
+        val load = scratch("""
+            [{"id": 7, "uid": "abc", "title": "Same", "body": "same",
+              "updated": "2020-01-01 00:00:00",
+              "_prev": {"title": "The real earlier version", "body": "kept"}}]
+        """.trimIndent())
+        val code = Sharing.encode(listOf(JSONObject()
+            .put("uid", "abc").put("title", "Same").put("body", "same")))
+        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("The real earlier version", note.getJSONObject("_prev").getString("title"))
+        assertEquals("2020-01-01 00:00:00", note.getString("updated"))
+    }
+
+    @Test
+    fun `restoring brings back everything the update replaced, and spends the copy`() {
+        val load = scratch("""
+            [{"id": 7, "uid": "abc", "title": "New", "body": "new", "category": "General",
+              "checklist": [],
+              "_prev": {"title": "Old", "body": "old", "comments": "c",
+                        "formatting": [], "paragraphs": [],
+                        "category": "Work",
+                        "checklist": [{"text": "milk", "done": true}]}}]
+        """.trimIndent())
+        val before = load.notes.single()
+        assertTrue(before.hasPrevious)
+        assertEquals(listOf("checklist", "category"), before.previousAlso)
+
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("Old", note.getString("title"))
+        assertEquals("old", note.getString("body"))
+        assertEquals("c", note.getString("comments"))
+        assertEquals("Work", note.getString("category"))
+        assertTrue(note.getJSONArray("checklist").getJSONObject(0).getBoolean("done"))
+        assertFalse("the copy is spent", note.has("_prev"))
+        assertEquals("the identity stays", "abc", note.getString("uid"))
+    }
+
+    @Test
+    fun `a shrink's rescue copy brings back the text and leaves the rest`() {
+        val load = scratch("""
+            [{"id": 7, "title": "t", "body": "", "category": "Work",
+              "checklist": [{"text": "keep me", "done": false}],
+              "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
+        """.trimIndent())
+        assertEquals(emptyList<String>(), load.notes.single().previousAlso)
+        Notebook.restorePrevious(load, 7)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("a long text that was deleted by accident", note.getString("body"))
+        assertEquals("Work", note.getString("category"))
+        assertEquals("keep me", note.getJSONArray("checklist").getJSONObject(0).getString("text"))
+    }
+
+    @Test
+    fun `a category deleted since the copy was made comes back as General`() {
+        val load = scratch("""
+            [{"id": 7, "title": "t", "body": "b",
+              "_prev": {"title": "t", "body": "b0", "category": "Gone"}}]
+        """.trimIndent())
+        Notebook.restorePrevious(load, 7)
+        assertEquals("General", onDisk(load).getJSONObject(0).getString("category"))
+    }
+
+    @Test
+    fun `restoring a note with no copy says so and writes nothing`() {
+        val load = scratch("""[{"id": 7, "title": "t"}]""")
+        val before = load.file!!.readText()
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Failed)
+        assertEquals(before, load.file!!.readText())
+    }
+
+    @Test
+    fun `a missing repeat rule is the default rule, not a change`() {
+        // A copy that omits the rule's empty fields must not read as an
+        // update, or it spends the rescue copy for nothing.
+        val mine = JSONObject("""{"title": "x", "recurrence":
+            {"freq": "", "interval": 1, "weekdays": [], "month_days": [],
+             "month_day_policy": "clamp", "end": "", "count": 0}}""")
+        val theirs = JSONObject("""{"title": "x", "recurrence": {"freq": ""}}""")
+        assertFalse(Notebook.sharedUpdateChanges(mine, theirs, Notebook.UPDATABLE_FROM_SHARED))
+        theirs.getJSONObject("recurrence").put("freq", "daily")
+        assertTrue(Notebook.sharedUpdateChanges(mine, theirs, Notebook.UPDATABLE_FROM_SHARED))
+    }
+
+    @Test
+    fun `the comments are saved with the note`() {
+        val load = scratch("""[{"id": 7, "title": "t", "body": "b", "comments": ""}]""")
+        assertTrue(Notebook.updateNote(load, 7, "t", "b", comments = "a side note") is SaveResult.Ok)
+        assertEquals("a side note", onDisk(load).getJSONObject(0).getString("comments"))
+    }
+
     @Test
     fun `a notebook that can neither be read nor kept aside is never written over`() {
         val load = scratch("[]")

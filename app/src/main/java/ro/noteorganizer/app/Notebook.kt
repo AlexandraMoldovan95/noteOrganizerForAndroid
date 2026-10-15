@@ -53,6 +53,14 @@ data class Note(
      * problem the field exists to prevent.
      */
     val uid: String = "",
+    /** Whether a rescue copy ("↩ Restore previous") is waiting. */
+    val hasPrevious: Boolean = false,
+    /**
+     * What that copy brings back besides the text, in the words the
+     * desktop's question uses ("checklist", "repeat rule"...). Empty for a
+     * drastic shrink's copy, which is the text alone.
+     */
+    val previousAlso: List<String> = emptyList(),
 ) {
     /**
      * A note repeats when its rule names a frequency -- NOT when its
@@ -856,6 +864,7 @@ object Notebook {
         // it has been keeping in step with its own text as the user typed.
         // Remapping those again would move them twice.
         formatting: List<FormatSpan>? = null,
+        comments: String? = null,
     ): SaveResult {
         val file = load.file
             ?: return SaveResult.Failed(NOWHERE)
@@ -891,7 +900,8 @@ object Notebook {
             (category != null && category != note.opt("category")) ||
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
             (date != null && date.trim() != (note.opt("date") ?: "")) ||
-            (pinned != null && pinned != (note.opt("pinned") == true))
+            (pinned != null && pinned != (note.opt("pinned") == true)) ||
+            (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: ""))
         if (oldTitle == newTitle && oldBody == newBody && !metaChanged) {
             return SaveResult.Ok(id)          // nothing to write
         }
@@ -924,6 +934,7 @@ object Notebook {
         if (color != null) note.put("color", sanitizeColor(color))
         if (date != null) note.put("date", date.trim())
         if (pinned != null) note.put("pinned", pinned)
+        if (comments != null) note.put("comments", mendSurrogates(comments))
         note.put("updated",
             SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
         // `created` is deliberately untouched: an edit is not a birth.
@@ -1347,8 +1358,7 @@ object Notebook {
                 // editing the note in place would change what the screen
                 // shows before the write has had a chance to fail.
                 val mine = JSONObject((candidate.opt(at) as JSONObject).toString())
-                applySharedUpdate(mine, shared, now)
-                candidate.put(at, mine)
+                if (applySharedUpdate(mine, shared, now)) candidate.put(at, mine)
                 updated += 1
                 val itsId = mine.opt("id")
                 if (firstId == 0 && itsId is Number) firstId = itsId.toInt()
@@ -1378,30 +1388,166 @@ object Notebook {
     }
 
     /**
-     * Overwrite a note's content from an incoming copy, keeping a way back.
-     *
-     * The rescue copy goes into `_prev`, which is the desktop's own
-     * one-step undo -- the editor there reads it for "↩ Restore
-     * previous". Writing it means an update made by mistake is one button
-     * away from being undone, on the machine that has the button.
+     * The fields an incoming copy replaces: the desktop's
+     * UPDATABLE_FROM_SHARED. Never the id, the attachments (a code carries
+     * none) or the per-day maps, a timeline the sender's copy may not share.
      */
-    private fun applySharedUpdate(note: JSONObject, incoming: JSONObject, now: String) {
-        val previous = JSONObject()
-        previous.put("title", note.opt("title") ?: "")
-        previous.put("body", note.opt("body") ?: "")
-        previous.put("formatting", note.opt("formatting") ?: JSONArray())
-        previous.put("paragraphs", note.opt("paragraphs") ?: JSONArray())
-        previous.put("comments", note.opt("comments") ?: "")
-        note.put("_prev", previous)
-        // The same fields the desktop's UPDATABLE_FROM_SHARED replaces --
-        // never the id, the attachments (a code carries none) or the
-        // per-occurrence maps, which belong to this device's copy.
-        for (field in listOf("title", "body", "formatting", "paragraphs",
-                             "comments", "category", "date", "color",
-                             "recurrence", "checklist")) {
-            if (incoming.has(field)) note.put(field, incoming.get(field))
+    val UPDATABLE_FROM_SHARED = listOf(
+        "title", "body", "formatting", "paragraphs",
+        "comments", "category", "date", "color", "recurrence", "checklist",
+    )
+
+    /**
+     * A backup is the person's OWN notebook, so its copy also owns its
+     * timeline and its pin: the desktop's UPDATABLE_FROM_BACKUP.
+     */
+    val UPDATABLE_FROM_BACKUP = UPDATABLE_FROM_SHARED + listOf(
+        "exceptions", "overrides", "moved", "pinned",
+    )
+
+    /** The text half of a rescue copy, which every `_prev` has. */
+    val PREV_TEXT_FIELDS = listOf("title", "body", "formatting", "paragraphs", "comments")
+
+    /**
+     * What else a rescue copy can hold, and the word the restore question
+     * uses for it -- the desktop's `_PREV_EXTRA_LABELS`, in its order.
+     */
+    val PREV_EXTRA_LABELS = listOf(
+        "checklist" to "checklist", "date" to "date",
+        "recurrence" to "repeat rule", "color" to "colour",
+        "category" to "category", "overrides" to "per-day edits",
+        "exceptions" to "skipped days", "moved" to "moved days",
+        "pinned" to "pin",
+    )
+
+    /**
+     * A field's value as a load would shape it: what `normalize_note`
+     * fills in for one that is missing or of the wrong type, so a copy that
+     * omits an empty checklist does not differ from a note holding one.
+     */
+    private fun shaped(note: JSONObject, field: String): Any {
+        val value = note.opt(field)
+        return when (field) {
+            "formatting", "paragraphs", "checklist", "exceptions" ->
+                value as? JSONArray ?: JSONArray()
+            // A rule with keys missing is the default rule with those keys
+            // filled, as RECURRENCE_DEFAULTS fills them on a load.
+            "recurrence" -> {
+                val rule = defaultRecurrence()
+                (value as? JSONObject)?.let { given ->
+                    for (key in given.keys()) rule.put(key, given.opt(key))
+                }
+                rule
+            }
+            "overrides", "moved" -> value as? JSONObject ?: JSONObject()
+            "pinned" -> value == true
+            "category" -> (value as? String)?.ifEmpty { null } ?: "General"
+            else -> value as? String ?: ""
         }
+    }
+
+    /**
+     * Whether updating [note] from [incoming] would change any of [fields].
+     * A no-change update would replace the rescue copy with a duplicate and
+     * lose the one earlier version: the desktop's `shared_update_changes`.
+     */
+    internal fun sharedUpdateChanges(
+        note: JSONObject, incoming: JSONObject, fields: List<String>,
+    ): Boolean = fields.any { !sameJson(shaped(note, it), shaped(incoming, it)) }
+
+    /**
+     * Overwrite a note's [fields] from an incoming copy, keeping everything
+     * they held in `_prev` -- the rescue copy "↩ Restore previous" puts
+     * back, the checklist's ticks and the repeat rule included, not only
+     * the words. An update that changes nothing leaves the note alone.
+     *
+     * @return whether the note changed.
+     */
+    private fun applySharedUpdate(
+        note: JSONObject,
+        incoming: JSONObject,
+        now: String,
+        fields: List<String> = UPDATABLE_FROM_SHARED,
+    ): Boolean {
+        if (!sharedUpdateChanges(note, incoming, fields)) return false
+        val previous = JSONObject()
+        for (field in PREV_TEXT_FIELDS) previous.put(field, shaped(note, field))
+        for (field in fields) {
+            if (!previous.has(field)) previous.put(field, deepCopy(shaped(note, field)))
+        }
+        note.put("_prev", previous)
+        for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
         note.put("updated", now)
+        return true
+    }
+
+    /** A JSON value copied all the way down, so two notes never share a list. */
+    private fun deepCopy(value: Any): Any = when (value) {
+        is JSONObject -> JSONObject(value.toString())
+        is JSONArray -> JSONArray(value.toString())
+        else -> value
+    }
+
+    /**
+     * Structural equality: the same keys with the same values, in any
+     * order. Comparing the text instead calls two identical rules
+     * different when their keys were written in another order.
+     */
+    internal fun sameJson(a: Any?, b: Any?): Boolean = when {
+        a is JSONObject && b is JSONObject ->
+            a.length() == b.length() && a.keys().asSequence().all { b.has(it) && sameJson(a.opt(it), b.opt(it)) }
+        a is JSONArray && b is JSONArray ->
+            a.length() == b.length() && (0 until a.length()).all { sameJson(a.opt(it), b.opt(it)) }
+        a is Number && b is Number -> a.toDouble() == b.toDouble()
+        else -> a == b
+    }
+
+    /**
+     * Brings back the rescue copy: the text a drastic shortening replaced,
+     * or everything an update replaced. Written straight onto the note, as
+     * the desktop writes it; the copy is spent, and a category deleted in
+     * the meantime comes back as General.
+     */
+    fun restorePrevious(load: Load, id: Int): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val index = indexById(array, id)
+        if (index < 0) return SaveResult.Failed(GONE)
+        val live = array.get(index) as JSONObject
+        val previous = live.opt("_prev") as? JSONObject
+            ?: return SaveResult.Failed("This note has no earlier version to bring back.")
+        val note = JSONObject(live.toString())
+        for (field in PREV_TEXT_FIELDS) note.put(field, shaped(previous, field))
+        for ((field, _) in PREV_EXTRA_LABELS) {
+            if (previous.has(field)) note.put(field, deepCopy(shaped(previous, field)))
+        }
+        val categories = load.categories
+        if ((note.opt("category") as? String) !in categories) note.put("category", "General")
+        (note.opt("overrides") as? JSONObject)?.let { overrides ->
+            for (day in overrides.keys()) {
+                val patch = overrides.opt(day) as? JSONObject ?: continue
+                if (patch.has("category") && (patch.opt("category") as? String) !in categories) {
+                    patch.put("category", "General")
+                }
+            }
+        }
+        note.remove("_prev")
+        note.put("updated", Files.now())
+        val candidate = copyOf(array)
+        candidate.put(index, note)
+        val problem = writeAtomic(file, candidate)
+        if (problem != null) return SaveResult.Failed(problem)
+        array.put(index, note)
+        return SaveResult.Ok(id)
+    }
+
+    private fun indexById(array: JSONArray, id: Int): Int {
+        for (i in 0 until array.length()) {
+            val o = array.opt(i) as? JSONObject ?: continue
+            val itsId = o.opt("id")
+            if (itsId is Number && itsId.toInt() == id) return i
+        }
+        return -1
     }
 
     /** The fields a code never carries, filled as a new note fills them. */
@@ -1561,6 +1707,10 @@ object Notebook {
             overrides = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
             deletedAt = o.str("deleted_at"),
             uid = o.str("uid"),
+            hasPrevious = o.opt("_prev") is JSONObject,
+            previousAlso = (o.opt("_prev") as? JSONObject)?.let { prev ->
+                PREV_EXTRA_LABELS.filter { (key, _) -> prev.has(key) }.map { it.second }
+            } ?: emptyList(),
         )
     }
 
