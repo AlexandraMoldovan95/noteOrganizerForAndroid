@@ -34,20 +34,20 @@ FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
 # Romanian diacritics are the point of the body: they are the characters
 # that break first when an encoding is wrong anywhere along the trip.
 NOTE = {
-    "title": "Calcule pentru test",
+    "title": "Sums for the test",
     "body": "2 \u00d7 3 = 6\n\u221a16 = 4\n\u03c0 \u2248 3,14\n"
-            "Diacritice: \u0219tefan, ma\u0219in\u0103, \u021bara",
+            "Diacritics: \u0219tefan, ma\u0219in\u0103, \u021bara",
     "category": "General",
-    "comments": "un comentariu, ca sa aiba si asta ce duce",
+    "comments": "a comment, so there is one of those to carry too",
     "checklist": [
-        {"text": "primul rand", "done": True},
-        {"text": "al doilea rand", "done": False},
-        {"text": "al treilea rand", "done": True},
-        {"text": "al patrulea rand", "done": False},
-        {"text": "al cincilea rand", "done": False},
-        {"text": "al saselea rand", "done": True},
-        {"text": "al saptelea rand", "done": False},
-        {"text": "al optulea rand", "done": False},
+        {"text": "first row", "done": True},
+        {"text": "second row", "done": False},
+        {"text": "third row", "done": True},
+        {"text": "fourth row", "done": False},
+        {"text": "fifth row", "done": False},
+        {"text": "sixth row", "done": True},
+        {"text": "seventh row", "done": False},
+        {"text": "eighth row", "done": False},
     ],
     "formatting": [
         {"start": 0, "end": 9, "style": "bold"},

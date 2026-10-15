@@ -65,9 +65,9 @@ jobs:
           TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::error::DESKTOP_REPO_TOKEN lipseste (sau a expirat)."
+            echo "::error::DESKTOP_REPO_TOKEN is missing (or has expired)."
             echo "Settings -> Secrets and variables -> Actions -> New repository secret."
-            echo "Valoarea: un fine-grained PAT cu Contents: Read-only pe repo-ul desktop."
+            echo "The value: a fine-grained PAT with Contents: Read-only on the desktop repository."
             exit 1
           fi
 
