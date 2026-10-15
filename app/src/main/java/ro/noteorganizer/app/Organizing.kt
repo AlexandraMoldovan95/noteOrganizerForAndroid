@@ -176,9 +176,22 @@ object Organizing {
         return filed to daysOnly
     }
 
-    private fun saveCategories(load: Notebook.Load, map: Map<String, String>): SaveResult {
+    /**
+     * The category map written -- and, when [old] was renamed to [new] or
+     * deleted (null), the two settings that hold a category's name with it:
+     * the folded groups and the list's "Show", as the desktop moves both.
+     * One write, so the list never shows a filter naming a category gone.
+     */
+    private fun saveCategories(load: Notebook.Load, map: Map<String, String>,
+                               old: String? = null, new: String? = null): SaveResult {
         val settings = load.settings ?: return SaveResult.Failed("There is nowhere to keep the settings.")
-        return Settings.put(settings, Settings.CATEGORIES, Settings.categoriesJson(map))
+        val changes = linkedMapOf<String, Any?>(Settings.CATEGORIES to Settings.categoriesJson(map))
+        if (old != null) {
+            val folded = Settings.collapsedGroups(settings.raw)
+            if (old in folded) changes[Settings.COLLAPSED_GROUPS] = JSONArray((folded - old + listOfNotNull(new)).sorted())
+            if (settings.raw.opt(Settings.NOTE_FILTER) == old) changes[Settings.NOTE_FILTER] = new ?: Showing.ALL
+        }
+        return Settings.putAll(settings, changes)
     }
 
     fun addCategory(load: Notebook.Load, name: String, colour: String): SaveResult {
@@ -216,7 +229,7 @@ object Organizing {
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories, adding = false)?.let { return SaveResult.Failed(it) }
         refile(load, old, clean)?.let { return SaveResult.Failed(it) }
-        return saveCategories(load, renamed(load.categories, old, clean))
+        return saveCategories(load, renamed(load.categories, old, clean), old, clean)
     }
 
     /** The map with one name changed in its own place, its colour kept. */
@@ -248,7 +261,7 @@ object Organizing {
         refile(load, name, Themes.PROTECTED_CATEGORY)?.let { return SaveResult.Failed(it) }
         val map = LinkedHashMap(load.categories)
         map.remove(name)
-        return saveCategories(load, map)
+        return saveCategories(load, map, old = name, new = null)
     }
 
     /** Every holder of [old], moved to [new]: notes, Trash, templates. */

@@ -116,6 +116,7 @@
     <string name="no_notes">No notes yet. Tap + to write your first.</string>
     <string name="no_match">No note matches your search.</string>
     <string name="import_code">Import a code</string>
+    <string name="group_by_category">Group by category</string>
     <string name="pin">Pin</string>
     <string name="unpin">Unpin</string>
     <string name="duplicate">Duplicate</string>

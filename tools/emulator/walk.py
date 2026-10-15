@@ -285,6 +285,7 @@ def main():
     seeded(folder)
     outward(folder)
     calendar(folder)
+    listing(folder)
     changes(folder)
 
     print()
@@ -584,6 +585,23 @@ def put_inside(name, value):
     adb("shell", "rm", "-f", staging)
 
 
+def seed_inside(notes, settings, shows):
+    """A notebook written for the walk, the app started on it -- and a
+    failure, at once and by name, when the app does not show it. Once, of
+    many runs, the first screen held a brand-new notebook's welcome note
+    over a seed that was on disk; not reproduced since. Every later step
+    then failed for that one reason, ten failures for a single cause."""
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", notes)
+    put_inside("settings.json", settings)
+    on_disk = [n.get("uid") for n in read_file("notes_data.json") or []]
+    start_app()
+    ok = on_disk == [n.get("uid") for n in notes] and not screen_says(shows)
+    check("the notebook written for this part is the one the app shows", ok,
+          "on disk: %s, on screen: %s" % (on_disk, " | ".join(t for t, d, _ in nodes() if t)[:160]))
+    return ok
+
+
 def said(day):
     """A day as the calendar's cells name it: Monday, 12 October."""
     return "%s, %d %s" % (LONG_DAYS[day.weekday()], day.day, LONG_MONTHS[day.month - 1])
@@ -601,16 +619,14 @@ def calendar(folder):
     monday = first + timedelta(days=(7 - first.weekday()) % 7)
     second = monday + timedelta(days=7)
     other = first + timedelta(days=20)
-    adb("shell", "pm", "clear", PACKAGE)
-    put_inside("notes_data.json", [
+    if not seed_inside([
         {"id": 1, "uid": "cal-standup", "title": "Stand-up", "body": "agenda", "category": "Work",
          "date": monday.isoformat(), "recurrence": {"freq": "weekly", "weekdays": [0]},
          "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
         {"id": 2, "uid": "cal-dentist", "title": "Dentist", "body": "at nine", "category": "Personal",
          "date": other.isoformat(), "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
-    ])
-    put_inside("settings.json", {"username": "Maria", "welcome_offered": True})
-    start_app()
+    ], {"username": "Maria", "welcome_offered": True}, "Stand-up"):
+        return
     tap("Calendar", exact=True, wait=1.5)
     check("the calendar opens on this month", not screen_says(LONG_MONTHS[today.month - 1] + " " + str(today.year)))
     check("a day the series lands on says it holds a note", not screen_says(said(second) + ", 1 note"))
@@ -677,6 +693,39 @@ def calendar(folder):
     check("a repeat chosen on the sheet reaches the file",
           (dentist.get("recurrence") or {}).get("freq") == "monthly", json.dumps(dentist)[:200])
     back_to("📋 History")
+
+
+def listing(folder):
+    """The list's Show and its groups: a type filter, grouping by category,
+    a group folded -- the choices kept under the desktop's own keys."""
+    print("\n-- the list: Show and groups --")
+    if not seed_inside([
+        {"id": 1, "uid": "l-dated", "title": "Dated one", "category": "Work", "date": "2026-11-02",
+         "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "l-series", "title": "Weekly one", "category": "Work", "date": "2026-10-05",
+         "recurrence": {"freq": "weekly"}, "updated": "2026-10-02 09:00:00"},
+        {"id": 3, "uid": "l-plain", "title": "Plain one", "category": "General", "updated": "2026-10-03 09:00:00"},
+    ], {"welcome_offered": True, "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}, "Plain one"):
+        return
+    tap("Show: All", wait=1.0)
+    tap("📅 Dated", exact=True, wait=1.2)
+    seen = " | ".join(t or d for t, d, _ in nodes())
+    check("Show 📅 Dated keeps the dated note and drops the series and the plain one",
+          "Dated one" in seen and "Weekly one" not in seen and "Plain one" not in seen, seen[:200])
+    settings = read_file("settings.json") or {}
+    check("the choice is kept under the desktop's key and words", settings.get("note_filter") == "📅 Dated")
+    tap("Show: 📅 Dated", wait=1.0)
+    tap("All", exact=True, wait=1.0)
+
+    tap("⋮", wait=1.0)
+    tap("Group by category", wait=1.5)
+    shot(folder, "30-grouped", "General", "Work")
+    tap("Work", wait=1.2)
+    settings = read_file("settings.json") or {}
+    seen = " | ".join(t or d for t, d, _ in nodes())
+    check("grouping and a folded group are kept, and the folded notes are hidden",
+          settings.get("group_by_category") is True and settings.get("collapsed_groups") == ["Work"]
+          and "Weekly one" not in seen and "Plain one" in seen, json.dumps(settings)[:200])
 
 
 def changes(folder):

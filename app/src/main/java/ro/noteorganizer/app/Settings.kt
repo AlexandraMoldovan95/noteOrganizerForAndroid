@@ -30,6 +30,8 @@ object Settings {
     const val CATEGORIES = "categories"
     const val NOTE_SORT = "note_sort"
     const val NOTE_FILTER = "note_filter"
+    const val GROUP_BY_CATEGORY = "group_by_category"
+    const val COLLAPSED_GROUPS = "collapsed_groups"
     const val WELCOME_OFFERED = "welcome_offered"
     const val WELCOME_NOTE_UID = "welcome_note_uid"
     const val LAST_EXPORT_AT = "last_export_at"
@@ -83,18 +85,27 @@ object Settings {
      * Sets one key and writes the file. On failure nothing in [load]
      * changes, so the screen never shows a setting the disk does not have.
      */
-    fun put(load: Load, key: String, value: Any?): SaveResult {
+    fun put(load: Load, key: String, value: Any?): SaveResult = putAll(load, mapOf(key to value))
+
+    /** Several keys in one write: all of them, or -- on failure -- none. */
+    fun putAll(load: Load, changes: Map<String, Any?>): SaveResult {
         val candidate = JSONObject(load.raw.toString())
-        if (value == null) candidate.remove(key) else candidate.put(key, value)
+        for ((key, value) in changes) if (value == null) candidate.remove(key) else candidate.put(key, value)
         val problem = Files.writeAtomic(load.file, candidate.toString(2))
         if (problem != null) return SaveResult.Failed(problem)
-        if (value == null) load.raw.remove(key) else load.raw.put(key, value)
+        for ((key, value) in changes) if (value == null) load.raw.remove(key) else load.raw.put(key, value)
         return SaveResult.Ok(0)
     }
 
     // ---- Reading, each with the desktop's own fallback ----
 
     fun username(raw: JSONObject): String = (raw.opt(USERNAME) as? String)?.trim() ?: ""
+
+    /** The categories folded shut in a grouped list: names, as the desktop keeps them. */
+    fun collapsedGroups(raw: JSONObject): Set<String> {
+        val list = raw.opt(COLLAPSED_GROUPS) as? org.json.JSONArray ?: return emptySet()
+        return (0 until list.length()).mapNotNull { list.opt(it) as? String }.toSet()
+    }
 
     /**
      * The theme to draw with. When it follows the phone, the dark or the

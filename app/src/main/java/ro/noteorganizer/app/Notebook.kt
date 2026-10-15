@@ -28,6 +28,9 @@ data class Note(
     val color: String = "",
     val date: String = "",
     val updated: String = "",
+    val created: String = "",
+    /** Where the person put it in Custom order; null until they do. */
+    val order: Double? = null,
     val pinned: Boolean = false,
     val comments: String = "",
     val attachments: Int = 0,
@@ -236,7 +239,10 @@ enum class SortOrder(val label: String) {
     UPDATED_OLD("Oldest updated"),
     TITLE_AZ("Title A–Z"),
     TITLE_ZA("Title Z–A"),
-    CATEGORY("Category");
+    CATEGORY("Category"),
+    SOONEST("Calendar: soonest"),
+    OLDEST_DATE("Calendar: oldest"),
+    CUSTOM("Custom order");
 
     companion object {
         /** A stored label, or the default for one this version does not know. */
@@ -255,7 +261,8 @@ enum class SortOrder(val label: String) {
  * clustering at the top, which is where empty strings would naturally
  * land and is never what anyone means.
  */
-fun sortNotes(notes: List<Note>, order: SortOrder): List<Note> {
+fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.formatDate(java.time.LocalDate.now()),
+              nextDay: (Note) -> String? = { null }): List<Note> {
     val sorted = when (order) {
         SortOrder.UPDATED_NEW -> notes.sortedByDescending { it.updated }
         SortOrder.UPDATED_OLD -> notes.sortedBy { it.updated }
@@ -266,8 +273,92 @@ fun sortNotes(notes: List<Note>, order: SortOrder): List<Note> {
                 .thenByDescending { it.title.lowercase() })
         SortOrder.CATEGORY -> notes.sortedWith(
             compareBy({ it.category }, { it.updated }))
+        SortOrder.SOONEST -> {
+            // Each note's NEXT date from today, a series by its next day:
+            // what is coming first, then the past newest first, then the
+            // undated. A series that has ended stands with the past by its
+            // start date, as on the desktop.
+            fun group(n: Note): Pair<Int, String> {
+                if (n.isRecurring) {
+                    nextDay(n)?.let { return 0 to it }
+                    return if (Notebook.isDate(n.date)) 1 to n.date else 2 to ""
+                }
+                if (!Notebook.isDate(n.date)) return 2 to ""
+                return if (n.date >= today) 0 to n.date else 1 to n.date
+            }
+            notes.sortedWith(Comparator { a, b ->
+                val (ga, da) = group(a)
+                val (gb, db) = group(b)
+                when {
+                    ga != gb -> ga.compareTo(gb)
+                    ga == 1 -> db.compareTo(da)
+                    else -> da.compareTo(db)
+                }
+            })
+        }
+        // Plain chronology by the note's own date: the archive walk.
+        SortOrder.OLDEST_DATE -> notes.sortedWith(
+            compareBy({ !Notebook.isDate(it.date) }, { if (Notebook.isDate(it.date)) it.date else "" }))
+        // Where the person put each note -- on the desktop, for now; one
+        // nobody has placed stands above, newest first, as it does there.
+        SortOrder.CUSTOM -> notes
+            .sortedWith(compareByDescending<Note> { it.created }.thenByDescending { it.id })
+            .sortedWith(compareBy<Note> { it.order != null }.thenBy { it.order ?: 0.0 })
     }
     return sorted.sortedBy { !it.pinned }
+}
+
+/**
+ * What the list's "Show" can narrow it to, and the one judgement of
+ * whether a note passes -- the desktop's `_filter_options` and
+ * `_note_passes_filter`, under the desktop's own labels, which are what
+ * `note_filter` stores.
+ */
+object Showing {
+    const val ALL = "All"
+    const val REPEATING = "🔁 Repeating"
+    const val DATED = "📅 Dated"
+    const val FILES = "📎 With files"
+
+    fun options(categories: Collection<String>): List<String> = listOf(ALL, REPEATING, DATED, FILES) + categories
+
+    /** The stored choice, or All when it is no longer on offer -- a category since deleted. */
+    fun valid(selected: String?, categories: Collection<String>): String =
+        if (selected != null && selected in options(categories)) selected else ALL
+
+    fun passes(note: Note, selected: String): Boolean = when (selected) {
+        ALL -> true
+        REPEATING -> note.isRecurring
+        DATED -> !note.isRecurring && note.date.isNotEmpty()
+        FILES -> note.attachments > 0
+        else -> note.category == selected
+    }
+
+    /** One row of a list grouped by category: a header, or a note under it. */
+    sealed class Row {
+        data class Header(val category: String, val count: Int, val collapsed: Boolean) : Row()
+        data class Item(val note: Note) : Row()
+    }
+
+    /**
+     * The list's rows, in order. Grouped, each category is a header over
+     * its notes, in the order Settings keeps the categories, a category no
+     * longer in that list keeping a group of its own so no note is dropped.
+     */
+    fun rows(notes: List<Note>, grouped: Boolean, collapsed: Set<String>, categoryOrder: List<String>): List<Row> {
+        if (!grouped) return notes.map { Row.Item(it) }
+        val groups = LinkedHashMap<String, MutableList<Note>>()
+        for (note in notes) groups.getOrPut(note.category.ifEmpty { Themes.PROTECTED_CATEGORY }) { ArrayList() }.add(note)
+        val ordered = categoryOrder.filter { it in groups } + groups.keys.filter { it !in categoryOrder }
+        val out = ArrayList<Row>()
+        for (category in ordered) {
+            val members = groups.getValue(category)
+            val shut = category in collapsed
+            out.add(Row.Header(category, members.size, shut))
+            if (!shut) members.forEach { out.add(Row.Item(it)) }
+        }
+        return out
+    }
 }
 
 /** What a save did, or the reason it did not. Never silence. */
@@ -1622,6 +1713,8 @@ object Notebook {
             color = o.str("color"),
             date = o.str("date"),
             updated = o.str("updated"),
+            created = o.str("created"),
+            order = (o.opt("order") as? Number)?.toDouble()?.takeIf { it.isFinite() && o.opt("order") !is Boolean },
             pinned = o.opt("pinned") == true,
             comments = o.str("comments"),
             attachments = o.arrayLength("attachments"),

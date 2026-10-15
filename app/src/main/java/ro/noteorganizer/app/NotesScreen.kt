@@ -20,6 +20,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -45,9 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
 
-/** What "Show" can narrow the list to besides one category. */
-private const val SHOW_ALL = "All"
-
 /**
  * The list of notes: search, sort and show at the top, the desktop's cards,
  * the + for a new note. Touch and hold a card to select it; while anything
@@ -62,8 +60,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // Remembered across starts by the desktop's own keys and values, so a
     // choice made on one device reads back on the other.
     val order = SortOrder.fromLabel(state.settings.opt(Settings.NOTE_SORT) as? String)
-    val show = (state.settings.opt(Settings.NOTE_FILTER) as? String)
-        ?.takeIf { it == SHOW_ALL || it in load.categories } ?: SHOW_ALL
+    val show = Showing.valid(state.settings.opt(Settings.NOTE_FILTER) as? String, load.categories.keys)
+    val grouped = state.settings.opt(Settings.GROUP_BY_CATEGORY) == true
+    val collapsed = Settings.collapsedGroups(state.settings)
     var selected by remember { mutableStateOf(setOf<Int>()) }
     var sortMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -71,9 +70,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     var choosingCategory by remember { mutableStateOf(false) }
     val selecting = selected.isNotEmpty()
 
-    val shown = remember(load.notes, query, show, order) {
-        sortNotes(load.notes.filter { it.matches(query) && (show == SHOW_ALL || it.category == show) }, order)
+    val shown = remember(state.revision, query, show, order) {
+        val today = Recurrence.formatDate(java.time.LocalDate.now())
+        sortNotes(load.notes.filter { it.matches(query) && Showing.passes(it, show) }, order, today) { note ->
+            state.rawNote(note.id)?.let { Recurrence.nextOnOrAfter(it, today) }
+        }
     }
+    val rows = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())
     BackHandler(enabled = selecting) { selected = emptySet() }
 
     Box(Modifier.fillMaxSize().background(palette.bg)) {
@@ -139,6 +142,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                 text = { Text(stringResource(R.string.import_code)) },
                                 onClick = { moreMenu = false; onImportCode() },
                             )
+                            DropdownMenuItem(
+                                text = { Text((if (grouped) "✓ " else "") + stringResource(R.string.group_by_category)) },
+                                onClick = { moreMenu = false; state.putSetting(Settings.GROUP_BY_CATEGORY, !grouped) },
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
@@ -161,14 +168,19 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 }
                 Spacer(Modifier.width(8.dp))
                 Box {
-                    Pill(stringResource(R.string.show_label, if (show == SHOW_ALL) stringResource(R.string.show_all) else show)) {
+                    Pill(stringResource(R.string.show_label, if (show == Showing.ALL) stringResource(R.string.show_all) else show)) {
                         showMenu = true
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.show_all)) },
-                            onClick = { showMenu = false; state.putSetting(Settings.NOTE_FILTER, SHOW_ALL) },
-                        )
+                        // The desktop's types first, then the categories.
+                        for (option in listOf(Showing.ALL, Showing.REPEATING, Showing.DATED, Showing.FILES)) {
+                            DropdownMenuItem(
+                                text = { Text(if (option == Showing.ALL) stringResource(R.string.show_all) else option,
+                                              fontWeight = if (option == show) FontWeight.Bold else FontWeight.Normal) },
+                                onClick = { showMenu = false; state.putSetting(Settings.NOTE_FILTER, option) },
+                            )
+                        }
+                        HorizontalDivider()
                         for ((name, colour) in load.categories) {
                             DropdownMenuItem(
                                 leadingIcon = { Dot(colour) },
@@ -216,17 +228,32 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     }
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
-                    items(shown, key = { it.id }) { note ->
-                        NoteCard(
-                            note = note,
-                            colour = noteColour(note, load.categories, palette.hex.getValue("accent")),
-                            selected = note.id in selected,
-                            selecting = selecting,
-                            onClick = {
-                                if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
-                            },
-                            onLongClick = { selected = selected.toggle(note.id) },
-                        )
+                    items(rows, key = { row ->
+                        when (row) {
+                            is Showing.Row.Header -> "h:" + row.category
+                            is Showing.Row.Item -> row.note.id
+                        }
+                    }) { row ->
+                        when (row) {
+                            is Showing.Row.Header -> GroupHeader(row, load.categories[row.category]) {
+                                // Folded and unfolded under the desktop's own key.
+                                val next = if (row.collapsed) collapsed - row.category else collapsed + row.category
+                                state.putSetting(Settings.COLLAPSED_GROUPS, org.json.JSONArray(next.sorted()))
+                            }
+                            is Showing.Row.Item -> {
+                                val note = row.note
+                                NoteCard(
+                                    note = note,
+                                    colour = noteColour(note, load.categories, palette.hex.getValue("accent")),
+                                    selected = note.id in selected,
+                                    selecting = selecting,
+                                    onClick = {
+                                        if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
+                                    },
+                                    onLongClick = { selected = selected.toggle(note.id) },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -257,6 +284,21 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
 }
 
 private fun Set<Int>.toggle(id: Int): Set<Int> = if (id in this) this - id else this + id
+
+/** A category's header over its notes, when the list is grouped: tap to fold it. */
+@Composable
+private fun GroupHeader(row: Showing.Row.Header, colour: String?, onToggle: () -> Unit) {
+    val palette = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 4.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(if (row.collapsed) "▸" else "▾", color = palette.subtext, fontSize = 13.sp)
+        Spacer(Modifier.width(8.dp))
+        Dot(colour ?: palette.hex.getValue("accent"), 10)
+        Text("  ${row.category}  ·  ${row.count}", color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
+}
 
 @Composable
 private fun EmptyLine(text: String) {
