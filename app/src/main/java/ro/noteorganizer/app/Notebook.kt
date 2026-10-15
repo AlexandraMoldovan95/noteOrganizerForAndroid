@@ -779,6 +779,7 @@ object Notebook {
         date: String = "",
         pinned: Boolean = false,
         formatting: List<FormatSpan> = emptyList(),
+        paragraphs: JSONArray? = null,
     ): SaveResult {
         if (date.isNotBlank() && !isDate(date)) {
             return SaveResult.Failed(BAD_DATE)
@@ -821,7 +822,7 @@ object Notebook {
         note.put("moved", JSONObject())
         note.put("pinned", pinned)
         note.put("checklist", JSONArray())
-        note.put("paragraphs", JSONArray())
+        note.put("paragraphs", paragraphs ?: JSONArray())
 
         array.put(note)
         val problem = writeAtomic(file, array)
@@ -1146,6 +1147,26 @@ object Notebook {
                 ?: return@editChecklist ROW_GONE
             // In place, so a field this app does not model survives a rename.
             item.put("text", mendSurrogates(text))
+            null
+        }
+    }
+
+    /**
+     * Moves one row to another place in the list -- the drag handle, the
+     * desktop's ▲ ▼. The row object itself moves, so a field this app does
+     * not model goes with it, and its tick stays its own.
+     */
+    fun moveChecklistItem(load: Load, id: Int, from: Int, to: Int): SaveResult {
+        return editChecklist(load, id) { checklist ->
+            if (from !in 0 until checklist.length() || to !in 0 until checklist.length()) {
+                return@editChecklist ROW_GONE
+            }
+            if (from == to) return@editChecklist null
+            val rows = (0 until checklist.length()).map { checklist.get(it) }.toMutableList()
+            val row = rows.removeAt(from)
+            rows.add(to, row)
+            while (checklist.length() > 0) checklist.remove(checklist.length() - 1)
+            rows.forEach { checklist.put(it) }
             null
         }
     }
@@ -1515,9 +1536,13 @@ object Notebook {
         val kept = JSONArray()
         for ((oldLine, newLine) in survivors) {
             val marker = byLine[oldLine] ?: continue
-            val moved = JSONObject()
+            // The whole entry moves, only its line changes. A paragraph can
+            // be centred, or indented, without being a list at all; this
+            // once rebuilt each entry from its line and its kind alone, and
+            // wrote "bullet" where there was no kind -- an edit on the phone
+            // turned a centred line into a bullet and dropped its indent.
+            val moved = JSONObject(marker.toString())
             moved.put("line", newLine)
-            moved.put("kind", marker.opt("kind") ?: "bullet")
             kept.put(moved)
         }
         return kept

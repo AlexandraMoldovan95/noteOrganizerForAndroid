@@ -646,6 +646,27 @@ class NotebookTest {
         assertEquals(1, kept.getJSONObject(0).getInt("line"))
     }
 
+    @Test
+    fun `a centred or indented line keeps what it is, and does not become a list`() {
+        // A paragraph entry is not only a list marker: the desktop stores
+        // a line's alignment and indent in it too, with no kind at all.
+        val load = scratch("""
+            [{"id": 1, "body": "Title line\nbody",
+              "paragraphs": [{"line": 0, "align": "center"},
+                             {"line": 1, "kind": "number", "indent": 2, "align": "right"}]}]
+        """.trimIndent())
+        Notebook.updateNote(load, 1, "", "new first line\nTitle line\nbody")
+        val kept = onDisk(load).getJSONObject(0).getJSONArray("paragraphs")
+        val centred = kept.getJSONObject(0)
+        assertEquals(1, centred.getInt("line"))
+        assertEquals("center", centred.getString("align"))
+        assertFalse("a centred line is not a bullet", centred.has("kind"))
+        val numbered = kept.getJSONObject(1)
+        assertEquals(2, numbered.getInt("line"))
+        assertEquals(2, numbered.getInt("indent"))
+        assertEquals("right", numbered.getString("align"))
+    }
+
     // ---- editing: the file ----
 
     @Test
