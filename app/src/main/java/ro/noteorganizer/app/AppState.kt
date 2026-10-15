@@ -107,6 +107,17 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
      */
     var flush: (() -> Unit)? = null
 
+    /**
+     * Moves each time something other than the editor wrote the note open
+     * in it: a code shared in over it, which updated it; the list's pin
+     * or category; a day reset from the calendar. The editor holds
+     * its own copy of every field and writes them all back when it saves,
+     * so it reads the note again from the file when this moves -- or its
+     * next save would quietly put the old fields back.
+     */
+    var openNoteRewritten by mutableIntStateOf(0)
+        private set
+
     val settings: JSONObject get() = load.settings?.raw ?: JSONObject()
 
     /** A note's attached files: what it calls each, and its stored name. */
@@ -194,6 +205,35 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         newNoteDate = ""
     }
 
+    /**
+     * A change to [ids] from outside the editor. When the open note is one
+     * of them, what the editor holds is saved first -- so the change lands
+     * on the note as it is on screen, and a copy or a code made of it
+     * carries the last words typed -- and, when the change [writes] it,
+     * the editor reads it back after.
+     */
+    private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, change: () -> T): T {
+        val open = openId
+        val touches = open != null && open != 0 && open in ids
+        if (touches) flush?.invoke()
+        return change().also { if (touches && writes) openNoteRewritten += 1 }
+    }
+
+    /** Before an import is applied: the open note saved, so an update replaces it whole. */
+    fun beforeImport() {
+        flush?.invoke()
+    }
+
+    /**
+     * After an import: the notebook read again, and the open note with it,
+     * which the import may have updated. Read back whichever it touched:
+     * an unchanged note read back loses nothing but its cursor.
+     */
+    fun afterImport() {
+        reload()
+        if (openId != null) openNoteRewritten += 1
+    }
+
     /** From one day back to the whole series, the editor staying on the note. */
     fun openWholeSeries() {
         openDay = null
@@ -242,7 +282,7 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
 
     /** One day out of its series, with the Undo the desktop's toast offers. */
     fun deleteDay(id: Int, day: String) {
-        val (result, gone) = Days.deleteDay(load, id, day)
+        val (result, gone) = outside(listOf(id)) { Days.deleteDay(load, id, day) }
         if (!report(result) || gone == null) return
         if (openId == id && openDay == day) closeNote()
         offerUndo("Day removed") { report(Days.undoDeleteDay(load, gone)) }
@@ -250,14 +290,14 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
 
     fun resetDay(id: Int, day: String, dropText: Boolean = true, sendHome: Boolean = true) {
         val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
-        report(Days.resetDay(load, id, day, dropText, sendHome)) {
+        report(outside(listOf(id)) { Days.resetDay(load, id, day, dropText, sendHome) }) {
             // The editor open on the day goes with it, to where it is now.
             if (sendHome && home != null && openId == id && openDay == day) openDay = home
             say(if (dropText) "This day follows the series again" else "This day is back on its own date")
         }
     }
 
-    fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(Days.setRepeat(load, id, rule))
+    fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(outside(listOf(id)) { Days.setRepeat(load, id, rule) })
 
     /**
      * A message with an Undo. Eight seconds, as the desktop's banner: long
@@ -283,7 +323,8 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
      * those entries and opens the first, as the desktop's does.
      */
     fun trash(ids: Collection<Int>, openAfterUndo: Boolean = false) {
-        val result = Organizing.trashNotes(load, ids)
+        // The open note goes to the Trash with its last words in it.
+        val result = outside(ids, writes = false) { Organizing.trashNotes(load, ids) }
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
         val keys = load.trash.takeLast(count).map { Organizing.TrashKey(it.id, it.deletedAt) }
@@ -308,22 +349,22 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     }
 
     fun duplicate(id: Int) {
-        report(Organizing.duplicate(load, id, attachments)) { ok ->
+        report(outside(listOf(id), writes = false) { Organizing.duplicate(load, id, attachments) }) { ok ->
             say("Duplicated as “${note(ok.id)?.title ?: "(copy)"}”")
         }
     }
 
     fun setPinned(ids: Collection<Int>, pinned: Boolean) {
-        report(Organizing.setPinned(load, ids, pinned))
+        report(outside(ids) { Organizing.setPinned(load, ids, pinned) })
     }
 
     fun moveToCategory(ids: Collection<Int>, category: String) {
-        report(Organizing.moveToCategory(load, ids, category)) {
+        report(outside(ids) { Organizing.moveToCategory(load, ids, category) }) {
             say(if (ids.size == 1) "Moved to “$category”" else "Moved ${ids.size} notes to “$category”")
         }
     }
 
-    fun shareCode(ids: Collection<Int>): String? = load.raw?.let { raw ->
+    fun shareCode(ids: Collection<Int>): String? = outside(ids, writes = false) { load.raw }?.let { raw ->
         val wanted = ids.toSet()
         val notes = (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
             .filter { (it.opt("id") as? Number)?.toInt() in wanted }

@@ -436,6 +436,13 @@ fun NoteEditor(state: AppState, openId: Int) {
         state.flush = { model.save() }
         onDispose { state.flush = null }
     }
+    // Written from outside while open -- updated by a code shared in over
+    // it -- and saved first by whatever wrote it: read
+    // back, so the next save cannot put the old fields back.
+    val rewrittenAt = remember(model) { state.openNoteRewritten }
+    LaunchedEffect(model, state.openNoteRewritten) {
+        if (state.openNoteRewritten != rewrittenAt) state.note(model.id)?.let { model.reloadFrom(it) }
+    }
 
     Column(
         Modifier

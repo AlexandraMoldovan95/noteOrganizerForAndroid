@@ -253,10 +253,14 @@ fun finishImport(
     attachmentsDir: java.io.File?,
     extras: Importing.Extras,
 ) {
+    // A code shared to the app can arrive over an open note -- the very
+    // note it may update. A new note saved here lands at the end of the
+    // file, so the places the plan counted stay where they were.
+    state.beforeImport()
     when (val result = Importing.apply(state.load, plan, answers, attachmentsDir, extras)) {
         is Importing.Result.Failed -> state.say(result.reason)
         is Importing.Result.Done -> {
-            state.reload()
+            state.afterImport()
             state.say(importMessage(result.outcome))
         }
     }
