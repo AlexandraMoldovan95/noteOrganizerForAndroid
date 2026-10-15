@@ -1,6 +1,7 @@
 package ro.noteorganizer.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
@@ -11,9 +12,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,12 +55,20 @@ private const val MAX_COLUMN_CHARS = 26
 /** Where a tapped cell sits, in the table's own row/column numbering. */
 data class CellAt(val row: Int, val column: Int)
 
+/**
+ * [found] are the cells the find bar matched, [current] the one it is on --
+ * outlined, as the desktop draws a box on its grid -- and [reveal] counts
+ * the requests to scroll that one into sight, sideways as well as down.
+ */
 @Composable
 fun TableView(
     table: TableBlock,
     modifier: Modifier = Modifier,
     editing: Boolean = false,
     onCellTap: ((CellAt) -> Unit)? = null,
+    found: Set<CellAt> = emptySet(),
+    current: CellAt? = null,
+    reveal: Int = 0,
 ) {
     if (table.rows.isEmpty() || table.columns.isEmpty()) return
 
@@ -101,7 +114,8 @@ fun TableView(
                         counted += 1
                     }
                     if (counted > 1) span += 1.dp * (counted - 1)
-                    CellBox(cell, span, column?.align, isHeader, editing) {
+                    CellBox(cell, span, column?.align, isHeader, editing,
+                            found = here in found, current = here == current, reveal = reveal) {
                         onCellTap?.invoke(here)
                     }
                     c = last
@@ -118,9 +132,16 @@ private fun CellBox(
     align: CellAlign?,
     isHeader: Boolean,
     editing: Boolean = false,
+    found: Boolean = false,
+    current: Boolean = false,
+    reveal: Int = 0,
     onTap: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
+    val requester = remember { BringIntoViewRequester() }
+    if (current) {
+        LaunchedEffect(reveal) { requester.bringIntoView() }
+    }
     Box(
         modifier = Modifier
             .width(width + 12.dp)
@@ -129,7 +150,13 @@ private fun CellBox(
             // through it, which is one drawn rectangle instead of four
             // lines per cell.
             .padding(end = 1.dp, bottom = 1.dp)
-            .background(if (isHeader) palette.calendarHasNotes else palette.card)
+            .bringIntoViewRequester(requester)
+            .background(when {
+                found -> findAllColour(palette)
+                isHeader -> palette.calendarHasNotes
+                else -> palette.card
+            })
+            .then(if (current) Modifier.border(2.dp, palette.accent) else Modifier)
             .then(
                 if (editing && onTap != null) Modifier.clickable { onTap() } else Modifier
             )

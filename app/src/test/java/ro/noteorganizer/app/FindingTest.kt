@@ -1,0 +1,143 @@
+package ro.noteorganizer.app
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Find in note. The desktop's own checks first (qa1's find section, case
+ * for case), then what the phone's segments add: a match's place in its
+ * field, and reading order across prose and tables.
+ */
+class FindingTest {
+
+    private fun row(vararg cells: String) = cells.joinToString(" | ", "| ", " |")
+    private val sep = "| --- | --- |"
+
+    private fun scan(body: String, query: String, matchCase: Boolean = false) = Finding.scan(body, query, matchCase)
+
+    // ---- qa1's find section ----
+
+    @Test
+    fun `prose - case does not count unless asked`() {
+        val body = "alpha beta alpha gamma ALPHA"
+        assertEquals(3, scan(body, "alpha").size)
+        assertTrue(scan(body, "alpha").all { it is Finding.InText })
+        assertEquals(2, scan(body, "alpha", matchCase = true).size)
+    }
+
+    @Test
+    fun `stepping goes round from the last to the first`() {
+        assertEquals(1, Finding.step(0, 1, 3))
+        assertEquals(0, Finding.step(2, 1, 3))
+        assertEquals("back from the first is the last", 2, Finding.step(0, -1, 3))
+        assertEquals(-1, Finding.step(0, 1, 0))
+    }
+
+    @Test
+    fun `a miss counts 0 of 0, and nothing is said before a word is typed`() {
+        assertEquals("0/0", Finding.counter(-1, 0, "nowhere-zzz"))
+        assertEquals("", Finding.counter(-1, 0, ""))
+        assertEquals("2/3", Finding.counter(1, 3, "alpha"))
+        assertEquals("1/2000+", Finding.counter(0, Finding.CAP, "a"))
+    }
+
+    @Test
+    fun `cells - the header is row 0, the separator is not a row`() {
+        val body = listOf(row("Fruit", "Note"), sep, row("Milk", "fresh today"),
+                          row("Bread<br>loaf", "plain"), row("[x]", "done")).joinToString("\n")
+        assertEquals(listOf(Finding.InCell(0, 1, 1)), scan(body, "fresh"))
+        assertEquals("a line break reads as a space", listOf(Finding.InCell(0, 2, 0)), scan(body, "bread loaf"))
+        assertEquals("a checkbox is never a word", emptyList<Finding.Match>(), scan(body, "[x]"))
+    }
+
+    @Test
+    fun `a word repeated in one cell is one stop`() {
+        val body = listOf(row("X", "Y"), sep, row("foo foo foo", "bar")).joinToString("\n")
+        assertEquals(1, scan(body, "foo").size)
+    }
+
+    @Test
+    fun `an emoji match covers exactly the match`() {
+        val text = "see 😀ok maybe"
+        val match = scan(text, "😀ok").single() as Finding.InText
+        assertEquals("😀ok", text.substring(match.start, match.end))
+    }
+
+    // ---- the phone's own ----
+
+    @Test
+    fun `matches overlap, as each search starts one character on`() {
+        assertEquals(listOf(Finding.InText(0, 0, 2), Finding.InText(0, 1, 3)), scan("aaa", "aa"))
+    }
+
+    @Test
+    fun `a match is placed in its own field, in the field's units`() {
+        val body = "Intro\n" + listOf(row("a", "b"), sep, row("c", "d")).joinToString("\n") + "\nafter 😀 the word"
+        val found = scan(body, "word")
+        assertEquals(1, found.size)
+        val match = found.single() as Finding.InText
+        assertEquals("the prose after the table is segment 2", 2, match.segment)
+        val field = Editing.segments(body)[2].text
+        assertEquals("word", field.substring(match.start, match.end))
+    }
+
+    @Test
+    fun `reading order - prose, then the table row by row, then the prose after`() {
+        val body = listOf("x top", row("x1", "x2"), sep, row("x3", "x4"), "x bottom").joinToString("\n")
+        assertEquals(
+            listOf(Finding.InText(0, 0, 1), Finding.InCell(1, 0, 0), Finding.InCell(1, 0, 1),
+                   Finding.InCell(1, 1, 0), Finding.InCell(1, 1, 1), Finding.InText(2, 0, 1)),
+            scan(body, "x"),
+        )
+    }
+
+    @Test
+    fun `merged-away cells and markers are not words`() {
+        val body = listOf(row("wide", "<"), sep, row("<", "x")).joinToString("\n")
+        assertEquals("the marker swallowed into a merge is nothing", emptyList<Finding.Match>(), scan(body, "<"))
+        assertEquals(listOf(Finding.InCell(0, 0, 0)), scan(body, "wide"))
+    }
+
+    @Test
+    fun `a cell in a hidden column is not found`() {
+        val body = listOf(row("shown", "secret"), "| --- | ~ |", row("a", "secret too")).joinToString("\n")
+        assertEquals(emptyList<Finding.Match>(), scan(body, "secret"))
+        assertEquals(1, scan(body, "shown").size)
+    }
+
+    @Test
+    fun `case-blind in cells too, and exact when asked`() {
+        val body = listOf(row("Milk", "MILK"), sep).joinToString("\n")
+        assertEquals(2, scan(body, "milk").size)
+        assertEquals(listOf(Finding.InCell(0, 0, 0)), scan(body, "Milk", matchCase = true))
+        assertEquals(listOf(Finding.InCell(0, 0, 1)), scan(body, "MILK", matchCase = true))
+    }
+
+    @Test
+    fun `the count stops at the ceiling`() {
+        assertEquals(Finding.CAP, scan("a".repeat(5000), "a").size)
+    }
+
+    @Test
+    fun `nothing to find, nothing found`() {
+        assertEquals(emptyList<Finding.Match>(), scan("anything", ""))
+        assertEquals(emptyList<Finding.Match>(), scan("", "x"))
+    }
+
+    @Test
+    fun `after an edit the current match is the nearest one left`() {
+        assertEquals(1, Finding.clamp(5, 2))
+        assertEquals(0, Finding.clamp(-1, 2))
+        assertEquals(-1, Finding.clamp(3, 0))
+    }
+
+    @Test
+    fun `the bar opens with the selected words, when they are on one line`() {
+        assertEquals("milk", Finding.prefill("milk"))
+        assertNull(Finding.prefill("two\nlines"))
+        assertNull(Finding.prefill(""))
+        assertNull(Finding.prefill(null))
+    }
+}

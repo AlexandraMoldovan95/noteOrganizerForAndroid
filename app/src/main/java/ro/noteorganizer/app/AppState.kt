@@ -78,6 +78,14 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     /** The History in place of the month, as the desktop's toggle swaps them. */
     var showHistory by mutableStateOf(false)
 
+    /**
+     * The find bar's words and its "Aa", kept from note to note while the
+     * app is open: the bar closes with a note, and opens on the next one
+     * with the same search, as the desktop's does.
+     */
+    var findQuery by mutableStateOf("")
+    var findMatchCase by mutableStateOf(false)
+
     /** A share code arriving from another app, waiting for the import panel. */
     var incomingCode by mutableStateOf<String?>(null)
 

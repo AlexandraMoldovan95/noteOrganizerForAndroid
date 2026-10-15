@@ -154,7 +154,10 @@ def back_to(*words, tries=4):
 
 
 def screen_says(*words):
-    seen = " | ".join(t or d for t, d, _ in nodes())
+    # The text AND the description: a button drawn as "✕" is said "Close
+    # find", and reading only one of them, a check looking for the other
+    # never saw it -- and passed or failed on what it could not see.
+    seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
     missing = [w for w in words if w not in seen]
     return missing
 
@@ -306,6 +309,7 @@ def main():
     listing(folder)
     statistics(folder)
     calculator(folder)
+    finding(folder)
     changes(folder)
 
     print()
@@ -864,6 +868,53 @@ def calculator(folder):
     want = "Fuel and tolls:\n120+45.5=165.5\n165.5×2=331\n120+45.5=165.5"
     check("the file holds each sum on its own line, in the order inserted", body == want,
           "body: %r" % body)
+
+
+def finding(folder):
+    """Find in note: prose and table cells counted together, stepped
+    through in reading order, case on and off, a miss -- and the FILE
+    untouched afterwards, since finding only ever paints."""
+    print("\n-- find in note --")
+    body = "\n".join(["milk, bread", "Milk again", "| Item | Note |", "| --- | --- |",
+                      "| milk | fresh |", "| eggs | MILK too |", "after milk"])
+    seed_inside([
+        {"id": 1, "uid": "walk-find", "title": "Shopping", "body": body,
+         "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+    ], {"welcome_offered": True}, "Shopping")
+    open_note("Shopping")
+    tap("⋮", exact=True)
+    tap("🔍 Find in note", wait=1.2)
+    type_text("milk")
+    time.sleep(0.8)
+    check("two in the prose, two cells, one after the table: 1/5", bool(find("1/5", exact=True)),
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    shot(folder, "34-find", "1/5")
+    tap("Next match", wait=0.6)
+    tap("Next match", wait=0.8)
+    check("the third stop is the table's first matching cell", bool(find("3/5", exact=True)))
+    shot(folder, "35-find-cell", "3/5")
+    tap("Match case", wait=0.8)
+    check("with case on, Milk and MILK drop out: three", bool(find("3/3", exact=True)))
+    tap("Match case", wait=0.6)
+    type_text("zzz")
+    time.sleep(0.8)
+    check("words found nowhere count 0/0", bool(find("0/0", exact=True)))
+    # The first Back takes the keyboard down, the next closes the bar.
+    # (back_to waits for words to APPEAR; here they are to go.)
+    for _ in range(3):
+        if not find("Close find"):
+            break
+        back(wait=1.2)
+    check("Back closes the bar and leaves the note open",
+          not find("0/0", exact=True) and not screen_says("Shopping"),
+          " | ".join(t or d for t, d, _ in nodes())[:200])
+    tap("⋮", exact=True)
+    tap("🔍 Find in note", wait=1.2)
+    check("the bar opens again with the last search", not screen_says("milkzzz"))
+    back_to("Search notes")
+    notes = read_file("notes_data.json") or []
+    check("finding never changed the note", bool(notes) and notes[0].get("body") == body,
+          "body: %r" % (notes[0].get("body") if notes else None))
 
 
 

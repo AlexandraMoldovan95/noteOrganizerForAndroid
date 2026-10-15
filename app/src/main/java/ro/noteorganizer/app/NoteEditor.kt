@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -54,12 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -255,7 +259,22 @@ fun NoteEditor(state: AppState, openId: Int) {
         EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
     }
     val calc = remember(model) { CalculatorState() }
+    val find = remember(model) { FindState() }
+    val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    // Worked out again as the note or the search changes; nothing at all
+    // while the bar is shut.
+    val matches = remember(model.body, state.findQuery, state.findMatchCase, find.open) {
+        if (find.open) Finding.scan(model.body, state.findQuery, state.findMatchCase) else emptyList()
+    }
+    val bySegment = remember(matches) { matches.groupBy { it.segment } }
+    val currentIndex = Finding.clamp(find.index, matches.size)
+    val currentMatch = matches.getOrNull(currentIndex)
+
+    fun closeFind() {
+        find.open = false
+        focusManager.clearFocus()
+    }
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -274,8 +293,9 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     BackHandler { leave() }
-    // Back closes the calculator first, the note after.
+    // Back closes the find bar first, then the calculator, then the note.
     BackHandler(enabled = calc.open) { closeCalculator(calc, focusManager) }
+    BackHandler(enabled = find.open) { closeFind() }
     // Saved a moment after the last change, as the desktop's autosave is,
     // and when the app goes to the background -- where most notes on a
     // phone are left, by Home or by switching apps rather than by Back.
@@ -320,6 +340,20 @@ fun NoteEditor(state: AppState, openId: Int) {
                 IconButton(onClick = { menu = true }) { Text("⋮", fontSize = 20.sp, color = palette.text) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
+                        text = { Text(stringResource(R.string.find_in_note)) },
+                        onClick = {
+                            menu = false
+                            // Words selected in the note are what is looked for.
+                            Finding.prefill(model.focused?.let { it.text.substring(it.selection.min, it.selection.max) })
+                                ?.let { state.findQuery = it }
+                            // The last search, selected: typing replaces it.
+                            find.field = TextFieldValue(state.findQuery, TextRange(0, state.findQuery.length))
+                            find.index = 0
+                            find.reveal += 1
+                            find.open = true
+                        },
+                    )
+                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.calculator)) },
                         onClick = {
                             menu = false
@@ -362,6 +396,29 @@ fun NoteEditor(state: AppState, openId: Int) {
                     }
                 }
             }
+        }
+
+        if (find.open) {
+            FindBar(
+                find = find,
+                counter = Finding.counter(currentIndex, matches.size, state.findQuery),
+                missed = state.findQuery.isNotEmpty() && matches.isEmpty(),
+                matchCase = state.findMatchCase,
+                focus = findFocus,
+                onQuery = { value ->
+                    find.field = value
+                    if (value.text != state.findQuery) {
+                        // A new search: its first match, brought into sight.
+                        state.findQuery = value.text
+                        find.index = 0
+                        find.reveal += 1
+                    }
+                },
+                // The same search counted again, where the reader already is.
+                onCase = { state.findMatchCase = !state.findMatchCase },
+                onStep = { find.step(it, matches.size) },
+                onClose = { closeFind() },
+            )
         }
 
         Column(
@@ -451,15 +508,25 @@ fun NoteEditor(state: AppState, openId: Int) {
 
             val segments = remember(model.body) { Editing.segments(model.body) }
             segments.forEachIndexed { index, segment ->
+                val here = bySegment[index].orEmpty()
                 if (segment.table) {
                     TableView(
                         table = remember(segment.text) { parseTable(segment.text.split("\n")) },
                         modifier = Modifier.padding(vertical = 8.dp),
                         editing = true,
                         onCellTap = { at -> cell = segment to at },
+                        found = here.mapNotNull { (it as? Finding.InCell)?.let { m -> CellAt(m.row, m.column) } }.toSet(),
+                        current = (currentMatch as? Finding.InCell)?.takeIf { it.segment == index }
+                            ?.let { CellAt(it.row, it.column) },
+                        reveal = find.reveal,
                     )
                 } else {
-                    ProseField(model, index, segment, placeholder = segments.size == 1)
+                    ProseField(
+                        model, index, segment, placeholder = segments.size == 1,
+                        found = here.filterIsInstance<Finding.InText>(),
+                        match = (currentMatch as? Finding.InText)?.takeIf { it.segment == index },
+                        reveal = find.reveal,
+                    )
                 }
             }
 
@@ -543,12 +610,31 @@ private fun joinWithAnd(items: List<String>): String = when (items.size) {
  * bar knows what they cover.
  */
 @Composable
-private fun ProseField(model: EditorModel, index: Int, segment: Editing.Segment, placeholder: Boolean) {
+private fun ProseField(
+    model: EditorModel,
+    index: Int,
+    segment: Editing.Segment,
+    placeholder: Boolean,
+    found: List<Finding.InText> = emptyList(),
+    match: Finding.InText? = null,
+    reveal: Int = 0,
+) {
     val palette = LocalPalette.current
     val local = Editing.localSpans(model.spans, segment)
     val current = model.focused
     val value = if (model.focus == index && current != null && current.text == segment.text) current
                 else TextFieldValue(segment.text, TextRange(segment.text.length))
+    // The find bar's current match, scrolled into sight when it asks: the
+    // line it is on, not merely this field, which may be pages long.
+    val requester = remember { BringIntoViewRequester() }
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    LaunchedEffect(reveal) {
+        val at = match ?: return@LaunchedEffect
+        val drawn = layout
+        requester.bringIntoView(
+            if (drawn != null && at.start < drawn.layoutInput.text.length) drawn.getBoundingBox(at.start) else null
+        )
+    }
     BasicTextField(
         value = value,
         onValueChange = { next ->
@@ -558,14 +644,17 @@ private fun ProseField(model: EditorModel, index: Int, segment: Editing.Segment,
             model.caret = caretIn(segment, next)
         },
         visualTransformation = { text ->
-            TransformedText(renderBody(Note(body = text.text, formatting = local), palette.bg).text, OffsetMapping.Identity)
+            val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
+            TransformedText(paintFound(drawn, found, match, palette), OffsetMapping.Identity)
         },
+        onTextLayout = { layout = it },
         textStyle = TextStyle(color = palette.text, fontSize = 16.sp, lineHeight = 24.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
+            .bringIntoViewRequester(requester)
             .onFocusChanged { focus ->
                 if (focus.isFocused) {
                     model.focus = index

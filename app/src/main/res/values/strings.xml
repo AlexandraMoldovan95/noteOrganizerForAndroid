@@ -161,6 +161,13 @@
     <string name="delete_row">Delete row</string>
     <string name="delete_column">Delete column</string>
 
+    <!-- Find in note -->
+    <string name="find_in_note">🔍 Find in note</string>
+    <string name="find_hint">Find in this note</string>
+    <string name="find_prev">Previous match</string>
+    <string name="find_next">Next match</string>
+    <string name="find_case">Match case</string>
+    <string name="find_close">Close find</string>
 
     <!-- The calculator: the desktop's panel, its words -->
     <string name="calculator">🧮 Calculator</string>
