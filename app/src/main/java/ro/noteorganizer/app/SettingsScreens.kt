@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,6 +82,7 @@ fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, o
             SettingsPage.CATEGORIES -> CategoriesPage(state)
             SettingsPage.BACKUP -> BackupPage(state, backup)
             SettingsPage.TRASH -> TrashPage(state)
+            SettingsPage.STATS -> StatsPage(state)
             SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback)
         }
     }
@@ -91,6 +94,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.CATEGORIES -> R.string.settings_categories
     SettingsPage.BACKUP -> R.string.settings_backup
     SettingsPage.TRASH -> R.string.settings_trash
+    SettingsPage.STATS -> R.string.settings_stats
     SettingsPage.ABOUT -> R.string.settings_about
 }
 
@@ -102,6 +106,7 @@ private fun SettingsList(state: AppState) {
         Triple(SettingsPage.CATEGORIES, R.string.settings_categories, R.string.settings_categories_sub),
         Triple(SettingsPage.BACKUP, R.string.settings_backup, R.string.settings_backup_sub),
         Triple(SettingsPage.TRASH, R.string.settings_trash, R.string.settings_trash_sub),
+        Triple(SettingsPage.STATS, R.string.settings_stats, R.string.settings_stats_sub),
         Triple(SettingsPage.ABOUT, R.string.settings_about, R.string.settings_about_sub),
     )
     val palette = LocalPalette.current
@@ -125,6 +130,75 @@ private fun PageColumn(content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         content()
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+// ---- Statistics ----
+
+/**
+ * The desktop's snapshot: figures that lead, captions that follow quietly,
+ * the time split as a small table, the categories as plain lines. Read
+ * only: nothing here is a way to filter.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StatsPage(state: AppState) {
+    val palette = LocalPalette.current
+    val snap = remember(state.revision) {
+        Stats.of(state.rawNotes(), state.load.trash.size, state.templatesCount(), state.load.categories.keys.toList(), state.settings)
+    }
+    PageColumn {
+        Text(stringResource(R.string.stats_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))
+        val tiles = listOf(
+            snap.total to R.string.stats_total, snap.added.week to R.string.stats_added_week,
+            snap.categories to R.string.stats_categories, snap.templates to R.string.stats_templates,
+            snap.withChecklist to R.string.stats_checklists, snap.inTrash to R.string.stats_trash,
+        )
+        for (row in tiles.chunked(3)) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for ((value, caption) in row) {
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
+                        Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+        // The time split: a header row said once, the figures lined up under it.
+        val segments = listOf(R.string.stats_week, R.string.stats_month, R.string.stats_year, R.string.stats_older)
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
+            Spacer(Modifier.weight(1.3f))
+            for (seg in segments) Text(stringResource(seg), color = palette.subtext, fontSize = 11.sp,
+                                       modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
+        for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
+                for (value in listOf(p.week, p.month, p.year, p.older)) {
+                    Text(value.toString(), color = if (value > 0) palette.text else palette.subtext, fontSize = 15.sp,
+                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                         textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                }
+            }
+        }
+        SectionLabel(stringResource(R.string.stats_by_category), Modifier.padding(top = 18.dp, bottom = 6.dp))
+        if (snap.byCategory.isEmpty()) {
+            Text(stringResource(R.string.no_notes_short), color = palette.subtext, fontSize = 13.sp)
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for ((name, count) in snap.byCategory) {
+                    Row(Modifier.clip(RoundedCornerShape(10.dp)).background(palette.card).padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Dot(state.load.categories[name] ?: palette.hex.getValue("subtext"), 10)
+                        Text("  $name  ", color = palette.text, fontSize = 14.sp)
+                        Text(count.toString(), color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Text(stringResource(R.string.stats_since, snap.since), color = palette.subtext, fontSize = 13.sp,
+             modifier = Modifier.padding(top = 18.dp))
     }
 }
 

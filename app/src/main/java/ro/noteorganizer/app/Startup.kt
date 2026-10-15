@@ -39,6 +39,13 @@ object Startup {
         }
         val load = Notebook.load(dir)
         load.problem?.let { lines.add(it) }
+        // The day this install was first used, stamped once and never again,
+        // as the desktop's get_first_launch_date stamps it: Statistics says it.
+        load.settings?.let { settings ->
+            if ((settings.raw.opt(Stats.FIRST_LAUNCH_DATE) as? String).isNullOrEmpty()) {
+                Settings.put(settings, Stats.FIRST_LAUNCH_DATE, Recurrence.formatDate(java.time.LocalDate.now()))
+            }
+        }
         val purged = Organizing.purgeExpired(load, File(dir, Backup.ATTACHMENTS))
         if (purged > 0) {
             lines.add(if (purged == 1) "1 note older than ${load.retentionDays} days was removed from the Trash."

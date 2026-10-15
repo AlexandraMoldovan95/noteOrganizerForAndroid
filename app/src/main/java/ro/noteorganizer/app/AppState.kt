@@ -18,7 +18,7 @@ import java.io.File
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
 /** One page of Settings, or the list of them. */
-enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, BACKUP, TRASH, ABOUT }
+enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, BACKUP, TRASH, STATS, ABOUT }
 
 /**
  * The app's state, and every action a screen can take on the notebook.
@@ -186,6 +186,14 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
 
     /** A note as the file holds it: what the calendar and the day rules read. */
     fun rawNote(id: Int): JSONObject? = rawNotes().firstOrNull { (it.opt("id") as? Number)?.toInt() == id }
+
+    /** How many templates the notebook keeps: the desktop's count, from templates.json. */
+    fun templatesCount(): Int = try {
+        val file = File(dir, Backup.TEMPLATES)
+        if (file.isFile) org.json.JSONArray(file.readText(Charsets.UTF_8)).length() else 0
+    } catch (e: Exception) {
+        0
+    }
 
     fun rawNotes(): List<JSONObject> {
         val raw = load.raw ?: return emptyList()
