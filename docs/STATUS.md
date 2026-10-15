@@ -7,12 +7,15 @@ drifted out of date is a bug in the documentation.
 
 **In short:** the app is a notes app of its own now, not a viewer for the
 desktop's file. It keeps its notebook in its own private storage, writes,
-edits and organises notes the way the desktop does — formatting, tables,
-checklists, comments, categories, colours, dates, pins, the Trash — wears
-the desktop's eight themes or follows the phone's light and dark, and
-moves notes to and from the desktop by share code or by the desktop's own
-backup `.zip`. Nothing is ever overwritten without asking. It does not
-sync, and the calendar, repeating notes and templates are the next phase.
+edits and organises notes the way the desktop does — formatting, lists,
+tables, checklists, comments, categories, colours, dates, pins, the
+Trash — and since Phase 2 has the desktop's calendar, repeating notes,
+templates, find, calculator, export and statistics, on a phone or beside
+the list on a wide screen. It wears the desktop's eight themes or follows
+the phone's light and dark, and moves notes to and from the desktop by
+share code or by the desktop's own backup `.zip`. Nothing is ever
+overwritten without asking. It does not sync; custom order, moving one
+day, adding attachments and undo are Phase 3.
 
 ## Contents
 
@@ -29,12 +32,12 @@ sync, and the calendar, repeating notes and templates are the next phase.
 The desktop's features are brought over in three phases, each one kept
 simple enough for a phone's screen rather than copied button for button:
 
-1. **Phase 1 — ready for a store listing** (this branch): the notebook,
-   the editor, organising, the Trash, settings and themes, backup and
-   share codes. [What it covers](#what-works-today).
-2. **Phase 2** — the calendar with its day list, repeating notes, the
-   full format bar, templates, find in a note, the calculator, export,
-   statistics, and a layout for wide screens.
+1. **Phase 1 — ready for a store listing**: the notebook, the editor,
+   organising, the Trash, settings and themes, backup and share codes.
+2. **Phase 2** (this branch, built on Phase 1's) — the calendar with its
+   day list, repeating notes, the full format bar, templates, find in a
+   note, the calculator, export, statistics, and a layout for wide
+   screens. [What the two cover](#what-works-today).
 3. **Phase 3** — custom order, moving one day of a series, adding
    attachments, the duplicates finder, undo.
 
@@ -89,53 +92,104 @@ Grouped by what the app does; when each item arrived is in the
 7. Search by the desktop's own rule — title, body and comments, a
    table's plumbing stripped — with diacritics folded
    ([the one difference](#where-it-differs-from-the-desktop-on-purpose)).
-8. Sort by the desktop's orders and show one category, both remembered
-   under the desktop's own setting keys. Pinned notes float to the top.
-9. **Long press selects.** With notes selected: pin, move to a category,
-   duplicate, share as a code, move to the Trash. A delete offers
-   **Undo** for eight seconds.
+8. **The desktop's whole Sort and Show**, remembered under its own setting
+   keys: updated, title, category, Calendar: soonest and oldest, and
+   Custom order — the arrangement made on the desktop; and Show by
+   category, 🔁 Repeating, 📅 Dated or 📎 With files. Pinned notes float to
+   the top.
+9. **Grouped by category**, from the list's menu: a header per category in
+   Settings' order, each folding with a tap, the folds remembered.
+10. **Long press selects.** With notes selected: pin, move to a category,
+    duplicate, share as a code, move to the Trash. A delete offers
+    **Undo** for eight seconds.
+
+### The calendar
+
+11. **The month**, Monday first: a dot for each colour of note on a day,
+    the day's own paint and its markers, today, the open day ringed;
+    arrows or a sideways swipe for the month.
+12. **The open day's notes** under it, with the desktop's marks — a
+    series, a day edited on its own, a day moved here — and "+ Add note"
+    for a note that starts that day. A day held down adds a note, paints
+    the day or marks it (three markers at most), with an Undo for what is
+    cleared.
+13. **The History**, in the month's place as the desktop's toggle swaps
+    them: search, the year filters, dated notes, and each series with its
+    days edited on their own.
+
+### Repeating notes
+
+14. **The Repeat sheet**, in a note's details: how often, every how many,
+    which weekdays or days of the month, what a short month does, when it
+    ends — chosen, never typed — with the rule in the desktop's words and
+    the next three days it gives. The desktop's recurrence engine, ported
+    whole and checked against it.
+15. **One day of a series on its own**, the desktop's day mode: opened from
+    the calendar, saved to that day alone, "Whole series" and "Reset this
+    day" a tap away; a day deleted from its series comes back with Undo.
 
 ### Writing and editing
 
-10. **One screen for reading and writing.** A note opens ready to edit
+16. **One screen for reading and writing.** A note opens ready to edit
     and saves itself 0.8 seconds after the last change, when the app
     goes to the background, and on Back — "Auto-saved" says so, and a
     save that fails says why. Turning the phone, its dark mode coming on
     or its letters growing leave the note open where it was.
-11. Formatting over a selection — bold, italic, underline, strike, text
-    colour and highlight from the desktop's palettes — drawn as it is
-    typed, and moved to follow the text through every edit
+17. Formatting over a selection — bold, italic, underline, strike, text
+    colour and highlight from the desktop's palettes, **size and face**
+    from its lists — drawn as it is typed, and moved to follow the text
+    through every edit
     ([the trap](DATA_FORMAT.md#editing-plain-text-moves-formatting-onto-the-wrong-words)).
-12. Tables drawn as grids — merged cells, checkbox cells, `<br>` breaks,
-    alignment, sideways scrolling — and edited from a cell: change it,
-    add or remove a row or a column, make it a checkbox.
-13. Checklists: add, tick, rename, remove, and **drag to reorder** by the
+    The desktop's Windows faces are drawn as the kind they are: serif,
+    fixed-width or plain.
+18. **Lists, indent and alignment** on the cursor's line or every line
+    selected, with the desktop's keystrokes: Enter continues a list and
+    leaves it from an empty item, Backspace climbs a level, and every
+    numbered run counts 1, 2, 3 again.
+19. **Tables** drawn as grids — merged cells, checkbox cells, `<br>`
+    breaks, each cell's own alignment and highlight, sideways scrolling.
+    A new one inserted from a size grid, its first cell open to type. A
+    cell's menu: its text, alignment and highlight; merge and split; rows
+    and columns added or removed; a checkbox; the table's place on the
+    page; and delete the table, which asks.
+20. Checklists: add, tick, rename, remove, and **drag to reorder** by the
     ⠿ handle.
-14. Comments, the desktop's separate box under the note.
-15. Attached files listed and opened in whatever app on the phone opens
+21. Comments, the desktop's separate box under the note.
+22. Attached files listed and opened in whatever app on the phone opens
     that kind of file, through Android's own file sharing — never by
     handing out a path.
-16. Note details: category, date (Android's own calendar), colour, pin,
-    and the word count with the desktop's reading time.
-17. **"↩ Restore previous".** When a note carries the desktop's `_prev`
+23. Note details: category, date (Android's own calendar), colour, pin,
+    repeat, and the word count with the desktop's reading time.
+24. **"↩ Restore previous".** When a note carries the desktop's `_prev`
     rescue copy — left by a big deletion or by an update that arrived
     from elsewhere — the note says so and brings it back, its text and
     everything else the update changed.
+25. **Find in note**: the count, back and next, case, prose and table
+    cells together, every match painted and the current one scrolled into
+    sight.
+26. **The calculator**, docked under the note: the desktop's keypad and
+    More functions, a history, and Insert into note — its answer for
+    every sum.
+27. **Export as file**, `.html` or `.txt`, through Android's "save as":
+    the desktop's page byte for byte.
+28. **Templates**: start a note from one, save a note as one, and edit
+    them in Settings → Templates — the desktop's `templates.json`, so a
+    template made on either device starts notes on both.
 
 ### Organising
 
-18. Categories: add, rename, recolour, delete. A rename reaches every
-    note, every repeating day filed under it and every rescue copy. A
-    delete asks what happens to its notes — move them to "General" or
-    send them to the Trash — and "General" itself can be neither renamed
-    nor deleted.
+29. Categories: add, rename, recolour, delete. A rename reaches every
+    note, every repeating day filed under it, every rescue copy, the list's
+    Show and its folded groups. A delete asks what happens to its notes —
+    move them to "General" or send them to the Trash — and "General"
+    itself can be neither renamed nor deleted.
 
 ### The Trash
 
-19. Delete to the Trash and restore from it, one note or several. A
+30. Delete to the Trash and restore from it, one note or several. A
     restored note gets a fresh id and, if its category is gone, files
     under "General".
-20. **The Trash empties itself** of notes older than its window (7 to 90
+31. **The Trash empties itself** of notes older than its window (7 to 90
     days, the desktop's setting) when the app starts, and can be emptied
     or cleared note by note by hand. Shortening the window says first how
     many notes it would remove. Attached files go with their note, except
@@ -144,15 +198,16 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Moving notes between the phone and the desktop
 
-21. **Backup `.zip`, the desktop's own format.** Export saves one file
+32. **Backup `.zip`, the desktop's own format.** Export saves one file
     through Android's file picker — notes, settings, attachments,
     templates and the Trash. Import reads one, with the desktop's guards
     (path tricks, decompression bombs, too many files, too little space),
     and adds its notes: nothing is removed, and a note already here is
     only replaced when the person chooses to update it.
-22. **Share codes, both ways**, for one note or several. A code arrives by
-    pasting it or by sharing text to the app from any other app.
-23. **A note keeps one identity wherever it goes** (`uid`). A code or a
+33. **Share codes, both ways**, for one note or several. A code arrives by
+    pasting it or by sharing text to the app from any other app — over an
+    open note too, which then shows what an update changed.
+34. **A note keeps one identity wherever it goes** (`uid`). A code or a
     backup holding a note this phone already has is recognised as *that*
     note, and the phone asks the desktop's questions in the desktop's
     words: update the copy here or add a new one; skip copies that hold
@@ -162,22 +217,30 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Looks and settings
 
-24. The desktop's eight themes, its palettes measured equal by a gate,
+35. The desktop's eight themes, its palettes measured equal by a gate,
     and **"Follow the phone"**: dark when the phone is dark, light when it
     is light, in two themes the person picks. On by default, as Android
     apps are.
-25. Settings: your name, appearance, categories, backup, the Trash and
-    its window, and About — the version, the welcome note, and
+36. **Wide screens.** From a medium window — a phone on its side, a small
+    tablet — the bar becomes a rail down the left edge; from an expanded
+    one, a note opens beside the notes or the calendar, which stay in
+    reach, its card outlined. What the list does to the note beside it —
+    a pin, a category — the note shows at once and keeps.
+37. Settings: your name, appearance, categories, templates, backup, the
+    Trash and its window, **Statistics** — the desktop's snapshot of the
+    notebook — and About: the version, the welcome note, and
     **Send feedback**, which opens the desktop's feedback form in the
     browser and sends nothing from the notes.
-26. The desktop's icon, drawn by the desktop's own code.
+38. The desktop's icon, drawn by the desktop's own code.
 
 ### Underneath
 
-27. 317 JVM unit tests in 13 suites, mutation-tested; four gates against
-    drift (the note's shape and the palettes against the desktop's
-    Python, the rules layer free of Android, the repository in English);
-    and an emulator walk of 33 checks that reads the files the app wrote.
+39. 516 JVM unit tests in 23 suites, mutation-tested; five ports held to
+    fixtures the desktop's own Python wrote; four gates against drift
+    (the note's shape and the palettes against the desktop's Python, the
+    rules layer free of Android, the repository in English); and an
+    emulator walk of 127 checks that reads the files the app
+    wrote.
 
 ## Where it differs from the desktop, on purpose
 
@@ -213,32 +276,45 @@ not a reason for the phone to copy it.
 tour that is itself a note — but written for a phone: tap, long press,
 the share sheet, Settings at the bottom.
 
+Phase 2 added five more, each where the desktop's answer is a side
+effect or a fault rather than a rule — all five are
+[desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2):
+
+* **Untitled notes stay at the bottom of "Title Z–A"** as of "Title A–Z".
+  The desktop reverses A–Z's whole order, so its untitled notes rise to
+  the top of Z–A, against the comment that says they sink.
+* **Find steps through a table row by row**, as a table is read; the
+  desktop goes column by column, because of how it sorts its matches.
+* **A sum nested past about 190 brackets shows Error.** The desktop's
+  parser raises `RecursionError` there instead of failing as it fails
+  everywhere else.
+* **The table size grid draws every column**, so the squares lit are the
+  table's shape. The desktop's starts at its second column and lights a
+  single one for a two-column table.
+* **The export writes a note with a `^` merge under a shorter row.** The
+  desktop's renderer raises `IndexError` on it.
+
 ## Not built yet
 
-The phases above, as a list, so nothing is pretended:
+Phase 3, and what is left beyond it, as a list, so nothing is pretended:
 
-* **The calendar**, its day list, day colours and markers, and History.
-* **Repeating notes** can be read, kept and badged, but not set or
-  changed — which is why clearing a repeating note's date is refused
-  rather than offered with a warning: there would be no way back
-  ([the trap](DATA_FORMAT.md#clearing-a-date-deletes-a-recurrence-rule)).
-  "This day only" edits are kept and not shown.
-* **The rest of the format bar**: lists, indents, alignment, font size and
-  family (all read and kept, not applied), the table cell menu (merge,
-  cell highlight) and inserting a new table.
-* **Templates**: kept in a backup, not usable yet.
-* The calendar sorts and the "Repeating", "Dated" and "With files"
-  filters; group by category.
-* Find in a note, the calculator, exporting a note as `.html` or `.txt`,
-  statistics.
-* **Wide screens and landscape**: one column everywhere, and in landscape
-  the + button covers the last card.
-* Custom order, moving one day of a series, **adding** attachments (they
-  can be opened, not added), the duplicates finder, pasting with
-  formatting, table column widths and captions, undo and redo.
+* **Arranging notes by hand.** Custom order shows the desktop's
+  arrangement; the phone cannot change it yet.
+* **Moving one day of a series** to another date. A day moved on the
+  desktop is shown where it went, marked, and can be sent back.
+* **Adding attachments.** They can be opened, not added.
+* The duplicates finder, pasting with formatting, table column widths
+  and captions, and **undo and redo** — which is why deleting a table
+  asks first.
 * Styling inside a table's cells is not drawn, and a vertical merge is
   drawn as an empty cell rather than a joined one.
 * A code can be typed, pasted or shared in, but not scanned.
+
+Built since the list above was first written, in Phase 2: the calendar,
+repeating notes and one day of a series, the whole format bar,
+templates, the remaining sorts and filters with grouping, find, the
+calculator, export, statistics, and wide screens — where the + button no
+longer covers the last card.
 
 ## Open questions
 
@@ -273,20 +349,26 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 33 checks walked on the built app, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 127 checks walked on the built app, upright and on its side, reading the file the app wrote and the screen it drew |
+| [The Phase 2 ports](#the-phase-2-ports-answer-as-the-desktop-answers) | Five fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists — every answer matched |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 317 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 516 JVM unit tests, each mutant watched failing |
 
 ### An emulator walk that reads the files
 
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-Four parts, 33 checks:
+17 parts, 127 checks. On the last full run 125 passed and 2 failed —
+the walk's own fault, not the app's: text typed at the start of a
+field that capitalises came back with a capital
+([the story](ISSUES_LOG.md#taps-aimed-through-the-keyboard)). Both
+checks were fixed and their parts run again, passing; a full run from
+start to end has not been repeated since. Phase 1's four:
 
 * **A brand-new notebook**: the welcome note, written and remembered; a
   note typed, saved by Back, and born with the desktop's whole shape;
@@ -309,10 +391,62 @@ Four parts, 33 checks:
   larger letters, the phone turned on its side — and the note still open
   after each ([why this part exists](ISSUES_LOG.md#turning-the-phone-closed-the-note)).
 
+Phase 2 added a part for each feature, each over a notebook written for
+it and read back from the file:
+
+* **The calendar**: a day of a series edited on its own and written to
+  that day alone; deleted from the series and brought back by Undo with
+  its own text; a day painted under the desktop's key; the History; a
+  repeat chosen on the sheet.
+* **The list**: Show 📅 Dated, grouping, a folded group — the choices kept
+  under the desktop's own keys.
+* **Statistics** over a notebook whose figures are known.
+* **The calculator**: keys, two inserts, the panel standing aside for the
+  keyboard, Error, the history, Back — and each sum on its own line in
+  the file.
+* **Find in note**: prose and cells counted together, stepping, case, a
+  miss, the bar opening again with the last search, the file unchanged.
+* **Export**: both formats through Android's "save as", each file read
+  back off the phone and compared byte for byte with the desktop's
+  export of the same note.
+* **Styles through an edit**: a letter typed into a desktop note, its
+  size still the number 24 and its bullet still on its line.
+* **Templates**: a note saved as one, a taken name asked about, a note
+  made from one, a template edited in Settings, a delete that asks.
+* **Size and face**, **lists**, **a new table** and **the cell menu**, each
+  read back in the shape the desktop writes.
+* **A wide window**: a selection and an open find bar surviving the
+  phone turning; the rail; a note beside the list; a pin from the list
+  kept by the editor's next save; another note opened from its title;
+  the note beside the calendar, and closed for Settings; two new notes in
+  a row; a code shared in over an open note, upright, and the update
+  kept; and a medium window, the note in the list's place.
+
 The photographs it takes are looked at, not only saved: the walk is
 where the Settings switch that did not redraw, Back closing the app from
-Settings, and an Undo that vanished before a thumb could reach it were
+Settings, an Undo that vanished before a thumb could reach it, a merged
+cell drawn short, and an editor that kept the last note's scroll were
 found ([the stories](ISSUES_LOG.md)).
+
+### The Phase 2 ports answer as the desktop answers
+
+Each rule ported in Phase 2 that can be run on its own was run, in the
+desktop's own Python, over cases generated for it — and the phone had to
+give every answer back exactly. The tools that write the fixtures read
+the desktop's source and never write to it.
+
+| Port | The desktop's own function | Cases |
+|---|---|---|
+| Repeating notes | its recurrence engine, expanding and reading dates | 300 seeded notes expanded, 400 typed dates read |
+| The calculator | its evaluator and its display rounding | 661 sums, 378 shown values |
+| Export | `note_to_html`, `html_document` and the page around them | 400 notes, 794 files compared byte for byte |
+| Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
+| Lists | its renumbering | 300 bodies |
+
+The four sorts new to the phone were checked against the desktop's
+`_sort_notes` on the same notes, and the round trip that found
+[a desktop note's lost sizes](ISSUES_LOG.md#a-desktop-note-lost-its-sizes-on-the-way-through-the-phone)
+sends all 400 export notes through a save on the phone.
 
 ### A backup made on the phone, read by the desktop's own functions
 
@@ -369,12 +503,26 @@ the circle inscribed in that square
 
 ### The unit tests, and their mutants
 
-317 JVM unit tests pin the rules ported from Python, and each mutant was
-watched failing before being reverted. Phase 1's rounds — the themes, the
-settings, the import and backup, organising, the editor's segments,
-startup and the card's date — ran about seventy mutants; every survivor
-was either a weak check, strengthened until it died, or an equivalent
-mutant, removed with the redundant code it exposed.
+516 JVM unit tests in 23 suites pin the rules ported from Python, and
+each mutant was watched failing before being reverted. Phase 1's rounds —
+the themes, the settings, the import and backup, organising, the
+editor's segments, startup and the card's date — ran about seventy
+mutants; every survivor was either a weak check, strengthened until it
+died, or an equivalent mutant, removed with the redundant code it
+exposed.
+
+Phase 2 ran 190 against the unit tests: 187 killed, and three equivalent
+— two in the recurrence engine (a check the next line repeats, as in the
+Python; a `break` where the sorted weekdays make `continue` the same) and
+a blank table padded as centred, whose cells are all padding. Three more
+were built into the app itself and walked on the emulator, where the
+rule lives in the drawing: each was caught.
+
+Two commit messages carry counts that were wrong when written and are
+corrected here, the history left as it is: the recurrence engine's
+(`e29e9a1`) says 26 tried, 23 killed, 3 equivalent — it was 24, 22 and
+2; the calendar days' (`314e89a`) says `DaysTest` has 17 cases — it has
+16.
 
 Two lessons from running them, each with its full story in the issues
 log:

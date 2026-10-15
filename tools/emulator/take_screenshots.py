@@ -32,6 +32,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -43,14 +44,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(ANDROID, "docs", "screenshots")
 
+# The calendar opens on the month it is run in, so the dates are worked
+# out from today: a month photographed in November with October's notes
+# in it would be an empty grid.
+TODAY = date.today()
+FIRST = TODAY.replace(day=1)
+FIRST_MONDAY = FIRST + timedelta(days=(7 - FIRST.weekday()) % 7)
+
 # Written for the camera: short enough to read at phone size, real
 # enough to show what the app is for -- a headline, a preview, the
-# badges, a checklist, a table, a pinned note and one with no title.
+# badges, a checklist, a table, a pinned note and one with no title,
+# and a series for the calendar.
 NOTES = [
     {"id": 1, "uid": "shot-bread", "title": "Home-made bread",
      "body": "500 g flour\n300 ml warm water\n10 g salt\n\nKnead for 10 "
              "minutes, let it rise for 2 hours, bake for 45 minutes at 220 °C.",
-     "category": "Personal", "date": "2026-10-18", "color": "#f9c74f",
+     "category": "Personal", "date": (TODAY + timedelta(days=2)).isoformat(), "color": "#f9c74f",
      "checklist": [{"text": "flour", "done": True},
                    {"text": "yeast", "done": True},
                    {"text": "seeds", "done": False}],
@@ -71,8 +80,14 @@ NOTES = [
      "category": "Work", "pinned": True,
      "checklist": [{"text": "chapter 1", "done": True},
                    {"text": "chapter 2", "done": False}],
+     # A series, for the calendar's dots: every Monday and Thursday.
+     "date": FIRST_MONDAY.isoformat(),
+     "recurrence": {"freq": "weekly", "interval": 1, "weekdays": [0, 3]},
      "created": "2026-10-10 08:00:00", "updated": "2026-10-11 07:30:00"},
 ]
+
+# Ana's birthday, from the idea above: a painted day with its marker.
+BIRTHDAY = (TODAY + timedelta(days=7)).isoformat()
 
 SETTINGS = {
     "username": "Maria",
@@ -83,6 +98,8 @@ SETTINGS = {
     # Light for the main set, whatever the emulator's own mode is today.
     "phone_theme_follows_phone": False,
     "theme": "light",
+    "day_colors": {BIRTHDAY: "#f9c74f"},
+    "day_emoji": {BIRTHDAY: ["🎂"]},
 }
 
 # The last shot: the same list in a dark theme.
@@ -106,8 +123,14 @@ SHOTS = [
     ("05-appearance", "Settings, Appearance: following the phone, eight themes",
      [("clear_search",), ("tap_exact", "Settings"), ("tap", "Appearance")],
      ["Follow the phone", "Soft Lavender", "Midnight Purple"], []),
+    ("07-calendar", "The calendar: a series' days, a dated note, a painted day",
+     [("back_to", "Your name"), ("tap_exact", "Calendar")],
+     ["📋 History", "Mon", "Sun"], []),
+    ("08-wide", "On its side: the note beside the list, the rail at the left",
+     [("tap_exact", "Notes"), ("turn", 1), ("tap", "Home-made bread")],
+     ["Search notes", "Home-made bread", "500 g flour", "Calendar"], []),
     ("06-dark", "The same list in Midnight Purple",
-     [("settings", DARK)],
+     [("turn", 0), ("settings", DARK)],
      ["Hi Maria,", "Home-made bread", "To read"], []),
 ]
 
@@ -276,6 +299,12 @@ def act(step):
     if kind == "settings":
         put("settings.json", step[1])
         restart()
+        return True
+    if kind == "turn":
+        # 0 upright, 1 on its side; the phone's own turning held off.
+        adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
+        adb("shell", "settings", "put", "system", "user_rotation", str(step[1]))
+        time.sleep(2.5)
         return True
     raise ValueError(kind)
 

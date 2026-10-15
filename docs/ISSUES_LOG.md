@@ -7,11 +7,20 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Seven of the sixteen are about the
+**the code**, or in **the design**. Ten of the twenty-five are about the
 checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-16](#taps-aimed-through-the-keyboard) | checking | On its side, the walk's taps landed on the keyboard, and a check passed because the autosave had already run | A race an emulator tap cannot win belongs in a test that can record the order |
+| [2026-10-16](#what-a-phone-resets-for-free) | code | Beside the list, the editor kept the last note's scroll, and a second + opened nothing | A screen that goes away resets its state for free; one that stays must reset it on purpose |
+| [2026-10-16](#an-update-the-editor-put-back) | code | A code shared in over the open note updated the file; the editor's next save put the old words back | Whatever keeps a copy of a record must be told when the record changes under it |
+| [2026-10-15](#a-table-edit-nobody-asked-for) | code | A table edit that changed nothing re-padded the whole table; a row above the header broke the separator | An edit that touches nothing must write nothing |
+| [2026-10-15](#a-list-drawn-double-spaced-then-bunched) | design | Lists drawn with a paragraph style per line came out double-spaced, then crushed together | The drawing library's paragraph is not the file's line |
+| [2026-10-15](#a-desktop-note-lost-its-sizes-on-the-way-through-the-phone) | code | Every font size from the desktop read as empty and was written back without a value | A reader that knows one spelling of a value is a writer that deletes the others |
+| [2026-10-15](#save-under-the-status-bar) | design | The template editor's Save went under the status bar when the keyboard rose | A full-screen dialog left to the window is a third Android default |
+| [2026-10-15](#the-answer-written-by-hand-wrong-twice) | checking | Two expectations written by hand for the export were wrong; the desktop's own output was right | When the specification can be run, run it instead of reading it |
+| [2026-10-15](#the-walk-read-half-of-what-the-screen-said) | checking | The walk read only a node's text, never its description, and tapped a note's menu before the note was there | A check can only see what its reader reads |
 | [2026-10-15](#checks-that-were-also-true-when-nothing-happened) | checking | "Re-importing changes nothing" passed over an import that never happened | A check must be false when the action is skipped, not only when it goes wrong |
 | [2026-10-15](#turning-the-phone-closed-the-note) | code | Turning the phone, or its dark mode coming on, closed the note being written | A walk that photographs the list after a change never sees what the change did to an open note |
 | [2026-10-15](#the-same-date-written-two-ways) | code | The card printed `2026-10-18`, the editor `18.10.2026` | A display rule written inside one screen is a rule the next screen does not know |
@@ -33,6 +42,241 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## Taps aimed through the keyboard
+
+**2026-10-16.** The walk's wide part turned the emulator on its side,
+typed into the note open beside the list, and tapped another card at
+once — to prove that words typed just before the switch are saved with
+the note they were typed in. The check passed. The next three failed.
+
+On a phone on its side the keyboard covers most of the screen. The
+card's position had been read before the keyboard rose, and the tap
+landed on the keys. The note never switched; the following checks found
+themselves on the wrong screen. And the check that passed did so
+because the 0.8-second autosave had run while the walk was busy failing
+to switch — the words were saved, by a route that was not the one being
+tested.
+
+**The class:** [a check also true when the step never ran](#checks-that-were-also-true-when-nothing-happened),
+again, through a race: "saved before the switch" and "saved by the timer
+anyway" leave the same file.
+
+**The fix:** the walk puts the keyboard down before touching the list,
+and no longer claims the race. The order — the open note saved *before*
+another one takes its place — is held where it can be recorded:
+`AppStateTest` stands in for the editor with a save that notes what the
+file held when it was called. Each of its rules was shown failing by a
+mutant.
+
+The same evening, a build that failed to compile was followed by the
+walk on the app already installed, because the commands were joined
+with `;` rather than `&&`. Every check failed, loudly, so nothing was
+believed — but it is [the pass printed over a failed build](#a-pass-printed-over-a-build-that-failed)
+in another form, and the build, install and walk are now chained.
+
+And on the next full run, the keyboard had a say of its own. "milk and
+eggs", typed at the start of a new note's body, reached the file as
+"Milk and eggs": the body asks for a capital at the start of a sentence,
+and the keyboard gave it to the typed-in text — on that run, after many
+that had kept the letter small. The lists part had met this already and
+compared in lower case; the first part had not, and neither had a
+checklist item typed into a template. Text that starts a capitalising
+field is now typed with its capital, so the keyboard has nothing to
+change, whichever way it decides.
+
+## What a phone resets for free
+
+**2026-10-16.** With a note open beside the list on a wide screen, the
+photograph of the second note opened showed its text and not its title.
+The editor had stayed on screen from one note to the next, and kept the
+first note's scroll, pushed down by the keyboard while typing in it.
+
+On a phone the editor covers the screen and closes with Back, so each
+note opens in an editor built for it. Nothing in the code said "start at
+the top"; the editor going away said it. Beside the list it never goes
+away. Two more things followed from the same fact:
+
+* **A second + opened nothing.** A new note is "note 0" until its first
+  save, so a second new note was "note 0" again — the same note, as far
+  as the screen could tell — and the pane stayed on the first.
+* **Turning the phone would have rebuilt the editor.** The first layout
+  drew the editor in one place on a narrow screen and another on a wide
+  one. Compose keeps a screen's state by its place, so turning the phone
+  would have built a new editor: the find bar shut, the cursor lost, and
+  words not yet saved left in the old one. Found by reasoning before it
+  was ever seen.
+
+**The class:** state that was reset by its screen leaving. When a layout
+keeps a screen on, every reset it used to get for free has to be made on
+purpose — or it was never a rule, only a habit of the phone.
+
+**The fix:** each note opened gets an editor of its own, counted by
+`AppState.opening`, and a new note becomes its id at its first save. One
+layout serves every width — the rail, the panes and the bar each there
+or not — so the list and the editor keep their places when the phone
+turns. The walk checks a selection and an open find bar surviving the
+turn, and a second note shown from its title; each of the three was
+built into the app as a mutant and caught there.
+
+The third was not caught at first. The walk counted the nodes that say
+the note's title, found two — the card's and the editor's — and passed
+over the mutant whose photograph showed no title at all: **a node
+scrolled out of a pane is still in the tree.** Its box is not; cut to
+what shows, the hidden title was 11 pixels tall. The walk reads the box
+now, and the mutant fails.
+
+## An update the editor put back
+
+**2026-10-16.** Planning the wide layout raised the question of what the
+list may do to the note open beside it: pin it, file it, send it to the
+Trash. The editor keeps its own copy of every field of the note it holds
+and writes them all back when it saves — so a pin from the list would
+last until the next letter typed.
+
+Looking for the same shape on a phone found it already there. A code
+shared in from another app arrives over whatever is open. "Update this
+note" replaced the note on disk while the editor kept showing the old
+words, and the first thing typed afterwards saved them back over the
+update.
+
+**The class:** a holder of a copy, not told when the original changes.
+It is not the route — an import, a pin — but the copy.
+
+**The fix:** every change made from outside the editor goes through one
+door in `AppState`. When the open note is among the notes it touches,
+what the editor holds is saved first — so the change lands on the words
+on screen, and a copy or a code carries the last ones typed — and the
+editor reads the note back after. Eight tests and fourteen mutants hold
+the door; the walk holds the editor's half, with a pin from the list
+beside the note and a code shared in over it.
+
+## A table edit nobody asked for
+
+**2026-10-15.** Three findings from one feature, the table's cell menu,
+two of them in its photographs:
+
+* **An edit that changed nothing re-padded the table.** Asking for a
+  merge marker on the separator, or for the last row to go, was refused —
+  and the table was written back anyway, every cell padded again into a
+  diff nobody made.
+* **A row inserted above the header broke the separator.** It pushed the
+  dashes to the third line, where they are no longer read as one, and
+  they became a row of text.
+* **A merged cell was drawn short.** It counted each swallowed column's
+  grid line but not its padding, so the grid showed through at its right.
+
+**The class** of the first two: an edit that assumes it changed
+something. A table's lines are rebuilt from the edit's grid, and
+"rebuilt" is a change even when the grid is the one that was read.
+
+**The fix:** a table edit remembers whether it touched anything and,
+when it did not, hands back the lines it was given. The separator keeps
+its place under the first row, as on the desktop, and the merged cell
+counts the whole of each column it covers. The first two are pinned by a
+test and a mutant each; the third is a drawing, held by the walk's
+photograph.
+
+## A list drawn double-spaced, then bunched
+
+**2026-10-15.** The desktop indents a list item and aligns a line by
+paragraph, so the editor gave each line a paragraph style of its own.
+The list came out double-spaced. Fixed that way, it came out crushed.
+
+Compose's text field has its own idea of a paragraph. A line break kept
+inside a styled paragraph drew an empty line after it; a break left
+between two styled paragraphs became an empty paragraph of its own; and
+a paragraph of one line had its spacing trimmed to nothing.
+
+**The class:** a library's word that sounds like the file's. A
+"paragraph" in the drawing is not a "line" in `paragraphs`.
+
+**The fix:** each line is a paragraph, and its break is drawn as an
+invisible character of the same length — so every position in the
+drawing is still the position in the text, and the styles, the cursor
+and the find bar's matches stay where they were — at the body's own
+line height, untrimmed.
+
+## A desktop note lost its sizes on the way through the phone
+
+**2026-10-15.** Found while porting templates, by sending every note of
+the export fixture through a save on the phone and asking for back what
+the desktop would keep:
+
+* **Every font size was lost.** The desktop stores a size as a number;
+  the phone read a span's value only when it was text. Every size came
+  in empty, was not drawn, and was written back with no value — which
+  the desktop's `normalize_formatting` drops.
+* **Typing a letter into a list item dropped its line entry.** The line
+  was inside the edited stretch, and every line there was dropped for
+  fear of moving a marker onto a stranger's line. A stretch with as many
+  lines after as before was typed into, not reshaped.
+
+**The class:** the [partial reader](DATA_FORMAT.md#a-partial-reader-must-not-become-a-total-writer)
+again, this time inside a value: a reader that knows one spelling of a
+field writes back a field without it. `check_note_shape` could not see
+it — it compares the fields a note has, not the shape of what is inside
+them.
+
+**The fix:** sizes are read and written as numbers, and only as numbers,
+as the desktop keeps them. A line typed into keeps its entry. The test
+that found them stays: 400 notes, styles valid and not, round-tripped
+through a save.
+
+## Save, under the status bar
+
+**2026-10-15.** The template editor is a dialog that takes the whole
+screen. On the emulator, with the keyboard up, its top bar — Save with
+it — had gone under the status bar, out of reach.
+
+Left to itself, a dialog's window fits inside the system's bars and is
+pushed up whole by the keyboard. The app around it draws edge to edge
+and keeps its own room; the dialog did neither.
+
+**The class:** [an Android default](#two-android-defaults-that-were-wrong-here),
+a third: what a window does when nobody says.
+
+**The fix:** the dialog draws edge to edge, keeps the keyboard's room at
+its bottom itself, and puts the status bar's icons on the theme's side.
+
+## The answer written by hand, wrong twice
+
+**2026-10-15.** The export was checked against 794 files the desktop's
+own renderer wrote. Before that fixture existed, two expectations were
+written by hand from reading the Python — a file name, and a highlighted
+cell's HTML — and both were wrong. The phone's output was right, and
+the desktop's agreed with it.
+
+**The class:** when a specification can be run, reading it is a second
+implementation, with its own bugs. The [house rule](../qa/README.md#the-house-rules)
+already said not to check the app against itself; this is its sibling —
+do not check it against a memory of the spec either.
+
+**The fix:** the expectations were taken from the desktop's output. Every
+port in this phase is held to a fixture its desktop function wrote:
+recurrence, the calculator, the export, templates and renumbering.
+
+A smaller cousin from the same day: the tool used to write the export's
+source turned the escape `�` into the character itself, invisible
+in review. The source now says `Char(0xFFFD)`, which no tool rewrites.
+
+## The walk read half of what the screen said
+
+**2026-10-15.** Two of the walk's readers were narrower than the screen:
+
+* **It read a node's text and never its description.** The find bar's
+  close button is drawn `✕` and said "Close find". A check looking for
+  either one could not see the other, and passed or failed on what it
+  could not see.
+* **It tapped a note's ⋮ before the note was there.** After a fresh
+  install the first note opened slowly, a fixed pause was not long
+  enough, and the tap found the list's own ⋮ in the same corner.
+
+**The class:** a check can only see what its reader reads, and only when
+it reads it.
+
+**The fix:** `screen_says` reads both, and opening a note waits for the
+editor's own "ⓘ" rather than for a length of time.
 
 ## Checks that were also true when nothing happened
 
@@ -435,6 +679,43 @@ living note still shows. The phone's purge spares those files
 The desktop fix is one argument; removing a single attachment in its
 `ui/attachments.py` calls the same helper without one too, and is worth
 checking in the same change.
+
+### Seven DESKTOP findings from porting Phase 2
+
+Porting a feature means reading its Python closely enough to answer as
+it answers, and running it over hundreds of generated cases. That turned
+up seven things in the desktop, each left for its own repository; the
+phone matches the desktop wherever the difference is not a fault.
+
+* **"Title Z–A" puts the untitled notes first.** Its sort reverses the
+  whole key of "Title A–Z", whose comment says untitled notes sink to the
+  bottom — so reversed, they rise to the top. The phone keeps them at the
+  bottom in both orders, as that comment means
+  ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+* **The calculator raises `RecursionError` at about 190 nested
+  brackets** instead of returning `None` like every other failure. The
+  phone shows Error there.
+* **The calculator's display refuses `-`, `*` and `/` typed on a
+  keyboard**, taking only its own `−`, `×` and `÷`.
+* **Find steps through a table's matches column by column** — a side
+  effect of how it sorts them. The phone goes row by row, as a table is
+  read.
+* **The export raises `IndexError` on a `^` merge under a shorter row**
+  (`merge_map` reads a cell without asking whether it exists): 3 of the
+  400 fixture notes. The phone writes those notes.
+* **The table size grid lights a single column for a two-column table**,
+  because it starts at its second column. The phone's grid draws every
+  column.
+* **A table inserted right above another leaves two blank lines** between
+  them.
+
+### A walk that once showed a new notebook over its seed
+
+Once, of many runs, a seeded part of the walk opened on a brand-new
+notebook's welcome note although the seed was on disk. Not reproduced
+since. Every seeded part now fails at once, by name, when the app does
+not show the notebook it was given, so a second sighting says what it
+is instead of failing ten later checks for one cause.
 
 ### A deliberate difference worth porting back
 

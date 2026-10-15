@@ -21,6 +21,11 @@ over a note without asking.
   <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="170">
   <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="170">
   <img src="docs/screenshots/05-appearance.png" alt="Settings, Appearance" width="170">
+  <img src="docs/screenshots/07-calendar.png" alt="The calendar, a series' days and a painted day" width="170">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/08-wide.png" alt="On its side: the note open beside the list" width="560">
 </p>
 
 <p align="center"><sub>The app running on an emulator, on a notebook written
@@ -29,13 +34,20 @@ for the camera rather than anybody&rsquo;s real one &mdash;
 
 ## What it does
 
-- **Write and edit** in one screen that saves itself: formatting, tables
-  edited cell by cell, checklists you can tick and drag, comments, and a
-  note's category, colour, date and pin. A big deletion can be undone with
-  the desktop's **↩ Restore previous**.
+- **Write and edit** in one screen that saves itself: formatting, sizes
+  and faces, lists, tables made and edited cell by cell, checklists you
+  can tick and drag, comments, and a note's category, colour, date and
+  pin. Find in a note, a calculator under it, templates, and export as a
+  web page or plain text. A big deletion can be undone with the
+  desktop's **↩ Restore previous**.
+- **The calendar and repeating notes**: the month with each day's notes,
+  painted days and markers, the History, repeats chosen on a sheet, and
+  one day of a series edited on its own.
 - **Find and organise**: search by the desktop's rule (diacritics folded),
-  sort, filter by category, long press to select, pin, move, duplicate or
-  delete several at once — with Undo.
+  the desktop's every sort and filter, groups by category, long press to
+  select, pin, move, duplicate or delete several at once — with Undo.
+- **A phone or a tablet**: on a wide screen the note opens beside the
+  list.
 - **The Trash**, kept for the desktop's window and emptied on its own.
 - **Your look**: the desktop's eight themes, or follow the phone's dark
   mode.
@@ -89,7 +101,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 317 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 516 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in
@@ -123,7 +135,7 @@ at 47% of the canvas is in the
 | The palette gate | `py tools/check_palettes.py` | A theme or a colour drifting from the desktop's |
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
-| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 33 checks, each reading the file the app wrote |
+| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 127 checks, each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
 The unit tests pin the rules ported from Python rather than the screens,
@@ -133,10 +145,12 @@ passing one ([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one
 
 The parts that matter most are not judged by this app at all. A note
 written on the phone, a share code and a backup made here were each
-checked **in the desktop's own Python**
+checked **in the desktop's own Python**, and the ports of Phase 2 —
+repeats, the calculator, the export, templates, renumbered lists — give
+back every answer the desktop's functions gave over hundreds of cases
 ([what was compared](docs/STATUS.md#how-each-part-was-verified)). A suite
 proves the code does what it says it does; that proves the two programs
-agree about what a note is.
+agree.
 
 The test plan marks which cases a unit test or the emulator already
 walks, and which need a person with a real phone: whether a tap lands,

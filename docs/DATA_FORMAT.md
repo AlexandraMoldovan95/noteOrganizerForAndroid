@@ -29,6 +29,7 @@ that reads or writes what it covers.
   - [Clearing a date deletes a recurrence rule](#clearing-a-date-deletes-a-recurrence-rule)
   - [The ceilings, and why they exist](#the-ceilings-and-why-they-exist)
 - [Formatting](#formatting)
+  - [A list item is told by its marker, not by its entry](#a-list-item-is-told-by-its-marker-not-by-its-entry)
   - [What a span is](#what-a-span-is)
   - [Offsets are code points, and Kotlin counts UTF-16](#offsets-are-code-points-and-kotlin-counts-utf-16)
   - [Styles are algebra, not a flag](#styles-are-algebra-not-a-flag)
@@ -39,6 +40,8 @@ that reads or writes what it covers.
   - [Measure the real notebook before deciding what to support](#measure-the-real-notebook-before-deciding-what-to-support)
   - [Editing one cell must not rewrite the whole table](#editing-one-cell-must-not-rewrite-the-whole-table)
   - [The drawn grid and the file do not number rows the same way](#the-drawn-grid-and-the-file-do-not-number-rows-the-same-way)
+  - [Where a table keeps what is not words](#where-a-table-keeps-what-is-not-words)
+- [Templates](#templates)
 - [Share codes](#share-codes)
   - [What a code carries](#what-a-code-carries)
   - [Interop is the test](#interop-is-the-test)
@@ -85,6 +88,23 @@ message, not a phone that cannot take a single note.
 `welcome_offered`, `welcome_note_uid`, `last_export_at` — so a backup
 carries the person's choices both ways. A key the phone does not use is
 kept, never dropped.
+
+Phase 2 reads and writes five more, and two old ones with every value
+the desktop gives them, each as the desktop keeps it:
+
+| Key | Holds |
+|---|---|
+| `note_sort`, `note_filter` | not new, but now every value the desktop stores: the sort's own words (`"Calendar: soonest"`, `"Custom order"`), and Show as a category's name or a type's label (`"🔁 Repeating"`, `"📅 Dated"`, `"📎 With files"`). A filter naming a category since deleted reads as All. |
+| `group_by_category` | `true` when the list is grouped |
+| `collapsed_groups` | the folded groups' category names |
+| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real colours are read |
+| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most; the older one-marker string is read too |
+| `first_launch_date` | the day this install was first used, stamped once and never again |
+
+A rename of a category carries its name along in `note_filter` and
+`collapsed_groups`; a delete drops its folded group and returns Show to
+All — and the categories, the folds and the filter are written in one
+write, so no file ever holds one without the others.
 
 The phone adds three keys of its own, for **"Follow the phone"**:
 `phone_theme_follows_phone` (on unless turned off), `phone_theme_light`
@@ -186,13 +206,28 @@ return bool((note.get("recurrence") or {}).get("freq"))
 Measured against a real 77-note file: emptiness said 77 recurring,
 `freq` said 0. Copy the Python's test, not the field list's shape.
 
-Plus two maps on the note itself: `exceptions` (dates deleted
-individually) and `overrides` (date → partial note, for "edit only this
-day").
+Plus three maps on the note itself: `exceptions` (dates deleted
+individually), `overrides` (date → partial note, for "edit only this
+day") and `moved` (a day of the series held on another date).
 
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
 Getting this wrong produces a note that looks edited and is not.
+
+Since Phase 2 the phone writes all three, as the desktop's day mode
+writes them:
+
+- **A day saved on its own** keeps only those five fields, and only
+  plain text — a day's body carries no styles. A day that says exactly
+  what the series says keeps no override at all, and follows the series
+  again.
+- **A day deleted** from its series goes into `exceptions` — a moved day
+  by the date its rule gives it, not the date it was moved to — and its
+  Undo finds the note by `uid`, not by `id`, and brings back the day's own
+  edit and its move with it.
+- **A repeat turned off** when some day holds its own text puts the whole
+  note — the rule, the deleted days, the edits — into `_prev` first, so
+  "↩ Restore previous" brings the series back whole.
 
 ### Clearing a date deletes a recurrence rule
 
@@ -244,6 +279,37 @@ A note's styling lives in two fields: `formatting` holds character
 styles as spans over the body, and `paragraphs` holds the bullet and
 number markers by line. The traps below cover how a style is stored,
 applied, kept through an edit, and drawn.
+
+**A size is a number.** `font_size`'s value is an `int` in the file —
+`{"style": "font_size", "value": 24}` — and the desktop's
+`normalize_formatting` drops a size written as text. The phone once read
+only text there, so every desktop size came in empty and went back out
+without a value ([the story](ISSUES_LOG.md#a-desktop-note-lost-its-sizes-on-the-way-through-the-phone)).
+It reads and writes numbers now, and only numbers: a size in quotes,
+which the desktop refuses, is not revived here either.
+
+### A list item is told by its marker, not by its entry
+
+The desktop draws a list from the **text**: a line that begins with a
+bullet glyph (`• `, `◦ `, `▪ ` by depth) or a number (`1. `) is a list
+item. What `paragraphs` stores is worked out from the body when the note
+is saved — the kind read off the marker, and the indent and alignment
+kept for the line — so a body and its entries cannot disagree for long.
+The phone does the same: the editor keeps each line's indent and
+alignment in step with its text, and the save writes the entries.
+
+What counts as an entry is the desktop's `normalize_paragraphs`: `line`
+a whole number within the text — `true` and `false` count as 1 and 0,
+as Python counts them, and `1.0` does not count — and the **first**
+usable entry for a line wins. Every numbered run is renumbered 1, 2, 3
+after each change: a counter per depth, a deeper list starting again
+under each item, a bullet interrupting its depth and those below, one
+blank line not ending a list and two ending it. That rule was checked
+against the desktop's own renumbering over 300 bodies.
+
+Typing into a line keeps its entry. Only a change in the number of
+lines — a break added or taken away — may drop the entries inside the
+edited stretch, for fear of moving one onto a stranger's line.
 
 ### What a span is
 
@@ -408,6 +474,51 @@ conversion; nothing should index the file with a drawn row without it.
 A related trap for the tests, not the app: a one-column table is **not a
 table**. A row needs at least two cells (`_MIN_CELLS`), so a test written
 with `| --- |` measures nothing at all. One was.
+
+### Where a table keeps what is not words
+
+The cell menu of Phase 2 writes four things, each where the desktop
+keeps it — none of them in a field of its own:
+
+| What | Where it lives |
+|---|---|
+| A cell's alignment | its **padding**: spaces after the words for left, before for right, both for centre. A cell's own padding comes before the column's, which the separator's colons give. |
+| A cell's highlight | a `highlight` span laid **pipe to pipe**, over the whole cell and its padding, so whatever is later typed in the cell lands inside it. A span over part of a cell is a style on its words, not a fill. |
+| A merge | the marker as the cell's whole text: `<` joins the cell to its left, `^` to the one above. Splitting empties every cell the merge took and leaves the first its words. |
+| The table's place on the page | the alignment of **its lines** in `paragraphs` — a centred table is every one of its lines centred |
+
+The separator stays under the first row, whatever is inserted above it:
+moved to the third line it is no longer read as a separator, and its
+dashes turn into a row of text. And **an edit that changes nothing writes
+nothing** — a marker asked for on the separator, the last row asked to
+go — or the whole table comes back re-padded, every style in it at risk
+([the story](ISSUES_LOG.md#a-table-edit-nobody-asked-for)).
+
+## Templates
+
+`templates.json` is a list of templates, each shaped as the desktop's
+`normalize_template` leaves it:
+
+```jsonc
+{
+  "name": "Weekly plan",   // str, the template's own name; "Untitled template" if empty
+  "title": "",             // what a note made from it is called
+  "body": "",              // its text, tables and list markers included
+  "formatting": [],        // spans, kept only as normalize_formatting keeps them
+  "paragraphs": [],        // line entries, as normalize_paragraphs keeps them
+  "comments": "",
+  "category": "General",   // "General" when empty; a note made from it files
+                           //   under General when the category is gone
+  "checklist": []          // [{"text": str, "done": bool}, ...], ticks kept
+}
+```
+
+Two saving rules, both the desktop's: **Save as template** from a note
+puts the template last and drops any other with its name — after asking;
+the **editor in Settings** keeps an edited template in its place. A file
+nobody can read, or a list of junk, is copied aside before anything
+writes over it, as a broken `notes_data.json` is. Templates do not go to
+the Trash: a delete is for good, and says so.
 
 ## Share codes
 

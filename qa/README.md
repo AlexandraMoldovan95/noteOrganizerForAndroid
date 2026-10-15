@@ -6,7 +6,7 @@ lands where it can actually fail.
 
 | Layer | Where | What only it can catch |
 |---|---|---|
-| **Unit tests on the JVM** | `app/src/test/` | A rule ported from Python that does not match the Python |
+| **Unit tests on the JVM** | `app/src/test/` | A rule ported from Python that does not match the Python — held, where the rule can be run on its own, to answers the desktop's own Python wrote |
 | **The cross-program gates** | `tools/check_note_shape.py`, `tools/check_palettes.py` | The two programs quietly disagreeing about what a note *is*, or what a theme looks like |
 | **The emulator walk and tools** | `tools/emulator/` | A rule that is right and a screen that is wrong |
 | **The test plan** | `NoteOrganizer_Android_TestPlan.xlsx` | Whether a tap lands, whether the keyboard covers what you are typing, whether the thing reads well at arm's length |
@@ -17,14 +17,42 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-317 checks across thirteen suites — `NotebookTest` (113), `TablesTest`
-(47), `IdentityTest` (30), `StylingTest` (23), `SharingTest` (21),
-`SettingsTest` (17), `OrganizingTest` (16), `ImportingTest` (16),
-`BackupTest` (11), `EditingTest` (10), `ThemesTest` (7), `StartupTest`
-(4) and `InteropTest` (2). No device, no emulator: they test the fourteen
-files that contain no Android at all (see
+516 checks across twenty-three suites — `NotebookTest` (118),
+`TablesTest` (54), `RecurrenceTest` (46), `CalculatorTest` (34),
+`IdentityTest` (30), `StylingTest` (23), `SharingTest` (21),
+`ParagraphsTest` (19), `SettingsTest` (17), `OrganizingTest` (16),
+`ImportingTest` (16), `FindingTest` (16), `DaysTest` (16),
+`ExportingTest` (15), `EditingTest` (14), `AppStateTest` (12),
+`TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
+(7), `StatsTest` (4), `StartupTest` (4) and `InteropTest` (2). No device,
+no emulator: they test the twenty-three files that contain no Android
+at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
-which is what makes them cost seconds instead of minutes.
+which is what makes them cost seconds instead of minutes — and one
+drawing-side class, `AppState`, whose order of saves around the open
+note no emulator tap can time.
+
+### Fixtures the desktop wrote
+
+Five suites are held to answers the desktop's own Python gave, over
+cases generated for them. Each fixture in `app/src/test/resources/` is
+written by a tool in `tools/` that imports the desktop's code, runs it,
+and never writes to it:
+
+| Fixture | Written by | What the desktop answered |
+|---|---|---|
+| `recurrence_cases.json` | `make_recurrence_fixture.py` | 300 seeded notes expanded, 400 typed dates read |
+| `calculator_cases.json` | `make_calculator_fixture.py` | 661 sums evaluated, 378 values displayed |
+| `export_cases.json` | `make_export_fixture.py` | 400 notes exported as `.html` and `.txt`, 794 files |
+| `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
+| `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
+
+Run a tool again after the desktop's function changes, and read the
+diff of the fixture before believing the new answers. Where the
+desktop's lines live in a window method that cannot be imported, the
+export tool copies them and fingerprints the original: when the
+original changes, the tool stops and says so instead of copying the
+past.
 
 **The task prints nothing useful when it fails.** The results are XML in
 `app/build/test-results/testDebugUnitTest/`, and the count in those files
@@ -149,12 +177,20 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. Four parts and 33
-checks: a brand-new notebook, a notebook copied in, the doors to the rest
-of the phone (share sheet, file picker, browser), and the phone changing
-under an open note (dark mode, larger letters, turned on its side). The
-photographs are looked at, not only saved: several bugs the checks passed
-over were found in them ([the stories](../docs/ISSUES_LOG.md)).
+notebook the app wrote is read back through `run-as`. 17 parts and 127
+checks: a brand-new notebook, a notebook copied in, the
+doors to the rest of the phone (share sheet, file picker, browser), a
+part for each Phase 2 feature over a notebook written for it, a wide
+window with the phone on its side, and the phone changing under an open
+note (dark mode, larger letters, turned on its side). The list of parts,
+and what each one checks, is in
+[STATUS](../docs/STATUS.md#an-emulator-walk-that-reads-the-files). The
+photographs are looked at, not only saved: several bugs the checks
+passed over were found in them ([the stories](../docs/ISSUES_LOG.md)).
+
+One part can be run on its own, on whatever build is installed, by
+importing `walk` and calling it — `walk.cell_menu(folder)` — which is how
+a mutant built into the app is walked without the whole hour.
 
 Two house rules came out of it:
 
@@ -165,6 +201,21 @@ Two house rules came out of it:
   photographed on the list for weeks, where a rebuilt app looks
   untouched; with a note open, it closed the note
   ([the story](../docs/ISSUES_LOG.md#turning-the-phone-closed-the-note)).
+
+Phase 2 added three more:
+
+- **A node in the tree is not a node in sight.** A title scrolled out of
+  its pane is still in the UI dump; only its box, cut to what shows, says
+  it is gone ([the story](../docs/ISSUES_LOG.md#what-a-phone-resets-for-free)).
+- **Read what a node says as well as what it shows.** A button drawn
+  `✕` is said "Close find"
+  ([the story](../docs/ISSUES_LOG.md#the-walk-read-half-of-what-the-screen-said)).
+- **Do not race the app through adb.** A tap cannot reliably land inside
+  the 0.8 seconds before an autosave; an order like "saved before the
+  switch" is held by a unit test that records it
+  ([the story](../docs/ISSUES_LOG.md#taps-aimed-through-the-keyboard)).
+  And on a phone on its side, put the keyboard down before tapping
+  anything under it.
 
 The other scripts in [`tools/emulator/`](../tools/emulator/) each survive
 a specific way the emulator lies to a script: tapping by fresh text,
@@ -179,16 +230,17 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 57 cases across eleven areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 85 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
-The phone, Interop, Look & feel), kept in this repository rather than the
-desktop's because the two projects are deliberately separate.
+The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
+Tools, Templates and Wide screens), kept in this repository rather than
+the desktop's because the two projects are deliberately separate.
 
-Its **"Who runs it"** column is the point. 33 rows are already walked by
-unit tests, 29 are driven on the emulator, and 26 need a person with a
-real phone in their hand — the three add up to more than 57 because a row
-can carry two, and the honest ones do: a rule proved on the JVM whose
-*screen* still has to be looked at. Marking a row as already covered is
+Its **"Who runs it"** column is the point. 54 rows are already walked by
+unit tests, 55 are driven on the emulator, and 37 need a person with a
+real phone in their hand — the three add up to more than 85 because a row
+can carry two or three, and the honest ones do: a rule proved on the JVM
+whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a
 script can *never* answer are marked **NEEDS YOUR EYE**, because a script
 checks what it was told to check and never notices that a button looks
@@ -196,7 +248,10 @@ like a trap.
 
 A row whose behaviour changed keeps its number and says so: cases 11 and
 19 were rewritten on 2026-10-15, when the phone took the desktop's answer
-to a broken file and started emptying its own Trash.
+to a broken file and started emptying its own Trash. Phase 2's cases are
+58 to 85; two of them carry a question only a person can answer about
+the desktop's side of a trip — a day or a template made on the phone, as
+the desktop shows it.
 
 Nothing is ever deleted from the plan. A case that gets automated keeps
 its row and gains a note saying so.

@@ -31,7 +31,93 @@ trail is not lost, not to claim releases that were never cut.
 
 ---
 
-## [Unreleased]
+## [Unreleased] — Phase 2
+
+The desktop's remaining everyday features, each kept to what a phone's
+screen holds: the calendar and repeating notes, the whole format bar,
+templates, find, the calculator, export, statistics, and a layout for
+wide screens. Built on Phase 1 and to be numbered after it. What is left
+for Phase 3 is in [docs/STATUS.md](docs/STATUS.md#not-built-yet).
+
+### Added
+
+- **The calendar**, a tab of its own: the month, Monday first, a dot for
+  each colour of note on a day, painted days and their markers, today
+  and the open day marked, a swipe for the month; the open day's notes
+  under it with "+ Add note"; a day held down to add, paint or mark,
+  with Undo for what is cleared; and the History in the month's place.
+- **Repeating notes**: the Repeat sheet in a note's details, which
+  chooses rather than types, saying the rule in the desktop's words and
+  showing its next three days. The desktop's recurrence engine, ported
+  whole.
+- **One day of a series on its own**, the desktop's day mode: written to
+  that day alone, "Whole series" and "Reset this day" a tap away, a day
+  deleted from its series with Undo.
+- **The desktop's whole Sort and Show**: Calendar: soonest and oldest,
+  Custom order as arranged on the desktop, the Repeating, Dated and With
+  files filters — and the list grouped by category, its groups folding.
+- **Settings → Statistics**, the desktop's snapshot of the notebook.
+- **The calculator**, docked under the note: the desktop's keypad, More
+  functions, a history, and Insert into note.
+- **Find in note**: the count, back and next, case, prose and table cells
+  together, every match painted.
+- **Export as file**, `.html` or `.txt`, through Android's "save as" —
+  the desktop's page byte for byte.
+- **Templates**: start a note from one, save a note as one, and edit them
+  in Settings → Templates, in the desktop's `templates.json`.
+- **Size and face** on the format bar, and the desktop's faces drawn as
+  the kind they are — serif, fixed-width or plain.
+- **Lists, indent and alignment**, with the desktop's Enter and Backspace
+  in a list and its renumbering.
+- **A new table** from a size grid, its first cell open to type.
+- **The cell menu**: a cell's alignment and highlight, merge and split,
+  rows and columns, the table's place on the page, and delete the table.
+- **Wide screens**: a rail down the left edge from 600 dp, and from 840
+  dp the note beside the notes or the calendar, its card outlined.
+
+### Changed
+
+- The bar at the bottom has three places: Notes, Calendar, Settings.
+  Back from the Calendar goes to the month from the History, then to
+  Notes.
+- Every Undo — a note to the Trash, a day removed, a day's colour or
+  markers cleared — is one eight-second offer.
+- A note's details show its repeat, and open the Repeat sheet.
+
+### Fixed
+
+- Every font size set on the desktop was read as empty and written back
+  without a value, so the desktop dropped it; and typing into a list
+  item or an aligned line dropped that line's entry.
+- A change made to the open note from outside the editor — most of all
+  a code shared in over it and applied as an update — was put back by
+  the editor's next save.
+- A cell's own alignment was not drawn, and a merged cell was drawn
+  short of the columns it covers.
+- A table edit that changed nothing — the last row asked to go —
+  re-padded the whole table.
+
+### Testing
+
+- 516 JVM unit tests in 23 suites, from 317 in 13. 190 mutants against
+  them: 187 killed, 3 equivalent. Three more built into the app and
+  caught by the walk on the emulator.
+- **Five ports held to fixtures the desktop's own Python wrote**: the
+  recurrence engine (300 notes expanded, 400 dates read), the calculator
+  (661 sums, 378 shown values), the export (400 notes, 794 files byte for
+  byte), templates (302) and renumbering (300). The new sorts were
+  checked against the desktop's `_sort_notes`, and all 400 export notes
+  round-trip through a save on the phone.
+- `tools/emulator/walk.py`: 127 checks in 17 parts, from
+  33 in four — a part for each feature, and one turned on its side for
+  wide screens. Its `screen_says` reads what a node says as well as what
+  it shows, opening a note waits for the editor, and a title is checked
+  by the box it shows, not by being in the tree.
+- Two Phase 2 commit messages carry counts that were wrong:
+  `e29e9a1` (24 mutants tried, 22 killed, 2 equivalent — not 26, 23 and
+  3) and `314e89a` (`DaysTest` has 16 cases, not 17).
+
+## [Unreleased] — Phase 1
 
 Phase 1: from a viewer for the desktop's file to a notes app of its own,
 ready for a store listing. What it covers, and what is left for Phases 2

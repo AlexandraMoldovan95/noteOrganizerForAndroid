@@ -19,10 +19,12 @@ The script does four things worth knowing about:
 private writing, and documentation is the one place it must never end up.
 So the app's data is cleared and four notes written *for* the camera go
 straight into its own storage — a bread recipe with a checklist, a month
-of expenses as a table, an untitled idea, a pinned reading list — chosen
-to show a headline, a preview, the badges, a pin and a note with no title
-at all. The name and the theme are set the same way, so the first screen
-is the list, with no welcome note and no notice in the way.
+of expenses as a table, an untitled idea, a pinned reading list that
+repeats every Monday and Thursday — chosen to show a headline, a
+preview, the badges, a pin, a series and a note with no title at all.
+The name, the theme and a painted day for the calendar are set the same
+way, so the first screen is the list, with no welcome note and no notice
+in the way.
 
 **It names what must be on screen before the shutter opens** — and, for
 the search, what must be *gone*. Each shot carries a short list of words,
@@ -51,12 +53,18 @@ white signal icon.
 
 | File | What it shows |
 |---|---|
-| `01-note-list.png` | The note list in Soft Lavender: the greeting, search, sort and show, and the cards — colour stripe, headline, preview, and the category, date, table and checklist badges. The pinned note floats to the top; the last card has no title, so it borrows its first line, set lighter |
+| `01-note-list.png` | The note list in Soft Lavender: the greeting, search, sort and show, and the cards — colour stripe, headline, preview, and the category, date, table, checklist and repeat badges. The pinned note floats to the top; the last card has no title, so it borrows its first line, set lighter |
 | `02-a-note.png` | A note open in the editor, its bold first line drawn and its checklist below, ticked rows struck through |
 | `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as, with the right-aligned column the separator row asked for |
 | `04-search.png` | Search: one of four notes left, matched on a word in its body rather than its title |
 | `05-appearance.png` | Settings → Appearance: "Follow the phone", and the eight themes, dark and light |
 | `06-dark.png` | The same list in Midnight Purple |
+| `07-calendar.png` | The calendar: a series' Mondays and Thursdays as dots, a dated note, and a birthday painted with its marker |
+| `08-wide.png` | The phone on its side: the rail at the left, the list, and the note open beside it, its card outlined |
 
-**Current set:** captured 2026-10-15 on the emulator, in English, for
-Phase 1. Update this line whenever the set is recaptured.
+The calendar opens on the month it is run in, so the seed's dates are
+worked out from that day: a month photographed later with an earlier
+month's notes in it would be an empty grid.
+
+**Current set:** captured 2026-10-16 on the emulator, in English, for
+Phase 2. Update this line whenever the set is recaptured.
