@@ -329,12 +329,24 @@ class IdentityTest {
     }
 
     @Test
-    fun `a notebook that cannot be read is never written over`() {
-        val load = scratch("{ nu e json")
+    fun `a notebook that cannot be read is kept aside before an import writes`() {
+        val load = scratch("{ not json")
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("notes_data_corrupt_") }
         val code = Sharing.encode(listOf(JSONObject().put("title", "x")))
-        val result = Notebook.applyShareCode(load, listOf(JSONObject().put("title", "x")), false)
-        assertTrue(result is SaveResult.Failed)
-        assertEquals("{ nu e json", load.file!!.readText())
         assertTrue(Notebook.inspectShareCode(load, code) is Notebook.Inspection.Ready)
+        assertTrue(Notebook.applyShareCode(load, listOf(JSONObject().put("title", "x")), false)
+            is SaveResult.Ok)
+        assertEquals("the unreadable bytes are still kept", "{ not json", kept.readText())
+    }
+
+    @Test
+    fun `a notebook that can neither be read nor kept aside is never written over`() {
+        val load = scratch("[]")
+        val stuck = Notebook.Load(emptyList(), load.categories, "x", file = load.file, raw = null)
+        load.file!!.writeText("{ unreadable")
+        val result = Notebook.applyShareCode(stuck, listOf(JSONObject().put("title", "x")), false)
+        assertTrue(result is SaveResult.Failed)
+        assertEquals("{ unreadable", load.file!!.readText())
     }
 }

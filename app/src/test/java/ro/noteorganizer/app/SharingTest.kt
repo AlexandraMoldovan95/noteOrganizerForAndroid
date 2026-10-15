@@ -135,7 +135,27 @@ class SharingTest {
         payload.put("notes", JSONArray().put(JSONObject().put("title", "x")))
         val result = Sharing.decode(codeOf(payload))
         assertTrue(result is Sharing.Decoded.Failed)
-        assertTrue((result as Sharing.Decoded.Failed).reason.contains("noua"))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("newer version"))
+    }
+
+    @Test
+    fun `a version that is not a number is damage, not version 1`() {
+        // The desktop refuses it by type; the phone used to read "2" as
+        // "no version given" and import whatever followed.
+        for (version in listOf<Any>("2", true, JSONArray())) {
+            val payload = JSONObject()
+            payload.put("v", version)
+            payload.put("notes", JSONArray().put(JSONObject().put("title", "x")))
+            val result = Sharing.decode(codeOf(payload))
+            assertTrue("v = $version", result is Sharing.Decoded.Failed)
+            assertTrue((result as Sharing.Decoded.Failed).reason.contains("damaged"))
+        }
+    }
+
+    @Test
+    fun `a payload with no notes key says so`() {
+        val result = Sharing.decode(codeOf(JSONObject().put("v", 1)))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("doesn't contain any notes"))
     }
 
     @Test
@@ -143,7 +163,7 @@ class SharingTest {
         val notes = (1..Sharing.MAX_SHARED_NOTES + 1).map { note("""{"title": "$it"}""") }
         val result = Sharing.decode(Sharing.encode(notes))
         assertTrue(result is Sharing.Decoded.Failed)
-        assertTrue((result as Sharing.Decoded.Failed).reason.contains("limita"))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("limit"))
     }
 
     @Test
@@ -256,11 +276,13 @@ class SharingTest {
     }
 
     @Test
-    fun `a notebook that cannot be read is never imported over`() {
-        val load = scratch("{ nu e json")
+    fun `a notebook that cannot be read is kept aside before a code is imported`() {
+        val load = scratch("{ not json")
         val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
-        assertTrue(bring(load, code) is SaveResult.Failed)
-        assertEquals("{ nu e json", load.file!!.readText())
+        assertTrue(bring(load, code) is SaveResult.Ok)
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("notes_data_corrupt_") }
+        assertEquals("{ not json", kept.readText())
     }
 
     // ---- making a code from a stored note ----

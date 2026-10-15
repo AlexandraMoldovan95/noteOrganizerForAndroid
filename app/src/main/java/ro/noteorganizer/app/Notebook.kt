@@ -3,7 +3,6 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -152,7 +151,7 @@ data class Note(
         get() {
             val t = title.trim()
             if (t.isNotEmpty()) return t
-            return spokenLines.firstOrNull() ?: "(goala)"
+            return spokenLines.firstOrNull() ?: "(empty)"
         }
 
     /** Whether `headline` came from the body rather than from a real title. */
@@ -182,7 +181,7 @@ data class Note(
         if (attachments > 0) parts.append("   📎×").append(attachments)
         val tables = tableCount
         if (tables > 0) {
-            parts.append(if (tables == 1) "   ▦ 1 tabel" else "   ▦ $tables tabele")
+            parts.append(if (tables == 1) "   ▦ 1 table" else "   ▦ $tables tables")
         }
         if (checklistTotal > 0) {
             parts.append("   ☑ ").append(checklistDone).append('/').append(checklistTotal)
@@ -227,13 +226,22 @@ fun fold(text: String): String {
 
 private val COMBINING_MARKS = Regex("\\p{Mn}+")
 
-/** How the list is ordered. The desktop's options, same rules. */
+/**
+ * How the list is ordered. The desktop's options, same rules -- and the
+ * desktop's own words, which are also the values `note_sort` stores, so a
+ * choice made on one device reads back on the other.
+ */
 enum class SortOrder(val label: String) {
-    UPDATED_NEW("Recent modificate"),
-    UPDATED_OLD("Cele mai vechi"),
-    TITLE_AZ("Titlu A–Z"),
-    TITLE_ZA("Titlu Z–A"),
-    CATEGORY("Categorie"),
+    UPDATED_NEW("Recently updated"),
+    UPDATED_OLD("Oldest updated"),
+    TITLE_AZ("Title A–Z"),
+    TITLE_ZA("Title Z–A"),
+    CATEGORY("Category");
+
+    companion object {
+        /** A stored label, or the default for one this version does not know. */
+        fun fromLabel(label: String?): SortOrder = entries.firstOrNull { it.label == label } ?: UPDATED_NEW
+    }
 }
 
 /**
@@ -603,12 +611,14 @@ internal fun splitRow(line: String): List<String> {
  */
 object Notebook {
 
-    /** Starting categories, from core/themes.py's DEFAULT_CATEGORY_COLORS. */
-    val DEFAULT_CATEGORY_COLORS = mapOf(
-        "General" to "#7c5cff",
-        "Work" to "#4cc9f0",
-        "Personal" to "#f9c74f",
-    )
+    // The reasons a write refuses, worded once. Each is shown to a person,
+    // so each says what happened and what it means for their notes.
+    private const val NOWHERE = "There is nowhere to keep the notes."
+    private const val UNREADABLE =
+        "Your notes file could not be read, so nothing will be written over it."
+    private const val GONE = "This note is no longer in the notes file."
+    private const val BAD_DATE = "A date is written like 2026-10-17."
+    private const val ROW_GONE = "That row is no longer there."
 
     /**
      * What a read produced, including why it produced nothing.
@@ -630,11 +640,10 @@ object Notebook {
         val trash: List<Note> = emptyList(),
         val trashFile: File? = null,
         val trashRaw: JSONArray? = null,
-        val retentionDays: Int = TRASH_RETENTION_DAYS,
+        val retentionDays: Int = Settings.TRASH_RETENTION_DAYS,
+        /** The settings this notebook was read with; null only in tests. */
+        val settings: Settings.Load? = null,
     )
-
-    /** The desktop's default window, and its clamp on a hand-edited one. */
-    const val TRASH_RETENTION_DAYS = 30
 
     /**
      * How many days this entry has left before the DESKTOP purges it.
@@ -654,70 +663,84 @@ object Notebook {
     }
 
     /**
-     * Looks for the notebook in the app's own external folder, which `adb
-     * push` can write to without any permission and without root. The
-     * internal folder is checked second so a future in-app import lands
-     * somewhere the user's file manager cannot reach.
+     * Reads the notebook kept in [dir]: the notes, the Trash and the
+     * settings that go with them.
+     *
+     * A file that is missing is an empty notebook, ready for its first
+     * note. A file that exists but cannot be read is the desktop's case
+     * exactly, and gets the desktop's answer: its bytes are copied aside
+     * (`notes_data_corrupt_<stamp>.json`, never deleted), the app starts
+     * with an empty list, and [Load.problem] says what happened and where
+     * the copy is. Only when even the copy fails is the file left as the
+     * one thing nothing may write over -- `raw` stays null, and every
+     * write refuses.
+     */
+    fun load(dir: File): Load {
+        val settings = Settings.load(dir)
+        val problems = ArrayList<String>()
+        settings.problem?.let { problems.add(it) }
+
+        val file = File(dir, "notes_data.json")
+        val raw = readOrRescue(file, "Your notes file", problems)
+        val trashFile = File(dir, "trash.json")
+        val trashRaw = readOrRescue(trashFile, "The Trash", problems)
+
+        return Load(
+            notes = raw?.let { notesOf(it) } ?: emptyList(),
+            categories = Settings.categories(settings.raw, raw),
+            source = file.path,
+            problem = problems.joinToString("\n").ifEmpty { null },
+            file = file,
+            raw = raw,
+            trash = trashRaw?.let { notesOf(it) } ?: emptyList(),
+            trashFile = trashFile,
+            trashRaw = trashRaw,
+            retentionDays = Settings.retentionDays(settings.raw),
+            settings = settings,
+        )
+    }
+
+    /**
+     * The first of [dirs] that holds a notebook, else the first of them --
+     * where a new notebook would go.
      */
     fun load(dirs: List<File>): Load {
-        for (dir in dirs) {
-            val file = File(dir, "notes_data.json")
-            if (!file.isFile) continue
-            val text = try {
-                file.readText()
-            } catch (e: Exception) {
-                return Load(emptyList(), emptyMap(), file.path, "nu s-a putut citi: ${e.message}")
-            }
-            val raw = try {
-                JSONArray(text)
-            } catch (e: Exception) {
-                null
-            }
-            val notes = parseNotes(text)
-            val settings = File(dir, "settings.json")
-            val settingsText = if (settings.isFile) {
-                try { settings.readText() } catch (e: Exception) { "" }
-            } else {
-                ""
-            }
-            val categories = parseCategories(settingsText)
+        val dir = dirs.firstOrNull { File(it, "notes_data.json").isFile } ?: dirs.firstOrNull()
+            ?: return Load(emptyList(), Themes.DEFAULT_CATEGORY_COLORS, "?",
+                           "There is nowhere to keep a notebook.")
+        return load(dir)
+    }
 
-            val trashFile = File(dir, "trash.json")
-            val trashText = if (trashFile.isFile) {
-                try { trashFile.readText() } catch (e: Exception) { "" }
-            } else {
-                ""
-            }
-            val trashRaw = try { JSONArray(trashText) } catch (e: Exception) { null }
-            val problem = if (notes.isEmpty()) {
-                "fisierul exista (${file.length()} octeti) dar nu a dat nicio notita"
-            } else {
-                null
-            }
-            return Load(
-                notes = notes,
-                categories = DEFAULT_CATEGORY_COLORS + categories,
-                source = file.path,
-                problem = problem,
-                file = file,
-                raw = raw,
-                trash = parseNotes(trashText),
-                trashFile = trashFile,
-                trashRaw = trashRaw,
-                retentionDays = parseRetentionDays(settingsText),
-            )
+    /**
+     * The array in [file]: empty when the file does not exist yet, null
+     * only when it exists, cannot be read AND could not be copied aside.
+     */
+    private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
+        if (!file.isFile) return JSONArray()
+        val parsed = try {
+            JSONArray(file.readText(Charsets.UTF_8))
+        } catch (e: Exception) {
+            null
         }
-        // No notebook here yet. Still name where one would go, so a first
-        // captured note can create the file instead of having nowhere to
-        // land -- a fresh phone must be able to take a note.
-        val destination = dirs.firstOrNull()?.let { File(it, "notes_data.json") }
-        return Load(
-            emptyList(), DEFAULT_CATEGORY_COLORS,
-            destination?.path ?: "?",
-            "nu exista inca un fisier de notite aici",
-            destination,
-            null,
-        )
+        if (parsed != null) return parsed
+        val kept = Files.preserveCorrupt(file)
+        if (kept == null) {
+            problems.add("$what could not be read, and could not be copied aside either, " +
+                "so nothing will be written over it.")
+            return null
+        }
+        problems.add("$what could not be read, so the app started without it. Nothing " +
+            "was deleted: the file was kept as ${kept.name}, beside the notes.")
+        return JSONArray()
+    }
+
+    private fun notesOf(array: JSONArray): List<Note> {
+        val out = ArrayList<Note>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            out.add(readNote(obj))
+        }
+        return out
     }
 
     /**
@@ -750,14 +773,11 @@ object Notebook {
         formatting: List<FormatSpan> = emptyList(),
     ): SaveResult {
         if (date.isNotBlank() && !isDate(date)) {
-            return SaveResult.Failed("data trebuie scrisa ca 2026-09-12")
+            return SaveResult.Failed(BAD_DATE)
         }
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde sa scriu fisierul de notite")
-        if (file.exists() && load.raw == null) {
-            return SaveResult.Failed(
-                "fisierul exista dar nu s-a putut citi -- nu scriu peste el")
-        }
+            ?: return SaveResult.Failed(NOWHERE)
+        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
         val array = load.raw ?: JSONArray()
 
         // Read the highest id from the RAW array: a note the model skipped
@@ -838,12 +858,12 @@ object Notebook {
         formatting: List<FormatSpan>? = null,
     ): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
 
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val oldTitle = (note.opt("title") as? String) ?: ""
         val oldBody = (note.opt("body") as? String) ?: ""
@@ -853,7 +873,7 @@ object Notebook {
         // A date is refused rather than silently dropped: the user typed
         // it, so a wrong one is worth saying out loud.
         if (date != null && date.isNotBlank() && !isDate(date)) {
-            return SaveResult.Failed("data trebuie scrisa ca 2026-09-12")
+            return SaveResult.Failed(BAD_DATE)
         }
         // The coupling that is easy to miss: `normalize_note` THROWS AWAY a
         // recurrence rule whose note has no valid date. Clearing the date
@@ -863,7 +883,7 @@ object Notebook {
             ?.isNotEmpty() == true
         if (repeats && date != null && date.isBlank()) {
             return SaveResult.Failed(
-                "notita se repeta — stergerea datei i-ar sterge si repetarea")
+                "This note repeats; clearing its date would also delete the repeat.")
         }
 
         val spans = readSpans(note.opt("formatting") as? JSONArray)
@@ -923,16 +943,16 @@ object Notebook {
      */
     fun setChecklistDone(load: Load, id: Int, index: Int, done: Boolean): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val checklist = note.opt("checklist") as? JSONArray
-            ?: return SaveResult.Failed("notita nu are checklist")
+            ?: return SaveResult.Failed("This note has no checklist.")
         val item = checklist.opt(index) as? JSONObject
-            ?: return SaveResult.Failed("randul nu mai exista")
+            ?: return SaveResult.Failed(ROW_GONE)
         if (item.opt("done") == done) return SaveResult.Ok(id)
 
         item.put("done", done)
@@ -963,13 +983,13 @@ object Notebook {
      */
     fun deleteNote(load: Load, id: Int): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu sterg nimic")
+            ?: return SaveResult.Failed(UNREADABLE)
         val trashFile = load.trashFile
-            ?: return SaveResult.Failed("nu stiu unde e cosul")
+            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
         if (trashFile.exists() && load.trashRaw == null) {
-            return SaveResult.Failed("cosul exista dar nu s-a putut citi -- nu sterg nimic")
+            return SaveResult.Failed("The Trash could not be read, so nothing was deleted.")
         }
 
         var index = -1
@@ -981,7 +1001,7 @@ object Notebook {
                 break
             }
         }
-        if (index < 0) return SaveResult.Failed("notita nu mai exista in fisier")
+        if (index < 0) return SaveResult.Failed(GONE)
         val note = array.get(index) as JSONObject
 
         // A deep copy, so a failure below leaves the original note whole.
@@ -1000,7 +1020,8 @@ object Notebook {
         trashCandidate.put(entry)
         val trashProblem = writeAtomic(trashFile, trashCandidate)
         if (trashProblem != null) {
-            return SaveResult.Failed("nu am putut scrie in cos: $trashProblem")
+            return SaveResult.Failed("The Trash could not be written ($trashProblem), " +
+                "so nothing was deleted.")
         }
         trash.put(entry)
 
@@ -1010,7 +1031,7 @@ object Notebook {
             // The copy in the trash stays. Say so plainly -- a duplicate the
             // user can see beats a silent half-delete.
             return SaveResult.Failed(
-                "$problem — notita e in cos dar si in lista; nu s-a pierdut nimic")
+                "$problem — the note is in the Trash and still in the list; nothing was lost.")
         }
         array.remove(index)
         return SaveResult.Ok(id)
@@ -1040,11 +1061,12 @@ object Notebook {
      */
     fun restoreFromTrash(load: Load, id: Int): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi")
-        val trashFile = load.trashFile ?: return SaveResult.Failed("nu stiu unde e cosul")
-        val trash = load.trashRaw ?: return SaveResult.Failed("cosul nu s-a putut citi")
+            ?: return SaveResult.Failed(UNREADABLE)
+        val trashFile = load.trashFile
+            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
+        val trash = load.trashRaw ?: return SaveResult.Failed("The Trash could not be read.")
 
         var index = -1
         for (i in 0 until trash.length()) {
@@ -1055,7 +1077,7 @@ object Notebook {
                 break
             }
         }
-        if (index < 0) return SaveResult.Failed("notita nu mai e in cos")
+        if (index < 0) return SaveResult.Failed("This note is no longer in the Trash.")
         val entry = trash.get(index) as JSONObject
 
         val restored = JSONObject(entry.toString())
@@ -1079,7 +1101,7 @@ object Notebook {
         val trashProblem = writeAtomic(trashFile, trashCandidate)
         if (trashProblem != null) {
             return SaveResult.Failed(
-                "$trashProblem — notita e restaurata dar a ramas si in cos")
+                "$trashProblem — the note is restored, and is still in the Trash too.")
         }
         trash.remove(index)
         return SaveResult.Ok(newId)
@@ -1097,7 +1119,7 @@ object Notebook {
     fun addChecklistItem(load: Load, id: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
-                return@editChecklist "checklistul a atins limita de $MAX_CHECKLIST_ITEMS randuri"
+                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
             }
             val item = JSONObject()
             item.put("text", mendSurrogates(text))
@@ -1110,7 +1132,7 @@ object Notebook {
     fun renameChecklistItem(load: Load, id: Int, index: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             val item = checklist.opt(index) as? JSONObject
-                ?: return@editChecklist "randul nu mai exista"
+                ?: return@editChecklist ROW_GONE
             // In place, so a field this app does not model survives a rename.
             item.put("text", mendSurrogates(text))
             null
@@ -1120,7 +1142,7 @@ object Notebook {
     fun removeChecklistItem(load: Load, id: Int, index: Int): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (index < 0 || index >= checklist.length()) {
-                return@editChecklist "randul nu mai exista"
+                return@editChecklist ROW_GONE
             }
             checklist.remove(index)
             null
@@ -1139,11 +1161,11 @@ object Notebook {
         change: (JSONArray) -> String?,
     ): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val current = note.opt("checklist") as? JSONArray ?: JSONArray()
         // A DEEP copy. A shallow one shares each row object with the
@@ -1153,7 +1175,7 @@ object Notebook {
         val candidate = try {
             JSONArray(current.toString())
         } catch (e: Exception) {
-            return SaveResult.Failed("checklistul nu s-a putut citi")
+            return SaveResult.Failed("This note's checklist could not be read.")
         }
         val refusal = change(candidate)
         if (refusal != null) return SaveResult.Failed(refusal)
@@ -1202,13 +1224,13 @@ object Notebook {
         newLines: List<String>,
     ): SaveResult {
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
         val body = (note.opt("body") as? String) ?: ""
         val blocks = tableBlocks(body)
         if (blockIndex !in blocks.indices) {
-            return SaveResult.Failed("tabelul nu mai e acolo")
+            return SaveResult.Failed("That table is no longer there.")
         }
         val title = (note.opt("title") as? String) ?: ""
         return updateNote(load, id, title, replaceTable(body, blocks[blockIndex], newLines))
@@ -1300,11 +1322,8 @@ object Notebook {
         update: Boolean,
     ): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde sa scriu fisierul de notite")
-        if (file.exists() && load.raw == null) {
-            return SaveResult.Failed(
-                "fisierul exista dar nu s-a putut citi -- nu scriu peste el")
-        }
+            ?: return SaveResult.Failed(NOWHERE)
+        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
         val array = load.raw ?: JSONArray()
         val candidate = copyOf(array)
         val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
@@ -1468,38 +1487,12 @@ object Notebook {
     }
 
     /**
-     * Dump to a sibling `.tmp`, force it to the disk, then rename over the
-     * real file. A crash mid-write leaves the old notebook whole, because
-     * rename is atomic within a filesystem; a half-written file never
-     * carries the real name.
-     *
-     * The `sync()` is one step stronger than the desktop's, on purpose:
-     * a phone's process is killed far more casually than a PC's, so
-     * "written" has to mean "on the flash", not "in a buffer".
-     *
-     * @return null when it worked, otherwise the reason.
+     * Indent 2, non-ASCII left alone: the same bytes the desktop writes,
+     * so a file can move between the two unchanged. The writing itself is
+     * [Files.writeAtomic], the one copy every data file uses.
      */
-    private fun writeAtomic(file: File, array: JSONArray): String? {
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        try {
-            // indent 2, non-ASCII left alone: the same bytes the desktop
-            // writes, so a file can move between them unchanged.
-            val bytes = array.toString(2).toByteArray(Charsets.UTF_8)
-            FileOutputStream(tmp).use { out ->
-                out.write(bytes)
-                out.flush()
-                out.fd.sync()
-            }
-        } catch (e: Exception) {
-            tmp.delete()
-            return e.message ?: e.toString()
-        }
-        if (!tmp.renameTo(file)) {
-            tmp.delete()
-            return "nu s-a putut inlocui ${file.name}"
-        }
-        return null
-    }
+    private fun writeAtomic(file: File, array: JSONArray): String? =
+        Files.writeAtomic(file, array.toString(2))
 
     fun parseNotes(text: String): List<Note> {
         val array = try {
@@ -1507,52 +1500,7 @@ object Notebook {
         } catch (e: Exception) {
             return emptyList()
         }
-        val out = ArrayList<Note>(array.length())
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-            out.add(readNote(obj))
-        }
-        return out
-    }
-
-    fun parseCategories(text: String): Map<String, String> {
-        val root = try {
-            JSONObject(text)
-        } catch (e: Exception) {
-            return emptyMap()
-        }
-        val saved = root.opt("categories") as? JSONObject ?: return emptyMap()
-        val out = LinkedHashMap<String, String>()
-        for (key in saved.keys()) {
-            val name = key.trim()
-            val color = saved.opt(key)
-            // The desktop sanitises here too: settings.json is hand-editable
-            // and travels inside backups, so "#not-a-colour" must not reach
-            // the renderer.
-            if (name.isNotEmpty() && color is String && isHexColor(color)) {
-                out[name] = color
-            }
-        }
-        return out
-    }
-
-    /**
-     * The retention window from settings, clamped the way the desktop
-     * clamps it: a hand-edited file saying 0, or -3, or "forever" must not
-     * make anything look due for deletion. Anything unusable reads as the
-     * default.
-     */
-    fun parseRetentionDays(settingsText: String): Int {
-        val root = try {
-            JSONObject(settingsText)
-        } catch (e: Exception) {
-            return TRASH_RETENTION_DAYS
-        }
-        val days = root.opt("trash_retention_days")
-        if (days !is Number || days is Double || days is Float) {
-            return TRASH_RETENTION_DAYS
-        }
-        return days.toInt().coerceIn(1, 365)
+        return notesOf(array)
     }
 
     /**

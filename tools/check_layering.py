@@ -35,12 +35,23 @@ ANDROID = os.path.dirname(HERE)
 SOURCE = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                       "noteorganizer", "app")
 
-# The rules layer: ported from Python, tested without a device.
-RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt"]
+# The rules layer: ported from Python, tested without a device. Paths are
+# relative to the package folder.
+RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
+         "Themes.kt", "Settings.kt", "Files.kt"]
 
 # The deliberate exceptions, named here so the list is a decision rather
-# than an omission: these two exist to turn rules into pixels.
-DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt"]
+# than an omission: these exist to turn rules into pixels.
+DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
+         "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt"]
+
+
+def every_kotlin_file():
+    """Every .kt under the package, as a path relative to it."""
+    for root, _dirs, files in os.walk(SOURCE):
+        for file in files:
+            if file.endswith(".kt"):
+                yield os.path.relpath(os.path.join(root, file), SOURCE).replace(os.sep, "/")
 
 FORBIDDEN = re.compile(r"^\s*import\s+(android|androidx)\b", re.M)
 IMPORT = re.compile(r"^\s*import\s+(\S+)", re.M)
@@ -75,16 +86,26 @@ def main():
         print("If those files moved, move the RULES list in this gate too.")
         return 1
 
+    # A new file belongs to one side or the other, and saying which is a
+    # decision. Left to default, a rules file nobody listed would be free
+    # to import Android with this gate printing "clean" over it.
+    unclassified = sorted(set(every_kotlin_file()) - set(RULES) - set(DRAWS))
+    if unclassified:
+        print("UNCLASSIFIED: %s" % ", ".join(unclassified))
+        print("Add each one to RULES (no Android, tested on the computer)")
+        print("or to DRAWS (turns rules into pixels) in this gate.")
+        return 1
+
     if leaked:
         print("Android has reached the rules layer:")
         for name, line, text in leaked:
             print("    %s:%d  %s" % (name, line, text))
         print()
-        print("Those four files are tested on the JVM, with no emulator.")
+        print("Those files are tested on the JVM, with no emulator.")
         print("One import like this moves their tests onto a device.")
         print("If something from Android is genuinely needed, move that")
-        print("piece into RichText.kt / TableView.kt / MainActivity.kt,")
-        print("which are allowed to know about it.")
+        print("piece into one of the DRAWS files, which are allowed to")
+        print("know about it.")
         return 1
 
     print("The rules layer is clean: %s" % ", ".join(RULES))

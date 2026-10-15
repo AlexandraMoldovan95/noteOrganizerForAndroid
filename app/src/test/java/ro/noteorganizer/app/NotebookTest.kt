@@ -442,12 +442,32 @@ class NotebookTest {
     }
 
     @Test
-    fun `a notebook that exists but cannot be read is never written over`() {
-        val load = scratch("{ asta nu e un fisier de notite")
-        val result = Notebook.createNote(load, "x", "")
-        assertTrue(result is SaveResult.Failed)
-        // And the original bytes are still there, untouched.
-        assertEquals("{ asta nu e un fisier de notite", load.file!!.readText())
+    fun `a notebook that cannot be read is kept aside before anything is written`() {
+        // The desktop's answer, ported: the unreadable bytes are copied
+        // beside the original, the app starts with an empty list, and it
+        // says where the copy is. Writing over the file is then safe --
+        // and refusing every write forever would make a phone that cannot
+        // take a single note.
+        val load = scratch("{ not a notes file")
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("notes_data_corrupt_") }
+        assertEquals("{ not a notes file", kept.readText())
+        assertTrue("the problem names the copy", load.problem!!.contains(kept.name))
+        assertEquals(0, load.notes.size)
+        assertTrue(Notebook.createNote(load, "x", "") is SaveResult.Ok)
+        assertEquals("{ not a notes file", kept.readText())
+    }
+
+    @Test
+    fun `a notebook that can neither be read nor copied aside is never written over`() {
+        val load = scratch("[]")
+        val stuck = Notebook.Load(
+            notes = emptyList(), categories = load.categories, source = "x",
+            file = load.file, raw = null,
+        )
+        load.file!!.writeText("{ unreadable")
+        assertTrue(Notebook.createNote(stuck, "x", "") is SaveResult.Failed)
+        assertEquals("{ unreadable", load.file!!.readText())
     }
 
     @Test
@@ -930,14 +950,29 @@ class NotebookTest {
         val result = Notebook.deleteNote(doomed, 1)
         assertTrue(result is SaveResult.Failed)
         assertEquals("pretioasa", trashOnDisk(load).getJSONObject(0).getString("title"))
-        assertTrue("mesajul trebuie sa spuna ca nu s-a pierdut nimic",
-            (result as SaveResult.Failed).reason.contains("nu s-a pierdut"))
+        assertTrue("the message must say nothing was lost",
+            (result as SaveResult.Failed).reason.contains("nothing was lost"))
     }
 
     @Test
-    fun `a trash that cannot be read stops the delete before it starts`() {
-        val load = scratchWithTrash("""[{"id": 1}]""", "{ nu e un cos")
-        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Failed)
+    fun `an unreadable trash is kept aside, and a delete still keeps the note`() {
+        val load = scratchWithTrash("""[{"id": 1, "title": "kept"}]""", "{ not a trash")
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("trash_corrupt_") }
+        assertEquals("{ not a trash", kept.readText())
+        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Ok)
+        assertEquals("kept", trashOnDisk(load).getJSONObject(0).getString("title"))
+    }
+
+    @Test
+    fun `a trash that can neither be read nor kept aside stops the delete`() {
+        val load = scratchWithTrash("""[{"id": 1}]""", "[]")
+        val stuck = Notebook.Load(
+            notes = load.notes, categories = load.categories, source = "x",
+            file = load.file, raw = load.raw, trashFile = load.trashFile, trashRaw = null,
+        )
+        load.trashFile!!.writeText("{ unreadable")
+        assertTrue(Notebook.deleteNote(stuck, 1) is SaveResult.Failed)
         // The notebook is untouched: the note is still there.
         assertEquals(1, onDisk(load).length())
     }
@@ -1016,25 +1051,6 @@ class NotebookTest {
     @Test
     fun `an overdue note shows zero days, never a negative number`() {
         assertEquals(0, Notebook.daysLeftInTrash("2020-01-01 00:00:00", 30))
-    }
-
-    @Test
-    fun `a hand-edited retention window is clamped, not obeyed`() {
-        // These match the desktop's CODE, which is the specification --
-        // not its docstring, which claims 0 and -3 fall back to the
-        // default. They do not: `max(1, min(days, 365))` clamps them to 1
-        // day. Only a value that is not a whole number at all ("forever")
-        // reaches the default. Both are safe -- neither makes the purge
-        // take everything -- but the two statements disagree, and the one
-        // that runs wins.
-        assertEquals(1, Notebook.parseRetentionDays("""{"trash_retention_days": 0}"""))
-        assertEquals(1, Notebook.parseRetentionDays("""{"trash_retention_days": -3}"""))
-        assertEquals(30,
-            Notebook.parseRetentionDays("""{"trash_retention_days": "forever"}"""))
-        assertEquals(365,
-            Notebook.parseRetentionDays("""{"trash_retention_days": 99999}"""))
-        assertEquals(7, Notebook.parseRetentionDays("""{"trash_retention_days": 7}"""))
-        assertEquals(30, Notebook.parseRetentionDays("nu e json"))
     }
 
     // ---- category, colour, date, pin ----
@@ -1132,7 +1148,7 @@ class NotebookTest {
         """.trimIndent())
         val result = Notebook.updateNote(load, 1, "", "", date = "")
         assertTrue(result is SaveResult.Failed)
-        assertTrue((result as SaveResult.Failed).reason.contains("repet"))
+        assertTrue((result as SaveResult.Failed).reason.contains("repeat"))
         assertEquals("2026-01-01", onDisk(load).getJSONObject(0).getString("date"))
     }
 
@@ -1281,14 +1297,5 @@ class NotebookTest {
         assertFalse(span.has("value"))
     }
 
-    // ---- settings.json ----
-
-    @Test
-    fun `only well-formed category colours are kept`() {
-        val json = """
-            {"categories": {"Work": "#4cc9f0", "Bad": "#not-a-colour",
-                            "Worse": 5, "  ": "#ffffff"}}
-        """.trimIndent()
-        assertEquals(mapOf("Work" to "#4cc9f0"), Notebook.parseCategories(json))
-    }
+    // settings.json, the retention window and the category map: SettingsTest.
 }

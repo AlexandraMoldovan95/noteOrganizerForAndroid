@@ -47,6 +47,10 @@ object Sharing {
         "color", "recurrence", "paragraphs", "checklist",
     )
 
+    private const val DAMAGED =
+        "This share code is damaged or incomplete. Ask the sender to copy the whole code again."
+    private const val NO_NOTES = "This share code doesn't contain any notes."
+
     /** What a code turned out to be. A failure explains itself. */
     sealed class Decoded {
         data class Notes(val notes: List<JSONObject>) : Decoded()
@@ -78,43 +82,56 @@ object Sharing {
     fun decode(code: String): Decoded {
         // Chat apps wrap long codes; whitespace anywhere is not damage.
         val cleaned = code.filterNot { it.isWhitespace() }
-        if (cleaned.isEmpty()) return Decoded.Failed("Nu ai lipit niciun cod.")
+        // The desktop's words, from decode_share_code, so the same damaged
+        // code is described the same way on both devices.
+        if (cleaned.isEmpty()) return Decoded.Failed("No code was pasted.")
         if (cleaned.length > MAX_CODE_CHARS) {
-            return Decoded.Failed("Codul e prea mare ca sa fie importat in siguranta.")
+            return Decoded.Failed(
+                "That code is far too large to import safely. For a transfer this " +
+                    "large, send a backup instead: Settings → Backup → Export, then " +
+                    "Import on the other device.")
         }
         if (!cleaned.startsWith(PREFIX)) {
             return Decoded.Failed(
-                "Asta nu e un cod Note Organizer. Un cod valid incepe cu “$PREFIX”.")
+                "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
         }
         val compressed = try {
             Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length))
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
-                "Codul e deteriorat sau incomplet. Cere-l din nou intreg — " +
-                    "aplicatiile de chat taie uneori codurile lungi.")
+                "This share code is damaged or incomplete. Ask the sender to copy " +
+                    "the whole code again — chat apps sometimes cut long codes short.")
         }
         val raw = inflate(compressed, MAX_DECOMPRESSED_BYTES)
             ?: return Decoded.Failed(
-                "Codul e deteriorat, sau prea mare ca sa fie importat in siguranta.")
+                "This share code is damaged, or too large to import safely. Ask the " +
+                    "sender to send it again, or to send a backup instead (Settings → " +
+                    "Backup → Export).")
 
         val payload = try {
             JSONObject(String(raw, Charsets.UTF_8))
         } catch (e: Exception) {
-            return Decoded.Failed("Codul e deteriorat sau incomplet.")
+            return Decoded.Failed(DAMAGED)
         }
-        val version = payload.opt("v")
-        if (version is Number && version.toInt() > 1) {
+        if (!payload.has("notes")) return Decoded.Failed(NO_NOTES)
+        // The version is the code's own claim, in text anyone can edit: a
+        // string or a true there is damage, not version 1. JSON's true is a
+        // Boolean here, never a Number, so the one test covers both.
+        val version = payload.opt("v") ?: 1
+        if (version !is Number) return Decoded.Failed(DAMAGED)
+        if (version.toDouble() > 1) {
             return Decoded.Failed(
-                "Codul e facut de o versiune mai noua a aplicatiei.")
+                "This code was made by a newer version of Note Organizer. " +
+                    "Update the app to import it.")
         }
         val notes = payload.opt("notes") as? JSONArray
-        if (notes == null || notes.length() == 0) {
-            return Decoded.Failed("Codul nu contine nicio notita.")
-        }
+        if (notes == null || notes.length() == 0) return Decoded.Failed(NO_NOTES)
         if (notes.length() > MAX_SHARED_NOTES) {
             return Decoded.Failed(
-                "Codul contine ${notes.length()} notite, peste limita de " +
-                    "$MAX_SHARED_NOTES pentru un singur cod.")
+                "This code contains ${notes.length()} notes, which is over the " +
+                    "$MAX_SHARED_NOTES-note limit for a single code. Ask the sender to " +
+                    "split it into smaller codes, or to send a backup instead " +
+                    "(Settings → Backup → Export).")
         }
         // Projected through the SAME slice `encode` produces, so a
         // hand-crafted code can only carry the fields a real one would.
