@@ -25,7 +25,7 @@ object Organizing {
 
     private fun now() = Files.now()
 
-    private fun indexOfId(array: JSONArray, id: Int): Int {
+    internal fun indexOfId(array: JSONArray, id: Int): Int {
         for (i in 0 until array.length()) {
             val itsId = (array.opt(i) as? JSONObject)?.opt("id")
             if (itsId is Number && itsId.toInt() == id) return i
@@ -42,12 +42,13 @@ object Organizing {
         return max
     }
 
-    private fun replace(live: JSONArray, from: JSONArray) {
+    /** The live array the screen reads, given the written candidate's contents. */
+    internal fun replace(live: JSONArray, from: JSONArray) {
         while (live.length() > 0) live.remove(live.length() - 1)
         for (i in 0 until from.length()) live.put(from.get(i))
     }
 
-    private fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))
+    internal fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))
 
     // ---- one note, or several ----
 

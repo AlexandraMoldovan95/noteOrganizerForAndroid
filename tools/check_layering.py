@@ -40,7 +40,7 @@ SOURCE = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
 RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
          "Themes.kt", "Settings.kt", "Files.kt", "Normalize.kt",
          "Importing.kt", "Backup.kt", "Organizing.kt", "Welcome.kt",
-         "Editing.kt", "Startup.kt", "Recurrence.kt"]
+         "Editing.kt", "Startup.kt", "Recurrence.kt", "Days.kt"]
 
 # The deliberate exceptions, named here so the list is a decision rather
 # than an omission: these exist to turn rules into pixels.
