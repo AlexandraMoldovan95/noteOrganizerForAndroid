@@ -47,7 +47,8 @@ RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
 DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
          "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt",
          "AppState.kt", "Components.kt", "ImportFlow.kt", "NoteEditor.kt",
-         "NotesScreen.kt", "SettingsScreens.kt"]
+         "NotesScreen.kt", "SettingsScreens.kt", "CalendarScreen.kt",
+         "RepeatSheet.kt"]
 
 
 def every_kotlin_file():

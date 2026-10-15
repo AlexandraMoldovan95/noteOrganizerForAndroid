@@ -90,6 +90,18 @@ def tap(label, exact=False, wait=1.0):
     return True
 
 
+def tap_last(label, wait=1.0):
+    """The LAST node whose text is exactly [label]: a dialog's button, where
+    its title says the same words above it."""
+    hits = [centre for text, desc, centre in nodes() if label in (text, desc)]
+    if not hits:
+        fail("tap %r: not on the screen" % label)
+        return False
+    adb("shell", "input", "tap", str(hits[-1][0]), str(hits[-1][1]))
+    time.sleep(wait)
+    return True
+
+
 def long_press(label):
     at = find(label)
     if at is None:
@@ -272,6 +284,7 @@ def main():
 
     seeded(folder)
     outward(folder)
+    calendar(folder)
     changes(folder)
 
     print()
@@ -550,6 +563,120 @@ def outward(folder):
     time.sleep(2.0)
     back_to("Your name")
     back()
+
+
+LONG_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+LONG_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+               "September", "October", "November", "December"]
+
+
+def put_inside(name, value):
+    """A file written straight into the app's own notebook folder, through run-as."""
+    local = os.path.join(os.environ.get("TEMP", "."), "walk_inside_" + name)
+    with io.open(local, "w", encoding="utf-8") as f:
+        json.dump(value, f, ensure_ascii=False, indent=2)
+    staging = "/data/local/tmp/walk_" + name
+    adb("push", local, staging)
+    os.remove(local)
+    adb("shell", "chmod", "644", staging)
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", NOTEBOOK)
+    adb("shell", "run-as", PACKAGE, "cp", staging, "%s/%s" % (NOTEBOOK, name))
+    adb("shell", "rm", "-f", staging)
+
+
+def said(day):
+    """A day as the calendar's cells name it: Monday, 12 October."""
+    return "%s, %d %s" % (LONG_DAYS[day.weekday()], day.day, LONG_MONTHS[day.month - 1])
+
+
+def calendar(folder):
+    """The calendar tab: a series and a dated note in this month, one day of
+    the series edited on its own, deleted and brought back, a day painted,
+    the History, and a repeat set from the sheet -- each read back from the
+    file the app wrote."""
+    from datetime import date, timedelta
+    print("\n-- the calendar --")
+    today = date.today()
+    first = date(today.year, today.month, 1)
+    monday = first + timedelta(days=(7 - first.weekday()) % 7)
+    second = monday + timedelta(days=7)
+    other = first + timedelta(days=20)
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", [
+        {"id": 1, "uid": "cal-standup", "title": "Stand-up", "body": "agenda", "category": "Work",
+         "date": monday.isoformat(), "recurrence": {"freq": "weekly", "weekdays": [0]},
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "cal-dentist", "title": "Dentist", "body": "at nine", "category": "Personal",
+         "date": other.isoformat(), "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+    ])
+    put_inside("settings.json", {"username": "Maria", "welcome_offered": True})
+    start_app()
+    tap("Calendar", exact=True, wait=1.5)
+    check("the calendar opens on this month", not screen_says(LONG_MONTHS[today.month - 1] + " " + str(today.year)))
+    check("a day the series lands on says it holds a note", not screen_says(said(second) + ", 1 note"))
+    shot(folder, "24-calendar", LONG_MONTHS[today.month - 1])
+
+    # One day of the series, on its own.
+    tap(said(second), wait=1.0)
+    tap("Stand-up", wait=1.5)
+    check("a day of a series opens in day mode", not screen_says("Only this day"))
+    shot(folder, "25-day-mode", "Only this day", "Whole series")
+    tap("Stand-up", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" room 2")
+    time.sleep(1.5)
+    series = note_by_uid("cal-standup") or {}
+    own = (series.get("overrides") or {}).get(second.isoformat()) or {}
+    check("the day's own title is written to that day alone",
+          own.get("title") == "Stand-up room 2" and series.get("title") == "Stand-up", json.dumps(series)[:240])
+    # Back to the calendar by a word only its own bar says: the day's banner
+    # names the month too, and an earlier run took the editor for the month.
+    back_to("📋 History")
+
+    # The day deleted from the series, and its Undo.
+    long_press("Stand-up room 2")
+    tap("Delete this day", wait=1.0)
+    # The question's title and its button say the same words: the button
+    # is the later of the two.
+    tap_last("Delete this day", wait=1.0)
+    series = note_by_uid("cal-standup") or {}
+    deleted = second.isoformat() in (series.get("exceptions") or [])
+    check("deleting one day skips it, and only it", deleted and series.get("recurrence", {}).get("freq") == "weekly")
+    shot(folder, "26-day-removed", "Day removed", "Undo")
+    tap("Undo", wait=1.5)
+    series = note_by_uid("cal-standup") or {}
+    check("its Undo brings the day back with its own text",
+          deleted and not series.get("exceptions")
+          and ((series.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2")
+
+    # A day painted.
+    long_press(said(other))
+    tap("Colour this day", wait=1.2)
+    tap("#43aa8b", exact=True, wait=1.2)
+    settings = read_file("settings.json") or {}
+    check("a painted day is kept under the desktop's key",
+          (settings.get("day_colors") or {}).get(other.isoformat()) == "#43aa8b", json.dumps(settings)[:200])
+    shot(folder, "27-painted-day", LONG_MONTHS[today.month - 1])
+
+    # The History.
+    tap("History", wait=1.5)
+    check("the History lists the dated note and the series",
+          not screen_says("Dentist", "Stand-up"), str(screen_says("Dentist", "Stand-up")))
+    shot(folder, "28-history", "Dentist", "Stand-up")
+    tap("📅 Calendar", wait=1.0)
+
+    # A repeat set from the sheet, on the dated note.
+    tap(said(other), wait=1.0)
+    tap("Dentist", wait=1.5)
+    tap("ⓘ", wait=1.2)
+    tap("Does not repeat", wait=1.5)
+    tap("Monthly", exact=True, wait=0.8)
+    shot(folder, "29-repeat-sheet", "Repeat", "Every month")
+    tap("Save", exact=True, wait=1.5)
+    dentist = note_by_uid("cal-dentist") or {}
+    check("a repeat chosen on the sheet reaches the file",
+          (dentist.get("recurrence") or {}).get("freq") == "monthly", json.dumps(dentist)[:200])
+    back_to("📋 History")
 
 
 def changes(folder):

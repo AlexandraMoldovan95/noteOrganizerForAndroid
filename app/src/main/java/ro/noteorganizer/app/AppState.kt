@@ -4,6 +4,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
@@ -13,8 +14,8 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
 
-/** Where the app is. The calendar joins these in Phase 2. */
-enum class Tab { NOTES, SETTINGS }
+/** Where the app is: the desktop's two tabs, and its Settings. */
+enum class Tab { NOTES, CALENDAR, SETTINGS }
 
 /** One page of Settings, or the list of them. */
 enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, BACKUP, TRASH, ABOUT }
@@ -43,11 +44,39 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     var load by mutableStateOf(Notebook.load(dir), neverEqualPolicy())
         private set
 
+    /**
+     * Counts the notebook's refreshes: the key for anything worked out from
+     * it once per change -- a month's days, the History -- rather than asked
+     * whether two whole notebooks are equal at every redraw.
+     */
+    var revision by mutableIntStateOf(0)
+        private set
+
     var tab by mutableStateOf(Tab.NOTES)
     var settingsPage by mutableStateOf<SettingsPage?>(null)
 
     /** The note open in the editor; null for none, 0 for one not saved yet. */
     var openId by mutableStateOf<Int?>(null)
+
+    /**
+     * The one day of a repeating note the editor is open on -- the
+     * desktop's day mode -- or null for the note as a whole.
+     */
+    var openDay by mutableStateOf<String?>(null)
+        private set
+
+    /** The date a new note starts with: the calendar day it was added on. */
+    var newNoteDate: String = ""
+        private set
+
+    // ---- the calendar ----
+
+    /** The month the calendar shows, and the day whose list is open. */
+    var calendarMonth by mutableStateOf(java.time.YearMonth.now())
+    var selectedDay by mutableStateOf(Recurrence.formatDate(java.time.LocalDate.now()))
+
+    /** The History in place of the month, as the desktop's toggle swaps them. */
+    var showHistory by mutableStateOf(false)
 
     /** A share code arriving from another app, waiting for the import panel. */
     var incomingCode by mutableStateOf<String?>(null)
@@ -90,11 +119,13 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     /** After a write: the screen from the arrays the write left. */
     fun refresh() {
         load = Notebook.refreshed(load)
+        revision += 1
     }
 
     /** From the disk, for when the files changed under the app (an import). */
     fun reload() {
         load = Notebook.load(dir)
+        revision += 1
     }
 
     /** A result shown when it failed; the screen refreshed either way. */
@@ -123,19 +154,103 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
 
     // ---- the notes ----
 
-    fun openNote(id: Int) {
+    /**
+     * Opens a note -- on one [day] of it, when the note repeats and a day is
+     * named; as a whole otherwise. A plain note opened from a calendar day
+     * is simply the note.
+     */
+    fun openNote(id: Int, day: String? = null) {
+        openDay = if (day != null && rawNote(id)?.let { Recurrence.isRecurring(it) } == true) day else null
+        newNoteDate = ""
         openId = id
     }
 
-    fun newNote() {
+    fun newNote(date: String = "") {
+        openDay = null
+        newNoteDate = date
         openId = 0
     }
 
     fun closeNote() {
         openId = null
+        openDay = null
+        newNoteDate = ""
+    }
+
+    /** From one day back to the whole series, the editor staying on the note. */
+    fun openWholeSeries() {
+        openDay = null
     }
 
     fun note(id: Int): Note? = load.notes.firstOrNull { it.id == id }
+
+    /** A note as the file holds it: what the calendar and the day rules read. */
+    fun rawNote(id: Int): JSONObject? = rawNotes().firstOrNull { (it.opt("id") as? Number)?.toInt() == id }
+
+    fun rawNotes(): List<JSONObject> {
+        val raw = load.raw ?: return emptyList()
+        return (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
+    }
+
+    // ---- the calendar's days ----
+
+    val dayColours: Map<String, String> get() = Days.dayColours(settings)
+    val dayMarkers: Map<String, List<String>> get() = Days.dayMarkers(settings)
+
+    /** Paints a day, or clears its paint with "" -- which offers its Undo. */
+    fun paintDay(day: String, colour: String) {
+        val old = dayColours[day]
+        if (!putSetting(Days.DAY_COLORS, Days.withColour(settings, day, colour))) return
+        if (colour.isEmpty() && old != null) {
+            offerUndo("Day colour cleared") { putSetting(Days.DAY_COLORS, Days.withColour(settings, day, old)) }
+        }
+    }
+
+    /** A day's markers, three at most; none clears them, with an Undo. */
+    fun markDay(day: String, markers: List<String>) {
+        val old = dayMarkers[day]
+        if (!putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, markers))) return
+        if (markers.isEmpty() && old != null) {
+            offerUndo("Day markers cleared") { putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, old)) }
+        }
+    }
+
+    /** One day out of its series, with the Undo the desktop's toast offers. */
+    fun deleteDay(id: Int, day: String) {
+        val (result, gone) = Days.deleteDay(load, id, day)
+        if (!report(result) || gone == null) return
+        if (openId == id && openDay == day) closeNote()
+        offerUndo("Day removed") { report(Days.undoDeleteDay(load, gone)) }
+    }
+
+    fun resetDay(id: Int, day: String, dropText: Boolean = true, sendHome: Boolean = true) {
+        val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
+        report(Days.resetDay(load, id, day, dropText, sendHome)) {
+            // The editor open on the day goes with it, to where it is now.
+            if (sendHome && home != null && openId == id && openDay == day) openDay = home
+            say(if (dropText) "This day follows the series again" else "This day is back on its own date")
+        }
+    }
+
+    fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(Days.setRepeat(load, id, rule))
+
+    /**
+     * A message with an Undo. Eight seconds, as the desktop's banner: long
+     * enough to read it and decide. Android's own lengths are four and ten,
+     * and four was gone before a thumb could reach it.
+     */
+    private fun offerUndo(message: String, undo: () -> Unit) {
+        scope.launch {
+            val timer = launch {
+                delay(8_000)
+                snackbar.currentSnackbarData?.dismiss()
+            }
+            val answer = snackbar.showSnackbar(message, actionLabel = "Undo",
+                duration = SnackbarDuration.Indefinite, withDismissAction = false)
+            timer.cancel()
+            if (answer == SnackbarResult.ActionPerformed) undo()
+        }
+    }
 
     /**
      * Moves notes to the Trash and offers them back for eight seconds --
@@ -147,25 +262,10 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
         val keys = load.trash.takeLast(count).map { Organizing.TrashKey(it.id, it.deletedAt) }
-        if (openId != null && openId in ids) openId = null
-        scope.launch {
-            // Eight seconds, as the desktop's banner: long enough to read it
-            // and decide. Android's own lengths are four and ten.
-            val timer = launch {
-                delay(8_000)
-                snackbar.currentSnackbarData?.dismiss()
-            }
-            val answer = snackbar.showSnackbar(
-                message = if (count == 1) "Moved to Trash" else "Moved $count notes to Trash",
-                actionLabel = "Undo",
-                duration = SnackbarDuration.Indefinite,
-                withDismissAction = false,
-            )
-            timer.cancel()
-            if (answer == SnackbarResult.ActionPerformed) {
-                report(Organizing.restore(load, keys)) { ok ->
-                    if (openAfterUndo || count == 1) openId = ok.id
-                }
+        if (openId != null && openId in ids) closeNote()
+        offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
+            report(Organizing.restore(load, keys)) { ok ->
+                if (openAfterUndo || count == 1) openNote(ok.id)
             }
         }
     }

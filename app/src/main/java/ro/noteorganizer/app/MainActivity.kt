@@ -208,11 +208,14 @@ fun AppRoot(state: AppState, version: String) {
         busy = { busy },
     )
 
-    // Back from Settings goes to the notes, as Back from any second place
-    // in an app does; only from the notes does it leave the app.
+    // Back from Settings or the Calendar goes to the notes, as Back from any
+    // second place in an app does; only from the notes does it leave the
+    // app. From the History, it goes back to the month first.
     androidx.activity.compose.BackHandler(
-        enabled = state.openId == null && state.tab == Tab.SETTINGS && state.settingsPage == null,
-    ) { state.tab = Tab.NOTES }
+        enabled = state.openId == null && state.tab != Tab.NOTES && state.settingsPage == null,
+    ) {
+        if (state.tab == Tab.CALENDAR && state.showHistory) state.showHistory = false else state.tab = Tab.NOTES
+    }
 
     Box(Modifier.fillMaxSize().background(palette.bg)) {
         val open = state.openId
@@ -223,12 +226,14 @@ fun AppRoot(state: AppState, version: String) {
                 Box(Modifier.weight(1f).statusBarsPadding()) {
                     when (state.tab) {
                         Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
+                        Tab.CALENDAR -> CalendarScreen(state)
                         Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
                     }
                 }
                 NavigationBar(containerColor = palette.sidebar) {
                     for ((tab, label, mark) in listOf(
                         Triple(Tab.NOTES, R.string.nav_notes, "≣"),
+                        Triple(Tab.CALENDAR, R.string.nav_calendar, "📅"),
                         Triple(Tab.SETTINGS, R.string.nav_settings, "⚙"),
                     )) {
                         NavigationBarItem(

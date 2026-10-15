@@ -11,7 +11,86 @@
 
     <!-- The bar at the bottom -->
     <string name="nav_notes">Notes</string>
+    <string name="nav_calendar">Calendar</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- The calendar: the desktop's words wherever it has them -->
+    <string name="cal_today">Today</string>
+    <string name="cal_history">📋 History</string>
+    <string name="cal_back_to_month">📅 Calendar</string>
+    <string name="cal_previous">Previous month</string>
+    <string name="cal_next">Next month</string>
+    <string name="cal_add_note">+ Add note</string>
+    <string name="cal_no_notes">No notes for this day yet.</string>
+    <string name="cal_colour_day">Colour this day</string>
+    <string name="cal_mark_day">Mark this day</string>
+    <string name="cal_clear_colour">Clear the colour</string>
+    <string name="cal_clear_markers">Clear the markers</string>
+    <string name="cal_markers_title">Mark this day — up to 3</string>
+    <string name="cal_markers_full">Three is the most a day can hold. Unmark one to choose another.</string>
+    <string name="cal_open">Open</string>
+    <string name="history_search">Search the History…</string>
+    <string name="history_empty">Nothing here yet. Dated notes, and the days of repeating notes edited on their own, appear here.</string>
+    <string name="history_series_jump">No days of its own — tap to see it on the calendar</string>
+    <plurals name="history_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
+    <!-- One day of a repeating note -->
+    <string name="day_edit_this">✏ Edit this day</string>
+    <string name="day_edit_series">🔁 Edit the whole series</string>
+    <string name="day_reset">↺ Reset this day</string>
+    <string name="day_delete">Delete this day</string>
+    <string name="series_delete">Delete the whole series</string>
+    <string name="day_banner">📅 Only this day: %1$s</string>
+    <string name="day_whole_series">🔁 Whole series</string>
+    <string name="day_saved">Saved for this day only</string>
+    <string name="day_follows">This day follows the series again</string>
+    <string name="day_plain">A day\'s own text is plain: formatting belongs to the whole series.</string>
+    <string name="day_series_owned">The date and the repeat belong to the whole series.</string>
+    <string name="day_reset_text">Return %1$s to the series content? The edits made for this day alone will be discarded.</string>
+    <string name="day_reset_moved_text">Put this day back on %1$s? Its own text can go back to the series content as well, or stay as it is.</string>
+    <string name="day_reset_home">Put this day back on %1$s?</string>
+    <string name="day_reset_only_date">Only the date</string>
+    <string name="day_reset_date_and_text">The date and the text</string>
+    <string name="day_delete_text">Remove %1$s from this repeating note? Its other days stay.</string>
+    <string name="series_delete_text">Delete this entire repeating series? It goes to the Trash.</string>
+
+    <!-- The repeat -->
+    <string name="repeat">Repeat</string>
+    <string name="repeat_every">Every</string>
+    <string name="repeat_on">On</string>
+    <string name="repeat_on_days">On day(s) of the month</string>
+    <string name="repeat_same_weekday">None picked: the start date\'s weekday.</string>
+    <string name="repeat_same_monthday">None picked: the start date\'s day of the month.</string>
+    <string name="repeat_short_month">When a month is too short</string>
+    <string name="repeat_clamp">Its last day</string>
+    <string name="repeat_skip">Skip that month</string>
+    <string name="repeat_ends">Ends</string>
+    <string name="repeat_never">Never</string>
+    <string name="repeat_on_date">On a date</string>
+    <string name="repeat_after">After</string>
+    <string name="repeat_times">times</string>
+    <string name="repeat_start">Starts</string>
+    <string name="repeat_needs_date">A repeating note needs a start date.</string>
+    <string name="repeat_off_kept">The repeat is off; ↩ Restore previous brings it back with every day\'s own text.</string>
+    <plurals name="unit_day">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+    <plurals name="unit_week">
+        <item quantity="one">week</item>
+        <item quantity="other">weeks</item>
+    </plurals>
+    <plurals name="unit_month">
+        <item quantity="one">month</item>
+        <item quantity="other">months</item>
+    </plurals>
+    <plurals name="unit_year">
+        <item quantity="one">year</item>
+        <item quantity="other">years</item>
+    </plurals>
 
     <!-- Everywhere -->
     <string name="cancel">Cancel</string>

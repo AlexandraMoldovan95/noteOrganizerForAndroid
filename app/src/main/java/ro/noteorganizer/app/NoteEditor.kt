@@ -82,7 +82,7 @@ import java.util.TimeZone
  * A new note is 0 until something worth keeping is in it: an entirely
  * blank note is a mis-tap, not a thought, and nothing is written for it.
  */
-class EditorModel(private val state: AppState, note: Note?) {
+class EditorModel(private val state: AppState, note: Note?, val day: String? = null, newDate: String = "") {
     var id by mutableIntStateOf(note?.id ?: 0)
     var title by mutableStateOf(note?.title ?: "")
     var body by mutableStateOf(note?.body ?: "")
@@ -90,8 +90,30 @@ class EditorModel(private val state: AppState, note: Note?) {
     var comments by mutableStateOf(note?.comments ?: "")
     var category by mutableStateOf(note?.category ?: Themes.PROTECTED_CATEGORY)
     var color by mutableStateOf(note?.color ?: "")
-    var date by mutableStateOf(note?.date ?: "")
+    var date by mutableStateOf(note?.date ?: newDate)
     var pinned by mutableStateOf(note?.pinned ?: false)
+
+    init {
+        if (day != null && note != null) showDay(note.id, day)
+    }
+
+    /**
+     * One day of the series, as that day shows it: its own edit over the
+     * series'. A day's own text is plain -- the desktop keeps formatting
+     * with the series -- so its spans are drawn only while the day still
+     * shows the series' words.
+     */
+    private fun showDay(id: Int, day: String) {
+        val raw = state.rawNote(id) ?: return
+        val shown = Recurrence.effectiveNote(raw, day)
+        val own = (raw.opt("overrides") as? org.json.JSONObject)?.optJSONObject(day)
+        title = shown.opt("title") as? String ?: ""
+        body = shown.opt("body") as? String ?: ""
+        comments = shown.opt("comments") as? String ?: ""
+        category = (shown.opt("category") as? String)?.ifEmpty { null } ?: Themes.PROTECTED_CATEGORY
+        color = shown.opt("color") as? String ?: ""
+        if (own?.has("body") == true) spans = emptyList()
+    }
 
     /** Counts changes; the autosave runs a moment after the last one. */
     var edits by mutableIntStateOf(0)
@@ -115,7 +137,11 @@ class EditorModel(private val state: AppState, note: Note?) {
         if (!force && edits == saved) return true
         val target = edits
         val load = state.load
-        val result = if (id == 0) {
+        var follows = false
+        val result = if (day != null && id != 0) {
+            // A day of a series saves to that day alone, never to the series.
+            Days.saveDay(load, id, day, title, body, comments, category, color) { follows = it == Days.DaySaved.FOLLOWS }
+        } else if (id == 0) {
             if (!force && title.isBlank() && body.isBlank() && comments.isBlank()) {
                 saved = target
                 return true
@@ -131,7 +157,7 @@ class EditorModel(private val state: AppState, note: Note?) {
                 if (id == 0) id = result.id
                 saved = target
                 problem = null
-                status = "saved"
+                status = if (follows) "follows" else "saved"
                 if (result.lostStyles > 0) {
                     state.say("${result.lostStyles} styles could not be kept: their text was deleted.")
                 }
@@ -154,6 +180,7 @@ class EditorModel(private val state: AppState, note: Note?) {
         color = note.color
         date = note.date
         pinned = note.pinned
+        if (day != null) showDay(note.id, day)
         focused = null
         saved = edits
     }
@@ -162,7 +189,8 @@ class EditorModel(private val state: AppState, note: Note?) {
     fun typeInto(segment: Editing.Segment, text: String) {
         val next = Editing.replaceProse(body, segment, text)
         if (next == body) return
-        spans = remapSpans(body, next, spans).spans
+        // A day's own text is plain: once typed in, it carries no styling.
+        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         body = next
         changed()
     }
@@ -172,7 +200,7 @@ class EditorModel(private val state: AppState, note: Note?) {
         val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val next = replaceTable(body, segment.firstLine..segment.lastLine, change(TableEdit(lines)).lines())
         if (next == body) return
-        spans = remapSpans(body, next, spans).spans
+        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         body = next
         changed()
     }
@@ -182,12 +210,20 @@ class EditorModel(private val state: AppState, note: Note?) {
 @Composable
 fun NoteEditor(state: AppState, openId: Int) {
     val palette = LocalPalette.current
-    val model = remember(openId) { EditorModel(state, state.note(openId)) }
+    val model = remember(openId, state.openDay) {
+        EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
+    }
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var askRestore by remember { mutableStateOf(false) }
     var cell by remember { mutableStateOf<Pair<Editing.Segment, CellAt>?>(null) }
+    // One day of a series: what it holds of its own, and where it came from.
+    val day = model.day
+    val raw = state.rawNote(model.id)
+    val ownEdit = day != null && (raw?.opt("overrides") as? org.json.JSONObject)?.has(day) == true
+    val cameFrom = if (day != null && raw != null) Recurrence.movedFrom(raw, day) else null
+    var asking by remember { mutableStateOf<String?>(null) }
 
     fun leave() {
         model.save()
@@ -223,6 +259,8 @@ fun NoteEditor(state: AppState, openId: Int) {
             Text(
                 text = when {
                     model.problem != null -> stringResource(R.string.not_saved)
+                    model.status == "follows" -> stringResource(R.string.day_follows)
+                    model.status == "saved" && day != null -> stringResource(R.string.day_saved)
                     model.status == "saved" -> stringResource(R.string.auto_saved)
                     else -> ""
                 },
@@ -243,17 +281,30 @@ fun NoteEditor(state: AppState, openId: Int) {
                             if (model.save(force = model.id == 0)) state.duplicate(model.id)
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.move_to_trash), color = palette.dangerText) },
-                        onClick = {
-                            menu = false
-                            if (model.id == 0 && model.title.isBlank() && model.body.isBlank()) {
-                                state.closeNote()
-                            } else if (model.save(force = model.id == 0)) {
-                                state.trash(listOf(model.id))
-                            }
-                        },
-                    )
+                    if (day != null) {
+                        // A day of a series is deleted on its own, or the series
+                        // is: the desktop's two answers, as two entries.
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.day_delete), color = palette.dangerText) },
+                            onClick = { menu = false; model.save(); asking = "day" },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.series_delete), color = palette.dangerText) },
+                            onClick = { menu = false; model.save(); asking = "series" },
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.move_to_trash), color = palette.dangerText) },
+                            onClick = {
+                                menu = false
+                                if (model.id == 0 && model.title.isBlank() && model.body.isBlank()) {
+                                    state.closeNote()
+                                } else if (model.save(force = model.id == 0)) {
+                                    state.trash(listOf(model.id))
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -267,6 +318,31 @@ fun NoteEditor(state: AppState, openId: Int) {
             model.problem?.let {
                 Text(stringResource(R.string.not_saved_because, it), color = palette.dangerText, fontSize = 13.sp,
                      modifier = Modifier.padding(bottom = 10.dp))
+            }
+            if (day != null) {
+                // Day mode says so, and names the way to the whole series --
+                // a field test once could not find how to edit just one day,
+                // nor how to leave it.
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(palette.card)
+                        .padding(12.dp),
+                ) {
+                    Text(stringResource(R.string.day_banner, Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day),
+                         color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
+                             fontWeight = FontWeight.Medium,
+                             modifier = Modifier.clickable { model.save(); state.openWholeSeries() })
+                        if (ownEdit || cameFrom != null) {
+                            Text(stringResource(R.string.day_reset), color = palette.accentText, fontSize = 13.sp,
+                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { model.save(); asking = "reset" })
+                        }
+                    }
+                }
             }
             if (note?.hasPrevious == true) {
                 Row(
@@ -310,7 +386,9 @@ fun NoteEditor(state: AppState, openId: Int) {
                      color = if (model.title.length >= 200) palette.dangerText else palette.subtext)
             }
             Text(
-                text = listOfNotNull(model.category, Recurrence.showDate(model.date).ifBlank { null }).joinToString("  ·  "),
+                // On one day of a series, the day being written -- not the
+                // series' first one, which read as the wrong date here.
+                text = listOfNotNull(model.category, Recurrence.showDate(day ?: model.date).ifBlank { null }).joinToString("  ·  "),
                 color = palette.legibleOnCard(model.color.ifEmpty { state.load.categories[model.category] ?: palette.hex.getValue("accent") }),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 10.dp).clickable { details = true },
@@ -336,7 +414,18 @@ fun NoteEditor(state: AppState, openId: Int) {
             Spacer(Modifier.height(48.dp))
         }
 
-        if (model.focus != null) FormatBar(model)
+        if (model.focus != null) {
+            if (day == null) FormatBar(model)
+            else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
+                      modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
+        }
+    }
+    if (day != null && asking != null) {
+        DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) {
+            asking = null
+            // A reset changes what this day shows: shown again from the file.
+            state.note(model.id)?.let { model.reloadFrom(it) }
+        }
     }
 
     if (details) DetailsSheet(state, model, note, onDismiss = { details = false })
@@ -732,6 +821,8 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     val palette = LocalPalette.current
     var picking by remember { mutableStateOf(false) }
     var dating by remember { mutableStateOf(false) }
+    var repeating by remember { mutableStateOf(false) }
+    val onADay = model.day != null
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
@@ -745,23 +836,36 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         Recurrence.showDate(model.date).ifBlank { stringResource(R.string.no_date) },
-                        color = palette.text,
+                        color = if (onADay) palette.subtext else palette.text,
                         fontSize = 15.sp,
-                        modifier = Modifier.clickable { dating = true },
+                        modifier = Modifier.clickable(enabled = !onADay) { dating = true },
                     )
-                    if (model.date.isNotEmpty() && note?.isRecurring != true) {
+                    if (!onADay && model.date.isNotEmpty() && note?.isRecurring != true) {
                         Text("  ✕", color = palette.subtext, fontSize = 15.sp,
                              modifier = Modifier.clickable { model.date = ""; model.changed() })
                     }
                 }
             }
-            if (note?.isRecurring == true) {
+            DetailRow(stringResource(R.string.repeat)) {
+                Text(
+                    note?.recurrenceLabel?.ifEmpty { null } ?: Recurrence.FREQ_LABELS.getValue(""),
+                    color = if (onADay) palette.subtext else palette.text,
+                    fontSize = 15.sp,
+                    modifier = Modifier.clickable(enabled = !onADay) { repeating = true },
+                )
+            }
+            if (onADay) {
+                Text(stringResource(R.string.day_series_owned), color = palette.subtext, fontSize = 12.sp)
+            } else if (note?.isRecurring == true) {
                 Text(stringResource(R.string.repeats_note), color = palette.subtext, fontSize = 12.sp)
             }
             Text(stringResource(R.string.colour), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
             Swatches(Themes.PRESET_NOTE_COLORS, model.color, allowNone = true) { model.color = it; model.changed() }
-            DetailRow(stringResource(R.string.pin_to_top)) {
-                Switch(checked = model.pinned, onCheckedChange = { model.pinned = it; model.changed() })
+            // The pin is the whole note's: a day has nowhere to keep one.
+            if (!onADay) {
+                DetailRow(stringResource(R.string.pin_to_top)) {
+                    Switch(checked = model.pinned, onCheckedChange = { model.pinned = it; model.changed() })
+                }
             }
             val words = Editing.wordCount(model.body)
             Text(
@@ -780,12 +884,13 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
         }, onDismiss = { picking = false })
     }
     if (dating) DateDialog(model.date, onPick = { model.date = it; model.changed(); dating = false }) { dating = false }
+    if (repeating) RepeatSheet(state, model) { repeating = false }
 }
 
 private fun pluralWords(n: Int) = if (n == 1) "1 word" else "$n words"
 
 @Composable
-private fun DetailRow(label: String, content: @Composable () -> Unit) {
+internal fun DetailRow(label: String, content: @Composable () -> Unit) {
     val palette = LocalPalette.current
     Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = palette.subtext, fontSize = 14.sp, modifier = Modifier.weight(1f))
@@ -796,7 +901,7 @@ private fun DetailRow(label: String, content: @Composable () -> Unit) {
 /** Android's own calendar picker, kept to the desktop's stored form. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun DateDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val format = remember {
         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
     }
