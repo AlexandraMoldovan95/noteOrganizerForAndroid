@@ -261,6 +261,7 @@ def main():
     table_extras(folder)
     undoing(folder)
     pasting(folder)
+    copy_after_styling(folder)
     wide(folder)
     changes(folder)
 
@@ -1774,6 +1775,72 @@ def mailing(folder):
     check("...on the phone alone: not in settings.json, which a backup carries", b"maria" not in settings)
     tap("Cancel", exact=True)
     back_to("Search notes")
+
+
+def copy_after_styling(folder):
+    """Words selected, made bold and 14 from the format bar, copied at once
+    and pasted into another note -- the order a person styles and copies
+    in. The selection was noted before the styling, and the copy went out
+    without it: found by the rehearsal of a check for a real phone."""
+    print("\n-- a copy made right after styling --")
+    if not seed_inside([
+        {"id": 1, "uid": "cs-src", "title": "Src", "body": "Tom & Jerry <3 socks",
+         "created": "2026-10-16 09:00:00", "updated": "2026-10-16 09:00:00"},
+        {"id": 2, "uid": "cs-dst", "title": "Dst", "body": "Start",
+         "created": "2026-10-16 09:00:01", "updated": "2026-10-16 09:00:01"},
+    ], {"welcome_offered": True}, "Src"):
+        return
+
+    def keys(*codes):
+        adb("shell", "input", "keycombination", *map(str, codes))
+        time.sleep(1.0)
+
+    open_note("Src")
+    tap("Tom & Jerry", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    tap("B", exact=True, wait=0.8)
+    tap("Size: Default", exact=True, wait=0.8)
+    tap("14", exact=True, wait=0.8)
+    keys(113, 31)                                  # Ctrl+C, at once
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Dst")
+    tap("Start", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" ")
+    keys(113, 50)                                  # Ctrl+V
+    time.sleep(1.5)
+    keyboard_down()
+    shot(folder, "62-copy-after-styling", "Start")
+    back_to("Search notes")
+    dst = note_by_uid("cs-dst") or {}
+    spans = dst.get("formatting") or []
+    check("the copy carries the bold and the size just given",
+          {"start": 6, "end": 26, "style": "bold"} in spans
+          and {"start": 6, "end": 26, "style": "font_size", "value": 14} in spans,
+          repr((dst.get("body"), spans)))
+
+    # A cut, the same way: its words are out of the note before it copies.
+    open_note("Src")
+    tap("Tom & Jerry", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    tap("I", exact=True, wait=0.8)
+    keys(113, 52)                                  # Ctrl+X
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Dst")
+    tap("Start", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    keys(113, 50)                                  # Ctrl+V
+    time.sleep(1.5)
+    keyboard_down()
+    back_to("Search notes")
+    dst = note_by_uid("cs-dst") or {}
+    spans = dst.get("formatting") or []
+    check("a cut carries the italic just given, its words gone from where they were",
+          (note_by_uid("cs-src") or {}).get("body") == ""
+          and any(s.get("style") in ("italic", "bold_italic") and s.get("start") == 26 for s in spans),
+          repr((dst.get("body"), spans)))
 
 
 def undoing(folder):

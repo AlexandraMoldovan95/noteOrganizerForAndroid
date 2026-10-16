@@ -80,11 +80,15 @@ tested as from now on. Built on Phase 3.
   14, where it stayed at 12.
 - **A template's body shows its tables as tables**, where its box showed
   the rows as bars and dashes above the drawn table.
+- **A copy made right after styling carries the styling.** Words
+  selected, made bold or 14 from the format bar and copied at once went
+  out plain: the copy used the formatting the words had when they were
+  selected. A cut the same.
 
 ### Testing
 
-- 584 JVM unit tests in 25 suites, from 572 in 24. 11 mutants against
-  them, all killed. Ten more built into the app: eight caught by the
+- 587 JVM unit tests in 26 suites, from 572 in 24. 13 mutants against
+  them, all killed. Twelve more built into the app: ten caught by the
   walk; one, a paste losing its formatting in the release build only,
   caught by the new release gate and not by any screen; and one survives
   — the email naming Gmail rather than its writing window, which this
@@ -97,10 +101,11 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 202 checks in 28 parts, from 177 in 25 —
-  previews, a table at larger letters, sending by email, and checks
-  grown in four older parts. The full run passed all 202 on its first
-  try.
+- `tools/emulator/walk.py`: 205 checks in 29 parts, from 177 in 25 —
+  previews, a table at larger letters, sending by email, a copy and a
+  cut made right after styling, and checks grown in four older parts.
+  The full run of the first 202 passed on its first try; the copy's
+  part, written after it, was walked on its own.
 
 ## [Unreleased] — Phase 3
 

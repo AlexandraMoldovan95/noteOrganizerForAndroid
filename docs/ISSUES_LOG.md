@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the thirty-six are about
-the checking.
+**the code**, or in **the design**. Fourteen of the thirty-seven are
+about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-16](#a-copy-of-the-selection-as-it-was-when-selected) | code | Words selected, made bold and 14, then copied, went out plain | A note of the state taken at one moment and used at another is stale by the time it is used |
 | [2026-10-16](#a-file-looked-up-by-a-name-the-release-build-changed) | code | The release build renamed the class that reads the HTML entities, and a paste from a web page would have lost its formatting without a word | The debug build is not the one people run: check the artifact |
 | [2026-10-16](#mail-apps-only-said-a-way-android-17-no-longer-accepts) | code | "Send by email" said there was no mail app, with Gmail installed | A hand-off between apps is verified on a current Android, from the log |
 | [2026-10-16](#widths-in-one-unit-letters-in-another) | code | At the phone's 115% letters, a table's word broke over two lines | A size that holds text is measured from the text |
@@ -53,6 +54,33 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A copy of the selection as it was when selected
+
+**2026-10-16.** A check written to walk the app on a real phone was
+rehearsed on the emulator first. Its steps selected a line, made it
+bold and 14 from the format bar, copied it, and later pasted it — and the
+pasted words came in plain.
+
+The editor notes the selection when it is made — its place and the
+note's formatting at that moment — and a copy is made from that note.
+A style put on from the format bar changes the note's formatting without
+any field saying so, so the note was taken before the bold existed, and
+the copy carried none of it. A cut the same, and worse placed: its words
+leave the note before it copies them, so only the note taken earlier
+could say what they were. Nothing walked it, because every copy the walk
+made was of formatting already in the note.
+
+The selection is now brought up to the formatting it has *now*, while
+its words are unchanged: as a copy is made, and as a field's change
+arrives, before a cut can take the words out. `EditorCopyTest` holds
+both; a walk part does what the rehearsal did, a copy and a cut, read
+back from the file; and each of the three changes, taken out, was caught.
+
+**The class:** a note of the state taken at one moment and used at
+another is stale as soon as anything the note did not hear about
+changes. Take the note where it is used, or bring it up to date there;
+and walk the order a person works in — style, *then* copy.
 
 ## A file looked up by a name the release build changed
 

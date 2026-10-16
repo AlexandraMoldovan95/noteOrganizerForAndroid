@@ -564,6 +564,21 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /**
+     * The selection noted, brought up to the styling it has NOW, while its
+     * words are still the same. A style put on from the format bar after
+     * the words were selected -- bold, a size, a list -- changes the note's
+     * spans and no field reports it, so the selection's note had none of
+     * it, and the copy went out without the very formatting just given
+     * (found on a real phone's rehearsal: select, B, 14, copy -- pasted
+     * plain). Called as a copy is made, and before a field's change is
+     * applied, because a cut takes the words out before it copies them.
+     */
+    fun freshenPick() {
+        val p = picked ?: return
+        if (p.body == body) picked = Picked(p.from, p.to, body, spans, props)
+    }
+
+    /**
      * A copy or a cut of [plain] from a field: when it is the selection
      * noted, the HTML to put beside it on the clipboard -- so it arrives
      * elsewhere formatted -- and the copy kept for a paste back into a
@@ -571,6 +586,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     fun copyOut(plain: String): String? {
         if (day != null) return null
+        freshenPick()
         val p = picked ?: return null
         val copy = Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to) ?: return null
         if (copy.text != plain) return null
@@ -1219,6 +1235,8 @@ private fun ProseField(
     BasicTextField(
         value = value,
         onValueChange = { next ->
+            // Before anything moves: a cut arrives here with its words already gone.
+            model.freshenPick()
             val pasted = clipboard.pasteOf(value, next)
             if (pasted != null && model.paste(segment, value, pasted.html, pasted.text)) return@BasicTextField
             // A keystroke that meant a list operation comes back rewritten.
