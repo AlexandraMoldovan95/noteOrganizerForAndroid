@@ -14,8 +14,9 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-ADB = os.path.join(os.environ["LOCALAPPDATA"], "Android", "Sdk",
-                   "platform-tools", "adb.exe")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from emulator_only import command  # noqa: E402 -- the emulator, never a phone
+
 CHUNK = 100
 
 code = io.open(sys.argv[1], encoding="utf-8").read().strip()
@@ -23,7 +24,7 @@ x, y = int(sys.argv[2]), int(sys.argv[3])
 
 
 def adb(*args):
-    return subprocess.run([ADB] + list(args), capture_output=True, text=True,
+    return subprocess.run(command(*args), capture_output=True, text=True,
                           encoding="utf-8", errors="replace").stdout
 
 

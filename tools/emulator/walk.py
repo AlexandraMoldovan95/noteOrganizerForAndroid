@@ -26,8 +26,9 @@ import time
 import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
 
-ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk", "platform-tools", "adb.exe")
 PACKAGE = "ro.noteorganizer.app"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(os.path.dirname(HERE))
@@ -38,7 +39,7 @@ failures = []
 
 
 def adb(*args, binary=False, check=False):
-    out = subprocess.run([ADB, *args], capture_output=True)
+    out = subprocess.run(command(*args), capture_output=True)
     if check and out.returncode != 0:
         raise RuntimeError("adb %s: %s" % (" ".join(args), out.stderr.decode(errors="replace")))
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")

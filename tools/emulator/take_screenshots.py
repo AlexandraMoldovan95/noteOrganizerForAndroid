@@ -35,9 +35,9 @@ import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
 
-ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk",
-                   "platform-tools", "adb.exe")
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -138,7 +138,7 @@ SHOTS = [
 def adb(*args, binary=False):
     env = dict(os.environ)
     env["MSYS_NO_PATHCONV"] = "1"   # or a bash shell rewrites /sdcard/...
-    out = subprocess.run([ADB] + list(args), capture_output=True, env=env)
+    out = subprocess.run(command(*args), capture_output=True, env=env)
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
 
 
