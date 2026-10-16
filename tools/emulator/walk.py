@@ -1236,8 +1236,14 @@ def sizes_and_faces(folder):
     tap("plain words to style", wait=1.0)
     adb("shell", "input", "keycombination", "113", "29")
     time.sleep(0.8)
-    tap("12", exact=True, wait=0.8)
+    # The size key says the size of what is selected: "Default" over words
+    # that have none, the number once one is set -- as the desktop's box.
+    check("over words with no size of their own the size key says Default",
+          find("Size: Default", exact=True) is not None, repr([d for t, d, _ in nodes() if d][:12]))
+    tap("Size: Default", exact=True, wait=0.8)
     tap("20", exact=True, wait=0.8)
+    check("and once a size is set, the key says it", find("Size: 20", exact=True) is not None,
+          repr([d for t, d, _ in nodes() if d][:12]))
     tap("Aa", exact=True, wait=0.8)
     tap("Georgia", exact=True, wait=0.8)
     shot(folder, "40-size-and-face", "Faces")

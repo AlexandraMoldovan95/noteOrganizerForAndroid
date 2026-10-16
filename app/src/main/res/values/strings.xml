@@ -137,6 +137,12 @@
     <string name="pin">Pin</string>
     <string name="unpin">Unpin</string>
     <string name="duplicate">Duplicate</string>
+    <!-- The editor's ⋮ menu: every entry with its icon, as the desktop's has. -->
+    <string name="menu_duplicate">📄 Duplicate</string>
+    <string name="menu_trash">🗑 Move to Trash</string>
+    <string name="menu_day_delete">🗑 Delete this day</string>
+    <string name="menu_series_delete">🗑 Delete the whole series</string>
+    <string name="size_key_said">Size: %1$s</string>
     <string name="share_code">Share as a code</string>
     <string name="move_to_trash">Move to Trash</string>
     <string name="select_all">Select all</string>

@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
@@ -828,7 +829,7 @@ fun NoteEditor(state: AppState, openId: Int) {
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.duplicate)) },
+                        text = { Text(stringResource(R.string.menu_duplicate)) },
                         onClick = {
                             menu = false
                             if (model.save(force = model.id == 0)) state.duplicate(model.id)
@@ -846,16 +847,16 @@ fun NoteEditor(state: AppState, openId: Int) {
                         // A day of a series is deleted on its own, or the series
                         // is: the desktop's two answers, as two entries.
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.day_delete), color = palette.dangerText) },
+                            text = { Text(stringResource(R.string.menu_day_delete), color = palette.dangerText) },
                             onClick = { menu = false; model.save(); asking = "day" },
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.series_delete), color = palette.dangerText) },
+                            text = { Text(stringResource(R.string.menu_series_delete), color = palette.dangerText) },
                             onClick = { menu = false; model.save(); asking = "series" },
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.move_to_trash), color = palette.dangerText) },
+                            text = { Text(stringResource(R.string.menu_trash), color = palette.dangerText) },
                             onClick = {
                                 menu = false
                                 if (model.id == 0 && model.title.isBlank() && model.body.isBlank()) {
@@ -1492,7 +1493,15 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
             FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium) {
                 palettePicker = if (palettePicker == "face") "" else "face"
             }
-            FormatKey("12", "font_size" in active, hasSelection, weight = FontWeight.Medium) {
+            // The size box says the size of what is selected, as the
+            // desktop's does: "14" over text set at 14, "Default" over
+            // text that has none of its own, or a mix. With nothing
+            // selected, the size the next letter typed will take.
+            val sizeHere = if (hasSelection) uniformValue(model.spans, from, to, "font_size")
+                           else if (to > 0) uniformValue(model.spans, to - 1, to, "font_size") else null
+            val sizeLabel = sizeHere ?: Fonts.DEFAULT
+            FormatKey(sizeLabel, "font_size" in active, hasSelection, weight = FontWeight.Medium,
+                      wide = sizeLabel.length > 3, said = stringResource(R.string.size_key_said, sizeLabel)) {
                 palettePicker = if (palettePicker == "size") "" else "size"
             }
         }
@@ -1625,12 +1634,14 @@ private fun FormatKey(
     italic: Boolean = false,
     decoration: TextDecoration? = null,
     said: String? = null,
+    // A word rather than a mark ("Default"): a wider key, smaller letters.
+    wide: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
     Box(
         Modifier
-            .size(42.dp)
+            .then(if (wide) Modifier.height(42.dp).widthIn(min = 64.dp) else Modifier.size(42.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
             .clickable(enabled = enabled, onClick = onClick)
@@ -1640,10 +1651,12 @@ private fun FormatKey(
         Text(
             label,
             color = if (enabled) palette.text else palette.subtext.copy(alpha = 0.5f),
-            fontSize = 16.sp,
+            fontSize = if (wide) 13.sp else 16.sp,
             fontWeight = weight,
             fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal,
             textDecoration = decoration,
+            maxLines = 1,
+            modifier = if (wide) Modifier.padding(horizontal = 8.dp) else Modifier,
         )
     }
 }

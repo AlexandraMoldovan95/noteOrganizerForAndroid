@@ -206,4 +206,24 @@ class StylingTest {
     fun `plain text needs no conversion either way`() {
         assertEquals(mapOf(0 to 0, 4 to 4), codePointOffsets("abcdef", listOf(0, 4)))
     }
+
+    // ---- what the size box says: _uniform_font_in_selection ----
+
+    @Test
+    fun `the size box says the size that covers the whole selection`() {
+        val spans = listOf(FormatSpan(0, 5, "font_size", "14"), FormatSpan(5, 10, "font_size", "14"))
+        assertEquals("14", uniformValue(spans, 2, 8, "font_size"))
+    }
+
+    @Test
+    fun `a mix of sizes, or a part with none, is no one size`() {
+        val mixed = listOf(FormatSpan(0, 5, "font_size", "14"), FormatSpan(5, 10, "font_size", "20"))
+        assertEquals(null, uniformValue(mixed, 2, 8, "font_size"))
+        val partly = listOf(FormatSpan(0, 5, "font_size", "14"))
+        assertEquals(null, uniformValue(partly, 2, 8, "font_size"))
+        assertEquals(null, uniformValue(emptyList(), 0, 3, "font_size"))
+        // Another style's value is not a size.
+        assertEquals(null, uniformValue(listOf(FormatSpan(0, 5, "font_family", "Georgia")), 0, 5, "font_size"))
+        assertEquals("Georgia", uniformValue(listOf(FormatSpan(0, 5, "font_family", "Georgia")), 0, 5, "font_family"))
+    }
 }

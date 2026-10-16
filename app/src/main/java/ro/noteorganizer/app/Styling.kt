@@ -102,6 +102,20 @@ private fun matchesFontFlag(stored: String, asked: String): Boolean {
     return (!askedBold || storedBold) && (!askedItalic || storedItalic)
 }
 
+/**
+ * The one value [style] holds over every position of [start, end) -- a
+ * size of "14", a face -- or null where it holds none, or a mix: the
+ * desktop's `_uniform_font_in_selection`, which its size and face boxes
+ * show. A mix reads as no value rather than as the first run's, which
+ * would claim the whole selection is that size.
+ */
+fun uniformValue(spans: List<FormatSpan>, start: Int, end: Int, style: String): String? {
+    if (end <= start) return null
+    val values = spans.filter { it.style == style && it.start < end && it.end > start }.map { it.value }.toSet()
+    val only = values.singleOrNull() ?: return null
+    return only.takeIf { coversAll(spans.filter { it.style == style && it.value == only }, start, end) }
+}
+
 private fun coversAll(spans: List<FormatSpan>, start: Int, end: Int): Boolean {
     if (spans.isEmpty()) return false
     var at = start
