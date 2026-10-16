@@ -149,6 +149,20 @@ def back(wait=1.0):
     time.sleep(wait)
 
 
+def keyboard_down(patience=4.0):
+    """Back to put the keyboard down -- once it is up, and only then. It
+    rises half a second after a field takes the cursor, later on a busy
+    emulator; a Back pressed before it rose closed what was open instead
+    (a cell's sheet, once in a full run, and every step after it failed)."""
+    deadline = time.time() + patience
+    while time.time() < deadline:
+        if "mInputShown=true" in adb("shell", "dumpsys", "input_method"):
+            back(wait=0.8)
+            return True
+        time.sleep(0.3)
+    return False
+
+
 def back_to(*words, tries=4):
     """Back until the screen says these words. The first Back with the
     keyboard up only closes the keyboard -- a phone's habit, and the reason
@@ -344,7 +358,7 @@ def brand_new(folder):
     # The keyboard covers the bar at the bottom: down first. And the page
     # itself says "Hi Maria," in its explanation, so the greeting is looked
     # for together with the list's own search box.
-    back()
+    keyboard_down()
     tap("Notes", exact=True)
     check("the list greets by name", not screen_says("Hi Maria,", "Search notes"),
           str(screen_says("Hi Maria,", "Search notes")))
@@ -1267,12 +1281,17 @@ def cell_menu(folder):
     def note():
         return (read_file("notes_data.json") or [{}])[0]
 
-    def sheet(cell, to_the_end=False):
+    def sheet(cell, seek=None):
         open_note("Cells")
         tap(cell, exact=True, wait=1.2)
-        back(wait=0.8)                       # the keyboard down, the sheet's actions in sight
-        if to_the_end:
-            # The table's own actions close the sheet, below its fold.
+        keyboard_down()                      # the sheet's actions in sight
+        # The table's own actions close the sheet, below its fold -- and
+        # further below it since Phase 3 added the columns' widths and the
+        # caption: scrolled until the one wanted is in sight, not a swipe
+        # counted once for a sheet of another length.
+        for _ in range(5 if seek else 0):
+            if find(seek, exact=True):
+                break
             adb("shell", "input", "swipe", "540", "2100", "540", "700", "400")
             time.sleep(1.0)
 
@@ -1280,7 +1299,7 @@ def cell_menu(folder):
     tap("Highlight colour 1", wait=1.2)
     sheet("45")
     tap("Merge with cell to the left", wait=1.2)
-    sheet("fuel", to_the_end=True)
+    sheet("fuel", seek="Center table on page")
     tap("Center table on page", wait=1.2)
     shot(folder, "43-cell-menu", "Item")
     back_to("Search notes")
@@ -1297,7 +1316,7 @@ def cell_menu(folder):
           (saved.get("paragraphs") or []) == [{"line": n, "align": "center"} for n in range(4)],
           repr(saved.get("paragraphs")))
 
-    sheet("fuel", to_the_end=True)
+    sheet("fuel", seek="Delete table")
     tap("Delete table", wait=1.0)
     check("deleting the table asks first", not screen_says("Delete this table and everything in it?"))
     tap_last("Delete", wait=1.2)
@@ -1333,7 +1352,7 @@ def move_day(folder):
     tap("Stand-up", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" room 2")
-    back()                                    # the keyboard down; the move saves what was typed
+    keyboard_down()                           # the move saves what was typed
 
     # Onto another Monday of the series: refused, in the desktop's words.
     tap("Move this day", wait=1.5)
@@ -1352,13 +1371,21 @@ def move_day(folder):
           and ((moved.get("overrides") or {}).get(to.isoformat()) or {}).get("title") == "Stand-up room 2",
           json.dumps({k: moved.get(k) for k in ("moved", "overrides")}))
     # One look at the screen, then the photograph and the Undo at once: the
-    # offer lasts eight seconds, and each look takes one or two.
-    missing = screen_says("Only this day: " + said(to), "Moved to", "Undo")
-    check("the editor follows the day, and the move offers its Undo", not missing, str(missing))
+    # offer lasts eight seconds, and each look takes one or two. The offer
+    # is the node whose WORDS are "Undo": the editor's own ↶ is said "Undo"
+    # too, and finding by either, the check passed and the tap pressed ↶.
+    seen = nodes()
+    shown = " | ".join(part for t, d, _ in seen for part in (t, d) if part)
+    offer = [centre for t, d, centre in seen if t == "Undo"]
+    missing = [w for w in ("Only this day: " + said(to), "Moved to") if w not in shown]
+    check("the editor follows the day, and the move offers its Undo", not missing and bool(offer),
+          str(missing + ([] if offer else ["the offer's Undo"])))
     adb("shell", "screencap", "-p", "/sdcard/shot.png")
     with open(os.path.join(folder, "48-day-moved.png"), "wb") as f:
         f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
-    tap("Undo", wait=1.5)
+    if offer:
+        adb("shell", "input", "tap", str(offer[-1][0]), str(offer[-1][1]))
+    time.sleep(1.5)
     back_home = series()
     check("Undo puts it back, its own edit with it",
           not (back_home.get("moved") or {})
@@ -1533,7 +1560,7 @@ def table_extras(folder):
         """A cell's sheet opened, scrolled until [entry] is in sight, and tapped."""
         open_note("Costs")
         tap(cell, exact=True, wait=1.2)
-        back(wait=0.8)                       # the keyboard down
+        keyboard_down()
         for _ in range(4):
             if find(entry, exact=True):
                 break
@@ -1543,7 +1570,7 @@ def table_extras(folder):
 
     menu("fuel", "Add caption below…")
     type_text("Fuel costs")                  # typed over the selected placeholder
-    back()
+    keyboard_down()
     time.sleep(1.5)
     lines = (note().get("body") or "").split("\n")
     check("a caption goes under its table, numbered, its placeholder typed over",
@@ -1570,7 +1597,7 @@ def table_extras(folder):
 
     menu("fuel", "Add a line above the table")
     type_text("Above")
-    back()
+    keyboard_down()
     time.sleep(1.5)
     check("a line above the table, the cursor on it", (note().get("body") or "").startswith("Above\n| Item"),
           repr((note().get("body") or "")[:40]))
@@ -1602,7 +1629,7 @@ def undoing(folder):
     type_text(" second")
     time.sleep(1.5)                          # a pause: the next burst is a step of its own
     type_text(" third")
-    back()                                   # the keyboard down
+    keyboard_down()
     check("typed", body() == "first second third", repr(body()))
     tap("Undo", exact=True, wait=1.0)
     check("Undo takes back the last burst of typing", body() == "first second", repr(body()))
@@ -1682,8 +1709,8 @@ def pasting(folder):
           and {"start": 15, "end": 19, "style": "bold"} in (own.get("formatting") or []), repr(own.get("formatting")))
     check("its lines are list lines", [p.get("kind") for p in own.get("paragraphs") or []] == ["bullet", "bullet"],
           repr(own.get("paragraphs")))
-    back()                                   # the keyboard down
-    shot(folder, "54-pasted", "milk", "eggs")
+    keyboard_down()
+    shot(folder, "55-pasted", "milk", "eggs")
     back_to("Search notes")
 
     # Started again: the copy the app remembered is gone, the clipboard is not.
@@ -1704,7 +1731,7 @@ def pasting(folder):
     # The menu, with formatting on the clipboard: photographed for the eye,
     # since its words cannot be read here (see above).
     long_press("Start here")
-    shot(folder, "55-paste-plain-menu", "Plain")
+    shot(folder, "56-paste-plain-menu", "Plain")
     back(wait=0.8)
     at_the_end("Start here")
     type_text(" ")
@@ -1867,7 +1894,7 @@ def wide(folder):
     tap_last("milk", wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" and eggs")
-    back()                                    # the keyboard down
+    keyboard_down()
     shot(folder, "45-wide-note", "Groceries", "milk and eggs", "ⓘ")
 
     # Pinned from the list while open: the pin must reach the file, and the
@@ -1937,7 +1964,7 @@ def wide(folder):
         tap_last("milk, from the desktop", wait=0.6)
         adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
         type_text(" ok")
-        back()
+        keyboard_down()
         time.sleep(1.5)
         check("the editor's next save keeps the update", groceries().get("body") == "milk, from the desktop ok",
               repr(groceries().get("body")))
