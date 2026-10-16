@@ -1716,6 +1716,23 @@ def table_extras(folder):
     back_to("Search notes")
 
 
+def pdf_pages(pdf):
+    """The pictures a PDF the app printed holds, one a page, as raw pixels:
+    the app's PDF draws each page as one picture, Flate-compressed RGB."""
+    import zlib
+    out = []
+    for m in re.finditer(rb"/Subtype\s*/Image\s*/Width (\d+)\s*/Height (\d+).*?/Length (\d+)>> stream\n", pdf, re.S):
+        try:
+            out.append(zlib.decompress(pdf[m.end():m.end() + int(m.group(3))]))
+        except zlib.error:
+            out.append(b"")
+    return out
+
+
+def page_count(pdf):
+    return len(re.findall(rb"/Type\s*/Page[^s]", pdf))
+
+
 def mailing(folder):
     """Send by email: the note handed to the phone's mail app with what the
     person chose -- its words, its page, or both -- and the address kept
@@ -1724,8 +1741,12 @@ def mailing(folder):
     the page written where the mail app reads it."""
     print("\n-- sending a note by email --")
     body = "Bring:\n| Item | Qty |\n| --- | --- |\n| socks | 3 |"
+    long_body = "\n".join("Line %d of a note long enough to need several pages of paper to print." % i
+                          for i in range(1, 121))
     if not seed_inside([{"id": 1, "uid": "ml-trip", "title": "Trip", "body": body,
-                         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
+                        {"id": 2, "uid": "ml-long", "title": "Long", "body": long_body,
+                         "created": "2026-10-14 09:00:00", "updated": "2026-10-14 09:00:00"}],
                        {"welcome_offered": True}, "Trip"):
         return
     gmail = "com.google.android.gm"
@@ -1740,13 +1761,13 @@ def mailing(folder):
     ask()
     shot(folder, "59-mail-dialog", "Send by email", "Open in mail app", "nothing is sent until you send it there")
     tap("The note's text, in the message")
-    tap("The note as a web page, attached")
+    tap("The note as a PDF, attached")
     check("with neither chosen, the dialog asks for one", find("Choose at least one of the two.") is not None)
     tap("Open in mail app", exact=True, wait=1.5)
     check("...and Open in mail app does nothing", find("Send by email", exact=True) is not None and foreground() == PACKAGE,
           foreground())
     tap("The note's text, in the message")
-    tap("The note as a web page, attached")
+    tap("The note as a PDF, attached")
     tap("To", exact=True)
     type_text("maria")
     check("a slip of the thumb is named back", find("doesn't look like an email address") is not None)
@@ -1760,10 +1781,44 @@ def mailing(folder):
     # emulator's Gmail, never signed in, turned its Chat off after its first
     # start, and nothing on the screen or in the log tells the two apart
     # since.
-    tap("Open in mail app", exact=True, wait=4.0)
+    tap("Open in mail app", exact=True, wait=1.0)
+    # The PDF is printed first, then the mail app opens: waited for, not timed.
+    deadline = time.time() + 12.0
+    while foreground() != gmail and time.time() < deadline:
+        time.sleep(0.5)
     check("Open in mail app opens the mail app", foreground() == gmail, foreground())
-    page = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Trip.html", binary=True).decode("utf-8", errors="replace")
-    check("the page the mail app attaches is the note's, its table drawn", "<table" in page and "socks" in page, page[:80])
+    # A PDF of the note's page, not the page: Gmail showed a .html as its code.
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Trip.pdf", binary=True)
+    with open(os.path.join(folder, "60b-mail-attachment.pdf"), "wb") as f:
+        f.write(pdf)
+    pictures = pdf_pages(pdf)
+    check("the mail app is handed a PDF of the note: one A4 page, not blank",
+          pdf.startswith(b"%PDF") and page_count(pdf) == 1 and b"/MediaBox [0 0 595 842]" in pdf
+          and len(pictures) == 1 and pictures[0].count(b"\xff") < len(pictures[0]),
+          "%d bytes, %d pages, %d pictures" % (len(pdf), page_count(pdf), len(pictures)))
+    adb("shell", "am", "force-stop", gmail)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.0)
+
+    # A long note: a picture of its own for each page, each with something
+    # on it. Painted on one shared picture, every page once came out as the
+    # same page; read too soon, the page once came out blank.
+    back_to("Search notes")
+    open_note("Long")
+    tap("⋮", exact=True)
+    tap("Send by email", wait=1.5)
+    tap("Open in mail app", exact=True, wait=1.0)
+    deadline = time.time() + 20.0
+    while foreground() != gmail and time.time() < deadline:
+        time.sleep(0.5)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Long.pdf", binary=True)
+    with open(os.path.join(folder, "60c-mail-long.pdf"), "wb") as f:
+        f.write(pdf)
+    pictures = pdf_pages(pdf)
+    check("a long note's PDF: several pages, each its own and none blank",
+          page_count(pdf) >= 3 and len(pictures) == page_count(pdf) and len(set(pictures)) == len(pictures)
+          and all(p.count(b"\xff") < len(p) for p in pictures),
+          "%d pages, %d pictures, %d distinct" % (page_count(pdf), len(pictures), len(set(pictures))))
     adb("shell", "am", "force-stop", gmail)
     adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
     time.sleep(2.0)

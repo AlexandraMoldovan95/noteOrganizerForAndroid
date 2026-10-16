@@ -37,18 +37,45 @@ class MailingTest {
     }
 
     @Test
-    fun `the words are the note as a text export writes them, the page as a web page export does`() {
+    fun `the words say a table's rows by their columns and draw the checklist's boxes, the PDF is the web page`() {
         val title = Exporting.titleOf(trip)
         val both = Mailing.message(trip, "a@x.ro", withText = true, withPage = true)
         assertEquals(listOf("a@x.ro"), both.to)
         assertEquals("Trip / packing", both.subject)
-        assertEquals(Exporting.content(trip, Exporting.TXT, title), both.text)
-        assertEquals(Exporting.fileName(title, Exporting.HTML), both.attachment?.first)
+        assertEquals("Trip / packing\n\nBring:\n• Item: socks · Qty: 3\n\nChecklist:\n☑ passport\n", both.text)
+        assertEquals("Trip _ packing.pdf", both.attachment?.first)
+        // What is printed to the PDF is the export's page, the table drawn.
         assertEquals(Exporting.content(trip, Exporting.HTML, title), both.attachment?.second)
-        // The page draws the table; the words keep its rows, and the checklist goes in both.
         assertTrue(both.attachment!!.second.contains("<table"))
-        assertTrue(both.text!!.contains("| socks | 3 |"))
-        assertTrue(both.text!!.contains("[x] passport") && both.attachment!!.second.contains("passport"))
+    }
+
+    @Test
+    fun `a table's rows as lines -- empty cells, empty rows, a header with nothing in it`() {
+        assertEquals(listOf("• socks · Qty: 3"),
+                     Mailing.tableLines(listOf("|  | Qty |", "| --- | --- |", "| socks | 3 |", "|  |  |")))
+        assertEquals("a table with only its header is that row", listOf("• A · B"),
+                     Mailing.tableLines(listOf("| A | B |", "| --- | --- |")))
+        assertEquals("no separator: the first row is still the header, as the page draws it",
+                     listOf("• a: c · b: d"), Mailing.tableLines(listOf("| a | b |", "| c | d |")))
+    }
+
+    @Test
+    fun `a hidden column stays hidden, a merged cell is said once, boxes and breaks are words`() {
+        assertEquals(listOf("• A: 1"), Mailing.tableLines(listOf("| A | B |", "| --- | ~ |", "| 1 | 2 |")))
+        assertEquals(listOf("• A: wide · C: x"),
+                     Mailing.tableLines(listOf("| A | B | C |", "| --- | --- | --- |", "| wide | < | x |")))
+        assertEquals(listOf("• Task: gym · Done: ☑", "• Task: call · Done: ☐"),
+                     Mailing.tableLines(listOf("| Task | Done |", "| --- | --- |", "| gym | [x] |", "| call | [ ] |")))
+        assertEquals(listOf("• Note: two lines · Day: Mon"),
+                     Mailing.tableLines(listOf("| Note | Day |", "| --- | --- |", "| two<br>lines | Mon |")))
+    }
+
+    @Test
+    fun `the prose around a table is kept as it is, and a box is ticked by the desktop's own truth`() {
+        assertEquals("Intro\n• A: 1 · B: 2\nAfter", Mailing.readable("Intro\n| A | B |\n| --- | --- |\n| 1 | 2 |\nAfter"))
+        assertEquals("No table | here", Mailing.readable("No table | here"))
+        val ticked = JSONObject("""{"title": "T", "body": "", "checklist": [{"text": "a", "done": 1}, {"text": "b", "done": 0}]}""")
+        assertTrue(Mailing.text(ticked, "T").contains("☑ a\n☐ b"))
     }
 
     @Test
@@ -60,7 +87,7 @@ class MailingTest {
         assertNull(page.text)
         val untitled = Mailing.message(JSONObject("""{"title": "  ", "body": "x"}"""), "", true, true)
         assertEquals("Untitled note", untitled.subject)
-        assertEquals("Untitled note.html", untitled.attachment?.first)
+        assertEquals("Untitled note.pdf", untitled.attachment?.first)
     }
 
     @Test

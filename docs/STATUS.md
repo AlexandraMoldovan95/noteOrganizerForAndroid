@@ -208,13 +208,20 @@ Grouped by what the app does; when each item arrived is in the
     the desktop's page byte for byte. **"✉ Send by email…"**: an
     address — the person's own or anyone's, or none and the mail app
     asks — and the person's choice of what goes: the note's words in the
-    message (the `.txt` export), the note as a page attached (the
-    `.html` one), or both. The phone's mail app opens with it ready; the
-    app sends nothing itself and says so. The address and the choice are
-    remembered on the phone alone, in the app's private preferences —
-    never in `settings.json`, which a backup carries to the desktop. The
-    note's own files are not attached, as an export does not carry them
-    ([how it reaches a mail app](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
+    message, the note as a PDF attached, or both. The words are the
+    `.txt` export's, but a table's rows are lines of their cells named by
+    their columns ("• Day: Mon · Task: gym") and the checklist's boxes
+    are ☐ and ☑: a mail app takes plain text from another app, and a
+    table came through as bars. The PDF is the export's page printed on
+    the phone, A4 with paper margins, each page broken in a gap between
+    lines — its pages are pictures, so its words cannot be selected. The
+    phone's mail app opens with it ready; the app sends nothing itself
+    and says so. The address and the choice are remembered on the phone
+    alone, in the app's private preferences — never in `settings.json`,
+    which a backup carries to the desktop. The note's own files are not
+    attached, as an export does not carry them
+    ([how it reaches a mail app](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts),
+    [why a PDF](ISSUES_LOG.md#a-note-mailed-as-its-code-and-a-pdf-of-one-page-four-times)).
 28. **Templates**: start a note from one, save a note as one, and edit
     them in Settings → Templates — the desktop's `templates.json`, so a
     template made on either device starts notes on both. A template's
@@ -284,7 +291,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 587 JVM unit tests in 26 suites, mutation-tested; six ports held to
+39. 590 JVM unit tests in 26 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -456,7 +463,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 587 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 590 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -683,7 +690,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-587 JVM unit tests in 26 suites pin the rules ported from Python, and
+590 JVM unit tests in 26 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
@@ -710,17 +717,21 @@ Four more were built into the app: an editor that never records a step
 for Undo, and the copy, the paste and the kept copy behind the note's
 clipboard. Each was caught by the walk.
 
-The first test on a real phone ran 13 against the unit tests — the
-card's table rule, Autofit all, the email's addresses and its words, a
-copy's selection brought up to date — all killed. Twelve more were built
-into the app. Ten were caught by the walk. One, the entities file looked up relative to a class the release
-build renames, passed the walk — a paste with its formatting and one
-without look the same on a screen — and is caught by
-`tools/check_release_lookups.py` on the built APK. One survives: the
-email naming Gmail rather than its writing window, which this
-emulator's Gmail, its Chat turned off since its first start, no longer
-tells apart ([the story](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
-The size box's and the template body's fixes had no mutant run.
+The first test on a real phone ran 18 against the unit tests — the
+card's table rule, Autofit all, the email's addresses, its words and its
+tables written as lines, a copy's selection brought up to date — all
+killed. Fourteen more were built into the app. Twelve were caught by the
+walk, among them a PDF painting every page on one picture and a long
+note printed as its first page. One, the entities file looked up
+relative to a class the release build renames, passed the walk — a
+paste with its formatting and one without look the same on a screen —
+and is caught by `tools/check_release_lookups.py` on the built APK. One
+survives: the email naming Gmail rather than its writing window, which
+this emulator's Gmail, its Chat turned off since its first start, no
+longer tells apart ([the story](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
+The size box's and the template body's fixes had no mutant run, nor did
+a PDF's page break moved to the middle of a gap: that one was looked at,
+page by page.
 
 Two commit messages carry counts that were wrong when written and are
 corrected here, the history left as it is: the recurrence engine's

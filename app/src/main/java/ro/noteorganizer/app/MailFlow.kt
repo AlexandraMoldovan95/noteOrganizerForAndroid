@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.launch
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import java.io.File
 import java.io.IOException
@@ -103,7 +104,9 @@ fun MailDialog(state: AppState, noteId: Int, onDismiss: () -> Unit) {
                 val saved = note ?: return@TextButton
                 prefs.edit().putString("to", to.trim()).putBoolean("text", withText).putBoolean("page", withPage).apply()
                 onDismiss()
-                openMail(context, state, Mailing.message(saved, to, withText, withPage))
+                // On the app's own scope: the dialog is gone before the PDF is.
+                val message = Mailing.message(saved, to, withText, withPage)
+                state.scope.launch { openMail(context, state, message) }
             }) { Text(stringResource(R.string.mail_open)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
@@ -141,7 +144,7 @@ private fun Choice(label: String, sub: String, on: Boolean, onChange: (Boolean) 
  * Gmail installed), the selector's SENDTO and the message's SEND being two
  * different actions for the filter that matched.
  */
-private fun openMail(context: Context, state: AppState, message: Mailing.Message) {
+private suspend fun openMail(context: Context, state: AppState, message: Mailing.Message) {
     val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, message.subject)
     if (message.to.isNotEmpty()) send.putExtra(Intent.EXTRA_EMAIL, message.to.toTypedArray())
     message.text?.let { send.putExtra(Intent.EXTRA_TEXT, it) }
@@ -149,20 +152,23 @@ private fun openMail(context: Context, state: AppState, message: Mailing.Message
     if (page == null) {
         send.type = "text/plain"
     } else {
-        // One page at a time in the cache: the last one is cleared here, not
+        // One PDF at a time in the cache: the last one is cleared here, not
         // when the mail app returns -- it may still be reading it then.
         val folder = File(context.cacheDir, "mail")
         val file = File(folder, page.first)
-        try {
+        val printed = try {
             folder.deleteRecursively()
             folder.mkdirs()
-            file.writeText(page.second, Charsets.UTF_8)
+            PdfPrint.print(context, page.second, file) && file.length() > 0
         } catch (e: IOException) {
+            false
+        }
+        if (!printed) {
             state.say(context.getString(R.string.mail_failed))
             return
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        send.type = "text/html"
+        send.type = "application/pdf"
         send.putExtra(Intent.EXTRA_STREAM, uri)
         send.clipData = ClipData.newUri(context.contentResolver, page.first, uri)
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

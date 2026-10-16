@@ -42,9 +42,11 @@ tested as from now on. Built on Phase 3.
 - **"✉ Send by email…"**, from a note's menu: an address — the person's
   own or anyone's, several with commas, or none and the mail app asks —
   and what the message carries, the person's choice: the note's words in
-  the message, the note as a web page attached, or both. The phone's
-  mail app opens with it ready; the app itself sends nothing. The
-  address is remembered on the phone alone.
+  the message, the note as a PDF attached, or both. The words say a
+  table's rows as lines — "• Day: Mon · Task: gym" — and draw the
+  checklist's boxes as ☐ and ☑; the PDF is the note's page, A4, made on
+  the phone. The phone's mail app opens with it ready; the app itself
+  sends nothing. The address is remembered on the phone alone.
 - **"Autofit all columns"**, from a table cell's menu, beside the
   one-column fit: the whole table fitted in one step, a hidden column
   left hidden.
@@ -87,9 +89,9 @@ tested as from now on. Built on Phase 3.
 
 ### Testing
 
-- 587 JVM unit tests in 26 suites, from 572 in 24. 13 mutants against
-  them, all killed. Twelve more built into the app: ten caught by the
-  walk; one, a paste losing its formatting in the release build only,
+- 590 JVM unit tests in 26 suites, from 572 in 24. 18 mutants against
+  them, all killed. Fourteen more built into the app: twelve caught by
+  the walk; one, a paste losing its formatting in the release build only,
   caught by the new release gate and not by any screen; and one survives
   — the email naming Gmail rather than its writing window, which this
   emulator's Gmail, never signed in, no longer tells apart. The size

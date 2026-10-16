@@ -18,14 +18,14 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-587 checks across twenty-six suites — `NotebookTest` (122),
+590 checks across twenty-six suites — `NotebookTest` (122),
 `TablesTest` (57), `RecurrenceTest` (46), `CalculatorTest` (34),
 `IdentityTest` (30), `PastingTest` (29), `OrganizingTest` (27),
 `StylingTest` (25), `DaysTest` (23), `SharingTest` (21), `EditingTest`
 (20), `ParagraphsTest` (19), `SettingsTest` (17), `ImportingTest` (16),
 `FindingTest` (16), `ExportingTest` (15), `AppStateTest` (13),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
-(7), `MailingTest` (5), `StatsTest` (4), `StartupTest` (4),
+(7), `MailingTest` (8), `StatsTest` (4), `StartupTest` (4),
 `EditorCopyTest` (3) and `InteropTest` (2). No device, no emulator:
 they test the twenty-five files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),

@@ -640,7 +640,7 @@ object Exporting {
     // ---- the note as a file ----
 
     /** Python's truth of a stored value. */
-    private fun truthy(value: Any?): Boolean = when (value) {
+    fun truthy(value: Any?): Boolean = when (value) {
         null, JSONObject.NULL -> false
         is Boolean -> value
         is Number -> value.toDouble() != 0.0

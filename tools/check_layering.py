@@ -51,7 +51,7 @@ DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
          "AppState.kt", "Components.kt", "ImportFlow.kt", "NoteEditor.kt",
          "NotesScreen.kt", "SettingsScreens.kt", "CalendarScreen.kt",
          "RepeatSheet.kt", "CalculatorPanel.kt", "FindBar.kt", "ExportFlow.kt",
-         "TemplateScreens.kt", "MailFlow.kt"]
+         "TemplateScreens.kt", "MailFlow.kt", "PdfPrint.kt"]
 
 
 def every_kotlin_file():

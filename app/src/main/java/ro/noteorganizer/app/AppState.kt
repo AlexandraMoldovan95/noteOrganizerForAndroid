@@ -32,7 +32,7 @@ enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, BACKUP, TRASH
  * Holds Compose state, so it lives on the drawing side of the line the
  * layering gate keeps.
  */
-class AppState(val dir: File, private val scope: CoroutineScope) {
+class AppState(val dir: File, val scope: CoroutineScope) {
 
     val attachments: File = File(dir, "attachments").apply { mkdirs() }
 

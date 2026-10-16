@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the thirty-seven are
+**the code**, or in **the design**. Fourteen of the thirty-eight are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-16](#a-note-mailed-as-its-code-and-a-pdf-of-one-page-four-times) | design | A note mailed from a real phone came as bars in the message and as code in its attachment; the PDF that replaced the attachment went wrong four ways before it was right | A page drawn where no screen shows it keeps none of a screen's guarantees: size, timing, or when its pixels are read |
 | [2026-10-16](#a-copy-of-the-selection-as-it-was-when-selected) | code | Words selected, made bold and 14, then copied, went out plain | A note of the state taken at one moment and used at another is stale by the time it is used |
 | [2026-10-16](#a-file-looked-up-by-a-name-the-release-build-changed) | code | The release build renamed the class that reads the HTML entities, and a paste from a web page would have lost its formatting without a word | The debug build is not the one people run: check the artifact |
 | [2026-10-16](#mail-apps-only-said-a-way-android-17-no-longer-accepts) | code | "Send by email" said there was no mail app, with Gmail installed | A hand-off between apps is verified on a current Android, from the log |
@@ -54,6 +55,52 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A note mailed as its code, and a PDF of one page four times
+
+**2026-10-16.** The first note mailed from a real phone, Gmail its mail
+app, came back wrong in three places. The table in the message was
+lines of bars; the checklist was `[x]` and `[ ]`; and the attached web
+page would not open on the phone, while on a computer Gmail showed it
+as its code — `<!DOCTYPE html>` and every tag.
+
+The message's words cannot hold a table. A mail app takes plain text
+from another app, and Android's HTML-to-text keeps no table either, so
+the words are now written for a person: each row a line of its cells,
+named by their columns — "• Day: Mon · Task: gym" — and the checklist's
+boxes drawn as ☐ and ☑. The page became a PDF, which a mail app shows.
+The owner chose all three.
+
+The PDF, printed on the phone with the system's WebView, went wrong four
+times before it was right, each found by reading the file back:
+
+* **A few dozen pixels wide.** Laid out before it had a height, the page
+  took no width either, and a table's cells held one letter to a line.
+  It is laid out at a page's size from the start.
+* **A short note on two pages.** A document is never shorter than its
+  window, and a page's height in pixels is not a whole number. A pixel's
+  slack.
+* **One page, four times.** Android's PDF records each page and writes
+  the pictures at the end; one picture painted again for every page
+  came out as the last of them on all four. Each page has its own.
+* **One blank page.** Its height was read 300 ms after the window was
+  resized — before the page had laid itself out again. It is now read
+  until it holds still, and a page with nothing drawn on it is tried
+  once more and then refused: the person is told, never sent a blank
+  page.
+
+And one seen only by looking: a page break moved into the gap between
+two lines landed in the letters' tails, because the gap was found in a
+drawing a quarter the size. It is moved to the gap's middle.
+
+Two things it does not do, said rather than hidden: its pages are
+pictures, so the words cannot be selected; and the walk checks that the
+pages are distinct and inked, not where they break.
+
+**The class:** a page drawn where no screen will show it keeps none of
+a screen's guarantees — its size, its timing, when its pixels are there
+to read. Each one has to be made true by hand, and each was found by
+reading the output, not the code.
 
 ## A copy of the selection as it was when selected
 
