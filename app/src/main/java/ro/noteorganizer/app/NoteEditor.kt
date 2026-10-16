@@ -2252,6 +2252,7 @@ private fun CellSheet(model: EditorModel, segment: Editing.Segment, at: CellAt, 
                     Text(stringResource(R.string.column_narrower))
                 }
                 TextButton(onClick = { columns { autofitColumn(it, at.column) } }) { Text(stringResource(R.string.column_autofit)) }
+                TextButton(onClick = { columns { autofitAllColumns(it) } }) { Text(stringResource(R.string.column_autofit_all)) }
                 TextButton(onClick = { columns { hideColumn(it, at.column) } }) { Text(stringResource(R.string.column_hide)) }
                 TextButton(enabled = table.columns.any { it.hidden }, onClick = { columns { unhideAllColumns(it) } }) {
                     Text(stringResource(R.string.column_unhide_all))

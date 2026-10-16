@@ -1687,6 +1687,12 @@ def table_extras(folder):
     menu("fuel", "Unhide all columns")
     check("Unhide all brings it back", find("120", exact=True) is not None)
     back_to("Search notes")
+    # From a cell of the FIRST column, so a fit of that column alone would
+    # leave the second at the "---" Unhide gave it.
+    menu("fuel", "Autofit all columns")
+    sep = (note().get("body") or "").split("\n")[1]
+    check("Autofit all fits every column, not only the one tapped", sep == "| -------- | -------- |", repr(sep))
+    back_to("Search notes")
 
     menu("fuel", "Add a line above the table")
     type_text("Above")

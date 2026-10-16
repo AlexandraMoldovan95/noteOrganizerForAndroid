@@ -228,6 +228,7 @@
     <string name="column_wider">Wider</string>
     <string name="column_narrower">Narrower</string>
     <string name="column_autofit">Autofit column width</string>
+    <string name="column_autofit_all">Autofit all columns</string>
     <string name="column_hide">Hide column</string>
     <string name="column_unhide_all">Unhide all columns</string>
     <string name="delete_table">Delete table</string>

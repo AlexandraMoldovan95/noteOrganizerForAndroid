@@ -571,6 +571,18 @@ fun autofitColumn(lines: List<String>, column: Int): List<String> = withColumnMe
     if (column in cols.indices && column in widths.indices) cols[column] = cols[column].copy(width = widths[column], hidden = false)
 }
 
+/**
+ * Every column fitted at once, in one pass: the desktop's
+ * `_grid_autofit_cols` over the whole table (it fits the columns a
+ * selection touches; a finger has no selection to drag). A hidden column
+ * stays hidden: a selection never holds one, and "fit them all" is not a
+ * request to bring one back.
+ */
+fun autofitAllColumns(lines: List<String>): List<String> = withColumnMechanics(lines) { cols, rows, aligns ->
+    val widths = layoutWidths(rows, aligns)
+    for (c in cols.indices) if (c in widths.indices && !cols[c].hidden) cols[c] = cols[c].copy(width = widths[c])
+}
+
 /** A column hidden, or shown again. */
 fun hideColumn(lines: List<String>, column: Int, hidden: Boolean = true): List<String> = withColumnMechanics(lines) { cols, _, _ ->
     if (column in cols.indices) cols[column] = cols[column].copy(hidden = hidden)

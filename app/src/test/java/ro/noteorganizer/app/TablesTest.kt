@@ -546,4 +546,15 @@ class TablesTest {
         assertEquals("a column widened by hand fits back to its words",
                      "| -------- | --- |", autofitColumn(widened, 0)[1])
     }
+
+    @Test
+    fun `autofit all fits every shown column in one pass and leaves a hidden one hidden`() {
+        val table = listOf("| Item | Cost | Note |", "| -------------- | ~ | --- |", "| a much longer item | 1 | x |")
+        assertEquals(listOf(table[0], "| ------------------ | ~ | -------- |", table[2]), autofitAllColumns(table))
+        val bare = listOf("| Item | Cost |", "| fuel | 120 |")
+        assertEquals("a table without a separator gets one, each column fitted",
+                     listOf(bare[0], "| -------- | -------- |", bare[1]), autofitAllColumns(bare))
+        assertEquals("fitting all is fitting each, column by column",
+                     autofitColumn(autofitColumn(table, 0), 2), autofitAllColumns(table))
+    }
 }
