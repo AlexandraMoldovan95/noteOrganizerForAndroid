@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -283,12 +285,16 @@ private fun StatsPage(state: AppState) {
             snap.categories to R.string.stats_categories, snap.templates to R.string.stats_templates,
             snap.withChecklist to R.string.stats_checklists, snap.inTrash to R.string.stats_trash,
         )
+        // Every tile the same size: each caption keeps room for two lines,
+        // and the tiles of a row stretch to the tallest -- "Added this
+        // week" wrapping used to make its tile stand taller than the rest.
         for (row in tiles.chunked(3)) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for ((value, caption) in row) {
-                    Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
+                    Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
                         Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp)
+                        Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp, minLines = 2)
                     }
                 }
             }
