@@ -29,9 +29,18 @@ android {
 
     buildTypes {
         release {
+            // R8: the code and resources nothing reaches are left out, the
+            // rest made smaller -- the build Play installs.
             optimization {
-                enable = false
+                enable = true
             }
+            // Signed with this machine's debug key for now, so a release
+            // build installs OVER the debug one on a test phone and keeps
+            // its notes: a different key would make Android refuse it, and
+            // uninstalling first would delete the notebook. Play refuses a
+            // debug-signed upload, so this changes before the first upload,
+            // to an upload key that never enters the repository.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

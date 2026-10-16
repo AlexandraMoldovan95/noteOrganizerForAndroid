@@ -594,7 +594,14 @@ object Pasting {
     private class Entities(val named: Map<String, String>, val charrefs: Map<Int, String>, val invalid: Set<Int>)
 
     private val entities: Entities by lazy {
-        val stream = Pasting::class.java.getResourceAsStream("html_entities.json")
+        // From the root, by the file's own path: a name relative to this
+        // class is looked up in the class's package, and the release build
+        // renames the class into another (R8 made it "ca1", no package).
+        // The file was then not found, the parser's guard turned that into
+        // "nothing read", and a paste from a web page with an &, a < or an
+        // &nbsp; in it -- most of them -- came in as plain words, its
+        // formatting silently gone.
+        val stream = Pasting::class.java.getResourceAsStream("/ro/noteorganizer/app/html_entities.json")
             ?: error("html_entities.json is missing from the app")
         val json = JSONObject(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
         val html5 = json.getJSONObject("html5")
