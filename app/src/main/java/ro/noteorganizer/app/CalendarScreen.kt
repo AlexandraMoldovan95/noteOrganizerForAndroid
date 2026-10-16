@@ -336,9 +336,14 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
     var menu by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
     val title = (shown.opt("title") as? String)?.ifBlank { null } ?: "(untitled)"
+    // A table is said, never drawn, in a row this small -- the desktop's
+    // "▦ 1 table" chip, in this row's short form beside 📎×N.
+    val body = shown.opt("body") as? String ?: ""
+    val tables = remember(body) { previewText(body).second }
     val marks = buildString {
         if (own) append("  ✎")
         if (cameFrom != null) append("  ↷")
+        if (tables > 0) append("  ▦×$tables")
         if (!(shown.opt("comments") as? String).isNullOrBlank()) append("  💬")
         val files = (raw.opt("attachments") as? JSONArray)?.length() ?: 0
         if (files > 0) append("  📎×$files")

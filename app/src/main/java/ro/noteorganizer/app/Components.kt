@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -119,17 +119,22 @@ fun NoteCard(
     handle: (@Composable () -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
+    val stripe = hexColor(colour)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
-            .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) palette.calendarHasNotes else palette.card)
             .then(if (selected || open) Modifier.border(2.dp, palette.accent, RoundedCornerShape(12.dp)) else Modifier)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            // The colour stripe painted on the card, not a child stretched
+            // to the card's height: that asked the card to be measured twice
+            // (IntrinsicSize.Min), every line of its text laid out twice, on
+            // every card that scrolled into sight.
+            .drawBehind { drawRect(stripe, size = Size(5.dp.toPx(), size.height)) }
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(start = 5.dp),
     ) {
-        Box(Modifier.width(5.dp).fillMaxHeight().background(hexColor(colour)))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (selecting) {

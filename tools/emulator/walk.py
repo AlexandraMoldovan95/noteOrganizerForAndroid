@@ -242,6 +242,7 @@ def main():
     move_day(folder)
     off_schedule(folder)
     listing(folder)
+    previews(folder)
     arranging(folder)
     attaching(folder)
     duplicates(folder)
@@ -802,6 +803,37 @@ def listing(folder):
     check("grouping and a folded group are kept, and the folded notes are hidden",
           settings.get("group_by_category") is True and settings.get("collapsed_groups") == ["Work"]
           and "Weekly one" not in seen and "Plain one" in seen, json.dumps(settings)[:200])
+
+
+def previews(folder):
+    """A note's card and its calendar row say a table is there and never
+    draw it -- rows left open or typed past included, which the strict row
+    rule once let through as "only vertical lines" (field-reported from a
+    real phone). The desktop's preview_text rule."""
+    from datetime import date
+    print("\n-- previews without tables --")
+    today = date.today().isoformat()
+    body = "Packing\n| Item | Qty\n| socks | 3 |and more\nDone soon"
+    if not seed_inside([
+        {"id": 1, "uid": "pv-trip", "title": "Trip", "body": body, "date": today,
+         "created": "2026-10-16 09:00:00", "updated": "2026-10-16 09:00:00"},
+        {"id": 2, "uid": "pv-grid", "title": "", "body": "| a | b |\n| c | d |",
+         "created": "2026-10-16 09:00:01", "updated": "2026-10-16 09:00:01"},
+    ], {"welcome_offered": True}, "Trip"):
+        return
+    seen = [t for t, d, _ in nodes() if t]
+    card = [t for t in seen if "Packing" in t or "Done soon" in t]
+    check("the card shows the note's words, no table line among them",
+          bool(card) and not any("|" in t for t in seen), repr(seen[:12]))
+    check("and says the table is there", any("▦ 1 table" in t for t in seen), repr(seen[:12]))
+    check("an untitled note of nothing but a table is untitled, not empty",
+          "(untitled)" in seen and "(empty)" not in seen, repr(seen[:12]))
+    shot(folder, "57-previews", "Trip", "▦ 1 table")
+    tap("Calendar", exact=True, wait=1.5)
+    row = [t for t, d, _ in nodes() if t and "▦×1" in t]
+    check("the note's row on the calendar says its table too", bool(row),
+          repr([t for t, d, _ in nodes() if t][:20]))
+    tap("Notes", exact=True, wait=1.0)
 
 
 def changes(folder):

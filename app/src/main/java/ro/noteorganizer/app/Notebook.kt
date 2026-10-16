@@ -114,44 +114,26 @@ data class Note(
     /** What the desktop's list shows for a note with no title. */
     val displayTitle: String get() = title.trim().ifEmpty { "(untitled)" }
 
-    /** The desktop card's preview: 40 characters, newlines flattened. */
-    val preview: String
-        get() {
-            val flat = body.replace('\n', ' ').trim()
-            return if (flat.length > 40) flat.take(40) + "..." else flat
-        }
-
     /**
-     * Body lines worth previewing: blanks dropped, and table rows dropped
-     * with them.
+     * The card's words and its table count, from the desktop's one pass
+     * ([previewText]) -- worked out ONCE per note, not on every drawing:
+     * a card scrolling into sight used to walk its whole body two or three
+     * times, and on a note of tens of thousands of characters that was a
+     * frame missed each time.
      *
-     * Table rows read as pipe soup at card size, which is why the desktop
-     * strips them from its own preview and says "a table is here" on the
-     * tags line instead. Skipping this was visible on the first
-     * screenshot: 24 of a real notebook's 77 notes hold a table, so it is
-     * not a rare case that could wait.
+     * Table lines are left out, as the desktop leaves them out: rows read
+     * as pipe soup at card size, and the tags line says a table is there.
      */
-    private val spokenLines: List<String>
-        get() = body.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && !isTableRow(it) }
-            .toList()
+    private val previewParts: Pair<List<String>, Int> by lazy {
+        val (prose, tables) = previewText(body)
+        prose.split("\n").map { it.trim() }.filter { it.isNotEmpty() } to tables
+    }
 
-    /** How many table blocks the body holds -- runs of adjacent rows. */
-    val tableCount: Int
-        get() {
-            var blocks = 0
-            var inBlock = false
-            for (line in body.lineSequence()) {
-                if (isTableRow(line.trim())) {
-                    if (!inBlock) blocks++
-                    inBlock = true
-                } else {
-                    inBlock = false
-                }
-            }
-            return blocks
-        }
+    /** Body lines worth previewing: blanks and table lines dropped. */
+    private val spokenLines: List<String> get() = previewParts.first
+
+    /** How many tables the body holds -- runs of lines a person reads as a table. */
+    val tableCount: Int get() = previewParts.second
 
     /**
      * The phone's headline. Measured against a real notebook, 48 of 77
@@ -160,28 +142,47 @@ data class Note(
      * type on two cards out of three. This falls through to the first
      * line the note actually says.
      */
-    val headline: String
-        get() {
-            val t = title.trim()
-            if (t.isNotEmpty()) return t
-            return spokenLines.firstOrNull() ?: "(empty)"
+    val headline: String by lazy {
+        val t = title.trim()
+        when {
+            t.isNotEmpty() -> t
+            spokenLines.isNotEmpty() -> glimpse(spokenLines.first())
+            // Words only in a table: the note is not empty, it is untitled.
+            body.isNotBlank() -> "(untitled)"
+            else -> "(empty)"
         }
+    }
 
     /** Whether `headline` came from the body rather than from a real title. */
     val headlineIsBorrowed: Boolean get() = title.trim().isEmpty()
 
-    /** The rest of the note, after whatever the headline already used. */
-    val snippet: String
-        get() {
-            val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
-            return rest.joinToString(" ")
+    /**
+     * The rest of the note, after whatever the headline already used --
+     * a glimpse, not the whole text: the card shows two lines of it, and
+     * laying out tens of thousands of characters to show two lines is
+     * what made the list stutter on a phone.
+     */
+    val snippet: String by lazy {
+        val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
+        val out = StringBuilder()
+        for (line in rest) {
+            if (out.length >= GLIMPSE) break
+            if (out.isNotEmpty()) out.append(' ')
+            out.append(glimpse(line))
         }
+        glimpse(out.toString())
+    }
+
+    /** The tags line, worked out once: it is drawn on every card in sight. */
+    private val tags: String by lazy { buildTagLine() }
 
     /**
      * The desktop card's third line, rebuilt in the same order:
      * category, then the repeat rule or the date, then the badges.
      */
-    fun tagLine(): String {
+    fun tagLine(): String = tags
+
+    private fun buildTagLine(): String {
         val parts = StringBuilder(category)
         if (isRecurring) {
             parts.append("   🔁 ").append(recurrenceLabel)
@@ -623,6 +624,69 @@ internal fun isTableRow(line: String): Boolean {
     val s = line.trim()
     if (s.length < 3 || !s.startsWith("|") || !s.endsWith("|")) return false
     return splitRow(s).size >= 2
+}
+
+/**
+ * How much of a note's text a card is given: more than its two lines can
+ * show on the widest pane, far less than a long note holds. The cut is
+ * never seen -- the card's own ellipsis comes first.
+ */
+private const val GLIMPSE = 300
+
+/** [text] cut to [GLIMPSE] characters, never through the middle of an emoji. */
+private fun glimpse(text: String): String {
+    if (text.length <= GLIMPSE) return text
+    val end = if (Character.isLowSurrogate(text[GLIMPSE])) GLIMPSE - 1 else GLIMPSE
+    return text.substring(0, end)
+}
+
+/**
+ * `_reads_as_plumbing`: whether a PERSON would see this line as part of a
+ * table -- deliberately looser than [isTableRow]. That one decides what
+ * the editor treats as a row, so it is strict: both ends a pipe. A row
+ * whose last cell was typed past (`| a | b |and then`), or one never
+ * closed (`| a | b`), is therefore not a row, and a preview that filtered
+ * on it showed those lines -- "only vertical lines", reported on the
+ * desktop twice and on this phone once. Loose, but not past the way a row
+ * is written: every cell opens with a pipe and a space, so `|x| = 5`
+ * stays words.
+ */
+internal fun readsAsPlumbing(line: String): Boolean {
+    val s = PyText.strip(line)
+    if (isTableRow(s)) return true
+    return s.startsWith("|") && s.count { it == '|' } >= 2 && s.length > 1 && PyText.isSpace(s.codePointAt(1))
+}
+
+/**
+ * `preview_text`: a note's words without its tables, and how many tables
+ * it had -- both from one pass, because "this note has 2 tables" and the
+ * text beside it must be answering about the same lines. A run of table
+ * lines is one table; the blank lines a table leaves are collapsed, so
+ * the words do not float in a gap.
+ */
+fun previewText(body: String): Pair<String, Int> {
+    val kept = ArrayList<String>()
+    var tables = 0
+    var inside = false
+    for (line in body.split("\n")) {
+        if (readsAsPlumbing(line)) {
+            if (!inside) {
+                tables++
+                inside = true
+            }
+            continue
+        }
+        inside = false
+        kept.add(line)
+    }
+    val prose = ArrayList<String>()
+    for (line in kept) {
+        val blank = PyText.strip(line).isEmpty()
+        if (blank && (prose.isEmpty() || PyText.strip(prose.last()).isEmpty())) continue
+        prose.add(line)
+    }
+    while (prose.isNotEmpty() && PyText.strip(prose.last()).isEmpty()) prose.removeAt(prose.lastIndex)
+    return prose.joinToString("\n") to tables
 }
 
 /** A cell holding exactly one of these is a merge marker, not content. */

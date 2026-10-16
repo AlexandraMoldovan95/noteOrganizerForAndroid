@@ -169,6 +169,53 @@ class NotebookTest {
         assertEquals(2, Notebook.parseNotes(json).single().tableCount)
     }
 
+    @Test
+    fun `a row never closed or typed past is still a table line - not the card's words`() {
+        // "Only vertical lines": the strict row rule let these through.
+        val note = Notebook.parseNotes("""[{"id": 1, "body": "Intro\n| a | b\n| c | d |and more\nAfter"}]""").single()
+        assertEquals("Intro", note.headline)
+        assertEquals("After", note.snippet)
+        assertEquals(1, note.tableCount)
+    }
+
+    @Test
+    fun `the preview rule answers as the desktop's preview_text does`() {
+        // Each answer from the desktop's own function (core/tables.py).
+        val cases = listOf(
+            "Intro\n| a | b\n| c | d |and more\nAfter" to ("Intro\nAfter" to 1),
+            "|x| = 5\n|a|b|c\n| y" to ("|x| = 5\n|a|b|c\n| y" to 0),
+            "Top\n\n| a | b |\n| --- | --- |\n\n\nBottom\n\n" to ("Top\n\nBottom" to 1),
+            "| a | b |\n\n| c | d |" to ("" to 2),
+            "\n\nwords\n \n\t\nmore" to ("words\n \nmore" to 0),
+            "| only | table |" to ("" to 1),
+        )
+        for ((body, want) in cases) assertEquals(body, want, previewText(body))
+    }
+
+    @Test
+    fun `an untitled note of nothing but a table is untitled, not empty`() {
+        val note = Notebook.parseNotes("""[{"id": 1, "body": "| a | b |\n| c | d |"}]""").single()
+        assertEquals("(untitled)", note.headline)
+        assertEquals("", note.snippet)
+        assertEquals("(empty)", Notebook.parseNotes("""[{"id": 2, "body": " \n "}]""").single().headline)
+    }
+
+    @Test
+    fun `a card is given a glimpse of a long note, never the whole of it`() {
+        // Laying out tens of thousands of characters to show two lines is
+        // what made the list stutter on a real phone.
+        val long = "word ".repeat(20_000)
+        val note = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("title", "T").put("body", long)).toString()).single()
+        assertTrue(note.snippet.length <= 300)
+        assertTrue(note.snippet.startsWith("word word"))
+        val untitled = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("body", long)).toString()).single()
+        assertTrue(untitled.headline.length <= 300)
+        // Never cut through an emoji.
+        val emoji = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("title", "T")
+            .put("body", "a".repeat(299) + "😀 tail")).toString()).single()
+        assertFalse(Character.isHighSurrogate(emoji.snippet.last()))
+    }
+
     // ---- code points vs UTF-16, the offset trap ----
 
     @Test
