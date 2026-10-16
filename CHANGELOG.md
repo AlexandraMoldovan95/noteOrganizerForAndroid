@@ -31,6 +31,77 @@ trail is not lost, not to claim releases that were never cut.
 
 ---
 
+## [Unreleased] — The first test on a real phone
+
+What the app's first afternoon on a real phone asked for — a Samsung
+Galaxy S24 Ultra, its letters set to 115% — and the release build it is
+tested as from now on. Built on Phase 3.
+
+### Added
+
+- **"✉ Send by email…"**, from a note's menu: an address — the person's
+  own or anyone's, several with commas, or none and the mail app asks —
+  and what the message carries, the person's choice: the note's words in
+  the message, the note as a web page attached, or both. The phone's
+  mail app opens with it ready; the app itself sends nothing. The
+  address is remembered on the phone alone.
+- **"Autofit all columns"**, from a table cell's menu, beside the
+  one-column fit: the whole table fitted in one step, a hidden column
+  left hidden.
+- **A release build**: shrunk by R8 to 2.0 MB, not debuggable, its one
+  native library 16 KB-aligned, and an app bundle beside it. Signed for
+  now with this machine's debug key, so it installs over a debug build
+  and keeps the notebook.
+
+### Changed
+
+- **Appearance, following the phone**, shows one mode's four themes at a
+  time, under a Dark | Light switch opened on the mode the phone is in;
+  eight tiles with two ticks read as "which one is on?". Not following,
+  all eight, as before.
+- **Every entry of the editor's ⋮ menu has its icon**; Duplicate and Move
+  to Trash had none.
+
+### Fixed
+
+- **A card says a table is there and never draws it.** A row left open
+  or typed past its last cell showed on the card as a line of bars; the
+  card now leaves out every line a person reads as a table, by the
+  desktop's `preview_text`, and says "▦ 1 table". A calendar day's rows
+  say a note's tables too.
+- **The list scrolls smoothly.** Each card was handed its note's whole
+  text, worked its preview out on every drawing and was measured twice;
+  on the phone 3% of frames were late, the slowest 44 ms.
+- **A table's cells hold their words at any text size.** The widths were
+  in a unit that does not grow with the phone's letters, so at 115% a
+  cell's word broke across two lines.
+- **Statistics' tiles are all one size.**
+- **The size box says the size of what is selected** — "14" for words at
+  14, where it stayed at 12.
+- **A template's body shows its tables as tables**, where its box showed
+  the rows as bars and dashes above the drawn table.
+
+### Testing
+
+- 584 JVM unit tests in 25 suites, from 572 in 24. 11 mutants against
+  them, all killed. Ten more built into the app: eight caught by the
+  walk; one, a paste losing its formatting in the release build only,
+  caught by the new release gate and not by any screen; and one survives
+  — the email naming Gmail rather than its writing window, which this
+  emulator's Gmail, never signed in, no longer tells apart. The size
+  box's and the template body's fixes had no mutant run; Statistics'
+  tiles and the menu's icons were photographed.
+- `tools/check_release_lookups.py`, a gate on the built release APK:
+  every file its code looks up by name, found where the renamed code
+  will look.
+- `tools/emulator/emulator_only.py`: every emulator script reaches an
+  emulator, never a phone that happens to be plugged in, even when
+  `ANDROID_SERIAL` names the phone.
+- `tools/emulator/walk.py`: 202 checks in 28 parts, from 177 in 25 —
+  previews, a table at larger letters, sending by email, and checks
+  grown in four older parts. The full run passed all 202 on its first
+  try.
+
 ## [Unreleased] — Phase 3
 
 The rest of what the desktop does with a note, each kept to what a

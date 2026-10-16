@@ -16,8 +16,9 @@ one day of a series moved, files attached, duplicates found, a table's
 caption and column widths, Undo and Redo, and copy and paste that keep
 the formatting. It wears the desktop's eight themes or follows the
 phone's light and dark, and moves notes to and from the desktop by share
-code or by the desktop's own backup `.zip`. Nothing is ever overwritten
-without asking. It does not sync.
+code or by the desktop's own backup `.zip`; a note goes by email through
+the phone's own mail app. Nothing is ever overwritten without asking. It
+does not sync.
 
 ## Contents
 
@@ -92,6 +93,12 @@ Grouped by what the app does; when each item arrived is in the
    with no title is headed by its first spoken line, set lighter so a
    named note still reads as named
    ([why](ISSUES_LOG.md#a-list-of-titles-would-have-been-a-list-of-blanks)).
+   A table is never drawn on the card: every line a person reads as one
+   is left out, by the desktop's `preview_text`, and "▦ 1 table" says it
+   is there ([why](ISSUES_LOG.md#a-table-read-by-a-stricter-rule-than-a-persons)).
+   A card is given a glimpse of its note, not the whole of it, so the
+   list scrolls smoothly however long the notes
+   ([measured](ISSUES_LOG.md#two-lines-of-text-that-cost-a-whole-note)).
 6. A greeting with the person's name, as the desktop's header has.
 7. Search by the desktop's own rule — title, body and comments, a
    table's plumbing stripped — with diacritics folded
@@ -115,7 +122,8 @@ Grouped by what the app does; when each item arrived is in the
     the day's own paint and its markers, today, the open day ringed;
     arrows or a sideways swipe for the month.
 12. **The open day's notes** under it, with the desktop's marks — a
-    series, a day edited on its own, a day moved here — and "+ Add note"
+    series, a day edited on its own, a day moved here, its tables (`▦×1`)
+    — and "+ Add note"
     for a note that starts that day. A day held down adds a note, paints
     the day or marks it (three markers at most), with an Undo for what is
     cleared.
@@ -154,7 +162,8 @@ Grouped by what the app does; when each item arrived is in the
     through every edit
     ([the trap](DATA_FORMAT.md#editing-plain-text-moves-formatting-onto-the-wrong-words)).
     The desktop's Windows faces are drawn as the kind they are: serif,
-    fixed-width or plain. **Copy and paste keep it**: a copy carries HTML
+    fixed-width or plain. The size box says the size of what is selected,
+    or "Default" for a mix, as the desktop's does. **Copy and paste keep it**: a copy carries HTML
     beside the words, so they arrive formatted elsewhere; a paste from a
     browser, a word processor or a spreadsheet brings what the desktop's
     brings — styles, real colours, lists, alignment, tables — and the
@@ -169,9 +178,12 @@ Grouped by what the app does; when each item arrived is in the
     A new one inserted from a size grid, its first cell open to type. A
     cell's menu: its text, alignment and highlight; merge and split; rows
     and columns added or removed; a checkbox; the table's place on the
-    page; a column wider, narrower, fitted to its words, hidden and shown
-    again; a numbered caption under the table and a line above it; and
-    delete the table, which asks.
+    page; a column wider, narrower, fitted to its words — one column or
+    all of them — hidden and shown again; a numbered caption under the
+    table and a line above it; and delete the table, which asks. A
+    column's width is measured from its letters, so a cell holds its
+    words at any of the phone's text sizes
+    ([why](ISSUES_LOG.md#widths-in-one-unit-letters-in-another)).
 20. Checklists: add, tick, rename, remove, and **drag to reorder** by the
     ⠿ handle.
 21. Comments, the desktop's separate box under the note.
@@ -193,10 +205,20 @@ Grouped by what the app does; when each item arrived is in the
     More functions, a history, and Insert into note — its answer for
     every sum.
 27. **Export as file**, `.html` or `.txt`, through Android's "save as":
-    the desktop's page byte for byte.
+    the desktop's page byte for byte. **"✉ Send by email…"**: an
+    address — the person's own or anyone's, or none and the mail app
+    asks — and the person's choice of what goes: the note's words in the
+    message (the `.txt` export), the note as a page attached (the
+    `.html` one), or both. The phone's mail app opens with it ready; the
+    app sends nothing itself and says so. The address and the choice are
+    remembered on the phone alone, in the app's private preferences —
+    never in `settings.json`, which a backup carries to the desktop. The
+    note's own files are not attached, as an export does not carry them
+    ([how it reaches a mail app](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
 28. **Templates**: start a note from one, save a note as one, and edit
     them in Settings → Templates — the desktop's `templates.json`, so a
-    template made on either device starts notes on both.
+    template made on either device starts notes on both. A template's
+    body shows its tables drawn, in place, as a note does.
 
 ### Organising
 
@@ -246,7 +268,8 @@ Grouped by what the app does; when each item arrived is in the
 35. The desktop's eight themes, its palettes measured equal by a gate,
     and **"Follow the phone"**: dark when the phone is dark, light when it
     is light, in two themes the person picks. On by default, as Android
-    apps are.
+    apps are. Following, the page shows one mode's four themes under a
+    Dark | Light switch, opened on the mode the phone is in now.
 36. **Wide screens.** From a medium window — a phone on its side, a small
     tablet — the bar becomes a rail down the left edge; from an expanded
     one, a note opens beside the notes or the calendar, which stay in
@@ -261,12 +284,21 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 572 JVM unit tests in 24 suites, mutation-tested; six ports held to
+39. 584 JVM unit tests in 25 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
-    rules layer free of Android, the repository in English); and an
-    emulator walk of 177 checks that reads the files the app
-    wrote.
+    rules layer free of Android, the repository in English) and a fifth
+    on the built release APK (every file its code looks up by name, found
+    where the shrunk code will look); and an emulator walk of 202
+    checks that reads the files the app wrote.
+40. **A release build**, the form the app is tested in from now on:
+    shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
+    no permission beyond one Android adds for its own receivers, its one
+    native library 16 KB-aligned as Play requires, and an app bundle
+    (`bundleRelease`) beside the APK. Signed for now with this machine's
+    debug key, so it installs over a debug build and keeps the notebook
+    — Play refuses that key, which is the first item
+    [before an upload](#before-the-first-upload-to-google-play).
 
 ## Where it differs from the desktop, on purpose
 
@@ -365,7 +397,34 @@ line above it, undo and redo, and copy and paste with the formatting.
 the person's Google account when they have device backup turned on, and
 puts it back on a new phone. That is convenient and it is also the notes
 leaving the phone. It is a choice for the owner, not a default to inherit
-from the project template.
+from the project template. It covers the app's preferences too, where
+"Send by email" remembers the last address.
+
+### Before the first upload to Google Play
+
+Checked already, on the built release APK: the target SDK (37), not
+debuggable, no internet permission, 16 KB alignment, an app bundle, the
+one `<queries>` entry (mail apps only — no wider look at the phone's
+apps). Still to do, each a decision or an account step for the owner:
+
+* **An upload key**, made once and kept outside the repository, with
+  Play App Signing; the release build's signing moves to it. A phone
+  holding a debug-signed build has to uninstall it to take the store's,
+  so its notebook goes to a backup `.zip` first.
+* **A privacy policy page**, which Play asks every app for — the site is
+  where it would live.
+* **The Data safety answers.** The notes never leave the phone unless
+  the person sends them. One detail to decide how to declare: "Send
+  feedback" opens the site's form with the version, the theme and the
+  notebook's size in the address, so the site sees them when the page
+  opens, before Send is pressed.
+* **A closed test before production.** Play asks a personal developer
+  account made after November 2023 to run one with at least 12 testers
+  for 14 days in a row before the app can go to production — the
+  Console's current wording is the one to follow.
+* The store listing: the 512 px icon, a feature graphic, phone
+  screenshots (`tools/emulator/take_screenshots.py` makes those), the
+  content rating questionnaire and the target audience.
 
 ### The welcome note's words
 
@@ -390,24 +449,26 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 177 checks walked on the built app, upright and on its side, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 202 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 572 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 584 JVM unit tests, each mutant watched failing |
+| [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
 
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-25 parts, 177 checks. The last run went from start to end and passed
-all 177; the one before it, the first of Phase 3, failed five steps —
-all the walk's own, in older parts the new screens had changed under
-them ([the story](ISSUES_LOG.md#old-steps-walking-through-new-screens)).
+28 parts, 202 checks. The last run, after the first test on a real
+phone, went from start to end and passed all 202 on its first try; the
+first run of Phase 3 had failed five steps — all the walk's own, in
+older parts the new screens had changed under them
+([the story](ISSUES_LOG.md#old-steps-walking-through-new-screens)).
 Phase 1's four:
 
 * **A brand-new notebook**: the welcome note, written and remembered; a
@@ -492,6 +553,23 @@ Phase 3 added a part for each of its features, the same way:
   left behind; Ctrl+Shift+V plain; a cut pasted back whole. The selection
   menu is photographed, with "Paste as plain text" on it, not pressed
   ([why](ISSUES_LOG.md#a-menu-the-phones-own-tree-leaves-out)).
+
+The first test on a real phone added three parts and grew four:
+
+* **Previews**: a table with a row left open and one typed past its last
+  cell — the card shows words only and "▦ 1 table", a table-only note is
+  "(untitled)", and its calendar row says `▦×1`.
+* **A table at larger letters**: drawn with the phone's letters at 115%
+  and 130%, every cell one line tall, one letter or six.
+* **Sending by email**: nothing opening with neither choice, a slip of
+  the thumb named back, the mail app in front, the page it attaches in
+  the cache with its table, the address remembered next time and absent
+  from `settings.json`.
+* Grown: Appearance's Dark | Light switch (light themes on a light phone,
+  the dark ones a tap away, a dark pick saved as dark mode's); the size
+  box saying "Default" then "20"; Autofit all columns, tapped from the
+  first column, fitting the second; a template's body with its words and
+  cells and no pipe row.
 
 The photographs it takes are looked at, not only saved: the walk is
 where the Settings switch that did not redraw, Back closing the app from
@@ -582,9 +660,25 @@ cropped its frame away at the corners, because a circle mask keeps only
 the circle inscribed in that square
 ([the story](ISSUES_LOG.md#the-preview-that-flattered-the-icon)).
 
+### The release build, over a debug one
+
+A release build cannot be read through `run-as`, so it was judged by
+what it is and by what it shows. Read from the APK: the certificate is
+the debug build's (`apksigner`), it is not debuggable and asks for no
+permission beyond one Android adds itself (`aapt2`), its native library
+is 16 KB-aligned in all four ABIs (`zipalign -P 16`, and the ELF's own
+segments), and every file its code looks up is where the renamed code
+will look (`tools/check_release_lookups.py`). On the emulator: a new
+notebook's welcome note, a paste of text holding an `&` and a `<` after
+a restart, the editor's menus, the calendar and every Settings page,
+with the crash log empty. Then the trip a test phone makes: a debug
+build holding a notebook copied in, the release build installed over
+it, the same list, every note opened — and the debug build put back,
+the notebook's files had the same checksums as before.
+
 ### The unit tests, and their mutants
 
-572 JVM unit tests in 24 suites pin the rules ported from Python, and
+584 JVM unit tests in 25 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
@@ -610,6 +704,18 @@ them [a Kelvin sign written as a K](ISSUES_LOG.md#an-escape-written-as-the-lette
 Four more were built into the app: an editor that never records a step
 for Undo, and the copy, the paste and the kept copy behind the note's
 clipboard. Each was caught by the walk.
+
+The first test on a real phone ran 11 against the unit tests — the
+card's table rule, Autofit all, the email's addresses and its words —
+all killed. Ten more were built into the app. Eight were caught by the
+walk. One, the entities file looked up relative to a class the release
+build renames, passed the walk — a paste with its formatting and one
+without look the same on a screen — and is caught by
+`tools/check_release_lookups.py` on the built APK. One survives: the
+email naming Gmail rather than its writing window, which this
+emulator's Gmail, its Chat turned off since its first start, no longer
+tells apart ([the story](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
+The size box's and the template body's fixes had no mutant run.
 
 Two commit messages carry counts that were wrong when written and are
 corrected here, the history left as it is: the recurrence engine's

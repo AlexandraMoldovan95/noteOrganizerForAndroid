@@ -8,6 +8,7 @@ lands where it can actually fail.
 |---|---|---|
 | **Unit tests on the JVM** | `app/src/test/` | A rule ported from Python that does not match the Python — held, where the rule can be run on its own, to answers the desktop's own Python wrote |
 | **The cross-program gates** | `tools/check_note_shape.py`, `tools/check_palettes.py` | The two programs quietly disagreeing about what a note *is*, or what a theme looks like |
+| **The release gate** | `tools/check_release_lookups.py`, on the built release APK | Code the shrinker renamed, still looking a file up by its old place |
 | **The emulator walk and tools** | `tools/emulator/` | A rule that is right and a screen that is wrong |
 | **The test plan** | `NoteOrganizer_Android_TestPlan.xlsx` | Whether a tap lands, whether the keyboard covers what you are typing, whether the thing reads well at arm's length |
 
@@ -17,16 +18,16 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-572 checks across twenty-four suites — `NotebookTest` (118),
-`TablesTest` (56), `RecurrenceTest` (46), `CalculatorTest` (34),
+584 checks across twenty-five suites — `NotebookTest` (122),
+`TablesTest` (57), `RecurrenceTest` (46), `CalculatorTest` (34),
 `IdentityTest` (30), `PastingTest` (29), `OrganizingTest` (27),
-`StylingTest` (23), `DaysTest` (23), `SharingTest` (21), `EditingTest`
+`StylingTest` (25), `DaysTest` (23), `SharingTest` (21), `EditingTest`
 (20), `ParagraphsTest` (19), `SettingsTest` (17), `ImportingTest` (16),
 `FindingTest` (16), `ExportingTest` (15), `AppStateTest` (13),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
-(7), `StatsTest` (4), `StartupTest` (4) and `InteropTest` (2). No device,
-no emulator: they test the twenty-four files that contain no Android
-at all (see
+(7), `MailingTest` (5), `StatsTest` (4), `StartupTest` (4) and
+`InteropTest` (2). No device, no emulator: they test the twenty-five
+files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
 which is what makes them cost seconds instead of minutes — and one
 drawing-side class, `AppState`, whose order of saves around the open
@@ -186,8 +187,8 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 25 parts and
-177 checks: a brand-new notebook, a notebook copied in, the
+notebook the app wrote is read back through `run-as`. 28 parts and
+202 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, and the phone changing
@@ -241,6 +242,23 @@ Phase 3 added three more:
 - **Read a passing message once, and act at once.** An eight-second
   offer does not wait for three screen dumps
   ([the story](../docs/ISSUES_LOG.md#an-offer-read-after-it-had-gone)).
+
+The first test on a real phone added three more:
+
+- **Check at the phone's own settings, not only the defaults.** Its
+  letters at 115% broke a table's words that fitted at 100%; a part now
+  draws the table at 115% and 130%
+  ([the story](../docs/ISSUES_LOG.md#widths-in-one-unit-letters-in-another)).
+- **The release build is walked too, and judged by its artifact.** It
+  cannot be read through `run-as`, and a screen cannot tell a paste with
+  its formatting from one without; the release gate reads what the
+  shrunk code looks for
+  ([the story](../docs/ISSUES_LOG.md#a-file-looked-up-by-a-name-the-release-build-changed)).
+- **A check that cannot fail is taken out, and its mutant called a
+  survivor.** When the emulator lost the condition a fix existed for —
+  Gmail's Chat, turned off — no screen or log could tell the fix from
+  its absence, and the walk says so in a comment instead
+  ([the story](../docs/ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
 
 The other scripts in [`tools/emulator/`](../tools/emulator/) each survive
 a specific way the emulator lies to a script: tapping by fresh text,

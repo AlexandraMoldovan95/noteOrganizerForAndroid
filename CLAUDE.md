@@ -144,6 +144,17 @@ past the others:
 And for a change anybody will see, the walk on the emulator
 (`py tools/emulator/walk.py <folder>`), with its photographs looked at.
 
+Before a build goes to a phone, the release build itself — the one
+people run, shrunk and renamed by R8, which the debug build never is:
+
+    gradlew.bat assembleRelease
+    py tools/check_release_lookups.py  # every file the code looks up is where the renamed code looks
+
+A phone is never given a test-only build that needs an uninstall to
+replace: an uninstall deletes the notebook. The release build is signed
+with the debug key until the upload key exists, so the two install over
+each other.
+
 CI runs all of the first six ([tests.yml](.github/workflows/tests.yml) and
 [gates.yml](.github/workflows/gates.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what

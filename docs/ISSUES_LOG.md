@@ -7,11 +7,16 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the thirty-one are about
+**the code**, or in **the design**. Fourteen of the thirty-six are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-16](#a-file-looked-up-by-a-name-the-release-build-changed) | code | The release build renamed the class that reads the HTML entities, and a paste from a web page would have lost its formatting without a word | The debug build is not the one people run: check the artifact |
+| [2026-10-16](#mail-apps-only-said-a-way-android-17-no-longer-accepts) | code | "Send by email" said there was no mail app, with Gmail installed | A hand-off between apps is verified on a current Android, from the log |
+| [2026-10-16](#widths-in-one-unit-letters-in-another) | code | At the phone's 115% letters, a table's word broke over two lines | A size that holds text is measured from the text |
+| [2026-10-16](#two-lines-of-text-that-cost-a-whole-note) | code | The list stuttered: each card took its note's whole text to show two lines, and was measured twice | What a card is given should be what it shows |
+| [2026-10-16](#a-table-read-by-a-stricter-rule-than-a-persons) | code | Cards and a template's body showed a table as lines of bars | Leave out what a reader takes for a table, not only what the drawing accepts |
 | [2026-10-16](#old-steps-walking-through-new-screens) | checking | The phase's first full walk failed five checks, all in older parts the new screens had changed under them | After a phase, walk the whole app, not only the new parts |
 | [2026-10-16](#a-menu-the-phones-own-tree-leaves-out) | checking | The selection menu's Copy and Paste are on the screen and in no UI tree the walk can read | When a button cannot be found, press another door to the same code, and say which was not pressed |
 | [2026-10-16](#an-escape-written-as-the-letter-it-stood-for) | checking | The fixture's case for the Kelvin sign held a plain K, and its mutant survived | A case for an invisible difference must be written so the difference survives being written |
@@ -48,6 +53,135 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A file looked up by a name the release build changed
+
+**2026-10-16.** The first release build is shrunk by R8, which renames
+classes and moves them out of their packages: `Pasting` became `ca1`, in
+no package at all. `Pasting` read its table of HTML entities by a name
+relative to itself, so the renamed class looked in the wrong folder and
+found nothing.
+
+Nothing crashed. The parser's guard — there so that a strange page can
+never take the editor down — turned the missing table into "nothing
+read", and the paste fell back to plain words. Every paste from a web
+page with an `&`, a `<` or an `&nbsp;` in it, which is most of them,
+would have lost its formatting without a word.
+
+It was found by reading the code for lookups by name before the release
+build reached a phone, and confirmed in the built code with `dexdump`.
+The fix looks the file up from the root, by its path. The release build
+was then walked on the emulator, and the walk passed the old line too:
+a screen cannot tell a paste with its bold from one without.
+`tools/check_release_lookups.py` reads the built APK instead — each
+lookup, the path it resolves to, whether the file is there — and on the
+old line says MISSING.
+
+**The class:** the debug build is not the build people run. Anything
+found by name — a file, a class — can break under the shrinker, and a
+guard that turns a failure into "nothing" makes the failure silent.
+Check the artifact, not the source.
+
+## Mail apps only, said a way Android 17 no longer accepts
+
+**2026-10-16.** "Send by email" hands its message to a mail app, and the
+usual way to say *mail apps only* is a `mailto:` selector on an
+`ACTION_SEND`. On the emulator — Android 17, Gmail installed — the app
+answered "No mail app on this phone can send it." Three causes, one
+under another, each read from the log:
+
+* Android 11 and later hide other apps from an app whose manifest does
+  not say what it looks for. `<queries>` for `mailto:` fixed that, and
+  only that.
+* The start was still refused, `result code=-91`
+  (START_INTENT_NOT_RESOLVED): the selector's `SENDTO` and the message's
+  `SEND` are two actions, and the filter that matched took only one.
+* Naming the Gmail app instead, Android asked which of two Gmail windows
+  should take it — its mail, or its Chat.
+
+Each mail app's own writing window is now named: found as what answers
+a `mailto:` link, and kept only if it takes the message too.
+
+A walk check was written for the third cause, and it could not be made
+to fail. Once started without an account, the emulator's Gmail turned
+its Chat off, and since then nothing on the screen or in the log tells
+the two apart. The check was taken out rather than kept as a claim it
+could not test, and its mutant is recorded as surviving.
+
+**The class:** how one app hands work to another changes between
+Android versions. Verify the hand-off on a current one, with a real
+receiving app, and read it from the log rather than from what came to
+the front. When the environment loses the condition a fix exists for,
+say so: a check that cannot fail is not a check.
+
+## Widths in one unit, letters in another
+
+**2026-10-16.** At the phone's 115% letters, a table's cells broke
+"socks" across two lines. A column's width was its characters times a
+fixed 8.2 dp; the letters are in sp, which grows with the phone's text
+setting, and dp does not. On the emulator at 100% the two agreed
+exactly, which is why nothing showed there.
+
+The width of one character is now measured from the cell's own face
+and size — the wider of bold and plain — so it grows with the letters.
+A walk part draws a table at 115% and 130% and checks every cell stands
+one line tall; built with the old fixed width, the app failed it at
+both sizes.
+
+**The class:** a size that holds text is measured from the text, in the
+text's own unit. A check at the default setting is a check of one
+setting.
+
+## Two lines of text that cost a whole note
+
+**2026-10-16.** Scrolling the list on the phone stuttered now and then.
+It was measured before anything was touched — `dumpsys gfxinfo` over a
+scroll of a real notebook: 3.2% of 433 frames late, the slowest 44 ms,
+on a screen that draws one every 8. Reading what one card did on every
+frame found three things:
+
+* each card was handed its note's **whole** text — tens of thousands of
+  characters on a long note — to show two lines of it;
+* it worked its preview out again on every drawing;
+* its colour stripe, a child stretched to the card's height with
+  `IntrinsicSize.Min`, made every card be measured twice, its text laid
+  out twice.
+
+A card now gets a glimpse of 300 characters (never cut through an
+emoji), the preview is worked out once per note, and the stripe is
+painted behind the card. The scroll is to be measured again on the same
+phone once it runs this build; until then the fix is reasoned, not
+measured.
+
+**The class:** a list's cost is paid per card, per frame — what a card
+is given should be what it shows. And a layout that asks its children
+their size first doubles the work of everything inside it.
+
+## A table read by a stricter rule than a person's
+
+**2026-10-16.** On a real phone, cards in the list showed lines of
+vertical bars where a note had a table, and a template's body showed the
+same bars above the table drawn properly under them.
+
+The card left out the lines the *editor* draws as a table: rows with a
+pipe at both ends. A row left open (`| a | b`) or typed past its last
+cell (`| a | b |and then`) is no row to the editor — but a person reads
+it as one, and the card printed it. The desktop met the same report
+twice, from its calendar, and its answer is `preview_text`: a line that
+opens with a pipe and a space and holds two pipes is left out, and the
+same pass counts the tables, so "▦ 1 table" and the words beside it
+cannot disagree. The card, the calendar's rows and their counts now use
+it.
+
+The template was the same thing in another place: its body box edited
+the stored text, rows and all, and drew the table again beneath. The
+desktop's template editor hides the rows. The box is now cut as the note
+editor cuts a note — words in fields, each table drawn in its place.
+
+**The class:** a screen that shows stored text where the person expects
+the drawn thing. What to leave out is decided by what a *reader* takes
+for a table, not only by what the drawing code accepts — and every place
+that shows a note's words can show its plumbing.
 
 ## Old steps walking through new screens
 
@@ -886,6 +1020,12 @@ notebook's welcome note although the seed was on disk. Not reproduced
 since. Every seeded part now fails at once, by name, when the app does
 not show the notebook it was given, so a second sighting says what it
 is instead of failing ten later checks for one cause.
+
+On 2026-10-16 the same step failed once differently: on the first start
+after an install, three seconds after the app was started, its list was
+not drawn yet. The step now looks for the notebook for up to ten
+seconds instead of once. The first sighting — the welcome note shown
+over the seed — is still unexplained, and this entry stays open for it.
 
 ### A deliberate difference worth porting back
 
