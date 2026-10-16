@@ -250,6 +250,7 @@ def main():
     calculator(folder)
     finding(folder)
     exporting(folder)
+    mailing(folder)
     styles_through_an_edit(folder)
     templates(folder)
     sizes_and_faces(folder)
@@ -687,6 +688,12 @@ def seed_inside(notes, settings, shows):
     put_inside("settings.json", settings)
     on_disk = [n.get("uid") for n in read_file("notes_data.json") or []]
     start_app()
+    # Looked for until it is there, not once after start_app's pause: the
+    # first start after an install drew the list later than that, and a
+    # seed that was on screen a moment afterwards was reported as missing.
+    deadline = time.time() + 10.0
+    while screen_says(shows) and time.time() < deadline:
+        time.sleep(0.5)
     ok = on_disk == [n.get("uid") for n in notes] and not screen_says(shows)
     check("the notebook written for this part is the one the app shows", ok,
           "on disk: %s, on screen: %s" % (on_disk, " | ".join(t for t, d, _ in nodes() if t)[:160]))
@@ -1705,6 +1712,67 @@ def table_extras(folder):
     tap("Undo", exact=True, wait=2.0)
     check("Undo takes back the word typed, then the line made above the table",
           (note().get("body") or "").startswith("| Item"), repr((note().get("body") or "")[:40]))
+    back_to("Search notes")
+
+
+def mailing(folder):
+    """Send by email: the note handed to the phone's mail app with what the
+    person chose -- its words, its page, or both -- and the address kept
+    for next time on the phone alone. The mail app does the sending, so
+    what is checked is what the app hands over: the mail app in front, and
+    the page written where the mail app reads it."""
+    print("\n-- sending a note by email --")
+    body = "Bring:\n| Item | Qty |\n| --- | --- |\n| socks | 3 |"
+    if not seed_inside([{"id": 1, "uid": "ml-trip", "title": "Trip", "body": body,
+                         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                       {"welcome_offered": True}, "Trip"):
+        return
+    gmail = "com.google.android.gm"
+    adb("shell", "am", "force-stop", gmail)
+
+    def ask():
+        back_to("Search notes")
+        open_note("Trip")
+        tap("⋮", exact=True)
+        tap("Send by email", wait=1.5)
+
+    ask()
+    shot(folder, "59-mail-dialog", "Send by email", "Open in mail app", "nothing is sent until you send it there")
+    tap("The note's text, in the message")
+    tap("The note as a web page, attached")
+    check("with neither chosen, the dialog asks for one", find("Choose at least one of the two.") is not None)
+    tap("Open in mail app", exact=True, wait=1.5)
+    check("...and Open in mail app does nothing", find("Send by email", exact=True) is not None and foreground() == PACKAGE,
+          foreground())
+    tap("The note's text, in the message")
+    tap("The note as a web page, attached")
+    tap("To", exact=True)
+    type_text("maria")
+    check("a slip of the thumb is named back", find("doesn't look like an email address") is not None)
+    type_text("@example.com")
+    keyboard_down()
+    check("an address is not", find("doesn't look like an email address") is None)
+    shot(folder, "60-mail-ready", "maria@example.com")
+    # Not checked here: that the mail app's WRITING window is named, rather
+    # than the app alone. Gmail takes a message in two places while its Chat
+    # is on, and named alone it made Android ask which -- but this
+    # emulator's Gmail, never signed in, turned its Chat off after its first
+    # start, and nothing on the screen or in the log tells the two apart
+    # since.
+    tap("Open in mail app", exact=True, wait=4.0)
+    check("Open in mail app opens the mail app", foreground() == gmail, foreground())
+    page = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Trip.html", binary=True).decode("utf-8", errors="replace")
+    check("the page the mail app attaches is the note's, its table drawn", "<table" in page and "socks" in page, page[:80])
+    adb("shell", "am", "force-stop", gmail)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.0)
+
+    ask()
+    check("the address is remembered for next time", find("maria@example.com", exact=True) is not None)
+    shot(folder, "61-mail-remembered", "maria@example.com")
+    settings = adb("exec-out", "run-as", PACKAGE, "cat", "%s/settings.json" % NOTEBOOK, binary=True)
+    check("...on the phone alone: not in settings.json, which a backup carries", b"maria" not in settings)
+    tap("Cancel", exact=True)
     back_to("Search notes")
 
 

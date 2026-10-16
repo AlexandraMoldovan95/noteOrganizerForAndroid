@@ -646,6 +646,7 @@ fun NoteEditor(state: AppState, openId: Int) {
     val calc = remember(model) { CalculatorState() }
     val exporter = rememberExporter(state)
     var exportAsk by remember { mutableStateOf(false) }
+    var mailAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
     var tableAsk by remember { mutableStateOf(false) }
     var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
@@ -841,6 +842,14 @@ fun NoteEditor(state: AppState, openId: Int) {
                             menu = false
                             // The note as saved is what goes out: saved first.
                             if (model.save(force = model.id == 0)) exportAsk = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.note_mail)) },
+                        onClick = {
+                            menu = false
+                            // As an export: the note as saved is what goes.
+                            if (model.save(force = model.id == 0)) mailAsk = true
                         },
                     )
                     if (day != null) {
@@ -1114,6 +1123,7 @@ fun NoteEditor(state: AppState, openId: Int) {
             onDismiss = { exportAsk = false },
         )
     }
+    if (mailAsk) MailDialog(state, model.id) { mailAsk = false }
     cell?.let { (segment, at) ->
         // Closed, the sheet hands the keyboard to nothing: left to itself,
         // focus came back to the title and its keyboard rose unasked.

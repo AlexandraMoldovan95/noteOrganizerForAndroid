@@ -281,6 +281,21 @@
     <string name="note_export_no_files">Attached files aren\'t part of a note export — use Settings → Backup for those.</string>
     <string name="note_export_failed">Export failed: the file couldn\'t be written.</string>
     <string name="note_export_open">Open</string>
+    <string name="note_mail">✉ Send by email…</string>
+    <string name="mail_title">Send by email</string>
+    <string name="mail_to">To</string>
+    <string name="mail_to_hint">Your own address or anyone\'s; several, with commas. Left empty, the mail app asks.</string>
+    <string name="mail_not_address">“%1$s” doesn\'t look like an email address.</string>
+    <string name="mail_with_text">The note\'s text, in the message</string>
+    <string name="mail_with_text_sub">Plain words any mail app shows; a table as its rows.</string>
+    <string name="mail_with_page">The note as a web page, attached (.html)</string>
+    <string name="mail_with_page_sub">Tables, styles and the checklist as the note shows them.</string>
+    <string name="mail_choose_one">Choose at least one of the two.</string>
+    <string name="mail_no_files">The note\'s own attached files aren\'t sent.</string>
+    <string name="mail_nothing_sent">Your mail app opens with the message ready: nothing is sent until you send it there. The address is remembered on this phone only.</string>
+    <string name="mail_open">Open in mail app</string>
+    <string name="mail_no_app">No mail app on this phone can send it.</string>
+    <string name="mail_failed">The note couldn\'t be made ready to send.</string>
 
     <!-- Find in note -->
     <string name="find_in_note">🔍 Find in note</string>

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only the attachments folder can be offered to another app, one tapped
-     file at a time. The notes themselves never leave this way. -->
+<!-- What can be offered to another app, one file at a time, by a temporary
+     grant: an attached file the person tapped, and the page of a note the
+     person is sending by email, written to the cache for the mail app.
+     The notebook itself never leaves this way. -->
 <paths>
     <files-path name="attachments" path="notebook/attachments/" />
+    <cache-path name="mail" path="mail/" />
 </paths>
