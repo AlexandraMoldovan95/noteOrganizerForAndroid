@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,6 +29,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -240,6 +246,48 @@ fun TemplatesPage(state: AppState) {
 }
 
 /**
+ * A template's body: its words to edit, and its tables drawn as tables,
+ * never as their pipe rows. The desktop's template editor hides a table's
+ * rows from the body box and shows the table in a preview -- "raw pipe
+ * rows with merge markers read as noise" -- and the phone drew both, the
+ * rows in the box and the grid under it, which looked like a broken table
+ * above a whole one (a first try on a real phone). Here the body is cut as
+ * the note editor cuts it: each run of words a field of its own, each
+ * table a grid in its place, all in one box; a table is shown, not
+ * edited, as in the desktop's preview.
+ */
+@Composable
+private fun TemplateBody(body: String, onChange: (String) -> Unit) {
+    val palette = LocalPalette.current
+    val label = stringResource(R.string.template_field_body)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .semantics { contentDescription = label },
+    ) {
+        Text(label, color = palette.subtext, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+        for ((index, segment) in Editing.segments(body).withIndex()) {
+            key(index, segment.table) {
+                if (segment.table) {
+                    TableView(parseTable(segment.text.split("\n")), Modifier.padding(vertical = 6.dp))
+                } else {
+                    BasicTextField(
+                        value = segment.text,
+                        onValueChange = { onChange(Editing.replaceProse(body, segment, it)) },
+                        textStyle = TextStyle(color = palette.text, fontSize = 16.sp),
+                        cursorBrush = SolidColor(palette.accent),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = if (body.isEmpty()) 72.dp else 24.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
  * One template, on the whole screen: its name, the note's title, text and
  * comments, a checklist to tick and add to, and a category. Closing with
  * changes asks, as the desktop's does, whether to keep them.
@@ -329,13 +377,7 @@ private fun TemplateEditor(
                 OutlinedTextField(title, { title = it.take(200) }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                OutlinedTextField(body, { body = it }, minLines = 4,
-                    label = { Text(stringResource(R.string.template_field_body)) },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                // Its tables as tables, as the desktop's dialog previews them.
-                for (segment in Editing.segments(body)) {
-                    if (segment.table) TableView(parseTable(segment.text.split("\n")), Modifier.padding(top = 8.dp))
-                }
+                TemplateBody(body) { body = it }
                 OutlinedTextField(comments, { comments = it }, minLines = 2,
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))

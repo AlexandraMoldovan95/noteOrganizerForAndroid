@@ -1203,6 +1203,12 @@ def templates(folder):
     tap("Settings", exact=True, wait=1.2)
     tap("Templates", exact=True, wait=1.2)
     tap("Weekly plan", exact=True, wait=1.5)
+    # Its table as a table, never as pipe rows above one: the desktop's
+    # template editor hides the rows from the body box.
+    words = [t for t, d, _ in nodes() if t]
+    check("the template's body shows its words and its table's cells, no pipe rows",
+          not any("|" in t for t in words) and "Mon" in words and "gym" in words
+          and any("call mum" in t for t in words), repr(words[:16]))
     shot(folder, "39-template-editor", "Edit template")
     tap("A new item", wait=0.8)
     # A capital already, as in a new note's body: the field capitalises.
