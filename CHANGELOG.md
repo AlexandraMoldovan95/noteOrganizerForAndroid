@@ -31,6 +31,66 @@ trail is not lost, not to claim releases that were never cut.
 
 ---
 
+## [Unreleased] — Phase 3
+
+The rest of what the desktop does with a note, each kept to what a
+phone's screen holds: arranging the list by hand, moving one day of a
+series and settling days its schedule left behind, attaching files,
+finding duplicates, a table's caption and column widths, undo and redo,
+and copy and paste that keep the formatting. Built on Phase 2 and to be
+numbered after it. What is still left is in
+[docs/STATUS.md](docs/STATUS.md#not-built-yet).
+
+### Added
+
+- **Custom order arranged by hand**: a ⠿ handle on each card, the list
+  scrolling by itself at its edges, a note moving within its own block —
+  pinned or not, its category when grouped — and every note numbered as
+  the desktop numbers them, with no "updated" stamp.
+- **"📅 Move this day…"**: one day of a series held on another date,
+  with its Undo, in the desktop's words when a date is taken.
+- **Days off the schedule**: when a repeat changes and days with their
+  own edits fall off it, the series says so, and each is settled with
+  one question — a note of its own, the Trash, or left as it is.
+- **Attach files** from the phone's picker, stored as the desktop
+  stores them, and take one off after a question.
+- **Settings → Duplicates**: the desktop's finder and its clean-up, with
+  Undo, a file a copy carried handed to the note kept.
+- **A table's caption, its columns' widths and a line above it**, from
+  the cell's menu: Add caption below…, Wider, Narrower, Autofit, Hide
+  column, Unhide all columns, Add a line above the table.
+- **Undo and Redo** in the editor, a burst of typing at a time, from ↶ ↷
+  and from a keyboard's Ctrl+Z and Ctrl+Y.
+- **Copy and paste with the formatting**: a paste reads HTML as the
+  desktop's paste does; a copy puts HTML beside the words; the app's own
+  copy brings back sizes and faces; "Paste as plain text" and
+  Ctrl+Shift+V paste the words alone. A paste the caps cut says so.
+
+### Changed
+
+- A day of a series, its move undone or its date reset, comes home only
+  to a date no other day of the series is on; the desktop brings it home
+  on top of the other.
+- A pasted page's second table keeps its styles on their words, where
+  the desktop's padding moves them beside them.
+
+### Testing
+
+- 572 JVM unit tests in 24 suites, from 516 in 23. 94 mutants against
+  them: 90 killed, 4 equivalent. Four more built into the app and caught
+  by the walk on the emulator.
+- **A sixth port held to a fixture the desktop's own Python wrote**:
+  pasting — 567 HTML fragments through the desktop's `html_to_note` and
+  Python's own parser, the HTML 80 of the app's own copies were written
+  as, and 117 plain texts rejoined and unmarked; the 20 fragments where
+  the phone parts from the desktop on purpose are kept with the
+  desktop's answer beside them.
+- `tools/emulator/walk.py`: 177 checks in 25 parts, from 127 in 17 —
+  a part for each Phase 3 feature, the keyboard's copy and paste keys
+  where the selection menu cannot be pressed. The first full run from
+  start to end failed five steps, all the walk's own, in older parts the
+  new screens had changed under them; fixed, the second passed all 177.
+
 ## [Unreleased] — Phase 2
 
 The desktop's remaining everyday features, each kept to what a phone's

@@ -36,6 +36,7 @@ that reads or writes what it covers.
   - [Editing plain text moves formatting onto the wrong words](#editing-plain-text-moves-formatting-onto-the-wrong-words)
   - [A highlight must blend toward the page](#a-highlight-must-blend-toward-the-page)
   - [A format bar has two enemies on a phone, and both are the system's](#a-format-bar-has-two-enemies-on-a-phone-and-both-are-the-systems)
+  - [What a paste may bring](#what-a-paste-may-bring)
 - [Tables](#tables)
   - [Measure the real notebook before deciding what to support](#measure-the-real-notebook-before-deciding-what-to-support)
   - [Editing one cell must not rewrite the whole table](#editing-one-cell-must-not-rewrite-the-whole-table)
@@ -162,6 +163,19 @@ defaults: `_prev`, the one-step rescue copy
 ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
 and `order`, the desktop's custom order.
 
+Since Phase 3 the phone writes `order` too, as the desktop's arranging
+does: every note numbered by its place — the hidden ones too, so a
+search or a filter never loses a note its place — in one write, and with
+**no `updated` stamp**, because arranging a list is not editing a note.
+Choosing Custom order before anything has been placed numbers the notes
+as the list was showing them, so the choice changes nothing on screen.
+
+**An attached file** is kept in `attachments/` under the moment it was
+added, to the microsecond, and its own name — the desktop's
+`add_attachment` — made a name Windows will take, because a backup
+carries it there. Taking a file off a note deletes the stored file only
+when no other note, and no note in the Trash, still names it.
+
 ### Where `uid` comes from, and who may mint one
 
 The desktop mints them at its own door, for every note, on the first read
@@ -228,6 +242,22 @@ writes them:
 - **A repeat turned off** when some day holds its own text puts the whole
   note — the rule, the deleted days, the edits — into `_prev` first, so
   "↩ Restore previous" brings the series back whole.
+
+Phase 3 writes the other two the day mode has:
+
+- **A day moved** is written in `moved` against the date its rule gives
+  it — `{"2026-10-20": "2026-10-22"}` — and its own edit, if it has one,
+  moves with it in `overrides`. Moved back home, the entry goes. A day
+  may move only to a date the series has no day on, and comes home only
+  to one ([the desktop's own date rule does not ask](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+- **A day off the schedule** — an override on a date the rule no longer
+  gives, after the repeat changed — is settled as the desktop settles
+  it: made a note of its own on that date (its title, text, comments,
+  category and colour; the series' formatting only where the day's text
+  is the series' own; the lines' entries; none of the checklist or the
+  files, which were never the day's), or that note sent to the Trash.
+  Either way the override goes, and so does a move that brought the day
+  there.
 
 ### Clearing a date deletes a recurrence rule
 
@@ -411,6 +441,26 @@ which an edge-to-edge window does not make room for. `Modifier.imePadding()`
 on the screen's root is what lifts it. Both problems are invisible in
 source and obvious in one photograph.
 
+### What a paste may bring
+
+Exactly what the desktop's paste brings, because it is the desktop's
+reader (`html_to_note`) ported, and what it reads passes the same two
+gatekeepers a saved note does: bold, italic, underline, strikethrough;
+a text colour only when it is really a colour (a page's greys are its
+theme, not anyone's choice); a highlight only when it is pale enough to
+read black text through; lists as markers in the text; alignment; tables
+as pipe rows, re-padded. Sizes and faces are left behind — a web page
+uses neither of the desktop's lists, and matching would mean claiming a
+note is set in something it never was.
+
+Laid into the note, a pasted highlight goes **line by line, never over a
+line's end**, as the desktop lays every highlight. The app's own copy is
+the exception to what is left behind: pasted back into a note, it brings
+its sizes and faces, kept from the moment it was copied.
+
+The caps are the desktop's: 100,000 characters and 2,000 styled pieces,
+past which the paste says what it left out.
+
 ## Tables
 
 A table is not a field of its own: it is pipe rows inside `body`, drawn
@@ -486,6 +536,14 @@ keeps it — none of them in a field of its own:
 | A cell's highlight | a `highlight` span laid **pipe to pipe**, over the whole cell and its padding, so whatever is later typed in the cell lands inside it. A span over part of a cell is a style on its words, not a fill. |
 | A merge | the marker as the cell's whole text: `<` joins the cell to its left, `^` to the one above. Splitting empties every cell the merge took and leaves the first its words. |
 | The table's place on the page | the alignment of **its lines** in `paragraphs` — a centred table is every one of its lines centred |
+
+Phase 3 adds three more, all in the text:
+
+| What | Where it lives |
+|---|---|
+| A column's width | the **dashes** of its separator cell, counted with its colons. Three or fewer is markdown's way of writing any separator at all and sets no width; a hand-widened column is always wider. Narrowed below its words, a column is drawn clipped, an ellipsis at the cut; its words stay whole in the file. |
+| A hidden column | `~` as its separator cell |
+| A caption | two lines under the table, `Table N: …` and `Source: …`, placed as the table is; N comes after every caption the note already has, the older `Tab. N:` ones included |
 
 The separator stays under the first row, whatever is inserted above it:
 moved to the third line it is no longer read as a separator, and its

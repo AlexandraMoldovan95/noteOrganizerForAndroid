@@ -7,11 +7,17 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Ten of the twenty-five are about the
-checking.
+**the code**, or in **the design**. Fourteen of the thirty-one are about
+the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-16](#old-steps-walking-through-new-screens) | checking | The phase's first full walk failed five checks, all in older parts the new screens had changed under them | After a phase, walk the whole app, not only the new parts |
+| [2026-10-16](#a-menu-the-phones-own-tree-leaves-out) | checking | The selection menu's Copy and Paste are on the screen and in no UI tree the walk can read | When a button cannot be found, press another door to the same code, and say which was not pressed |
+| [2026-10-16](#an-escape-written-as-the-letter-it-stood-for) | checking | The fixture's case for the Kelvin sign held a plain K, and its mutant survived | A case for an invisible difference must be written so the difference survives being written |
+| [2026-10-16](#a-drag-that-stopped-judging-when-the-finger-stopped) | code | Held at the list's edge, a card scrolled the list but kept its old place | When the world moves under a still finger, judge the drag on every tick |
+| [2026-10-16](#a-gesture-inside-a-gesture) | code | Pressing and holding a card's ⠿ handle selected the card instead of lifting it | A gesture inside another must claim the touch when it lands |
+| [2026-10-16](#an-offer-read-after-it-had-gone) | checking | The walk looked for an eight-second Undo, photographed it, then tapped — after it had gone | A screen dump takes seconds; read once, act at once |
 | [2026-10-16](#taps-aimed-through-the-keyboard) | checking | On its side, the walk's taps landed on the keyboard, and a check passed because the autosave had already run | A race an emulator tap cannot win belongs in a test that can record the order |
 | [2026-10-16](#what-a-phone-resets-for-free) | code | Beside the list, the editor kept the last note's scroll, and a second + opened nothing | A screen that goes away resets its state for free; one that stays must reset it on purpose |
 | [2026-10-16](#an-update-the-editor-put-back) | code | A code shared in over the open note updated the file; the editor's next save put the old words back | Whatever keeps a copy of a record must be told when the record changes under it |
@@ -42,6 +48,134 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## Old steps walking through new screens
+
+**2026-10-16.** Each Phase 3 feature was walked as it was built, its own
+part run on its own. The first run of the whole walk from start to end
+passed 174 checks of 179. The five that failed were all in older parts,
+and none was the app's fault:
+
+* **A button that borrowed a word.** Undo and Redo gave the editor a ↶
+  button, which a screen reader says as "Undo". The part that moves a day
+  found the move's eight-second offer by the word "Undo" and tapped it —
+  and found and tapped ↶ instead. Worse, its check that the move *offers*
+  an Undo had been passing on ↶'s description: true whether the offer
+  was there or not. It now finds the node whose shown words are "Undo",
+  and the offer passed for real once it looked.
+* **A swipe counted for a shorter sheet.** The cell-menu part swiped once
+  to reach "Delete table". Phase 3 added the columns' widths and the
+  caption to the same sheet, and one swipe no longer reached it; four
+  checks fell after it. It now scrolls until the button is in sight.
+
+Running that part again found a third, once in three runs: a Back meant
+to put the keyboard down, pressed before the keyboard had risen, closed
+the cell's sheet instead. The walk now presses Back for the keyboard
+only once the phone says the keyboard is up (`mInputShown=true`), at
+every step where that is what the Back is for.
+
+**The class:** a new screen changes the ground older steps walk on — a
+word one button now shares with another, a sheet grown longer, a
+timing. Walking only the new parts cannot see it. After a phase, run
+the whole walk; find by the words shown when two controls may share a
+word; seek what a step needs instead of counting the gestures it once
+took; and wait for the state a step relies on rather than for a time.
+
+## A menu the phone's own tree leaves out
+
+**2026-10-16.** Copy and paste with the formatting were to be walked as a
+person does them: hold a word down, choose Select all and Copy, hold a
+word down in another note, choose Paste. Every step failed: the menu was
+"not on the screen".
+
+It was on the screen — the photograph showed Cut, Copy, Select all. It is
+a floating bar the system draws above the selection, and no dump of the
+phone's UI tree held its words, not even one that asks for every
+window. The walk finds what it presses by its words, so it could not
+press it.
+
+**What was done instead:** the keys a keyboard sends — Ctrl+A, Ctrl+C,
+Ctrl+X, Ctrl+V, Ctrl+Shift+V, through `input keycombination` — which go
+through the very copy and paste the menu's buttons call. The menu is
+photographed, with "Paste as plain text" on it, for a person's eye, and
+the walk says in its own comments that the buttons themselves were not
+pressed.
+
+**The class:** a check can only press what its reader can find. When a
+door cannot be found, use another door to the *same* code — not a
+different route that merely ends in the same place — and write down which
+door was left unpressed.
+
+## An escape written as the letter it stood for
+
+**2026-10-16.** The paste fixture holds a case for each rule of the
+desktop's reader by name. One is the Kelvin sign: Python's
+case-insensitive match takes U+212A for a `k`, so `<bloc&#x212A;quote>`
+— written with the sign itself — counts as a block tag, and the phone's
+port names that letter on purpose. Its mutant, the Kelvin rule taken
+out, **survived**: the case in the generator was a plain capital K,
+which matches `k` under any rule at all.
+
+The script had been written through a tool that turns `K` into the
+character it names, and the Kelvin sign looks exactly like a K. Two other
+special letters in the same list came through as themselves and worked.
+The Kotlin port had the same thing happen; it now compares those letters
+by number (`c.code == 0x212A`), and the generator spells the case
+`"\N{KELVIN SIGN}"`, which no tool rewrites. The mutant was killed on
+the next run.
+
+**The class:** a test case for a difference the eye cannot see must be
+written so the difference survives being written — by name or by number,
+never as the glyph. And a surviving mutant is a question about the
+*case* before it is a question about the code.
+
+## A drag that stopped judging when the finger stopped
+
+**2026-10-16.** Custom order is arranged by dragging a card by its ⠿
+handle; held against the top or bottom edge, the list scrolls by itself.
+On a thirty-note list the walk held a card at the edge: the list
+scrolled, and the card, dropped, went back to the place it came from.
+
+Whether the dragged card trades places with the one under it was judged
+when the finger *moved*. Held still at the edge, the finger does not
+move — the list moves under it, and the card it now sits over changes
+with every step of the scroll, but nothing asked.
+
+**The fix:** each step of the edge scroll judges the drag again, as a
+move of no distance. **The class:** when the world moves under a still
+pointer, the drag must be re-judged on every tick, not only on the
+pointer's own events.
+
+## A gesture inside a gesture
+
+**2026-10-16.** A card is selected by holding it down; its ⠿ handle,
+inside the card, is dragged to arrange the list. Pressing the handle and
+holding it before moving — which is how a person picks something up —
+selected the card instead.
+
+The handle's drag waited to see the finger travel before it claimed the
+touch, as a drag usually does. Until then the touch was free, and the
+card's own long press, timing it, took it. **The fix:** the handle
+claims the touch the moment it lands, so a hold on the handle can only
+ever be the start of a drag. **The class:** a gesture nested inside
+another must claim the pointer at the down, or the outer one claims the
+hold.
+
+## An offer read after it had gone
+
+**2026-10-16.** Undo is offered for eight seconds. A walk step found the
+offer by reading the screen, took its photograph — reading the screen
+again first, as every photograph does — and then tapped Undo. It was
+gone. Another step checked a summary message after other reads, and it
+had faded.
+
+A dump of the phone's UI tree takes a second or two; three of them and a
+screenshot spend most of an eight-second offer. **The fix:** one read,
+then the photograph straight from the screen and the tap, with nothing
+in between; a passing message is checked first, before anything else is
+read. **The class:** what the screen shows for a few seconds must be read
+once and acted on at once — every look costs time the screen does not
+wait for.
 
 ## Taps aimed through the keyboard
 
@@ -708,6 +842,42 @@ phone matches the desktop wherever the difference is not a fault.
   column.
 * **A table inserted right above another leaves two blank lines** between
   them.
+
+### Two DESKTOP findings from porting Phase 3
+
+* **A day's return hides another day moved onto its date.** When a day
+  of a series has been moved away and another day of the same series
+  moved onto its date, Undo of the first move, or "Reset this day" on it,
+  brings the first day home on top of the second, and the calendar shows
+  one of them where there were two. Confirmed with the desktop's own
+  recurrence code. The phone refuses that return and says why
+  ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+* **A pasted page's second table puts its styles beside their words.**
+  `tables.align` re-pads every table in a paste and reports where it put
+  spaces in or took them out; `shift_spans` judges those places against
+  the text as it came. For the first table they are counted that way;
+  for every later one, in the text the earlier tables' padding has
+  already changed — so a bold word in a second table lands on the spaces
+  next to it, and every style after it slides too. 20 of the 567
+  fragments in the paste fixture show it. The phone counts them in the
+  text as it came; the fixture's generator makes the phone's answers by
+  that same two-line change to the desktop's own function, run in its
+  own process, and keeps the desktop's answer beside each of the 20.
+
+The desktop's `remove_attachment` deleting a file another note still
+uses is the second half of
+[the Trash purge finding above](#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses);
+the phone's "take off" spares such a file, as its purge does.
+
+### On the phone: a highlight from the format bar covers a line's end
+
+The desktop lays a highlight line by line and never over a line's end —
+covering one paints a bar to the window's edge in Tk — so its files hold
+a highlight across three lines as three spans. The phone's paste does
+the same; its format bar, older, lays one span across the line ends.
+The desktop draws that span correctly when it opens the note (it splits
+it as it loads), so nothing shows; but the two programs write the same
+highlight differently, and the phone's should follow the desktop's.
 
 ### A walk that once showed a new notebook over its seed
 
