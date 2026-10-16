@@ -387,6 +387,8 @@
     <string name="follow_phone_sub">Dark when the phone is dark, light when it is light, in the two themes you choose below.</string>
     <string name="themes_dark">Dark</string>
     <string name="themes_light">Light</string>
+    <string name="themes_for_dark">The theme for when the phone is dark.</string>
+    <string name="themes_for_light">The theme for when the phone is light.</string>
     <string name="add_category">Add a category</string>
     <string name="category_name">Name</string>
     <string name="general_protected">“General” can\'t be renamed or deleted: it is where notes go when their category does.</string>

@@ -342,11 +342,30 @@ def brand_new(folder):
     # ---- Settings ----
     tap("Settings", exact=True)
     shot(folder, "06-settings", "Your name", "Appearance", "Backup")
+    # Following the phone, the page shows one mode's four themes, opened on
+    # the mode the phone is in now; the Dark | Light switch shows the other
+    # four. Eight tiles with two ticks read as "which one is on?".
+    adb("shell", "cmd", "uimode", "night", "no")
+    time.sleep(1.5)
     tap("Appearance")
-    shot(folder, "07-appearance", "Follow the phone", "Midnight Purple", "Soft Lavender")
+    shot(folder, "07-appearance", "Follow the phone", "Soft Lavender", "The theme for when the phone is light.")
+    check("following a light phone, the page shows the light themes and not the dark",
+          not screen_says("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
+    tap("Dark", exact=True)
+    check("the switch shows the dark themes instead",
+          not screen_says("Midnight Purple", "Warm Charcoal", "The theme for when the phone is dark.")
+          and screen_says("Soft Lavender") == ["Soft Lavender"])
+    tap("Forest Green", wait=1.5)
+    settings = read_file("settings.json") or {}
+    check("a dark tile, following, is the dark mode's theme",
+          settings.get("phone_theme_dark") == "dark_forest" and settings.get("theme") != "dark_forest")
+    shot(folder, "07b-appearance-dark-side", "Forest Green", "Light")
     tap("Follow the phone", wait=1.0)
     settings = read_file("settings.json") or {}
     check("turning Follow the phone off is saved", settings.get("phone_theme_follows_phone") is False)
+    check("not following, all eight show again, the switch gone",
+          not screen_says("Midnight Purple", "Soft Lavender")
+          and screen_says("The theme for when") == ["The theme for when"])
     tap("Ocean Blue", wait=1.5)
     settings = read_file("settings.json") or {}
     check("a theme picked with following off is the desktop's own key", settings.get("theme") == "dark_ocean")

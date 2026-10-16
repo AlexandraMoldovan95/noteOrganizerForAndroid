@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -46,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -362,12 +366,20 @@ private fun NamePage(state: AppState) {
  * desktop does not have: following the phone's dark mode. When it follows,
  * a dark tile picks the theme for dark mode and a light one the theme for
  * light; when it does not, any tile is the theme.
+ *
+ * Following, the page shows one mode's four at a time, under a Dark | Light
+ * switch that opens on the mode the phone is in now: eight tiles with two
+ * ticks read as "which one is on?", and the four the phone is not wearing
+ * are a choice for later, one tap away. Not following, all eight, as the
+ * desktop shows them.
  */
 @Composable
 private fun AppearancePage(state: AppState) {
     val palette = LocalPalette.current
     val raw = state.settings
     val follows = Settings.followsPhone(raw)
+    val phoneDark = isSystemInDarkTheme()
+    var showingDark by remember(phoneDark) { mutableStateOf(phoneDark) }
     PageColumn {
         // The whole row answers a tap, not only the switch: a thumb lands
         // on the words as often as on the control.
@@ -384,8 +396,18 @@ private fun AppearancePage(state: AppState) {
             }
             Switch(checked = follows, onCheckedChange = { state.putSetting(Settings.PHONE_FOLLOWS_PHONE, it) })
         }
-        for ((label, names) in listOf(R.string.themes_dark to Themes.DARK, R.string.themes_light to Themes.LIGHT)) {
-            SectionLabel(stringResource(label))
+        val dark = R.string.themes_dark to Themes.DARK
+        val light = R.string.themes_light to Themes.LIGHT
+        val groups = if (!follows) listOf(dark, light) else listOf(if (showingDark) dark else light)
+        if (follows) {
+            ModeSwitch(showingDark) { showingDark = it }
+            Text(
+                stringResource(if (showingDark) R.string.themes_for_dark else R.string.themes_for_light),
+                color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+            )
+        }
+        for ((label, names) in groups) {
+            if (!follows) SectionLabel(stringResource(label))
             for (name in names) {
                 val chosen = if (follows) {
                     name == Settings.darkTheme(raw) || name == Settings.lightTheme(raw)
@@ -399,6 +421,30 @@ private fun AppearancePage(state: AppState) {
                         else -> state.putSetting(Settings.PHONE_LIGHT_THEME, name)
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Dark | Light: which mode's themes the page is showing, not which is on. */
+@Composable
+private fun ModeSwitch(dark: Boolean, onPick: (Boolean) -> Unit) {
+    val palette = LocalPalette.current
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        Modifier.fillMaxWidth().height(40.dp).clip(shape).border(1.dp, palette.hairline, shape)
+            .background(palette.inset).selectableGroup(),
+    ) {
+        for ((isDark, label) in listOf(true to R.string.themes_dark, false to R.string.themes_light)) {
+            val on = isDark == dark
+            Box(
+                Modifier.weight(1f).fillMaxHeight().clip(shape)
+                    .background(if (on) palette.accent else palette.inset)
+                    .selectable(selected = on, role = Role.Tab, onClick = { onPick(isDark) }),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(stringResource(label), color = if (on) palette.onAccent else palette.text, fontSize = 15.sp,
+                     fontWeight = if (on) FontWeight.Medium else FontWeight.Normal)
             }
         }
     }
