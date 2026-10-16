@@ -443,8 +443,14 @@ object Exporting {
 
     private val NUMBER_MARKER = Regex("^\\p{Nd}+\\. ")
 
-    /** `note_to_html`: a note as a fragment other programs read. */
-    fun noteToHtml(text: String, formatting: Any? = null, paragraphs: Any? = null): String {
+    /**
+     * `note_to_html`: a note as a fragment other programs read.
+     *
+     * [inlineTables] is for the clipboard: a copied fragment travels without
+     * the file's stylesheet, and Word shows a bare table with no borders at
+     * all, so each table and cell carries its own.
+     */
+    fun noteToHtml(text: String, formatting: Any? = null, paragraphs: Any? = null, inlineTables: Boolean = false): String {
         val lineTexts = text.split("\n")
         val lines = lineTexts.map { codePoints(it) }
         val lineSpans = spansByLine(normalizeFormatting(formatting), lines)
@@ -534,9 +540,11 @@ object Exporting {
                 out.add("<li>${lineHtml(body, spans, bodyOffset)}</li>")
             } else if (row != null) {
                 if (!inTable) {
-                    out.add(when (entry?.align) {
-                        "center" -> "<table align=\"center\" style=\"margin:0.5em auto;\">"
-                        "right" -> "<table align=\"right\" style=\"float:none; margin:0.5em 0 0.5em auto;\">"
+                    val base = if (inlineTables) "border-collapse:collapse;" else ""
+                    out.add(when {
+                        entry?.align == "center" -> "<table align=\"center\" style=\"${base}margin:0.5em auto;\">"
+                        entry?.align == "right" -> "<table align=\"right\" style=\"float:none; ${base}margin:0.5em 0 0.5em auto;\">"
+                        base.isNotEmpty() -> "<table style=\"$base\">"
                         else -> "<table>"
                     })
                     inTable = true
@@ -579,6 +587,7 @@ object Exporting {
                         spans.firstOrNull { it.style == "highlight" && it.start <= cellA && it.end >= cellB }
                             ?.let { styles.append("background-color:${it.value};") }
                     }
+                    if (inlineTables) styles.append("border:1px solid #999;padding:4px 10px;")
                     if (styles.isNotEmpty()) attr += " style=\"$styles\""
                     val tag = if (headerRow) "th" else "td"
                     val inner = if (state != null) {

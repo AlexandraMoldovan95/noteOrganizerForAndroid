@@ -95,6 +95,13 @@ class AppState(val dir: File, private val scope: CoroutineScope) {
     var findQuery by mutableStateOf("")
     var findMatchCase by mutableStateOf(false)
 
+    /**
+     * The last copy made from a note, kept while the app is open: pasted
+     * back into a note, it brings its sizes and faces too, which the HTML
+     * on the clipboard cannot carry -- the desktop's `_formatted_clip`.
+     */
+    var ownCopy: Pasting.OwnCopy? = null
+
     /** A share code arriving from another app, waiting for the import panel. */
     var incomingCode by mutableStateOf<String?>(null)
 

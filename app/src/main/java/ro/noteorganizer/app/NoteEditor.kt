@@ -7,6 +7,19 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import android.content.ClipData
+import android.content.ClipDescription
+import android.os.SystemClock
+import androidx.compose.foundation.text.contextmenu.builder.item
+import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
@@ -532,6 +545,91 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // The field's own copy of its text is stale now: it takes the body's.
         focused = null
         changed()
+    }
+
+    // ---- Copy and paste, formatting kept ----
+
+    /** A selection in the body, with the text it was made in: what a copy or a cut takes. */
+    private class Picked(val from: Int, val to: Int, val body: String, val spans: List<FormatSpan>,
+                         val props: Map<Int, Paragraphs.Props>)
+
+    private var picked: Picked? = null
+
+    /** The field's selection, noted for a copy or a cut: a cut takes the words out before it copies them. */
+    fun pick(segment: Editing.Segment, value: TextFieldValue) {
+        if (value.selection.collapsed) return
+        val (from, to) = Editing.bodyRange(segment, value.selection.min, value.selection.max)
+        picked = Picked(from, to, body, spans, props)
+    }
+
+    /**
+     * A copy or a cut of [plain] from a field: when it is the selection
+     * noted, the HTML to put beside it on the clipboard -- so it arrives
+     * elsewhere formatted -- and the copy kept for a paste back into a
+     * note. Null lets the plain copy stand: a day's own text is plain.
+     */
+    fun copyOut(plain: String): String? {
+        if (day != null) return null
+        val p = picked ?: return null
+        val copy = Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to) ?: return null
+        if (copy.text != plain) return null
+        state.ownCopy = copy
+        return copy.html
+    }
+
+    /**
+     * A paste the field was about to make, made here instead: HTML with its
+     * formatting, or table rows on lines of their own. False lets the
+     * field's own plain paste stand -- ordinary text, or a day's own text,
+     * which is plain.
+     */
+    fun paste(segment: Editing.Segment, old: TextFieldValue, html: String?, plain: String): Boolean {
+        if (day != null) return false
+        val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
+        val read = if (html.isNullOrEmpty()) null else Pasting.fromHtml(html, state.ownCopy)
+        val done = if (read != null) {
+            Pasting.insert(body, spans, props, from, to, read.text, read.formatting, read.paragraphs)
+        } else {
+            val rows = Pasting.pipeRows(plain) ?: return false
+            Pasting.insert(body, spans, props, from, to, rows)
+        }
+        land(done)
+        if (read?.textCut == true) {
+            state.say("Only the first ${"%,d".format(Locale.ENGLISH, Pasting.MAX_PASTE_CHARS)} characters of what you " +
+                "copied were pasted; the rest was left out. To paste all of it, undo, then choose " +
+                "Paste as plain text: that pastes everything, without its formatting.")
+        } else if (read?.stylesCut == true) {
+            state.say("All of the text was pasted, but its formatting stops after the first " +
+                "${"%,d".format(Locale.ENGLISH, Pasting.MAX_PASTE_SPANS)} styled pieces.")
+        }
+        return true
+    }
+
+    /**
+     * "Paste as plain text": the words alone -- a PDF's column rejoined,
+     * markers that would make a list taken off -- as the desktop's
+     * Ctrl+Shift+V pastes them.
+     */
+    fun pastePlain(segment: Editing.Segment, old: TextFieldValue, raw: String) {
+        val text = Pasting.plainText(raw.replace("\r\n", "\n").replace("\r", "\n"))
+        if (text.isEmpty() && old.selection.collapsed) return
+        val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
+        land(Pasting.insert(body, spans, if (day != null) emptyMap() else props, from, to, text))
+    }
+
+    /** A paste written: the note, one step of Undo, and the cursor after what came in. */
+    private fun land(done: Pasting.Inserted) {
+        calcMark = Calculator.follow(body, done.body, calcMark)
+        spans = if (day != null) emptyList() else done.spans
+        props = if (day != null) emptyMap() else done.props
+        body = done.body
+        caret = done.caret
+        changed()
+        val chars = done.body.codePoints().toArray()
+        val line = (0 until done.caret.coerceAtMost(chars.size)).count { chars[it] == '\n'.code }
+        // Rows pasted become a table, and the field the cursor is in may be another one now.
+        val index = Editing.segments(body).indexOfFirst { !it.table && line in it.firstLine..it.lastLine }
+        if (index >= 0) ask(index, fieldValue(index, done.caret)) else focused = null
     }
 }
 
@@ -1099,14 +1197,25 @@ private fun ProseField(
             if (drawn != null && at.start < drawn.layoutInput.text.length) drawn.getBoundingBox(at.start) else null
         )
     }
+    // The field's copies and pastes go through the note's clipboard, which
+    // adds the HTML to a copy and makes a paste with its formatting.
+    val context = LocalContext.current
+    val platformClipboard = LocalClipboard.current
+    val clipboard = remember(platformClipboard, model) { NoteClipboard(platformClipboard, model, context) }
+    val shownNow by rememberUpdatedState(value)
+    val plainLabel = stringResource(R.string.paste_plain)
+    CompositionLocalProvider(LocalClipboard provides clipboard) {
     BasicTextField(
         value = value,
         onValueChange = { next ->
+            val pasted = clipboard.pasteOf(value, next)
+            if (pasted != null && model.paste(segment, value, pasted.html, pasted.text)) return@BasicTextField
             // A keystroke that meant a list operation comes back rewritten.
             val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null) ?: next
             model.focus = index
             model.focused = shown
             model.caret = caretIn(segment, shown)
+            model.pick(segment, shown)
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
@@ -1122,6 +1231,22 @@ private fun ProseField(
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
             .focusRequester(focuser)
             .bringIntoViewRequester(requester)
+            // The desktop's Ctrl+Shift+V, for a keyboard: the words alone.
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed || !event.isShiftPressed ||
+                    event.key != Key.V) return@onPreviewKeyEvent false
+                clipboard.plainNow()?.let { model.pastePlain(segment, shownNow, it) }
+                true
+            }
+            // ...and on the selection menu, when what is on the clipboard has formatting to leave behind.
+            .appendTextContextMenuComponents {
+                if (clipboard.hasFormatting()) {
+                    item(PASTE_PLAIN, plainLabel) {
+                        clipboard.plainNow()?.let { model.pastePlain(segment, shownNow, it) }
+                        close()
+                    }
+                }
+            }
             .onFocusChanged { focus ->
                 if (focus.isFocused) {
                     model.focus = index
@@ -1138,6 +1263,66 @@ private fun ProseField(
             field()
         },
     )
+    }
+}
+
+/** The selection menu's own item, told apart from the field's. */
+private val PASTE_PLAIN = Any()
+
+/**
+ * The phone's clipboard as a note's field sees it. A copy or a cut the
+ * field makes gets its HTML beside the words; a paste the field makes is
+ * recognised when its text arrives -- the clipboard read a moment before,
+ * that very text put in place of the selection -- so the editor can make
+ * it instead, with the formatting the clipboard's HTML carries.
+ *
+ * Done here, under the field, rather than by replacing the menu's Paste:
+ * the menu's own items keep their place and their words, and a keyboard's
+ * Ctrl+V comes the same way.
+ */
+private class NoteClipboard(private val inner: Clipboard, private val model: EditorModel,
+                            private val context: android.content.Context) : Clipboard {
+    private var seen: ClipData? = null
+    private var seenAt = 0L
+
+    override val nativeClipboard: android.content.ClipboardManager get() = inner.nativeClipboard
+
+    override suspend fun getClipEntry(): ClipEntry? {
+        val entry = inner.getClipEntry()
+        seen = entry?.clipData
+        seenAt = SystemClock.uptimeMillis()
+        return entry
+    }
+
+    override suspend fun setClipEntry(clipEntry: ClipEntry?) {
+        val plain = clipEntry?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+        val html = plain?.let { model.copyOut(it) }
+        inner.setClipEntry(if (plain != null && html != null) ClipEntry(ClipData.newHtmlText("Note", plain, html)) else clipEntry)
+    }
+
+    class Pasted(val text: String, val html: String?)
+
+    /** What [next] pasted over [old], if it is the paste of what the clipboard just gave. */
+    fun pasteOf(old: TextFieldValue, next: TextFieldValue): Pasted? {
+        val clip = seen ?: return null
+        if (SystemClock.uptimeMillis() - seenAt > 2000) return null
+        val item = clip.takeIf { it.itemCount > 0 }?.getItemAt(0) ?: return null
+        val text = item.text?.toString() ?: return null
+        val lo = old.selection.min
+        val hi = old.selection.max
+        val expected = old.text.substring(0, lo) + text + old.text.substring(hi)
+        if (next.text != expected) return null
+        seen = null
+        return Pasted(text, item.htmlText)
+    }
+
+    /** The clipboard's words, as text, now. */
+    fun plainNow(): String? =
+        nativeClipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
+
+    /** Whether what is on the clipboard carries formatting -- read from its description, not its content. */
+    fun hasFormatting(): Boolean =
+        nativeClipboard.primaryClipDescription?.hasMimeType(ClipDescription.MIMETYPE_TEXT_HTML) == true
 }
 
 /** One step of indent, as drawn -- the desktop's margin step, near enough. */

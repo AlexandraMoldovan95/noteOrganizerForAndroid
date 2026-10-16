@@ -242,6 +242,7 @@ def main():
     cell_menu(folder)
     table_extras(folder)
     undoing(folder)
+    pasting(folder)
     wide(folder)
     changes(folder)
 
@@ -1614,6 +1615,119 @@ def undoing(folder):
     # emulator's on-screen one takes the keys first and hands the text
     # field its own small undo, so what a tablet with a keyboard would do
     # cannot be seen here.
+    back_to("Search notes")
+
+
+def pasting(folder):
+    """Copy and paste with the formatting: a note's words copied from the
+    selection menu, pasted into another note with all they carried -- a
+    size too, which only the app's own copy brings back; then, the app
+    started again so that copy is forgotten, the same clipboard pasted as
+    the HTML it is, the size left behind; then "Paste as plain text", the
+    markers left behind too. Each read back from the file."""
+    print("\n-- copy and paste, formatting kept --")
+    source = "Big bold words\n• milk\n• eggs"
+    if not seed_inside([
+        {"id": 1, "uid": "pa-source", "title": "Source", "body": source,
+         "formatting": [{"start": 0, "end": 3, "style": "font_size", "value": 24},
+                        {"start": 4, "end": 8, "style": "bold"}],
+         "paragraphs": [{"line": 1, "kind": "bullet"}, {"line": 2, "kind": "bullet"}],
+         "created": "2026-10-16 09:00:00", "updated": "2026-10-16 09:00:00"},
+        {"id": 2, "uid": "pa-own", "title": "Own copy", "body": "Start here",
+         "created": "2026-10-16 09:00:01", "updated": "2026-10-16 09:00:01"},
+        {"id": 3, "uid": "pa-html", "title": "From HTML", "body": "Start here",
+         "created": "2026-10-16 09:00:02", "updated": "2026-10-16 09:00:02"},
+        {"id": 4, "uid": "pa-plain", "title": "Plain", "body": "Start here",
+         "created": "2026-10-16 09:00:03", "updated": "2026-10-16 09:00:03"},
+    ], {"welcome_offered": True}, "Source"):
+        return
+
+    def note(uid):
+        time.sleep(1.5)                      # the autosave
+        return note_by_uid(uid) or {}
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    def at_the_end(words):
+        """The cursor at the end of a field's words: a tap in it, then End.
+        Found by a part of its text: a field of several lines is read with
+        an invisible mark between them, never as the words alone."""
+        tap(words, wait=0.8)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        time.sleep(0.4)
+
+    # The keys a keyboard sends, not the selection menu's buttons: the menu
+    # is a floating bar the phone's own UI tree leaves out, so no step can
+    # find its words to press them. Ctrl+C and Ctrl+V go through the very
+    # copy and paste the menu's Copy and Paste call. No Back after opening
+    # a note, either: with no keyboard up, Back leaves the note.
+    expected = "Start here Big bold words\n• milk\n• eggs"
+    open_note("Source")
+    at_the_end("Big bold words")
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+
+    open_note("Own copy")
+    at_the_end("Start here")
+    type_text(" ")
+    keys("CTRL_LEFT", "V")
+    own = note("pa-own")
+    check("the copy pasted after the words, the list on lines of its own",
+          own.get("body") == expected, repr(own.get("body")))
+    check("the app's own copy brings its size back, and its bold",
+          {"start": 11, "end": 14, "style": "font_size", "value": 24} in (own.get("formatting") or [])
+          and {"start": 15, "end": 19, "style": "bold"} in (own.get("formatting") or []), repr(own.get("formatting")))
+    check("its lines are list lines", [p.get("kind") for p in own.get("paragraphs") or []] == ["bullet", "bullet"],
+          repr(own.get("paragraphs")))
+    back()                                   # the keyboard down
+    shot(folder, "54-pasted", "milk", "eggs")
+    back_to("Search notes")
+
+    # Started again: the copy the app remembered is gone, the clipboard is not.
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    open_note("From HTML")
+    at_the_end("Start here")
+    type_text(" ")
+    keys("CTRL_LEFT", "V")
+    read = note("pa-html")
+    check("pasted as the HTML it is: the words and the list as they were",
+          read.get("body") == expected, repr(read.get("body")))
+    check("the bold read from the HTML, the size left behind as a web page's is",
+          read.get("formatting") == [{"start": 15, "end": 19, "style": "bold"}], repr(read.get("formatting")))
+    back_to("Search notes")
+
+    open_note("Plain")
+    # The menu, with formatting on the clipboard: photographed for the eye,
+    # since its words cannot be read here (see above).
+    long_press("Start here")
+    shot(folder, "55-paste-plain-menu", "Plain")
+    back(wait=0.8)
+    at_the_end("Start here")
+    type_text(" ")
+    keys("CTRL_LEFT", "SHIFT_LEFT", "V")
+    plain = note("pa-plain")
+    check("Ctrl+Shift+V, the plain paste: the words alone, the markers left behind",
+          plain.get("body") == "Start here Big bold words\nmilk\neggs" and not plain.get("formatting"),
+          repr((plain.get("body"), plain.get("formatting"))))
+    back_to("Search notes")
+
+    # A cut is a copy too: everything cut, then pasted back whole. Last,
+    # because it puts these words on the clipboard in place of the others.
+    open_note("Own copy")
+    at_the_end("Start here")
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "X")
+    check("a cut takes the words out", note("pa-own").get("body") == "", repr(note("pa-own").get("body")))
+    keys("CTRL_LEFT", "V")
+    back_in = note("pa-own")
+    check("and pasted back they come with their size, their bold and their list",
+          back_in.get("body") == expected
+          and {"start": 11, "end": 14, "style": "font_size", "value": 24} in (back_in.get("formatting") or [])
+          and len(back_in.get("paragraphs") or []) == 2, repr(back_in))
     back_to("Search notes")
 
 

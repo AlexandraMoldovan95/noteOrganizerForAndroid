@@ -300,6 +300,7 @@
     <string name="import_code_explain">Paste a code someone sent you. It holds a note\'s words, never its files, and is not encrypted: anyone with the code can read it.</string>
     <string name="import_code_hint">A code starts with %1$s</string>
     <string name="paste">Paste</string>
+    <string name="paste_plain">Paste as plain text</string>
     <string name="import_action">Import</string>
 
     <!-- The import's questions: the desktop's own words -->
