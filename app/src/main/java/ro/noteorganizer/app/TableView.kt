@@ -23,7 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,8 +46,30 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
  * width is not a table, it is a smear.
  */
 
-/** One character of the monospaced face at the size used below. */
-private val CHAR_WIDTH = 8.2.dp
+/** The size the cells' text is drawn at -- in sp, so it grows with the phone's text size. */
+private val CELL_TEXT = 13.sp
+
+/**
+ * One character of the cells' face, MEASURED at the size it is drawn.
+ * It was a number in dp, fixed: right while the phone's text size was
+ * 100%, and short of the letters at 115%, which grow in sp while dp do
+ * not -- every cell then wrapped its last letter onto a second line
+ * ("g / g"), found on a real phone. Measured, the width and the letters
+ * cannot disagree. Bold too, for the header row, and the wider of the two.
+ */
+@Composable
+private fun charWidth(): androidx.compose.ui.unit.Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(measurer, density) {
+        val sample = "0".repeat(20)
+        val widest = listOf(FontWeight.Normal, FontWeight.Bold).maxOf { weight ->
+            measurer.measure(sample, TextStyle(fontSize = CELL_TEXT, fontFamily = FontFamily.Monospace,
+                                               fontWeight = weight), softWrap = false).size.width
+        }
+        with(density) { (widest / 20f).toDp() }
+    }
+}
 
 /**
  * Past this many characters a column stops growing and its text wraps.
@@ -53,8 +78,12 @@ private val CHAR_WIDTH = 8.2.dp
  */
 private const val MAX_COLUMN_CHARS = 26
 
-/** What a cell adds to its text's width: its padding, and the grid line inside it. */
-private val CELL_EXTRA = 12.dp
+/**
+ * What a cell adds to its text's width: its padding (12), the grid line
+ * inside it (1), and one more so a measured fraction of a pixel never
+ * tips the last letter onto a second line.
+ */
+private val CELL_EXTRA = 14.dp
 
 /** Where a tapped cell sits, in the table's own row/column numbering. */
 data class CellAt(val row: Int, val column: Int)
@@ -85,8 +114,9 @@ fun TableView(
     // is the column's width exactly, as the desktop draws it: wider than
     // what it holds, or narrower, its words cut short with "…". A plain
     // "---" sets none, and the column takes what it holds, up to the cap.
+    val unit = charWidth()
     val widths = table.charWidths.mapIndexed { i, chars ->
-        CHAR_WIDTH * (table.columns.getOrNull(i)?.width ?: minOf(chars, MAX_COLUMN_CHARS)).coerceAtLeast(1)
+        unit * (table.columns.getOrNull(i)?.width ?: minOf(chars, MAX_COLUMN_CHARS)).coerceAtLeast(1)
     }
 
     // The theme's own colours: the grid lines are the hairline showing
@@ -119,7 +149,7 @@ fun TableView(
                         // Swallowed from above rather than from the left:
                         // the content lives at the anchor, so this position
                         // is drawn empty to keep the columns lined up.
-                        CellBox(null, widths.getOrElse(c) { CHAR_WIDTH }, null, isHeader)
+                        CellBox(null, widths.getOrElse(c) { unit }, null, isHeader)
                         c += 1
                         continue
                     }
@@ -134,7 +164,7 @@ fun TableView(
                     var counted = 0
                     for (i in c until last) {
                         if (table.columns.getOrNull(i)?.hidden == true) continue
-                        span += widths.getOrElse(i) { CHAR_WIDTH }
+                        span += widths.getOrElse(i) { unit }
                         counted += 1
                     }
                     if (counted > 1) span += CELL_EXTRA * (counted - 1)
@@ -209,7 +239,7 @@ private fun CellBox(
                 null -> cell.lines.joinToString("\n")
             },
             color = palette.text,
-            fontSize = 13.sp,
+            fontSize = CELL_TEXT,
             fontFamily = FontFamily.Monospace,
             fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
             textAlign = when (align) {

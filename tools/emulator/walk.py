@@ -256,6 +256,7 @@ def main():
     lists(folder)
     new_table(folder)
     cell_menu(folder)
+    large_letters_table(folder)
     table_extras(folder)
     undoing(folder)
     pasting(folder)
@@ -834,6 +835,34 @@ def previews(folder):
     check("the note's row on the calendar says its table too", bool(row),
           repr([t for t, d, _ in nodes() if t][:20]))
     tap("Notes", exact=True, wait=1.0)
+
+
+def large_letters_table(folder):
+    """A table drawn at the phone's larger text sizes keeps each word on
+    one line: a cell's width was a fixed number while its letters grew,
+    and at 115% -- a real phone's setting -- every short word lost its last
+    letter to a second line. A six-letter cell must stand as tall as a
+    one-letter one."""
+    print("\n-- a table at larger text sizes --")
+    body = "\n".join(["| x | socket |", "| --- | --- |", "| a | bridge |"])
+    if not seed_inside([{"id": 1, "uid": "ll-table", "title": "Sizes", "body": body,
+                         "created": "2026-10-16 09:00:00", "updated": "2026-10-16 09:00:00"}],
+                       {"welcome_offered": True}, "Sizes"):
+        return
+    for scale in ("1.15", "1.3"):
+        adb("shell", "settings", "put", "system", "font_scale", scale)
+        time.sleep(2.0)
+        open_note("Sizes")
+        short = bounds("x") + bounds("a")
+        long = bounds("socket") + bounds("bridge")
+        heights = [b[3] - b[1] for b in short + long]
+        check("at %d%% every cell is one line tall" % round(float(scale) * 100),
+              len(heights) == 4 and max(heights) - min(heights) <= 4, repr(short + long))
+        if scale == "1.15":
+            shot(folder, "58-table-larger-letters", "socket", "bridge")
+        back_to("Search notes")
+    adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    time.sleep(1.5)
 
 
 def changes(folder):
