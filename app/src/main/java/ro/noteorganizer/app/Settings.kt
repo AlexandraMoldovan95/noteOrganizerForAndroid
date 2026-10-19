@@ -42,6 +42,14 @@ object Settings {
     /** The light and the dark theme it follows between. */
     const val PHONE_LIGHT_THEME = "phone_theme_light"
     const val PHONE_DARK_THEME = "phone_theme_dark"
+    /**
+     * Set when settings.json could not be read: the Trash's window chosen
+     * before is lost with it, and nothing is purged until one is chosen
+     * again ([purgeWindow]). Without it, the fresh file written next would
+     * read as "never chosen", and the next start would purge at 30 days
+     * what the person had kept for 90.
+     */
+    const val PHONE_TRASH_WINDOW_UNKNOWN = "phone_trash_window_unknown"
 
     /** The desktop's ceilings on what a category map may hold. */
     const val MAX_CATEGORIES = 200
@@ -154,6 +162,24 @@ object Settings {
             return TRASH_RETENTION_DAYS
         }
         return days.toLong().coerceIn(1, 365).toInt()
+    }
+
+    /**
+     * The window the start-up purge may go by, or null when it is not known
+     * -- and then nothing is purged: a note kept too long can still be
+     * deleted, one deleted too soon cannot come back, which the desktop's
+     * own purge says of a missing date. Not known when the file could not
+     * be read ([Load.problem], and [PHONE_TRASH_WINDOW_UNKNOWN] at the
+     * starts after it), or when the value is not a whole number from 1 to
+     * 365: no app writes "forever", 7.5 or 0, and a clamp would read 0 as
+     * one day. Never chosen, it is the default, as the desktop reads it.
+     */
+    fun purgeWindow(load: Load): Int? {
+        if (load.problem != null || load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) == true) return null
+        if (!load.raw.has(RETENTION_DAYS)) return TRASH_RETENTION_DAYS
+        val days = load.raw.opt(RETENTION_DAYS)
+        if (days !is Number || days is Double || days is Float || days is java.math.BigDecimal) return null
+        return days.toLong().takeIf { it in 1..365 }?.toInt()
     }
 
     /**

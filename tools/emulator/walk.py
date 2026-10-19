@@ -222,9 +222,16 @@ def fail(what):
     failures.append(what)
 
 
-def shot(folder, name, *must_say):
-    """A photograph of the emulator's screen -- only when it says what it should."""
+def shot(folder, name, *must_say, patience=6.0):
+    """A photograph of the emulator's screen -- only when it says what it
+    should, waited for a moment rather than read once: the first start
+    after an install drew the list after the file was already written,
+    and a photograph taken on the file's word found an empty screen."""
     missing = screen_says(*must_say)
+    deadline = time.time() + patience
+    while missing and time.time() < deadline:
+        time.sleep(0.5)
+        missing = screen_says(*must_say)
     if missing:
         fail("photo %s: the screen does not say %s" % (name, missing))
         return
@@ -278,6 +285,7 @@ def main():
     finding(folder)
     exporting(folder)
     sharing(folder)
+    sheets_over_buttons(folder)
     styles_through_an_edit(folder)
     templates(folder)
     sizes_and_faces(folder)
@@ -580,6 +588,25 @@ def seeded(folder):
     tap("Settings", exact=True)
     tap("Trash")
     shot(folder, "16-trash", "Kept for", "days left")
+    # A backup at hand on the Trash page: the phone's own "save as", which
+    # offers Google Drive where Drive is signed in. Cancelled, nothing saved.
+    if tap("Save a backup — the Trash too", wait=3.0):
+        picker = foreground()
+        saving = find("SAVE", exact=True) is not None or find("Save", exact=True) is not None
+        check("the Trash page's backup opens the phone's own save as", picker != PACKAGE and saving,
+              "%s, a Save button: %s" % (picker, saving))
+        # Back, then the app waited for before another: the activity on top
+        # was read as the picker's a moment after it had gone, and a second
+        # Back left the Trash page.
+        for _ in range(2):
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            deadline = time.time() + 5.0
+            while foreground() != PACKAGE and time.time() < deadline:
+                time.sleep(0.5)
+            if foreground() == PACKAGE:
+                break
+        time.sleep(1.0)
+        check("...and cancelled, the Trash page is back", not screen_says("Kept for"), str(screen_says("Kept for")))
     trash = read_file("trash.json") or []
     if not trash:
         fail("a note restored from the Trash page: the delete before it put nothing in the Trash")
@@ -606,7 +633,7 @@ def seeded(folder):
     earlier = backups()
     back_to("Your name")
     tap("Backup")
-    tap("Export a backup", wait=3.0)
+    tap("Save a backup", exact=True, wait=3.0)
     if find("SAVE") is not None or find("Save") is not None:
         tap("SAVE", exact=True, wait=3.0) if find("SAVE") else tap("Save", exact=True, wait=3.0)
     settings = read_file("settings.json") or {}
@@ -626,7 +653,7 @@ def seeded(folder):
     # mean anything: an import that never happened changes nothing too,
     # and this check once passed over exactly that.
     before = read_file("notes_data.json")
-    back_to("Backup", "Export a backup")
+    back_to("Backup", "Save a backup")
     tap("Import a backup", wait=3.0)
     if mine and find(mine, exact=True) is None:
         tap("Downloads", wait=2.0) if find("Downloads") else None
@@ -2127,6 +2154,85 @@ def sharing(folder):
     check("Share code opens the phone's share sheet", sheet != PACKAGE, sheet)
     back_in()
     back_to("Search notes")
+
+
+def bar_frame(kind):
+    """Where Android draws a system bar, top and bottom, from its own
+    account of the window: "statusBars" or "navigationBars"."""
+    match = re.search(r"type=%s frame=\[\d+,(\d+)\]\[\d+,(\d+)\]" % kind, adb("shell", "dumpsys", "window"))
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def bars_drawn():
+    """Whether the bar of buttons is dark, and the clock light: read from
+    the screen's raw pixels, the bars being Android's and in no UI tree.
+    The buttons' bar is dark when most of it is; the clock is light when
+    some of the status bar is near white -- the battery's green is not."""
+    raw = adb("exec-out", "screencap", binary=True)
+    w, h = struct.unpack_from("<II", raw, 0)
+    head = len(raw) - w * h * 4
+    buttons, status = bar_frame("navigationBars"), bar_frame("statusBars")
+    if head < 12 or not buttons or not status:
+        return None, None
+
+    def light(x, y):
+        at = head + (y * w + x) * 4
+        r, g, b = raw[at], raw[at + 1], raw[at + 2]
+        return 0.299 * r + 0.587 * g + 0.114 * b
+
+    seen = [light(x, y) for y in range(buttons[0] + 2, buttons[1] - 2, 4) for x in range(0, w, 8)]
+    dark = sum(1 for v in seen if v < 90) > 0.6 * len(seen)
+    clock = any(light(x, y) > 200 for y in range(status[0], status[1], 2) for x in range(0, w // 2, 2))
+    return dark, clock
+
+
+def sheets_over_buttons(folder):
+    """A sheet over three-button navigation, the app dark on a light phone:
+    the owner's phone. A sheet is a window of its own, and Android drew its
+    bars for the phone's light, not the app's dark -- a white bar of buttons
+    over the sheet, the clock dark on dark. And a sheet taller than half
+    the screen opened half-way: Share's last card lay under the buttons."""
+    print("\n-- a sheet over three buttons --")
+    adb("shell", "cmd", "overlay", "enable", "com.android.internal.systemui.navbar.threebutton")
+    adb("shell", "cmd", "uimode", "night", "no")
+    time.sleep(3)
+    try:
+        body = "Bring:\n| Item | Qty |\n| --- | --- |\n| socks | 3 |"
+        if not seed_inside([{"id": 1, "uid": "sb-trip", "title": "Trip", "body": body,
+                             "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                           {"welcome_offered": True, "theme": "dark", "phone_theme_follows_phone": False}, "Trip"):
+            return
+        buttons = bar_frame("navigationBars")
+        check("the emulator shows three buttons, as the owner's phone does",
+              buttons is not None and buttons[1] - buttons[0] > 100, str(buttons))
+        open_note("Trip")
+        tap("Share", exact=True, wait=2.0)
+        last = bounds(OPENS_NEXT)
+        check("Share's sheet opens whole, its last line above the buttons",
+              buttons is not None and len(last) == 1 and last[0][3] <= buttons[0] and last[0][3] > last[0][1],
+              "line %s, buttons from %s" % (last, buttons))
+        dark, clock = bars_drawn()
+        check("over the sheet, the bar of buttons is dark, as the app is", dark is True, str(dark))
+        check("over the sheet, the clock is light, as the app is dark", clock is True, str(clock))
+        shot(folder, "61-sheet-over-buttons", "Share code")
+        back()
+        choose_cell("Trip", "socks")
+        keyboard_down()
+        tap("More", exact=True, wait=2.0)
+        last = bounds("Delete the table")
+        check("the table's More opens whole too, its last entry above the buttons",
+              buttons is not None and len(last) == 1 and last[0][3] <= buttons[0] and last[0][3] > last[0][1],
+              "entry %s, buttons from %s" % (last, buttons))
+        dark, clock = bars_drawn()
+        check("...and its bars are drawn for the app's dark", dark is True and clock is True, "%s %s" % (dark, clock))
+        back_to("Search notes")
+    finally:
+        adb("shell", "cmd", "overlay", "disable", "com.android.internal.systemui.navbar.threebutton")
+        time.sleep(2)
+
+
+OPENS_NEXT = ("Your phone's share sheet opens next: WhatsApp, mail, Teams and the rest. "
+              "Nothing is sent until you send it there.")
 
 
 def copy_after_styling(folder):

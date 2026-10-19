@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,7 +46,6 @@ import java.io.IOException
  * apps put at its top. It replaced "Send by email" and the 🔗: one door
  * out instead of two, the address typed where the mail is written.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -61,7 +58,7 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
         // On the app's own scope: the sheet is gone before the PDF is.
         state.scope.launch { handOver(context, state, noteId, format) }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDismiss) {
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),

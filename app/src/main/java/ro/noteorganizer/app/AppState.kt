@@ -204,6 +204,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         return report(Settings.put(settings, key, value))
     }
 
+    /** The Trash's window chosen: which also ends a window lost with an unreadable file. */
+    fun chooseTrashWindow(days: Int): Boolean {
+        val settings = load.settings ?: return false
+        return report(Settings.putAll(settings, mapOf(Settings.RETENTION_DAYS to days,
+                                                      Settings.PHONE_TRASH_WINDOW_UNKNOWN to null)))
+    }
+
     // ---- the notes ----
 
     /**

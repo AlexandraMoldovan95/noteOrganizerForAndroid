@@ -35,6 +35,18 @@ class AppStateTest {
     }
 
     @Test
+    fun `a Trash window chosen ends one lost with an unreadable file`() {
+        val state = state()
+        state.putSetting(Settings.PHONE_TRASH_WINDOW_UNKNOWN, true)
+        assertNull(state.load.settings?.let { Settings.purgeWindow(it) })
+        assertTrue(state.chooseTrashWindow(60))
+        val written = JSONObject(File(state.dir, "settings.json").readText())
+        assertEquals(60, written.opt(Settings.RETENTION_DAYS))
+        assertFalse("the mark is taken off", written.has(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        assertEquals(60, state.load.settings?.let { Settings.purgeWindow(it) })
+    }
+
+    @Test
     fun `the calendar's month stays within the years a date is written in, as the desktop's shift_calendar`() {
         // Past December 9999 a day's key no longer read back as a date.
         val state = state()

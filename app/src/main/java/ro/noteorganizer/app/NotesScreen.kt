@@ -37,7 +37,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -514,7 +513,7 @@ fun CategorySheet(
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPalette.current
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDismiss) {
         Text(
             stringResource(R.string.choose_category),
             color = palette.text,

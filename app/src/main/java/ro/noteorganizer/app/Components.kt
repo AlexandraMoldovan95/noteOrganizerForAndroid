@@ -8,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,6 +42,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import ro.noteorganizer.app.ui.theme.hexColor
+
+/**
+ * A sheet from the bottom, as every one in the app is drawn. The sheet is
+ * a window of its own, and Android drew its bars for the phone's light or
+ * dark, not the app's: on a light phone with the app dark, a white bar of
+ * buttons over the sheet and the clock dark on dark, seen on the owner's
+ * phone. And a sheet taller than half the screen opened half-way, the
+ * rest below the screen's edge until dragged up: Share's last card lay
+ * under the buttons there. A sheet opens whole, as tall as it needs.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val palette = LocalPalette.current
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = palette.card,
+        properties = ModalBottomSheetProperties(
+            isAppearanceLightStatusBars = !palette.isDark,
+            isAppearanceLightNavigationBars = !palette.isDark,
+        ),
+        content = content,
+    )
+}
 
 /** A small heading over a group of rows, as Settings' sections have. */
 @Composable

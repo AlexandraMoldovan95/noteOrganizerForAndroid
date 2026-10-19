@@ -30,7 +30,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -260,7 +259,7 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
 @Composable
 private fun ColourDaySheet(state: AppState, date: String, current: String, onDone: () -> Unit) {
     val palette = LocalPalette.current
-    ModalBottomSheet(onDismissRequest = onDone, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDone) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(Recurrence.showDay(LocalDate.parse(date)), color = palette.text, fontSize = 17.sp, fontWeight = FontWeight.Medium,
                  modifier = Modifier.padding(bottom = 14.dp))
@@ -279,7 +278,7 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
     // A working copy: nothing is written until Save, as on the desktop.
     val pending = remember { mutableStateListOf<String>().apply { addAll(current) } }
     val full = pending.size >= Days.MAX_MARKERS
-    ModalBottomSheet(onDismissRequest = onDone, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDone) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.cal_markers_title), color = palette.text, fontSize = 17.sp,
                  fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 14.dp))

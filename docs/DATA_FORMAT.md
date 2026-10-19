@@ -114,6 +114,16 @@ and `phone_theme_dark`. They are separate on purpose: the desktop reads
 change the theme the desktop opens in. With following off, the phone
 writes `theme`, as the desktop does.
 
+And one for the Trash: `phone_trash_window_unknown`, `true` when
+`settings.json` could not be read at a start. The window chosen before
+was lost with it, and the fresh file written after would otherwise read
+as "never chosen" — the default 30 days — so the next start would purge
+what the person had kept for 90. While it is set, and while
+`trash_retention_days` is anything but a whole number from 1 to 365,
+the start purges nothing; choosing a window in Settings → Trash removes
+it. The desktop ignores it, and still purges by its own reading
+([the story](ISSUES_LOG.md#a-trash-emptied-by-a-window-nobody-chose)).
+
 The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
 are adopted with a colour, as the desktop's `load_categories` does.

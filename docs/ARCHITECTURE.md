@@ -26,7 +26,7 @@ object, `AppState`. Below the screens sit twenty-five files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 627 tests run on a laptop in seconds,
+about Android. That split is why 633 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -92,7 +92,7 @@ import nothing from Android; the drawing is 8,700, in files that may.
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
 | `RepeatSheet.kt` | 250 | The Repeat sheet |
 | `TableView.kt` | 420 | The grid, drawn: a merge down as one cell, the chosen cell holding the field it is written in and the handles on its edges |
-| `Components.kt` | 210 | The note card, swatches, the shared dialog |
+| `Components.kt` | 250 | The note card, swatches, the shared dialog, and `AppSheet`, which every bottom sheet is: the app's light or dark for the phone's bars, opened whole |
 | `FindBar.kt` | 180 | The find bar, and matches painted |
 | `PdfPrint.kt` | 280 | The export's page printed to an A4 PDF by the system's WebView: drawn page by page on the main thread, the file written off it |
 | `ShareFlow.kt` | 180 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |

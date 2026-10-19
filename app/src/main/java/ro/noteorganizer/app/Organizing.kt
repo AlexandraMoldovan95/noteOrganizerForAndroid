@@ -688,11 +688,12 @@ object Organizing {
      * owns the purge there -- no longer holds. Files a note still uses are
      * spared, a step safer than the desktop's own startup purge.
      */
-    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, now: Date = Date()): Int {
+    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, now: Date = Date(),
+                     days: Int = load.retentionDays): Int {
         val trash = load.trashRaw ?: return 0
         val trashFile = load.trashFile ?: return 0
         val all = entriesOf(trash)
-        val gone = all.filter { isPast(it, load.retentionDays, now) }
+        val gone = all.filter { isPast(it, days, now) }
         if (gone.isEmpty()) return 0
         val kept = all.filter { it !in gone }
         val candidate = JSONArray().apply { kept.forEach { put(it) } }

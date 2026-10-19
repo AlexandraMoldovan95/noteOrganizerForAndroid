@@ -67,4 +67,69 @@ class StartupTest {
         assertTrue(notice!!.contains("removed from the Trash"))
         assertEquals(0, JSONArray(File(dir, "trash.json").readText()).length())
     }
+
+    private fun deletedDaysAgo(days: Int): String =
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(Date().time - days * 86_400_000L))
+
+    private fun trashLeft(dir: File) = JSONArray(File(dir, "trash.json").readText()).length()
+
+    @Test
+    fun `a window of 90 days keeps a note deleted 45 days ago through every start`() {
+        // The owner's question: a release made while such a note waits must
+        // not take it. The window is the person's, written as Settings → Trash
+        // writes it, read back by the start.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(45)}"}]""")
+        File(dir, "settings.json").writeText("""{"trash_retention_days": 90}""")
+        Startup.prepare(dir, older = null)
+        Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+    }
+
+    @Test
+    fun `settings that cannot be read purge nothing, at this start and the ones after`() {
+        // The window chosen was in the file. Its fresh replacement reads as
+        // "never chosen", 30 days: without the mark, the next start would
+        // purge what was kept for 90.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"}]""")
+        File(dir, "settings.json").writeText("""{"trash_retention_days": 90, "theme": """)
+        val notice = Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+        assertTrue(notice, notice!!.contains("Nothing was removed from the Trash"))
+        assertEquals(true, JSONObject(File(dir, "settings.json").readText()).opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        Startup.prepare(dir, older = null)
+        assertEquals("the start after it, the fresh file readable, still nothing", 1, trashLeft(dir))
+        // A window chosen again, as Settings → Trash chooses it: the purge
+        // goes by it from the next start.
+        val settings = Settings.load(dir)
+        Settings.putAll(settings, mapOf(Settings.RETENTION_DAYS to 30, Settings.PHONE_TRASH_WINDOW_UNKNOWN to null))
+        Startup.prepare(dir, older = null)
+        assertEquals(0, trashLeft(dir))
+    }
+
+    @Test
+    fun `a window no app writes purges nothing`() {
+        for (value in listOf("0", "-3", "400", "\"forever\"", "7.5", "true", "null")) {
+            val dir = temp("phone")
+            File(dir, "notes_data.json").writeText("[]")
+            File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"}]""")
+            File(dir, "settings.json").writeText("""{"trash_retention_days": $value}""")
+            Startup.prepare(dir, older = null)
+            assertEquals("a window of $value", 1, trashLeft(dir))
+        }
+    }
+
+    @Test
+    fun `a window never chosen is the default, as the desktop reads it`() {
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"},
+            {"id": 2, "deleted_at": "${deletedDaysAgo(20)}"}]""")
+        File(dir, "settings.json").writeText("""{"theme": "dark"}""")
+        Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+    }
 }

@@ -434,7 +434,10 @@
         <item quantity="other">%d notes</item>
     </plurals>
     <string name="backup_explain">One .zip file holding every note, your settings, the attached files, the templates and the Trash. It is the same file the desktop app makes and reads, so it moves a notebook between the two.</string>
-    <string name="backup_export">Export a backup</string>
+    <string name="backup_export">Save a backup</string>
+    <string name="backup_where">Your phone asks where to keep it: Google Drive, the phone\'s own files, or any other place it offers.</string>
+    <string name="backup_google">If backup is turned on in your phone\'s settings, Android also keeps a copy of the app\'s notes in your Google account, by itself. That copy comes back only when the app is installed again, on this phone or a new one. The file saved here is the one you can open, keep and move.</string>
+    <string name="trash_backup">💾 Save a backup — the Trash too</string>
     <string name="backup_never">No backup made yet. It is the only copy of your notes outside this phone.</string>
     <string name="backup_last">Last exported: %1$s</string>
     <string name="backup_import">Import a backup</string>
@@ -446,6 +449,8 @@
     <string name="import_notes_title">Import notes</string>
     <string name="import_notes_text">This will ADD the notes from that backup to your current list. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
     <string name="trash_window">Kept for %1$d days, then removed automatically.</string>
+    <string name="trash_window_unknown">How long the Trash keeps notes could not be read, so nothing is removed from it. Choose the number of days again.</string>
+    <string name="trash_kept">kept until the days are chosen</string>
     <string name="trash_empty">The Trash is empty.</string>
     <string name="trash_unknown">deleted (date unknown)</string>
     <string name="trash_next_start">removed the next time the app starts</string>
@@ -471,6 +476,10 @@
     <plurals name="shorter_window_text">
         <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes it for good the next time the app starts. This can\'t be undone.</item>
         <item quantity="other">The Trash holds %1$d notes older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes them for good the next time the app starts. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="chosen_window_text">
+        <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days removes it for good the next time the app starts. This can\'t be undone.</item>
+        <item quantity="other">The Trash holds %1$d notes older than %2$d days. Keeping deleted notes for %2$d days removes them for good the next time the app starts. This can\'t be undone.</item>
     </plurals>
     <string name="keep_for_days">Keep for %1$d days</string>
     <string name="about_version">Note Organizer for Android, version %1$s</string>

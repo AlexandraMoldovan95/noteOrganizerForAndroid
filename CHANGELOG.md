@@ -74,6 +74,12 @@ tested as from now on. Built on Phase 3.
 - **Export as file shows its two kinds as cards**, each saying what it
   gives — a web page for a browser, plain text for any app — in the
   Share sheet's look.
+- **A backup at hand.** Settings → Backup's button is "Save a backup",
+  and the page says where one can go — Google Drive, the phone's files,
+  anywhere the phone offers — and that Android's own backup may keep a
+  copy too, coming back only when the app is installed again. The Trash
+  page has the same button. The app stays offline: the Drive app does
+  the sending.
 - **A table is written in place**, shaped on Samsung Notes' table at the
   owner's request. A tap on a cell opens it for typing right in the
   table, and a bar over the keyboard takes the place of the cell's
@@ -193,15 +199,30 @@ tested as from now on. Built on Phase 3.
   9999, stopped the app.
 - **"↩ Restore previous" saves first, then asks**, as on the desktop, so
   the question names the copy it will bring back.
+- **The Trash is emptied only by a window that can be read.** Settings
+  that could not be read gave the default 30 days, and the start purged
+  by it whatever window the person had chosen — notes kept for 90 went
+  at 31; a hand-edited 0 read as one day. Now nothing is purged until
+  the window is known, the start and the Trash page say so, and choosing
+  a window again ends it.
+- **A sheet from the bottom is drawn for the app's own dark or light, and
+  opens whole.** On a light phone with the app dark, the phone's bar of
+  buttons came out white over every sheet and the clock dark on dark;
+  and a sheet taller than half the screen opened half-way, Share's last
+  card under the buttons. Seen on the owner's phone, which has three
+  buttons where the emulator had gestures.
 
 ### Testing
 
-- 627 JVM unit tests in 27 suites, from 572 in 24. 63 mutants against
+- 633 JVM unit tests in 27 suites, from 572 in 24. 72 mutants against
   them, all killed — one, a deleted row's orphan marker, only after a
   test was written for it. The seven against the email's rules went with
   that code, and twelve against Share's took their place, four of them
-  on its one-share-at-a-time rule. Nineteen more built into the app:
-  seventeen caught by the walk — two only on a second try, after the
+  on its one-share-at-a-time rule; nine are on the Trash's window.
+  Twenty-four more built into the app: twenty-two caught by the walk —
+  among them the three against the sheets' bars and opening, and the
+  Trash page's backup opening a file to import, caught only once its
+  check asked for a Save button; two only on a second try, after the
   walk learned to type a letter after Undo and to type "<" on its own;
   one, a paste losing its formatting in the release build only, caught
   by the new release gate and not by any screen; and one survived the
@@ -222,20 +243,27 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 231 checks in 31 parts, from 177 in 25 —
-  previews, a table at larger letters, sharing a note, a copy and a cut
-  made right after styling, the table written in place and its dragged
-  edges, Select all with a group folded, a History row off the schedule,
-  and checks grown in older parts. Every read of a file the autosave
-  writes now waits for the save (`settle`), where one Redo read a moment
-  too soon, and so does the first read after a start, where a brand-new
-  notebook was read before the first start after an install had written
-  it. The last full run, after Share, passed 229 and failed those two;
-  waited for, the two parts they are in passed when walked again. Two
-  mutants' first runs failed for a reason that was not theirs — the list
-  not yet on the screen after an install, and the emulator's System UI
-  not answering on a computer short of memory — and were not counted:
-  run again, one was killed and one survived.
+- `tools/emulator/walk.py`: 240 checks in 32 parts, from 177 in 25 —
+  previews, a table at larger letters, sharing a note, a sheet over
+  three buttons, a copy and a cut made right after styling, the table
+  written in place and its dragged edges, Select all with a group
+  folded, a History row off the schedule, the Trash page's backup, and
+  checks grown in older parts. Every read of a file the autosave writes
+  now waits for the save (`settle`), where one Redo read a moment too
+  soon; so does the first read after a start, where a brand-new notebook
+  was read before the first start after an install had written it; and
+  a photograph waits for its screen, where one was taken before that
+  start had drawn the list. The last full run, after the sheets were
+  fixed, passed all 238 it then had; the two added after it, and their
+  part, were walked on their own. Two mutants' first runs failed for a
+  reason that was not theirs — the list not yet on the screen after an
+  install, and the emulator's System UI not answering on a computer
+  short of memory — and were not counted: run again, one was killed and
+  one survived.
+- A Trash window that could not be read, walked on the emulator with a
+  damaged `settings.json`: nothing purged at that start or the next, the
+  start and the Trash page saying so, a window chosen ending it —
+  photographed, and each step read back from the files.
 
 ## [Unreleased] — Phase 3
 

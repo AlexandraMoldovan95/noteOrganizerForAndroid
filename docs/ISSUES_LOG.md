@@ -7,11 +7,13 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-four are
+**the code**, or in **the design**. Fourteen of the forty-six are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-20](#a-trash-emptied-by-a-window-nobody-chose) | design | Settings that could not be read made the start purge the Trash at the default 30 days, whatever window the person had chosen | When the rule for deleting is not known, delete nothing — and remember that it is not known |
+| [2026-10-19](#a-sheet-dressed-for-the-phone-not-the-app) | design | On the owner's phone every sheet put a white bar of buttons over the dark app and the clock dark on dark, and Share's opened half-way, its last card under the buttons | A window of its own takes none of the app's settings; and walk with the phone's own navigation, not only the emulator's |
 | [2026-10-19](#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been) | code | "Not responding" while sharing on the emulator was the computer building, not the PDF; a 40-page PDF did hold the app 1.2 s, and a second Share cleared the first one's folder | Read a freeze's own report before changing code, then size the work by the largest input it allows; hold an order in a test, not in racing taps |
 | [2026-10-19](#ports-read-side-by-side-with-the-desktop-they-came-from) | design | A merge lost a cell's words; read side by side, the port held about 58 more of the desktop's rules copied in part | A desktop rule lives in more than its function: read its whole route, and compare the two apps' answers regularly |
 | [2026-10-19](#a-cells-words-held-by-its-field-after-the-cell-changed) | code | A cell written in place kept the words it had before Undo, and before a row was put over it | A new copy is a new holder, asked the old question the day it is made |
@@ -61,6 +63,67 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A Trash emptied by a window nobody chose
+
+**2026-10-20.** The owner asked what happens to the Trash when a new
+version comes out: a person keeps deleted notes for 90 days, a release
+arrives while one has waited 45 — is it lost? It is not. The purge does
+not belong to releases; it runs at every start, by the window the
+person chose, and an update from the store keeps the app's files.
+
+Reading the code for that answer found the case where it would be.
+The window lives in `settings.json`. A file that cannot be read — or a
+release that, by a slip, reads the window wrongly — gives the default,
+30 days, and the start that follows purges by it: the notes kept for 90
+go at 31. Worse, a fresh `settings.json` is written soon after, and it
+reads as "never chosen", so even skipping one start would only have
+moved the loss to the next. And the window's clamp, right for showing
+it, read a hand-edited 0 as one day.
+
+Now the start purges only by a window it can read — chosen and a whole
+number from 1 to 365, or never chosen at all, the default as the
+desktop reads it. Settings that could not be read are marked
+(`phone_trash_window_unknown`) before anything writes over them, and
+while the mark stands nothing is purged; the list says so at the start,
+the Trash page says so and counts no days, and choosing a window there
+ends it. The desktop's
+[purge](#the-desktops-startup-purge-goes-by-a-window-it-could-not-read)
+does as the phone did, and waits for its own change.
+
+**The class:** a deletion that runs on its own must know its rule, not
+assume it. When the rule cannot be read, delete nothing — a note kept
+too long can still be deleted, one deleted too soon cannot come back —
+and remember that it is not known, or the next run assumes it again.
+
+## A sheet dressed for the phone, not the app
+
+**2026-10-19.** Share, checked on the owner's phone, opened its sheet
+with a white bar of buttons across its bottom and the last card, Share
+code, under the buttons. Her phone is light and the app dark, and her
+phone has three buttons where the emulator had gestures; on the emulator
+made the same, every sheet in the app did it, and the clock above them
+was dark on dark.
+
+Two causes, neither in Share. A bottom sheet is a window of its own, and
+Android draws a window's bars for whatever that window asks — the
+sheet asked for the phone's light, not the app's dark, which only the
+app's own window had been told. And a sheet taller than half the screen
+opens half-way by default, the rest below the screen's edge until it is
+dragged up: what looked like a card under the buttons was a sheet never
+opened. Padding the sheet by the buttons' height, tried first, changed
+nothing, which is how the second cause showed itself.
+
+Every sheet in the app is now one `AppSheet`, which asks for the app's
+light or dark and opens whole. A walk part puts the emulator on three
+buttons and the app dark on a light phone, and reads it: the sheet's
+last line above the buttons, by its box; the buttons' bar dark and the
+clock light, by the screen's pixels, since the bars are in no UI tree.
+
+**The class:** a window of its own takes none of the app's settings —
+its bars, its theme — and a framework's default opening is a choice
+too. Walk with the phone's own navigation as well as the emulator's: the
+gestures had hidden both.
 
 ## A freeze blamed on the PDF, and the one it would have been
 
@@ -1261,6 +1324,19 @@ apps and to be proved by a test as it is fixed:
 
 Deleting a column a merge passes through keeps the merge on the phone;
 the desktop dissolves it. The phone's is kept, as losing less.
+
+### The DESKTOP's startup purge goes by a window it could not read
+
+Found 2026-10-20, from the owner's question about releases
+([the phone's fix](#a-trash-emptied-by-a-window-nobody-chose)). The
+desktop's `load_settings` answers `{}` for a `settings.json` it cannot
+read, `trash_retention_days()` then answers the default 30, and
+`purge_expired_trash` empties by it at the next start — a person who
+kept the Trash for 90 days loses what was deleted 31 to 89 days ago.
+And the clamp `max(1, min(days, 365))` reads a hand-edited 0 as one
+day. The phone purges nothing in both cases, and remembers a lost window
+until one is chosen again. The desktop's change goes through its own
+process (the interaction pass, a plan, approval).
 
 ### The DESKTOP's automatic Trash purge can delete a file a living note uses
 

@@ -31,7 +31,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -88,7 +87,7 @@ fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, o
             SettingsPage.CATEGORIES -> CategoriesPage(state)
             SettingsPage.TEMPLATES -> TemplatesPage(state)
             SettingsPage.BACKUP -> BackupPage(state, backup)
-            SettingsPage.TRASH -> TrashPage(state)
+            SettingsPage.TRASH -> TrashPage(state, backup)
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
             SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback)
@@ -561,7 +560,7 @@ private fun CategoryEditor(
     val palette = LocalPalette.current
     var draftName by remember(name) { mutableStateOf(name) }
     var draftColour by remember(colour) { mutableStateOf(colour) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(title, color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             OutlinedTextField(
@@ -647,6 +646,9 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
             colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.backup_export)) }
+        // Google Drive named: the phone's own "save as" offers it, and the
+        // Drive app does the sending -- the app itself stays offline.
+        Text(stringResource(R.string.backup_where), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         Text(
             if (last.isNullOrEmpty()) stringResource(R.string.backup_never) else stringResource(R.string.backup_last, last),
             color = palette.subtext,
@@ -658,13 +660,16 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         }
         Text(stringResource(R.string.backup_import_explain), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         busy?.let { Text(it, color = palette.accentText, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp)) }
+        // Android's own backup, left on by the owner's choice (2026-10-20)
+        // and said here, so a person knows where else a copy may be.
+        Text(stringResource(R.string.backup_google), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
     }
 }
 
 // ---- Trash ----
 
 @Composable
-private fun TrashPage(state: AppState) {
+private fun TrashPage(state: AppState, backup: BackupActions) {
     val palette = LocalPalette.current
     val load = state.load
     var picked by remember { mutableStateOf(setOf<Organizing.TrashKey>()) }
@@ -672,12 +677,16 @@ private fun TrashPage(state: AppState) {
     var askForever by remember { mutableStateOf<List<Organizing.TrashKey>?>(null) }
     var askWindow by remember { mutableStateOf<Int?>(null) }
     val entries = load.trash.sortedByDescending { it.deletedAt }
+    // Null when the window could not be read: nothing is purged then, and
+    // the page says so rather than show the default as if it were chosen.
+    val known = load.settings?.let { Settings.purgeWindow(it) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(stringResource(R.string.trash_window, load.retentionDays), color = palette.subtext, fontSize = 13.sp)
+            Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
+                 color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
             Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (days in listOf(7, 14, 30, 60, 90)) {
-                    val on = days == load.retentionDays
+                    val on = days == known
                     Text(
                         "$days",
                         color = if (on) palette.onAccent else palette.text,
@@ -687,14 +696,23 @@ private fun TrashPage(state: AppState) {
                             .background(if (on) palette.accent else palette.card)
                             .clickable {
                                 // Only a SHORTER window can take anything,
-                                // and then it says what before it does.
-                                if (days < load.retentionDays && Organizing.pastWindow(load, days) > 0) askWindow = days
-                                else state.putSetting(Settings.RETENTION_DAYS, days)
+                                // and then it says what before it does --
+                                // with none known, any window can.
+                                if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
+                                else state.chooseTrashWindow(days)
                             }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     )
                 }
                 Text(stringResource(R.string.days), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+            // A backup at hand where notes wait to leave for good: the .zip
+            // holds the Trash too, and a note in it is never lost to the window.
+            if (entries.isNotEmpty()) {
+                OutlinedButton(onClick = backup.export, enabled = backup.busy() == null,
+                               modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                    Text(stringResource(R.string.trash_backup), color = palette.text)
+                }
             }
         }
         if (entries.isEmpty()) {
@@ -703,7 +721,7 @@ private fun TrashPage(state: AppState) {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
             items(entries, key = { "${it.id}|${it.deletedAt}" }) { note ->
                 val key = Organizing.TrashKey(note.id, note.deletedAt)
-                val left = Notebook.daysLeftInTrash(note.deletedAt, load.retentionDays)
+                val left = known?.let { Notebook.daysLeftInTrash(note.deletedAt, it) }
                 val on = key in picked
                 Row(
                     Modifier
@@ -719,9 +737,10 @@ private fun TrashPage(state: AppState) {
                     Column(Modifier.weight(1f)) {
                         Text(note.headline, color = palette.text, fontSize = 15.sp, maxLines = 1)
                         Text(
-                            when (left) {
-                                null -> stringResource(R.string.trash_unknown)
-                                0 -> stringResource(R.string.trash_next_start)
+                            when {
+                                known == null -> stringResource(R.string.trash_kept)
+                                left == null -> stringResource(R.string.trash_unknown)
+                                left == 0 -> stringResource(R.string.trash_next_start)
                                 else -> pluralStringResource(R.plurals.trash_days_left, left, left)
                             },
                             color = if (left != null && left <= 3) palette.dangerText else palette.subtext,
@@ -770,10 +789,11 @@ private fun TrashPage(state: AppState) {
         val doomed = Organizing.pastWindow(load, days)
         Ask(
             title = stringResource(R.string.shorter_window),
-            text = pluralStringResource(R.plurals.shorter_window_text, doomed, doomed, days, load.retentionDays),
+            text = if (known != null) pluralStringResource(R.plurals.shorter_window_text, doomed, doomed, days, known)
+                   else pluralStringResource(R.plurals.chosen_window_text, doomed, doomed, days),
             confirm = stringResource(R.string.keep_for_days, days),
             destructive = true,
-            onConfirm = { askWindow = null; state.putSetting(Settings.RETENTION_DAYS, days) },
+            onConfirm = { askWindow = null; state.chooseTrashWindow(days) },
             onDismiss = { askWindow = null },
         )
     }

@@ -17,7 +17,8 @@ import java.io.File
  *   note, once, as the desktop's does. One that was copied in, or emptied
  *   by hand, never gets one.
  *
- * Then the Trash is emptied of what has outlived its window.
+ * Then the Trash is emptied of what has outlived its window -- the one
+ * the person chose, and only when it can be read ([Settings.purgeWindow]).
  */
 object Startup {
 
@@ -43,6 +44,11 @@ object Startup {
         // makes it on each load: two notes sharing one were edited as one
         // and sent to the Trash together. Written once, then read again.
         if (load.problem == null && Organizing.repairIds(load)) load = Notebook.load(dir)
+        // Settings that could not be read held the Trash's window: it is
+        // marked as lost before anything writes a fresh file -- or the next
+        // start would read "never chosen" and purge at 30 days what the
+        // person had kept for 90. The file's bytes were kept aside already.
+        load.settings?.let { if (it.problem != null) Settings.put(it, Settings.PHONE_TRASH_WINDOW_UNKNOWN, true) }
         // The day this install was first used, stamped once and never again,
         // as the desktop's get_first_launch_date stamps it: Statistics says it.
         load.settings?.let { settings ->
@@ -50,10 +56,19 @@ object Startup {
                 Settings.put(settings, Stats.FIRST_LAUNCH_DATE, Recurrence.formatDate(java.time.LocalDate.now()))
             }
         }
-        val purged = Organizing.purgeExpired(load, File(dir, Backup.ATTACHMENTS))
-        if (purged > 0) {
-            lines.add(if (purged == 1) "1 note older than ${load.retentionDays} days was removed from the Trash."
-                      else "$purged notes older than ${load.retentionDays} days were removed from the Trash.")
+        // The Trash emptied by the window the person chose -- and only when
+        // that window is known: a note kept too long can still be deleted,
+        // one deleted too soon cannot come back.
+        val window = load.settings?.let { Settings.purgeWindow(it) }
+        if (window != null) {
+            val purged = Organizing.purgeExpired(load, File(dir, Backup.ATTACHMENTS), days = window)
+            if (purged > 0) {
+                lines.add(if (purged == 1) "1 note older than $window days was removed from the Trash."
+                          else "$purged notes older than $window days were removed from the Trash.")
+            }
+        } else if (Organizing.pastWindow(load, Settings.TRASH_RETENTION_DAYS) > 0) {
+            lines.add("Nothing was removed from the Trash: how long it keeps notes could not be read. " +
+                      "Choose it again in Settings → Trash.")
         }
         return lines.joinToString("\n").ifEmpty { null }
     }

@@ -46,6 +46,25 @@ class SettingsTest {
     }
 
     @Test
+    fun `the purge goes only by a window it can read`() {
+        // A clamp is right for showing a window, wrong for purging by one: a
+        // hand-edited 0 would empty the Trash of everything a day old.
+        val file = File("settings.json")
+        fun window(json: String, problem: String? = null) =
+            Settings.purgeWindow(Settings.Load(file, JSONObject(json), problem))
+        assertEquals(90, window("""{"trash_retention_days": 90}"""))
+        assertEquals(1, window("""{"trash_retention_days": 1}"""))
+        assertEquals(365, window("""{"trash_retention_days": 365}"""))
+        assertEquals("never chosen, the default", 30, window("{}"))
+        for (bad in listOf("0", "-3", "366", "\"90\"", "7.5", "true", "null")) {
+            assertNull(bad, window("""{"trash_retention_days": $bad}"""))
+        }
+        assertNull("a file that could not be read", window("{}", problem = "settings.json could not be read"))
+        assertNull("lost at an earlier start", window("""{"trash_retention_days": 30, "phone_trash_window_unknown": true}"""))
+        assertEquals(30, window("""{"trash_retention_days": 30, "phone_trash_window_unknown": false}"""))
+    }
+
+    @Test
     fun `only well-formed category colours are kept, and General is always first`() {
         val raw = JSONObject("""
             {"categories": {"Work": "#4cc9f0", "Bad": "#not-a-colour",

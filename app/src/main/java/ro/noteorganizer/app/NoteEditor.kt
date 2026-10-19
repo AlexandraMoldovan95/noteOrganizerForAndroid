@@ -64,7 +64,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -2230,7 +2229,7 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     var dating by remember { mutableStateOf(false) }
     var repeating by remember { mutableStateOf(false) }
     val onADay = model.day != null
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             DetailRow(stringResource(R.string.category)) {
@@ -2647,7 +2646,7 @@ private fun TableMoreSheet(model: EditorModel, segment: Editing.Segment, at: Cel
         if (!keep) model.activeCell = null
         onDone()
     }
-    ModalBottomSheet(onDismissRequest = onDone, containerColor = palette.card) {
+    AppSheet(onDismissRequest = onDone) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 28.dp)) {
             Text(stringResource(R.string.more_title), color = palette.text, fontSize = 17.sp, fontWeight = FontWeight.Medium,
                  modifier = Modifier.padding(bottom = 6.dp))
