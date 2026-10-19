@@ -198,6 +198,7 @@ object Days {
         var gone: DayGone? = null
         val result = edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
+            if (!givenDay(note, day)) return@edit NOT_A_DAY
             val origin = Recurrence.movedFrom(note, day)
             if (origin != null) (note.opt("moved") as? JSONObject)?.remove(origin)
             val exceptions = sortedSetOf<String>()
@@ -235,7 +236,12 @@ object Days {
                 val moved = note.opt("moved") as? JSONObject ?: JSONObject().also { note.put("moved", it) }
                 moved.put(gone.cameFrom, gone.day)
             }
-            gone.ownEdit?.let { overridesOf(note).put(gone.day, JSONObject(it.toString())) }
+            // The desktop's `_undo_occurrence_delete` guards: the repeat
+            // changed since may no longer give the day -- back, it would be
+            // a day off the schedule nobody made -- and an edit the day has
+            // gained since is newer than the one taken away.
+            if (!givenDay(note, gone.day)) return@edit "The repeat no longer has that day, so it can't come back."
+            gone.ownEdit?.let { if (!overridesOf(note).has(gone.day)) overridesOf(note).put(gone.day, JSONObject(it.toString())) }
             null
         }
     }
@@ -278,6 +284,20 @@ object Days {
      * where the series already has one. So its own date is free here only
      * when it is empty, as any other.
      */
+    /**
+     * Whether the series draws a day on [day] -- a day its rule gives, or one
+     * moved there. A day off the schedule is not: moved or deleted, it went
+     * where no calendar on either app would show it, its own text in the
+     * file and on no screen.
+     */
+    fun givenDay(note: JSONObject, day: String): Boolean {
+        val date = Recurrence.parseDate(day) ?: return false
+        return Recurrence.expand(note, date, date) == listOf(day)
+    }
+
+    private const val NOT_A_DAY =
+        "This day is no longer one of the series' days. Open the series to settle the days off its schedule."
+
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false
         return to == day || Recurrence.expand(note, target, target) != listOf(to)
@@ -299,6 +319,7 @@ object Days {
         var move: DayMove? = null
         val result = edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
+            if (!givenDay(note, day)) return@edit NOT_A_DAY
             if (!dayIsFree(note, day, to)) {
                 return@edit "This series already has a day on ${Recurrence.showDay(target)}. " +
                     "A day can move only to a date the series does not have."
@@ -425,14 +446,22 @@ object Days {
      * the rescue copy first, repeat and days included, so "↩ Restore
      * previous" brings the series back whole.
      */
-    fun setRepeat(load: Notebook.Load, id: Int, rule: JSONObject?): SaveResult = edit(load, id) { note ->
+    /**
+     * [startWas] is the series' start before the sheet's Save wrote a new
+     * one, which it does first: the rescue copy keeps the series as it was,
+     * as the desktop's `save_current_note` takes it before the new date --
+     * taken after, "Restore previous" brought back a series starting on the
+     * new date, its days' own edits off its schedule.
+     */
+    fun setRepeat(load: Notebook.Load, id: Int, rule: JSONObject?, startWas: Any? = null): SaveResult = edit(load, id) { note ->
         val clean = Recurrence.normalize(rule)
         val repeats = clean.getString("freq").isNotEmpty()
         if (repeats && Recurrence.parseDate(note.opt("date")) == null) {
             return@edit "A repeating note needs a start date. Pick a date first."
         }
         if (!repeats) {
-            if (repeatOffLosesDays(note)) note.put("_prev", wholeNoteCopy(note))
+            val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
+            if (repeatOffLosesDays(was)) note.put("_prev", wholeNoteCopy(was))
             note.put("exceptions", JSONArray())
             note.put("overrides", JSONObject())
             note.put("moved", JSONObject())

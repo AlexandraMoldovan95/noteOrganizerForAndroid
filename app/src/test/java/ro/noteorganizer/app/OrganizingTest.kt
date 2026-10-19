@@ -92,6 +92,43 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a restored note keeps its uid unless another note now has it, as the desktop's restore_many_from_trash`() {
+        // A copy came by code while the note sat in the Trash, and took its identity.
+        val load = notebook("""[{"id": 1, "uid": "x", "title": "came by code"}]""",
+            trash = """[{"id": 1, "uid": "x", "title": "old", "deleted_at": "2026-10-01 10:00:00"},
+                        {"id": 2, "uid": "y", "title": "other", "deleted_at": "2026-10-01 10:00:00"}]""")
+        Organizing.restore(load, listOf(Organizing.TrashKey(1, "2026-10-01 10:00:00"),
+                                        Organizing.TrashKey(2, "2026-10-01 10:00:00")))
+        val uids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getString("uid") }
+        assertEquals("x", uids[0])
+        assertNotEquals("the restored twin gets an identity of its own", "x", uids[1])
+        assertEquals("a uid nobody else has is kept, so an older code still finds it", "y", uids[2])
+    }
+
+    @Test
+    fun `ids shared or not numbers are repaired as the desktop's repair_note_ids repairs them`() {
+        // The first holder keeps its number; the rest take the next free ones.
+        val load = notebook("""[{"id": 1, "title": "a"}, {"id": 1, "title": "b"}, {"id": "3", "title": "c"},
+                                {"id": 0, "title": "d"}, {"id": true, "title": "e"}]""")
+        assertTrue(Organizing.repairIds(load))
+        assertEquals(listOf(1, 4, 3, 5, 6), (0..4).map { notesOnDisk(load).getJSONObject(it).get("id") })
+        assertFalse("a notebook already right is not written", Organizing.repairIds(Notebook.load(dir(load))))
+    }
+
+    @Test
+    fun `a pin is not an edit, its note's updated time stays, as the desktop's toggle_pin`() {
+        val load = notebook("""[{"id": 1, "updated": "2026-01-01 00:00:00"}, {"id": 2, "updated": "2026-01-01 00:00:00"}]""")
+        Organizing.setPinned(load, listOf(1, 2), true)
+        assertEquals(listOf("2026-01-01 00:00:00", "2026-01-01 00:00:00"),
+                     (0..1).map { notesOnDisk(load).getJSONObject(it).getString("updated") })
+        // A pin from the note's details, the same.
+        val one = notebook("""[{"id": 1, "title": "t", "body": "b", "updated": "2026-01-01 00:00:00"}]""")
+        Notebook.updateNote(one, 1, "t", "b", pinned = true)
+        assertEquals("2026-01-01 00:00:00", notesOnDisk(one).getJSONObject(0).getString("updated"))
+        assertTrue(notesOnDisk(one).getJSONObject(0).getBoolean("pinned"))
+    }
+
+    @Test
     fun `pin and category apply to every chosen note, and to no other`() {
         val load = notebook("""[{"id": 1}, {"id": 2}, {"id": 3}]""")
         Organizing.setPinned(load, listOf(1, 2), true)

@@ -66,7 +66,31 @@ object Sharing {
         return out
     }
 
+    /**
+     * A code past what may be handed over -- the desktop's
+     * `ShareCodeTooLarge`, its words for the person sending.
+     */
+    class TooLarge(message: String) : Exception(message)
+
+    /**
+     * What the phone hands another app in one go, in characters. Android
+     * passes a shared text through a buffer of about a megabyte, shared by
+     * everything in flight; a code longer than this is refused here, kindly,
+     * rather than in the share sheet, where it would stop the app.
+     */
+    const val MAX_HANDED_CHARS = 250_000
+
+    /**
+     * The code for [notes] -- refused, as the desktop's `encode_share_code`
+     * refuses it, past 200 notes or past the size the import accepts: the
+     * phone made such codes and neither app would take them, telling the
+     * person at the other end to ask for a smaller one.
+     */
     fun encode(notes: List<JSONObject>): String {
+        if (notes.size > MAX_SHARED_NOTES) {
+            throw TooLarge("A code can carry at most $MAX_SHARED_NOTES notes, and ${notes.size} are chosen. " +
+                           "Choose fewer, or send a backup instead: Settings → Backup.")
+        }
         val payload = JSONObject()
         payload.put("v", 1)
         val array = JSONArray()
@@ -76,7 +100,12 @@ object Sharing {
         // desktop hit exactly this: an emoji typed but not yet saved took
         // the crash path on sharing, because mending only ran on save.
         val raw = mendSurrogates(payload.toString()).toByteArray(Charsets.UTF_8)
-        return PREFIX + Base64.getUrlEncoder().encodeToString(deflate(raw))
+        val code = PREFIX + Base64.getUrlEncoder().encodeToString(deflate(raw))
+        if (raw.size > MAX_DECOMPRESSED_BYTES || code.length > MAX_CODE_CHARS) {
+            throw TooLarge("That is too much for one code. Share fewer notes at a time, " +
+                           "or send a backup instead: Settings → Backup.")
+        }
+        return code
     }
 
     fun decode(code: String): Decoded {

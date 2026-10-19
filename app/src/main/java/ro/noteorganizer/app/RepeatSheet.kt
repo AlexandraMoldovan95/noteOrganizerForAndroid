@@ -181,6 +181,8 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 TextButton(
                     enabled = !needsDate,
                     onClick = {
+                        // The start as stored, before this Save writes a new one.
+                        val startWas = state.rawNote(model.id)?.opt("date")
                         if (start != model.date) {
                             model.date = start
                             model.changed()
@@ -191,9 +193,11 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                             problem = model.problem
                             return@TextButton
                         }
-                        val before = state.rawNote(model.id)
+                        val before = state.rawNote(model.id)?.let { now ->
+                            if (startWas != null) JSONObject(now.toString()).put("date", startWas) else now
+                        }
                         val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
-                        if (state.setRepeat(model.id, draft())) {
+                        if (state.setRepeat(model.id, draft(), startWas)) {
                             if (losing) state.say(offKept)
                             onDone()
                         }

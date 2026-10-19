@@ -536,7 +536,14 @@ private fun History(state: AppState) {
                                     if (day.offSchedule) append("off the schedule")
                                 }.trim()
                                 HistoryRow(Recurrence.showDate(day.date), day.title.ifBlank { "(untitled)" }, marks, 1) {
-                                    state.openNote(entry.noteId, day.date)
+                                    // A day off the schedule is no day of the series
+                                    // to open: the series opens, its banner leading to
+                                    // the questions that settle such days -- the
+                                    // desktop's History sends it to the same walk.
+                                    // Opened as a day, it could be moved or deleted
+                                    // where no calendar would ever show it.
+                                    if (day.offSchedule) state.openNote(entry.noteId)
+                                    else state.openNote(entry.noteId, day.date)
                                 }
                             }
                         }

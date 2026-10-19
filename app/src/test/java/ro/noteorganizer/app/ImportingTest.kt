@@ -62,6 +62,41 @@ class ImportingTest {
     }
 
     @Test
+    fun `a note is compared as a load shapes it, so what no person changed is no change`() {
+        // Filed here under General when it came, from a category this phone
+        // lacks; a day's empty colour; a table closing the body, with and
+        // without its line. (Styles in another order are a difference to the
+        // desktop too: its normalize_formatting keeps their order.)
+        val load = notebook("""
+            [{"id": 1, "uid": "a", "title": "T", "body": "x\n| a | b |\n", "category": "General",
+              "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]},
+              "overrides": {"2026-10-12": {"title": "own", "color": ""}},
+              "formatting": [{"start": 0, "end": 1, "style": "bold"}, {"start": 0, "end": 1, "style": "underline"}]}]
+        """.trimIndent())
+        val incoming = """
+            [{"uid": "a", "title": "T", "body": "x\n| a | b |", "category": "Errands",
+              "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]},
+              "overrides": {"2026-10-12": {"title": "own"}},
+              "formatting": [{"start": 0, "end": 1, "style": "bold"}, {"start": 0, "end": 1, "style": "underline"}]}]
+        """.trimIndent()
+        val plan = Importing.plan(load.raw!!, notes(incoming), Importing.Source.CODE, setOf("General", "Work"))
+        assertEquals("unchanged, not \"edited elsewhere\"", 1, plan.unchanged.size)
+        assertEquals(0, plan.differing.size)
+    }
+
+    @Test
+    fun `an imported note takes the desktop's shape -- styles, line entries, a closing table's line`() {
+        val shaped = Normalize.normalizeNote(org.json.JSONObject("""
+            {"title": "t", "body": "a\n| x | y |",
+             "formatting": [{"start": 0, "end": 1, "style": "sparkle"}, {"start": 0, "end": 1, "style": "bold"}],
+             "paragraphs": [{"line": 0, "align": "center"}, {"line": 9, "align": "center"}]}""".trimIndent()))
+        assertEquals("a\n| x | y |\n", shaped.getString("body"))
+        assertEquals(1, shaped.getJSONArray("formatting").length())
+        assertEquals("bold", shaped.getJSONArray("formatting").getJSONObject(0).getString("style"))
+        assertEquals("a line past the body's end is no line", 1, shaped.getJSONArray("paragraphs").length())
+    }
+
+    @Test
     fun `a code's notes are never called older -- a code does not say when it was saved`() {
         val load = notebook("""[{"id": 1, "uid": "a", "title": "x", "updated": "2026-10-10 10:00:00"}]""")
         val plan = Importing.plan(load.raw!!, notes("""[{"uid": "a", "title": "y", "updated": "2020-01-01 00:00:00"}]"""),
@@ -97,6 +132,20 @@ class ImportingTest {
         assertEquals("THEIRS", File(dir(load), "attachments/theirs.png").readText())
         assertEquals("the rescue copy holds the old pin", false,
             note.getJSONObject("_prev").getBoolean("pinned"))
+    }
+
+    @Test
+    fun `a backup's new notes keep their rescue copies, a code's never take one`() {
+        // A notebook moved to a new phone by a backup lost every "Restore previous".
+        val load = notebook("""[]""")
+        val plan = backupPlan(load, """[{"uid": "n", "title": "Now", "_prev": {"title": "Before", "body": ""}}]""")
+        Importing.apply(load, plan, Importing.Answers(), null)
+        assertEquals("Before", onDisk(load).getJSONObject(0).getJSONObject("_prev").getString("title"))
+        val coded = notebook("""[]""")
+        val fromCode = Importing.plan(coded.raw!!, notes("""[{"uid": "n", "title": "Now", "_prev": {"title": "Before"}}]"""),
+                                      Importing.Source.CODE)
+        Importing.apply(coded, fromCode, Importing.Answers(), null)
+        assertFalse(onDisk(coded).getJSONObject(0).has("_prev"))
     }
 
     @Test

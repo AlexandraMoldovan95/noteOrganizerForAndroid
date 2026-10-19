@@ -179,6 +179,27 @@ class ParagraphsTest {
     }
 
     @Test
+    fun `a centred or indented line broken by Enter keeps it on both halves, as the desktop's tags stay`() {
+        val centred = mapOf(1 to Paragraphs.Props(align = "center"), 2 to Paragraphs.Props(1))
+        // Broken in the middle: both halves; the line under moves down with its own.
+        assertEquals(mapOf(1 to Paragraphs.Props(align = "center"), 2 to Paragraphs.Props(align = "center"),
+                           3 to Paragraphs.Props(1)),
+                     P.follow("top\nTitle here\nnext", "top\nTitle\n here\nnext", centred))
+        // Broken at its start: the line moves down whole, a blank one above.
+        assertEquals(mapOf(2 to Paragraphs.Props(align = "center"), 3 to Paragraphs.Props(1)),
+                     P.follow("top\nTitle\nnext", "top\n\nTitle\nnext", centred))
+        // Joined by Backspace: the upper line's kept, the lower's gone.
+        assertEquals(mapOf(1 to Paragraphs.Props(align = "center")),
+                     P.follow("top\nTitle\nnext", "top\nTitlenext", centred))
+    }
+
+    @Test
+    fun `Enter after a centred item continues it centred`() {
+        val done = P.afterTyping("1. milk", "1. milk\n", mapOf(0 to Paragraphs.Props(align = "center")), 8)!!
+        assertEquals("center", done.props[1]?.align)
+    }
+
+    @Test
     fun `text put in at a style's end stays outside it, a removed marker takes nothing with it`() {
         val spans = listOf(FormatSpan(0, 2, "bold"), FormatSpan(2, 5, "italic"))
         assertEquals(listOf(FormatSpan(0, 2, "bold"), FormatSpan(4, 7, "italic")),

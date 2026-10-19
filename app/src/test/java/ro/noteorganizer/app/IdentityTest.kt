@@ -173,8 +173,10 @@ class IdentityTest {
             .put("color", "#ff0000")
             .put("formatting", JSONArray().put(JSONObject()
                 .put("start", 0).put("end", 4).put("style", "bold")))
+            // "line", as the desktop writes an entry: one without it is
+            // dropped, as normalize_paragraphs drops it.
             .put("paragraphs", JSONArray().put(JSONObject()
-                .put("index", 0).put("kind", "bullet")))
+                .put("line", 0).put("kind", "bullet")))
             .put("checklist", JSONArray().put(JSONObject()
                 .put("text", "to do").put("done", false)))))
         Notebook.applyShareCode(load, ready(load, code).notes, update = true)
@@ -459,10 +461,11 @@ class IdentityTest {
     fun `a missing repeat rule is the default rule, not a change`() {
         // A copy that omits the rule's empty fields must not read as an
         // update, or it spends the rescue copy for nothing.
-        val mine = JSONObject("""{"title": "x", "recurrence":
+        // Dated: to normalize_note, a rule with no first day is a one-off note.
+        val mine = JSONObject("""{"title": "x", "date": "2026-10-01", "recurrence":
             {"freq": "", "interval": 1, "weekdays": [], "month_days": [],
              "month_day_policy": "clamp", "end": "", "count": 0}}""")
-        val theirs = JSONObject("""{"title": "x", "recurrence": {"freq": ""}}""")
+        val theirs = JSONObject("""{"title": "x", "date": "2026-10-01", "recurrence": {"freq": ""}}""")
         assertFalse(Notebook.sharedUpdateChanges(mine, theirs, Notebook.UPDATABLE_FROM_SHARED))
         theirs.getJSONObject("recurrence").put("freq", "daily")
         assertTrue(Notebook.sharedUpdateChanges(mine, theirs, Notebook.UPDATABLE_FROM_SHARED))

@@ -80,8 +80,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     // ---- the calendar ----
 
-    /** The month the calendar shows, and the day whose list is open. */
-    var calendarMonth by mutableStateOf(java.time.YearMonth.now())
+    /**
+     * The month the calendar shows, and the day whose list is open. The
+     * month stays between January of year 1 and December 9999, the years a
+     * date is written in, as the desktop's `shift_calendar` keeps it: past
+     * 9999 a day's key no longer read back as a date, and the app stopped.
+     */
+    private var month by mutableStateOf(java.time.YearMonth.now())
+    var calendarMonth: java.time.YearMonth
+        get() = month
+        set(value) { month = value.coerceIn(java.time.YearMonth.of(1, 1), java.time.YearMonth.of(9999, 12)) }
     var selectedDay by mutableStateOf(Recurrence.formatDate(java.time.LocalDate.now()))
 
     /** The History in place of the month, as the desktop's toggle swaps them. */
@@ -360,7 +368,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
-    fun setRepeat(id: Int, rule: JSONObject?): Boolean = report(outside(listOf(id)) { Days.setRepeat(load, id, rule) })
+    fun setRepeat(id: Int, rule: JSONObject?, startWas: Any? = null): Boolean =
+        report(outside(listOf(id)) { Days.setRepeat(load, id, rule, startWas) })
 
     /**
      * A message with an Undo. Eight seconds, as the desktop's banner: long
@@ -484,7 +493,23 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val wanted = ids.toSet()
         val notes = (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
             .filter { (it.opt("id") as? Number)?.toInt() in wanted }
-        if (notes.isEmpty()) null else Sharing.encode(notes)
+        if (notes.isEmpty()) return@let null
+        val code = try {
+            Sharing.encode(notes)
+        } catch (e: Sharing.TooLarge) {
+            say(e.message ?: "")
+            return@let null
+        }
+        if (code.length > Sharing.MAX_HANDED_CHARS) {
+            say("That is too much to hand to another app as one code. Share fewer notes at a time, " +
+                "or send a backup instead: Settings → Backup.")
+            return@let null
+        }
+        // The desktop's warning: a code carries the words, never the files.
+        if (notes.any { ((it.opt("attachments") as? org.json.JSONArray)?.length() ?: 0) > 0 }) {
+            say("Sent without its files: a code carries the words only. A backup carries files too.")
+        }
+        code
     }
 
     // ---- the Trash ----

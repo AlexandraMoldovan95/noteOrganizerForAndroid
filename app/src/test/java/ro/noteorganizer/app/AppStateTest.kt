@@ -34,6 +34,17 @@ class AppStateTest {
         return AppState(dir, CoroutineScope(Dispatchers.Unconfined))
     }
 
+    @Test
+    fun `the calendar's month stays within the years a date is written in, as the desktop's shift_calendar`() {
+        // Past December 9999 a day's key no longer read back as a date.
+        val state = state()
+        state.calendarMonth = java.time.YearMonth.of(9999, 12)
+        state.calendarMonth = state.calendarMonth.plusMonths(1)
+        assertEquals(java.time.YearMonth.of(9999, 12), state.calendarMonth)
+        state.calendarMonth = java.time.YearMonth.of(1, 1).minusMonths(1)
+        assertEquals(java.time.YearMonth.of(1, 1), state.calendarMonth)
+    }
+
     /** The editor's save, standing in: the body it holds, written now. */
     private fun AppState.editorHolds(id: Int, body: String, seen: MutableList<String>) {
         flush = {

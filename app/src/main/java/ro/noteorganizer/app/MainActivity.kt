@@ -374,8 +374,9 @@ fun AppRoot(state: AppState, version: String) {
             confirm = stringResource(R.string.continue_label),
             onConfirm = {
                 askBackup = null
+                val theirs = contents.extras().categories?.keys()?.asSequence()?.toSet() ?: emptySet()
                 backupPlan = Importing.plan(state.load.raw ?: org.json.JSONArray(), contents.notes,
-                    Importing.Source.BACKUP) to contents
+                    Importing.Source.BACKUP, state.load.categories.keys + theirs) to contents
             },
             onDismiss = {
                 askBackup = null

@@ -103,6 +103,9 @@ class ListingTest {
         }
         assertEquals(listOf("[General 1 shut]", "[Work 2]", "1", "4", "[Gone 1]", "2"), shape)
         assertEquals(4, Showing.rows(list, grouped = false, collapsed = emptySet(), categoryOrder = emptyList()).size)
+        // Select all takes what shows: never the folded group's note, which
+        // the Trash button would then have sent away unseen.
+        assertEquals(setOf(1, 4, 2), Showing.visibleIds(rows))
     }
 
     // ---- a category's name, wherever settings hold it ----

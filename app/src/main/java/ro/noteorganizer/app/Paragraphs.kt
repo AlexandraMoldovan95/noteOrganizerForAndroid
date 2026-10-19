@@ -186,8 +186,61 @@ object Paragraphs {
     /** The lines' properties after a typed edit added or took away lines. */
     fun follow(old: String, new: String, props: Map<Int, Props>): Map<Int, Props> {
         if (props.isEmpty() || old == new) return props
+        breakAt(old, new)?.let { (line, column, made) -> return if (made) split(props, line, column) else join(props, line) }
         val moved = remapParagraphLines(old, new, props.keys.toList())
         return moved.entries.associate { (from, to) -> to to props.getValue(from) }
+    }
+
+    /**
+     * One line break typed or taken away, and nothing else: the line it
+     * broke (or the upper of the two it joined), the column it broke at,
+     * and whether it was made. A break is the one edit whose lines are
+     * known exactly -- the remap, finding lines added, dropped the
+     * properties of the lines around the edit for fear of putting them on
+     * a stranger's line.
+     */
+    private fun breakAt(old: String, new: String): Triple<Int, Int, Boolean>? {
+        val made = new.length == old.length + 1
+        if (!made && old.length != new.length + 1) return null
+        val (long, short) = if (made) new to old else old to new
+        var i = 0
+        while (i < short.length && long[i] == short[i]) i++
+        if (long[i] != '\n' || !long.regionMatches(i + 1, short, i, short.length - i)) return null
+        val line = short.substring(0, i).count { it == '\n' }
+        val column = i - (short.lastIndexOf('\n', i - 1) + 1)
+        return Triple(line, column, made)
+    }
+
+    /**
+     * A line broken in two keeps its centring and indent on both halves, as
+     * the desktop's tags, laid over the text, stay on both -- Enter in a
+     * centred paragraph left both halves at the margin. Broken at its very
+     * start, the line moved down whole, a blank line put above it.
+     */
+    private fun split(props: Map<Int, Props>, line: Int, column: Int): Map<Int, Props> {
+        val out = HashMap<Int, Props>()
+        for ((n, p) in props) {
+            when {
+                n < line -> out[n] = p
+                n > line -> out[n + 1] = p
+                column == 0 -> out[n + 1] = p
+                else -> { out[n] = p; out[n + 1] = p }
+            }
+        }
+        return out
+    }
+
+    /** Two lines joined into one: the upper's properties kept, as the desktop keeps the tags at the line's start. */
+    private fun join(props: Map<Int, Props>, line: Int): Map<Int, Props> {
+        val out = HashMap<Int, Props>()
+        for ((n, p) in props) {
+            when {
+                n <= line -> out[n] = p
+                n == line + 1 -> Unit
+                else -> out[n - 1] = p
+            }
+        }
+        return out
     }
 
     /** A step, then the renumbering every list change ends with. */
@@ -359,9 +412,11 @@ object Paragraphs {
                 return finish(Result(lines.joinToString("\n"), props - n, edits)) to prefix
             }
             // The line broke in two: what follows moves down a line, and
-            // the new line carries the item's depth with a fresh marker.
+            // the new line carries the item's depth with a fresh marker --
+            // and its centring, as the desktop's new item carries the tags
+            // of the one it came from.
             val shifted = props.mapKeys { (line, _) -> if (line > n) line + 1 else line }
-            val withNew = withProps(shifted, n + 1, Props(indent = indent))
+            val withNew = withProps(shifted, n + 1, Props(indent = indent, align = props[n]?.align ?: "left"))
             val marker = markerFor(kind, 1, indent)
             val text = String(b, 0, prefix + 1) + marker + String(b, prefix + 1, b.size - prefix - 1)
             return finish(Result(text, withNew, listOf(Edit(prefix + 1, 0, cpLength(marker)))),

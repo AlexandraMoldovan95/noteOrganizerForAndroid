@@ -66,6 +66,17 @@ object Normalize {
             Recurrence.parseDate(out.getString("date")) == null) {
             out.put("recurrence", normalizeRecurrence(null))
         }
+        // The text's own shape, as normalize_note leaves it: the line under
+        // a table that closes the body (with_caret_line), the styles the
+        // desktop keeps (normalize_formatting: known styles, sound offsets,
+        // bold with italic folded, the ceiling), the line entries bounded by
+        // the body's lines (normalize_paragraphs). Left as they came, an
+        // imported note was in a form no load of either app gives it.
+        val body = withCaretLine(out.getString("body"))
+        out.put("body", body)
+        out.put("formatting", Notebook.spansToJson(Exporting.normalizeFormatting(raw.opt("formatting"))))
+        out.put("paragraphs", Templates.paragraphsJson(
+            Exporting.normalizeParagraphs(raw.opt("paragraphs"), body.split("\n").size)))
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
         out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
         out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
@@ -76,6 +87,17 @@ object Normalize {
         // longer holds.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", JSONObject(it.toString())) }
         return out
+    }
+
+    /**
+     * The desktop's `with_caret_line`: a body whose last line is a table's
+     * row gains the empty line the editor always draws under it, so the
+     * note as stored and the note as shown are the same.
+     */
+    fun withCaretLine(body: String): String {
+        if (body.isEmpty() || body.endsWith("\n")) return body
+        val last = tableBlocks(body).lastOrNull() ?: return body
+        return if (last.last == body.split("\n").size - 1) body + "\n" else body
     }
 
     /** The deleted days of a series: real dates only, each once, in order. */

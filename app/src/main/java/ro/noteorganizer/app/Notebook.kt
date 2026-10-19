@@ -360,6 +360,14 @@ object Showing {
         }
         return out
     }
+
+    /**
+     * The notes the list shows as cards: what Select all takes, and the
+     * desktop's `_visible_note_ids`. A folded group's notes are counted in
+     * its header but not shown, and are not taken -- taken, Select all and
+     * then the Trash button sent notes nobody could see.
+     */
+    fun visibleIds(rows: List<Row>): Set<Int> = rows.filterIsInstance<Row.Item>().map { it.note.id }.toSet()
 }
 
 /** What a save did, or the reason it did not. Never silence. */
@@ -1072,15 +1080,16 @@ object Notebook {
         }
 
         val spans = readSpans(note.opt("formatting") as? JSONArray)
-        val metaChanged = (formatting != null && formatting != spans) ||
+        val pinChanged = pinned != null && pinned != (note.opt("pinned") == true)
+        val otherChanged = (formatting != null && formatting != spans) ||
             (category != null && category != note.opt("category")) ||
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
             (date != null && date.trim() != (note.opt("date") ?: "")) ||
-            (pinned != null && pinned != (note.opt("pinned") == true)) ||
             (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: "")) ||
             (paragraphs != null && Exporting.normalizeParagraphs(paragraphs, null) !=
                 Exporting.normalizeParagraphs(note.opt("paragraphs"), null))
-        if (oldTitle == newTitle && oldBody == newBody && !metaChanged) {
+        val wordsChanged = oldTitle != newTitle || oldBody != newBody
+        if (!wordsChanged && !otherChanged && !pinChanged) {
             return SaveResult.Ok(id)          // nothing to write
         }
 
@@ -1113,8 +1122,12 @@ object Notebook {
         if (date != null) note.put("date", date.trim())
         if (pinned != null) note.put("pinned", pinned)
         if (comments != null) note.put("comments", mendSurrogates(comments))
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        // A pin alone is not an edit: the desktop's `toggle_pin` leaves the
+        // time alone, and so does a pin from the note's details here.
+        if (wordsChanged || otherChanged) {
+            note.put("updated",
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        }
         // `created` is deliberately untouched: an edit is not a birth.
 
         val problem = writeAtomic(file, array)
@@ -1484,7 +1497,7 @@ object Notebook {
         val decoded = Sharing.decode(code)
         if (decoded is Sharing.Decoded.Failed) return Inspection.Failed(decoded.reason)
         val notes = (decoded as Sharing.Decoded.Notes).notes
-        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
+        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE, load.categories.keys)
         return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
     }
 
@@ -1578,7 +1591,16 @@ object Notebook {
      */
     internal fun sharedUpdateChanges(
         note: JSONObject, incoming: JSONObject, fields: List<String>,
-    ): Boolean = fields.any { !sameJson(shaped(note, it), shaped(incoming, it)) }
+    ): Boolean {
+        // Both as a load shapes them, as the desktop compares them since its
+        // own unchanged backup read as "edited elsewhere": a day's empty
+        // colour, styles in another order, a closing table's line -- each a
+        // difference no person made, and an Update on one spent the note's
+        // only rescue copy on a copy of itself.
+        val mine = Normalize.normalizeNote(note)
+        val theirs = Normalize.normalizeNote(incoming)
+        return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
+    }
 
     /**
      * Overwrite a note's [fields] from an incoming copy, keeping everything
@@ -1688,7 +1710,7 @@ object Notebook {
         return removed > 40 && (bigFraction || bigAbsolute)
     }
 
-    private fun spansToJson(spans: List<FormatSpan>): JSONArray {
+    internal fun spansToJson(spans: List<FormatSpan>): JSONArray {
         val array = JSONArray()
         for (span in spans) {
             val o = JSONObject()
@@ -1875,7 +1897,12 @@ object Notebook {
             }
             out.add(FormatSpan(start, end, style, value))
         }
-        return out
+        // Bold and italic on the same letters as two spans -- a desktop file
+        // from before its `normalize_formatting` folded them -- are read as
+        // one bold_italic, as the desktop reads them on every load: the
+        // editor's styling sees one style a letter, and with two, pressing B
+        // to take the bold off took the italic with it.
+        return Exporting.foldBoldWithItalic(out)
     }
 
     private fun readChecklist(array: JSONArray?): List<ChecklistItem> {

@@ -18,12 +18,12 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-614 checks across twenty-seven suites — `NotebookTest` (122),
+628 checks across twenty-seven suites — `NotebookTest` (122),
 `TablesTest` (75), `RecurrenceTest` (46), `CalculatorTest` (34),
-`IdentityTest` (30), `PastingTest` (29), `OrganizingTest` (27),
-`StylingTest` (25), `DaysTest` (23), `SharingTest` (21), `EditingTest`
-(20), `ParagraphsTest` (19), `SettingsTest` (17), `ImportingTest` (16),
-`FindingTest` (16), `ExportingTest` (15), `AppStateTest` (13),
+`IdentityTest` (30), `OrganizingTest` (30), `PastingTest` (29),
+`StylingTest` (26), `DaysTest` (26), `SharingTest` (22), `EditingTest`
+(20), `ParagraphsTest` (21), `ImportingTest` (19), `SettingsTest` (17),
+`FindingTest` (16), `ExportingTest` (15), `AppStateTest` (14),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
 (7), `MailingTest` (8), `StatsTest` (4), `StartupTest` (4),
 `EditorTableTest` (6), `EditorCopyTest` (3) and `InteropTest` (2). No
@@ -189,8 +189,8 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 29 parts and
-205 checks: a brand-new notebook, a notebook copied in, the
+notebook the app wrote is read back through `run-as`. 31 parts and
+230 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, and the phone changing

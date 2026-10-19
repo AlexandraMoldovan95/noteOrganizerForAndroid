@@ -95,8 +95,21 @@ object Importing {
     private fun fields(source: Source) =
         if (source == Source.BACKUP) Notebook.UPDATABLE_FROM_BACKUP else Notebook.UPDATABLE_FROM_SHARED
 
-    /** Asked of no file: what arrived, sorted into the three kinds. */
-    fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source): Plan {
+    /**
+     * Asked of no file: what arrived, sorted into the three kinds.
+     * [categories] are the ones the notebook will have -- its own, and a
+     * backup's it adds: a note filed under one it will not have is
+     * compared as the General note the import makes it, as the desktop's
+     * normalize_note compares it. Compared as it came, an unchanged note
+     * read as "edited elsewhere", and Update changed nothing but its rescue
+     * copy.
+     */
+    fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
+             categories: Set<String>? = null): Plan {
+        val asHere: (JSONObject) -> JSONObject = { note ->
+            if (categories == null || (note.opt("category") as? String ?: "").ifEmpty { "General" } in categories) note
+            else JSONObject(note.toString()).put("category", "General")
+        }
         val byUid = HashMap<String, Int>()
         for (i in 0 until notebook.length()) {
             val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.trim()
@@ -114,7 +127,7 @@ object Importing {
             }
             val mine = notebook.getJSONObject(at)
             val known = Known(at, theirs)
-            if (differs(mine, theirs, source)) {
+            if (differs(asHere(mine), asHere(theirs), source)) {
                 differing.add(known)
                 if (source == Source.BACKUP &&
                     (theirs.opt("updated") as? String ?: "") < (mine.opt("updated") as? String ?: "")
@@ -253,11 +266,15 @@ object Importing {
                 // General, as normalize_note files it on the desktop.
                 if (theirs.optString("category") !in categories) theirs.put("category", "General")
                 val claimedElsewhere = HashSet(claimed).apply { removeAll(storedNames(mine)) }
-                Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
+                // Counted only when the note changed: "Updated 1" was said
+                // of an update that changed nothing.
+                var changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
                 if (plan.source == Source.BACKUP) {
+                    changed = changed || filesToAdopt(mine, known.theirs).isNotEmpty()
                     adoptFiles(mine, known.theirs, claimedElsewhere, attachmentsDir, extras.attachments)
                     claimed += storedNames(mine)
                 }
+                if (!changed) continue
                 updated += 1
                 if (firstId == 0) firstId = mine.optInt("id")
             }
@@ -277,8 +294,12 @@ object Importing {
         val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
         var nextId = maxId(candidate) + 1
         for (incoming in toAdd + copies) {
+            // A backup's note keeps its rescue copy ("↩ Restore previous"),
+            // as the desktop's import keeps it through normalize_note:
+            // dropped here, a notebook moved to a new phone lost every one.
+            // A code never carries one, and one that claims to is not taken.
             val note = Normalize.normalizeNote(incoming)
-            note.remove("_prev")
+            if (plan.source != Source.BACKUP) note.remove("_prev")
             if (note.optString("category") !in categories) note.put("category", "General")
             note.put("attachments", placeFiles(note.getJSONArray("attachments"), claimed,
                 attachmentsDir, extras.attachments))

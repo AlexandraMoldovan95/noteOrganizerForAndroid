@@ -210,11 +210,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                     state.shareCode(selected)?.let { sendText(state, it) }
                                 },
                             )
-                            val everything = shown.map { it.id }.toSet()
+                            val everything = Showing.visibleIds(laidOut)
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (selected.containsAll(everything)) R.string.unselect_all else R.string.select_all)) },
                                 // Exactly what the list shows -- never a note
-                                // the search or the filter is hiding.
+                                // the search, the filter or a folded group is hiding.
                                 onClick = {
                                     moreMenu = false
                                     selected = if (selected.containsAll(everything)) emptySet() else everything

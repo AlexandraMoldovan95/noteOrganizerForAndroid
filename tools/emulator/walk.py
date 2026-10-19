@@ -856,6 +856,20 @@ def listing(folder):
     check("grouping and a folded group are kept, and the folded notes are hidden",
           settings.get("group_by_category") is True and settings.get("collapsed_groups") == ["Work"]
           and "Weekly one" not in seen and "Plain one" in seen, json.dumps(settings)[:200])
+    # Select all takes what shows: the folded group's two notes are counted
+    # in its header, not chosen -- chosen, the Trash button sent them away
+    # unseen, as the desktop's _visible_note_ids learnt.
+    # The one note in sight, chosen, is all there is to choose: the menu
+    # offers Unselect all. Counting the folded group's two, it offered
+    # Select all, and took three.
+    long_press("Plain one")
+    chosen = find("1 selected", exact=True) is not None
+    tap("⋮", exact=True, wait=1.0)               # its menu is a window of its own
+    check("with a group folded, the one note in sight is all Select all would take",
+          chosen and find("Unselect all", exact=True) is not None,
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    back(wait=0.8)
+    tap("✕", exact=True, wait=1.0)
 
 
 def previews(folder):
@@ -1701,6 +1715,18 @@ def off_schedule(folder):
          "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
     ], {"welcome_offered": True}, "Yoga"):
         return
+    # From the History, a day off the schedule opens the series -- its
+    # banner leads to the questions -- never the day, as one no calendar
+    # shows, to move or delete where nothing would show it again.
+    tap("Calendar", exact=True, wait=1.5)
+    tap("📋 History", wait=1.5)
+    tap("Yoga", wait=1.2)
+    tap("off the schedule", wait=2.0)
+    check("a History row off the schedule opens the series, not that day",
+          find("Only this day") is None and not screen_says("2 days' own edits are off the schedule"),
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    back(wait=1.0)
+    tap("Notes", exact=True, wait=1.5)
     open_note("Yoga")
     check("the series says two days' edits are off its schedule",
           not screen_says("2 days' own edits are off the schedule"))

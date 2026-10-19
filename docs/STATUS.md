@@ -303,7 +303,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 614 JVM unit tests in 27 suites, mutation-tested; six ports held to
+39. 628 JVM unit tests in 27 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -481,14 +481,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 205 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 230 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 614 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 628 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -496,10 +496,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-29 parts, 205 checks. The last run, after the first test on a real
-phone, went from start to end and passed all 202 it then had on its
-first try (the copy's part, written after it, was walked on its own);
-the first run of Phase 3 had failed five steps — all the walk's own, in
+31 parts, 230 checks. The last full run, after the table's audit, passed
+all 228 it then had on its first try; the two written with the audit's
+other fixes, and the parts those fixes touch, were walked on their own.
+The run before it failed three — two at larger letters, where a cell's
+style built anew had lost the theme's line height, and one Redo read a
+moment too soon, which every read of the autosave now waits out
+(`settle`). The first run of Phase 3 had failed five steps — all the walk's own, in
 older parts the new screens had changed under them
 ([the story](ISSUES_LOG.md#old-steps-walking-through-new-screens)).
 Phase 1's four:
@@ -715,7 +718,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-614 JVM unit tests in 27 suites pin the rules ported from Python, and
+628 JVM unit tests in 27 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

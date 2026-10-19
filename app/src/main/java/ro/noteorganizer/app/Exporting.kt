@@ -100,7 +100,7 @@ object Exporting {
      * something did overlap, exactly as the desktop does, since the order
      * decides which of two colours on one letter wins.
      */
-    private fun foldBoldWithItalic(spans: List<FormatSpan>): List<FormatSpan> {
+    internal fun foldBoldWithItalic(spans: List<FormatSpan>): List<FormatSpan> {
         data class Mark(val at: Int, val style: String, val step: Int)
         val marks = spans.filter { it.style == "bold" || it.style == "italic" }
             .flatMap { listOf(Mark(it.start, it.style, 1), Mark(it.end, it.style, -1)) }

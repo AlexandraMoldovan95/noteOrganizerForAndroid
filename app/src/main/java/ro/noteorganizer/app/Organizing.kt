@@ -124,8 +124,14 @@ object Organizing {
     }
 
     /** Pins or unpins several notes; one write. */
+    /**
+     * Pinned or not, its "updated" time left alone, as the desktop's
+     * `toggle_pin` leaves it: a pin is where a note sits, not an edit, and
+     * stamped, an unpinned note from last month jumped to the top of
+     * "Recently updated" and said "Last updated: today".
+     */
     fun setPinned(load: Notebook.Load, ids: Collection<Int>, pinned: Boolean): SaveResult =
-        editEach(load, ids) { it.put("pinned", pinned) }
+        editEach(load, ids, stamp = false) { it.put("pinned", pinned) }
 
     /** Files several notes under one category; one write. */
     fun moveToCategory(load: Notebook.Load, ids: Collection<Int>, category: String): SaveResult {
@@ -382,19 +388,56 @@ object Organizing {
         return SaveResult.Ok(arranged.firstOrNull()?.id ?: 0)
     }
 
-    private fun editEach(load: Notebook.Load, ids: Collection<Int>, change: (JSONObject) -> Unit): SaveResult {
+    /**
+     * Every note a positive id no other note has -- the desktop's
+     * `repair_note_ids`, with `normalize_note`'s reading of an id written
+     * as text: the first holder of a number keeps it, so a note remembered
+     * as open is still the same note, and every later holder takes the next
+     * free number. Two notes sharing an id were edited as one and went to
+     * the Trash together. Written when anything changed; true then.
+     */
+    fun repairIds(load: Notebook.Load): Boolean {
+        val file = load.file ?: return false
+        val array = load.raw ?: return false
+        fun idOf(note: JSONObject): Int = when (val raw = note.opt("id")) {
+            is Boolean -> 0
+            is Number -> raw.toInt()
+            is String -> raw.trim().toIntOrNull() ?: 0
+            else -> 0
+        }
+        val notes = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
+        val ids = notes.map { idOf(it) }
+        var next = (ids.filter { it > 0 }.maxOrNull() ?: 0) + 1
+        val seen = HashSet<Int>()
+        val wanted = ids.map { id -> if (id > 0 && seen.add(id)) id else next++.also { seen.add(it) } }
+        if (notes.indices.all { (notes[it].opt("id") as? Number)?.toInt() == wanted[it] && notes[it].opt("id") !is Boolean }) {
+            return false
+        }
+        val candidate = JSONArray(array.toString())
+        var k = 0
+        for (i in 0 until candidate.length()) {
+            val note = candidate.opt(i) as? JSONObject ?: continue
+            note.put("id", wanted[k++])
+        }
+        write(file, candidate)?.let { return false }
+        replace(array, candidate)
+        return true
+    }
+
+    private fun editEach(load: Notebook.Load, ids: Collection<Int>, stamp: Boolean = true,
+                         change: (JSONObject) -> Unit): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
         val wanted = ids.toSet()
         val candidate = JSONArray(array.toString())
         var changed = 0
-        val stamp = now()
+        val at = now()
         for (i in 0 until candidate.length()) {
             val note = candidate.opt(i) as? JSONObject ?: continue
             val itsId = note.opt("id")
             if (itsId is Number && itsId.toInt() in wanted) {
                 change(note)
-                note.put("updated", stamp)
+                if (stamp) note.put("updated", at)
                 changed += 1
             }
         }
@@ -683,6 +726,10 @@ object Organizing {
      * These entries back in the notebook, each with a fresh id -- its old
      * one may have been handed to a note made since -- the notebook written
      * first. A category deleted in the meantime files a note under General.
+     * A uid another note now has is replaced, as the desktop's
+     * `restore_many_from_trash` replaces it: a copy that came by code while
+     * this one sat in the Trash took its identity, and two notes with one
+     * uid meant the next code updated one of them and never the other.
      */
     fun restore(load: Notebook.Load, keys: Collection<TrashKey>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -696,10 +743,15 @@ object Organizing {
         val notesCandidate = JSONArray(array.toString())
         var nextId = maxId(array) + 1
         var firstId = 0
+        val worn = HashSet<String>()
+        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(it.opt("uid") as? String ?: "") }
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
             note.put("id", nextId)
+            val uid = note.opt("uid") as? String ?: ""
+            if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
+            worn.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)
             if (firstId == 0) firstId = nextId
             nextId += 1

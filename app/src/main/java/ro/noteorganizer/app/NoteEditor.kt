@@ -1177,7 +1177,12 @@ fun NoteEditor(state: AppState, openId: Int) {
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(palette.card)
-                        .clickable { askRestore = true }
+                        // Saved first, as the desktop's restore saves first: the
+                        // question then names the copy that save just made.
+                        // Saved only on yes, it promised the checklist and the
+                        // repeat of an older copy, and brought back the words
+                        // just deleted instead.
+                        .clickable { model.save(); askRestore = true }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -2378,7 +2383,11 @@ internal fun DateDialog(current: String, onPick: (String) -> Unit, onDismiss: ()
         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
     }
     val initial = if (Notebook.isDate(current)) format.parse(current.trim())?.time else null
-    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: System.currentTimeMillis())
+    // Every year the desktop reads, 1 to 9999: the picker's own 1900 to
+    // 2100 refuses a date outside it, and a note dated 1026 by a slip on
+    // the desktop would have stopped the app the moment its date was tapped.
+    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: System.currentTimeMillis(),
+                                         yearRange = 1..9999)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {

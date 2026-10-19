@@ -147,12 +147,53 @@ tested as from now on. Built on Phase 3.
   field vanished under the finger.
 - **An emoji counts as one character** in a table's widths, as on the
   desktop.
+- **Select all in a grouped list takes only the notes in sight**: with a
+  group folded, its notes were chosen too, and 🗑 sent them to the Trash
+  unseen.
+- **A note restored from the Trash takes a new identity** when a copy
+  that came by code has taken its own, as the desktop's restore does:
+  two notes with one identity, the next code updated one and never the
+  other.
+- **A backup's notes keep their "↩ Restore previous"**: a notebook moved
+  to a new phone lost every one.
+- **An import compares notes as a load shapes them**, as the desktop
+  does: an unchanged note filed under General for a category this phone
+  lacks, or differing only by a day's empty colour or a closing table's
+  line, no longer reads as "edited elsewhere" — where an Update spent its
+  only rescue copy on a copy of itself. "Updated" counts only notes that
+  changed, and an arriving note takes the desktop's shape: known styles,
+  line entries within its lines, the line under a closing table.
+- **A share code keeps the desktop's limits** — at most 200 notes, and
+  none past the size the import takes or past what can be handed to
+  another app — and says so in the desktop's words, where the phone made
+  codes both apps refused. A code from a note with files says the files
+  stay behind.
+- **A pin leaves a note's "updated" time alone**, as on the desktop.
+- **Notes sharing an id get their own at start**, as the desktop's
+  `repair_note_ids` gives them: two such notes were edited as one.
+- **Bold and italic stored as two styles are read as one**, as the
+  desktop reads them: B took the italic off with the bold.
+- **Enter or Backspace in a centred or indented line keeps it so**, both
+  halves of a broken line and the upper of two joined; a centred list
+  item continues centred.
+- **A History row off the schedule opens its series**, whose banner
+  settles such days, as the desktop's History does: opened as a day, it
+  could be moved or deleted where no calendar would show it again. Such
+  a day is never moved or deleted as one of the series' days, and a
+  deleted day's Undo is refused once the repeat no longer gives it.
+- **Turning a repeat off while changing its start** keeps the old start
+  in the rescue copy.
+- **A date from any year opens in the date picker**, and the calendar
+  stops at December 9999: a note dated 1026 by a slip, or a step past
+  9999, stopped the app.
+- **"↩ Restore previous" saves first, then asks**, as on the desktop, so
+  the question names the copy it will bring back.
 
 ### Testing
 
-- 614 JVM unit tests in 27 suites, from 572 in 24. 39 mutants against
+- 628 JVM unit tests in 27 suites, from 572 in 24. 58 mutants against
   them, all killed — one, a deleted row's orphan marker, only after a
-  test was written for it. Seventeen more built into the app: fifteen
+  test was written for it. Nineteen more built into the app: seventeen
   caught by the walk — two only on a second try, after the walk learned
   to type a letter after Undo and to type "<" on its own; one, a paste
   losing its formatting in the release build only, caught by the new
@@ -170,11 +211,17 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 205 checks in 29 parts, from 177 in 25 —
+- `tools/emulator/walk.py`: 230 checks in 31 parts, from 177 in 25 —
   previews, a table at larger letters, sending by email, a copy and a
-  cut made right after styling, and checks grown in four older parts.
-  The full run of the first 202 passed on its first try; the copy's
-  part, written after it, was walked on its own.
+  cut made right after styling, the table written in place and its
+  dragged edges, Select all with a group folded, a History row off the
+  schedule, and checks grown in older parts. Every read of a file the
+  autosave writes now waits for the save (`settle`), where one Redo read
+  a moment too soon. The last full run passed all 228 it then had; the
+  two added after it, and the parts their fixes touch, were walked on
+  their own. One mutant's first run found the list not yet on the screen
+  after its install and failed every step — not counted as a kill, run
+  again, and killed; why the list was late was not found.
 
 ## [Unreleased] — Phase 3
 

@@ -27,6 +27,31 @@ class DaysTest {
         "category": "Work", "color": "", "date": "2026-10-05",
         "recurrence": {"freq": "weekly", "weekdays": [0]}, "checklist": [{"text": "x", "done": false}]}]"""
 
+    // ---- a day off the schedule ----
+
+    @Test
+    fun `a day the series no longer gives is neither moved nor deleted as one of its days`() {
+        // Its own text on a Tuesday of a Monday series: off the schedule.
+        val load = scratch(series.replace("\"checklist\"", "\"overrides\": {\"2026-10-06\": {\"body\": \"own\"}}, \"checklist\""))
+        assertTrue(Days.moveDay(load, 1, "2026-10-06", "2026-10-08").first is SaveResult.Failed)
+        assertTrue(Days.deleteDay(load, 1, "2026-10-06").first is SaveResult.Failed)
+        assertTrue("its text is still there, to settle", onDisk(load).getJSONObject("overrides").has("2026-10-06"))
+        assertTrue("a day the series gives still moves", Days.moveDay(load, 1, "2026-10-12", "2026-10-14").first is SaveResult.Ok)
+    }
+
+    @Test
+    fun `a deleted day's Undo is refused once the repeat no longer gives it, as the desktop's`() {
+        val load = scratch(series)
+        val (deleted, gone) = Days.deleteDay(load, 1, "2026-10-12")
+        assertTrue(deleted is SaveResult.Ok)
+        // The repeat changed to Tuesdays in the meantime.
+        val note = onDisk(load)
+        note.getJSONObject("recurrence").put("weekdays", JSONArray(listOf(1)))
+        load.file!!.writeText(JSONArray().put(note).toString())
+        val again = Notebook.load(load.file!!.parentFile!!)
+        assertTrue(Days.undoDeleteDay(again, gone!!) is SaveResult.Failed)
+    }
+
     // ---- the month ----
 
     @Test
@@ -218,6 +243,19 @@ class DaysTest {
         val back = onDisk(load)
         assertEquals("weekly", back.getJSONObject("recurrence").getString("freq"))
         assertEquals("Own title", back.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
+    }
+
+    @Test
+    fun `turned off with a new start in the same Save, the rescue copy keeps the start it had`() {
+        // The sheet writes the new start first, then the repeat: the copy
+        // taken then held a series on the new date, its days' edits off it.
+        val load = scratch(series)
+        Days.saveDay(load, 1, "2026-10-12", "Own title", "agenda", "", "Work", "")
+        val note = onDisk(load).put("date", "2026-10-08")
+        load.file!!.writeText(JSONArray().put(note).toString())
+        val again = Notebook.load(load.file!!.parentFile!!)
+        assertTrue(Days.setRepeat(again, 1, null, startWas = "2026-10-05") is SaveResult.Ok)
+        assertEquals("2026-10-05", onDisk(again).getJSONObject("_prev").getString("date"))
     }
 
     @Test

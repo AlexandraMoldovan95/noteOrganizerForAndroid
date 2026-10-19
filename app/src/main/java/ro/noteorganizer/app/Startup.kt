@@ -37,8 +37,12 @@ object Startup {
                 greet(dir)
             }
         }
-        val load = Notebook.load(dir)
+        var load = Notebook.load(dir)
         load.problem?.let { lines.add(it) }
+        // Every note a number of its own, as the desktop's repair_note_ids
+        // makes it on each load: two notes sharing one were edited as one
+        // and sent to the Trash together. Written once, then read again.
+        if (load.problem == null && Organizing.repairIds(load)) load = Notebook.load(dir)
         // The day this install was first used, stamped once and never again,
         // as the desktop's get_first_launch_date stamps it: Statistics says it.
         load.settings?.let { settings ->

@@ -55,7 +55,7 @@ object Templates {
         return out
     }
 
-    private fun paragraphsJson(paragraphs: List<Exporting.Paragraph>): JSONArray {
+    internal fun paragraphsJson(paragraphs: List<Exporting.Paragraph>): JSONArray {
         val out = JSONArray()
         for (p in paragraphs) {
             val o = JSONObject().put("line", p.line)

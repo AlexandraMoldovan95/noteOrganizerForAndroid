@@ -1164,35 +1164,28 @@ the audit of 2026-10-19.
 
 ### The phone's, from the audit of 2026-10-19
 
-The tables' share is fixed
-([the story](#ports-read-side-by-side-with-the-desktop-they-came-from)).
-In the owner's order — what loses data or writes a file the desktop
-reads differently first, then what behaves the desktop's old way — the
-rest, each found by reading both apps and to be proved by a test as it
-is fixed:
+In the owner's order, what loses data or writes a file the desktop reads
+differently came first, and is fixed — the tables' share
+([the story](#ports-read-side-by-side-with-the-desktop-they-came-from)),
+and the rest: Select all with a group folded, a restored note's
+identity, a backup's rescue copies, the import's "is this the same
+note?", the share code's limits, a pin's "updated", shared ids, bold
+with italic, a line's alignment through Enter and Backspace, History's
+days off the schedule and a deleted day's Undo, the rescue copy's start,
+and the two ways the app could stop on a date (all in the
+[changelog](../CHANGELOG.md)). Still to do, each found by reading both
+apps and to be proved by a test as it is fixed:
 
-* **Losing or splitting data:** Select all in a grouped list takes the
-  notes of folded groups too, and 🗑 trashes them; a note restored from
-  the Trash keeps a uid another note now has; a backup's notes arrive
-  without their rescue copies (`_prev`); "is this the same note?" is
-  asked of the stored values rather than as a load shapes them, so an
-  Update can spend a rescue copy on a note that did not change, and the
-  import's own shaping (`normalize_note`'s styles, paragraphs, limits,
-  the line under a closing table) is only part of the desktop's; a share
-  code has no 200-note limit; pinning changes `updated`; duplicate ids
-  are not repaired on load; bold and italic stored as two spans lose
-  one under B; Enter or Backspace in a centred or indented line drops
-  its alignment; a History row off the schedule opens a day no calendar
-  shows; turning a repeat off with a new start keeps the new date in
-  the rescue copy; the date picker and the calendar's months past year
-  9999 can stop the app.
+* **Not yet ported from `normalize_note`:** `clamp_spans_per_line`, the
+  per-line ceiling on styles, and refiling a day's own category the
+  phone lacks.
 * **The desktop's old way:** typing next to a styled word, a colour
   tapped twice, B with nothing selected (to become the desktop's, by the
   owner's choice), the calculator's Insert in a cell, a day's own edits
   losing the series' formatting, a deleted day's Undo and a cleared
   colour's Undo overwriting what came after, the series banner's count of
-  days with their own edits, a code shared with files not saying they
-  stay behind, a single imported note not offered to open, 🔗 on an empty
+  days with their own edits, a single imported note not offered to
+  open, 🔗 on an empty
   note, 3-digit colours, Unicode spaces in the duplicate check, and a
   list entry whose marker is gone keeping its indent.
 

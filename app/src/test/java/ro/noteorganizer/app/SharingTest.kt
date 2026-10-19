@@ -49,6 +49,22 @@ class SharingTest {
     }
 
     @Test
+    fun `no code is made past what the import takes, as the desktop's encode_share_code refuses`() {
+        // 200 notes make a code; 201 a refusal in the desktop's words, never
+        // a code both apps would turn away.
+        val many = (1..201).map { note("""{"title": "n$it"}""") }
+        assertTrue(Sharing.decode(Sharing.encode(many.take(200))) is Sharing.Decoded.Notes)
+        val refused = try { Sharing.encode(many); null } catch (e: Sharing.TooLarge) { e.message }
+        assertTrue(refused, refused != null && refused.contains("at most 200 notes") && refused.contains("201"))
+        // Past the size the import accepts, by its words: a body of random letters
+        // compresses badly, so the code itself runs past the limit.
+        val random = java.util.Random(7)
+        val noise = String(CharArray(Sharing.MAX_DECOMPRESSED_BYTES + 1) { ('a' + random.nextInt(26)) })
+        val tooBig = try { Sharing.encode(listOf(note("{}").put("body", noise))); null } catch (e: Sharing.TooLarge) { e.message }
+        assertTrue(tooBig, tooBig != null && tooBig.contains("too much for one code"))
+    }
+
+    @Test
     fun `diacritics and emoji come back exactly`() {
         val original = note("""{"title": "Mașină", "body": "Ștefan 👣 și"}""")
         val back = (Sharing.decode(Sharing.encode(listOf(original)))
@@ -160,8 +176,9 @@ class SharingTest {
 
     @Test
     fun `a code carrying too many notes is refused`() {
-        val notes = (1..Sharing.MAX_SHARED_NOTES + 1).map { note("""{"title": "$it"}""") }
-        val result = Sharing.decode(Sharing.encode(notes))
+        // Made by hand: this phone no longer makes such a code, another app might.
+        val notes = JSONArray().apply { (1..Sharing.MAX_SHARED_NOTES + 1).forEach { put(note("""{"title": "$it"}""")) } }
+        val result = Sharing.decode(codeOf(JSONObject().put("v", 1).put("notes", notes)))
         assertTrue(result is Sharing.Decoded.Failed)
         assertTrue((result as Sharing.Decoded.Failed).reason.contains("limit"))
     }
