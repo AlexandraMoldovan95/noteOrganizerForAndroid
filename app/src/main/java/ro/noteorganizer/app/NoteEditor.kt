@@ -302,7 +302,17 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** The format bar's alignment keys. */
     fun alignLines(first: Int, last: Int, align: String) {
-        props = Paragraphs.setAlign(body, props, first, last, align)
+        var next = Paragraphs.setAlign(body, props, first, last, align)
+        // A caption carries its table along, as the desktop's
+        // `_set_paragraph_align` has it: centred alone, the label stood
+        // over a table left where it was.
+        val lines = body.split("\n")
+        for (block in tableBlocks(body)) {
+            val caption = Editing.captionLines(lines, block.last)
+            if (caption.none { it in first..last }) continue
+            next = withAlign(next, block + caption, next[caption.first()]?.align ?: "left")
+        }
+        props = next
         changed()
     }
 
@@ -549,13 +559,153 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * step, as typing in the note's text does.
      */
     fun editTable(segment: Editing.Segment, kind: String = "edit", change: (TableEdit) -> TableEdit) {
-        val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
-        val next = replaceTable(body, segment.firstLine..segment.lastLine, change(TableEdit(lines)).lines())
-        if (next == body) return
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        if (applyTable(segment, change(TableEdit(tableLines(segment))))) changed(kind)
+    }
+
+    private fun tableLines(segment: Editing.Segment): List<String> =
+        body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
+
+    /** One table edit written into the body, its styles carried ([carryCellStyles]). True when anything changed. */
+    private fun applyTable(segment: Editing.Segment, edit: TableEdit): Boolean {
+        val written = edit.lines()
+        val next = replaceTable(body, segment.firstLine..segment.lastLine, written)
+        if (next == body) return false
+        spans = if (day != null) emptyList() else carryCellStyles(body, next, segment, written.size, edit.origins())
         follow(next)
         body = next
-        changed(kind)
+        return true
+    }
+
+    /**
+     * A table's styles carried through an edit cell by cell, as the
+     * desktop's `_grid_read_cell_styles` and `_grid_lay_cell_styles` carry
+     * them: the styles lying on a cell's words go with the words wherever
+     * the edit put them, while the words are the same, and a highlight laid
+     * pipe to pipe goes with its cell. Left to the remap alone, an edit
+     * that re-padded the rows dropped every style between its first change
+     * and its last -- a column added took the colour out of the cell beside
+     * it. A cell whose words the edit changed, and every style outside the
+     * table or across its cells, move as the remap moves them.
+     */
+    private fun carryCellStyles(old: String, new: String, segment: Editing.Segment, count: Int,
+                                origins: List<List<Pair<Int, Int>?>>): List<FormatSpan> {
+        val before = cellPlaces(old, segment.firstLine..segment.lastLine)
+        val after = cellPlaces(new, segment.firstLine until segment.firstLine + count)
+        val oldPoints = codePointsOf(old)
+        val newPoints = codePointsOf(new)
+        fun words(points: IntArray, p: CellPlace) = String(points, p.wordsStart, p.wordsEnd - p.wordsStart)
+        // Each old cell's new place, when the edit kept it, and whether its words are the same.
+        val goesTo = HashMap<Pair<Int, Int>, Pair<CellPlace, Boolean>>()
+        for ((key, p) in after) {
+            val origin = origins.getOrNull(key.first)?.getOrNull(key.second) ?: continue
+            val was = before[origin] ?: continue
+            if (origin !in goesTo) goesTo[origin] = p to (words(oldPoints, was) == words(newPoints, p))
+        }
+        val carried = ArrayList<FormatSpan>()
+        val rest = ArrayList<FormatSpan>()
+        // Only a style inside the table is looked for among its cells: this
+        // runs on every letter typed in a cell, and a long note's other
+        // styles need not be.
+        val low = before.values.minOfOrNull { it.start } ?: 0
+        val high = before.values.maxOfOrNull { it.end } ?: 0
+        for (span in spans) {
+            if (span.end <= low || span.start >= high) {
+                rest.add(span)
+                continue
+            }
+            var placed = false
+            for ((origin, target) in goesTo) {
+                val was = before.getValue(origin)
+                val (now, same) = target
+                if (span.start == was.start && span.end == was.end) {
+                    carried.add(span.copy(start = now.start, end = now.end))
+                    placed = true
+                } else if (same && span.end > span.start && span.start >= was.wordsStart && span.end <= was.wordsEnd) {
+                    val shift = now.wordsStart - was.wordsStart
+                    carried.add(span.copy(start = span.start + shift, end = span.end + shift))
+                    placed = true
+                }
+                if (placed) break
+            }
+            if (!placed) rest.add(span)
+        }
+        return (remapSpans(old, new, rest).spans + carried).sortedWith(compareBy({ it.start }, { it.end }))
+    }
+
+    /**
+     * A cell merged with its neighbour, on its left or above, the desktop's
+     * way ([mergePlan]): every word kept, joined in the cell kept -- and
+     * every style lying on those words carried with them, as the desktop's
+     * merge lays each piece's bold and colours on that piece. One cell is
+     * written at a time, so each remap of the styles sees one small change
+     * and keeps what is around it; all of it one step for Undo. Returns the
+     * cell kept, or null when there was nothing to merge with.
+     */
+    fun mergeCells(segment: Editing.Segment, at: CellAt, up: Boolean): CellAt? {
+        val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
+        val plan = mergePlan(lines, at, up) ?: return null
+        val table = parseTable(lines)
+
+        // Where a cell's words start, in code points of [text], and how long they are.
+        fun words(text: String, cell: CellAt): Pair<Int, Int>? {
+            val line = segment.firstLine + table.fileRow(cell.row)
+            val (from, to) = Exporting.cellRange(text, line, cell.column) ?: return null
+            val points = codePointsOf(text)
+            var start = from
+            while (start < to && points[start] == ' '.code) start++
+            var end = to
+            while (end > start && points[end - 1] == ' '.code) end--
+            return start to (end - start)
+        }
+
+        // The styles wholly on each piece's words, placed as they will sit
+        // in the joined words: each piece after the ones before it and a space.
+        val carried = ArrayList<FormatSpan>()
+        val moved = HashSet<FormatSpan>()
+        if (day == null) {
+            var offset = 0
+            for (piece in plan.pieces) {
+                val (start, length) = words(body, piece) ?: continue
+                for (span in spans) {
+                    if (span.start >= start && span.end <= start + length && span.end > span.start) {
+                        carried.add(span.copy(start = span.start - start + offset, end = span.end - start + offset))
+                        moved.add(span)
+                    }
+                }
+                offset += length + 1
+            }
+        }
+        spans = spans.filterNot { it in moved }
+        writeCells(segment, table, plan.writes)
+        if (carried.isNotEmpty()) {
+            words(body, plan.anchor)?.let { (start, _) ->
+                spans = (spans + carried.map { it.copy(start = it.start + start, end = it.end + start) })
+                    .sortedWith(compareBy({ it.start }, { it.end }))
+            }
+        }
+        changed()
+        return plan.anchor
+    }
+
+    /**
+     * Several cells of one table written, one at a time: each a change the
+     * style remap can place exactly. Written together, re-padded, the remap
+     * saw one stretch from the first to the last and dropped every style
+     * between them. No step for Undo here; the caller makes one.
+     */
+    private fun writeCells(segment: Editing.Segment, table: TableBlock, writes: List<CellWrite>) {
+        for (write in writes) {
+            applyTable(segment, TableEdit(tableLines(segment)).setCell(table.fileRow(write.at.row), write.at.column, write.text))
+        }
+    }
+
+    /** A row made [lines] lines tall by a drag on its edge ([rowLinesPlan]); one step for Undo. */
+    fun setRowLines(segment: Editing.Segment, row: Int, lines: Int) {
+        val table = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
+        val writes = rowLinesPlan(table, row, lines)
+        if (writes.isEmpty()) return
+        writeCells(segment, parseTable(table), writes)
+        changed()
     }
 
     /**
@@ -1105,6 +1255,14 @@ fun NoteEditor(state: AppState, openId: Int) {
                         reveal = find.reveal,
                         active = writing,
                         editor = writing?.let { at -> { style -> CellEditor(model, segment, table, at, style) } },
+                        onResizeColumn = { column, chars ->
+                            model.editColumns(segment) { setColumnWidth(it, column, chars) }
+                        },
+                        onResizeRow = { row, lines ->
+                            model.setRowLines(segment, row, lines)
+                            // The cell being written in may have gained or lost its empty lines.
+                            model.cellEpoch += 1
+                        },
                     )
                 } else {
                     ProseField(
@@ -2282,7 +2440,10 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val key = Triple(segment.firstLine, at, model.cellEpoch)
     var draft by remember(key) {
         val text = cellTextAt(table, at).replace("<br>", "\n")
-        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+        // At the end of the words, not under the empty lines a row made
+        // taller keeps: typed there, the words went to its last line.
+        val end = text.trimEnd('\n').length
+        mutableStateOf(TextFieldValue(text, TextRange(end)))
     }
     val typing = remember(key) { FocusRequester() }
     LaunchedEffect(key) { typing.requestFocus() }
@@ -2292,8 +2453,15 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
         onValueChange = { next ->
             val clean = next.text.replace("|", "/")
             draft = next.copy(text = clean)
-            model.editTable(segment, Editing.History.TYPING + ":cell") {
-                it.setCell(table.fileRow(at.row), at.column, clean.replace("\n", "<br>"))
+            // Not written while it is a merge's marker or a box's -- "<" on
+            // its way to "<5 €", "[ ]" to "[ ] milk": written, the cell would
+            // turn into a merge or a box under the finger, its field gone.
+            // The desktop writes a cell when it is left; the next letter
+            // writes this one.
+            if (!isCellToken(clean)) {
+                model.editTable(segment, Editing.History.TYPING + ":cell") {
+                    it.setCell(table.fileRow(at.row), at.column, clean.replace("\n", "<br>"))
+                }
             }
         },
         textStyle = style,
@@ -2344,19 +2512,17 @@ private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
                 if (merged) {
                     Choice(stringResource(R.string.tb_split)) { edit(at) { it.split(row, at.column) } }
                 } else {
-                    // The cell kept is the one on the left, or the one above;
-                    // this one becomes the desktop's marker, its own words gone
-                    // as the desktop's merge takes them -- Undo brings them back.
-                    if (at.column > 0) {
-                        Choice(stringResource(R.string.tb_merge_left)) {
-                            edit(CellAt(at.row, at.column - 1)) { it.setMarker(row, at.column, "<") }
-                        }
+                    // The words of both cells are kept, joined in the cell
+                    // kept -- the one on the left, or the one above -- as the
+                    // desktop's merge joins them ([EditorModel.mergeCells]).
+                    fun merge(up: Boolean) {
+                        val kept = model.mergeCells(segment, at, up)
+                        open = null
+                        model.activeCell = ActiveCell(segment.firstLine, kept ?: at)
+                        model.cellEpoch += 1
                     }
-                    if (at.row > 0) {
-                        Choice(stringResource(R.string.tb_merge_up)) {
-                            edit(CellAt(at.row - 1, at.column)) { it.setMarker(row, at.column, "^") }
-                        }
-                    }
+                    if (at.column > 0) Choice(stringResource(R.string.tb_merge_left)) { merge(up = false) }
+                    if (at.row > 0) Choice(stringResource(R.string.tb_merge_up)) { merge(up = true) }
                 }
             }
             "color" -> ChoiceRow {
@@ -2478,14 +2644,21 @@ private fun TableMoreSheet(model: EditorModel, segment: Editing.Segment, at: Cel
                  modifier = Modifier.padding(bottom = 6.dp))
             MoreRow("↔", stringResource(R.string.more_fit_all)) { columns { autofitAllColumns(it) } }
             MoreRow("↦", stringResource(R.string.more_fit)) { columns { autofitColumn(it, at.column) } }
-            MoreRow("←→", stringResource(R.string.more_wider)) { columns { setColumnWidth(it, at.column, widthNow + 4) } }
+            MoreRow("←→", stringResource(R.string.more_wider)) {
+                columns { setColumnWidth(it, at.column, table.widerChars(at.column)) }
+            }
             if (widthNow > 4) {
                 MoreRow("→←", stringResource(R.string.more_narrower)) { columns { setColumnWidth(it, at.column, widthNow - 4) } }
             }
             if (table.columns.any { it.hidden }) {
                 MoreRow("👁", stringResource(R.string.more_show)) { columns { unhideAllColumns(it) } }
             }
-            MoreRow("⊘", stringResource(R.string.more_hide)) { columns(keep = false) { hideColumn(it, at.column) } }
+            // Never the last column in sight: with every column hidden the
+            // table draws nothing, and no cell is left to tap for Show --
+            // the desktop's "hiding every column would lock Unhide away".
+            if (table.columns.count { !it.hidden } > 1) {
+                MoreRow("⊘", stringResource(R.string.more_hide)) { columns(keep = false) { hideColumn(it, at.column) } }
+            }
             MoreRow("✎", stringResource(R.string.more_caption), stringResource(R.string.more_caption_sub)) {
                 model.activeCell = null
                 onDone()

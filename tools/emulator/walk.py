@@ -284,6 +284,7 @@ def main():
     new_table(folder)
     cell_menu(folder)
     table_bar(folder)
+    table_resize(folder)
     large_letters_table(folder)
     table_extras(folder)
     undoing(folder)
@@ -1457,19 +1458,97 @@ def table_bar(folder):
     choose_cell("Bar", "tolls")
     tap("Merge", exact=True, wait=0.8)
     tap("With the cell above", exact=True, wait=1.2)
-    check_settled("Merge, with the cell above: the desktop's ^", rows, lambda r: bool(r) and r[-1][0] == "^")
-    choose_cell("Bar", "fuel")
+    # Both cells' words are kept, joined in the cell kept, as the desktop's
+    # merge joins them: the phone's first merge lost the chosen cell's.
+    check_settled("Merge, with the cell above: the desktop's ^, both cells' words in the cell kept",
+                  rows, lambda r: len(r) > 4 and r[-1][0] == "^" and r[3][0] == "fuel tolls")
+    shot(folder, "65-merged-down", "fuel tolls")
+    choose_cell("Bar", "fuel tolls")
     tap("Merge", exact=True, wait=0.8)
     tap("Split", exact=True, wait=1.2)
-    check_settled("Split takes the marker away", rows, lambda r: bool(r) and r[-1][0] == "")
+    check_settled("Split takes the marker away, the words staying where they were joined",
+                  rows, lambda r: len(r) > 4 and r[-1][0] == "" and r[3][0] == "fuel tolls")
     choose_cell("Bar", "first")
     tap("Delete", exact=True, wait=0.8)
     tap("This row", exact=True, wait=1.2)
-    check_settled("Delete, This row", rows, lambda r: [x[0] for x in r] == ["Item", "---", "fuel", ""])
+    check_settled("Delete, This row", rows, lambda r: [x[0] for x in r] == ["Item", "---", "fuel tolls", ""])
     choose_cell("Bar", "Cost")
     tap("Delete", exact=True, wait=0.8)
     tap("This column", exact=True, wait=1.2)
     check_settled("Delete, This column", rows, lambda r: bool(r) and r[0][:2] == ["Item", ""])
+    back_to("Search notes")
+
+
+def table_resize(folder):
+    """A table changed by a finger on its edges, as the desktop's lines are
+    dragged: the chosen cell's right handle makes its column wider -- the
+    separator's dashes -- and one Undo takes it back; its bottom handle
+    makes the row taller -- an empty <br> line in its tallest cell -- and
+    dragged back up the line goes, the words staying. Then a merge down,
+    photographed: one cell, both cells' words in the one kept."""
+    print("\n-- a table's edges dragged, a merge down --")
+    body = "\n".join(["| Item | Cost |", "| --- | --- |", "| fuel | 120 |", "| tolls | 45 |"])
+    if not seed_inside([{"id": 1, "uid": "rs-1", "title": "Edges", "body": body,
+                         "created": "2026-10-19 09:00:00", "updated": "2026-10-19 09:00:00"}],
+                       {"welcome_offered": True}, "Edges"):
+        return
+
+    def lines():
+        return ((note_by_uid("rs-1") or {}).get("body") or "").split("\n")
+
+    def dashes(l):
+        return l[1].split("|")[1].strip() if len(l) > 1 and l[1].count("|") > 1 else ""
+
+    def drag(label, dx, dy):
+        at = find(label)
+        if not at:
+            fail("drag %r: not on the screen" % label)
+            return
+        adb("shell", "input", "swipe", str(at[0]), str(at[1]), str(at[0] + dx), str(at[1] + dy), "900")
+        time.sleep(0.8)
+
+    choose_cell("Edges", "fuel")
+    check("the chosen cell shows its edges' handles",
+          find("Drag to change the column's width") is not None and find("Drag to change the row's height") is not None)
+    shot(folder, "66-handles", "fuel")
+    drag("Drag to change the column's width", 220, 0)
+    check_settled("dragged right, the column is wider: the separator's dashes", lines, lambda l: len(dashes(l)) >= 12)
+    tap("Undo", exact=True, wait=1.2)
+    check_settled("one Undo takes the width back", lines, lambda l: dashes(l) == "---")
+    choose_cell("Edges", "fuel")
+    drag("Drag to change the row's height", 0, 160)
+    check_settled("dragged down, the row is taller: an empty line in its tallest cell",
+                  lines, lambda l: len(l) > 2 and "<br>" in l[2] and "fuel" in l[2])
+    shot(folder, "67-row-taller", "fuel")
+    drag("Drag to change the row's height", 0, -400)
+    check_settled("dragged back up, the empty lines go and the words stay",
+                  lines, lambda l: len(l) > 2 and "<br>" not in l[2] and "fuel" in l[2])
+
+    # "<5" typed: on its way, the cell holds "<" alone -- a merge's marker,
+    # which written at once turned the cell into a merge under the finger.
+    choose_cell("Edges", "120")
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    for _ in range(3):
+        adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    # One key at a time: typed as one, "<5" reaches the field in one change
+    # and the "<" alone is never there to be written (a mutant survived it).
+    adb("shell", "input", "text", "'<'")              # quoted: "<" is the shell's
+    time.sleep(1.5)
+    check("a lone \"<\" typed leaves the cell a cell, its field still there",
+          find("Cell", exact=True) is not None and "<" not in (lines()[2].split("|")[2] if len(lines()) > 2 else ""),
+          repr(lines()[:3]))
+    adb("shell", "input", "text", "5")
+    check_settled("words that begin as a merge's marker are written as words",
+                  lines, lambda l: len(l) > 2 and l[2].split("|")[2].strip() == "<5")
+
+    choose_cell("Edges", "tolls")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell above", exact=True, wait=1.2)
+    check_settled("merged down: both cells' words in the cell kept, the desktop's ^ under it",
+                  lines, lambda l: len(l) > 3 and l[2].split("|")[1].strip() == "fuel tolls" and l[3].split("|")[1].strip() == "^")
+    keyboard_down()
+    back(wait=1.0)
+    shot(folder, "68-merged-down", "fuel tolls")
     back_to("Search notes")
 
 
@@ -1521,7 +1600,9 @@ def cell_menu(folder):
     check("the highlight lies pipe to pipe over the cell",
           span is not None and len(pipes) > 2
           and (span["start"], span["end"]) == (line2_start + pipes[1] + 1, line2_start + pipes[2]), repr(span))
-    check("the merge is the desktop's marker", len(lines) > 3 and lines[3].replace(" ", "") == "|tolls|<|", repr(lines))
+    check("the merge is the desktop's marker, both cells' words in the cell kept",
+          len(lines) > 3 and [x.strip() for x in lines[3].strip().strip("|").split("|")] == ["tolls 45", "<"],
+          repr(lines))
     check("the table is centred: its lines' alignment",
           (saved.get("paragraphs") or []) == [{"line": n, "align": "center"} for n in range(4)],
           repr(saved.get("paragraphs")))

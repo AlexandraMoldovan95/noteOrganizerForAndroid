@@ -318,8 +318,7 @@ object Exporting {
     }
 
     /** `separator_index`: the first separator in a block's first two rows. */
-    private fun separatorIndex(block: List<String>): Int? =
-        block.take(2).indexOfFirst { isSeparatorRow(it) }.takeIf { it >= 0 }
+    private fun separatorIndex(block: List<String>): Int? = separatorIndexOf(block).takeIf { it >= 0 }
 
     // ---- note_to_html ----
 

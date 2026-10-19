@@ -511,7 +511,12 @@ So a cell edit rewrites only that cell's stretch of its own line and
 leaves every other byte alone — which also preserves each cell's
 alignment for free, since the padding IS the alignment and untouched
 padding cannot be misread. Structural changes (a row or column added or
-removed) do rebuild, because they must.
+removed) do rebuild, because they must — and then the styles are carried
+cell by cell, as the desktop's `_grid_lay_cell_styles` carries them: the
+styles on a cell's words go with the words, while they are the same, and
+a highlight laid pipe to pipe goes with its cell. The remap alone, which
+sees one change from the first altered character to the last, dropped
+every style in between.
 
 ### The drawn grid and the file do not number rows the same way
 
@@ -528,14 +533,15 @@ with `| --- |` measures nothing at all. One was.
 ### Where a table keeps what is not words
 
 A table's edits — Phase 2's cell menu, the table's bar since — write
-four things, each where the desktop keeps it, none of them in a field of
+five things, each where the desktop keeps it, none of them in a field of
 its own:
 
 | What | Where it lives |
 |---|---|
-| A cell's alignment | its **padding**: spaces after the words for left, before for right, both for centre. A cell's own padding comes before the column's, which the separator's colons give. |
+| A cell's alignment | its **padding**: spaces after the words for left, before for right, both for centre — and room kept for it when the words fill the column. It is what the drawing reads, as the desktop's does; the separator's colons only travel with the table. |
 | A cell's highlight | a `highlight` span laid **pipe to pipe**, over the whole cell and its padding, so whatever is later typed in the cell lands inside it. A span over part of a cell is a style on its words, not a fill. |
-| A merge | the marker as the cell's whole text: `<` joins the cell to its left, `^` to the one above. Splitting empties every cell the merge took and leaves the first its words. |
+| A merge | the marker as the cell's whole text: `<` joins the cell to its left, `^` to the one above. Merging writes every cell's words into the cell kept at the top left, joined in reading order by a space, as the desktop's `_grid_merge_selection` does, and a marker in each of the others; a merge it touches is taken in whole. Splitting empties every cell the merge took and leaves the first its words. |
+| A row's height | empty `<br>` lines at the end of the row's tallest cell, as the desktop's `_grid_set_row_lines` writes them; made shorter, every cell's trailing empty lines go, never its words |
 | The table's place on the page | the alignment of **its lines** in `paragraphs` — a centred table is every one of its lines centred |
 
 Phase 3 adds three more, all in the text:
@@ -546,11 +552,14 @@ Phase 3 adds three more, all in the text:
 | A hidden column | `~` as its separator cell |
 | A caption | two lines under the table, `Table N: …` and `Source: …`, placed as the table is; N comes after every caption the note already has, the older `Tab. N:` ones included |
 
-The separator stays under the first row, whatever is inserted above it
-or deleted from it: moved to the third line it is no longer read as a
+The separator is read in a table's first two lines only, as the
+desktop's `separator_index` reads it — a row of dashes lower down is a
+row — and it stays under the first row, whatever is inserted above,
+under or deleted: moved to the third line it is no longer read as a
 separator, and its dashes turn into a row of text, and left on the first
 line it makes no table at all. So the header row deleted, the next row
-is the header. A table keeps two columns, as the desktop's does: a
+is the header, and a row added under the header goes under the
+separator. Squared up, it grows by `---` cells, never empty ones. A table keeps two columns, as the desktop's does: a
 column of two deleted is emptied, since one column reads as prose. And
 a merge marker whose partner a deletion took is emptied, as
 `_dissolve_orphan_markers` empties it

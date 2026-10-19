@@ -50,6 +50,12 @@ tested as from now on. Built on Phase 3.
 - **"Fit all columns to their words"**, in the table's More, beside the
   one-column fit: the whole table fitted in one step, a hidden column
   left hidden.
+- **A table's edges, dragged**: the chosen cell shows a handle on its
+  right edge, for its column's width, and one on its bottom edge, for its
+  row's height — the lines the desktop drags, made a finger's size. A
+  width is the separator's dashes and a height empty lines in the row's
+  tallest cell, as the desktop writes them, never cutting into words;
+  one Undo takes a drag back.
 - **A release build**: shrunk by R8 to 2.0 MB, not debuggable, its one
   native library 16 KB-aligned, and an app bundle beside it. Signed for
   now with this machine's debug key, so it installs over a debug build
@@ -71,7 +77,8 @@ tested as from now on. Built on Phase 3.
   as a row above the bar — Above or Below, Left or Right — and More
   holds the rarer changes: widths, hiding a column, a caption, a line
   above, the table's place on the page. The file is written as before,
-  the rows the desktop reads.
+  the rows the desktop reads. A tap on a merged cell's lower part chooses
+  the merged cell.
 
 ### Fixed
 
@@ -107,17 +114,56 @@ tested as from now on. Built on Phase 3.
 - **A merge left joining nothing is undone** when a row or a column goes,
   as the desktop's `_dissolve_orphan_markers` undoes it; its `<` or `^`
   stayed in the file.
+- **A merge keeps both cells' words**, joined in the cell kept in reading
+  order, as the desktop's merge joins them, with their styles. The phone
+  wrote the merge's marker over the chosen cell, and its words went —
+  words merged with an empty cell came out empty. A merge down is drawn
+  as one cell, where the cell under it stood apart and empty.
+- **"Row → Below" on the header keeps the table the desktop's**: the new
+  row goes under the separator, which it had pushed to the third line,
+  where the desktop reads none.
+- **A row of dashes below the second line is a row**, drawn and edited
+  as one, as the desktop reads it; the phone took it for the separator.
+- **A table typed past its last cell keeps its separator** through an
+  edit: squared up with empty cells, the separator stopped being one.
+- **Rows and columns added or taken away keep the cells' styles** — a
+  cell's colour and the bold on its words, carried cell by cell as the
+  desktop carries them. Re-padded rows lost every style between the
+  first change and the last; aligning a cell lost its own words' bold.
+- **A right-aligned or centred cell typed full keeps its alignment**: with
+  no room left for the padding that says it, it read back as left.
+- **A table's first row is its header**, drawn as one with or without a
+  separator, as on the desktop; a new table had none until a width was
+  set.
+- **Centring a caption takes its table along**, as on the desktop.
+- **A cell's words sit where its own padding says**, as on the desktop
+  and in the export; a `:---:` column drew centred on the phone alone.
+- **"This column wider" never makes a long column narrower** than its
+  words; it went four characters past the phone's 26-character drawing.
+- **The last column in sight cannot be hidden**: with none left, the
+  table drew nothing and Show could not be reached.
+- **"<5 €" or "[ ] milk" typed in a cell stay words**: on the way, the
+  cell held "<" or "[ ]" alone, was written as a merge or a box, and its
+  field vanished under the finger.
+- **An emoji counts as one character** in a table's widths, as on the
+  desktop.
 
 ### Testing
 
-- 590 JVM unit tests in 26 suites, from 572 in 24. 18 mutants against
-  them, all killed. Fourteen more built into the app: twelve caught by
-  the walk; one, a paste losing its formatting in the release build only,
-  caught by the new release gate and not by any screen; and one survives
-  — the email naming Gmail rather than its writing window, which this
-  emulator's Gmail, never signed in, no longer tells apart. The size
-  box's and the template body's fixes had no mutant run; Statistics'
-  tiles and the menu's icons were photographed.
+- 614 JVM unit tests in 27 suites, from 572 in 24. 39 mutants against
+  them, all killed — one, a deleted row's orphan marker, only after a
+  test was written for it. Seventeen more built into the app: fifteen
+  caught by the walk — two only on a second try, after the walk learned
+  to type a letter after Undo and to type "<" on its own; one, a paste
+  losing its formatting in the release build only, caught by the new
+  release gate and not by any screen; and one survives — the email
+  naming Gmail rather than its writing window, which this emulator's
+  Gmail, never signed in, no longer tells apart. The size box's and the
+  template body's fixes had no mutant run; Statistics' tiles, the menu's
+  icons, the table's handles and a merge down were photographed.
+- The table's bar on the owner's own phone, release build, in a note of
+  the check's own: 25 checks, all passed, twice — the second after the
+  phone showed the empty cells too narrow to tap.
 - `tools/check_release_lookups.py`, a gate on the built release APK:
   every file its code looks up by name, found where the renamed code
   will look.

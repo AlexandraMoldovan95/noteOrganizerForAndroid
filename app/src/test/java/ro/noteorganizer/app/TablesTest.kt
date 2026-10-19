@@ -478,6 +478,155 @@ class TablesTest {
         assertEquals("the separator is never a cell", grid[1], TableEdit(grid).setMarker(1, 0, "<").lines()[1])
     }
 
+    /** A merge's writes applied as the editor applies them, one cell at a time. */
+    private fun applied(lines: List<String>, plan: MergePlan): List<String> =
+        plan.writes.fold(lines) { now, w -> TableEdit(now).setCell(parseTable(now).fileRow(w.at.row), w.at.column, w.text).lines() }
+
+    @Test
+    fun `a merge keeps the words of both cells, joined in reading order, as the desktop's _grid_merge_selection`() {
+        val plan = mergePlan(grid, CellAt(1, 1), up = false)!!
+        assertEquals(listOf(CellWrite(CellAt(1, 0), "a b"), CellWrite(CellAt(1, 1), "<")), plan.writes)
+        assertEquals(listOf(CellAt(1, 0), CellAt(1, 1)), plan.pieces)
+        val merged = parseTable(applied(grid, plan))
+        assertEquals(listOf("a b"), merged.rows[1][0]!!.lines)
+        assertEquals(2, merged.rows[1][0]!!.colSpan)
+        // Above, too: the upper cell's words first.
+        val up = mergePlan(grid, CellAt(2, 1), up = true)!!
+        assertEquals(listOf(CellWrite(CellAt(1, 1), "b e"), CellWrite(CellAt(2, 1), "^")), up.writes)
+    }
+
+    @Test
+    fun `a cell merged with an empty one keeps its words, whichever of the two is kept`() {
+        // The owner's case on her phone: words merged with the empty cell on
+        // their left came out as an empty cell.
+        val lines = listOf("| A | B |", "| --- | --- |", "|  | gym |")
+        val plan = mergePlan(lines, CellAt(1, 1), up = false)!!
+        assertEquals(CellWrite(CellAt(1, 0), "gym"), plan.writes.first())
+        assertEquals(listOf("gym", "<"), splitRow(applied(lines, plan)[2]))
+        assertNull("no neighbour on the left of the first column", mergePlan(lines, CellAt(1, 0), up = false))
+        assertNull("none above the first row", mergePlan(lines, CellAt(0, 1), up = true))
+    }
+
+    @Test
+    fun `a merge grows to take a merge it touches whole, and the box is written the desktop's way`() {
+        // "a" already spans two columns; "d" merged up into it takes the whole box.
+        val wide = TableEdit(grid).setMarker(2, 1, "<").lines()
+        val plan = mergePlan(wide, CellAt(2, 0), up = true)!!
+        assertEquals(CellWrite(CellAt(1, 0), "a d e"), plan.writes.first())
+        assertEquals(setOf(CellWrite(CellAt(1, 1), "<"), CellWrite(CellAt(2, 0), "^"), CellWrite(CellAt(2, 1), "<")),
+                     plan.writes.drop(1).toSet())
+        val merged = parseTable(applied(wide, plan))
+        assertEquals(2, merged.rows[1][0]!!.colSpan)
+        assertEquals("the row under it, swallowed into it whole",
+                     mapOf(CellAt(2, 0) to CellAt(1, 0), CellAt(2, 1) to CellAt(1, 0)),
+                     merged.swallowedBy.filterKeys { it.row == 2 })
+        assertEquals(listOf("c"), merged.rows[1][2]!!.lines)
+    }
+
+    @Test
+    fun `a row made taller pads its tallest cell with empty lines, as the desktop's _grid_set_row_lines`() {
+        val lines = listOf("| A | B |", "| --- | --- |", "| Mon<br>early | gym |")
+        assertEquals(listOf(CellWrite(CellAt(1, 0), "Mon<br>early<br>")), rowLinesPlan(lines, 1, 3))
+        val tall = applied(lines, MergePlan(rowLinesPlan(lines, 1, 3), emptyList()))
+        assertEquals(listOf("Mon", "early", ""), parseTable(tall).rows[1][0]!!.lines)
+        // Already that tall: nothing to write.
+        assertEquals(emptyList<CellWrite>(), rowLinesPlan(lines, 1, 2))
+    }
+
+    @Test
+    fun `a row made shorter trims empty lines only, never the words a cell holds`() {
+        val lines = listOf("| A | B |", "| --- | --- |", "| Mon<br><br> | gym<br> |")
+        assertEquals(setOf(CellWrite(CellAt(1, 0), "Mon"), CellWrite(CellAt(1, 1), "gym")), rowLinesPlan(lines, 1, 1).toSet())
+        val words = listOf("| A | B |", "| --- | --- |", "| Mon<br>early | gym |")
+        assertEquals("two lines of words stay two lines", emptyList<CellWrite>(), rowLinesPlan(words, 1, 1))
+    }
+
+    @Test
+    fun `a cell merged down over several rows is left alone by a row's height`() {
+        val lines = listOf("| A | B |", "| --- | --- |", "| Mon | gym |", "| ^ | run |")
+        assertEquals(listOf(CellWrite(CellAt(1, 1), "gym<br>")), rowLinesPlan(lines, 1, 2))
+    }
+
+    @Test
+    fun `the separator is read in the first two lines only, as the desktop's separator_index`() {
+        // Lower down, a row of dashes is a row of the table, drawn and numbered.
+        val t = table("| A | B |", "| x | y |", "| --- | --- |", "| c | d |")
+        assertEquals(-1, t.separatorAt)
+        assertEquals(4, t.rows.size)
+        assertEquals(listOf("---"), t.rows[2][0]!!.lines)
+        // A merge on the last row writes the last row, numbered as it was read.
+        val lines = listOf("| A | B |", "| x | y |", "| --- | --- |", "| c | d |")
+        val plan = mergePlan(lines, CellAt(3, 1), up = false)!!
+        assertEquals(listOf("| --- | --- |", "c d", "<"),
+                     applied(lines, plan).let { listOf(it[2], splitRow(it[3])[0], splitRow(it[3])[1]) })
+    }
+
+    @Test
+    fun `a row added under the header goes under the separator, as the desktop's _grid_insert_row`() {
+        val out = TableEdit(grid).insertRowAfter(0).lines()
+        assertTrue("the separator is still the second line", isSeparatorRow(out[1]))
+        assertEquals(listOf("", "", ""), splitRow(out[2]))
+        assertEquals(listOf("a", "b", "c"), splitRow(out[3]))
+    }
+
+    @Test
+    fun `a ragged table's separator grows by dashes, so it stays a separator`() {
+        // One row typed past the rest: any edit squares the table up.
+        val lines = listOf("| A | B |", "| --- | --- |", "| a | b | c |")
+        val out = TableEdit(lines).insertRowAfter(2).lines()
+        assertTrue(out[1], isSeparatorRow(out[1]))
+        assertEquals(3, splitRow(out[1]).size)
+    }
+
+    @Test
+    fun `a right-aligned or centred cell typed full keeps its alignment`() {
+        val lines = listOf("| Item | Cost |", "| --- | --- |", "| fuel |    1 |")
+        assertEquals(CellAlign.RIGHT, cellAlignments(lines[2])[1])
+        val full = TableEdit(lines).setCell(2, 1, "12345").lines()
+        assertEquals(CellAlign.RIGHT, cellAlignments(full[2])[1])
+        val centred = TableEdit(lines).setAlignment(2, 1, CellAlign.CENTER).lines()
+        val typed = TableEdit(centred).setCell(2, 1, "1234567").lines()
+        assertEquals(CellAlign.CENTER, cellAlignments(typed[2])[1])
+    }
+
+    @Test
+    fun `wider is never narrower than what the column holds, though the phone draws it capped`() {
+        val long = "w".repeat(40)
+        val t = table("| A | B |", "| --- | --- |", "| $long | b |")
+        assertEquals(26, t.drawnChars(0))
+        assertEquals("the whole column, not 30 cutting its own words", 40, t.widerChars(0))
+        assertEquals("a short column: four more than drawn", 12, t.widerChars(1))
+        assertEquals("a set width: four more than set", 16, table("| A |", "| ------------ |", "| a |").widerChars(0))
+    }
+
+    @Test
+    fun `a merge's marker or a box is mechanics, any other words are words`() {
+        for (token in listOf("<", "^", "[ ]", "[x]", " [X] ")) assertTrue(token, isCellToken(token))
+        for (words in listOf("<5 €", "^up", "[ ] milk", "", "x")) assertFalse(words, isCellToken(words))
+    }
+
+    @Test
+    fun `the first row is the header with or without a separator, as the desktop draws it`() {
+        assertEquals(1, table("| Day | Task |", "| Mon | gym |").headerRows)
+        assertEquals(1, table("| Day | Task |", "| --- | --- |", "| Mon | gym |").headerRows)
+    }
+
+    @Test
+    fun `widths are counted in characters, an emoji one, as the desktop counts them`() {
+        val out = formatTable(listOf(listOf("😀", "b"), listOf("abcdefghij", "c")),
+                              listOf(listOf(CellAlign.LEFT, CellAlign.LEFT), listOf(CellAlign.LEFT, CellAlign.LEFT)))
+        assertEquals("both rows the same characters wide",
+                     out[0].codePointCount(0, out[0].length), out[1].codePointCount(0, out[1].length))
+    }
+
+    @Test
+    fun `a merge down from under the header joins the header's cell, not the separator's dashes`() {
+        // Read over the whole grid, the "^" took the dashes for the cell above it.
+        val t = table("| Day | Task |", "| --- | --- |", "| ^ | gym |")
+        assertEquals(CellAt(0, 0), t.swallowedBy[CellAt(1, 0)])
+        assertNull(t.rows[1][0])
+    }
+
     @Test
     fun `splitting empties every cell the merge swallowed, the anchor keeps its text`() {
         val merged = TableEdit(grid).setMarker(2, 1, "<").lines().let { TableEdit(it).setMarker(2, 2, "<").lines() }

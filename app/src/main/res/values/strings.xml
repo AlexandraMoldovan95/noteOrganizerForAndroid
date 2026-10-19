@@ -211,6 +211,8 @@
     <string name="tb_box">Box</string>
     <string name="tb_delete">Delete</string>
     <string name="tb_more">More</string>
+    <string name="tb_grip_width">Drag to change the column\'s width</string>
+    <string name="tb_grip_height">Drag to change the row\'s height</string>
     <string name="tb_above">Above</string>
     <string name="tb_below">Below</string>
     <string name="tb_left">Left</string>

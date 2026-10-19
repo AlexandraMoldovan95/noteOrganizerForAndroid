@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-two are
+**the code**, or in **the design**. Fourteen of the forty-three are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-19](#ports-read-side-by-side-with-the-desktop-they-came-from) | design | A merge lost a cell's words; read side by side, the port held about 58 more of the desktop's rules copied in part | A desktop rule lives in more than its function: read its whole route, and compare the two apps' answers regularly |
 | [2026-10-19](#a-cells-words-held-by-its-field-after-the-cell-changed) | code | A cell written in place kept the words it had before Undo, and before a row was put over it | A new copy is a new holder, asked the old question the day it is made |
 | [2026-10-19](#two-deletes-the-desktop-had-already-settled) | code | Deleting a table's header row, or a column of two, stopped the table being a table; a new table's empty cells were slivers | Port a function's guards, not only its name and main path |
 | [2026-10-19](#a-cells-style-built-from-nothing) | code | A cell's text style, built anew to share with the field it is written in, lost the theme's line height: header and plain rows of two heights | A value pulled out of a call carries only what the call wrote, not what it inherited |
@@ -59,6 +60,53 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## Ports read side by side with the desktop they came from
+
+**2026-10-19.** On the owner's phone, a cell with words merged with the
+empty cell beside it came out empty. The phone merged by writing the
+merge's marker over the chosen cell — the desktop's `_grid_set_marker`,
+one path of two — while the desktop's merge proper,
+`_grid_merge_selection`, joins every cell's words and says why in its
+comment: "Merging 'A' with an empty neighbour used to keep whichever cell
+was the anchor -- and lose the text". The phone had copied the older
+path.
+
+Asked whether more of the port was like that, five readers went through
+the app area by area, each with the desktop's current code beside it and
+the phone's notes on what differs on purpose. They found about 58
+differences on the phone and 7 on the desktop. Almost none were rules
+the desktop changed after the port: they were rules it already had,
+written in another function, a docstring or a guard the port did not
+read to the end.
+
+The tables' share, fixed together:
+
+* the new merge keeps every word, as the desktop's does, and carries
+  their styles;
+* "Row → Below" on the header pushed the separator to the third line,
+  where the desktop reads none;
+* the phone read a separator on any line, the desktop only in the first
+  two — and the merge being written numbered its rows one way and wrote
+  them another, so on such a table it would have written over the wrong
+  row: found by reading, before anything ran;
+* a table squared up wrote an empty cell into its separator;
+* structural edits re-padded every row and let the style remap drop
+  everything between the first change and the last, where the desktop
+  carries each cell's styles cell by cell;
+* a right-aligned cell typed full lost the room for the padding that
+  says it;
+* and smaller ones: the header drawn only with a separator, a caption
+  centred alone, the separator's colons drawn over a cell's own padding,
+  Wider measured from the phone's drawing cap, the last column hidden
+  with no way back, "<" typed turning a cell into a merge.
+
+**The class:** a port is a copy of a rule as the porter read it. The
+desktop's rule lives in more places than its function — in another
+function on the same menu, in the guard at the top, in the comment that
+says why — and a port that reads one place carries that one. Read the
+desktop's whole route for a behaviour, and compare the two apps' answers
+to the same input from time to time, not only when something breaks.
 
 ## A cell's words held by its field after the cell changed
 
@@ -1110,8 +1158,65 @@ example notebook always has titles; that is what makes it an example.
 
 ## Still open
 
-Findings, not failures: each one waits on a change in the desktop
-repository rather than here.
+Findings, not failures. Most wait on a change in the desktop repository
+rather than here; the first section is what the phone still owes from
+the audit of 2026-10-19.
+
+### The phone's, from the audit of 2026-10-19
+
+The tables' share is fixed
+([the story](#ports-read-side-by-side-with-the-desktop-they-came-from)).
+In the owner's order — what loses data or writes a file the desktop
+reads differently first, then what behaves the desktop's old way — the
+rest, each found by reading both apps and to be proved by a test as it
+is fixed:
+
+* **Losing or splitting data:** Select all in a grouped list takes the
+  notes of folded groups too, and 🗑 trashes them; a note restored from
+  the Trash keeps a uid another note now has; a backup's notes arrive
+  without their rescue copies (`_prev`); "is this the same note?" is
+  asked of the stored values rather than as a load shapes them, so an
+  Update can spend a rescue copy on a note that did not change, and the
+  import's own shaping (`normalize_note`'s styles, paragraphs, limits,
+  the line under a closing table) is only part of the desktop's; a share
+  code has no 200-note limit; pinning changes `updated`; duplicate ids
+  are not repaired on load; bold and italic stored as two spans lose
+  one under B; Enter or Backspace in a centred or indented line drops
+  its alignment; a History row off the schedule opens a day no calendar
+  shows; turning a repeat off with a new start keeps the new date in
+  the rescue copy; the date picker and the calendar's months past year
+  9999 can stop the app.
+* **The desktop's old way:** typing next to a styled word, a colour
+  tapped twice, B with nothing selected (to become the desktop's, by the
+  owner's choice), the calculator's Insert in a cell, a day's own edits
+  losing the series' formatting, a deleted day's Undo and a cleared
+  colour's Undo overwriting what came after, the series banner's count of
+  days with their own edits, a code shared with files not saying they
+  stay behind, a single imported note not offered to open, 🔗 on an empty
+  note, 3-digit colours, Unicode spaces in the duplicate check, and a
+  list entry whose marker is gone keeping its indent.
+
+### Seven DESKTOP findings from the audit of 2026-10-19
+
+* **Right-click → Merge with the cell to the left, or above, loses the
+  merged cell's words** — `_grid_set_marker` writes the marker over
+  them; the selection's merge, `_grid_merge_selection`, keeps them.
+* **"Insert row above" on the header row of a table with a separator**
+  pushes the separator to the third line, where `separator_index` no
+  longer reads it.
+* **`read_date` can raise on superscript or circled digits** ("17²"):
+  they pass `_DATE_RUNS`, then `_DATE_FIGURES.match` returns None.
+* **Bold, or italic, over a partly italic or bold selection** strips the
+  other style from the whole selection.
+* **Enter with the cursor before or inside a list marker** writes a new
+  marker there ("• • milk").
+* **Enter with words selected in a list item** inserts the new item and
+  leaves the selection.
+* **Backspace with a selection ending just after a marker** climbs the
+  list instead of deleting the selection.
+
+Deleting a column a merge passes through keeps the merge on the phone;
+the desktop dissolves it. The phone's is kept, as losing less.
 
 ### The DESKTOP's automatic Trash purge can delete a file a living note uses
 

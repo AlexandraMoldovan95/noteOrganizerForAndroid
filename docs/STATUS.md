@@ -178,7 +178,13 @@ Grouped by what the app does; when each item arrived is in the
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added
-    or removed, merge and split, highlight, alignment, a checkbox. Its
+    or removed, merge and split, highlight, alignment, a checkbox. A
+    merge keeps both cells' words and their styles, as the desktop's
+    does, and a merge down is drawn as one cell; every edit carries each
+    cell's styles with it
+    ([why](ISSUES_LOG.md#ports-read-side-by-side-with-the-desktop-they-came-from)).
+    The chosen cell's right and bottom edges are dragged for its column's
+    width and its row's height. Its
     More: the table's place on the page; a column wider, narrower,
     fitted to its words — one column or all of them — hidden and shown
     again; a numbered caption under the table and a line above it; and
@@ -297,7 +303,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 593 JVM unit tests in 26 suites, mutation-tested; six ports held to
+39. 614 JVM unit tests in 27 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -378,12 +384,25 @@ Phase 3 added three, for the same reason —
   desktop counts that table's padding in text the first table has
   already changed, and its styles land beside their words.
 
+The audit of 2026-10-19 added one more, and the phone's own
+simplifications of the table:
+
+* **Deleting a column a merge passes through keeps the merge**, one
+  column narrower; the desktop dissolves it.
+* **A hidden column is not drawn at all**, where the desktop draws a
+  sliver to right-click; More's "Show hidden columns" brings them all
+  back, and the last column in sight is never hidden.
+* **Box turns a box into an empty cell at once**; the desktop opens it
+  empty and keeps the box until something is typed. Undo brings it back.
+* **No selection of several cells**: no copying, pasting or clearing a
+  block of cells, and a merge joins a cell with one neighbour at a time.
+
 ## Not built yet
 
 What is left after Phase 3, as a list, so nothing is pretended:
 
-* Styling inside a table's cells is not drawn, and a vertical merge is
-  drawn as an empty cell rather than a joined one.
+* Styling inside a table's cells is not drawn (it is kept, and carried
+  with the cells through every edit).
 * **Tab-separated text pasted as a table.** The desktop turns a
   spreadsheet's plain-text copy into a table; on the phone a spreadsheet
   is pasted from the HTML it also offers, and plain tab-separated text
@@ -469,7 +488,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 593 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 614 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -696,7 +715,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-593 JVM unit tests in 26 suites pin the rules ported from Python, and
+614 JVM unit tests in 27 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
