@@ -55,6 +55,9 @@ for the camera rather than anybody&rsquo;s real one &mdash;
 - **The Trash**, kept for the desktop's window and emptied on its own.
 - **Your look**: the desktop's eight themes, or follow the phone's dark
   mode.
+- **Share a note** with anyone, through the phone's own share sheet —
+  WhatsApp, mail, Teams: as a PDF of its page, a web page, its words, or
+  a share code. The app sends nothing itself.
 - **Move notes to and from the desktop.** One note as a **share code** —
   text you send through any app — or the whole notebook as the desktop's
   own **backup `.zip`**. A note that arrives where a copy of it already
@@ -105,7 +108,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 628 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 627 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in
@@ -140,7 +143,7 @@ at 47% of the canvas is in the
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
 | The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
-| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 230 checks, each reading the file the app wrote |
+| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 231 checks, each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
 The unit tests pin the rules ported from Python rather than the screens,

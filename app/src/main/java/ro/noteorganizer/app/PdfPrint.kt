@@ -12,7 +12,10 @@ import android.os.Looper
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.math.min
@@ -54,7 +57,39 @@ object PdfPrint {
     private var wholeDocument = false
 
     /** [html] printed to [out]. False when it could not be: the caller says so. */
-    suspend fun print(context: Context, html: String, out: File): Boolean = suspendCancellableCoroutine { done ->
+    suspend fun print(context: Context, html: String, out: File): Boolean {
+        val pages = draw(context, html) ?: return false
+        // The file written off the main thread: it is most of a long note's
+        // time -- 0.85 s of the 1.2 s forty pages held the app for on the
+        // emulator -- and on a phone slower than that, a touch left
+        // unanswered for five seconds is an app "not responding". The pages
+        // are drawn on the main thread, as a WebView must be.
+        return try {
+            withContext(Dispatchers.IO) { out.outputStream().use { pages.doc.writeTo(it) } }
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Any, as when it was written here with the pages: the person
+            // is told it could not be made, the app does not fall over.
+            false
+        } catch (e: OutOfMemoryError) {
+            false
+        } finally {
+            pages.close()
+        }
+    }
+
+    /** The pages recorded and the pictures they are drawn from, kept until the file is written. */
+    private class Pages(val doc: PdfDocument, val pictures: MutableList<Bitmap>) {
+        fun close() {
+            doc.close()
+            pictures.forEach { it.recycle() }
+        }
+    }
+
+    /** [html] laid out and drawn, page by page. Null when it drew nothing, twice. */
+    private suspend fun draw(context: Context, html: String): Pages? = suspendCancellableCoroutine { done ->
         // Before the first WebView is made, or a WebView draws only the part
         // of a page a screen would show.
         if (!wholeDocument) {
@@ -84,11 +119,11 @@ object PdfPrint {
             web.layout(0, 0, width, height)
         }
         var finished = false
-        fun finish(ok: Boolean) {
+        fun finish(pages: Pages?) {
             if (finished) return
             finished = true
             web.destroy()
-            if (done.isActive) done.resume(ok)
+            if (done.isActive) done.resume(pages) else pages?.close()
         }
         // A real page's size from the start: laid out with no height, the
         // page took no width either -- and kept: a document is never shorter
@@ -115,25 +150,25 @@ object PdfPrint {
                     }
                     val height = maxOf(now, onePage)
                     layOut(height)
-                    // Written once the page has drawn: a page that drew
+                    // Drawn once the page has drawn: a page that drew
                     // nothing gets a second chance half a second later, and
                     // after that the person is told, not sent a blank page.
                     fun attempt(left: Int) {
-                        val ok = try {
-                            write(web, width, height, out)
+                        val pages = try {
+                            drawPages(web, width, height)
                         } catch (e: Exception) {
-                            false
+                            null
                         } catch (e: OutOfMemoryError) {
-                            false
+                            null
                         }
-                        if (!ok && left > 0) main.postDelayed({ attempt(left - 1) }, 500) else finish(ok)
+                        if (pages == null && left > 0) main.postDelayed({ attempt(left - 1) }, 500) else finish(pages)
                     }
                     main.postDelayed({ attempt(1) }, 150)
                 }
                 main.postDelayed({ measure() }, 100)
             }
         }
-        done.invokeOnCancellation { Handler(Looper.getMainLooper()).post { finish(false) } }
+        done.invokeOnCancellation { Handler(Looper.getMainLooper()).post { finish(null) } }
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
     }
 
@@ -149,23 +184,22 @@ object PdfPrint {
      * times. The pictures together are kept under [BUDGET]: a long note is
      * printed at fewer dots an inch, never fewer than [MIN_DPI].
      */
-    private fun write(web: WebView, width: Int, height: Int, out: File): Boolean {
+    private fun drawPages(web: WebView, width: Int, height: Int): Pages? {
         val scale = AREA_W.toFloat() / width
         val pageHeight = AREA_H / scale
         // Null when the page drew nothing at all: a note always has its
         // title, so nothing drawn is a page not ready, and a blank PDF is
         // never sent in its place.
-        val starts = pageStarts(web, width, height, pageHeight) ?: return false
+        val starts = pageStarts(web, width, height, pageHeight) ?: return null
         val dpi = dpiFor(starts.size)
         val dotsW = AREA_W * dpi / 72
         val dotsH = AREA_H * dpi / 72
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        val pictures = ArrayList<Bitmap>()
-        val doc = PdfDocument()
+        val pages = Pages(PdfDocument(), ArrayList())
         try {
             for ((i, top) in starts.withIndex()) {
                 val bottom = starts.getOrElse(i + 1) { height.toFloat() }
-                val picture = Bitmap.createBitmap(dotsW, dotsH, Bitmap.Config.ARGB_8888).also { pictures.add(it) }
+                val picture = Bitmap.createBitmap(dotsW, dotsH, Bitmap.Config.ARGB_8888).also { pages.pictures.add(it) }
                 Canvas(picture).apply {
                     drawColor(Color.WHITE)
                     scale(dotsW.toFloat() / width, dotsW.toFloat() / width)
@@ -173,16 +207,15 @@ object PdfPrint {
                     clipRect(0f, top, width.toFloat(), bottom)
                     web.draw(this)
                 }
-                val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, i + 1).create())
+                val page = pages.doc.startPage(PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, i + 1).create())
                 page.canvas.drawBitmap(picture, null, Rect(MARGIN, MARGIN, PAGE_W - MARGIN, PAGE_H - MARGIN), paint)
-                doc.finishPage(page)
+                pages.doc.finishPage(page)
             }
-            out.outputStream().use { doc.writeTo(it) }
-            return true
-        } finally {
-            doc.close()
-            pictures.forEach { it.recycle() }
+        } catch (e: Throwable) {
+            pages.close()
+            throw e
         }
+        return pages
     }
 
     /** The dots an inch [pages] pictures can have together under [BUDGET] bytes: [DPI] at most, [MIN_DPI] at least. */

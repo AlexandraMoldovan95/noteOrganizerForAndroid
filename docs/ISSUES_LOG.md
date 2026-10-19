@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-three are
+**the code**, or in **the design**. Fourteen of the forty-four are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-19](#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been) | code | "Not responding" while sharing on the emulator was the computer building, not the PDF; a 40-page PDF did hold the app 1.2 s, and a second Share cleared the first one's folder | Read a freeze's own report before changing code, then size the work by the largest input it allows; hold an order in a test, not in racing taps |
 | [2026-10-19](#ports-read-side-by-side-with-the-desktop-they-came-from) | design | A merge lost a cell's words; read side by side, the port held about 58 more of the desktop's rules copied in part | A desktop rule lives in more than its function: read its whole route, and compare the two apps' answers regularly |
 | [2026-10-19](#a-cells-words-held-by-its-field-after-the-cell-changed) | code | A cell written in place kept the words it had before Undo, and before a row was put over it | A new copy is a new holder, asked the old question the day it is made |
 | [2026-10-19](#two-deletes-the-desktop-had-already-settled) | code | Deleting a table's header row, or a column of two, stopped the table being a table; a new table's empty cells were slivers | Port a function's guards, not only its name and main path |
@@ -60,6 +61,52 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A freeze blamed on the PDF, and the one it would have been
+
+**2026-10-19.** Walking the new Share on the emulator, Android said "Note
+Organizer isn't responding". The PDF was the obvious suspect: it is
+drawn on the main thread, as a WebView must be, and the sheet had just
+closed onto it.
+
+Measured instead of believed, it was not the PDF. The report Android
+wrote at the moment of the freeze showed the app's main thread idle,
+waiting for work; in the same seconds every process on the emulator was
+dropping frames, the system's own among them — the app was being built
+on the same computer. The 13-second frame logged earlier was the app's
+first after its install. Timed step by step, a one-page PDF took half a
+second from the tap to the share sheet, a three-page one 0.7, and the
+longest the app was held at once was 0.2 s.
+
+The suspicion still found something, by asking what the largest note
+does. Forty pages, the most a PDF here holds, held the app 1.2 s at
+once — 0.29 s drawing the pages, 0.85 s writing the file — and 73
+frames were dropped. A phone a few times slower than this emulator
+would leave a touch unanswered past the five seconds after which
+Android calls an app not responding. The file is now written on another
+thread, and for forty pages the longest hold is the drawing, 0.35 s.
+
+And while it is made, the Share button is there again. Asked for a
+second time, a second PDF cleared the folder the first was still
+writing into. It is now refused with a word — "Still getting the last
+one ready" — and the walk asks twice, tapping places read once with no
+UI dump between: one share sheet, a message on the screen, the whole
+PDF. That check passed with the refusal taken out. The first share
+then failed, its folder cleared, and said so in a message the screen's
+pixels could not tell from the refusal's, and the second opened the one
+share sheet. The rule moved to the rules side, `Outgoing.OneAtATime`,
+where a unit test holds the first share at its drawing and asks again:
+each of its four mutants is killed there.
+
+What no check holds: how long the pause before the share sheet feels on
+a slow phone. It is in the test plan, for a person.
+
+**The class:** an app that freezes on an emulator while the computer is
+building may be the computer. Read the freeze's own report and the other
+processes' frames before changing code — and then size the work by the
+largest input it allows, not by the test's. And an order between two
+of a person's asks belongs in a test that can hold the first one still,
+not in taps that race it.
 
 ## Ports read side by side with the desktop they came from
 
@@ -344,6 +391,10 @@ Android versions. Verify the hand-off on a current one, with a real
 receiving app, and read it from the log rather than from what came to
 the front. When the environment loses the condition a fix exists for,
 say so: a check that cannot fail is not a check.
+
+*Since 2026-10-19* the app names no mail app: Share hands a note to the
+phone's own share sheet, which needs no `<queries>`, and the surviving
+mutant went with the code it mutated.
 
 ## Widths in one unit, letters in another
 

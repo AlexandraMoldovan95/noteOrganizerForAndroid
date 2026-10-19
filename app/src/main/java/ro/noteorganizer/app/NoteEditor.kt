@@ -839,7 +839,7 @@ fun NoteEditor(state: AppState, openId: Int) {
     val calc = remember(model) { CalculatorState() }
     val exporter = rememberExporter(state)
     var exportAsk by remember { mutableStateOf(false) }
-    var mailAsk by remember { mutableStateOf(false) }
+    var shareAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
     var tableAsk by remember { mutableStateOf(false) }
     var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
@@ -967,9 +967,17 @@ fun NoteEditor(state: AppState, openId: Int) {
                 color = if (model.problem != null) palette.dangerText else palette.subtext,
                 fontSize = 12.sp,
             )
+            // Share: one door out -- a PDF, a page, the words, a code --
+            // where 🔗 and "Send by email" were two. A note with nothing in
+            // it yet is not saved to be shared, as the desktop refuses it.
+            val shareSaid = stringResource(R.string.share_title)
+            val nothingYet = stringResource(R.string.share_nothing_yet)
             IconButton(onClick = {
-                if (model.save(force = model.id == 0)) state.shareCode(listOf(model.id))?.let { sendText(state, it) }
-            }) { Text("🔗", fontSize = 18.sp) }
+                val empty = model.title.isBlank() && model.body.isBlank() && model.comments.isBlank() &&
+                    ((state.rawNote(model.id)?.opt("checklist") as? org.json.JSONArray)?.length() ?: 0) == 0
+                if (empty) state.say(nothingYet)
+                else if (model.save(force = model.id == 0)) shareAsk = true
+            }, modifier = Modifier.semantics { contentDescription = shareSaid }) { ShareMark(palette.text) }
             IconButton(onClick = { details = true }) { Text("ⓘ", fontSize = 20.sp, color = palette.text) }
             Box {
                 IconButton(onClick = { menu = true }) { Text("⋮", fontSize = 20.sp, color = palette.text) }
@@ -1050,14 +1058,6 @@ fun NoteEditor(state: AppState, openId: Int) {
                             menu = false
                             // The note as saved is what goes out: saved first.
                             if (model.save(force = model.id == 0)) exportAsk = true
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.note_mail)) },
-                        onClick = {
-                            menu = false
-                            // As an export: the note as saved is what goes.
-                            if (model.save(force = model.id == 0)) mailAsk = true
                         },
                     )
                     if (day != null) {
@@ -1358,7 +1358,7 @@ fun NoteEditor(state: AppState, openId: Int) {
             onDismiss = { exportAsk = false },
         )
     }
-    if (mailAsk) MailDialog(state, model.id) { mailAsk = false }
+    if (shareAsk) ShareSheet(state, model.id) { shareAsk = false }
     if (tableMore && model.activeCell != null && activeSegment != null) {
         TableMoreSheet(model, activeSegment, model.activeCell!!.at,
                        onDeleteTable = { tableMore = false; askDeleteTable = true },

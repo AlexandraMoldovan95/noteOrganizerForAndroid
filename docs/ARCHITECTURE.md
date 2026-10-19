@@ -26,14 +26,15 @@ object, `AppState`. Below the screens sit twenty-five files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 628 tests run on a laptop in seconds,
+about Android. That split is why 627 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
 The app reads and writes the same JSON files the desktop app reads and
 writes, in its own private folder on the device. The only doors out are
-Android's own: the file picker for a backup, the share sheet for a code,
-a temporary grant for an attached file, and the browser for feedback.
+Android's own: the file picker for a backup, the share sheet for a note
+or a code, a temporary grant for an attached file, and the browser for
+feedback.
 
 Words follow the desktop's: a **popup** is anchored to what opened it (a
 menu, a bottom sheet), a **dialog** holds the screen until it is
@@ -43,8 +44,8 @@ here.
 
 ## The map
 
-About 19,800 lines of Kotlin. The rules are 11,200 of them, in files that
-import nothing from Android; the drawing is 8,600, in files that may.
+About 20,000 lines of Kotlin. The rules are 11,400 of them, in files that
+import nothing from Android; the drawing is 8,700, in files that may.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
@@ -73,6 +74,7 @@ import nothing from Android; the drawing is 8,600, in files that may.
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
 | `Files.kt` | 95 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 90 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
+| `Outgoing.kt` | 90 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `PyText.kt` | 40 | Python's idea of a space, for the ports that strip and split as it does | `str.isspace` |
 
 **The drawing** — turns rules into pixels, checked on the emulator:
@@ -92,20 +94,18 @@ import nothing from Android; the drawing is 8,600, in files that may.
 | `TableView.kt` | 420 | The grid, drawn: a merge down as one cell, the chosen cell holding the field it is written in and the handles on its edges |
 | `Components.kt` | 210 | The note card, swatches, the shared dialog |
 | `FindBar.kt` | 180 | The find bar, and matches painted |
-| `ExportFlow.kt` | 150 | Export as file through Android's "save as" |
+| `PdfPrint.kt` | 280 | The export's page printed to an A4 PDF by the system's WebView: drawn page by page on the main thread, the file written off it |
+| `ShareFlow.kt` | 180 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |
+| `ExportFlow.kt` | 155 | Export as file through Android's "save as" |
 | `RichText.kt` | 110 | A note plus its spans, turned into an `AnnotatedString` |
 | `ui/theme/` | 160 | A palette as Compose colours, and Material 3 mapped onto it |
 
-The tests mirror the rules: `NotebookTest` (118), `TablesTest` (56),
-`RecurrenceTest` (46), `CalculatorTest` (34), `IdentityTest` (30),
-`PastingTest` (29), `OrganizingTest` (27), `StylingTest` (23), `DaysTest`
-(23), `SharingTest` (21), `EditingTest` (20), `ParagraphsTest` (19),
-`SettingsTest` (17), `ImportingTest` (16), `FindingTest` (16),
-`ExportingTest` (15), `AppStateTest` (13), `TemplatesTest` (11),
-`BackupTest` (11), `ListingTest` (10), `ThemesTest` (7), `StatsTest` (4),
-`StartupTest` (4), `InteropTest` (2). `AppStateTest` is the one on the drawing side: it
-holds the order of the saves around the open note, which no emulator tap
-can time ([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)).
+The tests mirror the rules, a suite for each file of them; the suites
+and their counts are listed in [qa/README](../qa/README.md#the-unit-tests).
+Three hold drawing-side classes: `AppStateTest`, the order of the saves
+around the open note, which no emulator tap can time
+([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)), and
+`EditorCopyTest` and `EditorTableTest`, the editor's model.
 
 ## Decision: a note has two representations, on purpose
 
@@ -265,10 +265,15 @@ It returns one line worth saying at the top of the list, or nothing.
 
 The doors out are all the system's, so the app needs no permission at
 all: the file picker (`CreateDocument` / `OpenDocument`) for a backup,
-the share sheet for a code, an intent filter for text shared in, and a
-`FileProvider` that grants one attached file to the app that opens it,
-for as long as it is open. A backup is written and read on
-`Dispatchers.IO`; everything else is small enough for the main thread
+the share sheet for a note or a code, an intent filter for text shared in,
+and a `FileProvider` that grants one attached file, or the PDF or page
+being shared, to the app that opens it, for as long as it is open. The
+share sheet lists the apps itself, so the app declares no `<queries>`
+and never looks at what is installed. A backup is written and read on
+`Dispatchers.IO`, and so is a shared PDF's file — forty pages written on
+the main thread held it 1.2 s
+([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been));
+everything else is small enough for the main thread
 ([for now](#where-this-will-hurt-next)).
 
 ## Decision: `org.json`, and the trap that comes with it
@@ -382,7 +387,9 @@ Named here so nobody has to discover them by surprise:
 
 - **Notes are written on the main thread.** Fine for the notebooks seen
   so far — the largest real one is half a megabyte — and not fine for one
-  ten times that on a slow phone. A backup already moved off it.
+  ten times that on a slow phone. A backup already moved off it, and a
+  shared PDF's file. Its pages are still drawn there, as a WebView must
+  be — 0.35 s for the forty a PDF holds at most, on the emulator.
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.

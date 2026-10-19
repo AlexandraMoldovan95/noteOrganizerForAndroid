@@ -280,27 +280,33 @@
     <!-- Export one note: the desktop's words -->
     <string name="note_export">💾 Export as file</string>
     <string name="note_export_title">Export as file</string>
-    <string name="note_export_html">Web page (.html) — full formatting; opens in a browser or Word</string>
+    <string name="note_export_where">Saved where you choose on the phone: Downloads, Drive, a folder of your own.</string>
+    <string name="note_export_html">Web page (.html)</string>
+    <string name="note_export_html_sub">Tables, colours and styles as in the note. Opens in a browser or Word.</string>
     <string name="note_export_txt">Plain text (.txt)</string>
+    <string name="note_export_txt_sub">Just the words. Any app opens it.</string>
     <string name="note_exported_to">Exported to %1$s.</string>
     <string name="note_export_no_files">Attached files aren\'t part of a note export — use Settings → Backup for those.</string>
     <string name="note_export_failed">Export failed: the file couldn\'t be written.</string>
     <string name="note_export_open">Open</string>
-    <string name="note_mail">✉ Send by email…</string>
-    <string name="mail_title">Send by email</string>
-    <string name="mail_to">To</string>
-    <string name="mail_to_hint">Your own address or anyone\'s; several, with commas. Left empty, the mail app asks.</string>
-    <string name="mail_not_address">“%1$s” doesn\'t look like an email address.</string>
-    <string name="mail_with_text">The note\'s text, in the message</string>
-    <string name="mail_with_text_sub">Plain words any mail app shows: a table\'s rows as lines, the checklist as ☐ and ☑.</string>
-    <string name="mail_with_page">The note as a PDF, attached</string>
-    <string name="mail_with_page_sub">Tables, styles and the checklist as the note shows them; opens in the mail app.</string>
-    <string name="mail_choose_one">Choose at least one of the two.</string>
-    <string name="mail_no_files">The note\'s own attached files aren\'t sent.</string>
-    <string name="mail_nothing_sent">Your mail app opens with the message ready: nothing is sent until you send it there. The address is remembered on this phone only.</string>
-    <string name="mail_open">Open in mail app</string>
-    <string name="mail_no_app">No mail app on this phone can send it.</string>
-    <string name="mail_failed">The note couldn\'t be made ready to send.</string>
+    <!-- Share: one note, as the person chooses, to the phone's share sheet -->
+    <string name="share_title">Share</string>
+    <string name="share_as">Share this note as</string>
+    <string name="share_pdf">PDF</string>
+    <string name="share_pdf_sub">The note\'s page, tables and colours as you see them. Opens on any phone or computer.</string>
+    <string name="share_page">Web page</string>
+    <string name="share_page_sub">The same page, for a browser.</string>
+    <string name="share_text">Text</string>
+    <string name="share_text_sub">Just the words, in the message itself.</string>
+    <string name="share_text_table">Not for a note with a table: a message can\'t draw one. Send it as a PDF.</string>
+    <string name="share_code_title">Share code</string>
+    <string name="share_code_sub">For Note Organizer on another phone or computer.</string>
+    <string name="share_no_files">The note\'s own attached files aren\'t sent.</string>
+    <string name="share_how">Your phone\'s share sheet opens next: WhatsApp, mail, Teams and the rest. Nothing is sent until you send it there.</string>
+    <string name="share_no_app">No app on this phone can take it.</string>
+    <string name="share_failed">The note couldn\'t be made ready to share.</string>
+    <string name="share_nothing_yet">Nothing to share yet: write something first.</string>
+    <string name="share_busy">Still getting the last one ready: the share sheet opens in a moment.</string>
 
     <!-- Find in note -->
     <string name="find_in_note">🔍 Find in note</string>

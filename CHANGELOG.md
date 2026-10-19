@@ -39,14 +39,16 @@ tested as from now on. Built on Phase 3.
 
 ### Added
 
-- **"✉ Send by email…"**, from a note's menu: an address — the person's
-  own or anyone's, several with commas, or none and the mail app asks —
-  and what the message carries, the person's choice: the note's words in
-  the message, the note as a PDF attached, or both. The words say a
-  table's rows as lines — "• Day: Mon · Task: gym" — and draw the
-  checklist's boxes as ☐ and ☑; the PDF is the note's page, A4, made on
-  the phone. The phone's mail app opens with it ready; the app itself
-  sends nothing. The address is remembered on the phone alone.
+- **Share**, the mark at the top of a note: the note as a PDF of its
+  page — A4, tables and colours as shown, made on the phone — as a web
+  page, as its words in the message, or as a share code, handed to the
+  phone's own share sheet: WhatsApp, a mail app, Teams, Drive and the
+  people those apps put first. The words draw the checklist's boxes as ☐
+  and ☑; a note with a table is not offered as words, which cannot draw
+  one. The app itself sends nothing and remembers nothing. It took the
+  place of "Send by email", made earlier in this round, and of the 🔗:
+  one door out instead of two, and a table that read as lines of a
+  message no longer sent that way.
 - **"Fit all columns to their words"**, in the table's More, beside the
   one-column fit: the whole table fitted in one step, a hidden column
   left hidden.
@@ -69,6 +71,9 @@ tested as from now on. Built on Phase 3.
   all eight, as before.
 - **Every entry of the editor's ⋮ menu has its icon**; Duplicate and Move
   to Trash had none.
+- **Export as file shows its two kinds as cards**, each saying what it
+  gives — a web page for a browser, plain text for any app — in the
+  Share sheet's look.
 - **A table is written in place**, shaped on Samsung Notes' table at the
   owner's request. A tap on a cell opens it for typing right in the
   table, and a bar over the keyboard takes the place of the cell's
@@ -191,17 +196,23 @@ tested as from now on. Built on Phase 3.
 
 ### Testing
 
-- 628 JVM unit tests in 27 suites, from 572 in 24. 58 mutants against
+- 627 JVM unit tests in 27 suites, from 572 in 24. 63 mutants against
   them, all killed — one, a deleted row's orphan marker, only after a
-  test was written for it. Nineteen more built into the app: seventeen
-  caught by the walk — two only on a second try, after the walk learned
-  to type a letter after Undo and to type "<" on its own; one, a paste
-  losing its formatting in the release build only, caught by the new
-  release gate and not by any screen; and one survives — the email
-  naming Gmail rather than its writing window, which this emulator's
-  Gmail, never signed in, no longer tells apart. The size box's and the
-  template body's fixes had no mutant run; Statistics' tiles, the menu's
-  icons, the table's handles and a merge down were photographed.
+  test was written for it. The seven against the email's rules went with
+  that code, and twelve against Share's took their place, four of them
+  on its one-share-at-a-time rule. Nineteen more built into the app:
+  seventeen caught by the walk — two only on a second try, after the
+  walk learned to type a letter after Undo and to type "<" on its own;
+  one, a paste losing its formatting in the release build only, caught
+  by the new release gate and not by any screen; and one survived the
+  walk — a second Share started over the first, whose failure message
+  the screen's pixels cannot tell from the refusal's. That rule moved to
+  the rules side, where the unit tests kill it. The four against the
+  email's hand-off went with that code, among them the one that had
+  survived. The size box's and the template body's fixes had no mutant
+  run; Statistics' tiles, the menu's icons, the table's handles and a
+  merge down were photographed, and the PDF's file written off the main
+  thread was measured, not mutated.
 - The table's bar on the owner's own phone, release build, in a note of
   the check's own: 25 checks, all passed, twice — the second after the
   phone showed the empty cells too narrow to tap.
@@ -211,17 +222,20 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 230 checks in 31 parts, from 177 in 25 —
-  previews, a table at larger letters, sending by email, a copy and a
-  cut made right after styling, the table written in place and its
-  dragged edges, Select all with a group folded, a History row off the
-  schedule, and checks grown in older parts. Every read of a file the
-  autosave writes now waits for the save (`settle`), where one Redo read
-  a moment too soon. The last full run passed all 228 it then had; the
-  two added after it, and the parts their fixes touch, were walked on
-  their own. One mutant's first run found the list not yet on the screen
-  after its install and failed every step — not counted as a kill, run
-  again, and killed; why the list was late was not found.
+- `tools/emulator/walk.py`: 231 checks in 31 parts, from 177 in 25 —
+  previews, a table at larger letters, sharing a note, a copy and a cut
+  made right after styling, the table written in place and its dragged
+  edges, Select all with a group folded, a History row off the schedule,
+  and checks grown in older parts. Every read of a file the autosave
+  writes now waits for the save (`settle`), where one Redo read a moment
+  too soon, and so does the first read after a start, where a brand-new
+  notebook was read before the first start after an install had written
+  it. The last full run, after Share, passed 229 and failed those two;
+  waited for, the two parts they are in passed when walked again. Two
+  mutants' first runs failed for a reason that was not theirs — the list
+  not yet on the screen after an install, and the emulator's System UI
+  not answering on a computer short of memory — and were not counted:
+  run again, one was killed and one survived.
 
 ## [Unreleased] — Phase 3
 

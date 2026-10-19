@@ -20,6 +20,7 @@ import io
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 import time
@@ -276,7 +277,7 @@ def main():
     calculator(folder)
     finding(folder)
     exporting(folder)
-    mailing(folder)
+    sharing(folder)
     styles_through_an_edit(folder)
     templates(folder)
     sizes_and_faces(folder)
@@ -307,11 +308,15 @@ def brand_new(folder):
     print("\n-- a brand-new notebook --")
     adb("shell", "pm", "clear", PACKAGE)
     start_app()
-    notes = read_file("notes_data.json")
-    check("a new notebook holds the welcome note",
-          isinstance(notes, list) and len(notes) == 1 and notes[0].get("title", "").startswith("Welcome"))
-    settings = read_file("settings.json") or {}
-    check("the welcome note is remembered", settings.get("welcome_offered") is True and bool(settings.get("welcome_note_uid")))
+    # Waited for, not read once after start_app's pause: the first start
+    # after an install, on an emulator short of memory, wrote the notebook
+    # later than that, and every step of this part failed on one read.
+    check_settled("a new notebook holds the welcome note", lambda: read_file("notes_data.json"),
+                  lambda notes: isinstance(notes, list) and len(notes) == 1
+                  and notes[0].get("title", "").startswith("Welcome"), within=12.0, first=0.0)
+    check_settled("the welcome note is remembered", lambda: read_file("settings.json") or {},
+                  lambda s: s.get("welcome_offered") is True and bool(s.get("welcome_note_uid")),
+                  within=6.0, first=0.0)
     shot(folder, "01-new-notebook", "Welcome to Note Organizer", "Search notes")
 
     open_note("Welcome to Note Organizer")
@@ -482,9 +487,10 @@ def seeded(folder):
     push_json("settings.json", {"categories": {"General": "#7c5cff", "Work": "#4cc9f0",
                                                "Personal": "#f9c74f"}, "username": "Maria"})
     start_app()
-    notes = read_file("notes_data.json") or []
-    check("the older folder's notebook is copied in, and no welcome note is added",
-          [n.get("uid") for n in notes] == ["walk-bread", "walk-budget", "walk-rescued"])
+    # Waited for, as the brand-new notebook is: the copy is made at start.
+    check_settled("the older folder's notebook is copied in, and no welcome note is added",
+                  lambda: [n.get("uid") for n in read_file("notes_data.json") or []],
+                  lambda uids: uids == ["walk-bread", "walk-budget", "walk-rescued"], within=12.0, first=0.0)
     shot(folder, "10-copied-in", "Bread", "October budget", "Meeting notes", "brought into")
 
     # A table, edited from one cell.
@@ -660,12 +666,12 @@ def outward(folder):
         tap("Import", exact=True, wait=2.0)
         check("a code shared from another app is imported", note_by_uid("shared-in") is not None)
 
-    # A note shared out: Android's own sheet opens over the app.
+    # A note shared out as a code: Share, then Android's own sheet over the app.
     back_to("Search notes")
     tap("Bread", exact=True, wait=1.5)
-    tap("🔗", wait=2.5)
-    check("sharing a note opens Android's share sheet", foreground() != PACKAGE or find("Share") is not None,
-          foreground())
+    tap("Share", exact=True, wait=1.5)
+    tap("Share code", exact=True, wait=2.5)
+    check("sharing a note opens Android's share sheet", foreground() != PACKAGE, foreground())
     shot(folder, "19-share-sheet")
     back(1.5)
     back_to("Search notes")
@@ -1958,102 +1964,168 @@ def page_count(pdf):
     return len(re.findall(rb"/Type\s*/Page[^s]", pdf))
 
 
-def mailing(folder):
-    """Send by email: the note handed to the phone's mail app with what the
-    person chose -- its words, its page, or both -- and the address kept
-    for next time on the phone alone. The mail app does the sending, so
-    what is checked is what the app hands over: the mail app in front, and
-    the page written where the mail app reads it."""
-    print("\n-- sending a note by email --")
+def message_shown():
+    """Whether the bottom of the screen holds the dark band a message is
+    drawn on, in the light theme: read from the screen's raw pixels, since
+    the share sheet covers the message sooner than a UI dump could read
+    its words. Some row of the band, between its lines of words, is all
+    dark; a note's lines on the light page never are."""
+    raw = adb("exec-out", "screencap", binary=True)
+    if len(raw) < 16:
+        return False
+    w, h = struct.unpack_from("<II", raw, 0)
+    head = len(raw) - w * h * 4
+    if w <= 0 or h <= 0 or head < 12:
+        return False
+    xs = range(int(w * 0.08), int(w * 0.85), 6)
+    for y in range(int(h * 0.86), int(h * 0.96), 3):
+        at = head + y * w * 4
+        dark = sum(1 for x in xs if sum(raw[at + x * 4:at + x * 4 + 3]) < 3 * 90)
+        if dark >= 0.95 * len(xs):
+            return True
+    return False
+
+
+def sharing(folder):
+    """Share: one button, the note as a PDF, a web page, its words or a
+    share code, handed to the phone's own share sheet. The app picked does
+    the sending, so what is checked is what the app hands over: the share
+    sheet in front, and the PDF or page written where the app picked reads
+    it -- and, for a note with a table, no words offered at all."""
+    print("\n-- sharing a note --")
     body = "Bring:\n| Item | Qty |\n| --- | --- |\n| socks | 3 |"
     long_body = "\n".join("Line %d of a note long enough to need several pages of paper to print." % i
                           for i in range(1, 121))
-    if not seed_inside([{"id": 1, "uid": "ml-trip", "title": "Trip", "body": body,
+    if not seed_inside([{"id": 1, "uid": "sh-trip", "title": "Trip", "body": body,
                          "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
-                        {"id": 2, "uid": "ml-long", "title": "Long", "body": long_body,
-                         "created": "2026-10-14 09:00:00", "updated": "2026-10-14 09:00:00"}],
+                        {"id": 2, "uid": "sh-long", "title": "Long", "body": long_body,
+                         "created": "2026-10-14 09:00:00", "updated": "2026-10-14 09:00:00"},
+                        {"id": 3, "uid": "sh-words", "title": "Shop", "body": "milk and eggs",
+                         "checklist": [{"text": "bread", "done": True}],
+                         "created": "2026-10-13 09:00:00", "updated": "2026-10-13 09:00:00"},
+                        {"id": 4, "uid": "sh-huge", "title": "Huge", "body": "\n".join(
+                            "Line %d of a note far longer than anyone mails." % i for i in range(1, 1801)),
+                         "created": "2026-10-12 09:00:00", "updated": "2026-10-12 09:00:00"}],
                        {"welcome_offered": True}, "Trip"):
         return
-    gmail = "com.google.android.gm"
-    adb("shell", "am", "force-stop", gmail)
 
-    def ask():
+    def ask(title):
         back_to("Search notes")
-        open_note("Trip")
-        tap("⋮", exact=True)
-        tap("Send by email", wait=1.5)
+        open_note(title)
+        tap("Share", exact=True, wait=1.5)
 
-    ask()
-    shot(folder, "59-mail-dialog", "Send by email", "Open in mail app", "nothing is sent until you send it there")
-    tap("The note's text, in the message")
-    tap("The note as a PDF, attached")
-    check("with neither chosen, the dialog asks for one", find("Choose at least one of the two.") is not None)
-    tap("Open in mail app", exact=True, wait=1.5)
-    check("...and Open in mail app does nothing", find("Send by email", exact=True) is not None and foreground() == PACKAGE,
-          foreground())
-    tap("The note's text, in the message")
-    tap("The note as a PDF, attached")
-    tap("To", exact=True)
-    type_text("maria")
-    check("a slip of the thumb is named back", find("doesn't look like an email address") is not None)
-    type_text("@example.com")
-    keyboard_down()
-    check("an address is not", find("doesn't look like an email address") is None)
-    shot(folder, "60-mail-ready", "maria@example.com")
-    # Not checked here: that the mail app's WRITING window is named, rather
-    # than the app alone. Gmail takes a message in two places while its Chat
-    # is on, and named alone it made Android ask which -- but this
-    # emulator's Gmail, never signed in, turned its Chat off after its first
-    # start, and nothing on the screen or in the log tells the two apart
-    # since.
-    tap("Open in mail app", exact=True, wait=1.0)
-    # The PDF is printed first, then the mail app opens: waited for, not timed.
-    deadline = time.time() + 12.0
-    while foreground() != gmail and time.time() < deadline:
-        time.sleep(0.5)
-    check("Open in mail app opens the mail app", foreground() == gmail, foreground())
+    def focused():
+        """The package of the window that has the focus. The share sheet is
+        a window over the app, and the resumed activity was once still the
+        app's with the sheet already up (the photo showed it)."""
+        out = adb("shell", "dumpsys", "window")
+        match = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", out)
+        return match.group(1) if match else foreground()
+
+    def handed(seconds=20.0):
+        """The share sheet in front -- the system's, not the app's -- waited
+        for, not timed: a PDF is printed before it opens."""
+        deadline = time.time() + seconds
+        while focused() == PACKAGE and time.time() < deadline:
+            time.sleep(0.5)
+        return focused()
+
+    def back_in():
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.2)
+        if focused() != PACKAGE:
+            adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+            time.sleep(2.0)
+
+    ask("Trip")
+    shot(folder, "59-share-sheet", "Share this note as", "PDF", "Web page", "Share code")
+    check("a note with a table offers no words alone, and says why",
+          find("Not for a note with a table") is not None)
+    tap("Text", exact=True, wait=1.2)
+    check("...and Text does nothing", find("Share this note as") is not None and focused() == PACKAGE, focused())
+    tap("PDF", exact=True, wait=1.0)
+    sheet = handed()
+    check("PDF opens the phone's share sheet", sheet != PACKAGE, sheet)
+    shot(folder, "60-share-chooser")
     # A PDF of the note's page, not the page: Gmail showed a .html as its code.
-    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Trip.pdf", binary=True)
-    with open(os.path.join(folder, "60b-mail-attachment.pdf"), "wb") as f:
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Trip.pdf", binary=True)
+    with open(os.path.join(folder, "60b-share.pdf"), "wb") as f:
         f.write(pdf)
     pictures = pdf_pages(pdf)
-    check("the mail app is handed a PDF of the note: one A4 page, not blank",
+    check("the share sheet is handed a PDF of the note: one A4 page, not blank",
           pdf.startswith(b"%PDF") and page_count(pdf) == 1 and b"/MediaBox [0 0 595 842]" in pdf
           and len(pictures) == 1 and pictures[0].count(b"\xff") < len(pictures[0]),
           "%d bytes, %d pages, %d pictures" % (len(pdf), page_count(pdf), len(pictures)))
-    adb("shell", "am", "force-stop", gmail)
-    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
-    time.sleep(2.0)
+    back_in()
+
+    ask("Trip")
+    tap("Web page", exact=True, wait=1.0)
+    sheet = handed()
+    page = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Trip.html", binary=True)
+    check("Web page hands over the export's page, its table drawn",
+          sheet != PACKAGE and page.lstrip().lower().startswith(b"<!doctype html") and b"<table" in page,
+          "%s, %d bytes" % (sheet, len(page)))
+    back_in()
 
     # A long note: a picture of its own for each page, each with something
     # on it. Painted on one shared picture, every page once came out as the
     # same page; read too soon, the page once came out blank.
-    back_to("Search notes")
-    open_note("Long")
-    tap("⋮", exact=True)
-    tap("Send by email", wait=1.5)
-    tap("Open in mail app", exact=True, wait=1.0)
-    deadline = time.time() + 20.0
-    while foreground() != gmail and time.time() < deadline:
-        time.sleep(0.5)
-    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/mail/Long.pdf", binary=True)
-    with open(os.path.join(folder, "60c-mail-long.pdf"), "wb") as f:
+    ask("Long")
+    tap("PDF", exact=True, wait=1.0)
+    handed(20.0)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Long.pdf", binary=True)
+    with open(os.path.join(folder, "60c-share-long.pdf"), "wb") as f:
         f.write(pdf)
     pictures = pdf_pages(pdf)
     check("a long note's PDF: several pages, each its own and none blank",
           page_count(pdf) >= 3 and len(pictures) == page_count(pdf) and len(set(pictures)) == len(pictures)
           and all(p.count(b"\xff") < len(p) for p in pictures),
           "%d pages, %d pictures, %d distinct" % (page_count(pdf), len(pictures), len(set(pictures))))
-    adb("shell", "am", "force-stop", gmail)
-    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
-    time.sleep(2.0)
+    back_in()
 
-    ask()
-    check("the address is remembered for next time", find("maria@example.com", exact=True) is not None)
-    shot(folder, "61-mail-remembered", "maria@example.com")
-    settings = adb("exec-out", "run-as", PACKAGE, "cat", "%s/settings.json" % NOTEBOOK, binary=True)
-    check("...on the phone alone: not in settings.json, which a backup carries", b"maria" not in settings)
-    tap("Cancel", exact=True)
+    # Asked for twice: the Share button is there again while a long note's
+    # PDF is made, and a second PDF cleared the folder the first was still
+    # writing into. The taps go in at places read once, with no UI dump
+    # between them -- a dump takes a second, the first PDF two. A busy
+    # emulator makes the first slower, so the second lands sooner within it.
+    # Which message is on the screen -- the refusal, or the first share
+    # failing because the second cleared its folder -- the screen's pixels
+    # cannot say: with the refusal taken out, this check passed. The order
+    # is held by OutgoingTest; here, what the person is left with.
+    back_to("Search notes")
+    open_note("Huge")
+    button = find("Share", exact=True)
+    tap("Share", exact=True, wait=1.5)
+    card = find("PDF", exact=True)
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    time.sleep(1.5)
+    if button and card:
+        adb("logcat", "-b", "events", "-c")
+        for at, pause in ((button, 1.2), (card, 0.3), (button, 1.0), (card, 0.0)):
+            adb("shell", "input", "tap", str(at[0]), str(at[1]))
+            time.sleep(pause)
+        told = any(message_shown() for _ in range(4))
+        time.sleep(5.0)
+        sheets = len(re.findall(r"wm_create_activity.*ChooserActivity", adb("logcat", "-b", "events", "-d")))
+        pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Huge.pdf", binary=True)
+        check("asked for twice while the PDF is made: one share sheet, a message, the whole PDF",
+              sheets == 1 and told and page_count(pdf) == 40,
+              "%d share sheets, message %s, %d pages" % (sheets, "shown" if told else "not seen", page_count(pdf)))
+        back_in()
+    else:
+        fail("asked for twice: the Share button or the PDF card was not found")
+
+    ask("Shop")
+    check("a note without a table offers its words", find("Just the words, in the message itself.") is not None)
+    tap("Text", exact=True, wait=1.0)
+    sheet = handed()
+    check("Text opens the phone's share sheet", sheet != PACKAGE, sheet)
+    back_in()
+    ask("Shop")
+    tap("Share code", exact=True, wait=1.0)
+    sheet = handed()
+    check("Share code opens the phone's share sheet", sheet != PACKAGE, sheet)
+    back_in()
     back_to("Search notes")
 
 

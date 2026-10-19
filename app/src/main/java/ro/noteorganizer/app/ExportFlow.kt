@@ -125,7 +125,11 @@ private fun displayName(context: Context, uri: Uri): String? = try {
     null
 }
 
-/** The desktop's two formats, in its words. */
+/**
+ * The desktop's two formats, as two cards in the Share sheet's manner: a
+ * mark, a name, what each gives. Saving a file where the person chooses,
+ * which Share -- handing the note to an app or a person -- does not.
+ */
 @Composable
 fun ExportDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val palette = LocalPalette.current
@@ -133,13 +137,13 @@ fun ExportDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.note_export_title)) },
         text = {
-            Column {
-                for ((format, label) in listOf(Exporting.HTML to R.string.note_export_html,
-                                               Exporting.TXT to R.string.note_export_txt)) {
-                    Text(
-                        stringResource(label), color = palette.text, fontSize = 15.sp,
-                        modifier = Modifier.fillMaxWidth().clickable { onPick(format) }.padding(vertical = 12.dp),
-                    )
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp)
+                OptionCard("🌐", stringResource(R.string.note_export_html), stringResource(R.string.note_export_html_sub)) {
+                    onPick(Exporting.HTML)
+                }
+                OptionCard("📄", stringResource(R.string.note_export_txt), stringResource(R.string.note_export_txt_sub)) {
+                    onPick(Exporting.TXT)
                 }
             }
         },

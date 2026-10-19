@@ -18,14 +18,14 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-628 checks across twenty-seven suites — `NotebookTest` (122),
+627 checks across twenty-seven suites — `NotebookTest` (122),
 `TablesTest` (75), `RecurrenceTest` (46), `CalculatorTest` (34),
 `IdentityTest` (30), `OrganizingTest` (30), `PastingTest` (29),
 `StylingTest` (26), `DaysTest` (26), `SharingTest` (22), `EditingTest`
 (20), `ParagraphsTest` (21), `ImportingTest` (19), `SettingsTest` (17),
 `FindingTest` (16), `ExportingTest` (15), `AppStateTest` (14),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
-(7), `MailingTest` (8), `StatsTest` (4), `StartupTest` (4),
+(7), `OutgoingTest` (7), `StatsTest` (4), `StartupTest` (4),
 `EditorTableTest` (6), `EditorCopyTest` (3) and `InteropTest` (2). No
 device, no emulator:
 they test the twenty-five files that contain no Android at all (see
@@ -190,7 +190,7 @@ forgotten a token was ever involved.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 31 parts and
-230 checks: a brand-new notebook, a notebook copied in, the
+231 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, and the phone changing
@@ -262,6 +262,14 @@ The first test on a real phone added three more:
   its absence, and the walk says so in a comment instead
   ([the story](../docs/ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
 
+Share added one more:
+
+- **Nothing heavy beside a walk.** A build on the same computer made
+  every process on the emulator drop frames, and Android called the app
+  not responding. A freeze is read from Android's own report before any
+  code is changed — that one showed the app idle
+  ([the story](../docs/ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)).
+
 The other scripts in [`tools/emulator/`](../tools/emulator/) each survive
 a specific way the emulator lies to a script: tapping by fresh text,
 typing a long share code in pieces and verifying what arrived, and
@@ -275,15 +283,15 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 100 cases across sixteen areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 135 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than
 the desktop's because the two projects are deliberately separate.
 
-Its **"Who runs it"** column is the point. 68 rows are already walked by
-unit tests, 64 are driven on the emulator, and 46 need a person with a
-real phone in their hand — the three add up to more than 100 because a row
+Its **"Who runs it"** column is the point. 82 rows are already walked by
+unit tests, 91 are driven on the emulator, and 64 need a person with a
+real phone in their hand — the three add up to more than 135 because a row
 can carry two or three, and the honest ones do: a rule proved on the JVM
 whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a
@@ -293,7 +301,8 @@ like a trap.
 
 A row whose behaviour changed keeps its number and says so: cases 11 and
 19 were rewritten on 2026-10-15, when the phone took the desktop's answer
-to a broken file and started emptying its own Trash. Phase 2's cases are
+to a broken file and started emptying its own Trash, and cases 106 and
+107 on 2026-10-19, when "Send by email" became Share. Phase 2's cases are
 58 to 85; two of them carry a question only a person can answer about
 the desktop's side of a trip — a day or a template made on the phone, as
 the desktop shows it. Phase 3's are 86 to 100, and three of its rows

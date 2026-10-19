@@ -16,9 +16,9 @@ one day of a series moved, files attached, duplicates found, a table's
 caption and column widths, Undo and Redo, and copy and paste that keep
 the formatting. It wears the desktop's eight themes or follows the
 phone's light and dark, and moves notes to and from the desktop by share
-code or by the desktop's own backup `.zip`; a note goes by email through
-the phone's own mail app. Nothing is ever overwritten without asking. It
-does not sync.
+code or by the desktop's own backup `.zip`; a note is shared as a PDF, a
+web page, its words or a share code through the phone's own share sheet.
+Nothing is ever overwritten without asking. It does not sync.
 
 ## Contents
 
@@ -217,23 +217,23 @@ Grouped by what the app does; when each item arrived is in the
     More functions, a history, and Insert into note — its answer for
     every sum.
 27. **Export as file**, `.html` or `.txt`, through Android's "save as":
-    the desktop's page byte for byte. **"✉ Send by email…"**: an
-    address — the person's own or anyone's, or none and the mail app
-    asks — and the person's choice of what goes: the note's words in the
-    message, the note as a PDF attached, or both. The words are the
-    `.txt` export's, but a table's rows are lines of their cells named by
-    their columns ("• Day: Mon · Task: gym") and the checklist's boxes
-    are ☐ and ☑: a mail app takes plain text from another app, and a
-    table came through as bars. The PDF is the export's page printed on
-    the phone, A4 with paper margins, each page broken in a gap between
-    lines — its pages are pictures, so its words cannot be selected. The
-    phone's mail app opens with it ready; the app sends nothing itself
-    and says so. The address and the choice are remembered on the phone
-    alone, in the app's private preferences — never in `settings.json`,
-    which a backup carries to the desktop. The note's own files are not
-    attached, as an export does not carry them
-    ([how it reaches a mail app](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts),
-    [why a PDF](ISSUES_LOG.md#a-note-mailed-as-its-code-and-a-pdf-of-one-page-four-times)).
+    the desktop's page byte for byte, the two kinds shown as cards saying
+    what each gives. **Share**, the mark at the top of a note: the note
+    as a PDF, a web page, its words or a share code, chosen on one sheet
+    and handed to the phone's own share sheet — WhatsApp, a mail app,
+    Teams, Drive, and the people those apps put first. The PDF is the
+    export's page printed on the phone, A4 with paper margins, each page
+    broken in a gap between lines — its pages are pictures, so its words
+    cannot be selected. The words are the title, the body, the
+    checklist's boxes as ☐ and ☑ and the comments; a note with a table is
+    not offered as words, which cannot draw one, and the sheet says to
+    send it as a PDF. The app sends nothing itself, reads no contacts and
+    remembers nothing; the app picked does the sending. The note's own
+    files are not sent, as an export does not carry them, and the sheet
+    says so. It replaced "Send by email" and the 🔗 beside it: one door
+    out instead of two
+    ([why a PDF](ISSUES_LOG.md#a-note-mailed-as-its-code-and-a-pdf-of-one-page-four-times),
+    [a long note's PDF](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)).
 28. **Templates**: start a note from one, save a note as one, and edit
     them in Settings → Templates — the desktop's `templates.json`, so a
     template made on either device starts notes on both. A template's
@@ -303,7 +303,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 628 JVM unit tests in 27 suites, mutation-tested; six ports held to
+39. 627 JVM unit tests in 27 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -429,15 +429,15 @@ line above it, undo and redo, and copy and paste with the formatting.
 the person's Google account when they have device backup turned on, and
 puts it back on a new phone. That is convenient and it is also the notes
 leaving the phone. It is a choice for the owner, not a default to inherit
-from the project template. It covers the app's preferences too, where
-"Send by email" remembers the last address.
+from the project template.
 
 ### Before the first upload to Google Play
 
 Checked already, on the built release APK: the target SDK (37), not
-debuggable, no internet permission, 16 KB alignment, an app bundle, the
-one `<queries>` entry (mail apps only — no wider look at the phone's
-apps). Still to do, each a decision or an account step for the owner:
+debuggable, no internet permission, 16 KB alignment, an app bundle, and
+no `<queries>` entry at all — the phone's share sheet lists the apps that
+can take a note, so the app never looks at what is installed. Still to
+do, each a decision or an account step for the owner:
 
 * **An upload key**, made once and kept outside the repository, with
   Play App Signing; the release build's signing moves to it. A phone
@@ -481,14 +481,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 230 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 231 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 628 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 627 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -496,10 +496,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-31 parts, 230 checks. The last full run, after the table's audit, passed
-all 228 it then had on its first try; the two written with the audit's
-other fixes, and the parts those fixes touch, were walked on their own.
-The run before it failed three — two at larger letters, where a cell's
+31 parts, 231 checks. The last full run, after Share, passed 229 and
+failed two: a brand-new notebook read three seconds after the first
+start following an install, on an emulator short of memory, before the
+app had written it. Those reads now wait for the file, as every read of
+the autosave does, and the two parts they are in passed when walked
+again. The run before it, after the table's audit, passed all 228 it
+then had on its first try. The run before that failed three — two at larger letters, where a cell's
 style built anew had lost the theme's line height, and one Redo read a
 moment too soon, which every read of the autosave now waits out
 (`settle`). The first run of Phase 3 had failed five steps — all the walk's own, in
@@ -597,10 +600,16 @@ The first test on a real phone added four parts and grew four:
   "(untitled)", and its calendar row says `▦×1`.
 * **A table at larger letters**: drawn with the phone's letters at 115%
   and 130%, every cell one line tall, one letter or six.
-* **Sending by email**: nothing opening with neither choice, a slip of
-  the thumb named back, the mail app in front, the page it attaches in
-  the cache with its table, the address remembered next time and absent
-  from `settings.json`.
+* **Sharing a note**: a note with a table offers no words, and Text does
+  nothing; PDF, Web page, Text and Share code each bring the phone's
+  share sheet to the front; the PDF handed over is read back — one A4
+  page, not blank, for a short note, and for a long one several, each its
+  own and none blank — and the page holds its table; and asked for twice
+  while a 40-page PDF is made, one share sheet opens over the whole PDF
+  and a message shows. Which message, the screen cannot say: the order
+  is held by `OutgoingTest`
+  ([why](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)).
+  It replaced the part for "Send by email".
 * **A copy made right after styling**: words made bold and 14 from the
   format bar, copied at once and pasted elsewhere with both; then made
   italic and cut, pasted with the italic, gone from where they were
@@ -718,7 +727,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-628 JVM unit tests in 27 suites pin the rules ported from Python, and
+627 JVM unit tests in 27 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
@@ -745,21 +754,32 @@ Four more were built into the app: an editor that never records a step
 for Undo, and the copy, the paste and the kept copy behind the note's
 clipboard. Each was caught by the walk.
 
-The first test on a real phone ran 18 against the unit tests — the
-card's table rule, Autofit all, the email's addresses, its words and its
-tables written as lines, a copy's selection brought up to date — all
-killed. Fourteen more were built into the app. Twelve were caught by the
-walk, among them a PDF painting every page on one picture and a long
-note printed as its first page. One, the entities file looked up
+The first test on a real phone, the table's audit and Share ran 63
+against the unit tests — the card's table rule, Autofit all, a copy's
+selection brought up to date, the table's merge, widths, rows and
+styles, the audit's graves, and what Share sends and its one share at a
+time — all killed, one, a deleted row's orphan marker, only after a
+test was written for it. Seven more, against the email's addresses and
+its words, went with the code they mutated when Share replaced it.
+
+Nineteen were built into the app. Seventeen were caught by the walk,
+among them a PDF painting every page on one picture, a long note printed
+as its first page, a note with a table offered as words, and a PDF
+handed over as the page's code. One, the entities file looked up
 relative to a class the release build renames, passed the walk — a
 paste with its formatting and one without look the same on a screen —
 and is caught by `tools/check_release_lookups.py` on the built APK. One
-survives: the email naming Gmail rather than its writing window, which
-this emulator's Gmail, its Chat turned off since its first start, no
-longer tells apart ([the story](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
+survived the walk: a second Share started over the first, whose failing
+message the walk's look at the screen cannot tell from the refusal's;
+the rule moved to the rules side, where the unit tests kill it. Four
+more, against the email's hand-off to a mail app, went with that code,
+among them the one that had survived, Gmail named rather than its
+writing window
+([the story](ISSUES_LOG.md#mail-apps-only-said-a-way-android-17-no-longer-accepts)).
 The size box's and the template body's fixes had no mutant run, nor did
-a PDF's page break moved to the middle of a gap: that one was looked at,
-page by page.
+a PDF's page break moved to the middle of a gap — looked at, page by
+page — nor the PDF's file written off the main thread, which was
+measured ([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)).
 
 Two commit messages carry counts that were wrong when written and are
 corrected here, the history left as it is: the recurrence engine's
