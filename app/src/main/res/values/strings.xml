@@ -188,11 +188,6 @@
     <string name="repeats_note">This note repeats. Its date can be changed, but not cleared: clearing it would delete the repeat too.</string>
     <string name="pin_to_top">📌 Pin to top</string>
     <string name="cell">Cell</string>
-    <string name="cell_checkbox">☐ Checkbox</string>
-    <string name="row_below">+ Row below</string>
-    <string name="column_right">+ Column to the right</string>
-    <string name="delete_row">Delete row</string>
-    <string name="delete_column">Delete column</string>
 
     <!-- The format bar's line keys -->
     <string name="list_bullet">Bullet list</string>
@@ -207,30 +202,38 @@
     <string name="table_tap_again">Tap a square to choose the size; tap it again, or Insert, to make the table.</string>
     <string name="table_insert_button">Insert</string>
 
-    <!-- The cell menu: the desktop's words -->
-    <string name="cell_align">Align cell</string>
-    <string name="cell_highlight">Highlight cell</string>
-    <string name="cell_merge">Merge</string>
-    <string name="merge_left">Merge with cell to the left</string>
-    <string name="merge_up">Merge with cell above</string>
-    <string name="split_cell">Split merged cell</string>
-    <string name="rows_label">Rows</string>
-    <string name="columns_label">Columns</string>
-    <string name="row_above">+ Row above</string>
-    <string name="column_left">+ Column to the left</string>
-    <string name="table_label">Table</string>
-    <string name="table_left">Table left on page</string>
-    <string name="table_center">Center table on page</string>
-    <string name="table_right">Table right on page</string>
-    <string name="table_caption">Add caption below…</string>
-    <string name="table_line_above">Add a line above the table</string>
-    <string name="column_width">Column width</string>
-    <string name="column_wider">Wider</string>
-    <string name="column_narrower">Narrower</string>
-    <string name="column_autofit">Autofit column width</string>
-    <string name="column_autofit_all">Autofit all columns</string>
-    <string name="column_hide">Hide column</string>
-    <string name="column_unhide_all">Unhide all columns</string>
+    <!-- The table's bar, one word a button, and what each opens -->
+    <string name="tb_row">Row</string>
+    <string name="tb_column">Column</string>
+    <string name="tb_merge">Merge</string>
+    <string name="tb_color">Color</string>
+    <string name="tb_align">Align</string>
+    <string name="tb_box">Box</string>
+    <string name="tb_delete">Delete</string>
+    <string name="tb_more">More</string>
+    <string name="tb_above">Above</string>
+    <string name="tb_below">Below</string>
+    <string name="tb_left">Left</string>
+    <string name="tb_center">Center</string>
+    <string name="tb_right">Right</string>
+    <string name="tb_merge_left">With the cell on the left</string>
+    <string name="tb_merge_up">With the cell above</string>
+    <string name="tb_split">Split</string>
+    <string name="tb_delete_row">This row</string>
+    <string name="tb_delete_column">This column</string>
+    <string name="tb_delete_table">The whole table</string>
+    <string name="more_title">Table</string>
+    <string name="more_fit_all">Fit all columns to their words</string>
+    <string name="more_fit">Fit this column to its words</string>
+    <string name="more_wider">This column wider</string>
+    <string name="more_narrower">This column narrower</string>
+    <string name="more_hide">Hide this column</string>
+    <string name="more_show">Show hidden columns</string>
+    <string name="more_caption">Add a caption below</string>
+    <string name="more_caption_sub">Table 1: description, and its source</string>
+    <string name="more_line_above">Add a line above the table</string>
+    <string name="more_place">Place on the page</string>
+    <string name="more_delete">Delete the table</string>
     <string name="delete_table">Delete table</string>
     <string name="delete_table_text">Delete this table and everything in it?</string>
     <string name="highlight_colour">Highlight colour %1$d</string>

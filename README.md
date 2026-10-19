@@ -35,8 +35,9 @@ for the camera rather than anybody&rsquo;s real one &mdash;
 ## What it does
 
 - **Write and edit** in one screen that saves itself, with Undo and Redo:
-  formatting, sizes and faces, lists, tables made and edited cell by
-  cell — captions and column widths too — checklists you can tick and
+  formatting, sizes and faces, lists, tables written right in their
+  cells, with a bar of plain buttons for the rest — captions and column
+  widths too — checklists you can tick and
   drag, comments, attached files, and a note's category, colour, date and
   pin. **Copy and paste keep the formatting**, from a web page or into a
   mail. Find in a note, a calculator under it, templates, and export as a
@@ -104,7 +105,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 572 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 593 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in

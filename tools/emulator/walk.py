@@ -190,6 +190,32 @@ def check(what, ok, detail=""):
         failures.append(what)
 
 
+def settle(read, ok, within=8.0, first=1.5):
+    """What [read] returns once the autosave has had its [first] seconds --
+    read again every half second until [ok] holds of it or [within] more
+    seconds are up. One read after a fixed sleep failed once, a busy
+    emulator saving late (Redo, 2026-10-19), and the read for the failure's
+    own message a moment later held the right words. The last value comes
+    back either way, so a change that never arrives still fails; and the
+    first wait stays, so a check whose old state would also pass is read no
+    sooner than before."""
+    time.sleep(first)
+    deadline = time.time() + within
+    value = read()
+    while not ok(value) and time.time() < deadline:
+        time.sleep(0.5)
+        value = read()
+    return value
+
+
+def check_settled(what, read, ok, within=8.0, first=1.5):
+    """[check] on what [read] settles to ([settle]), the value it judged
+    shown when it fails -- never a second read."""
+    value = settle(read, ok, within, first)
+    check(what, ok(value), repr(value))
+    return value
+
+
 def fail(what):
     print("FAIL " + what)
     failures.append(what)
@@ -257,6 +283,7 @@ def main():
     lists(folder)
     new_table(folder)
     cell_menu(folder)
+    table_bar(folder)
     large_letters_table(folder)
     table_extras(folder)
     undoing(folder)
@@ -462,21 +489,16 @@ def seeded(folder):
     # A table, edited from one cell.
     open_note("October budget")
     shot(folder, "11-table", "October budget", "rent", "1500")
-    tap("1500")
-    if find("Cell") is not None:
-        # Into the field first: a key pressed with nothing focused goes
-        # nowhere, which an earlier run took for a failed save.
-        tap("Cell", exact=True, wait=0.8)
-        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
-        for _ in range(4):
-            adb("shell", "input", "keyevent", "KEYCODE_DEL")
-        type_text("1600")
-        tap("Save", exact=True, wait=1.5)
-    time.sleep(1.5)
-    budget = note_by_uid("walk-budget") or {}
-    check("a cell edited on the phone is in the file, the table still a table",
-          "| rent |" in budget.get("body", "") and "1600" in budget.get("body", "")
-          and "1500" not in budget.get("body", ""), budget.get("body", "")[:160])
+    # Written right in the cell, as Samsung Notes writes it: tapped, the
+    # cell takes the cursor at its end.
+    tap("1500", wait=1.2)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    for _ in range(4):
+        adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    type_text("1600")
+    check_settled("a cell edited on the phone is in the file, the table still a table",
+                  lambda: (note_by_uid("walk-budget") or {}).get("body", ""),
+                  lambda b: "| rent |" in b and "1600" in b and "1500" not in b)
     back_to("Search notes")
 
     # The checklist.
@@ -745,11 +767,13 @@ def calendar(folder):
     tap("Stand-up", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" room 2")
-    time.sleep(1.5)
-    series = note_by_uid("cal-standup") or {}
-    own = (series.get("overrides") or {}).get(second.isoformat()) or {}
-    check("the day's own title is written to that day alone",
-          own.get("title") == "Stand-up room 2" and series.get("title") == "Stand-up", json.dumps(series)[:240])
+
+    def day_alone(series):
+        own = (series.get("overrides") or {}).get(second.isoformat()) or {}
+        return own.get("title") == "Stand-up room 2" and series.get("title") == "Stand-up"
+
+    series = settle(lambda: note_by_uid("cal-standup") or {}, day_alone)
+    check("the day's own title is written to that day alone", day_alone(series), json.dumps(series)[:240])
     # Back to the calendar by a word only its own bar says: the day's banner
     # names the month too, and an earlier run took the editor for the month.
     back_to("📋 History")
@@ -1321,10 +1345,10 @@ def lists(folder):
     adb("shell", "input", "keyevent", "66")                    # on the empty item: out
     time.sleep(0.6)
     type_text("after")
-    time.sleep(1.5)
     # Lower case: the keyboard capitalises a line's first word as it likes.
-    check("numbered, continued by Enter, left by Enter on an empty item",
-          (note().get("body") or "").lower() == "1. milk\n2. bread\n3. eggs\n4. jam\nafter", repr(note().get("body")))
+    check_settled("numbered, continued by Enter, left by Enter on an empty item",
+                  lambda: note().get("body") or "",
+                  lambda b: b.lower() == "1. milk\n2. bread\n3. eggs\n4. jam\nafter")
 
     adb("shell", "input", "keycombination", "113", "29")
     time.sleep(0.6)
@@ -1357,9 +1381,10 @@ def new_table(folder):
     tap("Insert table", wait=1.2)
     shot(folder, "42-table-size", "2 x 2 table")
     tap("Insert", exact=True, wait=1.5)
-    check("the new table's first cell is open for typing", not screen_says("Cell"))
+    # The first cell written in place, the table's bar over the keyboard.
+    check("the new table's first cell is open for typing, the table's bar at hand",
+          find("Cell", exact=True) is not None and not screen_says("Row", "Column", "More"))
     type_text("Day")
-    tap("Save", exact=True, wait=1.2)
     back_to("Search notes")
     body = ((read_file("notes_data.json") or [{}])[0]).get("body") or ""
     lines = body.split("\n")
@@ -1368,11 +1393,106 @@ def new_table(folder):
           repr(body))
 
 
+def table_bar(folder):
+    """The table written in place, as Samsung Notes writes one: words typed
+    right in a cell, spaces and all, and one Undo for them; the bar's Row,
+    Column, Align, Box, Split and Delete -- each read back from the file."""
+    print("\n-- a table written in place --")
+    body = "\n".join(["| Item | Cost |", "| --- | --- |", "| fuel | 120 |", "| tolls | 45 |"])
+    if not seed_inside([{"id": 1, "uid": "tb-1", "title": "Bar", "body": body,
+                         "created": "2026-10-19 09:00:00", "updated": "2026-10-19 09:00:00"}],
+                       {"welcome_offered": True}, "Bar"):
+        return
+
+    def rows():
+        lines = ((note_by_uid("tb-1") or {}).get("body") or "").split("\n")
+        return [[c.strip() for c in l.strip().strip("|").split("|")] for l in lines if l.strip().startswith("|")]
+
+    def right_aligned(line):
+        cell = line.split("|")[2] if line.count("|") > 2 else ""
+        return cell.strip() == "120" and len(cell) - len(cell.lstrip()) > len(cell) - len(cell.rstrip())
+
+    open_note("Bar")
+    tap("fuel", exact=True, wait=1.2)
+    type_text(" and oil")
+    check_settled("words typed right in the cell, the spaces between them kept",
+                  rows, lambda r: ["fuel and oil", "120"] in r)
+    shot(folder, "63-cell-written", "fuel and oil", "Row", "More")
+    keyboard_down()
+    tap("Undo", exact=True, wait=1.5)
+    check_settled("one Undo takes back the words typed in the cell, all of them", rows, lambda r: ["fuel", "120"] in r)
+    # The cell's field keeps its own copy of the words: after Undo it must
+    # start again from the file's, or the next letter writes back the words
+    # just taken away.
+    type_text("s")
+    check_settled("the next letter after Undo goes after the cell's words as they are now",
+                  rows, lambda r: ["fuels", "120"] in r)
+    keyboard_down()
+    tap("Undo", exact=True, wait=1.5)
+
+    choose_cell("Bar", "fuel")
+    tap("Row", exact=True, wait=0.8)
+    tap("Above", exact=True, wait=1.2)
+    type_text("first")
+    check_settled("Row, Above: a row over the cell, and it is the one written in next",
+                  rows, lambda r: [x[0] for x in r] == ["Item", "---", "first", "fuel", "tolls"])
+    choose_cell("Bar", "120")
+    tap("Column", exact=True, wait=0.8)
+    tap("Right", exact=True, wait=1.2)
+    type_text("EUR")
+    check_settled("Column, Right: a column after the cell, written in next",
+                  rows, lambda r: ["fuel", "120", "EUR"] in r and len(r[0]) == 3)
+    choose_cell("Bar", "120")
+    tap("Align", exact=True, wait=0.8)
+    tap("Right", exact=True, wait=1.2)
+    check_settled("Align, Right: the cell's padding puts its words at the right -- more space before them than after",
+                  lambda: next((l for l in ((note_by_uid("tb-1") or {}).get("body") or "").split("\n") if "120" in l), ""),
+                  right_aligned)
+    choose_cell("Bar", "EUR")
+    tap("Box", exact=True, wait=1.2)
+    check_settled("Box: the cell becomes a checkbox", rows, lambda r: ["fuel", "120", "[ ]"] in r)
+    tap("☐", exact=True, wait=1.2)
+    check_settled("a tap on the box ticks it", rows, lambda r: ["fuel", "120", "[x]"] in r)
+    shot(folder, "64-box-ticked", "☑")
+    choose_cell("Bar", "tolls")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell above", exact=True, wait=1.2)
+    check_settled("Merge, with the cell above: the desktop's ^", rows, lambda r: bool(r) and r[-1][0] == "^")
+    choose_cell("Bar", "fuel")
+    tap("Merge", exact=True, wait=0.8)
+    tap("Split", exact=True, wait=1.2)
+    check_settled("Split takes the marker away", rows, lambda r: bool(r) and r[-1][0] == "")
+    choose_cell("Bar", "first")
+    tap("Delete", exact=True, wait=0.8)
+    tap("This row", exact=True, wait=1.2)
+    check_settled("Delete, This row", rows, lambda r: [x[0] for x in r] == ["Item", "---", "fuel", ""])
+    choose_cell("Bar", "Cost")
+    tap("Delete", exact=True, wait=0.8)
+    tap("This column", exact=True, wait=1.2)
+    check_settled("Delete, This column", rows, lambda r: bool(r) and r[0][:2] == ["Item", ""])
+    back_to("Search notes")
+
+
+def choose_cell(title, cell):
+    """A cell of a note's table chosen, the keyboard put down, the table's
+    bar in sight -- the note opened first when the list is showing."""
+    if find("Search notes"):
+        open_note(title)
+    elif find("More", exact=True):
+        # A cell already chosen is let go of first, so the one wanted is
+        # plain words on the screen: a cell being written in once reported
+        # its words at its own edge, and the tap took the row above.
+        keyboard_down(patience=1.0)
+        back(wait=1.0)
+    tap(cell, exact=True, wait=1.2)
+    keyboard_down()
+
+
 def cell_menu(folder):
-    """The cell's menu: a cell highlighted pipe to pipe, a cell merged into
+    """The table's bar: a cell highlighted pipe to pipe, a cell merged into
     the one on its left, the table centred on the page -- and the file,
     where each is what the desktop writes. Then the table deleted, asked."""
-    print("\n-- the cell menu --")
+    print("\n-- the table's bar --")
     body = "\n".join(["| Item | Cost |", "| --- | --- |", "| fuel | 120 |", "| tolls | 45 |"])
     seed_inside([
         {"id": 1, "uid": "walk-cells", "title": "Cells", "body": body,
@@ -1382,26 +1502,15 @@ def cell_menu(folder):
     def note():
         return (read_file("notes_data.json") or [{}])[0]
 
-    def sheet(cell, seek=None):
-        open_note("Cells")
-        tap(cell, exact=True, wait=1.2)
-        keyboard_down()                      # the sheet's actions in sight
-        # The table's own actions close the sheet, below its fold -- and
-        # further below it since Phase 3 added the columns' widths and the
-        # caption: scrolled until the one wanted is in sight, not a swipe
-        # counted once for a sheet of another length.
-        for _ in range(5 if seek else 0):
-            if find(seek, exact=True):
-                break
-            adb("shell", "input", "swipe", "540", "2100", "540", "700", "400")
-            time.sleep(1.0)
-
-    sheet("120")
+    choose_cell("Cells", "120")
+    tap("Color", exact=True, wait=0.8)
     tap("Highlight colour 1", wait=1.2)
-    sheet("45")
-    tap("Merge with cell to the left", wait=1.2)
-    sheet("fuel", seek="Center table on page")
-    tap("Center table on page", wait=1.2)
+    choose_cell("Cells", "45")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell on the left", exact=True, wait=1.2)
+    choose_cell("Cells", "fuel")
+    tap("More", exact=True, wait=1.2)
+    tap("Center", exact=True, wait=1.2)
     shot(folder, "43-cell-menu", "Item")
     back_to("Search notes")
     saved = note()
@@ -1417,12 +1526,14 @@ def cell_menu(folder):
           (saved.get("paragraphs") or []) == [{"line": n, "align": "center"} for n in range(4)],
           repr(saved.get("paragraphs")))
 
-    sheet("fuel", seek="Delete table")
-    tap("Delete table", wait=1.0)
+    choose_cell("Cells", "fuel")
+    tap("Delete", exact=True, wait=0.8)
+    tap("The whole table", exact=True, wait=1.0)
     check("deleting the table asks first", not screen_says("Delete this table and everything in it?"))
     tap_last("Delete", wait=1.2)
     back_to("Search notes")
-    check("the table is gone", note().get("body") == "", repr(note().get("body")))
+    gone = note().get("body")
+    check("the table is gone", gone == "", repr(gone))
 
 
 def move_day(folder):
@@ -1486,11 +1597,13 @@ def move_day(folder):
         f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
     if offer:
         adb("shell", "input", "tap", str(offer[-1][0]), str(offer[-1][1]))
-    time.sleep(1.5)
-    back_home = series()
-    check("Undo puts it back, its own edit with it",
-          not (back_home.get("moved") or {})
-          and ((back_home.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2",
+
+    def put_back(s):
+        return not (s.get("moved") or {}) and \
+            ((s.get("overrides") or {}).get(second.isoformat()) or {}).get("title") == "Stand-up room 2"
+
+    back_home = settle(series, put_back)
+    check("Undo puts it back, its own edit with it", put_back(back_home),
           json.dumps({k: back_home.get(k) for k in ("moved", "overrides")}))
     back_to("📋 History")
 
@@ -1567,14 +1680,15 @@ def arranging(folder):
         adb("shell", "input", "swipe", str(handle[0]), str(handle[1]), str(handle[0]), str(target[1] - above), "1500")
         time.sleep(1.5)
 
+    # The drag has waited for its card to land: read at once, then until settled.
     drag("Delta", "Alpha", 40)
-    check("a card dragged by its handle lands where it is let go",
-          placed() == ["Pinned", "Delta", "Alpha", "Bravo"], repr(placed()))
+    check_settled("a card dragged by its handle lands where it is let go",
+                  placed, lambda p: p == ["Pinned", "Delta", "Alpha", "Bravo"], first=0)
     # Above the pinned note it may not go: it stays first among the rest.
     # (A pinned card's title starts with its pin.)
     drag("Bravo", "📌 Pinned", 60)
-    check("a pinned note keeps its place above the rest",
-          placed() == ["Pinned", "Bravo", "Delta", "Alpha"], repr(placed()))
+    check_settled("a pinned note keeps its place above the rest",
+                  placed, lambda p: p == ["Pinned", "Bravo", "Delta", "Alpha"], first=0)
 
     # A long list: the last card held at the top edge, the list scrolling
     # under it. Its old place scrolls far out of sight, and a card that
@@ -1595,11 +1709,10 @@ def arranging(folder):
         adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
     time.sleep(9)                                    # held at the edge: the list scrolls
     adb("shell", "input", "motionevent", "UP", str(handle[0]), str(top[1] + 140))
-    time.sleep(1.5)
-    order = placed()
+    order = settle(placed, lambda o: "Note 30" in o and o.index("Note 30") <= 2)
     check("on a long list a card held at the edge rides the scroll to the top",
-          order.index("Note 30") <= 2 and sorted(order) == ["Note %02d" % i for i in range(1, 31)],
-          repr(order[:5]))
+          "Note 30" in order and order.index("Note 30") <= 2
+          and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
 
 
 def attaching(folder):
@@ -1642,7 +1755,7 @@ def attaching(folder):
 
 def table_extras(folder):
     """A table's caption, its columns' widths and a line above it: each
-    from the cell's menu, each read back from the file in the desktop's
+    from the table's More, each read back from the file in the desktop's
     shape -- the caption numbered and placed with its table, a width as
     the separator's dashes, a hidden column as its "~"."""
     print("\n-- captions, column widths, a line above --")
@@ -1658,61 +1771,66 @@ def table_extras(folder):
         return note_by_uid("tx-costs") or {}
 
     def menu(cell, entry):
-        """A cell's sheet opened, scrolled until [entry] is in sight, and tapped."""
-        open_note("Costs")
-        tap(cell, exact=True, wait=1.2)
-        keyboard_down()
-        for _ in range(4):
+        """A cell chosen, the bar's More opened, [entry] scrolled into sight and tapped."""
+        choose_cell("Costs", cell)
+        tap("More", exact=True, wait=1.2)
+        for _ in range(3):
             if find(entry, exact=True):
                 break
-            adb("shell", "input", "swipe", "540", "2000", "540", "900", "400")
+            adb("shell", "input", "swipe", "540", "2100", "540", "1300", "400")
             time.sleep(0.8)
         tap(entry, exact=True, wait=1.5)
 
-    menu("fuel", "Add caption below…")
+    def body():
+        return note().get("body") or ""
+
+    def separator():
+        lines = body().split("\n")
+        return lines[1] if len(lines) > 1 else ""
+
+    menu("fuel", "Add a caption below")
     type_text("Fuel costs")                  # typed over the selected placeholder
     keyboard_down()
-    time.sleep(1.5)
-    lines = (note().get("body") or "").split("\n")
+    captioned = settle(note, lambda n: (n.get("body") or "").split("\n")[3:5] == ["Table 1: Fuel costs", "Source: "])
     check("a caption goes under its table, numbered, its placeholder typed over",
-          lines[3:5] == ["Table 1: Fuel costs", "Source: "], repr(lines))
+          (captioned.get("body") or "").split("\n")[3:5] == ["Table 1: Fuel costs", "Source: "],
+          repr((captioned.get("body") or "").split("\n")))
+    paragraphs = captioned.get("paragraphs") or []
     check("the caption is placed as its table is",
-          {"line": 3, "align": "center"} in (note().get("paragraphs") or [])
-          and {"line": 4, "align": "center"} in (note().get("paragraphs") or []), repr(note().get("paragraphs")))
+          {"line": 3, "align": "center"} in paragraphs and {"line": 4, "align": "center"} in paragraphs, repr(paragraphs))
     shot(folder, "52-caption", "Table 1: Fuel costs")
     back_to("Search notes")
 
-    menu("fuel", "Wider")
-    check("a wider column is written as the separator's dashes",
-          (note().get("body") or "").split("\n")[1].split("|")[1].strip() == "-" * 8,
-          repr((note().get("body") or "").split("\n")[1]))
+    # Four characters wider than drawn -- and drawn, the column is the
+    # desktop's eight at least, "fuel" or not: twelve dashes.
+    menu("fuel", "This column wider")
+    check_settled("a wider column is written as the separator's dashes",
+                  separator, lambda s: s.count("|") > 1 and s.split("|")[1].strip() == "-" * 12, first=0)
     back_to("Search notes")
-    menu("120", "Hide column")
-    sep = (note().get("body") or "").split("\n")[1]
+    menu("120", "Hide this column")
+    sep = settle(separator, lambda s: s.count("|") > 2 and s.split("|")[2].strip() == "~", first=0)
     check("a hidden column is the separator's ~, and the grid leaves it out",
-          sep.split("|")[2].strip() == "~" and find("120", exact=True) is None, repr(sep))
+          sep.count("|") > 2 and sep.split("|")[2].strip() == "~" and find("120", exact=True) is None, repr(sep))
     back_to("Search notes")
-    menu("fuel", "Unhide all columns")
-    check("Unhide all brings it back", find("120", exact=True) is not None)
+    menu("fuel", "Show hidden columns")
+    check("Show hidden columns brings it back", find("120", exact=True) is not None)
     back_to("Search notes")
     # From a cell of the FIRST column, so a fit of that column alone would
     # leave the second at the "---" Unhide gave it.
-    menu("fuel", "Autofit all columns")
-    sep = (note().get("body") or "").split("\n")[1]
-    check("Autofit all fits every column, not only the one tapped", sep == "| -------- | -------- |", repr(sep))
+    menu("fuel", "Fit all columns to their words")
+    check_settled("Autofit all fits every column, not only the one tapped",
+                  separator, lambda s: s == "| -------- | -------- |", first=0)
     back_to("Search notes")
 
     menu("fuel", "Add a line above the table")
     type_text("Above")
     keyboard_down()
-    time.sleep(1.5)
-    check("a line above the table, the cursor on it", (note().get("body") or "").startswith("Above\n| Item"),
-          repr((note().get("body") or "")[:40]))
+    check_settled("a line above the table, the cursor on it", body, lambda b: b.startswith("Above\n| Item"))
     # Undo takes back the table's changes too: the word, then the line.
     tap("Undo", exact=True, wait=0.8)
     tap("Undo", exact=True, wait=2.0)
-    check("Undo takes back the word typed, then the line made above the table",
-          (note().get("body") or "").startswith("| Item"), repr((note().get("body") or "")[:40]))
+    check_settled("Undo takes back the word typed, then the line made above the table",
+                  body, lambda b: b.startswith("| Item"), first=0)
     back_to("Search notes")
 
 
@@ -1909,7 +2027,6 @@ def undoing(folder):
         return
 
     def body():
-        time.sleep(1.5)                      # the autosave
         return (note_by_uid("un-1") or {}).get("body")
 
     open_note("Draft")
@@ -1919,14 +2036,14 @@ def undoing(folder):
     time.sleep(1.5)                          # a pause: the next burst is a step of its own
     type_text(" third")
     keyboard_down()
-    check("typed", body() == "first second third", repr(body()))
+    check_settled("typed", body, lambda b: b == "first second third")
     tap("Undo", exact=True, wait=1.0)
-    check("Undo takes back the last burst of typing", body() == "first second", repr(body()))
+    check_settled("Undo takes back the last burst of typing", body, lambda b: b == "first second")
     shot(folder, "53-undo", "first second", "Redo")
     tap("Undo", exact=True, wait=1.0)
-    check("and the one before it", body() == "first", repr(body()))
+    check_settled("and the one before it", body, lambda b: b == "first")
     tap("Redo", exact=True, wait=1.0)
-    check("Redo brings it back", body() == "first second", repr(body()))
+    check_settled("Redo brings it back", body, lambda b: b == "first second")
     # Ctrl+Z from a keyboard is not walked: with no hardware keyboard the
     # emulator's on-screen one takes the keys first and hands the text
     # field its own small undo, so what a tablet with a keyboard would do
@@ -1958,9 +2075,9 @@ def pasting(folder):
     ], {"welcome_offered": True}, "Source"):
         return
 
-    def note(uid):
-        time.sleep(1.5)                      # the autosave
-        return note_by_uid(uid) or {}
+    def note(uid, body):
+        """The note once its body is [body], or as it is when the wait is up."""
+        return settle(lambda: note_by_uid(uid) or {}, lambda n: n.get("body") == body)
 
     def keys(*names):
         adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
@@ -1990,7 +2107,7 @@ def pasting(folder):
     at_the_end("Start here")
     type_text(" ")
     keys("CTRL_LEFT", "V")
-    own = note("pa-own")
+    own = note("pa-own", expected)
     check("the copy pasted after the words, the list on lines of its own",
           own.get("body") == expected, repr(own.get("body")))
     check("the app's own copy brings its size back, and its bold",
@@ -2009,7 +2126,7 @@ def pasting(folder):
     at_the_end("Start here")
     type_text(" ")
     keys("CTRL_LEFT", "V")
-    read = note("pa-html")
+    read = note("pa-html", expected)
     check("pasted as the HTML it is: the words and the list as they were",
           read.get("body") == expected, repr(read.get("body")))
     check("the bold read from the HTML, the size left behind as a web page's is",
@@ -2025,7 +2142,7 @@ def pasting(folder):
     at_the_end("Start here")
     type_text(" ")
     keys("CTRL_LEFT", "SHIFT_LEFT", "V")
-    plain = note("pa-plain")
+    plain = note("pa-plain", "Start here Big bold words\nmilk\neggs")
     check("Ctrl+Shift+V, the plain paste: the words alone, the markers left behind",
           plain.get("body") == "Start here Big bold words\nmilk\neggs" and not plain.get("formatting"),
           repr((plain.get("body"), plain.get("formatting"))))
@@ -2037,9 +2154,10 @@ def pasting(folder):
     at_the_end("Start here")
     keys("CTRL_LEFT", "A")
     keys("CTRL_LEFT", "X")
-    check("a cut takes the words out", note("pa-own").get("body") == "", repr(note("pa-own").get("body")))
+    cut = note("pa-own", "")
+    check("a cut takes the words out", cut.get("body") == "", repr(cut.get("body")))
     keys("CTRL_LEFT", "V")
-    back_in = note("pa-own")
+    back_in = note("pa-own", expected)
     check("and pasted back they come with their size, their bold and their list",
           back_in.get("body") == expected
           and {"start": 11, "end": 14, "style": "font_size", "value": 24} in (back_in.get("formatting") or [])
@@ -2254,9 +2372,8 @@ def wide(folder):
         adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
         type_text(" ok")
         keyboard_down()
-        time.sleep(1.5)
-        check("the editor's next save keeps the update", groceries().get("body") == "milk, from the desktop ok",
-              repr(groceries().get("body")))
+        check_settled("the editor's next save keeps the update", lambda: groceries().get("body"),
+                      lambda b: b == "milk, from the desktop ok")
     back_to("Search notes")
 
     # A medium window -- 685 by 411 on its side, a small tablet's width:

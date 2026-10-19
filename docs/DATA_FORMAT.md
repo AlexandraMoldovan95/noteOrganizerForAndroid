@@ -527,8 +527,9 @@ with `| --- |` measures nothing at all. One was.
 
 ### Where a table keeps what is not words
 
-The cell menu of Phase 2 writes four things, each where the desktop
-keeps it — none of them in a field of its own:
+A table's edits — Phase 2's cell menu, the table's bar since — write
+four things, each where the desktop keeps it, none of them in a field of
+its own:
 
 | What | Where it lives |
 |---|---|
@@ -545,9 +546,16 @@ Phase 3 adds three more, all in the text:
 | A hidden column | `~` as its separator cell |
 | A caption | two lines under the table, `Table N: …` and `Source: …`, placed as the table is; N comes after every caption the note already has, the older `Tab. N:` ones included |
 
-The separator stays under the first row, whatever is inserted above it:
-moved to the third line it is no longer read as a separator, and its
-dashes turn into a row of text. And **an edit that changes nothing writes
+The separator stays under the first row, whatever is inserted above it
+or deleted from it: moved to the third line it is no longer read as a
+separator, and its dashes turn into a row of text, and left on the first
+line it makes no table at all. So the header row deleted, the next row
+is the header. A table keeps two columns, as the desktop's does: a
+column of two deleted is emptied, since one column reads as prose. And
+a merge marker whose partner a deletion took is emptied, as
+`_dissolve_orphan_markers` empties it
+([the story](ISSUES_LOG.md#two-deletes-the-desktop-had-already-settled)).
+And **an edit that changes nothing writes
 nothing** — a marker asked for on the separator, the last row asked to
 go — or the whole table comes back re-padded, every style in it at risk
 ([the story](ISSUES_LOG.md#a-table-edit-nobody-asked-for)).

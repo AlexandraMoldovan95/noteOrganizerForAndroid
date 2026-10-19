@@ -199,6 +199,20 @@ class TablesTest {
     }
 
     @Test
+    fun `a column is drawn at least eight characters wide, as the desktop's MIN_COLUMN floor, up to the cap`() {
+        // An empty column of a new table, a short word, a checkbox: all at
+        // the floor, where an empty cell had been a sliver no finger found.
+        val t = table("|  |  | Mon |", "| --- | --- | --- |", "| [x] |  | " + "w".repeat(40) + " |")
+        assertEquals(8, t.drawnChars(0))
+        assertEquals(8, t.drawnChars(1))
+        assertEquals(26, t.drawnChars(2))
+        // A width set by hand is drawn exactly, narrower than the floor too.
+        val set = table("| a | b |", "| ---- | ------------ |")
+        assertEquals(4, set.drawnChars(0))
+        assertEquals(12, set.drawnChars(1))
+    }
+
+    @Test
     fun `a wrapped cell is measured by its longest line, not its whole text`() {
         val t = table("| short<br>much-much-longer | b |")
         assertEquals("much-much-longer".length, t.charWidths[0])
@@ -283,12 +297,44 @@ class TablesTest {
     }
 
     @Test
-    fun `a column can be removed, but never the last one`() {
-        val out = TableEdit(listOf("| a | b |", "| c | d |")).removeColumn(0).lines()
-        assertEquals(listOf("b"), splitRow(out[0]))
-        assertEquals(listOf("d"), splitRow(out[1]))
+    fun `a column is removed from three, and emptied at two, as the desktop does`() {
+        val three = TableEdit(listOf("| a | b | c |", "| --- | --- | --- |", "| d | e | f |")).removeColumn(0).lines()
+        assertEquals(listOf("b", "c"), splitRow(three[0]))
+        assertTrue(isSeparatorRow(three[1]))
+        assertEquals(listOf("e", "f"), splitRow(three[2]))
+        // One column reads as prose, not as a table: at two, the column is
+        // emptied and the table stays one.
+        val two = TableEdit(listOf("| a | b |", "| --- | --- |", "| c | d |")).removeColumn(0).lines()
+        assertEquals(listOf("", "b"), splitRow(two[0]))
+        assertTrue("the separator keeps its dashes", isSeparatorRow(two[1]))
+        assertEquals(listOf("", "d"), splitRow(two[2]))
         val single = TableEdit(listOf("| a |")).removeColumn(0).lines()
         assertEquals(1, splitRow(single[0]).size)
+    }
+
+    @Test
+    fun `the header row deleted, the next row is the header and the dashes stay under it`() {
+        val out = TableEdit(listOf("| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |")).removeRow(0).lines()
+        assertEquals(listOf("1", "2"), splitRow(out[0]))
+        assertTrue("the separator is under the first row", isSeparatorRow(out[1]))
+        assertEquals(listOf("3", "4"), splitRow(out[2]))
+        // The separator is no row to delete, and the last data row stays.
+        val sep = listOf("| A | B |", "| --- | --- |", "| 1 | 2 |")
+        assertEquals(sep, TableEdit(sep).removeRow(1).lines())
+        val last = listOf("| A | B |", "| --- | --- |")
+        assertEquals(last, TableEdit(last).removeRow(0).lines())
+    }
+
+    @Test
+    fun `a merge marker left joining nothing is emptied, as the desktop's _dissolve_orphan_markers`() {
+        val out = TableEdit(listOf("| A | B | C |", "| --- | --- | --- |", "| 1 | < | x |")).removeColumn(0).lines()
+        assertEquals(listOf("", "x"), splitRow(out[2]))
+        // A row deleted the same way: the header gone, the "^" under it is first, joining nothing.
+        val up = TableEdit(listOf("| A | B |", "| --- | --- |", "| ^ | 2 |", "| 3 | 4 |")).removeRow(0).lines()
+        assertEquals(listOf("", "2"), splitRow(up[0]))
+        // A marker that still joins something is kept.
+        val kept = TableEdit(listOf("| A | B |", "| --- | --- |", "| 1 | 2 |", "| ^ | 3 |", "| 5 | 6 |")).removeRow(4).lines()
+        assertEquals(listOf("^", "3"), splitRow(kept[3]))
     }
 
     @Test

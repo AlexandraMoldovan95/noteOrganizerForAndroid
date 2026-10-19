@@ -61,7 +61,25 @@ data class TableBlock(
     fun fileRow(displayedRow: Int): Int =
         if (separatorAt >= 0 && displayedRow >= separatorAt) displayedRow + 1
         else displayedRow
+
+    /**
+     * A column's width as drawn, in characters. A width set by hand is the
+     * width exactly, as the desktop draws it. Otherwise the column takes
+     * what it holds, but never fewer than `MIN_COLUMN` -- the desktop's
+     * floor, which the phone once skipped, so a new table's empty cells
+     * were slivers a finger could not find -- and never more than
+     * [MAX_COLUMN_CHARS], past which its words wrap.
+     */
+    fun drawnChars(column: Int): Int =
+        columns.getOrNull(column)?.width ?: charWidths.getOrElse(column) { 0 }.coerceIn(MIN_COLUMN, MAX_COLUMN_CHARS)
 }
+
+/**
+ * Past this many characters a column stops growing and its text wraps.
+ * Without a cap, one cell holding a paragraph makes every row that tall
+ * and pushes the rest of the table off any reachable scroll position.
+ */
+private const val MAX_COLUMN_CHARS = 26
 
 private const val SEPARATOR_HIDDEN_MARK = "~"
 private const val MERGE_LEFT_MARK = "<"
@@ -294,15 +312,46 @@ class TableEdit(private val original: List<String>) {
         return this
     }
 
+    /**
+     * A row taken away -- the desktop's `_grid_delete_row`, which counts
+     * data rows only. The separator is never one; the last data row is
+     * never taken: an empty table is not a table, and its lines would stop
+     * reading as one. The separator stays under whichever row is first
+     * now -- deleting the header row left the dashes on top, and the table
+     * stopped being one -- and a merge marker left with nothing to join
+     * is emptied, as the desktop's `_dissolve_orphan_markers` empties it.
+     */
     fun removeRow(row: Int): TableEdit {
         surgical = null
-        // The last content row is never removed: an empty table is not a
-        // table, and the lines would stop reading as one at all.
-        if (rows.size <= 1 || row !in rows.indices) return this
+        if (row !in rows.indices || row == separatorAt) return this
+        if (rows.indices.count { it != separatorAt } <= 1) return this
         rows.removeAt(row)
         aligns.removeAt(row)
+        var separator = when {
+            separatorAt < 0 -> -1
+            row < separatorAt -> separatorAt - 1
+            else -> separatorAt
+        }
+        if (separator == 0 && rows.size > 1) {
+            rows.add(1, rows.removeAt(0))
+            aligns.add(1, aligns.removeAt(0))
+            separator = 1
+        }
+        dissolveOrphans(separator)
         touched = true
         return this
+    }
+
+    /** `_dissolve_orphan_markers`: a "<" or "^" that joins nothing becomes an empty cell. */
+    private fun dissolveOrphans(separator: Int) {
+        val data = rows.indices.filter { it != separator }
+        val covered = mergeAnchors(data.map { rows[it] }).keys
+        for ((i, r) in data.withIndex()) {
+            for (c in rows[r].indices) {
+                val value = rows[r][c]
+                if ((value == MERGE_LEFT_MARK || value == MERGE_UP_MARK) && (i to c) !in covered) rows[r][c] = ""
+            }
+        }
     }
 
     fun insertColumnAfter(column: Int): TableEdit {
@@ -380,14 +429,27 @@ class TableEdit(private val original: List<String>) {
         return this
     }
 
+    /**
+     * A column taken away -- the desktop's `_grid_delete_col`. At two
+     * columns it is emptied instead: one column reads as prose rather than
+     * a table, so a table of two, a column deleted on the phone, stopped
+     * being a table. A merge marker left with nothing to join is emptied.
+     */
     fun removeColumn(column: Int): TableEdit {
         surgical = null
         pad()
-        if (columnCount <= 1 || column !in 0 until columnCount) return this
-        for (r in rows.indices) {
-            if (column < rows[r].size) rows[r].removeAt(column)
-            if (column < aligns[r].size) aligns[r].removeAt(column)
+        if (column !in 0 until columnCount) return this
+        if (columnCount <= 2) {
+            for (r in rows.indices) {
+                if (r != separatorAt && column < rows[r].size) rows[r][column] = ""
+            }
+        } else {
+            for (r in rows.indices) {
+                if (column < rows[r].size) rows[r].removeAt(column)
+                if (column < aligns[r].size) aligns[r].removeAt(column)
+            }
         }
+        dissolveOrphans(separatorAt)
         touched = true
         return this
     }

@@ -47,7 +47,7 @@ tested as from now on. Built on Phase 3.
   checklist's boxes as ☐ and ☑; the PDF is the note's page, A4, made on
   the phone. The phone's mail app opens with it ready; the app itself
   sends nothing. The address is remembered on the phone alone.
-- **"Autofit all columns"**, from a table cell's menu, beside the
+- **"Fit all columns to their words"**, in the table's More, beside the
   one-column fit: the whole table fitted in one step, a hidden column
   left hidden.
 - **A release build**: shrunk by R8 to 2.0 MB, not debuggable, its one
@@ -63,6 +63,15 @@ tested as from now on. Built on Phase 3.
   all eight, as before.
 - **Every entry of the editor's ⋮ menu has its icon**; Duplicate and Move
   to Trash had none.
+- **A table is written in place**, shaped on Samsung Notes' table at the
+  owner's request. A tap on a cell opens it for typing right in the
+  table, and a bar over the keyboard takes the place of the cell's
+  menu, a sheet of eleven entries: Row, Column, Merge, Color, Align,
+  Box, Delete and More, one word each. A button with a choice opens it
+  as a row above the bar — Above or Below, Left or Right — and More
+  holds the rarer changes: widths, hiding a column, a caption, a line
+  above, the table's place on the page. The file is written as before,
+  the rows the desktop reads.
 
 ### Fixed
 
@@ -86,6 +95,18 @@ tested as from now on. Built on Phase 3.
   selected, made bold or 14 from the format bar and copied at once went
   out plain: the copy used the formatting the words had when they were
   selected. A cut the same.
+- **Deleting a table's first row keeps it a table.** The dashes under
+  the header were left on top and the lines stopped reading as one; the
+  next row is the header now, as on the desktop.
+- **Deleting a column of a two-column table empties it**, as the desktop
+  does. It was taken away, and one column reads as prose, so the table
+  turned into lines of bars.
+- **A table's columns are at least eight characters wide**, as on the
+  desktop, unless a width is set by hand: a new table's empty cells were
+  drawn as slivers too narrow for a finger.
+- **A merge left joining nothing is undone** when a row or a column goes,
+  as the desktop's `_dissolve_orphan_markers` undoes it; its `<` or `^`
+  stayed in the file.
 
 ### Testing
 

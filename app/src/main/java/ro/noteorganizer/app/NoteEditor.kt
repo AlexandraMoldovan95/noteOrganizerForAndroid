@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
@@ -84,6 +85,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -220,6 +222,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         body = to.body
         spans = to.spans
         props = to.props
+        // The cell being written in shows its words as they are now.
+        cellEpoch += 1
         comments = to.comments
         // Places remembered in the old text mean nothing in this one.
         focused = null
@@ -234,6 +238,24 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** Which prose field has the cursor, and its value -- selection and all. */
     var focus by mutableStateOf<Int?>(null)
     var focused by mutableStateOf<TextFieldValue?>(null)
+
+    /**
+     * The table cell being written in, by the line its table starts on --
+     * a table's segment is made anew with every edit, its first line is
+     * not -- and the cell. Null when no cell is: a prose field taking the
+     * cursor lets go of it, and so does Back.
+     */
+    var activeCell by mutableStateOf<ActiveCell?>(null)
+
+    /**
+     * Counts the times the cell being written in changed under its field:
+     * Undo, Redo, a row put over it, a cell chosen. The field keeps its own
+     * copy of the words as they are typed, and kept across these, it showed
+     * the cell's old words -- after Undo, and after a row made above, where
+     * the next word typed went in after the old cell's words and wrote them
+     * into the new row. Typing does not count: the field is the one writing.
+     */
+    var cellEpoch by mutableIntStateOf(0)
 
     /**
      * Where the cursor last was in the body, in code points -- kept when
@@ -484,6 +506,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         props = linesOf(note)
         if (day != null) showDay(note.id, day)
         focused = null
+        activeCell = null
         // A body brought back whole: nothing remembered in the old one applies
         // -- the steps of Undo included, which would put the old one back.
         caret = null
@@ -520,15 +543,19 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return null
     }
 
-    /** One table changed through the table rules, the body rebuilt around it. */
-    fun editTable(segment: Editing.Segment, change: (TableEdit) -> TableEdit) {
+    /**
+     * One table changed through the table rules, the body rebuilt around it.
+     * [kind] is the step's name for Undo: words typed in a cell join one
+     * step, as typing in the note's text does.
+     */
+    fun editTable(segment: Editing.Segment, kind: String = "edit", change: (TableEdit) -> TableEdit) {
         val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val next = replaceTable(body, segment.firstLine..segment.lastLine, change(TableEdit(lines)).lines())
         if (next == body) return
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         follow(next)
         body = next
-        changed()
+        changed(kind)
     }
 
     /**
@@ -689,7 +716,17 @@ fun NoteEditor(state: AppState, openId: Int) {
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var askRestore by remember { mutableStateOf(false) }
-    var cell by remember { mutableStateOf<Pair<Editing.Segment, CellAt>?>(null) }
+    var tableMore by remember { mutableStateOf(false) }
+    var askDeleteTable by remember { mutableStateOf(false) }
+    // The table and the cell being written in, found again in the body as
+    // it is now: an edit makes the segment anew.
+    val activeSegment = model.activeCell?.let { a ->
+        Editing.segments(model.body).firstOrNull { it.table && it.firstLine == a.firstLine }
+    }
+    LaunchedEffect(model.activeCell, activeSegment == null) {
+        // Its table gone -- deleted, undone away -- the cell lets go.
+        if (model.activeCell != null && activeSegment == null) model.activeCell = null
+    }
     // One day of a series: what it holds of its own, and where it came from.
     val day = model.day
     val raw = state.rawNote(model.id)
@@ -705,7 +742,12 @@ fun NoteEditor(state: AppState, openId: Int) {
     }
 
     BackHandler { leave() }
-    // Back closes the find bar first, then the calculator, then the note.
+    // Back closes the find bar first, then the calculator, then a cell being
+    // written in, then the note.
+    BackHandler(enabled = model.activeCell != null) {
+        model.activeCell = null
+        focusManager.clearFocus()
+    }
     BackHandler(enabled = calc.open) { closeCalculator(calc, focusManager) }
     BackHandler(enabled = find.open) { closeFind() }
     // Saved a moment after the last change, as the desktop's autosave is,
@@ -1006,7 +1048,12 @@ fun NoteEditor(state: AppState, openId: Int) {
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) model.focus = null },
+                modifier = Modifier.fillMaxWidth().onFocusChanged {
+                    if (it.isFocused) {
+                        model.focus = null
+                        model.activeCell = null
+                    }
+                },
                 decorationBox = { field ->
                     if (model.title.isEmpty()) {
                         Text(stringResource(R.string.title_hint), color = palette.subtext, fontSize = 22.sp,
@@ -1044,17 +1091,20 @@ fun NoteEditor(state: AppState, openId: Int) {
                                 hexColor(hex)?.let { CellAt(row, column) to blend(it, palette.card, 0.45f) }
                             }.toMap()
                     }
+                    val writing = model.activeCell?.takeIf { it.firstLine == segment.firstLine }?.at
                     TableView(
                         table = table,
                         modifier = Modifier.padding(vertical = 8.dp),
                         editing = true,
-                        onCellTap = { at -> cell = segment to at },
+                        onCellTap = { at -> chooseCell(model, segment, table, at) },
                         place = model.props[segment.firstLine]?.align ?: "left",
                         highlights = fills,
                         found = here.mapNotNull { (it as? Finding.InCell)?.let { m -> CellAt(m.row, m.column) } }.toSet(),
                         current = (currentMatch as? Finding.InCell)?.takeIf { it.segment == index }
                             ?.let { CellAt(it.row, it.column) },
                         reveal = find.reveal,
+                        active = writing,
+                        editor = writing?.let { at -> { style -> CellEditor(model, segment, table, at, style) } },
                     )
                 } else {
                     ProseField(
@@ -1075,9 +1125,14 @@ fun NoteEditor(state: AppState, openId: Int) {
         // The calculator stands aside while the keyboard is up for the note --
         // the two together would leave no note to see -- and comes back when
         // it goes down. Typed into, its own display keeps it in place.
+        val writingIn = model.activeCell
         if (calc.open && (!WindowInsets.isImeVisible || calc.displayFocused)) {
             CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
                             onClose = { closeCalculator(calc, focusManager) })
+        } else if (writingIn != null && activeSegment != null) {
+            // In a table, the table's own bar takes the format bar's place.
+            TableBar(model, activeSegment, writingIn.at,
+                     onMore = { tableMore = true }, onDeleteTable = { askDeleteTable = true })
         } else if (model.focus != null) {
             if (day == null) FormatBar(model) { tableAsk = true }
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
@@ -1111,8 +1166,9 @@ fun NoteEditor(state: AppState, openId: Int) {
                 // The new table's first cell, open for typing -- as the
                 // desktop opens it the moment the table is made.
                 val first = model.insertTable(rows, columns)
-                Editing.segments(model.body).firstOrNull { it.table && it.firstLine == first }
-                    ?.let { cell = it to CellAt(0, 0) }
+                if (Editing.segments(model.body).any { it.table && it.firstLine == first }) {
+                    model.activeCell = ActiveCell(first, CellAt(0, 0))
+                }
             },
             onDismiss = { tableAsk = false },
         )
@@ -1140,13 +1196,31 @@ fun NoteEditor(state: AppState, openId: Int) {
         )
     }
     if (mailAsk) MailDialog(state, model.id) { mailAsk = false }
-    cell?.let { (segment, at) ->
-        // Closed, the sheet hands the keyboard to nothing: left to itself,
-        // focus came back to the title and its keyboard rose unasked.
-        CellSheet(model, segment, at, onDone = {
-            cell = null
-            focusManager.clearFocus()
-        })
+    if (tableMore && model.activeCell != null && activeSegment != null) {
+        TableMoreSheet(model, activeSegment, model.activeCell!!.at,
+                       onDeleteTable = { tableMore = false; askDeleteTable = true },
+                       onDone = { tableMore = false })
+    } else if (tableMore) {
+        tableMore = false
+    }
+    if (askDeleteTable && activeSegment != null) {
+        // Asked, though Undo would bring it back: a whole table is the most
+        // one tap can take away.
+        Ask(
+            title = stringResource(R.string.delete_table),
+            text = stringResource(R.string.delete_table_text),
+            confirm = stringResource(R.string.delete),
+            onConfirm = {
+                askDeleteTable = false
+                model.activeCell = null
+                model.deleteTable(activeSegment)
+                focusManager.clearFocus()
+            },
+            onDismiss = { askDeleteTable = false },
+            destructive = true,
+        )
+    } else if (askDeleteTable) {
+        askDeleteTable = false
     }
     if (askRestore && note != null) {
         val also = note.previousAlso
@@ -1279,6 +1353,8 @@ private fun ProseField(
             .onFocusChanged { focus ->
                 if (focus.isFocused) {
                     model.focus = index
+                    // Writing in the note's text lets go of a table's cell.
+                    model.activeCell = null
                     if (model.focused?.text != segment.text) model.focused = value
                     model.caret = caretIn(segment, value)
                 } else if (model.focus == index) {
@@ -2168,166 +2244,300 @@ private fun cellTextAt(table: TableBlock, at: CellAt): String {
     }
 }
 
+// ---- A table, written in place ----
+//
+// Samsung Notes' way, which the owner pointed at: a tap on a cell and the
+// words go right in it; while in a table, a bar of one-word buttons over
+// the keyboard; the rarer things in More. Everything the cell's long sheet
+// did is still here -- it was one sheet of twenty-one text buttons, read
+// as a wall of text on a real phone.
+
 /**
- * One cell, opened: its words, a checkbox, and the changes that only mean
- * something while a cell is chosen -- a row or a column beside this one,
- * or this one's taken away.
+ * A cell tapped: chosen to write in -- or, a checkbox, ticked or unticked
+ * there and then, as a box is, and chosen too, so the bar is at hand.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+private fun chooseCell(model: EditorModel, segment: Editing.Segment, table: TableBlock, at: CellAt) {
+    val cell = table.rows.getOrNull(at.row)?.getOrNull(at.column)
+    val checked = cell?.checked
+    if (checked != null) {
+        model.editTable(segment) { it.setCell(table.fileRow(at.row), at.column, if (checked) "[ ]" else "[x]") }
+    }
+    model.focus = null
+    model.activeCell = ActiveCell(segment.firstLine, at)
+    model.cellEpoch += 1
+}
+
+/**
+ * The words of the cell being written in, typed right in the cell. The
+ * field keeps its own copy as it is typed -- the cell trims its ends when
+ * it is written, and read back on every letter, the space before the next
+ * word was gone before the word was. A line break is the cell's `<br>`; a
+ * pipe, which would split the cell in two, becomes "/", as the table
+ * rules write it.
+ */
 @Composable
-private fun CellSheet(model: EditorModel, segment: Editing.Segment, at: CellAt, onDone: () -> Unit) {
+private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: TableBlock, at: CellAt,
+                       style: TextStyle) {
+    val palette = LocalPalette.current
+    val key = Triple(segment.firstLine, at, model.cellEpoch)
+    var draft by remember(key) {
+        val text = cellTextAt(table, at).replace("<br>", "\n")
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
+    val typing = remember(key) { FocusRequester() }
+    LaunchedEffect(key) { typing.requestFocus() }
+    val said = stringResource(R.string.cell)
+    BasicTextField(
+        value = draft,
+        onValueChange = { next ->
+            val clean = next.text.replace("|", "/")
+            draft = next.copy(text = clean)
+            model.editTable(segment, Editing.History.TYPING + ":cell") {
+                it.setCell(table.fileRow(at.row), at.column, clean.replace("\n", "<br>"))
+            }
+        },
+        textStyle = style,
+        cursorBrush = SolidColor(palette.accent),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        modifier = Modifier.fillMaxWidth().focusRequester(typing).semantics { contentDescription = said }
+            .onFocusChanged { if (it.isFocused) model.focus = null },
+    )
+}
+
+/**
+ * The table's bar, over the keyboard while a cell is chosen: one word to a
+ * button. A button with choices opens them in a row above the bar --
+ * Above or Below, Left or Right -- and More holds the rest in a sheet.
+ */
+@Composable
+private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
+                     onMore: () -> Unit, onDeleteTable: () -> Unit) {
     val palette = LocalPalette.current
     val lines = segment.text.split("\n")
     val table = remember(segment.text) { parseTable(lines) }
-    var draft by remember(at) {
-        val text = cellTextAt(table, at)
-        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
-    }
     val row = table.fileRow(at.row)
+    val cell = table.rows.getOrNull(at.row)?.getOrNull(at.column)
     val merged = remember(segment.text, at) { TableEdit(lines).isMerged(row, at.column) }
     // A day of a series keeps its text plain and its lines the series':
-    // a cell's colour and the table's place belong to the whole note.
+    // a cell's colour belongs to the whole note.
     val wholeNote = model.day == null
-    var askDelete by remember { mutableStateOf(false) }
-    fun change(edit: (TableEdit) -> TableEdit) {
-        model.editTable(segment, edit)
-        onDone()
+    var open by remember(segment.firstLine, at) { mutableStateOf<String?>(null) }
+    fun edit(moveTo: CellAt? = at, change: (TableEdit) -> TableEdit) {
+        model.editTable(segment, change = change)
+        open = null
+        model.activeCell = moveTo?.let { ActiveCell(segment.firstLine, it) }
+        model.cellEpoch += 1
     }
-    // Ready to type into, as the desktop's cell editor is the moment it opens.
-    val typing = remember { FocusRequester() }
-    LaunchedEffect(at) { typing.requestFocus() }
-    ModalBottomSheet(onDismissRequest = onDone, containerColor = palette.card) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                label = { Text(stringResource(R.string.cell)) },
-                modifier = Modifier.fillMaxWidth().focusRequester(typing),
-            )
-            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = {
-                    val next = if (checkboxState(draft.text) == null) "[ ]" else ""
-                    draft = TextFieldValue(next, TextRange(next.length))
-                }) {
-                    Text(stringResource(R.string.cell_checkbox))
-                }
-                Spacer(Modifier.weight(1f))
-                Button(
-                    onClick = { change { it.setCell(row, at.column, draft.text) } },
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(stringResource(R.string.save)) }
-            }
 
-            // The desktop's cell menu, grouped as it groups it.
-            SheetSection(stringResource(R.string.cell_align)) {
-                for ((label, align) in listOf(R.string.align_left to CellAlign.LEFT, R.string.align_center to CellAlign.CENTER,
-                                              R.string.align_right to CellAlign.RIGHT)) {
-                    TextButton(onClick = { change { it.setAlignment(row, at.column, align) } }) { Text(stringResource(label)) }
-                }
+    Column(Modifier.fillMaxWidth().background(palette.sidebar)) {
+        when (open) {
+            "row" -> ChoiceRow {
+                // The new row is where the cell was, or under it: written in next.
+                Choice(stringResource(R.string.tb_above)) { edit(at) { it.insertRowBefore(row) } }
+                Choice(stringResource(R.string.tb_below)) { edit(CellAt(at.row + 1, at.column)) { it.insertRowAfter(row) } }
             }
-            if (wholeNote) {
-                SheetSection(stringResource(R.string.cell_highlight)) {
-                    Text("✕", color = palette.subtext, fontSize = 14.sp, textAlign = TextAlign.Center,
-                         modifier = Modifier.size(32.dp).clip(RoundedCornerShape(16.dp)).background(palette.inset)
-                             .clickable { model.highlightCell(segment, row, at.column, ""); onDone() }.padding(top = 6.dp))
-                    for ((i, colour) in Themes.HIGHLIGHT_COLOR_PALETTE.withIndex()) {
-                        val said = stringResource(R.string.highlight_colour, i + 1)
-                        Box(Modifier.size(32.dp).clip(RoundedCornerShape(16.dp)).background(hexColor(colour))
-                                .semantics { contentDescription = said }
-                                .clickable { model.highlightCell(segment, row, at.column, colour); onDone() })
+            "column" -> ChoiceRow {
+                Choice(stringResource(R.string.tb_left)) { edit(at) { it.insertColumnAfter(at.column - 1) } }
+                Choice(stringResource(R.string.tb_right)) { edit(CellAt(at.row, at.column + 1)) { it.insertColumnAfter(at.column) } }
+            }
+            "merge" -> ChoiceRow {
+                if (merged) {
+                    Choice(stringResource(R.string.tb_split)) { edit(at) { it.split(row, at.column) } }
+                } else {
+                    // The cell kept is the one on the left, or the one above;
+                    // this one becomes the desktop's marker, its own words gone
+                    // as the desktop's merge takes them -- Undo brings them back.
+                    if (at.column > 0) {
+                        Choice(stringResource(R.string.tb_merge_left)) {
+                            edit(CellAt(at.row, at.column - 1)) { it.setMarker(row, at.column, "<") }
+                        }
+                    }
+                    if (at.row > 0) {
+                        Choice(stringResource(R.string.tb_merge_up)) {
+                            edit(CellAt(at.row - 1, at.column)) { it.setMarker(row, at.column, "^") }
+                        }
                     }
                 }
             }
-            SheetSection(stringResource(R.string.cell_merge)) {
-                TextButton(enabled = at.column > 0, onClick = { change { it.setMarker(row, at.column, "<") } }) {
-                    Text(stringResource(R.string.merge_left))
-                }
-                TextButton(enabled = at.row > 0, onClick = { change { it.setMarker(row, at.column, "^") } }) {
-                    Text(stringResource(R.string.merge_up))
-                }
-                TextButton(enabled = merged, onClick = { change { it.split(row, at.column) } }) {
-                    Text(stringResource(R.string.split_cell))
-                }
-            }
-            SheetSection(stringResource(R.string.rows_label)) {
-                TextButton(onClick = { change { it.insertRowBefore(row) } }) { Text(stringResource(R.string.row_above)) }
-                TextButton(onClick = { change { it.insertRowAfter(row) } }) { Text(stringResource(R.string.row_below)) }
-                TextButton(onClick = { change { it.removeRow(row) } }) {
-                    Text(stringResource(R.string.delete_row), color = palette.dangerText)
+            "color" -> ChoiceRow {
+                Text("✕", color = palette.subtext, fontSize = 14.sp, textAlign = TextAlign.Center,
+                     modifier = Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(palette.inset)
+                         .clickable { model.highlightCell(segment, row, at.column, ""); open = null }.padding(top = 7.dp))
+                for ((i, colour) in Themes.HIGHLIGHT_COLOR_PALETTE.withIndex()) {
+                    val said = stringResource(R.string.highlight_colour, i + 1)
+                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(hexColor(colour))
+                            .semantics { contentDescription = said }
+                            .clickable { model.highlightCell(segment, row, at.column, colour); open = null })
                 }
             }
-            SheetSection(stringResource(R.string.columns_label)) {
-                TextButton(onClick = { change { it.insertColumnAfter(at.column - 1) } }) { Text(stringResource(R.string.column_left)) }
-                TextButton(onClick = { change { it.insertColumnAfter(at.column) } }) { Text(stringResource(R.string.column_right)) }
-                TextButton(onClick = { change { it.removeColumn(at.column) } }) {
-                    Text(stringResource(R.string.delete_column), color = palette.dangerText)
+            "align" -> ChoiceRow {
+                for ((label, align) in listOf(R.string.tb_left to CellAlign.LEFT, R.string.tb_center to CellAlign.CENTER,
+                                              R.string.tb_right to CellAlign.RIGHT)) {
+                    Choice(stringResource(label)) { edit(at) { it.setAlignment(row, at.column, align) } }
                 }
             }
-            // The desktop sets a width by dragging a column's edge; a finger
-            // gets steps instead, four characters each, the width written in
-            // the separator as the desktop writes a dragged one.
-            val widthNow = table.columns.getOrNull(at.column)?.width
-                ?: minOf(table.charWidths.getOrElse(at.column) { 8 }, 26)
-            fun columns(edit: (List<String>) -> List<String>) {
-                model.editColumns(segment, edit)
-                onDone()
-            }
-            SheetSection(stringResource(R.string.column_width)) {
-                TextButton(onClick = { columns { setColumnWidth(it, at.column, widthNow + 4) } }) {
-                    Text(stringResource(R.string.column_wider))
-                }
-                TextButton(enabled = widthNow > 4, onClick = { columns { setColumnWidth(it, at.column, widthNow - 4) } }) {
-                    Text(stringResource(R.string.column_narrower))
-                }
-                TextButton(onClick = { columns { autofitColumn(it, at.column) } }) { Text(stringResource(R.string.column_autofit)) }
-                TextButton(onClick = { columns { autofitAllColumns(it) } }) { Text(stringResource(R.string.column_autofit_all)) }
-                TextButton(onClick = { columns { hideColumn(it, at.column) } }) { Text(stringResource(R.string.column_hide)) }
-                TextButton(enabled = table.columns.any { it.hidden }, onClick = { columns { unhideAllColumns(it) } }) {
-                    Text(stringResource(R.string.column_unhide_all))
-                }
-            }
-            SheetSection(stringResource(R.string.table_label)) {
-                if (wholeNote) {
-                    for ((label, place) in listOf(R.string.table_left to "left", R.string.table_center to "center",
-                                                  R.string.table_right to "right")) {
-                        TextButton(onClick = { model.placeTable(segment, place); onDone() }) { Text(stringResource(label)) }
-                    }
-                }
-                TextButton(onClick = { onDone(); model.addCaption(segment) }) { Text(stringResource(R.string.table_caption)) }
-                TextButton(onClick = { onDone(); model.addLineAbove(segment) }) { Text(stringResource(R.string.table_line_above)) }
-                TextButton(onClick = { askDelete = true }) {
-                    Text(stringResource(R.string.delete_table), color = palette.dangerText)
-                }
+            "delete" -> ChoiceRow {
+                Choice(stringResource(R.string.tb_delete_row), danger = true) { edit(null) { it.removeRow(row) } }
+                Choice(stringResource(R.string.tb_delete_column), danger = true) { edit(null) { it.removeColumn(at.column) } }
+                Choice(stringResource(R.string.tb_delete_table), danger = true) { open = null; onDeleteTable() }
             }
         }
-    }
-    if (askDelete) {
-        // Asked, though Undo would bring it back: a whole table is the most a
-        // tap in a sheet can take away, and the arrow above is easy to miss.
-        Ask(
-            title = stringResource(R.string.delete_table),
-            text = stringResource(R.string.delete_table_text),
-            confirm = stringResource(R.string.delete),
-            onConfirm = {
-                askDelete = false
-                model.deleteTable(segment)
-                onDone()
-            },
-            onDismiss = { askDelete = false },
-            destructive = true,
-        )
+        // Every button in sight, the width shared out: with a fixed width
+        // each, More ran off the screen's edge, to be found only by
+        // scrolling a bar nobody knew scrolled.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
+            val share = Modifier.weight(1f)
+            BarButton("＋", stringResource(R.string.tb_row), open == "row", share) { open = if (open == "row") null else "row" }
+            BarButton("⊞", stringResource(R.string.tb_column), open == "column", share) {
+                open = if (open == "column") null else "column"
+            }
+            BarButton("⧉", stringResource(R.string.tb_merge), open == "merge", share) { open = if (open == "merge") null else "merge" }
+            if (wholeNote) {
+                BarButton("◐", stringResource(R.string.tb_color), open == "color", share) {
+                    open = if (open == "color") null else "color"
+                }
+            }
+            BarButton("≡", stringResource(R.string.tb_align), open == "align", share) { open = if (open == "align") null else "align" }
+            // A box, or words again: the cell's own marker, "[ ]" or nothing.
+            BarButton(if (cell?.checked != null) "✎" else "☑", stringResource(R.string.tb_box), false, share) {
+                edit(at) { it.setCell(row, at.column, if (cell?.checked != null) "" else "[ ]") }
+            }
+            BarButton("🗑", stringResource(R.string.tb_delete), open == "delete", share, danger = true) {
+                open = if (open == "delete") null else "delete"
+            }
+            BarButton("⋯", stringResource(R.string.tb_more), false, share) { open = null; onMore() }
+        }
     }
 }
 
-/** A heading and a row of choices that wraps on a narrow screen. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SheetSection(title: String, content: @Composable () -> Unit) {
-    val palette = LocalPalette.current
-    Text(title, color = palette.subtext, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-         modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
+private fun ChoiceRow(content: @Composable () -> Unit) {
     androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) { content() }
+}
+
+@Composable
+private fun Choice(label: String, danger: Boolean = false, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    Text(label, color = if (danger) palette.dangerText else palette.text, fontSize = 14.sp,
+         modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(palette.card)
+             .border(1.dp, palette.hairline, RoundedCornerShape(18.dp))
+             .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp))
+}
+
+/** A button of the table's bar: its mark over one word. */
+@Composable
+private fun BarButton(mark: String, word: String, open: Boolean, modifier: Modifier, danger: Boolean = false,
+                      onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    Column(
+        modifier.clip(RoundedCornerShape(10.dp)).background(if (open) palette.calendarHasNotes else Color.Transparent)
+            .clickable(onClick = onClick).padding(vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // The marks' own heights differ ("＋" stands taller than "⊞"): one
+        // box for all, so the words beneath sit on one line.
+        Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
+            Text(mark, fontSize = 18.sp, color = if (danger) palette.dangerText else palette.text)
+        }
+        Text(word, fontSize = 11.sp, color = if (danger) palette.dangerText else palette.subtext, maxLines = 1,
+             softWrap = false)
+    }
+}
+
+/**
+ * The table's rarer changes, in one sheet: widths, a hidden column, a
+ * caption, a line above, where the table sits, and deleting it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TableMoreSheet(model: EditorModel, segment: Editing.Segment, at: CellAt,
+                           onDeleteTable: () -> Unit, onDone: () -> Unit) {
+    val palette = LocalPalette.current
+    val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
+    val wholeNote = model.day == null
+    // The desktop sets a width by dragging a column's edge; a finger gets
+    // steps instead, four characters each, written in the separator as the
+    // desktop writes a dragged one.
+    val widthNow = table.drawnChars(at.column)
+    fun columns(keep: Boolean = true, edit: (List<String>) -> List<String>) {
+        model.editColumns(segment, edit)
+        if (!keep) model.activeCell = null
+        onDone()
+    }
+    ModalBottomSheet(onDismissRequest = onDone, containerColor = palette.card) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 28.dp)) {
+            Text(stringResource(R.string.more_title), color = palette.text, fontSize = 17.sp, fontWeight = FontWeight.Medium,
+                 modifier = Modifier.padding(bottom = 6.dp))
+            MoreRow("↔", stringResource(R.string.more_fit_all)) { columns { autofitAllColumns(it) } }
+            MoreRow("↦", stringResource(R.string.more_fit)) { columns { autofitColumn(it, at.column) } }
+            MoreRow("←→", stringResource(R.string.more_wider)) { columns { setColumnWidth(it, at.column, widthNow + 4) } }
+            if (widthNow > 4) {
+                MoreRow("→←", stringResource(R.string.more_narrower)) { columns { setColumnWidth(it, at.column, widthNow - 4) } }
+            }
+            if (table.columns.any { it.hidden }) {
+                MoreRow("👁", stringResource(R.string.more_show)) { columns { unhideAllColumns(it) } }
+            }
+            MoreRow("⊘", stringResource(R.string.more_hide)) { columns(keep = false) { hideColumn(it, at.column) } }
+            MoreRow("✎", stringResource(R.string.more_caption), stringResource(R.string.more_caption_sub)) {
+                model.activeCell = null
+                onDone()
+                model.addCaption(segment)
+            }
+            MoreRow("↥", stringResource(R.string.more_line_above)) {
+                model.activeCell = null
+                onDone()
+                model.addLineAbove(segment)
+            }
+            if (wholeNote) {
+                val place = model.props[segment.firstLine]?.align ?: "left"
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    MoreMark("▤")
+                    Text(stringResource(R.string.more_place), color = palette.text, fontSize = 15.sp,
+                         modifier = Modifier.padding(start = 12.dp).weight(1f))
+                    for ((label, where) in listOf(R.string.tb_left to "left", R.string.tb_center to "center", R.string.tb_right to "right")) {
+                        val on = where == place
+                        Text(stringResource(label), fontSize = 13.sp, color = if (on) palette.onAccent else palette.text,
+                             modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(16.dp))
+                                 .background(if (on) palette.accent else palette.inset)
+                                 .clickable { model.placeTable(segment, where); onDone() }
+                                 .padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                }
+            }
+            MoreRow("🗑", stringResource(R.string.more_delete), danger = true) { onDeleteTable() }
+        }
+    }
+}
+
+@Composable
+private fun MoreMark(mark: String) {
+    val palette = LocalPalette.current
+    Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(palette.calendarHasNotes),
+        // The arrows draw small for their size: 20 makes them read, and a
+        // pair of them ("←→") takes less, to fit the box.
+        contentAlignment = Alignment.Center) {
+        Text(mark, fontSize = if (mark.codePointCount(0, mark.length) > 1) 13.sp else 20.sp, color = palette.text,
+             maxLines = 1, softWrap = false)
+    }
+}
+
+@Composable
+private fun MoreRow(mark: String, label: String, sub: String? = null, danger: Boolean = false, onClick: () -> Unit) {
+    val palette = LocalPalette.current
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        MoreMark(mark)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(label, color = if (danger) palette.dangerText else palette.text, fontSize = 15.sp)
+            if (sub != null) Text(sub, color = palette.subtext, fontSize = 12.sp)
+        }
+    }
 }

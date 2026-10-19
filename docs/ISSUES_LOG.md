@@ -7,11 +7,15 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the thirty-eight are
+**the code**, or in **the design**. Fourteen of the forty-two are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-19](#a-cells-words-held-by-its-field-after-the-cell-changed) | code | A cell written in place kept the words it had before Undo, and before a row was put over it | A new copy is a new holder, asked the old question the day it is made |
+| [2026-10-19](#two-deletes-the-desktop-had-already-settled) | code | Deleting a table's header row, or a column of two, stopped the table being a table; a new table's empty cells were slivers | Port a function's guards, not only its name and main path |
+| [2026-10-19](#a-cells-style-built-from-nothing) | code | A cell's text style, built anew to share with the field it is written in, lost the theme's line height: header and plain rows of two heights | A value pulled out of a call carries only what the call wrote, not what it inherited |
+| [2026-10-19](#a-bar-whose-last-button-was-off-the-screen) | design | The table's new bar pushed More past the screen's edge, to be found only by scrolling a bar that did not look as if it scrolled | A row of buttons shares the width it has |
 | [2026-10-16](#a-note-mailed-as-its-code-and-a-pdf-of-one-page-four-times) | design | A note mailed from a real phone came as bars in the message and as code in its attachment; the PDF that replaced the attachment went wrong four ways before it was right | A page drawn where no screen shows it keeps none of a screen's guarantees: size, timing, or when its pixels are read |
 | [2026-10-16](#a-copy-of-the-selection-as-it-was-when-selected) | code | Words selected, made bold and 14, then copied, went out plain | A note of the state taken at one moment and used at another is stale by the time it is used |
 | [2026-10-16](#a-file-looked-up-by-a-name-the-release-build-changed) | code | The release build renamed the class that reads the HTML entities, and a paste from a web page would have lost its formatting without a word | The debug build is not the one people run: check the artifact |
@@ -55,6 +59,110 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A cell's words held by its field after the cell changed
+
+**2026-10-19.** The owner found the phone's table hard to use: a tap on
+a cell opened a sheet of eleven entries, and a cell's words were typed
+in a box of their own, away from the table. Shaped on Samsung Notes'
+table, at her request, a cell is now written in place, and a bar over
+the keyboard holds what the sheet held.
+
+Writing in place gave each cell a field, and the field keeps its own
+copy of the words as they are typed, so a letter does not wait for the
+table to be written out again. The walk's new part found that copy
+outliving its cell twice, before any of it reached the phone:
+
+* **After Undo**, the file had its old words back while the field still
+  showed the ones typed; the next letter would have written them in
+  again.
+* **After Row, Above**, the new empty row took the chosen cell's place.
+  The place had not changed, so the field was kept, still holding the
+  old cell's words, and the next letter typed went in after them — into
+  the new row.
+
+The field is now made again whenever its cell changes under it — Undo,
+Redo, a change from the bar, another cell chosen — through a count each
+of these moves on, which the field's copy is keyed by. Typing does not
+move it: there, the field is the one writing.
+
+Each of the two places that move the count, taken out of a built app,
+was caught by the walk — the one in Undo only on the second try. The
+walk's Undo step read the file, and the file was right: the stale words
+were in the field, which the step never typed into. It now types a
+letter after Undo and reads where it went.
+
+**The class:** the one in
+[An update the editor put back](#an-update-the-editor-put-back) — a
+holder of a copy, not told when the original changes — three days
+later and one level down: there the editor's copy of the note, here a
+cell's copy of its words. A new copy is a new holder, and is asked the
+old question on the day it is made.
+
+## Two deletes the desktop had already settled
+
+**2026-10-19.** Walking the new bar's Delete against the desktop found
+two of the phone's table rules wrong since Phase 2:
+
+* **The header row deleted** left the dashes beneath it on top, and the
+  lines stopped reading as a table. The desktop writes the dashes under
+  whichever row is first now.
+* **A column deleted from a table of two** left one column, which reads
+  as prose — `| just one |` is deliberately not a row — so the table
+  became a column of bars. The desktop empties the column instead.
+
+And a merge left joining nothing, its partner gone with a row or a
+column, stayed a `<` or `^` in the file, where the desktop's
+`_dissolve_orphan_markers` empties it. All three now do what the
+desktop does, each with a test, and each change, taken out, was caught —
+the orphan's on a deleted row only once a test was written for it: its
+mutant survived the first round, every test's deleted row joining
+nothing.
+
+The same day, the bar walked on the owner's own phone showed a third:
+a new table's empty cells drawn as slivers, too narrow for a finger to
+find. The desktop draws every column at least `MIN_COLUMN` — eight
+characters — wide unless a width is set by hand; the phone's drawing
+had taken each column's words and skipped the floor. It keeps it now,
+in one place both the drawing and More's width steps read.
+
+**The class:** a port of a function's name and main path, not of its
+guards. Most of the lines in `_grid_delete_row` and `_grid_delete_col`
+are their edge cases, the second with a docstring saying why, and the
+floor is one line in `_build_table_grid`; read to the end, a
+port carries them.
+
+## A cell's style built from nothing
+
+**2026-10-19.** To draw the field a cell is written in exactly as the
+cell's words, the cell's text style became one value handed to both.
+Written as a new `TextStyle(...)`, it began from nothing, where a
+`Text` given a size and a face had laid them over the theme's style —
+and with them the theme's line height. Without one, each face took its
+own: the bold header row stood shorter than the plain row under it.
+
+The walk's table at larger letters caught it, its check that every cell
+stands one line tall failing on two heights, at 115% and at 130%. The
+style is laid over the theme's again.
+
+**The class:** a value pulled out of a call carries only what was
+written in the call, not what the call inherited. When drawing
+parameters become a style object, it starts from the inherited one.
+
+## A bar whose last button was off the screen
+
+**2026-10-19.** The table's new bar gave each of its eight buttons a
+fixed width and let the row scroll sideways. On a phone's width More,
+the last, sat past the edge — found only by scrolling a bar that gave
+no sign it scrolled. It was caught on the emulator, before the bar
+reached the phone.
+
+The buttons now share the bar's width, each a word under a mark, the
+marks in one box so the words beneath sit on one line.
+
+**The class:** a row of controls that scrolls hides its end from
+anyone who does not know it scrolls. Share the width there is; put
+what does not fit behind a button that says More.
 
 ## A note mailed as its code, and a PDF of one page four times
 

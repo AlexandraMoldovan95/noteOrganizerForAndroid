@@ -176,13 +176,19 @@ Grouped by what the app does; when each item arrived is in the
 19. **Tables** drawn as grids — merged cells, checkbox cells, `<br>`
     breaks, each cell's own alignment and highlight, sideways scrolling.
     A new one inserted from a size grid, its first cell open to type. A
-    cell's menu: its text, alignment and highlight; merge and split; rows
-    and columns added or removed; a checkbox; the table's place on the
-    page; a column wider, narrower, fitted to its words — one column or
-    all of them — hidden and shown again; a numbered caption under the
-    table and a line above it; and delete the table, which asks. A
-    column's width is measured from its letters, so a cell holds its
-    words at any of the phone's text sizes
+    cell is written in place, in the table, and a bar over the keyboard,
+    shaped on Samsung Notes', changes the rest: rows and columns added
+    or removed, merge and split, highlight, alignment, a checkbox. Its
+    More: the table's place on the page; a column wider, narrower,
+    fitted to its words — one column or all of them — hidden and shown
+    again; a numbered caption under the table and a line above it; and
+    delete the table, which asks. Deleting a row or a column does what
+    the desktop does at the edges — the header row deleted, the next is
+    the header; a column of two emptied, not removed
+    ([why](ISSUES_LOG.md#two-deletes-the-desktop-had-already-settled)). A
+    column is at least eight characters wide, as on the desktop, and its
+    width is measured from its letters, so a cell holds its words at any
+    of the phone's text sizes
     ([why](ISSUES_LOG.md#widths-in-one-unit-letters-in-another)).
 20. Checklists: add, tick, rename, remove, and **drag to reorder** by the
     ⠿ handle.
@@ -291,7 +297,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 590 JVM unit tests in 26 suites, mutation-tested; six ports held to
+39. 593 JVM unit tests in 26 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -463,7 +469,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 590 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 593 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -522,7 +528,7 @@ it and read back from the file:
   size still the number 24 and its bullet still on its line.
 * **Templates**: a note saved as one, a taken name asked about, a note
   made from one, a template edited in Settings, a delete that asks.
-* **Size and face**, **lists**, **a new table** and **the cell menu**, each
+* **Size and face**, **lists**, **a new table** and **the table's bar**, each
   read back in the shape the desktop writes.
 * **A wide window**: a selection and an open find bar surviving the
   phone turning; the rail; a note beside the list; a pin from the list
@@ -690,7 +696,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-590 JVM unit tests in 26 suites pin the rules ported from Python, and
+593 JVM unit tests in 26 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

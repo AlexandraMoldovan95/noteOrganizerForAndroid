@@ -18,8 +18,8 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-590 checks across twenty-six suites — `NotebookTest` (122),
-`TablesTest` (57), `RecurrenceTest` (46), `CalculatorTest` (34),
+593 checks across twenty-six suites — `NotebookTest` (122),
+`TablesTest` (60), `RecurrenceTest` (46), `CalculatorTest` (34),
 `IdentityTest` (30), `PastingTest` (29), `OrganizingTest` (27),
 `StylingTest` (25), `DaysTest` (23), `SharingTest` (21), `EditingTest`
 (20), `ParagraphsTest` (19), `SettingsTest` (17), `ImportingTest` (16),

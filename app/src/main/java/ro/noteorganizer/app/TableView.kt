@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,13 +73,6 @@ private fun charWidth(): androidx.compose.ui.unit.Dp {
 }
 
 /**
- * Past this many characters a column stops growing and its text wraps.
- * Without a cap, one cell holding a paragraph makes every row that tall
- * and pushes the rest of the table off any reachable scroll position.
- */
-private const val MAX_COLUMN_CHARS = 26
-
-/**
  * What a cell adds to its text's width: its padding (12), the grid line
  * inside it (1), and one more so a measured fraction of a pixel never
  * tips the last letter onto a second line.
@@ -88,13 +82,19 @@ private val CELL_EXTRA = 14.dp
 /** Where a tapped cell sits, in the table's own row/column numbering. */
 data class CellAt(val row: Int, val column: Int)
 
+/** A cell being written in: its table, by the body line the table starts on, and the cell. */
+data class ActiveCell(val firstLine: Int, val at: CellAt)
+
 /**
  * [found] are the cells the find bar matched, [current] the one it is on --
  * outlined, as the desktop draws a box on its grid -- and [reveal] counts
  * the requests to scroll that one into sight, sideways as well as down.
  * [place] is where the table sits on the page -- left, centred or right,
  * the alignment of its lines -- and [highlights] the cells a highlight
- * covers whole, in the colour to fill them with.
+ * covers whole, in the colour to fill them with. [active] is the cell
+ * being written in: outlined, and drawn by [editor] -- the words typed
+ * right in the cell, as Samsung Notes writes them -- unless it is a
+ * checkbox, which a tap ticks.
  */
 @Composable
 fun TableView(
@@ -107,17 +107,18 @@ fun TableView(
     reveal: Int = 0,
     place: String = "left",
     highlights: Map<CellAt, Color> = emptyMap(),
+    active: CellAt? = null,
+    editor: (@Composable (TextStyle) -> Unit)? = null,
 ) {
     if (table.rows.isEmpty() || table.columns.isEmpty()) return
 
     // A width set by hand -- the separator's dash count, more than three --
     // is the column's width exactly, as the desktop draws it: wider than
     // what it holds, or narrower, its words cut short with "…". A plain
-    // "---" sets none, and the column takes what it holds, up to the cap.
+    // "---" sets none, and the column takes what it holds, between the
+    // desktop's floor and the cap ([TableBlock.drawnChars]).
     val unit = charWidth()
-    val widths = table.charWidths.mapIndexed { i, chars ->
-        unit * (table.columns.getOrNull(i)?.width ?: minOf(chars, MAX_COLUMN_CHARS)).coerceAtLeast(1)
-    }
+    val widths = table.charWidths.indices.map { i -> unit * table.drawnChars(i).coerceAtLeast(1) }
 
     // The theme's own colours: the grid lines are the hairline showing
     // through, the header row the accent's tint.
@@ -171,9 +172,11 @@ fun TableView(
                     // The cell's own padding speaks first, as the desktop
                     // reads it; a column's separator colons after that.
                     val align = cell.align.takeIf { it != CellAlign.LEFT } ?: column?.align
+                    val writing = here == active && cell.checked == null
                     CellBox(cell, span, align, isHeader, editing,
-                            found = here in found, current = here == current, reveal = reveal,
-                            fill = highlights[here], clip = column?.width != null) {
+                            found = here in found, current = here == current || here == active, reveal = reveal,
+                            fill = highlights[here], clip = column?.width != null,
+                            editor = if (writing) editor else null) {
                         onCellTap?.invoke(here)
                     }
                     c = last
@@ -196,13 +199,28 @@ private fun CellBox(
     reveal: Int = 0,
     fill: Color? = null,
     clip: Boolean = false,
+    editor: (@Composable (TextStyle) -> Unit)? = null,
     onTap: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
     val requester = remember { BringIntoViewRequester() }
     if (current) {
-        LaunchedEffect(reveal) { requester.bringIntoView() }
+        LaunchedEffect(reveal, editor != null) { requester.bringIntoView() }
     }
+    // Over the theme's text style, as a Text's own parameters are: built
+    // from nothing, it lost the theme's line height, and a bold header row
+    // and a plain one each took their own face's -- rows of two heights.
+    val style = LocalTextStyle.current.merge(
+        color = palette.text,
+        fontSize = CELL_TEXT,
+        fontFamily = FontFamily.Monospace,
+        fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
+        textAlign = when (align) {
+            CellAlign.CENTER -> TextAlign.Center
+            CellAlign.RIGHT -> TextAlign.End
+            else -> TextAlign.Start
+        },
+    )
     Box(
         modifier = Modifier
             .width(width + CELL_EXTRA)
@@ -220,7 +238,9 @@ private fun CellBox(
             })
             .then(if (current) Modifier.border(2.dp, palette.accent) else Modifier)
             .then(
-                if (editing && onTap != null) Modifier.clickable { onTap() } else Modifier
+                // The cell being written in takes its taps itself: a tap there
+                // moves the cursor, it does not choose the cell again.
+                if (editing && onTap != null && editor == null) Modifier.clickable { onTap() } else Modifier
             )
             .padding(horizontal = 6.dp, vertical = 5.dp),
         contentAlignment = when (align) {
@@ -230,6 +250,10 @@ private fun CellBox(
         },
     ) {
         if (cell == null) return@Box
+        if (editor != null) {
+            editor(style)
+            return@Box
+        }
         Text(
             // A checkbox is a control, so it is drawn as one rather than as
             // the three characters that spell it in the file.
@@ -238,15 +262,7 @@ private fun CellBox(
                 false -> "☐"
                 null -> cell.lines.joinToString("\n")
             },
-            color = palette.text,
-            fontSize = CELL_TEXT,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
-            textAlign = when (align) {
-                CellAlign.CENTER -> TextAlign.Center
-                CellAlign.RIGHT -> TextAlign.End
-                else -> TextAlign.Start
-            },
+            style = style,
             // A column narrowed by hand cuts its words short rather than
             // growing taller, as the desktop's does.
             softWrap = !clip,
