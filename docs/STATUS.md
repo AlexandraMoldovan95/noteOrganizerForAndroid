@@ -502,7 +502,11 @@ do, each a decision or an account step for the owner:
   Console's current wording is the one to follow.
 * The store listing: the 512 px icon, a feature graphic, phone
   screenshots (`tools/emulator/take_screenshots.py` makes those), the
-  content rating questionnaire and the target audience.
+  content rating questionnaire and the target audience. Contact: the
+  project's address, noteorganizer.app@gmail.com (required); the website
+  field stays empty — the project's site is kept apart from the apps'
+  users (the owner's rule, 2026-10-21), and this repository must never
+  name it.
 
 ### The welcome note's words
 
