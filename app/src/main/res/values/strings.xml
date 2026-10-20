@@ -508,7 +508,7 @@
     <string name="feedback_sub">Something not working, slow, or an idea? Write a review on Google Play — I read each one and answer there.</string>
     <string name="write_review">Write a review</string>
     <string name="privacy_policy">Privacy policy</string>
-    <string name="privacy_policy_sub">Your notes stay on this phone. The policy says what leaves it, and that it leaves only when you send it.</string>
+    <string name="privacy_policy_sub">Your notes stay on this phone. The policy says what leaves it, and when.</string>
     <string name="read_policy">Read</string>
     <string name="no_browser">There is no browser on this phone to open the page in.</string>
 </resources>
