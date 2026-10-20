@@ -41,6 +41,49 @@ do before, not as releases anyone ran.
 
 ---
 
+## [0.9.1] — 2026-10-20 — Light | Dark
+
+### Changed
+
+- **Appearance: one Light | Dark switch, and no "Follow the phone"** —
+  the owner's ask. The switch is the app's mode: moved, the app wears the
+  last theme of that mode at once, as the desktop's quick toggle does,
+  and below it are that mode's four themes, the one worn ticked. A
+  notebook that followed the phone — the default until now — keeps the
+  theme it was wearing, settled once at the first start; the phone
+  turning dark or light no longer turns the app.
+- **A change between a light and a dark theme is drawn in one frame** —
+  from the owner's report of a flicker. The clock and the battery took
+  the theme's contrast a frame after the page, through a second
+  edge-to-edge setup that laid the window out again; and under the app
+  the window stayed white whatever the theme. Both now change in the
+  frame the theme changes in. Android still fades the bars' icons over
+  about 150 ms, which no app can stop.
+
+### Testing
+
+- 660 JVM unit tests in 28 suites, from 656. Five mutants against the
+  theme's rules (a theme not kept as its mode's last, a choice leaving
+  the phone followed, Light | Dark going to the other mode, settling on
+  the other mode's theme, a settled notebook still following), all
+  killed; two built into the app — a notebook never settled, and a
+  switch that only chose which tiles to show — both killed by the walk's
+  first part.
+- `tools/emulator/walk.py`: 255 checks in 36 parts, from 253 — the first
+  part walks Light | Dark, a tile kept as its mode's last, and the phone's
+  own dark mode leaving the theme alone. The full run passed all 255 on
+  its first try. The documentation's pictures were taken again.
+- On the owner's phone, release build: 0.9.1 installed over 0.9.0, the
+  theme she wore kept, the page without "Follow the phone", one mode's
+  four themes; 7 checks, all passed, nothing written.
+- The theme change measured on the emulator, before and after: the page
+  changed in one capture both times, the bars a capture or two later
+  both times (Android's own fade), and its slowest frame 48–65 ms before,
+  44–53 ms after — an emulator drawing in software, so how it looks on a
+  phone is the owner's to judge.
+
+---
+
 ## [0.9.0] — 2026-10-20 — The first test on a real phone
 
 What the app's first afternoon on a real phone asked for — a Samsung

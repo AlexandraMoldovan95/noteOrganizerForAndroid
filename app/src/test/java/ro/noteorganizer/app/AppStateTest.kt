@@ -47,6 +47,37 @@ class AppStateTest {
     }
 
     @Test
+    fun `a notebook that followed the phone keeps the theme it wears, once`() {
+        val state = state()
+        state.putSetting(Settings.PHONE_DARK_THEME, "dark_ocean")
+        state.settleTheme(phoneIsDark = true)
+        val written = JSONObject(File(state.dir, "settings.json").readText())
+        assertEquals("the theme worn is the one kept", "dark_ocean", written.opt(Settings.THEME))
+        assertEquals(false, written.opt(Settings.PHONE_FOLLOWS_PHONE))
+        // The phone turned light afterwards: the app no longer turns with it,
+        // and settling again does nothing.
+        state.settleTheme(phoneIsDark = false)
+        assertEquals("dark_ocean", state.themeName(phoneIsDark = false))
+    }
+
+    @Test
+    fun `Light and Dark go back to the last theme worn in each mode`() {
+        val state = state()
+        state.settleTheme(phoneIsDark = false)
+        assertEquals("light", state.themeName(phoneIsDark = false))
+        assertTrue(state.chooseMode(dark = true))
+        assertEquals("the original dark one, never chosen before", "dark", state.themeName(false))
+        assertTrue(state.chooseTheme("dark_forest"))
+        assertTrue(state.chooseMode(dark = false))
+        assertEquals("light", state.themeName(false))
+        assertTrue(state.chooseTheme("light_warm"))
+        assertTrue(state.chooseMode(dark = true))
+        assertEquals("the dark one worn last", "dark_forest", state.themeName(false))
+        assertTrue(state.chooseMode(dark = false))
+        assertEquals("the light one worn last", "light_warm", state.themeName(true))
+    }
+
+    @Test
     fun `a cleared day's Undo never paints over what was chosen since`() {
         // Cleared red, painted green within the Undo's seconds, Undo tapped:
         // the green stays, as the desktop's _undo_day_clear refuses.

@@ -1342,6 +1342,9 @@ today" reminder, not built.
 
 ### Seven DESKTOP findings from the audit of 2026-10-19
 
+**All seven fixed in the desktop's 0.95.391** (2026-10-20, its issue
+#287), each with a test and its mutant; kept here as found.
+
 * **Right-click → Merge with the cell to the left, or above, loses the
   merged cell's words** — `_grid_set_marker` writes the marker over
   them; the selection's merge, `_grid_merge_selection`, keeps them.
@@ -1364,6 +1367,10 @@ the desktop dissolves it. The phone's is kept, as losing less.
 
 ### The DESKTOP's startup purge goes by a window it could not read
 
+**Fixed in the desktop's 0.95.391** (2026-10-20): it keeps the lost
+window as a marker of its own, `desktop_trash_window_unknown`, as the
+phone does, and purges nothing by a window it cannot read.
+
 Found 2026-10-20, from the owner's question about releases
 ([the phone's fix](#a-trash-emptied-by-a-window-nobody-chose)). The
 desktop's `load_settings` answers `{}` for a `settings.json` it cannot
@@ -1376,6 +1383,10 @@ until one is chosen again. The desktop's change goes through its own
 process (the interaction pass, a plan, approval).
 
 ### The DESKTOP's automatic Trash purge can delete a file a living note uses
+
+**Fixed in the desktop's 0.95.391** (2026-10-20): the startup purge and
+removing one attachment both spare a file still in use, as suggested
+below.
 
 Found 2026-10-15, while porting the purge. When a note leaves the Trash
 for good, its attached files are deleted with it. The desktop's manual

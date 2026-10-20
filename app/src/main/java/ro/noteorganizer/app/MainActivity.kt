@@ -3,6 +3,7 @@ package ro.noteorganizer.app
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -46,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -55,15 +57,18 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ro.noteorganizer.app.ui.theme.AppTheme
 import ro.noteorganizer.app.ui.theme.LocalPalette
+import ro.noteorganizer.app.ui.theme.Palette
 import ro.noteorganizer.app.ui.theme.paletteOf
 import java.io.File
 import java.net.URLEncoder
@@ -85,7 +90,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Once: the bars transparent, with no scrim over three-button
+        // navigation. Their icons' contrast follows the theme (showBars).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+        )
         // Private to the app: no other app can read it, and uninstalling the
         // app removes it -- which is why Settings → Backup exists.
         val dir = File(filesDir, "notebook")
@@ -107,18 +117,37 @@ class MainActivity : ComponentActivity() {
                     incoming.value = null
                 }
             }
-            val palette = paletteOf(state.themeName(isSystemInDarkTheme()))
-            LaunchedEffect(palette.isDark) {
-                // The clock and the battery in the theme's own contrast.
-                val transparent = AndroidColor.TRANSPARENT
-                enableEdgeToEdge(
-                    statusBarStyle = if (palette.isDark) SystemBarStyle.dark(transparent)
-                                     else SystemBarStyle.light(transparent, transparent),
-                    navigationBarStyle = if (palette.isDark) SystemBarStyle.dark(transparent)
-                                         else SystemBarStyle.light(transparent, transparent),
-                )
-            }
+            val phoneDark = isSystemInDarkTheme()
+            val palette = paletteOf(state.themeName(phoneDark))
+            LaunchedEffect(state) { state.settleTheme(phoneDark) }
+            SideEffect { showBars(palette) }
             AppTheme(palette) { AppRoot(state, versionName()) }
+        }
+    }
+
+    private var barsDark: Boolean? = null
+    private var ground: Int? = null
+
+    /**
+     * The clock and the battery in the theme's own contrast, and the window
+     * under the app in the theme's own colour -- in the frame the theme
+     * changes in. Set a frame later, by an effect that ran edge to edge
+     * again, the bars changed after the page and the window was laid out
+     * anew; under it all the window stayed white, and a switch between a
+     * light and a dark theme was seen arriving in steps (the owner's report).
+     */
+    private fun showBars(palette: Palette) {
+        if (barsDark != palette.isDark) {
+            barsDark = palette.isDark
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !palette.isDark
+                isAppearanceLightNavigationBars = !palette.isDark
+            }
+        }
+        val colour = palette.bg.toArgb()
+        if (ground != colour) {
+            ground = colour
+            window.setBackgroundDrawable(ColorDrawable(colour))
         }
     }
 

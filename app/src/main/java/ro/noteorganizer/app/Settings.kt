@@ -37,9 +37,14 @@ object Settings {
     const val LAST_EXPORT_AT = "last_export_at"
 
     // The phone's own.
-    /** Whether the theme follows the phone's dark mode. */
+    /**
+     * Whether the theme follows the phone's dark mode: what the app did
+     * until 0.9.0, on by default. The choice is gone; a notebook that still
+     * follows is settled once ([AppState.settleTheme]) on the theme it wears,
+     * and this is then false for good.
+     */
     const val PHONE_FOLLOWS_PHONE = "phone_theme_follows_phone"
-    /** The light and the dark theme it follows between. */
+    /** The last light and the last dark theme worn: where Light | Dark goes back to. */
     const val PHONE_LIGHT_THEME = "phone_theme_light"
     const val PHONE_DARK_THEME = "phone_theme_dark"
     /**
@@ -116,10 +121,11 @@ object Settings {
     }
 
     /**
-     * The theme to draw with. When it follows the phone, the dark or the
-     * light one the person picked for that mode; otherwise the one stored
-     * under the desktop's own key. Every name is checked, so a theme a
-     * later version removed falls back instead of drawing nothing.
+     * The theme to draw with: the one stored under the desktop's own key.
+     * A notebook not yet settled ([followsPhone]) still wears the one for
+     * the phone's mode, as it did, so settling it changes nothing on the
+     * screen. Every name is checked, so a theme a later version removed
+     * falls back instead of drawing nothing.
      */
     fun theme(raw: JSONObject, phoneIsDark: Boolean): String {
         if (followsPhone(raw)) {
@@ -128,8 +134,22 @@ object Settings {
         return Themes.valid(raw.opt(THEME) as? String)
     }
 
-    /** On unless the person turned it off: what Android apps do. */
+    /** Not yet settled: on unless written false, as following was by default. */
     fun followsPhone(raw: JSONObject): Boolean = raw.opt(PHONE_FOLLOWS_PHONE) != false
+
+    /**
+     * The keys written when [name] is chosen: the theme itself, under the
+     * desktop's key; the last of its mode, for Light | Dark to go back to;
+     * and that the phone is followed no more.
+     */
+    fun choosing(name: String): Map<String, Any?> = mapOf(
+        THEME to name,
+        (if (Themes.isDark(name)) PHONE_DARK_THEME else PHONE_LIGHT_THEME) to name,
+        PHONE_FOLLOWS_PHONE to false,
+    )
+
+    /** Where Light | Dark moves the app: the last theme worn in that mode. */
+    fun themeForMode(raw: JSONObject, dark: Boolean): String = if (dark) darkTheme(raw) else lightTheme(raw)
 
     fun lightTheme(raw: JSONObject): String {
         val name = raw.opt(PHONE_LIGHT_THEME) as? String
