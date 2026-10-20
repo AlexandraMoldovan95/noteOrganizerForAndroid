@@ -781,6 +781,17 @@ def outward(folder):
     check("Send feedback opens a browser, not the app", opened not in ("", PACKAGE), opened)
     adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
     time.sleep(2.0)
+    # The privacy policy, which Google Play asks to be reachable in the app:
+    # under Feedback, so on a short screen the page scrolls to it.
+    if find("Read", True) is None:
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
+        time.sleep(0.8)
+    shot(folder, "69-about-privacy-policy", "PRIVACY POLICY", "Read")
+    tap("Read", exact=True, wait=4.0)
+    opened = foreground()
+    check("Privacy policy → Read opens a browser, not the app", opened not in ("", PACKAGE), opened)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.0)
     back_to("Your name")
     back()
 

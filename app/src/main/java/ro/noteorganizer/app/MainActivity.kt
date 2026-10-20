@@ -74,7 +74,6 @@ import ro.noteorganizer.app.ui.theme.Palette
 import ro.noteorganizer.app.ui.theme.ThemeVeil
 import ro.noteorganizer.app.ui.theme.paletteOf
 import java.io.File
-import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -296,7 +295,9 @@ fun AppRoot(state: AppState, version: String) {
                 when (state.tab) {
                     Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
                     Tab.CALENDAR -> CalendarScreen(state)
-                    Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+                    Tab.SETTINGS -> SettingsScreen(state, backup, version,
+                        openFeedback = { openFeedback(context, state, version) },
+                        openPrivacy = { openInBrowser(context, state, Links.PRIVACY) })
                 }
             }
         }
@@ -500,18 +501,20 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
 private fun openFeedback(context: android.content.Context, state: AppState, version: String) {
     val files = state.load.notes.sumOf { it.attachments }
     val mb = state.load.file?.length()?.let { Math.round(it / 1e5) / 10.0 }
-    val details = listOf(
+    openInBrowser(context, state, Links.feedback(listOf(
         "version" to "android $version",
         "theme" to (Themes.LABELS[state.themeName(false)] ?: ""),
         "notes" to state.load.notes.size.toString(),
         "files" to files.toString(),
         "mb" to (mb?.toString() ?: ""),
         "build" to "android",
-    ).filter { it.second.isNotEmpty() }
-    val query = details.joinToString("&") { (k, v) -> k + "=" + URLEncoder.encode(v, "UTF-8") }
-    val page = Uri.parse("https://note-organizer-8f7772.netlify.app/feedback.html?$query")
+    )))
+}
+
+/** A page of the project's site, in the phone's browser; a phone with none is told so. */
+private fun openInBrowser(context: android.content.Context, state: AppState, url: String) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, page))
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: ActivityNotFoundException) {
         state.say(context.getString(R.string.no_browser))
     }

@@ -305,14 +305,14 @@ Grouped by what the app does; when each item arrived is in the
     a pin, a category — the note shows at once and keeps.
 37. Settings: your name, appearance, categories, templates, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
-    notebook — and About: the version, the welcome note, and
+    notebook — and About: the version, the welcome note,
     **Send feedback**, which opens the desktop's feedback form in the
-    browser and sends nothing from the notes.
+    browser and sends nothing from the notes, and the **privacy policy**.
 38. The desktop's icon, drawn by the desktop's own code.
 
 ### Underneath
 
-39. 656 JVM unit tests in 28 suites, mutation-tested; six ports held to
+39. 663 JVM unit tests in 29 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -464,13 +464,31 @@ do, each a decision or an account step for the owner:
   Play App Signing; the release build's signing moves to it. A phone
   holding a debug-signed build has to uninstall it to take the store's,
   so its notebook goes to a backup `.zip` first.
-* **A privacy policy page**, which Play asks every app for — the site is
-  where it would live.
-* **The Data safety answers.** The notes never leave the phone unless
-  the person sends them. One detail to decide how to declare: "Send
-  feedback" opens the site's form with the version, the theme and the
-  notebook's size in the address, so the site sees them when the page
-  opens, before Send is pressed.
+* **The privacy policy: written.** One page for both apps, on the site
+  (`privacy.html`, from the desktop repository's `docs/PRIVACY.md`), and
+  in the app at Settings → About → Privacy policy, which Play asks for as
+  well. Its address goes into the Console's App content → Privacy policy.
+  It reaches the site with the deploy of 9 November.
+* **The Data safety answers: decided (2026-10-20) — no data collected,
+  no data shared.** The Console's first question, "Does your app collect
+  or share any of the required user data types?", is answered **No**,
+  and the rest of the form follows from it. Why that is true:
+  * The notebook stays in the app's private storage. A note, a code, a
+    backup or an attached file leaves only when the person sends it,
+    through Android's own share sheet, file picker or a one-file grant —
+    a transfer the person starts, to a place the person picks.
+  * Send feedback puts its details after the link's `#`, which a browser
+    never sends: the app hands the browser a link, and the site receives
+    the details only with the form, when the person presses Send there.
+    Until 0.9.1 they were in the query, and the site received them as
+    the page opened — the reason for the change.
+  * Android's own backup (`allowBackup`, on by the owner's choice) is
+    the system's, not the app's code, end to end encrypted with the
+    phone's lock, kept in the person's own Google account. Google's
+    Data safety help does not name it either way; reading "collect" as
+    what the app's code sends, it is not collected, and the privacy
+    policy says plainly that it happens. This is the one judgement in
+    the answer.
 * **A closed test before production.** Play asks a personal developer
   account made after November 2023 to run one with at least 12 testers
   for 14 days in a row before the app can go to production — the
@@ -502,14 +520,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 250 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 257 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 656 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 663 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -517,8 +535,15 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 256 checks. The last full run, after Appearance became one
-Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before,
+36 parts, 257 checks. The last full run, after About gained the privacy
+policy, was the first on an emulator started a moment before: its first
+typing never reached the editor, so the first part failed in a chain —
+six of its checks — and the dissolve's shades jumped from light to dark
+between two frames. The first three parts, walked again on the same
+emulator once warm, passed every check, and the other 33 had passed in
+the full run; a cold emulator is something the walk does not wait for
+yet. The run before, after Appearance became one
+Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before that,
 after the list learned to keep its place, all 253. Before them,
 the run after the desktop's old way was
 brought over, passed all 250 on its first try. The one before it, after
@@ -554,7 +579,8 @@ Phase 1's four:
   skipping it changing nothing.
 * **The doors to the rest of the phone**: a code shared in from another
   app, a note shared out through Android's share sheet, and Send
-  feedback opening a browser rather than the app.
+  feedback and the privacy policy each opening a browser rather than the
+  app.
 * **The phone changing under an open note**: its dark mode coming on,
   larger letters, the phone turned on its side — and the note still open
   after each ([why this part exists](ISSUES_LOG.md#turning-the-phone-closed-the-note)).
@@ -773,7 +799,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-656 JVM unit tests in 28 suites pin the rules ported from Python, and
+663 JVM unit tests in 29 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

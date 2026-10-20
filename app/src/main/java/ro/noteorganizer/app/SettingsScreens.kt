@@ -68,7 +68,10 @@ class BackupActions(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, openFeedback: () -> Unit) {
+fun SettingsScreen(
+    state: AppState, backup: BackupActions, appVersion: String,
+    openFeedback: () -> Unit, openPrivacy: () -> Unit,
+) {
     val palette = LocalPalette.current
     val page = state.settingsPage
     BackHandler(enabled = page != null) { state.settingsPage = null }
@@ -90,7 +93,7 @@ fun SettingsScreen(state: AppState, backup: BackupActions, appVersion: String, o
             SettingsPage.TRASH -> TrashPage(state, backup)
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
-            SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback)
+            SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback, openPrivacy)
         }
     }
 }
@@ -764,7 +767,7 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
 // ---- About ----
 
 @Composable
-private fun AboutPage(state: AppState, appVersion: String, openFeedback: () -> Unit) {
+private fun AboutPage(state: AppState, appVersion: String, openFeedback: () -> Unit, openPrivacy: () -> Unit) {
     val palette = LocalPalette.current
     PageColumn {
         Text(stringResource(R.string.about_version, appVersion), color = palette.text, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
@@ -781,6 +784,12 @@ private fun AboutPage(state: AppState, appVersion: String, openFeedback: () -> U
             modifier = Modifier.padding(top = 8.dp),
             colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
         ) { Text(stringResource(R.string.send_feedback)) }
+        // Google Play asks for the policy to be reachable from inside the app too.
+        SectionLabel(stringResource(R.string.privacy_policy))
+        Text(stringResource(R.string.privacy_policy_sub), color = palette.subtext, fontSize = 14.sp)
+        OutlinedButton(onClick = openPrivacy, modifier = Modifier.padding(top = 8.dp)) {
+            Text(stringResource(R.string.read_policy))
+        }
     }
 }
 
