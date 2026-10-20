@@ -773,19 +773,16 @@ def outward(folder):
     back(1.5)
     back_to("Search notes")
 
-    # Feedback opens the browser on the site's form.
+    # About: the privacy policy, which Google Play asks to be reachable in
+    # the app, and -- feedback being a review on Google Play -- no Feedback
+    # section until the app is published there (Links.STORE).
     tap("Settings", exact=True)
     tap("About")
-    tap("Send feedback", wait=4.0)
-    opened = foreground()
-    check("Send feedback opens a browser, not the app", opened not in ("", PACKAGE), opened)
-    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
-    time.sleep(2.0)
-    # The privacy policy, which Google Play asks to be reachable in the app:
-    # under Feedback, so on a short screen the page scrolls to it.
     if find("Read", True) is None:
         adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
         time.sleep(0.8)
+    check("before the app is on Google Play, About has no Feedback section",
+          find("Write a review", True) is None and find("FEEDBACK", True) is None)
     shot(folder, "69-about-privacy-policy", "PRIVACY POLICY", "Read")
     tap("Read", exact=True, wait=4.0)
     opened = foreground()
