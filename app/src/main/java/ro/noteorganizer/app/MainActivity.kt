@@ -51,6 +51,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -236,6 +237,11 @@ fun AppRoot(state: AppState, version: String) {
         if (state.tab == Tab.CALENDAR && state.showHistory) state.showHistory = false else state.tab = Tab.NOTES
     }
 
+    // Each tab keeps what it remembers while it is out of sight: on a phone
+    // an open note takes the tab's place, and the list built again on Back
+    // came back at its top, its search empty -- the History's too.
+    val tabsKept = rememberSaveableStateHolder()
+
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.bg)) {
         val open = state.openId
         // Material's window widths: from a medium window -- a phone on its
@@ -248,10 +254,12 @@ fun AppRoot(state: AppState, version: String) {
         val twoPanes = panesFit && state.tab != Tab.SETTINGS
         val listWidth = (maxWidth * 0.38f).coerceIn(320.dp, 420.dp)
         val tabContent: @Composable () -> Unit = {
-            when (state.tab) {
-                Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
-                Tab.CALENDAR -> CalendarScreen(state)
-                Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+            tabsKept.SaveableStateProvider(state.tab.name) {
+                when (state.tab) {
+                    Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
+                    Tab.CALENDAR -> CalendarScreen(state)
+                    Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+                }
             }
         }
         val goTo = { tab: Tab ->

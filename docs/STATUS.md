@@ -516,7 +516,9 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-35 parts, 250 checks. The last full run, after the desktop's old way was
+36 parts, 253 checks. The last full run, after the list learned to keep
+its place while a note is open, passed all 253 on its first try. Before it,
+the run after the desktop's old way was
 brought over, passed all 250 on its first try. The one before it, after
 the sheets were fixed, passed all 238 it then had; the parts written
 after it were walked on their own — once a photograph taken on the

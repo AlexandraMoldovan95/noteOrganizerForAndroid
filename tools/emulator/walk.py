@@ -276,6 +276,7 @@ def main():
     move_day(folder)
     off_schedule(folder)
     listing(folder)
+    list_keeps_place(folder)
     previews(folder)
     arranging(folder)
     attaching(folder)
@@ -912,6 +913,52 @@ def listing(folder):
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=0.8)
     tap("✕", exact=True, wait=1.0)
+
+
+def list_keeps_place(folder):
+    """The list keeps its place, and its search, while a note is open. On a
+    phone the note takes the list's place, and the list built again on Back
+    came back at its top with the search box empty (the owner's report)."""
+    print("\n-- the list keeps its place while a note is open --")
+    notes = [{"id": i, "uid": "kp-%02d" % i, "title": "Card %02d" % i, "category": "General",
+              "body": "words %02d" % i, "updated": "2026-10-%02d 09:00:00" % i} for i in range(1, 31)]
+    if not seed_inside(notes, {"welcome_offered": True}, "Card 30"):
+        return
+
+    def cards():
+        return [t for t, d, _ in nodes() if t.startswith("Card ")]
+
+    for _ in range(3):
+        adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
+        time.sleep(0.8)
+    before = cards()
+    if len(before) < 2 or "Card 30" in before:
+        fail("the list did not scroll down: %s" % before[:4])
+        return
+    target = before[1]
+    if not open_note(target):
+        return
+    back_to("Show: All")
+    time.sleep(1.0)
+    after = cards()
+    check("Back from a note brings the list back where it was, %s at its top" % before[0],
+          after[:1] == before[:1] and target in after, "before %s, after %s" % (before[:3], after[:3]))
+    shot(folder, "31-list-kept-its-place", target)
+
+    adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
+    adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
+    time.sleep(0.8)
+    tap("Search notes", wait=0.8)
+    type_text("Card 1")
+    keyboard_down()
+    if not open_note("Card 15"):
+        return
+    back_to("Show: All")
+    time.sleep(1.0)
+    found = cards()
+    check("...and a search is still there, its results with it",
+          find("Card 1", exact=True) is not None and "Card 15" in found and "Card 30" not in found,
+          " | ".join(found)[:160])
 
 
 def previews(folder):

@@ -117,6 +117,12 @@ tested as from now on. Built on Phase 3.
 
 ### Fixed
 
+- **Back from a note finds the list where it was**, scrolled to the card
+  that was opened, its search still typed — field-reported by the owner.
+  On a phone an open note takes the list's place, and the list built
+  again came back at its top with the search box empty; the History's
+  search and its place went the same way. Each tab now keeps what it
+  remembers while it is out of sight.
 - **A card says a table is there and never draws it.** A row left open
   or typed past its last cell showed on the card as a line of bars; the
   card now leaves out every line a person reads as a table, by the
@@ -283,8 +289,9 @@ tested as from now on. Built on Phase 3.
   seven against the email's rules went with that code, and twelve
   against Share's took their place, four of them on its one share at a
   time; nine are on the Trash's window, and thirty on the desktop's old
-  way brought over. Twenty-nine more built into the app: twenty-seven
-  caught by the walk — among them the three against the sheets' bars and
+  way brought over. Thirty more built into the app: twenty-eight
+  caught by the walk — among them the list built again on Back, which
+  came back at its top with its search gone, the three against the sheets' bars and
   opening, the Trash page's backup opening a file to import, caught only
   once its check asked for a Save button, and the five on the old way's
   screens; one of those, the series' banner, first written so it would
@@ -309,8 +316,9 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 250 checks in 35 parts, from 177 in 25 —
-  previews, a table at larger letters, sharing a note, a sheet over
+- `tools/emulator/walk.py`: 253 checks in 36 parts, from 177 in 25 —
+  previews, the list's place and search kept while a note is open, a
+  table at larger letters, sharing a note, a sheet over
   three buttons, a copy and a cut made right after styling, typing next
   to styles, the calculator's answer in a cell, a table pasted into the
   comments, the table written in place and its dragged edges, Select all
@@ -320,8 +328,8 @@ tested as from now on. Built on Phase 3.
   soon; so does the first read after a start, where a brand-new notebook
   was read before the first start after an install had written it; and
   a photograph waits for its screen, where one was taken before that
-  start had drawn the list. The last full run, after the old way was
-  brought over, passed all 250 on its first try. Two mutants' first runs failed for a
+  start had drawn the list. The last full run, after the list learned to
+  keep its place, passed all 253 on its first try. Two mutants' first runs failed for a
   reason that was not theirs — the list not yet on the screen after an
   install, and the emulator's System UI not answering on a computer
   short of memory — and were not counted: run again, one was killed and
