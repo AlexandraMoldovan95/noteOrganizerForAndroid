@@ -107,12 +107,16 @@ A rename of a category carries its name along in `note_filter` and
 All — and the categories, the folds and the filter are written in one
 write, so no file ever holds one without the others.
 
-The phone adds three keys of its own, for **"Follow the phone"**:
-`phone_theme_follows_phone` (on unless turned off), `phone_theme_light`
-and `phone_theme_dark`. They are separate on purpose: the desktop reads
-`theme` and ignores these, so following the phone's dark mode can never
-change the theme the desktop opens in. With following off, the phone
-writes `theme`, as the desktop does.
+The theme worn is `theme`, written as the desktop writes it. The phone
+adds two keys of its own beside it: `phone_theme_light` and
+`phone_theme_dark`, the last light and the last dark theme worn, where
+Settings → Appearance's Light | Dark switch goes back to. The desktop
+ignores them.
+
+A third, `phone_theme_follows_phone`, is left from **"Follow the phone"**,
+on by default until 0.9.0 and gone since. A notebook that still follows
+(the key missing or `true`) is settled once, at a start, on the theme it
+is wearing for the phone's mode, and the key is then `false` for good.
 
 And one for the Trash: `phone_trash_window_unknown`, `true` when
 `settings.json` could not be read at a start. The window chosen before

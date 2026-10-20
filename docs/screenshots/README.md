@@ -57,7 +57,7 @@ white signal icon.
 | `02-a-note.png` | A note open in the editor, its bold first line drawn and its checklist below, ticked rows struck through |
 | `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as, with the right-aligned column the separator row asked for |
 | `04-search.png` | Search: one of four notes left, matched on a word in its body rather than its title |
-| `05-appearance.png` | Settings → Appearance: "Follow the phone", and the eight themes, dark and light |
+| `05-appearance.png` | Settings → Appearance: the Light \| Dark switch, and the four light themes |
 | `06-dark.png` | The same list in Midnight Purple |
 | `07-calendar.png` | The calendar: a series' Mondays and Thursdays as dots, a dated note, and a birthday painted with its marker |
 | `08-wide.png` | The phone on its side: the rail at the left, the list, and the note open beside it, its card outlined |

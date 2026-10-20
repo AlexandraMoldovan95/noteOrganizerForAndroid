@@ -563,4 +563,23 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** The theme to draw with, given whether the phone is in dark mode. */
     fun themeName(phoneIsDark: Boolean): String = Settings.theme(settings, phoneIsDark)
+
+    /** A theme picked on Appearance: worn, and kept as its mode's last. */
+    fun chooseTheme(name: String): Boolean {
+        val load = load.settings ?: return false
+        return report(Settings.putAll(load, Settings.choosing(Themes.valid(name))))
+    }
+
+    /** Light | Dark moved: the app wears the last theme of that mode. */
+    fun chooseMode(dark: Boolean): Boolean = chooseTheme(Settings.themeForMode(settings, dark))
+
+    /**
+     * Once, at a start: a notebook that still followed the phone -- the
+     * default until 0.9.0 -- keeps the theme it is wearing and follows no
+     * more. Nothing changes on the screen; only the next change of the
+     * phone's mode no longer changes the app's.
+     */
+    fun settleTheme(phoneIsDark: Boolean) {
+        if (load.settings != null && Settings.followsPhone(settings)) chooseTheme(themeName(phoneIsDark))
+    }
 }

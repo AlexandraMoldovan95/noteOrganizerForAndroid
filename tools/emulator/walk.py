@@ -242,6 +242,46 @@ def shot(folder, name, *must_say, patience=6.0):
     print("     photo %s.png" % name)
 
 
+def shades_while_tapping(label, frames=10):
+    """How bright the page is, capture after capture, from just before
+    [label] is tapped until well after: the emulator takes raw captures as
+    fast as it can (about one every 100 ms) while the tap is made. Each is
+    read as the mean of the page between the bars -- a sample of its pixels,
+    0 for black, 255 for white. For a change that should be seen arriving
+    in steps, not in one frame."""
+    at = find(label, exact=True)
+    if at is None:
+        fail("tap %r: not on the screen" % label)
+        return []
+    script = ("i=0\nwhile [ $i -lt %d ]; do\n  screencap /data/local/tmp/shade_$i.raw\n"
+              "  i=$((i+1))\ndone\n" % frames)
+    local = os.path.join(os.environ.get("TEMP", "."), "walk_shades.sh")
+    with open(local, "w", newline="\n") as f:
+        f.write(script)
+    adb("push", local, "/data/local/tmp/shades.sh")
+    os.remove(local)
+    burst = subprocess.Popen(command("shell", "sh", "/data/local/tmp/shades.sh"),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.25)
+    adb("shell", "input", "tap", str(at[0]), str(at[1]))
+    burst.wait(timeout=120)
+    shades = []
+    for i in range(frames):
+        raw = adb("exec-out", "cat", "/data/local/tmp/shade_%d.raw" % i, binary=True)
+        if len(raw) < 16:
+            continue
+        w, h = struct.unpack_from("<II", raw, 0)
+        head = len(raw) - w * h * 4
+        seen = []
+        for y in range(int(h * 0.12), int(h * 0.88), 24):
+            for x in range(0, w, 24):
+                p = head + (y * w + x) * 4
+                seen.append(0.299 * raw[p] + 0.587 * raw[p + 1] + 0.114 * raw[p + 2])
+        shades.append(round(sum(seen) / len(seen)))
+    adb("shell", "rm", "-f", "/data/local/tmp/shades.sh", "/data/local/tmp/shade_*.raw")
+    return shades
+
+
 def read_file(name):
     data = adb("exec-out", "run-as", PACKAGE, "cat", "%s/%s" % (NOTEBOOK, name), binary=True)
     try:
@@ -389,33 +429,53 @@ def brand_new(folder):
     # ---- Settings ----
     tap("Settings", exact=True)
     shot(folder, "06-settings", "Your name", "Appearance", "Backup")
-    # Following the phone, the page shows one mode's four themes, opened on
-    # the mode the phone is in now; the Dark | Light switch shows the other
-    # four. Eight tiles with two ticks read as "which one is on?".
-    adb("shell", "cmd", "uimode", "night", "no")
-    time.sleep(1.5)
+    # Light | Dark is the app's mode: the page shows that mode's four themes,
+    # the one worn ticked, and moved, the app wears that mode's last theme.
+    # "Follow the phone" is gone: a fresh notebook is settled at its first
+    # start on the original of the mode the phone was in.
+    settings = read_file("settings.json") or {}
+    check("a fresh notebook is settled on an original theme, following the phone no more",
+          settings.get("theme") in ("light", "dark") and settings.get("phone_theme_follows_phone") is False,
+          json.dumps(settings)[:200])
     tap("Appearance")
-    shot(folder, "07-appearance", "Follow the phone", "Soft Lavender", "The theme for when the phone is light.")
-    check("following a light phone, the page shows the light themes and not the dark",
+    check("no Follow the phone on the page", screen_says("Follow the phone") == ["Follow the phone"])
+    tap("Light", exact=True, wait=1.5)
+    shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "The light themes.")
+    check("in Light, the page shows the light themes and not the dark",
           not screen_says("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
-    tap("Dark", exact=True)
-    check("the switch shows the dark themes instead",
-          not screen_says("Midnight Purple", "Warm Charcoal", "The theme for when the phone is dark.")
-          and screen_says("Soft Lavender") == ["Soft Lavender"])
+    # The change dissolves: captured as fast as the emulator can while Dark
+    # is tapped, the page passes through a shade between the light one and
+    # the dark one. Cut in one frame, as it was, no capture can hold one.
+    shades = shades_while_tapping("Dark")
+    between = [s for s in shades[1:-1] if shades[0] - 40 > s > shades[-1] + 40]
+    check("Light to Dark dissolves: the page passes through shades between the two",
+          len(shades) >= 4 and bool(between), "page shades %s" % shades)
+    time.sleep(1.0)
+    settings = read_file("settings.json") or {}
+    check("Dark puts the app in the dark original at once, and shows the dark themes",
+          settings.get("theme") == "dark"
+          and not screen_says("Midnight Purple", "Warm Charcoal", "The dark themes.")
+          and screen_says("Soft Lavender") == ["Soft Lavender"], json.dumps(settings)[:200])
     tap("Forest Green", wait=1.5)
     settings = read_file("settings.json") or {}
-    check("a dark tile, following, is the dark mode's theme",
-          settings.get("phone_theme_dark") == "dark_forest" and settings.get("theme") != "dark_forest")
+    check("a dark tile is the theme worn, and the dark mode's last",
+          settings.get("theme") == "dark_forest" and settings.get("phone_theme_dark") == "dark_forest")
     shot(folder, "07b-appearance-dark-side", "Forest Green", "Light")
-    tap("Follow the phone", wait=1.0)
+    tap("Light", exact=True, wait=1.5)
+    tap("Dark", exact=True, wait=1.5)
     settings = read_file("settings.json") or {}
-    check("turning Follow the phone off is saved", settings.get("phone_theme_follows_phone") is False)
-    check("not following, all eight show again, the switch gone",
-          not screen_says("Midnight Purple", "Soft Lavender")
-          and screen_says("The theme for when") == ["The theme for when"])
+    check("Light, then Dark, comes back to the dark theme worn last", settings.get("theme") == "dark_forest")
     tap("Ocean Blue", wait=1.5)
     settings = read_file("settings.json") or {}
-    check("a theme picked with following off is the desktop's own key", settings.get("theme") == "dark_ocean")
+    check("a theme picked is the desktop's own key", settings.get("theme") == "dark_ocean")
+    # The phone turning light no longer turns the app.
+    adb("shell", "cmd", "uimode", "night", "yes")
+    time.sleep(1.5)
+    adb("shell", "cmd", "uimode", "night", "no")
+    time.sleep(1.5)
+    settings = read_file("settings.json") or {}
+    check("the phone's own dark mode, turned on and off, leaves the theme alone",
+          settings.get("theme") == "dark_ocean" and not screen_says("Ocean Blue", "Forest Green"))
     shot(folder, "08-ocean-blue", "Ocean Blue")
     back_to("Your name", "Appearance")
     tap("Your name")

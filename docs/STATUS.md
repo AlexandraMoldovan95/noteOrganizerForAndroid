@@ -294,10 +294,10 @@ Grouped by what the app does; when each item arrived is in the
 ### Looks and settings
 
 35. The desktop's eight themes, its palettes measured equal by a gate,
-    and **"Follow the phone"**: dark when the phone is dark, light when it
-    is light, in two themes the person picks. On by default, as Android
-    apps are. Following, the page shows one mode's four themes under a
-    Dark | Light switch, opened on the mode the phone is in now.
+    under a **Light | Dark** switch that is the app's mode: moved, the app
+    wears that mode's last theme at once, and the page shows that mode's
+    four. "Follow the phone" is gone (the owner's ask, 2026-10-20); a
+    notebook that followed keeps the theme it was wearing.
 36. **Wide screens.** From a medium window — a phone on its side, a small
     tablet — the bar becomes a rail down the left edge; from an expanded
     one, a note opens beside the notes or the calendar, which stay in
@@ -343,26 +343,27 @@ constantly when typing on one, and a notebook written half with them is
 unsearchable under a strict rule. **Worth porting back to the desktop**
 ([open finding](ISSUES_LOG.md#still-open)).
 
-**The theme can follow the phone.** Android apps are expected to; a
-desktop app is not. The choice lives under keys of its own
-(`phone_theme_follows_phone`, `phone_theme_light`, `phone_theme_dark`), so
-a settings file carried to the desktop in a backup leaves the desktop's
-own `theme` exactly as it was.
+**Light | Dark remembers a theme for each mode.** The desktop's quick
+toggle goes between the last dark and the last light theme of a session;
+the phone keeps the two under keys of its own (`phone_theme_light`,
+`phone_theme_dark`), which the desktop ignores. Until 0.9.0 the theme
+could also follow the phone's dark mode; the owner asked for the one
+switch instead.
 
 **The Trash's automatic emptying spares files still in use.** When a
 note leaves the Trash for good, its attached files are deleted — except
 any file a living note, or another note still in the Trash, also uses.
-The desktop's manual "Delete for good" already spares them; its
-*automatic* emptying at startup does not, so on a notebook where two
-notes share one stored file, the startup purge can delete a file a
-living note still shows. That is a [desktop finding](ISSUES_LOG.md#still-open),
-not a reason for the phone to copy it.
+The desktop's automatic emptying at startup did not, until its 0.95.391
+([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses));
+the two now agree.
 
-**The Trash's automatic emptying waits for a window it can read.** The
-desktop empties by the default 30 days when its settings cannot be read,
-and reads a hand-edited 0 as one day; the phone empties nothing then,
-and remembers that the window is lost until one is chosen again
-([a desktop finding too](ISSUES_LOG.md#the-desktops-startup-purge-goes-by-a-window-it-could-not-read)).
+**The Trash's automatic emptying waits for a window it can read.** When
+the settings cannot be read, or a hand-edited window is not a whole
+number from 1 to 365, nothing is emptied, and the lost window is
+remembered until one is chosen again. The desktop emptied by the default
+30 days then, and read a hand-edited 0 as one day, until its 0.95.391
+([the finding](ISSUES_LOG.md#the-desktops-startup-purge-goes-by-a-window-it-could-not-read));
+the two now agree.
 
 **The welcome note is the phone's own.** Same title, same idea — a short
 tour that is itself a note — but written for a phone: tap, long press,
@@ -516,8 +517,9 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 253 checks. The last full run, after the list learned to keep
-its place while a note is open, passed all 253 on its first try. Before it,
+36 parts, 256 checks. The last full run, after Appearance became one
+Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before,
+after the list learned to keep its place, all 253. Before them,
 the run after the desktop's old way was
 brought over, passed all 250 on its first try. The one before it, after
 the sheets were fixed, passed all 238 it then had; the parts written

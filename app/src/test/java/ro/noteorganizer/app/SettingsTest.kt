@@ -197,7 +197,7 @@ class SettingsTest {
     }
 
     @Test
-    fun `following the phone picks the light or the dark theme for its mode`() {
+    fun `a notebook not yet settled wears the theme for the phone's mode, as it did`() {
         val raw = JSONObject("""{"theme": "light_mint",
             "phone_theme_light": "light_sky", "phone_theme_dark": "dark_forest"}""")
         assertEquals("dark_forest", Settings.theme(raw, phoneIsDark = true))
@@ -207,7 +207,7 @@ class SettingsTest {
     }
 
     @Test
-    fun `following is on by default, and a fresh phone follows between the originals`() {
+    fun `a fresh phone starts in its own mode, on the originals`() {
         val raw = JSONObject("{}")
         assertTrue(Settings.followsPhone(raw))
         assertEquals("dark", Settings.theme(raw, phoneIsDark = true))
@@ -215,12 +215,30 @@ class SettingsTest {
     }
 
     @Test
-    fun `the desktop's own choice is where following starts from`() {
-        // A notebook that came from the desktop on Ocean Blue follows the
-        // phone between Ocean Blue and Soft Lavender, not the originals.
+    fun `the desktop's own choice is where a phone starts from`() {
+        // A notebook that came from the desktop on Ocean Blue opens on Ocean
+        // Blue on a dark phone, and on Soft Lavender on a light one.
         val raw = JSONObject("""{"theme": "dark_ocean"}""")
         assertEquals("dark_ocean", Settings.theme(raw, phoneIsDark = true))
         assertEquals("light", Settings.theme(raw, phoneIsDark = false))
+    }
+
+    @Test
+    fun `a theme chosen is worn, kept as its mode's last, and the phone followed no more`() {
+        assertEquals(mapOf(Settings.THEME to "dark_slate", Settings.PHONE_DARK_THEME to "dark_slate",
+                           Settings.PHONE_FOLLOWS_PHONE to false), Settings.choosing("dark_slate"))
+        assertEquals(mapOf(Settings.THEME to "light_sky", Settings.PHONE_LIGHT_THEME to "light_sky",
+                           Settings.PHONE_FOLLOWS_PHONE to false), Settings.choosing("light_sky"))
+    }
+
+    @Test
+    fun `Light and Dark go to the last of their mode, or the originals`() {
+        val raw = JSONObject("""{"theme": "light_mint", "phone_theme_dark": "dark_ocean",
+            "phone_theme_follows_phone": false}""")
+        assertEquals("dark_ocean", Settings.themeForMode(raw, dark = true))
+        assertEquals("light_mint", Settings.themeForMode(raw, dark = false))
+        val none = JSONObject("""{"theme": "light_mint", "phone_theme_follows_phone": false}""")
+        assertEquals("dark", Settings.themeForMode(none, dark = true))
     }
 
     @Test

@@ -41,6 +41,55 @@ do before, not as releases anyone ran.
 
 ---
 
+## [0.9.1] — 2026-10-20 — Light | Dark
+
+### Changed
+
+- **Appearance: one Light | Dark switch, and no "Follow the phone"** —
+  the owner's ask. The switch is the app's mode: moved, the app wears the
+  last theme of that mode at once, as the desktop's quick toggle does,
+  and below it are that mode's four themes, the one worn ticked. A
+  notebook that followed the phone — the default until now — keeps the
+  theme it was wearing, settled once at the first start; the phone
+  turning dark or light no longer turns the app.
+- **A change of theme dissolves** — from the owner's report of a flicker
+  between a light and a dark one. The whole screen cut from white to
+  dark, or back, in one frame, and the clock and the battery took the
+  new contrast a moment after it. A first answer made the cut sharper —
+  everything in the same frame — and she saw the flicker more, not less.
+  Now the screen as it is is kept as a picture, the theme changes under
+  it, and the picture fades out over 320 ms; the bars, and the window's
+  own colour, follow halfway through.
+
+### Testing
+
+- 660 JVM unit tests in 28 suites, from 656. Five mutants against the
+  theme's rules (a theme not kept as its mode's last, a choice leaving
+  the phone followed, Light | Dark going to the other mode, settling on
+  the other mode's theme, a settled notebook still following), all
+  killed; three built into the app — a notebook never settled, a switch
+  that only chose which tiles to show, and the theme cut at once with no
+  picture fading over it — all killed by the walk's first part.
+- `tools/emulator/walk.py`: 256 checks in 36 parts, from 253 — the first
+  part walks Light | Dark, a tile kept as its mode's last, the phone's own
+  dark mode leaving the theme alone, and the change dissolving: raw
+  captures taken as fast as the emulator can while Dark is tapped must
+  hold a shade between the light page and the dark one. Cut in one frame,
+  none does ([242, 242, 242, 242, 35, ...]). The full run passed all 256
+  on its first try. The documentation's pictures were taken again.
+- The change measured on the emulator, capture by capture, the page's
+  brightness: cut, 240 then 38 with nothing between; dissolving, 240,
+  187, 59, 38 and back 38, 119, 234, 240, the bars moving with the page.
+  Half the frames around a change came in late before (19–27 ms the
+  median), a few now (17–18 ms). An emulator draws in software, so how it
+  looks on a phone was the owner's to judge.
+- On the owner's phone, release build, twice, each time 7 checks passed
+  and nothing written: the theme she wore kept, the page without "Follow
+  the phone", one mode's four themes. Her judgement of the change: the
+  sharper cut flickered more; the dissolve "is better now".
+
+---
+
 ## [0.9.0] — 2026-10-20 — The first test on a real phone
 
 What the app's first afternoon on a real phone asked for — a Samsung

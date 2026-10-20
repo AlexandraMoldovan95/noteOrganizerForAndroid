@@ -33,7 +33,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
+import ro.noteorganizer.app.ui.theme.LocalThemeChange
 import ro.noteorganizer.app.ui.theme.paletteOf
 
 /** What Settings → Backup needs from the activity: Android's file pickers. */
@@ -361,71 +361,33 @@ private fun NamePage(state: AppState) {
 // ---- Appearance ----
 
 /**
- * The desktop's eight themes, four dark and four light, and one choice the
- * desktop does not have: following the phone's dark mode. When it follows,
- * a dark tile picks the theme for dark mode and a light one the theme for
- * light; when it does not, any tile is the theme.
- *
- * Following, the page shows one mode's four at a time, under a Dark | Light
- * switch that opens on the mode the phone is in now: eight tiles with two
- * ticks read as "which one is on?", and the four the phone is not wearing
- * are a choice for later, one tap away. Not following, all eight, as the
- * desktop shows them.
+ * The desktop's eight themes, four light and four dark, under a Light |
+ * Dark switch that is the app's mode: moved, the app wears that mode's last
+ * theme at once, as the desktop's quick toggle does, and the four tiles
+ * below are that mode's, the one worn ticked. It replaced "Follow the
+ * phone" (the owner's ask, 2026-10-20): a switch that only chose which
+ * tiles to show could say Dark over a light app.
  */
 @Composable
 private fun AppearancePage(state: AppState) {
     val palette = LocalPalette.current
-    val raw = state.settings
-    val follows = Settings.followsPhone(raw)
-    val phoneDark = isSystemInDarkTheme()
-    var showingDark by remember(phoneDark) { mutableStateOf(phoneDark) }
+    val wearing = state.themeName(isSystemInDarkTheme())
+    val dark = Themes.isDark(wearing)
+    // Through the veil, so the change dissolves rather than cuts.
+    val change = LocalThemeChange.current
     PageColumn {
-        // The whole row answers a tap, not only the switch: a thumb lands
-        // on the words as often as on the control.
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clickable { state.putSetting(Settings.PHONE_FOLLOWS_PHONE, !follows) }
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.follow_phone), color = palette.text, fontSize = 16.sp)
-                Text(stringResource(R.string.follow_phone_sub), color = palette.subtext, fontSize = 13.sp)
-            }
-            Switch(checked = follows, onCheckedChange = { state.putSetting(Settings.PHONE_FOLLOWS_PHONE, it) })
-        }
-        val dark = R.string.themes_dark to Themes.DARK
-        val light = R.string.themes_light to Themes.LIGHT
-        val groups = if (!follows) listOf(dark, light) else listOf(if (showingDark) dark else light)
-        if (follows) {
-            ModeSwitch(showingDark) { showingDark = it }
-            Text(
-                stringResource(if (showingDark) R.string.themes_for_dark else R.string.themes_for_light),
-                color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
-            )
-        }
-        for ((label, names) in groups) {
-            if (!follows) SectionLabel(stringResource(label))
-            for (name in names) {
-                val chosen = if (follows) {
-                    name == Settings.darkTheme(raw) || name == Settings.lightTheme(raw)
-                } else {
-                    name == Themes.valid(raw.opt(Settings.THEME) as? String)
-                }
-                ThemeTile(name, chosen) {
-                    when {
-                        !follows -> state.putSetting(Settings.THEME, name)
-                        Themes.isDark(name) -> state.putSetting(Settings.PHONE_DARK_THEME, name)
-                        else -> state.putSetting(Settings.PHONE_LIGHT_THEME, name)
-                    }
-                }
-            }
+        ModeSwitch(dark) { if (it != dark) change { state.chooseMode(it) } }
+        Text(
+            stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light),
+            color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+        )
+        for (name in if (dark) Themes.DARK else Themes.LIGHT) {
+            ThemeTile(name, name == wearing) { if (name != wearing) change { state.chooseTheme(name) } }
         }
     }
 }
 
-/** Dark | Light: which mode's themes the page is showing, not which is on. */
+/** Light | Dark: the app's mode, the one on filled. */
 @Composable
 private fun ModeSwitch(dark: Boolean, onPick: (Boolean) -> Unit) {
     val palette = LocalPalette.current
@@ -434,7 +396,7 @@ private fun ModeSwitch(dark: Boolean, onPick: (Boolean) -> Unit) {
         Modifier.fillMaxWidth().height(40.dp).clip(shape).border(1.dp, palette.hairline, shape)
             .background(palette.inset).selectableGroup(),
     ) {
-        for ((isDark, label) in listOf(true to R.string.themes_dark, false to R.string.themes_light)) {
+        for ((isDark, label) in listOf(false to R.string.themes_light, true to R.string.themes_dark)) {
             val on = isDark == dark
             Box(
                 Modifier.weight(1f).fillMaxHeight().clip(shape)

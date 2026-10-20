@@ -53,8 +53,8 @@ for the camera rather than anybody&rsquo;s real one &mdash;
 - **A phone or a tablet**: on a wide screen the note opens beside the
   list.
 - **The Trash**, kept for the desktop's window and emptied on its own.
-- **Your look**: the desktop's eight themes, or follow the phone's dark
-  mode.
+- **Your look**: the desktop's eight themes, four light and four dark,
+  under one Light | Dark switch.
 - **Share a note** with anyone, through the phone's own share sheet —
   WhatsApp, mail, Teams: as a PDF of its page, a web page, its words, or
   a share code. The app sends nothing itself.
