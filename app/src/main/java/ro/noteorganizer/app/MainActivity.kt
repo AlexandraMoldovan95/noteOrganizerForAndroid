@@ -46,6 +46,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -68,7 +69,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ro.noteorganizer.app.ui.theme.AppTheme
 import ro.noteorganizer.app.ui.theme.LocalPalette
+import ro.noteorganizer.app.ui.theme.LocalThemeChange
 import ro.noteorganizer.app.ui.theme.Palette
+import ro.noteorganizer.app.ui.theme.ThemeVeil
 import ro.noteorganizer.app.ui.theme.paletteOf
 import java.io.File
 import java.net.URLEncoder
@@ -120,8 +123,15 @@ class MainActivity : ComponentActivity() {
             val phoneDark = isSystemInDarkTheme()
             val palette = paletteOf(state.themeName(phoneDark))
             LaunchedEffect(state) { state.settleTheme(phoneDark) }
-            SideEffect { showBars(palette) }
-            AppTheme(palette) { AppRoot(state, versionName()) }
+            // A theme changed on Appearance dissolves (ThemeVeil); the bars
+            // wait for the middle of the fade, as the screen does not turn
+            // before it either.
+            val veil = remember { ThemeVeil(scope) }
+            val barsWait = veil.barsHeld
+            SideEffect { if (!barsWait) showBars(palette) }
+            CompositionLocalProvider(LocalThemeChange provides veil::change) {
+                AppTheme(palette) { veil.Over { AppRoot(state, versionName()) } }
+            }
         }
     }
 
@@ -130,11 +140,10 @@ class MainActivity : ComponentActivity() {
 
     /**
      * The clock and the battery in the theme's own contrast, and the window
-     * under the app in the theme's own colour -- in the frame the theme
-     * changes in. Set a frame later, by an effect that ran edge to edge
-     * again, the bars changed after the page and the window was laid out
-     * anew; under it all the window stayed white, and a switch between a
-     * light and a dark theme was seen arriving in steps (the owner's report).
+     * under the app in the theme's own colour: at the start, and halfway
+     * through a theme's dissolve (ThemeVeil). Once, an effect ran edge to
+     * edge again for every change, laying the window out anew, while under
+     * it all the window stayed white.
      */
     private fun showBars(palette: Palette) {
         if (barsDark != palette.isDark) {

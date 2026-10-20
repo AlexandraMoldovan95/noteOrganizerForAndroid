@@ -517,8 +517,8 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 255 checks. The last full run, after Appearance became one
-Light | Dark switch, passed all 255 on its first try; the one before,
+36 parts, 256 checks. The last full run, after Appearance became one
+Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before,
 after the list learned to keep its place, all 253. Before them,
 the run after the desktop's old way was
 brought over, passed all 250 on its first try. The one before it, after

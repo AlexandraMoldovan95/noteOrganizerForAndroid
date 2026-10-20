@@ -242,6 +242,46 @@ def shot(folder, name, *must_say, patience=6.0):
     print("     photo %s.png" % name)
 
 
+def shades_while_tapping(label, frames=10):
+    """How bright the page is, capture after capture, from just before
+    [label] is tapped until well after: the emulator takes raw captures as
+    fast as it can (about one every 100 ms) while the tap is made. Each is
+    read as the mean of the page between the bars -- a sample of its pixels,
+    0 for black, 255 for white. For a change that should be seen arriving
+    in steps, not in one frame."""
+    at = find(label, exact=True)
+    if at is None:
+        fail("tap %r: not on the screen" % label)
+        return []
+    script = ("i=0\nwhile [ $i -lt %d ]; do\n  screencap /data/local/tmp/shade_$i.raw\n"
+              "  i=$((i+1))\ndone\n" % frames)
+    local = os.path.join(os.environ.get("TEMP", "."), "walk_shades.sh")
+    with open(local, "w", newline="\n") as f:
+        f.write(script)
+    adb("push", local, "/data/local/tmp/shades.sh")
+    os.remove(local)
+    burst = subprocess.Popen(command("shell", "sh", "/data/local/tmp/shades.sh"),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(0.25)
+    adb("shell", "input", "tap", str(at[0]), str(at[1]))
+    burst.wait(timeout=120)
+    shades = []
+    for i in range(frames):
+        raw = adb("exec-out", "cat", "/data/local/tmp/shade_%d.raw" % i, binary=True)
+        if len(raw) < 16:
+            continue
+        w, h = struct.unpack_from("<II", raw, 0)
+        head = len(raw) - w * h * 4
+        seen = []
+        for y in range(int(h * 0.12), int(h * 0.88), 24):
+            for x in range(0, w, 24):
+                p = head + (y * w + x) * 4
+                seen.append(0.299 * raw[p] + 0.587 * raw[p + 1] + 0.114 * raw[p + 2])
+        shades.append(round(sum(seen) / len(seen)))
+    adb("shell", "rm", "-f", "/data/local/tmp/shades.sh", "/data/local/tmp/shade_*.raw")
+    return shades
+
+
 def read_file(name):
     data = adb("exec-out", "run-as", PACKAGE, "cat", "%s/%s" % (NOTEBOOK, name), binary=True)
     try:
@@ -403,7 +443,14 @@ def brand_new(folder):
     shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "The light themes.")
     check("in Light, the page shows the light themes and not the dark",
           not screen_says("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
-    tap("Dark", exact=True, wait=1.5)
+    # The change dissolves: captured as fast as the emulator can while Dark
+    # is tapped, the page passes through a shade between the light one and
+    # the dark one. Cut in one frame, as it was, no capture can hold one.
+    shades = shades_while_tapping("Dark")
+    between = [s for s in shades[1:-1] if shades[0] - 40 > s > shades[-1] + 40]
+    check("Light to Dark dissolves: the page passes through shades between the two",
+          len(shades) >= 4 and bool(between), "page shades %s" % shades)
+    time.sleep(1.0)
     settings = read_file("settings.json") or {}
     check("Dark puts the app in the dark original at once, and shows the dark themes",
           settings.get("theme") == "dark"

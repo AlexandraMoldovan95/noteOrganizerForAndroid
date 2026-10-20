@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
+import ro.noteorganizer.app.ui.theme.LocalThemeChange
 import ro.noteorganizer.app.ui.theme.paletteOf
 
 /** What Settings → Backup needs from the activity: Android's file pickers. */
@@ -372,14 +373,16 @@ private fun AppearancePage(state: AppState) {
     val palette = LocalPalette.current
     val wearing = state.themeName(isSystemInDarkTheme())
     val dark = Themes.isDark(wearing)
+    // Through the veil, so the change dissolves rather than cuts.
+    val change = LocalThemeChange.current
     PageColumn {
-        ModeSwitch(dark) { if (it != dark) state.chooseMode(it) }
+        ModeSwitch(dark) { if (it != dark) change { state.chooseMode(it) } }
         Text(
             stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light),
             color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
         )
         for (name in if (dark) Themes.DARK else Themes.LIGHT) {
-            ThemeTile(name, name == wearing) { state.chooseTheme(name) }
+            ThemeTile(name, name == wearing) { if (name != wearing) change { state.chooseTheme(name) } }
         }
     }
 }

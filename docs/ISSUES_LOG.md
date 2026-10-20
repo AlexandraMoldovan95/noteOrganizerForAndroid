@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-seven are
+**the code**, or in **the design**. Fourteen of the forty-eight are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-20](#a-flicker-a-sharper-cut-made-worse) | design | A theme change flickered; made a cleaner cut, it flickered more on the owner's phone; dissolved over 320 ms, "better now" | A change of the whole screen wants easing, and the eye is the verdict |
 | [2026-10-20](#letters-typed-beside-a-style-read-from-the-text-alone) | code | Letters typed after a styled word stayed plain and letters typed before it took its style — the desktop does the opposite at both edges | An edit worked out from the text alone cannot know where the caret was; typing knows, and should say so |
 | [2026-10-20](#a-trash-emptied-by-a-window-nobody-chose) | design | Settings that could not be read made the start purge the Trash at the default 30 days, whatever window the person had chosen | When the rule for deleting is not known, delete nothing — and remember that it is not known |
 | [2026-10-19](#a-sheet-dressed-for-the-phone-not-the-app) | design | On the owner's phone every sheet put a white bar of buttons over the dark app and the clock dark on dark, and Share's opened half-way, its last card under the buttons | A window of its own takes none of the app's settings; and walk with the phone's own navigation, not only the emulator's |
@@ -64,6 +65,34 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A flicker a sharper cut made worse
+
+**2026-10-20.** The owner saw the change between a light and a dark
+theme flicker, "as if the picture builds itself towards dark". Measured
+on the emulator, capture by capture: the page cut from one theme to the
+other in a single frame, and the phone's bars took the new contrast a
+frame or two later, through an effect that set the whole window up edge
+to edge again, over a window that stayed white underneath.
+
+The first answer made the cut cleaner: bars and window in the same frame
+as the page. Measured, it was cleaner. On her phone it flickered **more**.
+A whole screen turning from white to near-black in one frame is itself
+what the eye reads as a flash; the stagger had only been smearing it.
+
+The second answer stopped cutting. The screen as it is is kept as a
+picture (`ThemeVeil`: the app's content recorded into a graphics layer
+on every drawing, taken as a bitmap on the change), the theme changes
+underneath, and the picture fades over 320 ms; the bars follow halfway.
+Captured again, the page passes through 187 and 59 on its way from 240
+to 38. On her phone: "it is better now". The walk keeps it: a capture
+burst while Dark is tapped must hold a shade between the two, and the
+mutant that cuts at once leaves none.
+
+**The class:** a transition measured correct is not a transition seen as
+smooth. When the complaint is how a change looks, the person's eye is
+the verdict, and a cleaner instant is still an instant — a change of the
+whole screen wants to be eased, not sharpened.
 
 ## Letters typed beside a style, read from the text alone
 
