@@ -33,19 +33,35 @@ class SharingTest {
     @Test
     fun `a note survives being turned into a code and back`() {
         val original = note("""
-            {"id": 7, "title": "Cumparaturi", "body": "lapte\npaine",
+            {"id": 7, "title": "Shopping", "body": "milk\nbread",
              "category": "Work", "date": "2026-12-25", "color": "#e63946",
-             "formatting": [{"start": 0, "end": 5, "style": "bold"}],
-             "checklist": [{"text": "unu", "done": true}]}
+             "formatting": [{"start": 0, "end": 4, "style": "bold"}],
+             "checklist": [{"text": "one", "done": true}]}
         """.trimIndent())
         val decoded = Sharing.decode(Sharing.encode(listOf(original)))
         assertTrue(decoded is Sharing.Decoded.Notes)
         val back = (decoded as Sharing.Decoded.Notes).notes.single()
-        assertEquals("Cumparaturi", back.getString("title"))
-        assertEquals("lapte\npaine", back.getString("body"))
+        assertEquals("Shopping", back.getString("title"))
+        assertEquals("milk\nbread", back.getString("body"))
         assertEquals("#e63946", back.getString("color"))
         assertEquals(1, back.getJSONArray("formatting").length())
         assertTrue(back.getJSONArray("checklist").getJSONObject(0).getBoolean("done"))
+    }
+
+    @Test
+    fun `no code is made past what the import takes, as the desktop's encode_share_code refuses`() {
+        // 200 notes make a code; 201 a refusal in the desktop's words, never
+        // a code both apps would turn away.
+        val many = (1..201).map { note("""{"title": "n$it"}""") }
+        assertTrue(Sharing.decode(Sharing.encode(many.take(200))) is Sharing.Decoded.Notes)
+        val refused = try { Sharing.encode(many); null } catch (e: Sharing.TooLarge) { e.message }
+        assertTrue(refused, refused != null && refused.contains("at most 200 notes") && refused.contains("201"))
+        // Past the size the import accepts, by its words: a body of random letters
+        // compresses badly, so the code itself runs past the limit.
+        val random = java.util.Random(7)
+        val noise = String(CharArray(Sharing.MAX_DECOMPRESSED_BYTES + 1) { ('a' + random.nextInt(26)) })
+        val tooBig = try { Sharing.encode(listOf(note("{}").put("body", noise))); null } catch (e: Sharing.TooLarge) { e.message }
+        assertTrue(tooBig, tooBig != null && tooBig.contains("too much for one code"))
     }
 
     @Test
@@ -73,7 +89,7 @@ class SharingTest {
             {"title": "x", "attachments": [{"filename": "p.png", "stored_as": "../../x"}]}
         """.trimIndent())
         val code = Sharing.encode(listOf(original))
-        assertFalse("codul nu trebuie sa contina atasamente", code.contains("stored_as"))
+        assertFalse("the code must not carry attachments", code.contains("stored_as"))
 
         // And a hand-made code that DOES contain one has it stripped on the
         // way in, so the two ends are symmetric.
@@ -111,7 +127,7 @@ class SharingTest {
 
     @Test
     fun `something that is not a code says so, by name`() {
-        val result = Sharing.decode("buna ziua")
+        val result = Sharing.decode("good afternoon")
         assertTrue(result is Sharing.Decoded.Failed)
         assertTrue((result as Sharing.Decoded.Failed).reason.contains(Sharing.PREFIX))
     }
@@ -123,7 +139,7 @@ class SharingTest {
 
     @Test
     fun `a truncated code is reported as damaged, not crashed on`() {
-        val code = Sharing.encode(listOf(note("""{"title": "x", "body": "ceva mai lung"}""")))
+        val code = Sharing.encode(listOf(note("""{"title": "x", "body": "something longer"}""")))
         val cut = code.substring(0, code.length - 20)
         assertTrue(Sharing.decode(cut) is Sharing.Decoded.Failed)
     }
@@ -135,15 +151,36 @@ class SharingTest {
         payload.put("notes", JSONArray().put(JSONObject().put("title", "x")))
         val result = Sharing.decode(codeOf(payload))
         assertTrue(result is Sharing.Decoded.Failed)
-        assertTrue((result as Sharing.Decoded.Failed).reason.contains("noua"))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("newer version"))
+    }
+
+    @Test
+    fun `a version that is not a number is damage, not version 1`() {
+        // The desktop refuses it by type; the phone used to read "2" as
+        // "no version given" and import whatever followed.
+        for (version in listOf<Any>("2", true, JSONArray())) {
+            val payload = JSONObject()
+            payload.put("v", version)
+            payload.put("notes", JSONArray().put(JSONObject().put("title", "x")))
+            val result = Sharing.decode(codeOf(payload))
+            assertTrue("v = $version", result is Sharing.Decoded.Failed)
+            assertTrue((result as Sharing.Decoded.Failed).reason.contains("damaged"))
+        }
+    }
+
+    @Test
+    fun `a payload with no notes key says so`() {
+        val result = Sharing.decode(codeOf(JSONObject().put("v", 1)))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("doesn't contain any notes"))
     }
 
     @Test
     fun `a code carrying too many notes is refused`() {
-        val notes = (1..Sharing.MAX_SHARED_NOTES + 1).map { note("""{"title": "$it"}""") }
-        val result = Sharing.decode(Sharing.encode(notes))
+        // Made by hand: this phone no longer makes such a code, another app might.
+        val notes = JSONArray().apply { (1..Sharing.MAX_SHARED_NOTES + 1).forEach { put(note("""{"title": "$it"}""")) } }
+        val result = Sharing.decode(codeOf(JSONObject().put("v", 1).put("notes", notes)))
         assertTrue(result is Sharing.Decoded.Failed)
-        assertTrue((result as Sharing.Decoded.Failed).reason.contains("limita"))
+        assertTrue((result as Sharing.Decoded.Failed).reason.contains("limit"))
     }
 
     @Test
@@ -176,17 +213,17 @@ class SharingTest {
 
     @Test
     fun `importing creates a note and never touches the others`() {
-        val load = scratch("""[{"id": 4, "title": "veche", "un_camp": "pastreaza-ma"}]""")
-        val code = Sharing.encode(listOf(note("""{"title": "primita", "body": "salut"}""")))
+        val load = scratch("""[{"id": 4, "title": "old", "a_field": "keep-me"}]""")
+        val code = Sharing.encode(listOf(note("""{"title": "received", "body": "hello"}""")))
         val result = bring(load, code)
         assertTrue(result is SaveResult.Ok)
         assertEquals(1, (result as SaveResult.Ok).imported)
 
         val all = onDisk(load)
         assertEquals(2, all.length())
-        assertEquals("pastreaza-ma", all.getJSONObject(0).getString("un_camp"))
+        assertEquals("keep-me", all.getJSONObject(0).getString("a_field"))
         val fresh = all.getJSONObject(1)
-        assertEquals("primita", fresh.getString("title"))
+        assertEquals("received", fresh.getString("title"))
         assertEquals(5, fresh.getInt("id"))
     }
 
@@ -199,7 +236,7 @@ class SharingTest {
                              "category", "date", "color", "attachments", "updated",
                              "created", "recurrence", "exceptions", "overrides",
                              "pinned", "checklist", "paragraphs")) {
-            assertTrue("lipseste $field", fresh.has(field))
+            assertTrue("missing: $field", fresh.has(field))
         }
         assertEquals("General", fresh.getString("category"))
         assertEquals(19, fresh.getString("created").length)
@@ -216,7 +253,7 @@ class SharingTest {
         val anonymous = Sharing.encode(listOf(note("""{"title": "x"}""")))
         bring(load, anonymous)
         bring(load, anonymous)
-        assertEquals("un cod fara identitate face doua notite, ca inainte",
+        assertEquals("a code with no identity makes two notes, as before",
             2, onDisk(load).length())
         assertEquals(listOf(1, 2),
             (0 until 2).map { onDisk(load).getJSONObject(it).getInt("id") })
@@ -228,11 +265,11 @@ class SharingTest {
         // because that answer was chosen, not because nothing could tell.
         val mine = Notebook.shareCodeFor(load, 1)!!
         val found = Notebook.inspectShareCode(load, mine) as Notebook.Inspection.Ready
-        assertEquals("un cod facut de aici e recunoscut cand se intoarce",
+        assertEquals("a code made here is recognised when it comes back",
             1, found.known)
         Notebook.applyShareCode(load, found.notes, update = false)
         assertEquals(3, onDisk(load).length())
-        assertEquals("copia nu poate purta identitatea originalului",
+        assertEquals("the copy cannot wear the original's identity",
             onDisk(load).getJSONObject(0).getString("uid") ==
                 onDisk(load).getJSONObject(2).getString("uid"), false)
     }
@@ -251,16 +288,18 @@ class SharingTest {
     fun `a bad code is refused before anything is written`() {
         val load = scratch("""[{"id": 1}]""")
         val before = load.file!!.readText()
-        assertTrue(bring(load, "nu e un cod") is SaveResult.Failed)
+        assertTrue(bring(load, "not a code") is SaveResult.Failed)
         assertEquals(before, load.file!!.readText())
     }
 
     @Test
-    fun `a notebook that cannot be read is never imported over`() {
-        val load = scratch("{ nu e json")
+    fun `a notebook that cannot be read is kept aside before a code is imported`() {
+        val load = scratch("{ not json")
         val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
-        assertTrue(bring(load, code) is SaveResult.Failed)
-        assertEquals("{ nu e json", load.file!!.readText())
+        assertTrue(bring(load, code) is SaveResult.Ok)
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("notes_data_corrupt_") }
+        assertEquals("{ not json", kept.readText())
     }
 
     // ---- making a code from a stored note ----
@@ -270,12 +309,12 @@ class SharingTest {
         // The Kotlin model drops fields a code is meant to carry, so the
         // code comes off the raw JSON.
         val load = scratch("""
-            [{"id": 3, "title": "x", "comments": "note de subsol",
+            [{"id": 3, "title": "x", "comments": "footnotes",
               "paragraphs": [{"line": 0, "kind": "bullet"}]}]
         """.trimIndent())
         val code = Notebook.shareCodeFor(load, 3)!!
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
-        assertEquals("note de subsol", back.getString("comments"))
+        assertEquals("footnotes", back.getString("comments"))
         assertEquals(1, back.getJSONArray("paragraphs").length())
     }
 

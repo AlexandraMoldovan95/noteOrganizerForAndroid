@@ -3,7 +3,6 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.text.Normalizer
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,6 +28,9 @@ data class Note(
     val color: String = "",
     val date: String = "",
     val updated: String = "",
+    val created: String = "",
+    /** Where the person put it in Custom order; null until they do. */
+    val order: Double? = null,
     val pinned: Boolean = false,
     val comments: String = "",
     val attachments: Int = 0,
@@ -37,6 +39,8 @@ data class Note(
     val checklist: List<ChecklistItem> = emptyList(),
     val recurrenceFreq: String = "",
     val recurrenceInterval: Int = 1,
+    /** The rule in words, as the desktop's card says it: "Every 2 weeks on Mon, Thu". */
+    val recurrenceLabel: String = "",
     val exceptions: Int = 0,
     val overrides: Int = 0,
     /** Only a trashed note carries this: "YYYY-MM-DD HH:MM:SS". */
@@ -54,6 +58,14 @@ data class Note(
      * problem the field exists to prevent.
      */
     val uid: String = "",
+    /** Whether a rescue copy ("↩ Restore previous") is waiting. */
+    val hasPrevious: Boolean = false,
+    /**
+     * What that copy brings back besides the text, in the words the
+     * desktop's question uses ("checklist", "repeat rule"...). Empty for a
+     * drastic shrink's copy, which is the text alone.
+     */
+    val previousAlso: List<String> = emptyList(),
 ) {
     /**
      * A note repeats when its rule names a frequency -- NOT when its
@@ -102,44 +114,26 @@ data class Note(
     /** What the desktop's list shows for a note with no title. */
     val displayTitle: String get() = title.trim().ifEmpty { "(untitled)" }
 
-    /** The desktop card's preview: 40 characters, newlines flattened. */
-    val preview: String
-        get() {
-            val flat = body.replace('\n', ' ').trim()
-            return if (flat.length > 40) flat.take(40) + "..." else flat
-        }
-
     /**
-     * Body lines worth previewing: blanks dropped, and table rows dropped
-     * with them.
+     * The card's words and its table count, from the desktop's one pass
+     * ([previewText]) -- worked out ONCE per note, not on every drawing:
+     * a card scrolling into sight used to walk its whole body two or three
+     * times, and on a note of tens of thousands of characters that was a
+     * frame missed each time.
      *
-     * Table rows read as pipe soup at card size, which is why the desktop
-     * strips them from its own preview and says "a table is here" on the
-     * tags line instead. Skipping this was visible on the first
-     * screenshot: 24 of a real notebook's 77 notes hold a table, so it is
-     * not a rare case that could wait.
+     * Table lines are left out, as the desktop leaves them out: rows read
+     * as pipe soup at card size, and the tags line says a table is there.
      */
-    private val spokenLines: List<String>
-        get() = body.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && !isTableRow(it) }
-            .toList()
+    private val previewParts: Pair<List<String>, Int> by lazy {
+        val (prose, tables) = previewText(body)
+        prose.split("\n").map { it.trim() }.filter { it.isNotEmpty() } to tables
+    }
 
-    /** How many table blocks the body holds -- runs of adjacent rows. */
-    val tableCount: Int
-        get() {
-            var blocks = 0
-            var inBlock = false
-            for (line in body.lineSequence()) {
-                if (isTableRow(line.trim())) {
-                    if (!inBlock) blocks++
-                    inBlock = true
-                } else {
-                    inBlock = false
-                }
-            }
-            return blocks
-        }
+    /** Body lines worth previewing: blanks and table lines dropped. */
+    private val spokenLines: List<String> get() = previewParts.first
+
+    /** How many tables the body holds -- runs of lines a person reads as a table. */
+    val tableCount: Int get() = previewParts.second
 
     /**
      * The phone's headline. Measured against a real notebook, 48 of 77
@@ -148,57 +142,66 @@ data class Note(
      * type on two cards out of three. This falls through to the first
      * line the note actually says.
      */
-    val headline: String
-        get() {
-            val t = title.trim()
-            if (t.isNotEmpty()) return t
-            return spokenLines.firstOrNull() ?: "(goala)"
+    val headline: String by lazy {
+        val t = title.trim()
+        when {
+            t.isNotEmpty() -> t
+            spokenLines.isNotEmpty() -> glimpse(spokenLines.first())
+            // Words only in a table: the note is not empty, it is untitled.
+            body.isNotBlank() -> "(untitled)"
+            else -> "(empty)"
         }
+    }
 
     /** Whether `headline` came from the body rather than from a real title. */
     val headlineIsBorrowed: Boolean get() = title.trim().isEmpty()
 
-    /** The rest of the note, after whatever the headline already used. */
-    val snippet: String
-        get() {
-            val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
-            return rest.joinToString(" ")
+    /**
+     * The rest of the note, after whatever the headline already used --
+     * a glimpse, not the whole text: the card shows two lines of it, and
+     * laying out tens of thousands of characters to show two lines is
+     * what made the list stutter on a phone.
+     */
+    val snippet: String by lazy {
+        val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
+        val out = StringBuilder()
+        for (line in rest) {
+            if (out.length >= GLIMPSE) break
+            if (out.isNotEmpty()) out.append(' ')
+            out.append(glimpse(line))
         }
+        glimpse(out.toString())
+    }
+
+    /** The tags line, worked out once: it is drawn on every card in sight. */
+    private val tags: String by lazy { buildTagLine() }
 
     /**
      * The desktop card's third line, rebuilt in the same order:
      * category, then the repeat rule or the date, then the badges.
      */
-    fun tagLine(): String {
+    fun tagLine(): String = tags
+
+    private fun buildTagLine(): String {
         val parts = StringBuilder(category)
         if (isRecurring) {
-            parts.append("   🔁 ").append(describeRecurrence())
+            parts.append("   🔁 ").append(recurrenceLabel)
             if (exceptions > 0) parts.append("   ✕").append(exceptions)
             if (overrides > 0) parts.append("   ✎").append(overrides)
         } else if (date.isNotEmpty()) {
-            parts.append("   📅 ").append(date)
+            parts.append("   📅 ").append(Recurrence.showDate(date))
         }
         if (comments.isNotEmpty()) parts.append("   💬")
         if (attachments > 0) parts.append("   📎×").append(attachments)
         val tables = tableCount
         if (tables > 0) {
-            parts.append(if (tables == 1) "   ▦ 1 tabel" else "   ▦ $tables tabele")
+            parts.append(if (tables == 1) "   ▦ 1 table" else "   ▦ $tables tables")
         }
         if (checklistTotal > 0) {
             parts.append("   ☑ ").append(checklistDone).append('/').append(checklistTotal)
         }
         return parts.toString()
     }
-
-    /**
-     * Deliberately shorter than the desktop's `describe_recurrence`, which
-     * spells out weekdays, month-day policies and end conditions. This is
-     * the smallest app; the full sentence is a decision for later, not an
-     * omission that slipped through.
-     */
-    private fun describeRecurrence(): String =
-        if (recurrenceInterval > 1) "$recurrenceFreq ×$recurrenceInterval"
-        else recurrenceFreq
 }
 
 /**
@@ -227,13 +230,25 @@ fun fold(text: String): String {
 
 private val COMBINING_MARKS = Regex("\\p{Mn}+")
 
-/** How the list is ordered. The desktop's options, same rules. */
+/**
+ * How the list is ordered. The desktop's options, same rules -- and the
+ * desktop's own words, which are also the values `note_sort` stores, so a
+ * choice made on one device reads back on the other.
+ */
 enum class SortOrder(val label: String) {
-    UPDATED_NEW("Recent modificate"),
-    UPDATED_OLD("Cele mai vechi"),
-    TITLE_AZ("Titlu A–Z"),
-    TITLE_ZA("Titlu Z–A"),
-    CATEGORY("Categorie"),
+    UPDATED_NEW("Recently updated"),
+    UPDATED_OLD("Oldest updated"),
+    TITLE_AZ("Title A–Z"),
+    TITLE_ZA("Title Z–A"),
+    CATEGORY("Category"),
+    SOONEST("Calendar: soonest"),
+    OLDEST_DATE("Calendar: oldest"),
+    CUSTOM("Custom order");
+
+    companion object {
+        /** A stored label, or the default for one this version does not know. */
+        fun fromLabel(label: String?): SortOrder = entries.firstOrNull { it.label == label } ?: UPDATED_NEW
+    }
 }
 
 /**
@@ -247,7 +262,8 @@ enum class SortOrder(val label: String) {
  * clustering at the top, which is where empty strings would naturally
  * land and is never what anyone means.
  */
-fun sortNotes(notes: List<Note>, order: SortOrder): List<Note> {
+fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.formatDate(java.time.LocalDate.now()),
+              nextDay: (Note) -> String? = { null }): List<Note> {
     val sorted = when (order) {
         SortOrder.UPDATED_NEW -> notes.sortedByDescending { it.updated }
         SortOrder.UPDATED_OLD -> notes.sortedBy { it.updated }
@@ -258,8 +274,100 @@ fun sortNotes(notes: List<Note>, order: SortOrder): List<Note> {
                 .thenByDescending { it.title.lowercase() })
         SortOrder.CATEGORY -> notes.sortedWith(
             compareBy({ it.category }, { it.updated }))
+        SortOrder.SOONEST -> {
+            // Each note's NEXT date from today, a series by its next day:
+            // what is coming first, then the past newest first, then the
+            // undated. A series that has ended stands with the past by its
+            // start date, as on the desktop.
+            fun group(n: Note): Pair<Int, String> {
+                if (n.isRecurring) {
+                    nextDay(n)?.let { return 0 to it }
+                    return if (Notebook.isDate(n.date)) 1 to n.date else 2 to ""
+                }
+                if (!Notebook.isDate(n.date)) return 2 to ""
+                return if (n.date >= today) 0 to n.date else 1 to n.date
+            }
+            notes.sortedWith(Comparator { a, b ->
+                val (ga, da) = group(a)
+                val (gb, db) = group(b)
+                when {
+                    ga != gb -> ga.compareTo(gb)
+                    ga == 1 -> db.compareTo(da)
+                    else -> da.compareTo(db)
+                }
+            })
+        }
+        // Plain chronology by the note's own date: the archive walk.
+        SortOrder.OLDEST_DATE -> notes.sortedWith(
+            compareBy({ !Notebook.isDate(it.date) }, { if (Notebook.isDate(it.date)) it.date else "" }))
+        // Where the person put each note -- on the desktop, for now; one
+        // nobody has placed stands above, newest first, as it does there.
+        SortOrder.CUSTOM -> notes
+            .sortedWith(compareByDescending<Note> { it.created }.thenByDescending { it.id })
+            .sortedWith(compareBy<Note> { it.order != null }.thenBy { it.order ?: 0.0 })
     }
     return sorted.sortedBy { !it.pinned }
+}
+
+/**
+ * What the list's "Show" can narrow it to, and the one judgement of
+ * whether a note passes -- the desktop's `_filter_options` and
+ * `_note_passes_filter`, under the desktop's own labels, which are what
+ * `note_filter` stores.
+ */
+object Showing {
+    const val ALL = "All"
+    const val REPEATING = "🔁 Repeating"
+    const val DATED = "📅 Dated"
+    const val FILES = "📎 With files"
+
+    fun options(categories: Collection<String>): List<String> = listOf(ALL, REPEATING, DATED, FILES) + categories
+
+    /** The stored choice, or All when it is no longer on offer -- a category since deleted. */
+    fun valid(selected: String?, categories: Collection<String>): String =
+        if (selected != null && selected in options(categories)) selected else ALL
+
+    fun passes(note: Note, selected: String): Boolean = when (selected) {
+        ALL -> true
+        REPEATING -> note.isRecurring
+        DATED -> !note.isRecurring && note.date.isNotEmpty()
+        FILES -> note.attachments > 0
+        else -> note.category == selected
+    }
+
+    /** One row of a list grouped by category: a header, or a note under it. */
+    sealed class Row {
+        data class Header(val category: String, val count: Int, val collapsed: Boolean) : Row()
+        data class Item(val note: Note) : Row()
+    }
+
+    /**
+     * The list's rows, in order. Grouped, each category is a header over
+     * its notes, in the order Settings keeps the categories, a category no
+     * longer in that list keeping a group of its own so no note is dropped.
+     */
+    fun rows(notes: List<Note>, grouped: Boolean, collapsed: Set<String>, categoryOrder: List<String>): List<Row> {
+        if (!grouped) return notes.map { Row.Item(it) }
+        val groups = LinkedHashMap<String, MutableList<Note>>()
+        for (note in notes) groups.getOrPut(note.category.ifEmpty { Themes.PROTECTED_CATEGORY }) { ArrayList() }.add(note)
+        val ordered = categoryOrder.filter { it in groups } + groups.keys.filter { it !in categoryOrder }
+        val out = ArrayList<Row>()
+        for (category in ordered) {
+            val members = groups.getValue(category)
+            val shut = category in collapsed
+            out.add(Row.Header(category, members.size, shut))
+            if (!shut) members.forEach { out.add(Row.Item(it)) }
+        }
+        return out
+    }
+
+    /**
+     * The notes the list shows as cards: what Select all takes, and the
+     * desktop's `_visible_note_ids`. A folded group's notes are counted in
+     * its header but not shown, and are not taken -- taken, Select all and
+     * then the Trash button sent notes nobody could see.
+     */
+    fun visibleIds(rows: List<Row>): Set<Int> = rows.filterIsInstance<Row.Item>().map { it.note.id }.toSet()
 }
 
 /** What a save did, or the reason it did not. Never silence. */
@@ -391,6 +499,12 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
 
     val oldSuffixStart = a.size - suffix
     val delta = b.size - a.size
+    // As many lines in the edited stretch after as before: its lines were
+    // typed INTO, not added or taken away, and each keeps what it was --
+    // as a line on the desktop keeps its bullet while text is typed in it.
+    // Without this, typing a letter into a list item on the phone dropped
+    // its bullet, its indent or its centring.
+    val inPlace = delta == 0
 
     // old line -> new line, so a caller can carry each marker's KIND with
     // it. Returning a bare list nearly shipped a bug: drop one line and
@@ -403,9 +517,10 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
                 val moved = line + delta
                 if (moved in b.indices) kept[line] = moved
             }
-            // A line inside the edited region: whatever it marked may no
-            // longer exist. Dropping the marker loses a bullet; keeping it
-            // puts a bullet on a stranger's line.
+            inPlace -> kept[line] = line
+            // A line inside an edit that added or removed lines: whatever it
+            // marked may no longer exist. Dropping the marker loses a
+            // bullet; keeping it puts a bullet on a stranger's line.
             else -> Unit
         }
     }
@@ -519,6 +634,69 @@ internal fun isTableRow(line: String): Boolean {
     return splitRow(s).size >= 2
 }
 
+/**
+ * How much of a note's text a card is given: more than its two lines can
+ * show on the widest pane, far less than a long note holds. The cut is
+ * never seen -- the card's own ellipsis comes first.
+ */
+private const val GLIMPSE = 300
+
+/** [text] cut to [GLIMPSE] characters, never through the middle of an emoji. */
+private fun glimpse(text: String): String {
+    if (text.length <= GLIMPSE) return text
+    val end = if (Character.isLowSurrogate(text[GLIMPSE])) GLIMPSE - 1 else GLIMPSE
+    return text.substring(0, end)
+}
+
+/**
+ * `_reads_as_plumbing`: whether a PERSON would see this line as part of a
+ * table -- deliberately looser than [isTableRow]. That one decides what
+ * the editor treats as a row, so it is strict: both ends a pipe. A row
+ * whose last cell was typed past (`| a | b |and then`), or one never
+ * closed (`| a | b`), is therefore not a row, and a preview that filtered
+ * on it showed those lines -- "only vertical lines", reported on the
+ * desktop twice and on this phone once. Loose, but not past the way a row
+ * is written: every cell opens with a pipe and a space, so `|x| = 5`
+ * stays words.
+ */
+internal fun readsAsPlumbing(line: String): Boolean {
+    val s = PyText.strip(line)
+    if (isTableRow(s)) return true
+    return s.startsWith("|") && s.count { it == '|' } >= 2 && s.length > 1 && PyText.isSpace(s.codePointAt(1))
+}
+
+/**
+ * `preview_text`: a note's words without its tables, and how many tables
+ * it had -- both from one pass, because "this note has 2 tables" and the
+ * text beside it must be answering about the same lines. A run of table
+ * lines is one table; the blank lines a table leaves are collapsed, so
+ * the words do not float in a gap.
+ */
+fun previewText(body: String): Pair<String, Int> {
+    val kept = ArrayList<String>()
+    var tables = 0
+    var inside = false
+    for (line in body.split("\n")) {
+        if (readsAsPlumbing(line)) {
+            if (!inside) {
+                tables++
+                inside = true
+            }
+            continue
+        }
+        inside = false
+        kept.add(line)
+    }
+    val prose = ArrayList<String>()
+    for (line in kept) {
+        val blank = PyText.strip(line).isEmpty()
+        if (blank && (prose.isEmpty() || PyText.strip(prose.last()).isEmpty())) continue
+        prose.add(line)
+    }
+    while (prose.isNotEmpty() && PyText.strip(prose.last()).isEmpty()) prose.removeAt(prose.lastIndex)
+    return prose.joinToString("\n") to tables
+}
+
 /** A cell holding exactly one of these is a merge marker, not content. */
 private const val MERGE_LEFT = "<"
 private const val MERGE_UP = "^"
@@ -603,12 +781,14 @@ internal fun splitRow(line: String): List<String> {
  */
 object Notebook {
 
-    /** Starting categories, from core/themes.py's DEFAULT_CATEGORY_COLORS. */
-    val DEFAULT_CATEGORY_COLORS = mapOf(
-        "General" to "#7c5cff",
-        "Work" to "#4cc9f0",
-        "Personal" to "#f9c74f",
-    )
+    // The reasons a write refuses, worded once. Each is shown to a person,
+    // so each says what happened and what it means for their notes.
+    private const val NOWHERE = "There is nowhere to keep the notes."
+    private const val UNREADABLE =
+        "Your notes file could not be read, so nothing will be written over it."
+    private const val GONE = "This note is no longer in the notes file."
+    private const val BAD_DATE = "A date is written like 2026-10-17."
+    private const val ROW_GONE = "That row is no longer there."
 
     /**
      * What a read produced, including why it produced nothing.
@@ -630,11 +810,10 @@ object Notebook {
         val trash: List<Note> = emptyList(),
         val trashFile: File? = null,
         val trashRaw: JSONArray? = null,
-        val retentionDays: Int = TRASH_RETENTION_DAYS,
+        val retentionDays: Int = Settings.TRASH_RETENTION_DAYS,
+        /** The settings this notebook was read with; null only in tests. */
+        val settings: Settings.Load? = null,
     )
-
-    /** The desktop's default window, and its clamp on a hand-edited one. */
-    const val TRASH_RETENTION_DAYS = 30
 
     /**
      * How many days this entry has left before the DESKTOP purges it.
@@ -654,70 +833,98 @@ object Notebook {
     }
 
     /**
-     * Looks for the notebook in the app's own external folder, which `adb
-     * push` can write to without any permission and without root. The
-     * internal folder is checked second so a future in-app import lands
-     * somewhere the user's file manager cannot reach.
+     * Reads the notebook kept in [dir]: the notes, the Trash and the
+     * settings that go with them.
+     *
+     * A file that is missing is an empty notebook, ready for its first
+     * note. A file that exists but cannot be read is the desktop's case
+     * exactly, and gets the desktop's answer: its bytes are copied aside
+     * (`notes_data_corrupt_<stamp>.json`, never deleted), the app starts
+     * with an empty list, and [Load.problem] says what happened and where
+     * the copy is. Only when even the copy fails is the file left as the
+     * one thing nothing may write over -- `raw` stays null, and every
+     * write refuses.
+     */
+    fun load(dir: File): Load {
+        val settings = Settings.load(dir)
+        val problems = ArrayList<String>()
+        settings.problem?.let { problems.add(it) }
+
+        val file = File(dir, "notes_data.json")
+        val raw = readOrRescue(file, "Your notes file", problems)
+        val trashFile = File(dir, "trash.json")
+        val trashRaw = readOrRescue(trashFile, "The Trash", problems)
+
+        return Load(
+            notes = raw?.let { notesOf(it) } ?: emptyList(),
+            categories = Settings.categories(settings.raw, raw),
+            source = file.path,
+            problem = problems.joinToString("\n").ifEmpty { null },
+            file = file,
+            raw = raw,
+            trash = trashRaw?.let { notesOf(it) } ?: emptyList(),
+            trashFile = trashFile,
+            trashRaw = trashRaw,
+            retentionDays = Settings.retentionDays(settings.raw),
+            settings = settings,
+        )
+    }
+
+    /**
+     * The same notebook, read again from the arrays in memory rather than
+     * from the disk. After a write succeeded those arrays ARE what the files
+     * hold, so parsing them is all a refresh needs; reading half a megabyte
+     * back off the flash after every autosave would cost a weak phone for
+     * nothing.
+     */
+    fun refreshed(load: Load): Load = load.copy(
+        notes = load.raw?.let { notesOf(it) } ?: emptyList(),
+        trash = load.trashRaw?.let { notesOf(it) } ?: emptyList(),
+        categories = load.settings?.let { Settings.categories(it.raw, load.raw) } ?: load.categories,
+        retentionDays = load.settings?.let { Settings.retentionDays(it.raw) } ?: load.retentionDays,
+    )
+
+    /**
+     * The first of [dirs] that holds a notebook, else the first of them --
+     * where a new notebook would go.
      */
     fun load(dirs: List<File>): Load {
-        for (dir in dirs) {
-            val file = File(dir, "notes_data.json")
-            if (!file.isFile) continue
-            val text = try {
-                file.readText()
-            } catch (e: Exception) {
-                return Load(emptyList(), emptyMap(), file.path, "nu s-a putut citi: ${e.message}")
-            }
-            val raw = try {
-                JSONArray(text)
-            } catch (e: Exception) {
-                null
-            }
-            val notes = parseNotes(text)
-            val settings = File(dir, "settings.json")
-            val settingsText = if (settings.isFile) {
-                try { settings.readText() } catch (e: Exception) { "" }
-            } else {
-                ""
-            }
-            val categories = parseCategories(settingsText)
+        val dir = dirs.firstOrNull { File(it, "notes_data.json").isFile } ?: dirs.firstOrNull()
+            ?: return Load(emptyList(), Themes.DEFAULT_CATEGORY_COLORS, "?",
+                           "There is nowhere to keep a notebook.")
+        return load(dir)
+    }
 
-            val trashFile = File(dir, "trash.json")
-            val trashText = if (trashFile.isFile) {
-                try { trashFile.readText() } catch (e: Exception) { "" }
-            } else {
-                ""
-            }
-            val trashRaw = try { JSONArray(trashText) } catch (e: Exception) { null }
-            val problem = if (notes.isEmpty()) {
-                "fisierul exista (${file.length()} octeti) dar nu a dat nicio notita"
-            } else {
-                null
-            }
-            return Load(
-                notes = notes,
-                categories = DEFAULT_CATEGORY_COLORS + categories,
-                source = file.path,
-                problem = problem,
-                file = file,
-                raw = raw,
-                trash = parseNotes(trashText),
-                trashFile = trashFile,
-                trashRaw = trashRaw,
-                retentionDays = parseRetentionDays(settingsText),
-            )
+    /**
+     * The array in [file]: empty when the file does not exist yet, null
+     * only when it exists, cannot be read AND could not be copied aside.
+     */
+    private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
+        if (!file.isFile) return JSONArray()
+        val parsed = try {
+            JSONArray(file.readText(Charsets.UTF_8))
+        } catch (e: Exception) {
+            null
         }
-        // No notebook here yet. Still name where one would go, so a first
-        // captured note can create the file instead of having nowhere to
-        // land -- a fresh phone must be able to take a note.
-        val destination = dirs.firstOrNull()?.let { File(it, "notes_data.json") }
-        return Load(
-            emptyList(), DEFAULT_CATEGORY_COLORS,
-            destination?.path ?: "?",
-            "nu exista inca un fisier de notite aici",
-            destination,
-            null,
-        )
+        if (parsed != null) return parsed
+        val kept = Files.preserveCorrupt(file)
+        if (kept == null) {
+            problems.add("$what could not be read, and could not be copied aside either, " +
+                "so nothing will be written over it.")
+            return null
+        }
+        problems.add("$what could not be read, so the app started without it. Nothing " +
+            "was deleted: the file was kept as ${kept.name}, beside the notes.")
+        return JSONArray()
+    }
+
+    private fun notesOf(array: JSONArray): List<Note> {
+        val out = ArrayList<Note>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            out.add(readNote(obj))
+        }
+        return out
     }
 
     /**
@@ -748,16 +955,18 @@ object Notebook {
         date: String = "",
         pinned: Boolean = false,
         formatting: List<FormatSpan> = emptyList(),
+        paragraphs: JSONArray? = null,
+        comments: String = "",
+        // Items already of the note's shape -- {"text", "done"} -- as a
+        // template's checklist is once normalized.
+        checklist: JSONArray? = null,
     ): SaveResult {
         if (date.isNotBlank() && !isDate(date)) {
-            return SaveResult.Failed("data trebuie scrisa ca 2026-09-12")
+            return SaveResult.Failed(BAD_DATE)
         }
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde sa scriu fisierul de notite")
-        if (file.exists() && load.raw == null) {
-            return SaveResult.Failed(
-                "fisierul exista dar nu s-a putut citi -- nu scriu peste el")
-        }
+            ?: return SaveResult.Failed(NOWHERE)
+        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
         val array = load.raw ?: JSONArray()
 
         // Read the highest id from the RAW array: a note the model skipped
@@ -780,7 +989,7 @@ object Notebook {
         note.put("title", mendSurrogates(title))
         note.put("body", mendSurrogates(body))
         note.put("formatting", spansToJson(formatting))
-        note.put("comments", "")
+        note.put("comments", mendSurrogates(comments))
         note.put("category", category.trim().ifEmpty { "General" })
         note.put("date", date.trim())
         note.put("color", sanitizeColor(color))
@@ -790,9 +999,10 @@ object Notebook {
         note.put("recurrence", defaultRecurrence())
         note.put("exceptions", JSONArray())
         note.put("overrides", JSONObject())
+        note.put("moved", JSONObject())
         note.put("pinned", pinned)
-        note.put("checklist", JSONArray())
-        note.put("paragraphs", JSONArray())
+        note.put("checklist", checklist ?: JSONArray())
+        note.put("paragraphs", paragraphs ?: JSONArray())
 
         array.put(note)
         val problem = writeAtomic(file, array)
@@ -835,14 +1045,18 @@ object Notebook {
         // it has been keeping in step with its own text as the user typed.
         // Remapping those again would move them twice.
         formatting: List<FormatSpan>? = null,
+        comments: String? = null,
+        // The same for the lines' lists, indents and alignment: an editor
+        // that changes them hands back what it kept in step with its text.
+        paragraphs: JSONArray? = null,
     ): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
 
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val oldTitle = (note.opt("title") as? String) ?: ""
         val oldBody = (note.opt("body") as? String) ?: ""
@@ -852,7 +1066,7 @@ object Notebook {
         // A date is refused rather than silently dropped: the user typed
         // it, so a wrong one is worth saying out loud.
         if (date != null && date.isNotBlank() && !isDate(date)) {
-            return SaveResult.Failed("data trebuie scrisa ca 2026-09-12")
+            return SaveResult.Failed(BAD_DATE)
         }
         // The coupling that is easy to miss: `normalize_note` THROWS AWAY a
         // recurrence rule whose note has no valid date. Clearing the date
@@ -862,16 +1076,20 @@ object Notebook {
             ?.isNotEmpty() == true
         if (repeats && date != null && date.isBlank()) {
             return SaveResult.Failed(
-                "notita se repeta — stergerea datei i-ar sterge si repetarea")
+                "This note repeats; clearing its date would also delete the repeat.")
         }
 
         val spans = readSpans(note.opt("formatting") as? JSONArray)
-        val metaChanged = (formatting != null && formatting != spans) ||
+        val pinChanged = pinned != null && pinned != (note.opt("pinned") == true)
+        val otherChanged = (formatting != null && formatting != spans) ||
             (category != null && category != note.opt("category")) ||
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
             (date != null && date.trim() != (note.opt("date") ?: "")) ||
-            (pinned != null && pinned != (note.opt("pinned") == true))
-        if (oldTitle == newTitle && oldBody == newBody && !metaChanged) {
+            (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: "")) ||
+            (paragraphs != null && Exporting.normalizeParagraphs(paragraphs, null) !=
+                Exporting.normalizeParagraphs(note.opt("paragraphs"), null))
+        val wordsChanged = oldTitle != newTitle || oldBody != newBody
+        if (!wordsChanged && !otherChanged && !pinChanged) {
             return SaveResult.Ok(id)          // nothing to write
         }
 
@@ -896,15 +1114,20 @@ object Notebook {
         note.put("title", newTitle)
         note.put("body", newBody)
         note.put("formatting", spansToJson(moved.spans))
-        note.put("paragraphs", movedParagraphs(note, oldBody, newBody))
+        note.put("paragraphs", paragraphs ?: movedParagraphs(note, oldBody, newBody))
         if (category != null) {
             note.put("category", category.trim().ifEmpty { "General" })
         }
         if (color != null) note.put("color", sanitizeColor(color))
         if (date != null) note.put("date", date.trim())
         if (pinned != null) note.put("pinned", pinned)
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        if (comments != null) note.put("comments", mendSurrogates(comments))
+        // A pin alone is not an edit: the desktop's `toggle_pin` leaves the
+        // time alone, and so does a pin from the note's details here.
+        if (wordsChanged || otherChanged) {
+            note.put("updated",
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        }
         // `created` is deliberately untouched: an edit is not a birth.
 
         val problem = writeAtomic(file, array)
@@ -922,16 +1145,16 @@ object Notebook {
      */
     fun setChecklistDone(load: Load, id: Int, index: Int, done: Boolean): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val checklist = note.opt("checklist") as? JSONArray
-            ?: return SaveResult.Failed("notita nu are checklist")
+            ?: return SaveResult.Failed("This note has no checklist.")
         val item = checklist.opt(index) as? JSONObject
-            ?: return SaveResult.Failed("randul nu mai exista")
+            ?: return SaveResult.Failed(ROW_GONE)
         if (item.opt("done") == done) return SaveResult.Ok(id)
 
         item.put("done", done)
@@ -962,13 +1185,13 @@ object Notebook {
      */
     fun deleteNote(load: Load, id: Int): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu sterg nimic")
+            ?: return SaveResult.Failed(UNREADABLE)
         val trashFile = load.trashFile
-            ?: return SaveResult.Failed("nu stiu unde e cosul")
+            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
         if (trashFile.exists() && load.trashRaw == null) {
-            return SaveResult.Failed("cosul exista dar nu s-a putut citi -- nu sterg nimic")
+            return SaveResult.Failed("The Trash could not be read, so nothing was deleted.")
         }
 
         var index = -1
@@ -980,7 +1203,7 @@ object Notebook {
                 break
             }
         }
-        if (index < 0) return SaveResult.Failed("notita nu mai exista in fisier")
+        if (index < 0) return SaveResult.Failed(GONE)
         val note = array.get(index) as JSONObject
 
         // A deep copy, so a failure below leaves the original note whole.
@@ -999,7 +1222,8 @@ object Notebook {
         trashCandidate.put(entry)
         val trashProblem = writeAtomic(trashFile, trashCandidate)
         if (trashProblem != null) {
-            return SaveResult.Failed("nu am putut scrie in cos: $trashProblem")
+            return SaveResult.Failed("The Trash could not be written ($trashProblem), " +
+                "so nothing was deleted.")
         }
         trash.put(entry)
 
@@ -1009,7 +1233,7 @@ object Notebook {
             // The copy in the trash stays. Say so plainly -- a duplicate the
             // user can see beats a silent half-delete.
             return SaveResult.Failed(
-                "$problem — notita e in cos dar si in lista; nu s-a pierdut nimic")
+                "$problem — the note is in the Trash and still in the list; nothing was lost.")
         }
         array.remove(index)
         return SaveResult.Ok(id)
@@ -1039,11 +1263,12 @@ object Notebook {
      */
     fun restoreFromTrash(load: Load, id: Int): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi")
-        val trashFile = load.trashFile ?: return SaveResult.Failed("nu stiu unde e cosul")
-        val trash = load.trashRaw ?: return SaveResult.Failed("cosul nu s-a putut citi")
+            ?: return SaveResult.Failed(UNREADABLE)
+        val trashFile = load.trashFile
+            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
+        val trash = load.trashRaw ?: return SaveResult.Failed("The Trash could not be read.")
 
         var index = -1
         for (i in 0 until trash.length()) {
@@ -1054,7 +1279,7 @@ object Notebook {
                 break
             }
         }
-        if (index < 0) return SaveResult.Failed("notita nu mai e in cos")
+        if (index < 0) return SaveResult.Failed("This note is no longer in the Trash.")
         val entry = trash.get(index) as JSONObject
 
         val restored = JSONObject(entry.toString())
@@ -1078,7 +1303,7 @@ object Notebook {
         val trashProblem = writeAtomic(trashFile, trashCandidate)
         if (trashProblem != null) {
             return SaveResult.Failed(
-                "$trashProblem — notita e restaurata dar a ramas si in cos")
+                "$trashProblem — the note is restored, and is still in the Trash too.")
         }
         trash.remove(index)
         return SaveResult.Ok(newId)
@@ -1096,7 +1321,7 @@ object Notebook {
     fun addChecklistItem(load: Load, id: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
-                return@editChecklist "checklistul a atins limita de $MAX_CHECKLIST_ITEMS randuri"
+                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
             }
             val item = JSONObject()
             item.put("text", mendSurrogates(text))
@@ -1109,9 +1334,29 @@ object Notebook {
     fun renameChecklistItem(load: Load, id: Int, index: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             val item = checklist.opt(index) as? JSONObject
-                ?: return@editChecklist "randul nu mai exista"
+                ?: return@editChecklist ROW_GONE
             // In place, so a field this app does not model survives a rename.
             item.put("text", mendSurrogates(text))
+            null
+        }
+    }
+
+    /**
+     * Moves one row to another place in the list -- the drag handle, the
+     * desktop's ▲ ▼. The row object itself moves, so a field this app does
+     * not model goes with it, and its tick stays its own.
+     */
+    fun moveChecklistItem(load: Load, id: Int, from: Int, to: Int): SaveResult {
+        return editChecklist(load, id) { checklist ->
+            if (from !in 0 until checklist.length() || to !in 0 until checklist.length()) {
+                return@editChecklist ROW_GONE
+            }
+            if (from == to) return@editChecklist null
+            val rows = (0 until checklist.length()).map { checklist.get(it) }.toMutableList()
+            val row = rows.removeAt(from)
+            rows.add(to, row)
+            while (checklist.length() > 0) checklist.remove(checklist.length() - 1)
+            rows.forEach { checklist.put(it) }
             null
         }
     }
@@ -1119,7 +1364,7 @@ object Notebook {
     fun removeChecklistItem(load: Load, id: Int, index: Int): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (index < 0 || index >= checklist.length()) {
-                return@editChecklist "randul nu mai exista"
+                return@editChecklist ROW_GONE
             }
             checklist.remove(index)
             null
@@ -1138,11 +1383,11 @@ object Notebook {
         change: (JSONArray) -> String?,
     ): SaveResult {
         val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde e fisierul de notite")
+            ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi -- nu scriu peste el")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
 
         val current = note.opt("checklist") as? JSONArray ?: JSONArray()
         // A DEEP copy. A shallow one shares each row object with the
@@ -1152,7 +1397,7 @@ object Notebook {
         val candidate = try {
             JSONArray(current.toString())
         } catch (e: Exception) {
-            return SaveResult.Failed("checklistul nu s-a putut citi")
+            return SaveResult.Failed("This note's checklist could not be read.")
         }
         val refusal = change(candidate)
         if (refusal != null) return SaveResult.Failed(refusal)
@@ -1201,13 +1446,13 @@ object Notebook {
         newLines: List<String>,
     ): SaveResult {
         val array = load.raw
-            ?: return SaveResult.Failed("notebook-ul nu s-a putut citi")
+            ?: return SaveResult.Failed(UNREADABLE)
         val note = findById(array, id)
-            ?: return SaveResult.Failed("notita nu mai exista in fisier")
+            ?: return SaveResult.Failed(GONE)
         val body = (note.opt("body") as? String) ?: ""
         val blocks = tableBlocks(body)
         if (blockIndex !in blocks.indices) {
-            return SaveResult.Failed("tabelul nu mai e acolo")
+            return SaveResult.Failed("That table is no longer there.")
         }
         val title = (note.opt("title") as? String) ?: ""
         return updateNote(load, id, title, replaceTable(body, blocks[blockIndex], newLines))
@@ -1237,173 +1482,219 @@ object Notebook {
             val notes: List<JSONObject>,
             /** How many of them are notes this device already has. */
             val known: Int,
+            /** The questions this import raises; see [Importing]. */
+            val plan: Importing.Plan,
         ) : Inspection()
     }
 
+    /**
+     * What a pasted code holds, sorted by [Importing.plan] -- matched by
+     * identity, not resemblance: matching on the text would say "new note"
+     * exactly when a note has been edited, which is the only time anyone
+     * sends one back.
+     */
     fun inspectShareCode(load: Load, code: String): Inspection {
         val decoded = Sharing.decode(code)
         if (decoded is Sharing.Decoded.Failed) return Inspection.Failed(decoded.reason)
         val notes = (decoded as Sharing.Decoded.Notes).notes
-        val array = load.raw
-        var known = 0
-        if (array != null) {
-            for (note in notes) {
-                if (findByUid(array, note.opt("uid") as? String) != null) known += 1
-            }
-        }
-        return Inspection.Ready(notes, known)
+        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE, load.categories.keys)
+        return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
     }
 
     /**
-     * The note that IS this one, or null.
-     *
-     * Identity, not resemblance: matching on the text would say "new
-     * note" exactly when a note has been edited, which is the only time
-     * anyone sends one back.
-     */
-    private fun findByUid(array: JSONArray, uid: String?): JSONObject? {
-        val at = indexByUid(array, uid)
-        return if (at < 0) null else array.opt(at) as? JSONObject
-    }
-
-    /**
-     * Where that note sits, or -1.
-     *
-     * The position, not just the object, because a write replaces the
-     * entry rather than editing it -- see [applyShareCode].
-     */
-    private fun indexByUid(array: JSONArray, uid: String?): Int {
-        val wanted = uid?.trim()
-        // An empty identity is not an identity. Notes that reached this
-        // device before the desktop minted any carry none, and letting
-        // "" match "" would make every one of them the same note.
-        if (wanted.isNullOrEmpty()) return -1
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            if ((o.opt("uid") as? String)?.trim() == wanted) return i
-        }
-        return -1
-    }
-
-    /**
-     * Writes an inspected code's notes.
-     *
-     * [update] decides what happens to the ones this device already has:
-     * true replaces their content in place, false adds them beside the
-     * originals with fresh identities. Notes nothing here matches are
-     * always created either way.
+     * Writes a code's notes. [update] answers the one question the old
+     * panel asked: true replaces the notes this device already has, false
+     * adds them beside the originals without their identity. Notes nothing
+     * here matches are added either way. The screen now asks every
+     * question through [Importing]; this is that route with one answer.
      */
     fun applyShareCode(
         load: Load,
         notes: List<JSONObject>,
         update: Boolean,
     ): SaveResult {
-        val file = load.file
-            ?: return SaveResult.Failed("nu stiu unde sa scriu fisierul de notite")
-        if (file.exists() && load.raw == null) {
-            return SaveResult.Failed(
-                "fisierul exista dar nu s-a putut citi -- nu scriu peste el")
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
+        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
+        val answers = Importing.Answers(update = update, copyUnchanged = !update)
+        return when (val result = Importing.apply(load, plan, answers, attachmentsDir = null)) {
+            is Importing.Result.Failed -> SaveResult.Failed(result.reason)
+            is Importing.Result.Done ->
+                SaveResult.Ok(result.outcome.firstId,
+                              imported = result.outcome.added + result.outcome.updated)
         }
-        val array = load.raw ?: JSONArray()
-        val candidate = copyOf(array)
-        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-
-        var maxId = 0
-        for (i in 0 until candidate.length()) {
-            val o = candidate.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() > maxId) maxId = itsId.toInt()
-        }
-
-        var created = 0
-        var updated = 0
-        var firstId = 0
-        for (shared in notes) {
-            val at = indexByUid(candidate, shared.opt("uid") as? String)
-            if (at >= 0 && update) {
-                // The candidate array holds the SAME note objects as the
-                // live one -- copying an array copies references. So the
-                // update is made on a copy that replaces the entry here;
-                // editing the note in place would change what the screen
-                // shows before the write has had a chance to fail.
-                val mine = JSONObject((candidate.opt(at) as JSONObject).toString())
-                applySharedUpdate(mine, shared, now)
-                candidate.put(at, mine)
-                updated += 1
-                val itsId = mine.opt("id")
-                if (firstId == 0 && itsId is Number) firstId = itsId.toInt()
-                continue
-            }
-            val note = JSONObject(shared.toString())
-            // A copy the user asked to keep SEPARATE must not wear the
-            // identity of the note it came from: one note with two ids is
-            // the collision the field exists to prevent.
-            if (at >= 0) note.remove("uid")
-            maxId += 1
-            if (firstId == 0) firstId = maxId
-            note.put("id", maxId)
-            fillNewNoteDefaults(note, now)
-            candidate.put(note)
-            created += 1
-        }
-
-        val problem = writeAtomic(file, candidate)
-        if (problem != null) return SaveResult.Failed(problem)
-        // Only now does the array the screen reads change.
-        load.raw?.let { live ->
-            while (live.length() > 0) live.remove(live.length() - 1)
-            for (i in 0 until candidate.length()) live.put(candidate.get(i))
-        }
-        return SaveResult.Ok(firstId, imported = created + updated)
     }
 
     /**
-     * Overwrite a note's content from an incoming copy, keeping a way back.
-     *
-     * The rescue copy goes into `_prev`, which is the desktop's own
-     * one-step undo -- the editor there reads it for "↩ Restore
-     * previous". Writing it means an update made by mistake is one button
-     * away from being undone, on the machine that has the button.
+     * The fields an incoming copy replaces: the desktop's
+     * UPDATABLE_FROM_SHARED. Never the id, the attachments (a code carries
+     * none) or the per-day maps, a timeline the sender's copy may not share.
      */
-    private fun applySharedUpdate(note: JSONObject, incoming: JSONObject, now: String) {
-        val previous = JSONObject()
-        previous.put("title", note.opt("title") ?: "")
-        previous.put("body", note.opt("body") ?: "")
-        previous.put("formatting", note.opt("formatting") ?: JSONArray())
-        previous.put("paragraphs", note.opt("paragraphs") ?: JSONArray())
-        previous.put("comments", note.opt("comments") ?: "")
-        note.put("_prev", previous)
-        // The same fields the desktop's UPDATABLE_FROM_SHARED replaces --
-        // never the id, the attachments (a code carries none) or the
-        // per-occurrence maps, which belong to this device's copy.
-        for (field in listOf("title", "body", "formatting", "paragraphs",
-                             "comments", "category", "date", "color",
-                             "recurrence", "checklist")) {
-            if (incoming.has(field)) note.put(field, incoming.get(field))
+    val UPDATABLE_FROM_SHARED = listOf(
+        "title", "body", "formatting", "paragraphs",
+        "comments", "category", "date", "color", "recurrence", "checklist",
+    )
+
+    /**
+     * A backup is the person's OWN notebook, so its copy also owns its
+     * timeline and its pin: the desktop's UPDATABLE_FROM_BACKUP.
+     */
+    val UPDATABLE_FROM_BACKUP = UPDATABLE_FROM_SHARED + listOf(
+        "exceptions", "overrides", "moved", "pinned",
+    )
+
+    /** The text half of a rescue copy, which every `_prev` has. */
+    val PREV_TEXT_FIELDS = listOf("title", "body", "formatting", "paragraphs", "comments")
+
+    /**
+     * What else a rescue copy can hold, and the word the restore question
+     * uses for it -- the desktop's `_PREV_EXTRA_LABELS`, in its order.
+     */
+    val PREV_EXTRA_LABELS = listOf(
+        "checklist" to "checklist", "date" to "date",
+        "recurrence" to "repeat rule", "color" to "colour",
+        "category" to "category", "overrides" to "per-day edits",
+        "exceptions" to "skipped days", "moved" to "moved days",
+        "pinned" to "pin",
+    )
+
+    /**
+     * A field's value as a load would shape it: what `normalize_note`
+     * fills in for one that is missing or of the wrong type, so a copy that
+     * omits an empty checklist does not differ from a note holding one.
+     */
+    private fun shaped(note: JSONObject, field: String): Any {
+        val value = note.opt(field)
+        return when (field) {
+            "formatting", "paragraphs", "checklist", "exceptions" ->
+                value as? JSONArray ?: JSONArray()
+            // A rule with keys missing is the default rule with those keys
+            // filled, as RECURRENCE_DEFAULTS fills them on a load.
+            "recurrence" -> {
+                val rule = defaultRecurrence()
+                (value as? JSONObject)?.let { given ->
+                    for (key in given.keys()) rule.put(key, given.opt(key))
+                }
+                rule
+            }
+            "overrides", "moved" -> value as? JSONObject ?: JSONObject()
+            "pinned" -> value == true
+            "category" -> (value as? String)?.ifEmpty { null } ?: "General"
+            else -> value as? String ?: ""
         }
-        note.put("updated", now)
     }
 
-    /** The fields a code never carries, filled as a new note fills them. */
-    private fun fillNewNoteDefaults(note: JSONObject, now: String) {
-        note.put("attachments", JSONArray())
-        note.put("exceptions", JSONArray())
-        note.put("overrides", JSONObject())
-        note.put("pinned", false)
-        note.put("updated", now)
-        note.put("created", now)
-        if (!note.has("recurrence")) note.put("recurrence", defaultRecurrence())
-        if (!note.has("uid")) {
-            note.put("uid", java.util.UUID.randomUUID().toString())
+    /**
+     * Whether updating [note] from [incoming] would change any of [fields].
+     * A no-change update would replace the rescue copy with a duplicate and
+     * lose the one earlier version: the desktop's `shared_update_changes`.
+     */
+    internal fun sharedUpdateChanges(
+        note: JSONObject, incoming: JSONObject, fields: List<String>,
+    ): Boolean {
+        // Both as a load shapes them, as the desktop compares them since its
+        // own unchanged backup read as "edited elsewhere": a day's empty
+        // colour, styles in another order, a closing table's line -- each a
+        // difference no person made, and an Update on one spent the note's
+        // only rescue copy on a copy of itself.
+        val mine = Normalize.normalizeNote(note)
+        val theirs = Normalize.normalizeNote(incoming)
+        return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
+    }
+
+    /**
+     * Overwrite a note's [fields] from an incoming copy, keeping everything
+     * they held in `_prev` -- the rescue copy "↩ Restore previous" puts
+     * back, the checklist's ticks and the repeat rule included, not only
+     * the words. An update that changes nothing leaves the note alone.
+     *
+     * @return whether the note changed.
+     */
+    internal fun applyUpdate(
+        note: JSONObject,
+        incoming: JSONObject,
+        now: String,
+        fields: List<String> = UPDATABLE_FROM_SHARED,
+    ): Boolean {
+        if (!sharedUpdateChanges(note, incoming, fields)) return false
+        val previous = JSONObject()
+        for (field in PREV_TEXT_FIELDS) previous.put(field, shaped(note, field))
+        for (field in fields) {
+            if (!previous.has(field)) previous.put(field, deepCopy(shaped(note, field)))
         }
-        for (field in listOf("title", "body", "comments", "category", "date", "color")) {
-            if (!note.has(field)) {
-                note.put(field, if (field == "category") "General" else "")
+        note.put("_prev", previous)
+        for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
+        note.put("updated", now)
+        return true
+    }
+
+    /** A JSON value copied all the way down, so two notes never share a list. */
+    private fun deepCopy(value: Any): Any = when (value) {
+        is JSONObject -> JSONObject(value.toString())
+        is JSONArray -> JSONArray(value.toString())
+        else -> value
+    }
+
+    /**
+     * Structural equality: the same keys with the same values, in any
+     * order. Comparing the text instead calls two identical rules
+     * different when their keys were written in another order.
+     */
+    internal fun sameJson(a: Any?, b: Any?): Boolean = when {
+        a is JSONObject && b is JSONObject ->
+            a.length() == b.length() && a.keys().asSequence().all { b.has(it) && sameJson(a.opt(it), b.opt(it)) }
+        a is JSONArray && b is JSONArray ->
+            a.length() == b.length() && (0 until a.length()).all { sameJson(a.opt(it), b.opt(it)) }
+        a is Number && b is Number -> a.toDouble() == b.toDouble()
+        else -> a == b
+    }
+
+    /**
+     * Brings back the rescue copy: the text a drastic shortening replaced,
+     * or everything an update replaced. Written straight onto the note, as
+     * the desktop writes it; the copy is spent, and a category deleted in
+     * the meantime comes back as General.
+     */
+    fun restorePrevious(load: Load, id: Int): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val index = indexById(array, id)
+        if (index < 0) return SaveResult.Failed(GONE)
+        val live = array.get(index) as JSONObject
+        val previous = live.opt("_prev") as? JSONObject
+            ?: return SaveResult.Failed("This note has no earlier version to bring back.")
+        val note = JSONObject(live.toString())
+        for (field in PREV_TEXT_FIELDS) note.put(field, shaped(previous, field))
+        for ((field, _) in PREV_EXTRA_LABELS) {
+            if (previous.has(field)) note.put(field, deepCopy(shaped(previous, field)))
+        }
+        val categories = load.categories
+        if ((note.opt("category") as? String) !in categories) note.put("category", "General")
+        (note.opt("overrides") as? JSONObject)?.let { overrides ->
+            for (day in overrides.keys()) {
+                val patch = overrides.opt(day) as? JSONObject ?: continue
+                if (patch.has("category") && (patch.opt("category") as? String) !in categories) {
+                    patch.put("category", "General")
+                }
             }
         }
-        for (field in listOf("formatting", "paragraphs", "checklist")) {
-            if (!note.has(field)) note.put(field, JSONArray())
+        note.remove("_prev")
+        note.put("updated", Files.now())
+        val candidate = copyOf(array)
+        candidate.put(index, note)
+        val problem = writeAtomic(file, candidate)
+        if (problem != null) return SaveResult.Failed(problem)
+        array.put(index, note)
+        return SaveResult.Ok(id)
+    }
+
+    private fun indexById(array: JSONArray, id: Int): Int {
+        for (i in 0 until array.length()) {
+            val o = array.opt(i) as? JSONObject ?: continue
+            val itsId = o.opt("id")
+            if (itsId is Number && itsId.toInt() == id) return i
         }
+        return -1
     }
 
     /** The desktop's rule for when an edit deserves a rescue copy. */
@@ -1419,14 +1710,19 @@ object Notebook {
         return removed > 40 && (bigFraction || bigAbsolute)
     }
 
-    private fun spansToJson(spans: List<FormatSpan>): JSONArray {
+    internal fun spansToJson(spans: List<FormatSpan>): JSONArray {
         val array = JSONArray()
         for (span in spans) {
             val o = JSONObject()
             o.put("start", span.start)
             o.put("end", span.end)
             o.put("style", span.style)
-            if (span.value.isNotEmpty()) o.put("value", span.value)
+            if (span.value.isNotEmpty()) {
+                // Back as the number the desktop keeps a size as: "20" in
+                // quotes is a size its normalize_formatting refuses.
+                val size = if (span.style == "font_size") span.value.toIntOrNull() else null
+                o.put("value", size ?: span.value)
+            }
             array.put(o)
         }
         return array
@@ -1434,22 +1730,53 @@ object Notebook {
 
     private fun movedParagraphs(note: JSONObject, old: String, new: String): JSONArray {
         val source = note.opt("paragraphs") as? JSONArray ?: return JSONArray()
+        val oldLines = old.split("\n").size
         val byLine = LinkedHashMap<Int, JSONObject>()
         for (i in 0 until source.length()) {
             val o = source.opt(i) as? JSONObject ?: continue
-            val line = o.opt("line")
-            if (line is Number) byLine[line.toInt()] = o
+            // The entry the desktop's normalize_paragraphs would keep for a
+            // line, and only that one. A line is a whole number -- or
+            // true/false, which Python counts as 1 and 0; not 1.0, which it
+            // refuses. Within the text as it was: a line past its end is
+            // dropped there, and an edit adding lines must not revive it.
+            // The FIRST usable entry for a line wins, as there; a later one
+            // for the same line once replaced it here.
+            val line = when (val raw = o.opt("line")) {
+                is Int -> raw
+                is Long -> if (raw in 0..Int.MAX_VALUE.toLong()) raw.toInt() else continue
+                is Boolean -> if (raw) 1 else 0
+                else -> continue
+            }
+            if (line < 0 || line >= oldLines || line in byLine || !worthKeeping(o)) continue
+            byLine[line] = o
         }
         val survivors = remapParagraphLines(old, new, byLine.keys.toList())
         val kept = JSONArray()
         for ((oldLine, newLine) in survivors) {
             val marker = byLine[oldLine] ?: continue
-            val moved = JSONObject()
+            // The whole entry moves, only its line changes. A paragraph can
+            // be centred, or indented, without being a list at all; this
+            // once rebuilt each entry from its line and its kind alone, and
+            // wrote "bullet" where there was no kind -- an edit on the phone
+            // turned a centred line into a bullet and dropped its indent.
+            val moved = JSONObject(marker.toString())
             moved.put("line", newLine)
-            moved.put("kind", marker.opt("kind") ?: "bullet")
             kept.put(moved)
         }
         return kept
+    }
+
+    /**
+     * Whether the desktop records an entry at all: a list kind, a centred
+     * or right alignment, or an indent. A plain left line has none, and an
+     * entry for one does not claim its line there.
+     */
+    private fun worthKeeping(o: JSONObject): Boolean {
+        val kind = o.opt("kind")
+        val align = o.opt("align")
+        val indent = o.opt("indent")
+        return kind == "bullet" || kind == "number" || align == "center" || align == "right" ||
+            ((indent is Int || indent is Long) && (indent as Number).toLong() > 0)
     }
 
     /** RECURRENCE_DEFAULTS, field for field. "" freq means a one-off note. */
@@ -1466,38 +1793,12 @@ object Notebook {
     }
 
     /**
-     * Dump to a sibling `.tmp`, force it to the disk, then rename over the
-     * real file. A crash mid-write leaves the old notebook whole, because
-     * rename is atomic within a filesystem; a half-written file never
-     * carries the real name.
-     *
-     * The `sync()` is one step stronger than the desktop's, on purpose:
-     * a phone's process is killed far more casually than a PC's, so
-     * "written" has to mean "on the flash", not "in a buffer".
-     *
-     * @return null when it worked, otherwise the reason.
+     * Indent 2, non-ASCII left alone: the same bytes the desktop writes,
+     * so a file can move between the two unchanged. The writing itself is
+     * [Files.writeAtomic], the one copy every data file uses.
      */
-    private fun writeAtomic(file: File, array: JSONArray): String? {
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        try {
-            // indent 2, non-ASCII left alone: the same bytes the desktop
-            // writes, so a file can move between them unchanged.
-            val bytes = array.toString(2).toByteArray(Charsets.UTF_8)
-            FileOutputStream(tmp).use { out ->
-                out.write(bytes)
-                out.flush()
-                out.fd.sync()
-            }
-        } catch (e: Exception) {
-            tmp.delete()
-            return e.message ?: e.toString()
-        }
-        if (!tmp.renameTo(file)) {
-            tmp.delete()
-            return "nu s-a putut inlocui ${file.name}"
-        }
-        return null
-    }
+    private fun writeAtomic(file: File, array: JSONArray): String? =
+        Files.writeAtomic(file, array.toString(2))
 
     fun parseNotes(text: String): List<Note> {
         val array = try {
@@ -1505,52 +1806,7 @@ object Notebook {
         } catch (e: Exception) {
             return emptyList()
         }
-        val out = ArrayList<Note>(array.length())
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-            out.add(readNote(obj))
-        }
-        return out
-    }
-
-    fun parseCategories(text: String): Map<String, String> {
-        val root = try {
-            JSONObject(text)
-        } catch (e: Exception) {
-            return emptyMap()
-        }
-        val saved = root.opt("categories") as? JSONObject ?: return emptyMap()
-        val out = LinkedHashMap<String, String>()
-        for (key in saved.keys()) {
-            val name = key.trim()
-            val color = saved.opt(key)
-            // The desktop sanitises here too: settings.json is hand-editable
-            // and travels inside backups, so "#not-a-colour" must not reach
-            // the renderer.
-            if (name.isNotEmpty() && color is String && isHexColor(color)) {
-                out[name] = color
-            }
-        }
-        return out
-    }
-
-    /**
-     * The retention window from settings, clamped the way the desktop
-     * clamps it: a hand-edited file saying 0, or -3, or "forever" must not
-     * make anything look due for deletion. Anything unusable reads as the
-     * default.
-     */
-    fun parseRetentionDays(settingsText: String): Int {
-        val root = try {
-            JSONObject(settingsText)
-        } catch (e: Exception) {
-            return TRASH_RETENTION_DAYS
-        }
-        val days = root.opt("trash_retention_days")
-        if (days !is Number || days is Double || days is Float) {
-            return TRASH_RETENTION_DAYS
-        }
-        return days.toInt().coerceIn(1, 365)
+        return notesOf(array)
     }
 
     /**
@@ -1567,27 +1823,25 @@ object Notebook {
         return v.drop(1).all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
     }
 
-    /** The colour if it is one, otherwise [fallback]. */
-    fun sanitizeColor(value: String, fallback: String = ""): String =
-        if (isHexColor(value)) value.trim() else fallback
+    /**
+     * The colour if it is one, otherwise [fallback] -- and #rgb comes back as
+     * #rrggbb, as the desktop's `sanitize_color` expands it at the door:
+     * read as six digits, `#f00` drew a near-black green.
+     */
+    fun sanitizeColor(value: String, fallback: String = ""): String {
+        if (!isHexColor(value)) return fallback
+        val v = value.trim()
+        return if (v.length == 4) "#" + v.drop(1).map { "$it$it" }.joinToString("") else v
+    }
 
     /**
-     * True for "YYYY-MM-DD" naming a day that exists.
+     * True for a stored date naming a day that exists -- the desktop's
+     * `parse_date`, asked of [Recurrence], so "a date" means one thing here.
      *
      * Not lenient: left lenient, "2026-02-30" would quietly become the 2nd
      * of March, and a note would show a date the user never chose.
      */
-    fun isDate(value: String): Boolean {
-        val v = value.trim()
-        if (!Regex("^\\d{4}-\\d{2}-\\d{2}$").matches(v)) return false
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        format.isLenient = false
-        return try {
-            format.parse(v) != null
-        } catch (e: Exception) {
-            false
-        }
-    }
+    fun isDate(value: String): Boolean = Recurrence.parseDate(value) != null
 
     private fun readNote(o: JSONObject): Note {
         val rule = o.opt("recurrence") as? JSONObject
@@ -1599,6 +1853,8 @@ object Notebook {
             color = o.str("color"),
             date = o.str("date"),
             updated = o.str("updated"),
+            created = o.str("created"),
+            order = (o.opt("order") as? Number)?.toDouble()?.takeIf { it.isFinite() && o.opt("order") !is Boolean },
             pinned = o.opt("pinned") == true,
             comments = o.str("comments"),
             attachments = o.arrayLength("attachments"),
@@ -1607,10 +1863,15 @@ object Notebook {
             checklist = readChecklist(o.opt("checklist") as? JSONArray),
             recurrenceFreq = rule?.str("freq") ?: "",
             recurrenceInterval = rule?.intOr("interval", 1) ?: 1,
+            recurrenceLabel = Recurrence.describe(o),
             exceptions = o.arrayLength("exceptions"),
             overrides = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
             deletedAt = o.str("deleted_at"),
             uid = o.str("uid"),
+            hasPrevious = o.opt("_prev") is JSONObject,
+            previousAlso = (o.opt("_prev") as? JSONObject)?.let { prev ->
+                PREV_EXTRA_LABELS.filter { (key, _) -> prev.has(key) }.map { it.second }
+            } ?: emptyList(),
         )
     }
 
@@ -1629,9 +1890,26 @@ object Notebook {
             val start = o.intOr("start", -1)
             val end = o.intOr("end", -1)
             if (start < 0 || end <= start) continue
-            out.add(FormatSpan(start, end, style, o.str("value")))
+            // A colour or a face is text in the desktop's file, but a size
+            // is a NUMBER: read as text alone, every size the desktop set
+            // came in empty -- not drawn, and written back without a value,
+            // which the desktop then dropped on its next start. And ONLY a
+            // number: a size in quotes is one the desktop refuses, and read
+            // here it went back out as a number the desktop then honoured.
+            val v = o.opt("value")
+            val value = if (style == "font_size") {
+                if (v is Int || v is Long) v.toString() else ""
+            } else {
+                v as? String ?: ""
+            }
+            out.add(FormatSpan(start, end, style, value))
         }
-        return out
+        // Bold and italic on the same letters as two spans -- a desktop file
+        // from before its `normalize_formatting` folded them -- are read as
+        // one bold_italic, as the desktop reads them on every load: the
+        // editor's styling sees one style a letter, and with two, pressing B
+        // to take the bold off took the italic with it.
+        return Exporting.foldBoldWithItalic(out)
     }
 
     private fun readChecklist(array: JSONArray?): List<ChecklistItem> {

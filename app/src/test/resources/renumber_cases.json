@@ -1,0 +1,3562 @@
+{
+"seed": 20261015,
+"cases": [
+{
+"body": "• dot\n10. ten\n1. \n1. one",
+"indents": [
+3,
+3,
+0,
+0
+],
+"renumbered": "• dot\n1. ten\n1. \n2. one"
+},
+{
+"body": "• dot\n| a | b |\n   \n   \n◦ ring\n1. \n2. two\n◦ ring\n1.no space\n2. two",
+"indents": [
+2,
+0,
+0,
+0,
+2,
+0,
+0,
+1,
+1,
+0
+],
+"renumbered": "• dot\n| a | b |\n   \n   \n◦ ring\n1. \n2. two\n◦ ring\n1.no space\n1. two"
+},
+{
+"body": "2. two",
+"indents": [
+2
+],
+"renumbered": "1. two"
+},
+{
+"body": "10. ten",
+"indents": [
+1
+],
+"renumbered": "1. ten"
+},
+{
+"body": "1. one\n10. ten\n1. ",
+"indents": [
+0,
+0,
+2
+],
+"renumbered": "1. one\n2. ten\n1. "
+},
+{
+"body": "• dot\n2. two",
+"indents": [
+1,
+1
+],
+"renumbered": "• dot\n1. two"
+},
+{
+"body": "1. \n1. one\n10. ten\n1.no space",
+"indents": [
+1,
+0,
+2,
+3
+],
+"renumbered": "1. \n1. one\n1. ten\n1.no space"
+},
+{
+"body": "   \n٣. three\n٣. three\n12. twelve",
+"indents": [
+0,
+0,
+0,
+1
+],
+"renumbered": "   \n1. three\n2. three\n1. twelve"
+},
+{
+"body": "\n◦ ring\n| a | b |\n10. ten\n10. ten\n1. one\nplain words\n• dot\n2. two",
+"indents": [
+2,
+1,
+0,
+0,
+0,
+1,
+2,
+2,
+1
+],
+"renumbered": "\n◦ ring\n| a | b |\n1. ten\n2. ten\n1. one\nplain words\n• dot\n1. two"
+},
+{
+"body": "   \n▪ square\n◦ ring\n1.no space\n| a | b |\n1. one\n| a | b |\n12. twelve\n   ",
+"indents": [
+3,
+1,
+1,
+0,
+0,
+0,
+1,
+0,
+3
+],
+"renumbered": "   \n▪ square\n◦ ring\n1.no space\n| a | b |\n1. one\n| a | b |\n1. twelve\n   "
+},
+{
+"body": "2. two\n2. two\n7. seven\n7. seven\n1. one\n1.no space",
+"indents": [
+1,
+1,
+0,
+0,
+0,
+0
+],
+"renumbered": "1. two\n2. two\n1. seven\n2. seven\n3. one\n1.no space"
+},
+{
+"body": "7. seven\n٣. three",
+"indents": [
+2,
+0
+],
+"renumbered": "1. seven\n1. three"
+},
+{
+"body": "12. twelve\n▪ square\nplain words\n   \n\n1. \n2. two\n◦ ring\n\n\nplain words",
+"indents": [
+0,
+3,
+2,
+0,
+0,
+0,
+1,
+0,
+3,
+3,
+1
+],
+"renumbered": "1. twelve\n▪ square\nplain words\n   \n\n1. \n1. two\n◦ ring\n\n\nplain words"
+},
+{
+"body": "1.no space",
+"indents": [
+3
+],
+"renumbered": "1.no space"
+},
+{
+"body": "2. two\n٣. three\n| a | b |",
+"indents": [
+2,
+0,
+0
+],
+"renumbered": "1. two\n1. three\n| a | b |"
+},
+{
+"body": "2. two\n1.no space",
+"indents": [
+0,
+1
+],
+"renumbered": "1. two\n1.no space"
+},
+{
+"body": "10. ten\n\n٣. three\n   \n| a | b |\n1. one\n   \n\n12. twelve\n2. two\n2. two",
+"indents": [
+1,
+2,
+1,
+0,
+1,
+0,
+0,
+0,
+1,
+0,
+1
+],
+"renumbered": "1. ten\n\n2. three\n   \n| a | b |\n1. one\n   \n\n1. twelve\n1. two\n1. two"
+},
+{
+"body": "• dot",
+"indents": [
+0
+],
+"renumbered": "• dot"
+},
+{
+"body": "7. seven",
+"indents": [
+3
+],
+"renumbered": "1. seven"
+},
+{
+"body": "1. \n• dot\n12. twelve\n12. twelve\n▪ square",
+"indents": [
+0,
+0,
+0,
+0,
+1
+],
+"renumbered": "1. \n• dot\n1. twelve\n2. twelve\n▪ square"
+},
+{
+"body": "◦ ring\n1.no space\n7. seven\n1. one\n◦ ring\n1. \nplain words\n1. one",
+"indents": [
+0,
+1,
+0,
+3,
+0,
+3,
+3,
+3
+],
+"renumbered": "◦ ring\n1.no space\n1. seven\n1. one\n◦ ring\n1. \nplain words\n1. one"
+},
+{
+"body": "٣. three\n▪ square\n7. seven\n1. \n• dot\n• dot\n1. \n1. \n",
+"indents": [
+0,
+2,
+1,
+0,
+0,
+0,
+1,
+0,
+0
+],
+"renumbered": "1. three\n▪ square\n1. seven\n2. \n• dot\n• dot\n1. \n1. \n"
+},
+{
+"body": "| a | b |\n\n10. ten\n1.no space\n\n12. twelve\n1.no space\n| a | b |\n◦ ring\n٣. three",
+"indents": [
+3,
+0,
+0,
+0,
+3,
+1,
+0,
+0,
+0,
+2
+],
+"renumbered": "| a | b |\n\n1. ten\n1.no space\n\n1. twelve\n1.no space\n| a | b |\n◦ ring\n1. three"
+},
+{
+"body": "1. \n1.no space\nplain words",
+"indents": [
+0,
+0,
+0
+],
+"renumbered": "1. \n1.no space\nplain words"
+},
+{
+"body": "1.no space",
+"indents": [
+0
+],
+"renumbered": "1.no space"
+},
+{
+"body": "   \n7. seven\n1. one",
+"indents": [
+2,
+0,
+3
+],
+"renumbered": "   \n1. seven\n1. one"
+},
+{
+"body": "   \n   \n• dot\n   \n1.no space\n7. seven\n10. ten\n10. ten\n10. ten\n12. twelve",
+"indents": [
+0,
+1,
+3,
+1,
+1,
+0,
+0,
+0,
+0,
+0
+],
+"renumbered": "   \n   \n• dot\n   \n1.no space\n1. seven\n2. ten\n3. ten\n4. ten\n5. twelve"
+},
+{
+"body": "10. ten\n7. seven\n2. two\n• dot\n| a | b |\n   \n• dot\n1. \n◦ ring\n• dot",
+"indents": [
+1,
+0,
+3,
+0,
+0,
+3,
+2,
+0,
+2,
+2
+],
+"renumbered": "1. ten\n1. seven\n1. two\n• dot\n| a | b |\n   \n• dot\n1. \n◦ ring\n• dot"
+},
+{
+"body": "12. twelve\n1. \n2. two",
+"indents": [
+0,
+1,
+0
+],
+"renumbered": "1. twelve\n1. \n2. two"
+},
+{
+"body": "1. one\n٣. three\n1. \n◦ ring\n10. ten\n1.no space\n\n٣. three\n1. ",
+"indents": [
+1,
+0,
+3,
+1,
+3,
+0,
+2,
+0,
+0
+],
+"renumbered": "1. one\n1. three\n1. \n◦ ring\n1. ten\n1.no space\n\n1. three\n2. "
+},
+{
+"body": "| a | b |\n٣. three\n| a | b |\n2. two\nplain words\n10. ten",
+"indents": [
+0,
+1,
+2,
+3,
+2,
+0
+],
+"renumbered": "| a | b |\n1. three\n| a | b |\n1. two\nplain words\n1. ten"
+},
+{
+"body": "| a | b |\n   ",
+"indents": [
+1,
+3
+],
+"renumbered": "| a | b |\n   "
+},
+{
+"body": "10. ten",
+"indents": [
+0
+],
+"renumbered": "1. ten"
+},
+{
+"body": "\n1.no space\n1. one\n| a | b |\n▪ square\n٣. three\n10. ten\n   \n▪ square",
+"indents": [
+1,
+0,
+0,
+0,
+1,
+2,
+0,
+1,
+2
+],
+"renumbered": "\n1.no space\n1. one\n| a | b |\n▪ square\n1. three\n1. ten\n   \n▪ square"
+},
+{
+"body": "• dot\n| a | b |",
+"indents": [
+0,
+0
+],
+"renumbered": "• dot\n| a | b |"
+},
+{
+"body": "12. twelve\n   \n2. two\n1.no space\n| a | b |\n\n1. ",
+"indents": [
+0,
+1,
+1,
+2,
+1,
+1,
+2
+],
+"renumbered": "1. twelve\n   \n1. two\n1.no space\n| a | b |\n\n1. "
+},
+{
+"body": "12. twelve\n• dot\nplain words\n\n10. ten\n2. two\n• dot",
+"indents": [
+0,
+1,
+0,
+0,
+3,
+0,
+3
+],
+"renumbered": "1. twelve\n• dot\nplain words\n\n1. ten\n1. two\n• dot"
+},
+{
+"body": "1.no space\n• dot\n1. ",
+"indents": [
+0,
+0,
+1
+],
+"renumbered": "1.no space\n• dot\n1. "
+},
+{
+"body": "▪ square\n1. one\n• dot\n10. ten\n\n◦ ring",
+"indents": [
+2,
+1,
+0,
+0,
+3,
+0
+],
+"renumbered": "▪ square\n1. one\n• dot\n1. ten\n\n◦ ring"
+},
+{
+"body": "٣. three\n\n7. seven\n٣. three",
+"indents": [
+3,
+0,
+0,
+1
+],
+"renumbered": "1. three\n\n1. seven\n1. three"
+},
+{
+"body": "| a | b |\n1.no space",
+"indents": [
+3,
+3
+],
+"renumbered": "| a | b |\n1.no space"
+},
+{
+"body": "plain words\n1. one\n▪ square\n10. ten\n▪ square\nplain words\n\n2. two\n1. one",
+"indents": [
+3,
+1,
+0,
+3,
+0,
+3,
+0,
+3,
+1
+],
+"renumbered": "plain words\n1. one\n▪ square\n1. ten\n▪ square\nplain words\n\n1. two\n1. one"
+},
+{
+"body": "12. twelve\n10. ten\n\n10. ten\n\n7. seven\n",
+"indents": [
+3,
+1,
+0,
+0,
+0,
+0,
+0
+],
+"renumbered": "1. twelve\n1. ten\n\n1. ten\n\n2. seven\n"
+},
+{
+"body": "   \n◦ ring\n2. two\nplain words\nplain words",
+"indents": [
+0,
+3,
+1,
+3,
+3
+],
+"renumbered": "   \n◦ ring\n1. two\nplain words\nplain words"
+},
+{
+"body": "1.no space\n   \n◦ ring\n1. one",
+"indents": [
+1,
+0,
+0,
+1
+],
+"renumbered": "1.no space\n   \n◦ ring\n1. one"
+},
+{
+"body": "1. one\n| a | b |\nplain words\n7. seven\n◦ ring\n   \nplain words\n",
+"indents": [
+1,
+1,
+3,
+0,
+1,
+1,
+0,
+1
+],
+"renumbered": "1. one\n| a | b |\nplain words\n1. seven\n◦ ring\n   \nplain words\n"
+},
+{
+"body": "7. seven\n\nplain words\n• dot\n",
+"indents": [
+1,
+0,
+1,
+1,
+2
+],
+"renumbered": "1. seven\n\nplain words\n• dot\n"
+},
+{
+"body": "| a | b |\n12. twelve",
+"indents": [
+0,
+0
+],
+"renumbered": "| a | b |\n1. twelve"
+},
+{
+"body": "10. ten\n\n12. twelve",
+"indents": [
+1,
+2,
+0
+],
+"renumbered": "1. ten\n\n1. twelve"
+},
+{
+"body": "1.no space",
+"indents": [
+2
+],
+"renumbered": "1.no space"
+},
+{
+"body": "◦ ring\n1. \n▪ square\n   \n1.no space\n7. seven\n2. two\n",
+"indents": [
+2,
+3,
+1,
+2,
+1,
+0,
+3,
+0
+],
+"renumbered": "◦ ring\n1. \n▪ square\n   \n1.no space\n1. seven\n1. two\n"
+},
+{
+"body": "7. seven\n\n◦ ring\n10. ten\n1.no space\n٣. three",
+"indents": [
+3,
+1,
+3,
+0,
+0,
+0
+],
+"renumbered": "1. seven\n\n◦ ring\n1. ten\n1.no space\n1. three"
+},
+{
+"body": "| a | b |\n1. \n7. seven\n1. one\n1.no space\n   \n7. seven\n2. two\n٣. three\n   ",
+"indents": [
+1,
+0,
+2,
+1,
+0,
+0,
+3,
+0,
+1,
+0
+],
+"renumbered": "| a | b |\n1. \n1. seven\n1. one\n1.no space\n   \n1. seven\n1. two\n1. three\n   "
+},
+{
+"body": "   ",
+"indents": [
+3
+],
+"renumbered": "   "
+},
+{
+"body": "◦ ring\n7. seven\n2. two\n1. \n| a | b |\n12. twelve",
+"indents": [
+1,
+3,
+3,
+0,
+0,
+0
+],
+"renumbered": "◦ ring\n1. seven\n2. two\n1. \n| a | b |\n1. twelve"
+},
+{
+"body": "\n10. ten\n◦ ring\n▪ square\n٣. three\n   \n1. \n1.no space\n7. seven\n",
+"indents": [
+2,
+1,
+2,
+0,
+1,
+1,
+1,
+1,
+2,
+0
+],
+"renumbered": "\n1. ten\n◦ ring\n▪ square\n1. three\n   \n2. \n1.no space\n1. seven\n"
+},
+{
+"body": "10. ten\n▪ square\n   \n\n10. ten\n12. twelve\n\n1.no space",
+"indents": [
+3,
+0,
+3,
+0,
+0,
+3,
+1,
+0
+],
+"renumbered": "1. ten\n▪ square\n   \n\n1. ten\n1. twelve\n\n1.no space"
+},
+{
+"body": "\n◦ ring\n٣. three\n12. twelve\n▪ square\n7. seven\n10. ten\n7. seven\n1.no space\n1.no space",
+"indents": [
+1,
+3,
+0,
+1,
+2,
+0,
+3,
+0,
+1,
+0
+],
+"renumbered": "\n◦ ring\n1. three\n1. twelve\n▪ square\n2. seven\n1. ten\n3. seven\n1.no space\n1.no space"
+},
+{
+"body": "◦ ring\n1. \n1. one\n2. two\n▪ square\n12. twelve\n\n◦ ring\n\n٣. three\n",
+"indents": [
+1,
+0,
+0,
+3,
+1,
+2,
+0,
+2,
+2,
+0,
+1
+],
+"renumbered": "◦ ring\n1. \n2. one\n1. two\n▪ square\n1. twelve\n\n◦ ring\n\n3. three\n"
+},
+{
+"body": "\n12. twelve\n1.no space\n7. seven\n◦ ring\n2. two\n◦ ring",
+"indents": [
+0,
+1,
+0,
+0,
+3,
+0,
+1
+],
+"renumbered": "\n1. twelve\n1.no space\n1. seven\n◦ ring\n2. two\n◦ ring"
+},
+{
+"body": "plain words\n| a | b |\n▪ square",
+"indents": [
+1,
+0,
+2
+],
+"renumbered": "plain words\n| a | b |\n▪ square"
+},
+{
+"body": "• dot\n2. two\n\n   ",
+"indents": [
+1,
+0,
+0,
+1
+],
+"renumbered": "• dot\n1. two\n\n   "
+},
+{
+"body": "   \n12. twelve\n2. two\n◦ ring\n   \nplain words\n\nplain words",
+"indents": [
+1,
+3,
+2,
+0,
+1,
+0,
+2,
+1
+],
+"renumbered": "   \n1. twelve\n1. two\n◦ ring\n   \nplain words\n\nplain words"
+},
+{
+"body": "▪ square",
+"indents": [
+1
+],
+"renumbered": "▪ square"
+},
+{
+"body": "",
+"indents": [
+0
+],
+"renumbered": ""
+},
+{
+"body": "▪ square\n7. seven\n▪ square\n▪ square\n12. twelve\n12. twelve\n12. twelve\n2. two\n10. ten",
+"indents": [
+0,
+0,
+1,
+1,
+3,
+0,
+1,
+0,
+1
+],
+"renumbered": "▪ square\n1. seven\n▪ square\n▪ square\n1. twelve\n2. twelve\n1. twelve\n3. two\n1. ten"
+},
+{
+"body": "plain words\n10. ten\n\n\n7. seven\n1.no space\n2. two\n1.no space\n▪ square\n1.no space\n10. ten",
+"indents": [
+0,
+3,
+0,
+1,
+1,
+1,
+0,
+3,
+0,
+0,
+1
+],
+"renumbered": "plain words\n1. ten\n\n\n1. seven\n1.no space\n1. two\n1.no space\n▪ square\n1.no space\n1. ten"
+},
+{
+"body": "1. one\n   \n| a | b |\n12. twelve\n٣. three\n◦ ring\nplain words\n1. one\n10. ten\n1.no space",
+"indents": [
+0,
+0,
+1,
+0,
+0,
+0,
+3,
+0,
+0,
+1
+],
+"renumbered": "1. one\n   \n| a | b |\n1. twelve\n2. three\n◦ ring\nplain words\n1. one\n2. ten\n1.no space"
+},
+{
+"body": "◦ ring\n\n1. one\n• dot\n12. twelve\n2. two",
+"indents": [
+0,
+1,
+0,
+0,
+0,
+1
+],
+"renumbered": "◦ ring\n\n1. one\n• dot\n1. twelve\n1. two"
+},
+{
+"body": "\n\n٣. three",
+"indents": [
+3,
+0,
+0
+],
+"renumbered": "\n\n1. three"
+},
+{
+"body": "1. one\n7. seven\n◦ ring\n7. seven\n1. ",
+"indents": [
+0,
+0,
+0,
+0,
+1
+],
+"renumbered": "1. one\n2. seven\n◦ ring\n1. seven\n1. "
+},
+{
+"body": "1. one\n",
+"indents": [
+1,
+2
+],
+"renumbered": "1. one\n"
+},
+{
+"body": "1. one\n▪ square\n10. ten\n• dot\n10. ten\n٣. three\n1. one\n1.no space\n2. two",
+"indents": [
+2,
+1,
+1,
+1,
+1,
+1,
+2,
+1,
+3
+],
+"renumbered": "1. one\n▪ square\n1. ten\n• dot\n1. ten\n2. three\n1. one\n1.no space\n1. two"
+},
+{
+"body": "\n1. one\n٣. three\n▪ square",
+"indents": [
+1,
+0,
+0,
+3
+],
+"renumbered": "\n1. one\n2. three\n▪ square"
+},
+{
+"body": "10. ten\n12. twelve\nplain words",
+"indents": [
+1,
+0,
+0
+],
+"renumbered": "1. ten\n1. twelve\nplain words"
+},
+{
+"body": "10. ten\n12. twelve\n12. twelve\n7. seven\n| a | b |",
+"indents": [
+3,
+1,
+3,
+0,
+1
+],
+"renumbered": "1. ten\n1. twelve\n1. twelve\n1. seven\n| a | b |"
+},
+{
+"body": "▪ square\n◦ ring\n1.no space\n10. ten\n7. seven\n   \n◦ ring",
+"indents": [
+2,
+1,
+1,
+1,
+0,
+1,
+0
+],
+"renumbered": "▪ square\n◦ ring\n1.no space\n1. ten\n1. seven\n   \n◦ ring"
+},
+{
+"body": "1. one\n1.no space\n◦ ring\n   \n\n٣. three\n▪ square\n| a | b |",
+"indents": [
+0,
+1,
+0,
+1,
+1,
+0,
+0,
+1
+],
+"renumbered": "1. one\n1.no space\n◦ ring\n   \n\n1. three\n▪ square\n| a | b |"
+},
+{
+"body": "◦ ring\n٣. three\n7. seven\n7. seven\n1. one\nplain words\n◦ ring\n1. one",
+"indents": [
+0,
+2,
+0,
+0,
+0,
+0,
+3,
+0
+],
+"renumbered": "◦ ring\n1. three\n1. seven\n2. seven\n3. one\nplain words\n◦ ring\n1. one"
+},
+{
+"body": "12. twelve\n   ",
+"indents": [
+3,
+0
+],
+"renumbered": "1. twelve\n   "
+},
+{
+"body": "| a | b |\n• dot\n٣. three\n• dot\n٣. three\n◦ ring\n▪ square\n1. \n\n12. twelve",
+"indents": [
+0,
+1,
+0,
+0,
+0,
+2,
+1,
+3,
+3,
+0
+],
+"renumbered": "| a | b |\n• dot\n1. three\n• dot\n1. three\n◦ ring\n▪ square\n1. \n\n2. twelve"
+},
+{
+"body": "1. one\n\n1. \n12. twelve\n| a | b |",
+"indents": [
+2,
+3,
+0,
+1,
+0
+],
+"renumbered": "1. one\n\n1. \n1. twelve\n| a | b |"
+},
+{
+"body": "1. \n◦ ring\n٣. three\n2. two\n10. ten\nplain words",
+"indents": [
+2,
+1,
+0,
+0,
+0,
+3
+],
+"renumbered": "1. \n◦ ring\n1. three\n2. two\n3. ten\nplain words"
+},
+{
+"body": "\n1. one\n\n12. twelve\n▪ square",
+"indents": [
+1,
+1,
+0,
+2,
+2
+],
+"renumbered": "\n1. one\n\n1. twelve\n▪ square"
+},
+{
+"body": "7. seven\n   \n▪ square",
+"indents": [
+1,
+1,
+1
+],
+"renumbered": "1. seven\n   \n▪ square"
+},
+{
+"body": "▪ square\n1. \n1. one\n| a | b |\n| a | b |\n1. one\nplain words\n\n| a | b |\n◦ ring",
+"indents": [
+0,
+2,
+1,
+0,
+3,
+1,
+1,
+2,
+1,
+1
+],
+"renumbered": "▪ square\n1. \n1. one\n| a | b |\n| a | b |\n1. one\nplain words\n\n| a | b |\n◦ ring"
+},
+{
+"body": "1. one\n10. ten\n12. twelve\n12. twelve\n| a | b |\n◦ ring\n٣. three\n1.no space\n\n",
+"indents": [
+0,
+3,
+0,
+1,
+0,
+3,
+1,
+1,
+0,
+0
+],
+"renumbered": "1. one\n1. ten\n2. twelve\n1. twelve\n| a | b |\n◦ ring\n1. three\n1.no space\n\n"
+},
+{
+"body": "7. seven\n7. seven",
+"indents": [
+3,
+0
+],
+"renumbered": "1. seven\n1. seven"
+},
+{
+"body": "7. seven\n• dot\n\n1. \n| a | b |\n◦ ring\n2. two",
+"indents": [
+0,
+0,
+2,
+0,
+3,
+3,
+1
+],
+"renumbered": "1. seven\n• dot\n\n1. \n| a | b |\n◦ ring\n1. two"
+},
+{
+"body": "▪ square\n1. one\n1. one",
+"indents": [
+0,
+1,
+1
+],
+"renumbered": "▪ square\n1. one\n2. one"
+},
+{
+"body": "▪ square\n2. two\n◦ ring\n10. ten\n2. two\nplain words\n7. seven\n\n7. seven\n٣. three",
+"indents": [
+3,
+1,
+0,
+0,
+0,
+1,
+1,
+0,
+1,
+0
+],
+"renumbered": "▪ square\n1. two\n◦ ring\n1. ten\n2. two\nplain words\n1. seven\n\n2. seven\n1. three"
+},
+{
+"body": "plain words\n• dot\n▪ square\n◦ ring\nplain words\n   \nplain words",
+"indents": [
+0,
+2,
+1,
+1,
+0,
+1,
+3
+],
+"renumbered": "plain words\n• dot\n▪ square\n◦ ring\nplain words\n   \nplain words"
+},
+{
+"body": "1. \n٣. three\n2. two\n\n• dot\n• dot\n▪ square\n1. \n7. seven\n1.no space",
+"indents": [
+2,
+0,
+3,
+0,
+1,
+0,
+1,
+1,
+1,
+0
+],
+"renumbered": "1. \n1. three\n1. two\n\n• dot\n• dot\n▪ square\n1. \n2. seven\n1.no space"
+},
+{
+"body": "1.no space\n7. seven\n7. seven\n1.no space\n2. two\n• dot\n◦ ring",
+"indents": [
+1,
+0,
+1,
+0,
+1,
+3,
+2
+],
+"renumbered": "1.no space\n1. seven\n1. seven\n1.no space\n1. two\n• dot\n◦ ring"
+},
+{
+"body": "1. \n\n٣. three\nplain words\n10. ten",
+"indents": [
+1,
+1,
+0,
+0,
+2
+],
+"renumbered": "1. \n\n1. three\nplain words\n1. ten"
+},
+{
+"body": "   \n٣. three\n1. one\n1.no space\n\n◦ ring\n٣. three\n2. two",
+"indents": [
+0,
+1,
+3,
+0,
+0,
+1,
+1,
+0
+],
+"renumbered": "   \n1. three\n1. one\n1.no space\n\n◦ ring\n1. three\n1. two"
+},
+{
+"body": "| a | b |\n\n◦ ring\n◦ ring\n10. ten\n10. ten\n\n   ",
+"indents": [
+2,
+1,
+0,
+0,
+3,
+0,
+1,
+0
+],
+"renumbered": "| a | b |\n\n◦ ring\n◦ ring\n1. ten\n1. ten\n\n   "
+},
+{
+"body": "• dot\n2. two\n2. two\n1. ",
+"indents": [
+3,
+0,
+2,
+3
+],
+"renumbered": "• dot\n1. two\n1. two\n1. "
+},
+{
+"body": "◦ ring\n◦ ring",
+"indents": [
+0,
+1
+],
+"renumbered": "◦ ring\n◦ ring"
+},
+{
+"body": "12. twelve\n1. one\n\n7. seven\n1. one\n1. \n◦ ring\n7. seven\n| a | b |\n\n◦ ring",
+"indents": [
+1,
+0,
+1,
+0,
+0,
+0,
+0,
+0,
+0,
+0,
+2
+],
+"renumbered": "1. twelve\n1. one\n\n2. seven\n3. one\n4. \n◦ ring\n1. seven\n| a | b |\n\n◦ ring"
+},
+{
+"body": "◦ ring\nplain words\nplain words\n٣. three\n10. ten\n| a | b |\n▪ square\n▪ square\n12. twelve\n7. seven\n◦ ring",
+"indents": [
+0,
+1,
+0,
+0,
+3,
+2,
+0,
+1,
+1,
+0,
+0
+],
+"renumbered": "◦ ring\nplain words\nplain words\n1. three\n1. ten\n| a | b |\n▪ square\n▪ square\n1. twelve\n1. seven\n◦ ring"
+},
+{
+"body": "2. two",
+"indents": [
+0
+],
+"renumbered": "1. two"
+},
+{
+"body": "2. two\n1. one\n◦ ring",
+"indents": [
+1,
+0,
+1
+],
+"renumbered": "1. two\n1. one\n◦ ring"
+},
+{
+"body": "1. one\n10. ten\n٣. three\n12. twelve\n2. two\n\n1. one\n1. one\n٣. three\n1.no space",
+"indents": [
+0,
+2,
+0,
+0,
+3,
+0,
+0,
+0,
+3,
+0
+],
+"renumbered": "1. one\n1. ten\n2. three\n3. twelve\n1. two\n\n4. one\n5. one\n1. three\n1.no space"
+},
+{
+"body": "1. one\n1. one\n2. two\n| a | b |\n12. twelve\n1.no space\n   \n7. seven",
+"indents": [
+0,
+0,
+0,
+0,
+0,
+0,
+1,
+2
+],
+"renumbered": "1. one\n2. one\n3. two\n| a | b |\n1. twelve\n1.no space\n   \n1. seven"
+},
+{
+"body": "10. ten\n▪ square\n   \n◦ ring\n\n\n12. twelve",
+"indents": [
+3,
+1,
+2,
+0,
+0,
+1,
+3
+],
+"renumbered": "1. ten\n▪ square\n   \n◦ ring\n\n\n1. twelve"
+},
+{
+"body": "▪ square\n   \n10. ten",
+"indents": [
+3,
+2,
+0
+],
+"renumbered": "▪ square\n   \n1. ten"
+},
+{
+"body": "10. ten\n1.no space\n٣. three\nplain words\n12. twelve\nplain words",
+"indents": [
+3,
+3,
+1,
+0,
+1,
+2
+],
+"renumbered": "1. ten\n1.no space\n1. three\nplain words\n1. twelve\nplain words"
+},
+{
+"body": "◦ ring\n\n\n12. twelve\n\n2. two\n1. \n| a | b |\n   ",
+"indents": [
+0,
+0,
+0,
+1,
+2,
+2,
+3,
+3,
+3
+],
+"renumbered": "◦ ring\n\n\n1. twelve\n\n1. two\n1. \n| a | b |\n   "
+},
+{
+"body": "\n1. one\n◦ ring",
+"indents": [
+0,
+0,
+3
+],
+"renumbered": "\n1. one\n◦ ring"
+},
+{
+"body": "▪ square\n7. seven\nplain words\n▪ square\n• dot\n\n• dot",
+"indents": [
+1,
+0,
+0,
+2,
+0,
+2,
+0
+],
+"renumbered": "▪ square\n1. seven\nplain words\n▪ square\n• dot\n\n• dot"
+},
+{
+"body": "7. seven\n1. one\n2. two",
+"indents": [
+1,
+0,
+2
+],
+"renumbered": "1. seven\n1. one\n1. two"
+},
+{
+"body": "2. two\n1.no space\nplain words\n٣. three\n▪ square\n\n1.no space\n12. twelve\n12. twelve\n1. ",
+"indents": [
+1,
+1,
+3,
+3,
+0,
+3,
+3,
+0,
+0,
+1
+],
+"renumbered": "1. two\n1.no space\nplain words\n1. three\n▪ square\n\n1.no space\n1. twelve\n2. twelve\n1. "
+},
+{
+"body": "٣. three\n• dot\n\n٣. three\nplain words\n• dot\nplain words\n7. seven\n1. \n• dot",
+"indents": [
+1,
+0,
+0,
+2,
+0,
+0,
+0,
+1,
+2,
+2
+],
+"renumbered": "1. three\n• dot\n\n1. three\nplain words\n• dot\nplain words\n1. seven\n1. \n• dot"
+},
+{
+"body": "• dot\n▪ square\n◦ ring\n1. \n▪ square\n",
+"indents": [
+2,
+2,
+0,
+1,
+0,
+0
+],
+"renumbered": "• dot\n▪ square\n◦ ring\n1. \n▪ square\n"
+},
+{
+"body": "٣. three\n12. twelve\nplain words\n٣. three\n1. \n12. twelve\n7. seven\n٣. three",
+"indents": [
+1,
+2,
+1,
+0,
+0,
+3,
+1,
+2
+],
+"renumbered": "1. three\n1. twelve\nplain words\n1. three\n2. \n1. twelve\n1. seven\n1. three"
+},
+{
+"body": "7. seven\n1.no space\n2. two\n▪ square\n٣. three\n\n1.no space",
+"indents": [
+0,
+2,
+3,
+0,
+1,
+3,
+1
+],
+"renumbered": "1. seven\n1.no space\n1. two\n▪ square\n1. three\n\n1.no space"
+},
+{
+"body": "◦ ring\n1.no space\n   \n1. \n◦ ring\n1.no space\n1. \n   \n• dot",
+"indents": [
+0,
+0,
+0,
+2,
+1,
+0,
+1,
+0,
+3
+],
+"renumbered": "◦ ring\n1.no space\n   \n1. \n◦ ring\n1.no space\n1. \n   \n• dot"
+},
+{
+"body": "▪ square\n◦ ring\n\n2. two\n1. \n2. two\n12. twelve",
+"indents": [
+1,
+1,
+2,
+0,
+3,
+0,
+1
+],
+"renumbered": "▪ square\n◦ ring\n\n1. two\n1. \n2. two\n1. twelve"
+},
+{
+"body": "\n\n2. two\n\nplain words\n▪ square\n2. two\n12. twelve\n   \n1. one\n",
+"indents": [
+1,
+2,
+0,
+0,
+2,
+1,
+0,
+1,
+3,
+0,
+0
+],
+"renumbered": "\n\n1. two\n\nplain words\n▪ square\n1. two\n1. twelve\n   \n2. one\n"
+},
+{
+"body": "| a | b |\n1.no space\n10. ten",
+"indents": [
+0,
+1,
+3
+],
+"renumbered": "| a | b |\n1.no space\n1. ten"
+},
+{
+"body": "\n1. one\n1. ",
+"indents": [
+0,
+0,
+2
+],
+"renumbered": "\n1. one\n1. "
+},
+{
+"body": "2. two\n| a | b |\n1.no space\n7. seven",
+"indents": [
+1,
+1,
+0,
+3
+],
+"renumbered": "1. two\n| a | b |\n1.no space\n1. seven"
+},
+{
+"body": "◦ ring\nplain words",
+"indents": [
+1,
+1
+],
+"renumbered": "◦ ring\nplain words"
+},
+{
+"body": "plain words\n1.no space\n▪ square",
+"indents": [
+0,
+1,
+1
+],
+"renumbered": "plain words\n1.no space\n▪ square"
+},
+{
+"body": "7. seven",
+"indents": [
+0
+],
+"renumbered": "1. seven"
+},
+{
+"body": "12. twelve\n12. twelve\n◦ ring\n◦ ring\n12. twelve\n12. twelve\n2. two\n\n1.no space\n7. seven",
+"indents": [
+2,
+1,
+3,
+0,
+0,
+1,
+1,
+1,
+1,
+0
+],
+"renumbered": "1. twelve\n1. twelve\n◦ ring\n◦ ring\n1. twelve\n1. twelve\n2. two\n\n1.no space\n1. seven"
+},
+{
+"body": "7. seven\n2. two\n2. two\n• dot\n12. twelve\n1.no space\n1.no space",
+"indents": [
+2,
+3,
+0,
+0,
+0,
+1,
+1
+],
+"renumbered": "1. seven\n1. two\n1. two\n• dot\n1. twelve\n1.no space\n1.no space"
+},
+{
+"body": "٣. three\n◦ ring\n• dot\n٣. three",
+"indents": [
+0,
+0,
+0,
+1
+],
+"renumbered": "1. three\n◦ ring\n• dot\n1. three"
+},
+{
+"body": "1.no space",
+"indents": [
+2
+],
+"renumbered": "1.no space"
+},
+{
+"body": "• dot\nplain words\n٣. three\n10. ten\n2. two\n1.no space\n▪ square",
+"indents": [
+0,
+0,
+0,
+0,
+0,
+1,
+0
+],
+"renumbered": "• dot\nplain words\n1. three\n2. ten\n3. two\n1.no space\n▪ square"
+},
+{
+"body": "◦ ring\n10. ten\n| a | b |\n• dot\n٣. three\n7. seven\n1.no space",
+"indents": [
+1,
+1,
+0,
+0,
+0,
+0,
+1
+],
+"renumbered": "◦ ring\n1. ten\n| a | b |\n• dot\n1. three\n2. seven\n1.no space"
+},
+{
+"body": "◦ ring\n\n1.no space\n",
+"indents": [
+0,
+1,
+1,
+3
+],
+"renumbered": "◦ ring\n\n1.no space\n"
+},
+{
+"body": "| a | b |\n1.no space\n10. ten\n1. \n\n• dot\n   \n◦ ring\n1.no space\n• dot\n   ",
+"indents": [
+2,
+1,
+1,
+0,
+0,
+2,
+2,
+1,
+0,
+2,
+1
+],
+"renumbered": "| a | b |\n1.no space\n1. ten\n1. \n\n• dot\n   \n◦ ring\n1.no space\n• dot\n   "
+},
+{
+"body": "| a | b |",
+"indents": [
+0
+],
+"renumbered": "| a | b |"
+},
+{
+"body": "7. seven\n7. seven\n◦ ring\n1. \n1. one\nplain words\n1. one\n\n\n2. two",
+"indents": [
+0,
+3,
+3,
+1,
+1,
+2,
+2,
+0,
+2,
+1
+],
+"renumbered": "1. seven\n1. seven\n◦ ring\n1. \n2. one\nplain words\n1. one\n\n\n1. two"
+},
+{
+"body": "▪ square\n",
+"indents": [
+2,
+2
+],
+"renumbered": "▪ square\n"
+},
+{
+"body": "2. two\n٣. three\n12. twelve\n1.no space",
+"indents": [
+1,
+0,
+1,
+1
+],
+"renumbered": "1. two\n1. three\n1. twelve\n1.no space"
+},
+{
+"body": "1. \nplain words",
+"indents": [
+2,
+0
+],
+"renumbered": "1. \nplain words"
+},
+{
+"body": "10. ten\n٣. three\n| a | b |\n7. seven\n٣. three\n◦ ring",
+"indents": [
+0,
+1,
+2,
+0,
+0,
+0
+],
+"renumbered": "1. ten\n1. three\n| a | b |\n1. seven\n2. three\n◦ ring"
+},
+{
+"body": "10. ten\n7. seven\n◦ ring\n• dot\n7. seven\n   ",
+"indents": [
+0,
+1,
+0,
+1,
+2,
+3
+],
+"renumbered": "1. ten\n1. seven\n◦ ring\n• dot\n1. seven\n   "
+},
+{
+"body": "7. seven\n1. \n• dot\n12. twelve\n10. ten\n2. two\n◦ ring\n1.no space",
+"indents": [
+0,
+0,
+1,
+1,
+3,
+1,
+3,
+2
+],
+"renumbered": "1. seven\n2. \n• dot\n1. twelve\n1. ten\n2. two\n◦ ring\n1.no space"
+},
+{
+"body": "| a | b |\n2. two\n\n1. ",
+"indents": [
+3,
+0,
+3,
+1
+],
+"renumbered": "| a | b |\n1. two\n\n1. "
+},
+{
+"body": "plain words\n12. twelve\n   \n٣. three\n2. two\n1. one\n",
+"indents": [
+0,
+1,
+1,
+3,
+2,
+0,
+0
+],
+"renumbered": "plain words\n1. twelve\n   \n1. three\n1. two\n1. one\n"
+},
+{
+"body": "\n٣. three",
+"indents": [
+3,
+1
+],
+"renumbered": "\n1. three"
+},
+{
+"body": "",
+"indents": [
+0
+],
+"renumbered": ""
+},
+{
+"body": "12. twelve\n10. ten\n\n1. \n1. \n◦ ring",
+"indents": [
+0,
+0,
+1,
+2,
+0,
+0
+],
+"renumbered": "1. twelve\n2. ten\n\n1. \n3. \n◦ ring"
+},
+{
+"body": "• dot\n7. seven",
+"indents": [
+0,
+2
+],
+"renumbered": "• dot\n1. seven"
+},
+{
+"body": "7. seven",
+"indents": [
+1
+],
+"renumbered": "1. seven"
+},
+{
+"body": "\n▪ square",
+"indents": [
+3,
+2
+],
+"renumbered": "\n▪ square"
+},
+{
+"body": "7. seven\n12. twelve",
+"indents": [
+0,
+1
+],
+"renumbered": "1. seven\n1. twelve"
+},
+{
+"body": "   \n| a | b |\nplain words\n◦ ring\n12. twelve\n1. \n\n10. ten\n2. two",
+"indents": [
+1,
+2,
+0,
+3,
+3,
+0,
+2,
+2,
+1
+],
+"renumbered": "   \n| a | b |\nplain words\n◦ ring\n1. twelve\n1. \n\n1. ten\n1. two"
+},
+{
+"body": "2. two\nplain words\n▪ square\n1.no space\n12. twelve\n10. ten\n\n| a | b |",
+"indents": [
+0,
+0,
+0,
+0,
+0,
+0,
+0,
+0
+],
+"renumbered": "1. two\nplain words\n▪ square\n1.no space\n1. twelve\n2. ten\n\n| a | b |"
+},
+{
+"body": "7. seven\n| a | b |\n7. seven\n• dot\n   ",
+"indents": [
+0,
+0,
+3,
+0,
+0
+],
+"renumbered": "1. seven\n| a | b |\n1. seven\n• dot\n   "
+},
+{
+"body": "7. seven\n1. \n\n1. \n\nplain words\n| a | b |\n2. two\n12. twelve\n",
+"indents": [
+2,
+3,
+1,
+2,
+0,
+1,
+1,
+2,
+1,
+1
+],
+"renumbered": "1. seven\n1. \n\n2. \n\nplain words\n| a | b |\n1. two\n1. twelve\n"
+},
+{
+"body": "1. one\n12. twelve\n12. twelve\n٣. three\n7. seven\n7. seven\n1. one\n1.no space\n1. ",
+"indents": [
+0,
+0,
+0,
+2,
+1,
+0,
+1,
+0,
+1
+],
+"renumbered": "1. one\n2. twelve\n3. twelve\n1. three\n1. seven\n4. seven\n1. one\n1.no space\n1. "
+},
+{
+"body": "1.no space",
+"indents": [
+0
+],
+"renumbered": "1.no space"
+},
+{
+"body": "▪ square\n\n1.no space\n   \n7. seven\n٣. three\nplain words\n7. seven",
+"indents": [
+2,
+1,
+1,
+0,
+1,
+1,
+2,
+0
+],
+"renumbered": "▪ square\n\n1.no space\n   \n1. seven\n2. three\nplain words\n1. seven"
+},
+{
+"body": "| a | b |\n• dot\n2. two",
+"indents": [
+1,
+3,
+0
+],
+"renumbered": "| a | b |\n• dot\n1. two"
+},
+{
+"body": "   \n2. two\n2. two\n◦ ring\n1.no space\nplain words",
+"indents": [
+1,
+2,
+0,
+0,
+1,
+1
+],
+"renumbered": "   \n1. two\n1. two\n◦ ring\n1.no space\nplain words"
+},
+{
+"body": "7. seven\n12. twelve\n1. \n| a | b |\n◦ ring\n1.no space",
+"indents": [
+1,
+0,
+0,
+1,
+0,
+0
+],
+"renumbered": "1. seven\n1. twelve\n2. \n| a | b |\n◦ ring\n1.no space"
+},
+{
+"body": "▪ square\n| a | b |\n1.no space\n\n▪ square\n   \n٣. three\n| a | b |\n1. ",
+"indents": [
+0,
+1,
+0,
+0,
+0,
+3,
+0,
+1,
+1
+],
+"renumbered": "▪ square\n| a | b |\n1.no space\n\n▪ square\n   \n1. three\n| a | b |\n1. "
+},
+{
+"body": "   \n\n12. twelve\n\n1.no space\n◦ ring\n\n▪ square\n1. ",
+"indents": [
+0,
+0,
+0,
+1,
+0,
+0,
+0,
+1,
+1
+],
+"renumbered": "   \n\n1. twelve\n\n1.no space\n◦ ring\n\n▪ square\n1. "
+},
+{
+"body": "\n1.no space\nplain words\n10. ten\n1. \n12. twelve\nplain words\n٣. three\nplain words\n7. seven",
+"indents": [
+2,
+0,
+3,
+3,
+0,
+0,
+1,
+1,
+3,
+0
+],
+"renumbered": "\n1.no space\nplain words\n1. ten\n1. \n2. twelve\nplain words\n1. three\nplain words\n1. seven"
+},
+{
+"body": "1. \n| a | b |\n7. seven\n   \n• dot\n12. twelve\n   \n   \n2. two\n1.no space\n◦ ring",
+"indents": [
+0,
+2,
+3,
+3,
+0,
+3,
+3,
+2,
+0,
+2,
+0
+],
+"renumbered": "1. \n| a | b |\n1. seven\n   \n• dot\n1. twelve\n   \n   \n1. two\n1.no space\n◦ ring"
+},
+{
+"body": "1. \n1. one\n1.no space\n٣. three\n12. twelve\n◦ ring",
+"indents": [
+0,
+0,
+0,
+0,
+0,
+2
+],
+"renumbered": "1. \n2. one\n1.no space\n1. three\n2. twelve\n◦ ring"
+},
+{
+"body": "▪ square",
+"indents": [
+0
+],
+"renumbered": "▪ square"
+},
+{
+"body": "▪ square\n٣. three\n10. ten\n1.no space\n▪ square\n٣. three\n◦ ring\n12. twelve\n2. two\n• dot\n10. ten",
+"indents": [
+3,
+3,
+0,
+1,
+2,
+2,
+0,
+3,
+0,
+1,
+1
+],
+"renumbered": "▪ square\n1. three\n1. ten\n1.no space\n▪ square\n1. three\n◦ ring\n1. twelve\n1. two\n• dot\n1. ten"
+},
+{
+"body": "plain words\n   \n7. seven\n• dot\n\nplain words\nplain words\n• dot\n• dot\n1. \n◦ ring",
+"indents": [
+1,
+1,
+0,
+1,
+2,
+1,
+0,
+2,
+0,
+0,
+3
+],
+"renumbered": "plain words\n   \n1. seven\n• dot\n\nplain words\nplain words\n• dot\n• dot\n1. \n◦ ring"
+},
+{
+"body": "plain words\n\n2. two\n1. one\n10. ten\n1. one\n\n12. twelve",
+"indents": [
+2,
+3,
+1,
+0,
+1,
+2,
+1,
+2
+],
+"renumbered": "plain words\n\n1. two\n1. one\n1. ten\n1. one\n\n2. twelve"
+},
+{
+"body": "٣. three\n| a | b |\n\n   \n▪ square\n2. two\n1. one\n10. ten\n◦ ring",
+"indents": [
+1,
+0,
+1,
+1,
+2,
+3,
+0,
+0,
+3
+],
+"renumbered": "1. three\n| a | b |\n\n   \n▪ square\n1. two\n1. one\n2. ten\n◦ ring"
+},
+{
+"body": "7. seven\n1. one\n٣. three\n12. twelve\n٣. three\n1. \n   \nplain words\n◦ ring\n• dot",
+"indents": [
+0,
+1,
+1,
+0,
+0,
+0,
+0,
+0,
+0,
+0
+],
+"renumbered": "1. seven\n1. one\n2. three\n2. twelve\n3. three\n4. \n   \nplain words\n◦ ring\n• dot"
+},
+{
+"body": "plain words\n1. \n▪ square",
+"indents": [
+0,
+0,
+1
+],
+"renumbered": "plain words\n1. \n▪ square"
+},
+{
+"body": "٣. three\n10. ten\n7. seven\n• dot\n▪ square\n1. one\n1. \n2. two",
+"indents": [
+0,
+3,
+1,
+1,
+0,
+0,
+1,
+2
+],
+"renumbered": "1. three\n1. ten\n1. seven\n• dot\n▪ square\n1. one\n1. \n1. two"
+},
+{
+"body": "1. \n12. twelve\n1.no space\n1. \n\n1.no space",
+"indents": [
+1,
+0,
+2,
+1,
+0,
+0
+],
+"renumbered": "1. \n1. twelve\n1.no space\n1. \n\n1.no space"
+},
+{
+"body": "• dot\nplain words\n1. \n7. seven\n| a | b |\n\n2. two\n◦ ring\nplain words",
+"indents": [
+1,
+0,
+0,
+3,
+1,
+0,
+1,
+1,
+1
+],
+"renumbered": "• dot\nplain words\n1. \n1. seven\n| a | b |\n\n1. two\n◦ ring\nplain words"
+},
+{
+"body": "1.no space\n10. ten\n12. twelve",
+"indents": [
+0,
+1,
+1
+],
+"renumbered": "1.no space\n1. ten\n2. twelve"
+},
+{
+"body": "7. seven\n1. \n10. ten\n\n◦ ring\n1. ",
+"indents": [
+3,
+2,
+1,
+1,
+0,
+0
+],
+"renumbered": "1. seven\n1. \n1. ten\n\n◦ ring\n1. "
+},
+{
+"body": "• dot\n▪ square\n\n   \n12. twelve\n| a | b |",
+"indents": [
+1,
+3,
+1,
+0,
+0,
+0
+],
+"renumbered": "• dot\n▪ square\n\n   \n1. twelve\n| a | b |"
+},
+{
+"body": "12. twelve\n٣. three\n• dot\n٣. three\n• dot\n٣. three\n• dot\n2. two",
+"indents": [
+0,
+0,
+1,
+3,
+1,
+0,
+1,
+3
+],
+"renumbered": "1. twelve\n2. three\n• dot\n1. three\n• dot\n3. three\n• dot\n1. two"
+},
+{
+"body": "٣. three\n٣. three\n\n\n2. two\n| a | b |\n10. ten\n2. two\n1.no space\n1. \n٣. three",
+"indents": [
+0,
+0,
+0,
+1,
+0,
+0,
+3,
+3,
+1,
+0,
+3
+],
+"renumbered": "1. three\n2. three\n\n\n1. two\n| a | b |\n1. ten\n2. two\n1.no space\n1. \n1. three"
+},
+{
+"body": "7. seven\n\n| a | b |\n12. twelve\n7. seven",
+"indents": [
+2,
+0,
+2,
+0,
+1
+],
+"renumbered": "1. seven\n\n| a | b |\n1. twelve\n1. seven"
+},
+{
+"body": "▪ square\n1. \n10. ten\n1. one\nplain words\n• dot\n◦ ring",
+"indents": [
+1,
+1,
+0,
+3,
+0,
+1,
+1
+],
+"renumbered": "▪ square\n1. \n1. ten\n1. one\nplain words\n• dot\n◦ ring"
+},
+{
+"body": "7. seven\n1.no space\n\n| a | b |\n7. seven\nplain words\n▪ square\n1. one",
+"indents": [
+2,
+0,
+1,
+0,
+1,
+3,
+2,
+3
+],
+"renumbered": "1. seven\n1.no space\n\n| a | b |\n1. seven\nplain words\n▪ square\n1. one"
+},
+{
+"body": "٣. three\n• dot\n12. twelve\n▪ square\n1. one\n\n10. ten\n1. one\n1. one\n",
+"indents": [
+0,
+1,
+1,
+3,
+0,
+0,
+1,
+2,
+1,
+1
+],
+"renumbered": "1. three\n• dot\n1. twelve\n▪ square\n2. one\n\n1. ten\n1. one\n2. one\n"
+},
+{
+"body": "\n2. two\n| a | b |\n7. seven\n٣. three",
+"indents": [
+0,
+1,
+3,
+1,
+0
+],
+"renumbered": "\n1. two\n| a | b |\n1. seven\n1. three"
+},
+{
+"body": "1.no space\n▪ square\n   \n1.no space\n\n2. two\n7. seven\n1. one\n| a | b |\n1. ",
+"indents": [
+0,
+1,
+2,
+1,
+0,
+0,
+0,
+0,
+0,
+3
+],
+"renumbered": "1.no space\n▪ square\n   \n1.no space\n\n1. two\n2. seven\n3. one\n| a | b |\n1. "
+},
+{
+"body": "▪ square\n   \n1.no space\n7. seven\n10. ten\n",
+"indents": [
+1,
+0,
+1,
+3,
+1,
+0
+],
+"renumbered": "▪ square\n   \n1.no space\n1. seven\n1. ten\n"
+},
+{
+"body": "1.no space\n1. \n1.no space\n10. ten\n▪ square\n\n   \n◦ ring\n1. one\n",
+"indents": [
+0,
+3,
+1,
+1,
+1,
+2,
+3,
+0,
+2,
+3
+],
+"renumbered": "1.no space\n1. \n1.no space\n1. ten\n▪ square\n\n   \n◦ ring\n1. one\n"
+},
+{
+"body": "• dot\n▪ square\n• dot\n| a | b |\n2. two",
+"indents": [
+3,
+0,
+1,
+3,
+2
+],
+"renumbered": "• dot\n▪ square\n• dot\n| a | b |\n1. two"
+},
+{
+"body": "\n1.no space\n1. one",
+"indents": [
+1,
+3,
+1
+],
+"renumbered": "\n1.no space\n1. one"
+},
+{
+"body": "10. ten\n2. two\n1. \n12. twelve\n1.no space\n1.no space\n1. one",
+"indents": [
+0,
+0,
+0,
+0,
+1,
+1,
+0
+],
+"renumbered": "1. ten\n2. two\n3. \n4. twelve\n1.no space\n1.no space\n1. one"
+},
+{
+"body": "◦ ring\n1. one\n\n▪ square",
+"indents": [
+0,
+1,
+0,
+0
+],
+"renumbered": "◦ ring\n1. one\n\n▪ square"
+},
+{
+"body": "1. one\n1. ",
+"indents": [
+1,
+0
+],
+"renumbered": "1. one\n1. "
+},
+{
+"body": "▪ square\n▪ square\n• dot\n7. seven",
+"indents": [
+1,
+3,
+2,
+0
+],
+"renumbered": "▪ square\n▪ square\n• dot\n1. seven"
+},
+{
+"body": "\n   \n| a | b |\n• dot\n\n1.no space\n▪ square\n10. ten\n",
+"indents": [
+2,
+0,
+1,
+1,
+1,
+1,
+0,
+0,
+3
+],
+"renumbered": "\n   \n| a | b |\n• dot\n\n1.no space\n▪ square\n1. ten\n"
+},
+{
+"body": "\n10. ten\nplain words\n2. two\n• dot\n7. seven\n1.no space\nplain words\n1. one\n2. two",
+"indents": [
+0,
+2,
+0,
+0,
+3,
+3,
+0,
+1,
+1,
+0
+],
+"renumbered": "\n1. ten\nplain words\n1. two\n• dot\n1. seven\n1.no space\nplain words\n1. one\n1. two"
+},
+{
+"body": "\n1.no space\n◦ ring\n7. seven\n• dot\n10. ten\n10. ten\n12. twelve",
+"indents": [
+0,
+0,
+1,
+2,
+0,
+3,
+1,
+0
+],
+"renumbered": "\n1.no space\n◦ ring\n1. seven\n• dot\n1. ten\n1. ten\n1. twelve"
+},
+{
+"body": "12. twelve\nplain words\n٣. three\n2. two\n| a | b |\n٣. three\nplain words\n• dot",
+"indents": [
+0,
+1,
+0,
+2,
+3,
+1,
+3,
+1
+],
+"renumbered": "1. twelve\nplain words\n1. three\n1. two\n| a | b |\n1. three\nplain words\n• dot"
+},
+{
+"body": "▪ square\n1. one\n12. twelve\n2. two\n◦ ring\n▪ square",
+"indents": [
+3,
+3,
+0,
+3,
+3,
+1
+],
+"renumbered": "▪ square\n1. one\n1. twelve\n1. two\n◦ ring\n▪ square"
+},
+{
+"body": "• dot\n1. one\n٣. three\n1. one",
+"indents": [
+3,
+1,
+0,
+1
+],
+"renumbered": "• dot\n1. one\n1. three\n1. one"
+},
+{
+"body": "7. seven\n\n\n2. two",
+"indents": [
+1,
+0,
+0,
+1
+],
+"renumbered": "1. seven\n\n\n1. two"
+},
+{
+"body": "٣. three\n\n▪ square\n\n\n• dot",
+"indents": [
+1,
+0,
+2,
+0,
+1,
+1
+],
+"renumbered": "1. three\n\n▪ square\n\n\n• dot"
+},
+{
+"body": "1. one\n12. twelve\n   \n7. seven",
+"indents": [
+0,
+2,
+3,
+0
+],
+"renumbered": "1. one\n1. twelve\n   \n2. seven"
+},
+{
+"body": "• dot",
+"indents": [
+1
+],
+"renumbered": "• dot"
+},
+{
+"body": "• dot\n1.no space\n7. seven\n1. one",
+"indents": [
+1,
+1,
+1,
+0
+],
+"renumbered": "• dot\n1.no space\n1. seven\n1. one"
+},
+{
+"body": "\n2. two\n▪ square\n7. seven\n1. \n7. seven",
+"indents": [
+3,
+1,
+0,
+0,
+3,
+0
+],
+"renumbered": "\n1. two\n▪ square\n1. seven\n1. \n2. seven"
+},
+{
+"body": "▪ square\n◦ ring\n◦ ring\n\n7. seven\n2. two\n7. seven\n   \nplain words\n   ",
+"indents": [
+2,
+1,
+2,
+3,
+0,
+3,
+2,
+3,
+1,
+1
+],
+"renumbered": "▪ square\n◦ ring\n◦ ring\n\n1. seven\n1. two\n1. seven\n   \nplain words\n   "
+},
+{
+"body": "1.no space\n7. seven\n12. twelve",
+"indents": [
+2,
+2,
+0
+],
+"renumbered": "1.no space\n1. seven\n1. twelve"
+},
+{
+"body": "\n1. ",
+"indents": [
+0,
+3
+],
+"renumbered": "\n1. "
+},
+{
+"body": "2. two\n\n   \n1. \n1. one",
+"indents": [
+1,
+1,
+3,
+0,
+0
+],
+"renumbered": "1. two\n\n   \n1. \n2. one"
+},
+{
+"body": "• dot\n2. two\n◦ ring\n7. seven\n• dot\n| a | b |\n▪ square\n\n7. seven",
+"indents": [
+2,
+2,
+2,
+1,
+0,
+0,
+2,
+1,
+2
+],
+"renumbered": "• dot\n1. two\n◦ ring\n1. seven\n• dot\n| a | b |\n▪ square\n\n1. seven"
+},
+{
+"body": "12. twelve\n٣. three\n   ",
+"indents": [
+0,
+0,
+0
+],
+"renumbered": "1. twelve\n2. three\n   "
+},
+{
+"body": "1.no space\n1. \n\n2. two\n٣. three\nplain words\n• dot\nplain words\n1.no space",
+"indents": [
+3,
+0,
+0,
+1,
+0,
+2,
+1,
+0,
+0
+],
+"renumbered": "1.no space\n1. \n\n1. two\n2. three\nplain words\n• dot\nplain words\n1.no space"
+},
+{
+"body": "7. seven",
+"indents": [
+3
+],
+"renumbered": "1. seven"
+},
+{
+"body": "   \n٣. three\n12. twelve\n\n   \n   ",
+"indents": [
+1,
+0,
+0,
+0,
+0,
+1
+],
+"renumbered": "   \n1. three\n2. twelve\n\n   \n   "
+},
+{
+"body": "2. two\n◦ ring\n▪ square\n10. ten",
+"indents": [
+1,
+1,
+1,
+2
+],
+"renumbered": "1. two\n◦ ring\n▪ square\n1. ten"
+},
+{
+"body": "▪ square\n10. ten\n1. one\nplain words",
+"indents": [
+0,
+2,
+0,
+0
+],
+"renumbered": "▪ square\n1. ten\n1. one\nplain words"
+},
+{
+"body": "\n| a | b |\n   \n12. twelve\n\n• dot",
+"indents": [
+2,
+0,
+0,
+2,
+0,
+1
+],
+"renumbered": "\n| a | b |\n   \n1. twelve\n\n• dot"
+},
+{
+"body": "1. \n◦ ring\n7. seven\n1. one\n٣. three\n◦ ring\n• dot\n10. ten\n12. twelve\n1. \n   ",
+"indents": [
+1,
+2,
+0,
+0,
+1,
+2,
+0,
+0,
+2,
+2,
+1
+],
+"renumbered": "1. \n◦ ring\n1. seven\n2. one\n1. three\n◦ ring\n• dot\n1. ten\n1. twelve\n2. \n   "
+},
+{
+"body": "| a | b |\n• dot\n1. \n1.no space\n◦ ring\n1. \n   ",
+"indents": [
+0,
+0,
+2,
+0,
+0,
+0,
+0
+],
+"renumbered": "| a | b |\n• dot\n1. \n1.no space\n◦ ring\n1. \n   "
+},
+{
+"body": "▪ square\n10. ten\n1. one\nplain words\n\n▪ square\n   \n▪ square",
+"indents": [
+3,
+2,
+3,
+3,
+3,
+3,
+0,
+3
+],
+"renumbered": "▪ square\n1. ten\n1. one\nplain words\n\n▪ square\n   \n▪ square"
+},
+{
+"body": "٣. three\n\n10. ten\n\n10. ten\nplain words\n٣. three\n▪ square",
+"indents": [
+1,
+1,
+0,
+1,
+0,
+1,
+0,
+3
+],
+"renumbered": "1. three\n\n1. ten\n\n2. ten\nplain words\n1. three\n▪ square"
+},
+{
+"body": "• dot\n1. \n1.no space",
+"indents": [
+0,
+0,
+0
+],
+"renumbered": "• dot\n1. \n1.no space"
+},
+{
+"body": "▪ square\n1. one\n٣. three\n   ",
+"indents": [
+3,
+0,
+2,
+1
+],
+"renumbered": "▪ square\n1. one\n1. three\n   "
+},
+{
+"body": "10. ten\n| a | b |\n   \n2. two\n\n٣. three\n▪ square\n1. one\n◦ ring\n1. \n10. ten",
+"indents": [
+2,
+1,
+1,
+3,
+3,
+0,
+2,
+0,
+0,
+1,
+1
+],
+"renumbered": "1. ten\n| a | b |\n   \n1. two\n\n1. three\n▪ square\n2. one\n◦ ring\n1. \n2. ten"
+},
+{
+"body": "1. \n| a | b |\n٣. three\n▪ square\n\n2. two\n10. ten\n\n2. two\n10. ten\n▪ square",
+"indents": [
+3,
+1,
+0,
+3,
+3,
+0,
+3,
+2,
+0,
+3,
+3
+],
+"renumbered": "1. \n| a | b |\n1. three\n▪ square\n\n2. two\n1. ten\n\n3. two\n1. ten\n▪ square"
+},
+{
+"body": "1.no space\n2. two\n• dot\n2. two\n7. seven\n٣. three",
+"indents": [
+0,
+2,
+3,
+1,
+3,
+0
+],
+"renumbered": "1.no space\n1. two\n• dot\n1. two\n1. seven\n1. three"
+},
+{
+"body": "٣. three\n◦ ring\n• dot\n   ",
+"indents": [
+1,
+0,
+1,
+1
+],
+"renumbered": "1. three\n◦ ring\n• dot\n   "
+},
+{
+"body": "   \n▪ square\n▪ square\n1. one\n   \n1. \n1.no space\n1.no space\n7. seven",
+"indents": [
+3,
+0,
+0,
+1,
+2,
+0,
+0,
+0,
+0
+],
+"renumbered": "   \n▪ square\n▪ square\n1. one\n   \n1. \n1.no space\n1.no space\n1. seven"
+},
+{
+"body": "",
+"indents": [
+2
+],
+"renumbered": ""
+},
+{
+"body": "\n| a | b |\n◦ ring\n   \n\n\n10. ten\n7. seven\n▪ square",
+"indents": [
+1,
+3,
+3,
+2,
+0,
+3,
+1,
+0,
+2
+],
+"renumbered": "\n| a | b |\n◦ ring\n   \n\n\n1. ten\n1. seven\n▪ square"
+},
+{
+"body": "▪ square\n◦ ring\n◦ ring\n▪ square\n• dot\n▪ square\nplain words\nplain words\n   \n   \n10. ten",
+"indents": [
+1,
+1,
+2,
+0,
+2,
+1,
+0,
+3,
+3,
+0,
+0
+],
+"renumbered": "▪ square\n◦ ring\n◦ ring\n▪ square\n• dot\n▪ square\nplain words\nplain words\n   \n   \n1. ten"
+},
+{
+"body": "2. two\n2. two\n٣. three\n1. one\n7. seven\n1.no space\n1. \nplain words\n| a | b |\n◦ ring\n   ",
+"indents": [
+0,
+2,
+1,
+0,
+0,
+2,
+2,
+3,
+0,
+0,
+3
+],
+"renumbered": "1. two\n1. two\n1. three\n2. one\n3. seven\n1.no space\n1. \nplain words\n| a | b |\n◦ ring\n   "
+},
+{
+"body": "plain words",
+"indents": [
+0
+],
+"renumbered": "plain words"
+},
+{
+"body": "• dot\nplain words\n٣. three\n◦ ring\n12. twelve",
+"indents": [
+2,
+3,
+3,
+1,
+1
+],
+"renumbered": "• dot\nplain words\n1. three\n◦ ring\n1. twelve"
+},
+{
+"body": "10. ten\n7. seven",
+"indents": [
+0,
+0
+],
+"renumbered": "1. ten\n2. seven"
+},
+{
+"body": "◦ ring\n1. \n10. ten\n1. \n1.no space\n◦ ring",
+"indents": [
+3,
+2,
+1,
+2,
+0,
+2
+],
+"renumbered": "◦ ring\n1. \n1. ten\n1. \n1.no space\n◦ ring"
+},
+{
+"body": "1.no space\n2. two\n1. \n",
+"indents": [
+0,
+3,
+0,
+0
+],
+"renumbered": "1.no space\n1. two\n1. \n"
+},
+{
+"body": "1. \nplain words\n| a | b |\n• dot\n10. ten\n7. seven\n1. one\n◦ ring\n7. seven\nplain words\n• dot",
+"indents": [
+3,
+1,
+1,
+2,
+1,
+0,
+2,
+2,
+2,
+0,
+0
+],
+"renumbered": "1. \nplain words\n| a | b |\n• dot\n1. ten\n1. seven\n1. one\n◦ ring\n1. seven\nplain words\n• dot"
+},
+{
+"body": "\n▪ square",
+"indents": [
+0,
+2
+],
+"renumbered": "\n▪ square"
+},
+{
+"body": "7. seven\n◦ ring\n• dot\n\n٣. three\n1.no space\n• dot",
+"indents": [
+1,
+0,
+0,
+1,
+0,
+0,
+3
+],
+"renumbered": "1. seven\n◦ ring\n• dot\n\n1. three\n1.no space\n• dot"
+},
+{
+"body": "1.no space\n• dot\n2. two\nplain words\n1. one\n\n12. twelve\n◦ ring\n",
+"indents": [
+0,
+2,
+0,
+0,
+2,
+0,
+0,
+0,
+0
+],
+"renumbered": "1.no space\n• dot\n1. two\nplain words\n1. one\n\n1. twelve\n◦ ring\n"
+},
+{
+"body": "◦ ring\n▪ square\n▪ square",
+"indents": [
+0,
+0,
+1
+],
+"renumbered": "◦ ring\n▪ square\n▪ square"
+},
+{
+"body": "٣. three\n\n٣. three\n٣. three\n7. seven",
+"indents": [
+2,
+1,
+1,
+0,
+1
+],
+"renumbered": "1. three\n\n1. three\n1. three\n1. seven"
+},
+{
+"body": "1.no space\n◦ ring\n",
+"indents": [
+1,
+0,
+2
+],
+"renumbered": "1.no space\n◦ ring\n"
+},
+{
+"body": "1. \n10. ten\n| a | b |\n2. two\n| a | b |\n10. ten\n7. seven\nplain words\nplain words\n12. twelve\n◦ ring",
+"indents": [
+0,
+0,
+3,
+2,
+3,
+0,
+3,
+1,
+0,
+0,
+1
+],
+"renumbered": "1. \n2. ten\n| a | b |\n1. two\n| a | b |\n1. ten\n1. seven\nplain words\nplain words\n1. twelve\n◦ ring"
+},
+{
+"body": "1. one\n▪ square\n٣. three\n2. two\n| a | b |",
+"indents": [
+3,
+1,
+0,
+2,
+1
+],
+"renumbered": "1. one\n▪ square\n1. three\n1. two\n| a | b |"
+},
+{
+"body": "\nplain words\n2. two\n• dot\n• dot\n٣. three\n| a | b |",
+"indents": [
+0,
+1,
+2,
+0,
+0,
+3,
+1
+],
+"renumbered": "\nplain words\n1. two\n• dot\n• dot\n1. three\n| a | b |"
+},
+{
+"body": "1. \n1. \n\n7. seven\n1. \n\n   \n10. ten",
+"indents": [
+0,
+2,
+0,
+1,
+2,
+1,
+0,
+0
+],
+"renumbered": "1. \n1. \n\n1. seven\n1. \n\n   \n1. ten"
+},
+{
+"body": "   \nplain words\n12. twelve\n1.no space",
+"indents": [
+0,
+2,
+3,
+1
+],
+"renumbered": "   \nplain words\n1. twelve\n1.no space"
+},
+{
+"body": "12. twelve\n1.no space\n12. twelve\n7. seven\n1. \n1.no space",
+"indents": [
+2,
+1,
+2,
+1,
+0,
+0
+],
+"renumbered": "1. twelve\n1.no space\n1. twelve\n1. seven\n1. \n1.no space"
+},
+{
+"body": "1.no space\n| a | b |\nplain words\n1. one\n| a | b |\n| a | b |\n10. ten",
+"indents": [
+0,
+1,
+0,
+1,
+0,
+1,
+0
+],
+"renumbered": "1.no space\n| a | b |\nplain words\n1. one\n| a | b |\n| a | b |\n1. ten"
+},
+{
+"body": "7. seven\n7. seven\n12. twelve\n\n   ",
+"indents": [
+0,
+0,
+1,
+0,
+1
+],
+"renumbered": "1. seven\n2. seven\n1. twelve\n\n   "
+},
+{
+"body": "٣. three\n12. twelve\n1. \n12. twelve\n12. twelve\n10. ten\n\n10. ten\n2. two\nplain words",
+"indents": [
+3,
+1,
+0,
+0,
+1,
+3,
+0,
+3,
+1,
+3
+],
+"renumbered": "1. three\n1. twelve\n1. \n2. twelve\n1. twelve\n1. ten\n\n2. ten\n2. two\nplain words"
+},
+{
+"body": "   \n1. \n٣. three\n10. ten\n\n◦ ring",
+"indents": [
+0,
+0,
+0,
+0,
+1,
+0
+],
+"renumbered": "   \n1. \n2. three\n3. ten\n\n◦ ring"
+},
+{
+"body": "1. one\n| a | b |\n٣. three\n1. \n▪ square",
+"indents": [
+0,
+0,
+2,
+1,
+1
+],
+"renumbered": "1. one\n| a | b |\n1. three\n1. \n▪ square"
+},
+{
+"body": "   ",
+"indents": [
+2
+],
+"renumbered": "   "
+},
+{
+"body": "1.no space\n7. seven\n7. seven\n12. twelve\n• dot",
+"indents": [
+3,
+2,
+1,
+2,
+1
+],
+"renumbered": "1.no space\n1. seven\n1. seven\n1. twelve\n• dot"
+},
+{
+"body": "▪ square\nplain words\n▪ square\n10. ten\n٣. three\n1.no space\n7. seven",
+"indents": [
+3,
+2,
+3,
+3,
+2,
+3,
+3
+],
+"renumbered": "▪ square\nplain words\n▪ square\n1. ten\n1. three\n1.no space\n1. seven"
+},
+{
+"body": "◦ ring\n1. \n10. ten\n   \n   ",
+"indents": [
+0,
+0,
+0,
+0,
+3
+],
+"renumbered": "◦ ring\n1. \n2. ten\n   \n   "
+},
+{
+"body": "12. twelve\n▪ square",
+"indents": [
+2,
+1
+],
+"renumbered": "1. twelve\n▪ square"
+},
+{
+"body": "\n٣. three\n\n1.no space\n\n1. one\n7. seven\n• dot",
+"indents": [
+1,
+0,
+1,
+2,
+1,
+2,
+2,
+0
+],
+"renumbered": "\n1. three\n\n1.no space\n\n1. one\n2. seven\n• dot"
+},
+{
+"body": "   \n1.no space\n٣. three\n10. ten\n12. twelve\n12. twelve\n7. seven",
+"indents": [
+0,
+0,
+1,
+1,
+3,
+1,
+2
+],
+"renumbered": "   \n1.no space\n1. three\n2. ten\n1. twelve\n3. twelve\n1. seven"
+},
+{
+"body": "\n• dot\n▪ square\n",
+"indents": [
+1,
+1,
+0,
+0
+],
+"renumbered": "\n• dot\n▪ square\n"
+},
+{
+"body": "10. ten\n1. \n2. two\n   \n• dot\n▪ square\n2. two",
+"indents": [
+1,
+3,
+1,
+1,
+0,
+0,
+1
+],
+"renumbered": "1. ten\n1. \n2. two\n   \n• dot\n▪ square\n1. two"
+},
+{
+"body": "• dot\nplain words\n12. twelve\n\nplain words",
+"indents": [
+1,
+0,
+1,
+2,
+0
+],
+"renumbered": "• dot\nplain words\n1. twelve\n\nplain words"
+},
+{
+"body": "7. seven\n• dot\n7. seven\n10. ten\n\n| a | b |\n7. seven",
+"indents": [
+0,
+1,
+1,
+1,
+0,
+0,
+1
+],
+"renumbered": "1. seven\n• dot\n1. seven\n2. ten\n\n| a | b |\n1. seven"
+},
+{
+"body": "▪ square\nplain words\n   \n\n2. two\n• dot",
+"indents": [
+1,
+0,
+0,
+0,
+0,
+0
+],
+"renumbered": "▪ square\nplain words\n   \n\n1. two\n• dot"
+},
+{
+"body": "2. two",
+"indents": [
+1
+],
+"renumbered": "1. two"
+},
+{
+"body": "1. one\n◦ ring\n1. \n1.no space\n   ",
+"indents": [
+2,
+3,
+1,
+0,
+0
+],
+"renumbered": "1. one\n◦ ring\n1. \n1.no space\n   "
+},
+{
+"body": "1. one\n   \n٣. three\n1.no space",
+"indents": [
+1,
+0,
+0,
+1
+],
+"renumbered": "1. one\n   \n1. three\n1.no space"
+},
+{
+"body": "",
+"indents": [
+2
+],
+"renumbered": ""
+},
+{
+"body": "| a | b |\n   \n1. one\n1. one",
+"indents": [
+0,
+1,
+2,
+1
+],
+"renumbered": "| a | b |\n   \n1. one\n1. one"
+},
+{
+"body": "\n• dot\n1. \n\n1. \n1. one\n◦ ring\n| a | b |\n| a | b |",
+"indents": [
+2,
+1,
+1,
+1,
+1,
+1,
+1,
+3,
+0
+],
+"renumbered": "\n• dot\n1. \n\n2. \n3. one\n◦ ring\n| a | b |\n| a | b |"
+},
+{
+"body": "1. one\n2. two\n▪ square\n٣. three\n| a | b |\n1.no space\n\n\n2. two\n1. \n1. one",
+"indents": [
+3,
+1,
+3,
+2,
+0,
+0,
+1,
+0,
+1,
+1,
+2
+],
+"renumbered": "1. one\n1. two\n▪ square\n1. three\n| a | b |\n1.no space\n\n\n1. two\n2. \n1. one"
+},
+{
+"body": "\n1. \n٣. three\n1. \nplain words\n◦ ring",
+"indents": [
+3,
+2,
+1,
+0,
+2,
+2
+],
+"renumbered": "\n1. \n1. three\n1. \nplain words\n◦ ring"
+},
+{
+"body": "2. two\n2. two",
+"indents": [
+1,
+0
+],
+"renumbered": "1. two\n1. two"
+},
+{
+"body": "\n٣. three\n\n10. ten\n1. one\n12. twelve\n\n▪ square\n1. ",
+"indents": [
+1,
+2,
+1,
+0,
+0,
+0,
+1,
+0,
+0
+],
+"renumbered": "\n1. three\n\n1. ten\n2. one\n3. twelve\n\n▪ square\n1. "
+},
+{
+"body": "   ",
+"indents": [
+0
+],
+"renumbered": "   "
+},
+{
+"body": "   \n▪ square\n\n\n٣. three\n• dot\n10. ten\n7. seven\n12. twelve",
+"indents": [
+0,
+1,
+1,
+1,
+1,
+1,
+0,
+2,
+0
+],
+"renumbered": "   \n▪ square\n\n\n1. three\n• dot\n1. ten\n1. seven\n2. twelve"
+},
+{
+"body": "plain words\n• dot\n1.no space\n1. \n7. seven\n\n",
+"indents": [
+0,
+3,
+3,
+0,
+3,
+0,
+2
+],
+"renumbered": "plain words\n• dot\n1.no space\n1. \n1. seven\n\n"
+},
+{
+"body": "1. one\n10. ten\n10. ten\n10. ten\n12. twelve\n2. two\n1.no space\n◦ ring\n1. ",
+"indents": [
+0,
+0,
+0,
+3,
+3,
+0,
+3,
+0,
+2
+],
+"renumbered": "1. one\n2. ten\n3. ten\n1. ten\n2. twelve\n4. two\n1.no space\n◦ ring\n1. "
+},
+{
+"body": "• dot\n2. two\n   \n2. two\n7. seven\n12. twelve\n   \n\n• dot",
+"indents": [
+1,
+2,
+3,
+0,
+1,
+1,
+3,
+1,
+3
+],
+"renumbered": "• dot\n1. two\n   \n1. two\n1. seven\n2. twelve\n   \n\n• dot"
+},
+{
+"body": "◦ ring\n\n• dot\n1. one\n| a | b |",
+"indents": [
+2,
+1,
+3,
+1,
+1
+],
+"renumbered": "◦ ring\n\n• dot\n1. one\n| a | b |"
+},
+{
+"body": "",
+"indents": [
+0
+],
+"renumbered": ""
+},
+{
+"body": "12. twelve\n• dot\n• dot\n1. \n\n▪ square\n\n1.no space\n| a | b |",
+"indents": [
+0,
+1,
+0,
+0,
+0,
+1,
+2,
+0,
+2
+],
+"renumbered": "1. twelve\n• dot\n• dot\n1. \n\n▪ square\n\n1.no space\n| a | b |"
+},
+{
+"body": "1.no space\n   \n10. ten\n• dot",
+"indents": [
+0,
+3,
+0,
+1
+],
+"renumbered": "1.no space\n   \n1. ten\n• dot"
+},
+{
+"body": "\nplain words\n   \n• dot\n◦ ring\n10. ten",
+"indents": [
+0,
+2,
+1,
+2,
+3,
+3
+],
+"renumbered": "\nplain words\n   \n• dot\n◦ ring\n1. ten"
+},
+{
+"body": "1.no space\n   \n7. seven\n7. seven\n• dot\nplain words\n7. seven\n▪ square\n1.no space",
+"indents": [
+2,
+2,
+0,
+2,
+0,
+0,
+0,
+1,
+2
+],
+"renumbered": "1.no space\n   \n1. seven\n1. seven\n• dot\nplain words\n1. seven\n▪ square\n1.no space"
+},
+{
+"body": "2. two\nplain words",
+"indents": [
+1,
+1
+],
+"renumbered": "1. two\nplain words"
+},
+{
+"body": "   \n1.no space",
+"indents": [
+0,
+1
+],
+"renumbered": "   \n1.no space"
+},
+{
+"body": "\n1. one\n| a | b |\n7. seven\n1.no space\n◦ ring\n٣. three\n1. one\n1. \n| a | b |\n1. ",
+"indents": [
+3,
+1,
+2,
+1,
+0,
+2,
+0,
+1,
+1,
+1,
+0
+],
+"renumbered": "\n1. one\n| a | b |\n1. seven\n1.no space\n◦ ring\n1. three\n1. one\n2. \n| a | b |\n1. "
+},
+{
+"body": "12. twelve",
+"indents": [
+0
+],
+"renumbered": "1. twelve"
+},
+{
+"body": "10. ten\nplain words\nplain words\n1. one\n\n",
+"indents": [
+0,
+0,
+0,
+0,
+1,
+0
+],
+"renumbered": "1. ten\nplain words\nplain words\n1. one\n\n"
+},
+{
+"body": "10. ten\n▪ square\n• dot\n   \n1. one\n▪ square",
+"indents": [
+1,
+1,
+2,
+1,
+3,
+0
+],
+"renumbered": "1. ten\n▪ square\n• dot\n   \n1. one\n▪ square"
+},
+{
+"body": "10. ten\n12. twelve\n10. ten\n▪ square\n1. one\n7. seven\n◦ ring\n| a | b |\n1. one\n   ",
+"indents": [
+0,
+1,
+1,
+2,
+0,
+2,
+1,
+3,
+0,
+2
+],
+"renumbered": "1. ten\n1. twelve\n2. ten\n▪ square\n2. one\n1. seven\n◦ ring\n| a | b |\n1. one\n   "
+},
+{
+"body": "10. ten\n◦ ring\n| a | b |\n• dot\n7. seven",
+"indents": [
+2,
+0,
+2,
+2,
+0
+],
+"renumbered": "1. ten\n◦ ring\n| a | b |\n• dot\n1. seven"
+},
+{
+"body": "2. two\n   \nplain words\n▪ square",
+"indents": [
+0,
+1,
+1,
+0
+],
+"renumbered": "1. two\n   \nplain words\n▪ square"
+},
+{
+"body": "1.no space",
+"indents": [
+0
+],
+"renumbered": "1.no space"
+}
+]
+}

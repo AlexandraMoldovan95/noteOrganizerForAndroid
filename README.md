@@ -1,55 +1,76 @@
 # Note Organizer on Android
 
-An Android companion to [Note Organizer](https://github.com/AlexandraMoldovan95/noteOrganizer),
-the offline Windows notes app. It reads and writes the **same notes file**
-the desktop app writes — same JSON, same bytes, no conversion step and no
-server in between.
+The Android companion to [Note Organizer](https://github.com/AlexandraMoldovan95/noteOrganizer),
+the offline Windows notes app. Same notes, same rules, same files — the
+phone keeps a notebook of its own, in exactly the desktop's format, and a
+note or a whole notebook moves between the two whenever you send it.
 
-This is an exploration rather than a product. It exists to answer two
-questions honestly: does the desktop app's data format survive the trip
-to Android, and what does a touch-sized version of it actually cost?
+No account, no server, no sync: like the desktop, it works entirely
+offline, and nothing that arrives from the other device is ever written
+over a note without asking.
 
 ---
 
 <p align="center">
-  <img src="docs/screenshots/01-note-list.png" alt="The note list on Android" width="300">
+  <img src="docs/screenshots/01-note-list.png" alt="The note list" width="270">
+  <img src="docs/screenshots/06-dark.png" alt="The same list in a dark theme" width="270">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/02-a-note.png" alt="A note open, with its formatting drawn" width="190">
-  <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="190">
-  <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="190">
+  <img src="docs/screenshots/02-a-note.png" alt="A note open, its formatting and checklist drawn" width="170">
+  <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="170">
+  <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="170">
+  <img src="docs/screenshots/05-appearance.png" alt="Settings, Appearance" width="170">
+  <img src="docs/screenshots/07-calendar.png" alt="The calendar, a series' days and a painted day" width="170">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/08-wide.png" alt="On its side: the note open beside the list" width="560">
 </p>
 
 <p align="center"><sub>The app running on an emulator, on a notebook written
 for the camera rather than anybody&rsquo;s real one &mdash;
 <a href="docs/screenshots/README.md">how these are made</a>.</sub></p>
 
-## What it does today
+## What it does
 
-Open a note and read it with its styling intact. Search the whole
-notebook. Write a new note, edit an existing one, tick a checklist, file
-it under a category, pin it, colour it, give it a date. Read a table as a
-grid and change its cells. Delete to the Trash and restore from it —
-nothing is destroyed on the phone, and the phone never empties the Trash,
-because only the desktop can also delete a purged note's attachments.
+- **Write and edit** in one screen that saves itself, with Undo and Redo:
+  formatting, sizes and faces, lists, tables written right in their
+  cells, with a bar of plain buttons for the rest — captions and column
+  widths too — checklists you can tick and
+  drag, comments, attached files, and a note's category, colour, date and
+  pin. **Copy and paste keep the formatting**, from a web page or into a
+  mail. Find in a note, a calculator under it, templates, and export as a
+  web page or plain text. A big deletion can be undone with the
+  desktop's **↩ Restore previous**.
+- **The calendar and repeating notes**: the month with each day's notes,
+  painted days and markers, the History, repeats chosen on a sheet, and
+  one day of a series edited on its own or moved to another date.
+- **Find and organise**: search by the desktop's rule (diacritics folded),
+  the desktop's every sort and filter, Custom order arranged by hand,
+  groups by category, duplicates found and cleaned up, long press to
+  select, pin, move, duplicate or delete several at once — with Undo.
+- **A phone or a tablet**: on a wide screen the note opens beside the
+  list.
+- **The Trash**, kept for the desktop's window and emptied on its own.
+- **Your look**: the desktop's eight themes, or follow the phone's dark
+  mode.
+- **Share a note** with anyone, through the phone's own share sheet —
+  WhatsApp, mail, Teams: as a PDF of its page, a web page, its words, or
+  a share code. The app sends nothing itself.
+- **Move notes to and from the desktop.** One note as a **share code** —
+  text you send through any app — or the whole notebook as the desktop's
+  own **backup `.zip`**. A note that arrives where a copy of it already
+  lives is recognised, and you choose: update it, or add it as a new one.
 
-And it can trade notes with the desktop, one note at a time, through a
-**share code**: a long line of text you copy from one device and paste
-into the other. A code that carries a note the phone already has is
-recognised as *that note* — so it asks whether to update the copy here or
-keep both, instead of quietly leaving you with two.
-
-What it deliberately does not do is as much a part of the design as what
-it does; [docs/STATUS.md](docs/STATUS.md) lists both, and is kept honest
-on purpose.
+The full list, what is deliberately not built yet, and how each part was
+verified are in [docs/STATUS.md](docs/STATUS.md).
 
 ## What it is not
 
-**It is not sync.** Share codes move a note you choose, when you choose.
-Two devices editing the same notebook still drift apart, and nothing here
-reconciles that. There is no account, no server, no background exchange —
-by choice, the same choice the desktop app made.
+**It is not sync.** Codes and backups move notes when you choose. Two
+devices editing the same note still drift apart until one sends it to the
+other — and then the person decides, never a clock.
 
 **A share code is not encryption.** It is text, compressed and encoded so
 it survives a chat window. Anyone holding the code can read the note.
@@ -60,13 +81,13 @@ Start wherever your question is.
 
 | Document | What is in it |
 |---|---|
-| [docs/STATUS.md](docs/STATUS.md) | What works, what was verified and how, what is deliberately unbuilt, and the questions still open. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the code is put together, and the handful of decisions that explain why it is that shape — including the one that explains the most code: a note has two representations on purpose. |
-| [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md) | What a note IS, in both programs — and the traps that come with re-implementing the same rules in a second language. Read before touching anything that reads or writes a note. |
+| [docs/STATUS.md](docs/STATUS.md) | What works, what was verified and how, what is not built yet, and the questions still open. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the code is put together, and the decisions that explain its shape — including the one that explains the most code: a note has two representations on purpose. |
+| [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md) | What a note IS, in both programs; the settings, codes and backups they share — and the traps that come with re-implementing the same rules in a second language. Read before touching anything that reads or writes a note. |
 | [docs/ISSUES_LOG.md](docs/ISSUES_LOG.md) | What actually went wrong, how it was found, and what kind of failure it turned out to be. The most useful document here, and the least flattering. |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version, and how the numbers are decided. |
-| [qa/README.md](qa/README.md) | How this app is tested: four layers, and what only each one can catch. |
-| [tools/emulator/README.md](tools/emulator/README.md) | The scripts that drive the emulator — tap, type, photograph — and the ways the emulator lies to a script. |
+| [qa/README.md](qa/README.md) | How this app is tested: the layers, and what only each one can catch. |
+| [tools/emulator/README.md](tools/emulator/README.md) | The scripts that drive the emulator — walk, tap, type, photograph — and the ways the emulator lies to a script. |
 | [docs/screenshots/README.md](docs/screenshots/README.md) | Where the pictures come from, and how one command remakes them. |
 | [CLAUDE.md](CLAUDE.md) | How work is done in this folder: the rules, the approvals, and the environment traps that cost a day each. |
 
@@ -87,20 +108,19 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 221 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 656 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in
-`app\build\test-results\testDebugUnitTest\`, and the count in those files
-is the only proof the tests actually ran.
+`app\build\test-results\testDebugUnitTest\`, and
+`py tools\check_test_results.py` reads them — refusing any that are older
+than the code.
 
-The app looks for `notes_data.json` in its own app-private folder on the
-device. To try it against a real notebook, copy one in:
-
-    adb push notes_data.json /sdcard/Android/data/ro.noteorganizer.app/files/
-
-That copy is yours to break — it is not the desktop's file, and nothing
-here ever reaches back to the machine that wrote it.
+The app keeps its notebook in its own private storage. To try it with a
+real notebook, export a backup from the desktop (Settings → Backup), put
+the `.zip` anywhere on the device, and import it from the app's
+Settings → Backup. That copy is yours to break — nothing here ever
+reaches back to the machine that wrote it.
 
 ### The icon is the desktop's icon
 
@@ -109,10 +129,8 @@ here ever reaches back to the machine that wrote it.
 It imports the desktop app's `tools/make_icon.py` and asks for the same
 drawing at Android's sizes — not a copy, and not a second icon that
 merely rhymes with the first. It reads that file and never writes to it,
-like everything else here that touches the desktop. Android Studio's
-template icon — the green robot — is gone. What ships is listed in the
-[changelog](CHANGELOG.md#050--2026-09-14); why the mark is drawn at 47%
-of the canvas is in the
+like everything else here that touches the desktop. Why the mark is drawn
+at 47% of the canvas is in the
 [issues log](docs/ISSUES_LOG.md#the-preview-that-flattered-the-icon).
 
 ## How it is checked
@@ -120,32 +138,32 @@ of the canvas is in the
 | Check | Run it with | What it catches |
 |---|---|---|
 | Unit tests, on the JVM | `gradlew.bat testDebugUnitTest` | A rule ported from Python that does not match the Python |
-| The contract gate | `py tools/check_note_shape.py` | The two programs quietly disagreeing about what a note *is* |
+| The note-shape gate | `py tools/check_note_shape.py` | The two programs quietly disagreeing about what a note *is* |
+| The palette gate | `py tools/check_palettes.py` | A theme or a colour drifting from the desktop's |
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
-| The language gate | `py tools/check_english.py` | Romanian reaching anything written for a developer; the app's own Romanian words are exempt |
-| The emulator tools | [tools/emulator/](tools/emulator/) | A rule that is right and a screen that is wrong |
+| The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
+| The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
+| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 250 checks, each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
-The unit tests pin the rules that were ported from Python rather than the
-screens, and every one of them has been watched failing — broken on
-purpose, run, read, reverted. A mutant that produces no test results at
-all is not a passing one; that has happened three times here, for three
-different reasons
-([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
+The unit tests pin the rules ported from Python rather than the screens,
+and every one of them has been watched failing — broken on purpose, run,
+read, reverted. A mutant that produces no test results at all is not a
+passing one ([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
 
 The parts that matter most are not judged by this app at all. A note
-captured on the phone is pulled back and checked **in the desktop's own
-Python** ([what was compared](docs/STATUS.md#how-each-part-was-verified)).
-A suite proves the code does what it says it does; that proves the two
-programs agree about what a note is. Run the contract gate before calling
-anything about the note format done
-([why it exists](qa/README.md#the-gate-between-the-two-programs)).
+written on the phone, a share code and a backup made here were each
+checked **in the desktop's own Python**, and the ports since Phase 2 —
+repeats, the calculator, the export, templates, renumbered lists, pasted
+HTML — give back every answer the desktop's functions gave over hundreds
+of cases, save the few where the desktop is wrong and the phone says why
+([what was compared](docs/STATUS.md#how-each-part-was-verified)). A suite
+proves the code does what it says it does; that proves the two programs
+agree.
 
-The test plan has 35 cases — the same shape as the desktop app's plan,
-kept here because the two projects are deliberately separate. Its "Who
-runs it" column says which cases a unit test or the emulator already
-walks, and which twelve need a person with a real phone in their hand:
-whether a tap lands, whether the keyboard covers what you are typing,
-whether it reads well at arm's length. Those twelve are the reason the
-file exists; a script cannot answer one of them. The full map, and what
-runs in CI on every push: [qa/README.md](qa/README.md).
+The test plan marks which cases a unit test or the emulator already
+walks, and which need a person with a real phone: whether a tap lands,
+whether the keyboard covers what you are typing, whether it reads well at
+arm's length — and whether the words say what they mean. A script cannot
+answer one of those. The full map, and what runs in CI on every push:
+[qa/README.md](qa/README.md).

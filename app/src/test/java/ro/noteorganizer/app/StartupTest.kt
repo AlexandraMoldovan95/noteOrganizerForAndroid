@@ -1,0 +1,135 @@
+package ro.noteorganizer.app
+
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.nio.file.Files as NioFiles
+
+/** What the start does to a notebook before the first screen. */
+class StartupTest {
+
+    private fun temp(name: String) = NioFiles.createTempDirectory(name).toFile()
+
+    @Test
+    fun `a brand-new notebook opens on the welcome note, once`() {
+        val dir = File(temp("phone"), "notebook")
+        assertNull(Startup.prepare(dir, older = null))
+        val notes = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals(1, notes.length())
+        assertEquals(Welcome.TITLE, notes.getJSONObject(0).getString("title"))
+        val settings = JSONObject(File(dir, "settings.json").readText())
+        assertEquals(true, settings.getBoolean("welcome_offered"))
+        assertEquals(notes.getJSONObject(0).getString("uid"), settings.getString("welcome_note_uid"))
+        // The second start greets nobody.
+        Startup.prepare(dir, older = null)
+        assertEquals(1, JSONArray(File(dir, "notes_data.json").readText()).length())
+    }
+
+    @Test
+    fun `an emptied notebook is never greeted again`() {
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        Startup.prepare(dir, older = null)
+        assertEquals(0, JSONArray(File(dir, "notes_data.json").readText()).length())
+    }
+
+    @Test
+    fun `a notebook in the older folder is copied in, files and all, and nothing is deleted`() {
+        val older = temp("older")
+        File(older, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        File(older, "settings.json").writeText("""{"username": "Maria"}""")
+        File(older, "attachments").mkdirs()
+        File(older, "attachments/a.png").writeText("A")
+        val dir = File(temp("phone"), "notebook")
+        val notice = Startup.prepare(dir, older)
+        assertTrue(notice!!.contains("brought into"))
+        assertEquals("Kept", JSONArray(File(dir, "notes_data.json").readText()).getJSONObject(0).getString("title"))
+        assertEquals("A", File(dir, "attachments/a.png").readText())
+        assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
+        assertTrue("no welcome note in a notebook that arrived",
+            JSONArray(File(dir, "notes_data.json").readText()).length() == 1)
+    }
+
+    @Test
+    fun `the start empties what outlived the window, and says so`() {
+        val dir = temp("phone")
+        val old = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(Date().time - 40L * 86_400_000))
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "$old"}]""")
+        val notice = Startup.prepare(dir, older = null)
+        assertTrue(notice!!.contains("removed from the Trash"))
+        assertEquals(0, JSONArray(File(dir, "trash.json").readText()).length())
+    }
+
+    private fun deletedDaysAgo(days: Int): String =
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(Date().time - days * 86_400_000L))
+
+    private fun trashLeft(dir: File) = JSONArray(File(dir, "trash.json").readText()).length()
+
+    @Test
+    fun `a window of 90 days keeps a note deleted 45 days ago through every start`() {
+        // The owner's question: a release made while such a note waits must
+        // not take it. The window is the person's, written as Settings → Trash
+        // writes it, read back by the start.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(45)}"}]""")
+        File(dir, "settings.json").writeText("""{"trash_retention_days": 90}""")
+        Startup.prepare(dir, older = null)
+        Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+    }
+
+    @Test
+    fun `settings that cannot be read purge nothing, at this start and the ones after`() {
+        // The window chosen was in the file. Its fresh replacement reads as
+        // "never chosen", 30 days: without the mark, the next start would
+        // purge what was kept for 90.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"}]""")
+        File(dir, "settings.json").writeText("""{"trash_retention_days": 90, "theme": """)
+        val notice = Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+        assertTrue(notice, notice!!.contains("Nothing was removed from the Trash"))
+        assertEquals(true, JSONObject(File(dir, "settings.json").readText()).opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        Startup.prepare(dir, older = null)
+        assertEquals("the start after it, the fresh file readable, still nothing", 1, trashLeft(dir))
+        // A window chosen again, as Settings → Trash chooses it: the purge
+        // goes by it from the next start.
+        val settings = Settings.load(dir)
+        Settings.putAll(settings, mapOf(Settings.RETENTION_DAYS to 30, Settings.PHONE_TRASH_WINDOW_UNKNOWN to null))
+        Startup.prepare(dir, older = null)
+        assertEquals(0, trashLeft(dir))
+    }
+
+    @Test
+    fun `a window no app writes purges nothing`() {
+        for (value in listOf("0", "-3", "400", "\"forever\"", "7.5", "true", "null")) {
+            val dir = temp("phone")
+            File(dir, "notes_data.json").writeText("[]")
+            File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"}]""")
+            File(dir, "settings.json").writeText("""{"trash_retention_days": $value}""")
+            Startup.prepare(dir, older = null)
+            assertEquals("a window of $value", 1, trashLeft(dir))
+        }
+    }
+
+    @Test
+    fun `a window never chosen is the default, as the desktop reads it`() {
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "trash.json").writeText("""[{"id": 1, "deleted_at": "${deletedDaysAgo(40)}"},
+            {"id": 2, "deleted_at": "${deletedDaysAgo(20)}"}]""")
+        File(dir, "settings.json").writeText("""{"theme": "dark"}""")
+        Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+    }
+}

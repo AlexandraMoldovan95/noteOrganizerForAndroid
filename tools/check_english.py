@@ -13,21 +13,17 @@ being a private note the moment it is pushed.
 
 THE BOUNDARY HERE
 -----------------
-This app speaks Romanian to its users, and that is the product rather
-than a leak: "Sterge notita" is a button, not a note somebody forgot to
-translate. So the line this gate draws is not "no Romanian" -- it is
-"no Romanian in anything written for a DEVELOPER".
+Until 2026-10-15 this app spoke Romanian to its users, and everything
+under `app/` was exempt for that reason. It speaks English now, like the
+desktop, so the exemption went with it: the app, its tests and its
+strings are read like everything else.
 
-Everything under `app/` is exempt, with its reason recorded below: the
-strings the app draws, and the tests that assert those exact words back.
-A handful of documents are exempt too, each because it quotes the app or
-explains a behaviour it cannot explain without showing the spelling.
-
-Everything else -- the tools, the workflows, the READMEs, CLAUDE.md --
-is read, and must be English. That is where a CI log comes from.
-
-(The desktop repository has the opposite shape: its interface is English,
-so nothing there is exempt at all.)
+What is left are exceptions by file, each with its reason recorded
+below. Most are documents that quote what the app USED to draw, or that
+explain a behaviour which cannot be explained without showing the
+spelling. A few files may carry diacritics but still no Romanian words:
+search folds "notiță" into "notita", and the code and tests that prove it
+have to write both.
 
     py tools/check_english.py
     py tools/check_english.py --list     # every hit, not just the first few
@@ -61,6 +57,12 @@ WORDS = [
     "fisierul", "fisiere", "inainte", "inapoi", "notita", "notite",
     "pentru", "poate", "ramane", "sterge", "sters", "stearsa", "sunt",
     "toate", "trebuie", "verifica", "vreau",
+    # Added 2026-10-15, when the app's own exemption went and these were
+    # found sitting in a CI message, a tool's output and test fixtures
+    # that the list above had walked straight past.
+    "aici", "asteptat", "codul", "cumparaturi", "editata", "facut",
+    "lapte", "lipseste", "nimic", "paine", "salvarea", "tastat",
+    "valoarea", "veche", "vechi",
 ]
 ROMANIAN = re.compile(r"\b(%s)\b" % "|".join(WORDS), re.I)
 
@@ -87,29 +89,28 @@ TEXT = (".py", ".md", ".txt", ".yml", ".yaml", ".json", ".kt", ".kts",
 ALLOWED = {
     "tools/check_english.py":
         "this gate: the wordlist it searches for is necessarily Romanian",
+    "docs/ISSUES_LOG.md":
+        "quotes the search placeholder the app drew when it spoke Romanian, "
+        "in the story about a tap that could not find it",
+}
+
+# Files where the LETTERS are allowed but the words are still read. Search
+# folds diacritics ("notiță" finds "notita"), and the code that does it,
+# and the tests that prove it, cannot do so without writing both.
+MARKS_ONLY = {
+    "app/src/main/java/ro/noteorganizer/app/Notebook.kt":
+        "the doc comment on the search fold shows what it folds",
+    "app/src/test/java/ro/noteorganizer/app/NotebookTest.kt":
+        "the tests that search with and without diacritics",
+    "app/src/test/java/ro/noteorganizer/app/SharingTest.kt":
+        "a share code must carry diacritics through untouched",
+    "app/src/test/java/ro/noteorganizer/app/InteropTest.kt":
+        "the desktop's own code carries diacritics, and they must arrive",
     "CHANGELOG.md":
         "explains that search folds diacritics, which cannot be explained "
         "without printing both spellings",
     "docs/STATUS.md":
-        "the same diacritics explanation, and it quotes the app's own "
-        "buttons ('Adauga ca notita noua') where the wording is the point",
-    "docs/ISSUES_LOG.md":
-        "quotes the search placeholder the app draws, in the story about a "
-        "tap that could not find it",
-    "tools/emulator/take_screenshots.py":
-        "the seeded notebook, and the words each shot is checked against, "
-        "ARE the app's own screen -- an English word would match no button",
-    "tools/make_interop_fixture.py":
-        "the fixture's note is content inside a Romanian-speaking app",
-}
-
-# Whole trees, with the reason. Coarser than a file on purpose:
-# everything under here is either what the app says to its users or a
-# test asserting those exact words back.
-ALLOWED_PREFIXES = {
-    "app/":
-        "the app speaks Romanian to its users -- the product, not a leak -- "
-        "and its tests assert those strings literally",
+        "the same explanation, where the app's differences are listed",
 }
 
 
@@ -133,18 +134,13 @@ def tracked():
     return names
 
 
-def exempt_tree(relative):
-    """True when a path sits under an allowed tree, with a reason."""
-    return any(relative.startswith(prefix) for prefix in ALLOWED_PREFIXES)
-
-
 def tracked_files():
     for name in tracked():
         if os.path.splitext(name)[1].lower() in TEXT:
             yield name
 
 
-def hits_in(relative):
+def hits_in(relative, marks_allowed=False):
     path = os.path.join(ROOT, relative)
     try:
         text = io.open(path, encoding="utf-8", errors="replace").read()
@@ -153,7 +149,7 @@ def hits_in(relative):
     found = []
     for number, line in enumerate(text.splitlines(), start=1):
         word = ROMANIAN.search(line)
-        mark = DIACRITICS.search(line)
+        mark = None if marks_allowed else DIACRITICS.search(line)
         if word or mark:
             found.append((number, (word or mark).group(0), line.strip()))
     return found
@@ -164,18 +160,25 @@ def main():
     leaks = []
     named = []
 
+    # A listed file that no longer exists is a reason nobody is checking.
+    names = set(tracked())
+    gone = sorted(set(MARKS_ONLY) - names)
+    if gone:
+        print("MARKS_ONLY names file(s) git does not track: %s" % ", ".join(gone))
+        print("If they moved, move the list too; if they went, drop the line.")
+        return 1
+
     for relative in tracked_files():
-        if relative in ALLOWED or exempt_tree(relative):
+        if relative in ALLOWED:
             continue
-        for number, word, line in hits_in(relative):
+        for number, word, line in hits_in(relative, relative in MARKS_ONLY):
             leaks.append((relative, number, word, line))
 
     # Filenames are read too: a picture called 04-setari-cos.png says it
     # in the file listing, before anybody opens anything.
     for name in tracked():
         stem = os.path.basename(name).rsplit(".", 1)[0].replace("-", " ")
-        if (name not in ALLOWED and not exempt_tree(name)
-                and IN_FILENAME.search(stem)):
+        if name not in ALLOWED and IN_FILENAME.search(stem):
             named.append(name)
 
     if not leaks and not named:
@@ -200,10 +203,9 @@ def main():
                   % (len(leaks) - len(shown)))
         print()
 
-    print("The app may speak Romanian; this does not. Anything written for")
-    print("a developer -- tools, workflows, documents, filenames -- is read")
-    print("by people who do not. Translate it, or add it to ALLOWED in this")
-    print("gate WITH the reason it belongs there.")
+    print("This repository is English, the app included. Translate it, or")
+    print("add it to ALLOWED (or MARKS_ONLY, for letters without words) in")
+    print("this gate WITH the reason it belongs there.")
     return 1
 
 

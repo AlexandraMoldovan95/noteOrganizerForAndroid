@@ -1,3 +1,513 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every word the app says, in one place. English, as the desktop speaks;
+  where the desktop already has words for the same thing, they are its
+  words, so a person who knows one app reads the other. The few messages
+  the rules layer writes (why a save failed, why a code was refused) live
+  in that Kotlin, which knows nothing about Android.
+-->
 <resources>
-    <string name="app_name">NoteOrganizer</string>
+    <string name="app_name">Note Organizer</string>
+
+    <!-- The bar at the bottom; on a wide screen, the rail down the left -->
+    <string name="nav_notes">Notes</string>
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_settings">Settings</string>
+    <!-- A wide screen's second pane, before a note is opened in it -->
+    <string name="pick_a_note">Pick a note to open it here, or tap + for a new one.</string>
+
+    <!-- The calendar: the desktop's words wherever it has them -->
+    <string name="cal_today">Today</string>
+    <string name="cal_history">📋 History</string>
+    <string name="cal_back_to_month">📅 Calendar</string>
+    <string name="cal_previous">Previous month</string>
+    <string name="cal_next">Next month</string>
+    <string name="cal_add_note">+ Add note</string>
+    <string name="cal_no_notes">No notes for this day yet.</string>
+    <string name="cal_colour_day">Colour this day</string>
+    <string name="cal_mark_day">Mark this day</string>
+    <string name="cal_clear_colour">Clear the colour</string>
+    <string name="cal_clear_markers">Clear the markers</string>
+    <string name="cal_markers_title">Mark this day — up to 3</string>
+    <string name="cal_markers_full">Three is the most a day can hold. Unmark one to choose another.</string>
+    <string name="cal_open">Open</string>
+    <string name="history_search">Search the History…</string>
+    <string name="history_empty">Nothing here yet. Dated notes, and the days of repeating notes edited on their own, appear here.</string>
+    <string name="history_series_jump">No days of its own — tap to see it on the calendar</string>
+    <plurals name="history_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
+    <!-- One day of a repeating note -->
+    <string name="day_edit_this">✏ Edit this day</string>
+    <string name="day_edit_series">🔁 Edit the whole series</string>
+    <string name="day_reset">↺ Reset this day</string>
+    <string name="day_move">📅 Move this day…</string>
+    <!-- The series view's line: the desktop's banner, in its words -->
+    <string name="series_banner">🔁 This note repeats (%1$s) — edits here apply to every day</string>
+    <plurals name="series_own_edits">
+        <item quantity="one">%d day keeps its own edits (✎)</item>
+        <item quantity="other">%d days keep their own edits (✎)</item>
+    </plurals>
+    <plurals name="series_moved">
+        <item quantity="one">%d day moved (↷)</item>
+        <item quantity="other">%d days moved (↷)</item>
+    </plurals>
+    <!-- Days off the schedule: the desktop's words -->
+    <plurals name="off_schedule_banner">
+        <item quantity="one">✎ %d day\'s own edits are off the schedule — Show it</item>
+        <item quantity="other">✎ %d days\' own edits are off the schedule — Show them</item>
+    </plurals>
+    <string name="off_schedule_title">Day %1$d of %2$d off the schedule</string>
+    <string name="off_schedule_text">%1$s — “%2$s”%3$s\n\nThis day keeps its own edits, but the repeat (%4$s) no longer lands on it, so the calendar does not show it.\n\nA note of its own puts it back on the calendar, on its day. The Trash keeps it %5$d days.</string>
+    <string name="off_schedule_note">Make it a note</string>
+    <string name="off_schedule_trash">Move to the Trash</string>
+    <string name="off_schedule_leave">Leave it</string>
+    <string name="day_delete">Delete this day</string>
+    <string name="series_delete">Delete the whole series</string>
+    <string name="day_banner">📅 Only this day: %1$s</string>
+    <string name="day_moved_from">— moved from %1$s</string>
+    <string name="whole_series_mark">· whole series</string>
+    <string name="this_day_category">This day\'s category</string>
+    <string name="this_day_colour">This day\'s colour</string>
+    <string name="day_whole_series">🔁 Whole series</string>
+    <string name="day_saved">Saved for this day only</string>
+    <string name="day_follows">This day follows the series again</string>
+    <string name="day_plain">A day\'s own text is plain: formatting belongs to the whole series.</string>
+    <string name="day_series_owned">The date and the repeat belong to the whole series.</string>
+    <string name="day_reset_text">Return %1$s to the series content? The edits made for this day alone will be discarded.</string>
+    <string name="day_reset_moved_text">Put this day back on %1$s? Its own text can go back to the series content as well, or stay as it is.</string>
+    <string name="day_reset_home">Put this day back on %1$s?</string>
+    <string name="day_reset_only_date">Only the date</string>
+    <string name="day_reset_date_and_text">The date and the text</string>
+    <string name="day_delete_text">Remove %1$s from this repeating note? Its other days stay.</string>
+    <string name="series_delete_text">Delete this entire repeating series? It goes to the Trash.</string>
+
+    <!-- The repeat -->
+    <string name="repeat">Repeat</string>
+    <string name="repeat_every">Every</string>
+    <string name="repeat_on">On</string>
+    <string name="repeat_on_days">On day(s) of the month</string>
+    <string name="repeat_same_weekday">None picked: the start date\'s weekday.</string>
+    <string name="repeat_same_monthday">None picked: the start date\'s day of the month.</string>
+    <string name="repeat_short_month">When a month is too short</string>
+    <string name="repeat_clamp">Its last day</string>
+    <string name="repeat_skip">Skip that month</string>
+    <string name="repeat_ends">Ends</string>
+    <string name="repeat_never">Never</string>
+    <string name="repeat_on_date">On a date</string>
+    <string name="repeat_after">After</string>
+    <string name="repeat_times">times</string>
+    <string name="repeat_start">Starts</string>
+    <string name="repeat_needs_date">A repeating note needs a start date.</string>
+    <string name="repeat_off_kept">The repeat is off; ↩ Restore previous brings it back with every day\'s own text.</string>
+    <plurals name="unit_day">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+    <plurals name="unit_week">
+        <item quantity="one">week</item>
+        <item quantity="other">weeks</item>
+    </plurals>
+    <plurals name="unit_month">
+        <item quantity="one">month</item>
+        <item quantity="other">months</item>
+    </plurals>
+    <plurals name="unit_year">
+        <item quantity="one">year</item>
+        <item quantity="other">years</item>
+    </plurals>
+
+    <!-- Everywhere -->
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="save">Save</string>
+    <string name="add">Add</string>
+    <string name="delete">Delete</string>
+    <string name="show">Show</string>
+    <string name="continue_label">Continue</string>
+    <string name="colour">Colour</string>
+    <string name="colour_none">No colour of its own</string>
+    <string name="category">Category</string>
+    <string name="date">Date</string>
+    <string name="days">days</string>
+
+    <!-- The list -->
+    <string name="greeting">Hi %1$s,</string>
+    <string name="search_hint">Search notes…</string>
+    <string name="clear_search">Clear the search</string>
+    <string name="sort_label">Sort: %1$s</string>
+    <!-- Custom order's handle, said aloud: the card it moves -->
+    <string name="drag_to_move">Drag to move %1$s</string>
+    <string name="show_label">Show: %1$s</string>
+    <string name="show_all">All</string>
+    <string name="no_notes">No notes yet. Tap + to write your first.</string>
+    <string name="no_match">No note matches your search.</string>
+    <string name="import_code">Import a code</string>
+    <string name="group_by_category">Group by category</string>
+    <string name="pin">Pin</string>
+    <string name="unpin">Unpin</string>
+    <string name="duplicate">Duplicate</string>
+    <!-- The editor's ⋮ menu: every entry with its icon, as the desktop's has. -->
+    <string name="menu_duplicate">📄 Duplicate</string>
+    <string name="menu_trash">🗑 Move to Trash</string>
+    <string name="menu_day_delete">🗑 Delete this day</string>
+    <string name="menu_series_delete">🗑 Delete the whole series</string>
+    <string name="size_key_said">Size: %1$s</string>
+    <string name="share_code">Share as a code</string>
+    <string name="move_to_trash">Move to Trash</string>
+    <string name="select_all">Select all</string>
+    <string name="unselect_all">Unselect all</string>
+    <string name="choose_category">Move to category</string>
+    <plurals name="selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+
+    <!-- The editor -->
+    <string name="title_hint">Title</string>
+    <string name="body_hint">Write your note…</string>
+    <string name="auto_saved">Auto-saved</string>
+    <string name="not_saved">Not saved</string>
+    <string name="not_saved_because">Not saved: %1$s</string>
+    <string name="restore_banner">An earlier version of this note is kept.</string>
+    <string name="restore_previous">↩ Restore previous</string>
+    <string name="restore_title">Restore previous version</string>
+    <string name="restore_text_only">Bring back the earlier version of this note\'s text? The current text will be replaced.</string>
+    <string name="restore_text_with">Bring back this note as it was before it was updated? Its text comes back, and so do its %1$s. What the note holds now will be replaced.</string>
+    <string name="restore_confirm">Restore</string>
+    <string name="select_to_format">Select text to format it, or tap B, I, U or S for what you type next</string>
+    <string name="pending_on">On for what you type next: %1$s — tap again to stop</string>
+    <string name="style_bold">bold</string>
+    <string name="style_italic">italic</string>
+    <string name="style_underline">underline</string>
+    <string name="style_strike">strikethrough</string>
+    <string name="add_checklist">+ Add a checklist</string>
+    <string name="checklist_label">Checklist · %1$d/%2$d</string>
+    <string name="checklist_new">A new item…</string>
+    <string name="add_comments">+ Add comments</string>
+    <string name="comments_label">Comments</string>
+    <string name="files_label">Attached files · %1$d</string>
+    <!-- Attaching and removing files: the desktop's words -->
+    <string name="attach_files">+ Attach files</string>
+    <string name="attach_remove_said">Remove %1$s</string>
+    <string name="attach_remove_title">Remove attachment</string>
+    <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it — this can\'t be undone.</string>
+    <string name="attach_remove_confirm">Remove</string>
+    <string name="attach_full">A note can keep %1$d attached files. Remove one to add another, or split this into two notes.</string>
+    <string name="attach_too_many_title">More files than this note can hold</string>
+    <string name="attach_too_many_text">A note can keep %1$d attached files, and there is room for %2$d more.\n\nAttach the first %2$d and leave the rest?</string>
+    <string name="attach_first_n">Attach %1$d</string>
+    <string name="no_app_opens">No app on this phone opens this kind of file.</string>
+    <string name="note_details">Note details</string>
+    <string name="no_date">No date</string>
+    <string name="repeats_note">This note repeats. Its date can be changed, but not cleared: clearing it would delete the repeat too.</string>
+    <string name="pin_to_top">📌 Pin to top</string>
+    <string name="cell">Cell</string>
+
+    <!-- The format bar's line keys -->
+    <string name="list_bullet">Bullet list</string>
+    <string name="list_number">Numbered list</string>
+    <string name="indent_less">Less indent</string>
+    <string name="indent_more">More indent</string>
+    <string name="align_left">Align left</string>
+    <string name="align_center">Centre</string>
+    <string name="align_right">Align right</string>
+    <string name="table_insert">Insert table</string>
+    <string name="table_size">%1$d x %2$d table</string>
+    <string name="table_tap_again">Tap a square to choose the size; tap it again, or Insert, to make the table.</string>
+    <string name="table_insert_button">Insert</string>
+
+    <!-- The table's bar, one word a button, and what each opens -->
+    <string name="tb_row">Row</string>
+    <string name="tb_column">Column</string>
+    <string name="tb_merge">Merge</string>
+    <string name="tb_color">Color</string>
+    <string name="tb_align">Align</string>
+    <string name="tb_box">Box</string>
+    <string name="tb_delete">Delete</string>
+    <string name="tb_more">More</string>
+    <string name="tb_grip_width">Drag to change the column\'s width</string>
+    <string name="tb_grip_height">Drag to change the row\'s height</string>
+    <string name="tb_above">Above</string>
+    <string name="tb_below">Below</string>
+    <string name="tb_left">Left</string>
+    <string name="tb_center">Center</string>
+    <string name="tb_right">Right</string>
+    <string name="tb_merge_left">With the cell on the left</string>
+    <string name="tb_merge_up">With the cell above</string>
+    <string name="tb_split">Split</string>
+    <string name="tb_delete_row">This row</string>
+    <string name="tb_delete_column">This column</string>
+    <string name="tb_delete_table">The whole table</string>
+    <string name="more_title">Table</string>
+    <string name="more_fit_all">Fit all columns to their words</string>
+    <string name="more_fit">Fit this column to its words</string>
+    <string name="more_wider">This column wider</string>
+    <string name="more_narrower">This column narrower</string>
+    <string name="more_hide">Hide this column</string>
+    <string name="more_show">Show hidden columns</string>
+    <string name="more_caption">Add a caption below</string>
+    <string name="more_caption_sub">Table 1: description, and its source</string>
+    <string name="more_line_above">Add a line above the table</string>
+    <string name="more_place">Place on the page</string>
+    <string name="more_delete">Delete the table</string>
+    <string name="delete_table">Delete table</string>
+    <string name="delete_table_text">Delete this table and everything in it?</string>
+    <string name="highlight_colour">Highlight colour %1$d</string>
+    <string name="text_colour">Text colour %1$d</string>
+
+    <!-- Templates: the desktop's words -->
+    <string name="template_use">📎 Use template</string>
+    <string name="template_save_as">🧩 Save as template</string>
+    <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
+    <string name="template_pick_title">Use a template</string>
+    <string name="template_started">New note started from template — edits here won\'t change the template</string>
+    <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>
+    <string name="template_save_title">Save as template</string>
+    <string name="template_saved">Saved template “%1$s”</string>
+    <string name="templates_not_saved">The templates couldn\'t be saved: %1$s</string>
+    <string name="template_taken_title">Template name taken</string>
+    <string name="template_taken_text">You already have a template named “%1$s”.\n\nReplace the old template with this one, or give this one another name?</string>
+    <string name="template_replace">Replace</string>
+    <string name="template_another_name">Another name</string>
+    <string name="settings_templates">Templates</string>
+    <string name="settings_templates_sub">Reusable starting points for new notes</string>
+    <string name="templates_intro">Reusable starting points for new notes. Create one here or use “🧩 Save as template” on any note. Pick one with “📎 Use template”. Editing a template only affects notes you make from it afterwards — notes already created stay as they are.</string>
+    <string name="templates_empty">No templates yet. Create one below, or use “Save as template” on a note.</string>
+    <string name="template_new">+ New template</string>
+    <string name="template_new_title">New template</string>
+    <string name="template_edit_title">Edit template</string>
+    <string name="template_field_name">Template name</string>
+    <string name="template_field_title">Note title (optional)</string>
+    <string name="template_field_body">Note body</string>
+    <string name="template_field_comments">Comments (optional)</string>
+    <string name="template_checklist">Checklist</string>
+    <string name="template_checklist_empty">No items yet — type below and tap Add.</string>
+    <string name="template_add_item">+ Add</string>
+    <string name="template_category">Category</string>
+    <string name="template_name_needed_title">Name needed</string>
+    <string name="template_name_needed">Give the template a name.</string>
+    <string name="template_delete_title">Delete template</string>
+    <string name="template_delete_text">Delete the template “%1$s” for good?\n\nTemplates don\'t go to the Trash — this can\'t be undone.</string>
+    <string name="template_save_changes_title">Save changes?</string>
+    <string name="template_save_changes_text">You changed this template. Save the changes before closing?</string>
+    <string name="template_dont_save">Don\'t save</string>
+
+    <!-- Export one note: the desktop's words -->
+    <string name="note_export">💾 Export as file</string>
+    <string name="note_export_title">Export as file</string>
+    <string name="note_export_where">Saved where you choose on the phone: Downloads, Drive, a folder of your own.</string>
+    <string name="note_export_html">Web page (.html)</string>
+    <string name="note_export_html_sub">Tables, colours and styles as in the note. Opens in a browser or Word.</string>
+    <string name="note_export_txt">Plain text (.txt)</string>
+    <string name="note_export_txt_sub">Just the words. Any app opens it.</string>
+    <string name="note_exported_to">Exported to %1$s.</string>
+    <string name="note_export_no_files">Attached files aren\'t part of a note export — use Settings → Backup for those.</string>
+    <string name="note_export_failed">Export failed: the file couldn\'t be written.</string>
+    <string name="note_export_open">Open</string>
+    <!-- Share: one note, as the person chooses, to the phone's share sheet -->
+    <string name="share_title">Share</string>
+    <string name="share_as">Share this note as</string>
+    <string name="share_pdf">PDF</string>
+    <string name="share_pdf_sub">The note\'s page, tables and colours as you see them. Opens on any phone or computer.</string>
+    <string name="share_page">Web page</string>
+    <string name="share_page_sub">The same page, for a browser.</string>
+    <string name="share_text">Text</string>
+    <string name="share_text_sub">Just the words, in the message itself.</string>
+    <string name="share_text_table">Not for a note with a table: a message can\'t draw one. Send it as a PDF.</string>
+    <string name="share_code_title">Share code</string>
+    <string name="share_code_sub">For Note Organizer on another phone or computer.</string>
+    <string name="share_no_files">The note\'s own attached files aren\'t sent.</string>
+    <string name="share_how">Your phone\'s share sheet opens next: WhatsApp, mail, Teams and the rest. Nothing is sent until you send it there.</string>
+    <string name="share_no_app">No app on this phone can take it.</string>
+    <string name="share_failed">The note couldn\'t be made ready to share.</string>
+    <string name="share_nothing_yet">Nothing to share yet: write something first.</string>
+    <string name="share_busy">Still getting the last one ready: the share sheet opens in a moment.</string>
+
+    <!-- Find in note -->
+    <string name="find_in_note">🔍 Find in note</string>
+    <string name="find_hint">Find in this note</string>
+    <string name="find_prev">Previous match</string>
+    <string name="find_next">Next match</string>
+    <string name="find_case">Match case</string>
+    <string name="find_close">Close find</string>
+
+    <!-- The calculator: the desktop's panel, its words -->
+    <string name="calculator">🧮 Calculator</string>
+    <string name="calc_close">Close the calculator</string>
+    <string name="calc_more">More functions  ▾</string>
+    <string name="calc_less">More functions  ▴</string>
+    <string name="calc_insert">⬇ Insert into note</string>
+    <string name="calc_inserted">Added to the note: %1$s</string>
+    <string name="calc_history">History  ▾</string>
+    <string name="calc_history_open">History  ▲</string>
+    <string name="calc_clear">Clear</string>
+    <string name="calc_none_yet">No calculations yet.</string>
+    <string name="calc_tap_line">Tap a line to insert it into the note</string>
+
+    <!-- Importing a code -->
+    <string name="import_code_explain">Paste a code someone sent you. It holds a note\'s words, never its files, and is not encrypted: anyone with the code can read it.</string>
+    <string name="import_code_hint">A code starts with %1$s</string>
+    <string name="paste">Paste</string>
+    <string name="paste_plain">Paste as plain text</string>
+    <string name="import_action">Import</string>
+
+    <!-- The import's questions: the desktop's own words -->
+    <string name="q_same_note_title">Same note, a different version</string>
+    <string name="q_same_note_text">Updating replaces what is on this device; you can undo it with “↩ Restore previous”. Adding leaves both, so you can compare them and delete one.</string>
+    <string name="q_known_title">%1$d notes you already have</string>
+    <string name="q_known_text">%1$d of the %2$d notes in this %3$s are already here, edited elsewhere.\n\nUpdating replaces this device\'s copies; each one can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
+    <string name="q_older_one">It is OLDER than the copy on this device.</string>
+    <string name="q_older_many">%1$d of them are OLDER than the copy on this device.</string>
+    <string name="q_update_this">Update this note</string>
+    <string name="q_update_n">Update the %1$d</string>
+    <string name="q_add_new">Add as a new note</string>
+    <string name="q_add_new_n">Add them as new notes</string>
+    <string name="q_unchanged_title">Already here, unchanged</string>
+    <string name="q_unchanged_all">All %1$d notes in this %2$s are already here: the %2$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_unchanged_some">%1$d of the %2$d notes in this %3$s are already here: the %3$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_skip_n">Skip the %1$d</string>
+    <string name="q_add_copies">Add copies anyway</string>
+    <string name="q_duplicates_title">Possible duplicates</string>
+    <string name="q_duplicates_text">%1$d of the %2$d new notes in this %3$s look identical to notes you already have (same title, text, comments, category, checklist and repeat rule).</string>
+    <string name="q_skip_duplicates">Skip the %1$d duplicates</string>
+    <string name="q_import_all">Import all anyway</string>
+    <string name="q_all_imported_title">All notes already imported</string>
+    <string name="q_all_imported_text">All %1$d new notes in this %2$s look identical to notes you already have. Import them anyway as new copies?</string>
+    <string name="q_import_anyway">Import anyway</string>
+
+    <!-- Settings -->
+    <string name="settings_name">Your name</string>
+    <string name="settings_name_sub">The greeting above your notes</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_sub">Eight themes, light and dark, or follow the phone</string>
+    <string name="settings_categories">Categories</string>
+    <string name="settings_categories_sub">Add, rename, recolour or delete</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_sub">Your whole notebook in one file</string>
+    <string name="settings_trash">Trash</string>
+    <string name="settings_trash_sub">Recently deleted notes</string>
+    <string name="settings_duplicates">Duplicates</string>
+    <string name="settings_duplicates_sub">The same note twice, cleaned up</string>
+    <!-- Duplicates: the desktop's panel, in its words -->
+    <string name="dup_explain">Notes with the same title, text, comments and category (ignoring case, spacing, date and colour). Tick the copies you want to remove — the rest are kept.</string>
+    <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
+    <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
+    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>
+    <string name="dup_group">“%1$s” — %2$d copies</string>
+    <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy</string>
+    <string name="dup_delete_copy">Delete this copy (%1$s)</string>
+    <string name="dup_delete_copy_plain">Delete this copy</string>
+    <string name="dup_all_but_first">Tick all but first</string>
+    <string name="dup_clear">Clear</string>
+    <string name="dup_move">🧹  Move ticked duplicates to Trash</string>
+    <string name="dup_clean_all">🧹✨  Clean up ALL %1$d groups (keep first in each)</string>
+    <string name="dup_nothing">Tick the duplicates you want to remove first.</string>
+    <string name="dup_ask_title">Move duplicates to Trash</string>
+    <string name="dup_ask_text">Move %1$d selected note(s) to the Trash? You can restore them within %2$d days.</string>
+    <string name="settings_stats">Statistics</string>
+    <string name="settings_stats_sub">A quick snapshot of your notes</string>
+    <string name="stats_explain">A quick snapshot of your notes.</string>
+    <string name="stats_total">Total notes</string>
+    <string name="stats_added_week">Added this week</string>
+    <string name="stats_categories">Categories</string>
+    <string name="stats_templates">Templates</string>
+    <string name="stats_checklists">With a checklist</string>
+    <string name="stats_trash">In trash</string>
+    <string name="stats_week">this week</string>
+    <string name="stats_month">this month</string>
+    <string name="stats_year">this year</string>
+    <string name="stats_older">older</string>
+    <string name="stats_added">Added</string>
+    <string name="stats_updated">Updated</string>
+    <string name="stats_by_category">By category</string>
+    <string name="stats_since">Using Note Organizer since %1$s</string>
+    <string name="no_notes_short">No notes yet.</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_sub">Version, the welcome note, and sending feedback</string>
+    <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
+    <string name="follow_phone">Follow the phone</string>
+    <string name="follow_phone_sub">Dark when the phone is dark, light when it is light, in the two themes you choose below.</string>
+    <string name="themes_dark">Dark</string>
+    <string name="themes_light">Light</string>
+    <string name="themes_for_dark">The theme for when the phone is dark.</string>
+    <string name="themes_for_light">The theme for when the phone is light.</string>
+    <string name="add_category">Add a category</string>
+    <string name="category_name">Name</string>
+    <string name="general_protected">“General” can\'t be renamed or deleted: it is where notes go when their category does.</string>
+    <string name="delete_category">Delete category</string>
+    <string name="delete_category_empty">Delete “%1$s”? No note is filed under it.</string>
+    <plurals name="delete_category_with">
+        <item quantity="one">“%1$s” has %2$d note. What should happen to it?</item>
+        <item quantity="other">“%1$s” has %2$d notes. What should happen to them?</item>
+    </plurals>
+    <string name="category_days_move">%1$d repeating notes have a day filed under “%2$s”; those days move to “General” either way.</string>
+    <string name="move_them_general">Move them to “General” (keep the notes)</string>
+    <string name="delete_notes_too">Delete the notes too (restorable for %1$d days)</string>
+    <string name="delete_the_category">Delete the category</string>
+    <plurals name="note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="backup_explain">One .zip file holding every note, your settings, the attached files, the templates and the Trash. It is the same file the desktop app makes and reads, so it moves a notebook between the two.</string>
+    <string name="backup_export">Save a backup</string>
+    <string name="backup_where">Your phone asks where to keep it: Google Drive, the phone\'s own files, or any other place it offers.</string>
+    <string name="backup_google">If backup is turned on in your phone\'s settings, Android also keeps a copy of the app\'s notes in your Google account, by itself. That copy comes back only when the app is installed again, on this phone or a new one. The file saved here is the one you can open, keep and move.</string>
+    <string name="trash_backup">💾 Save a backup — the Trash too</string>
+    <string name="backup_never">No backup made yet. It is the only copy of your notes outside this phone.</string>
+    <string name="backup_last">Last exported: %1$s</string>
+    <string name="backup_import">Import a backup</string>
+    <string name="backup_import_explain">Adds the backup\'s notes to yours. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
+    <string name="exporting">Exporting…</string>
+    <string name="importing">Reading the backup…</string>
+    <string name="export_done">Backup saved.</string>
+    <string name="export_failed">Couldn\'t create the backup: %1$s</string>
+    <string name="import_notes_title">Import notes</string>
+    <string name="import_notes_text">This will ADD the notes from that backup to your current list. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
+    <string name="trash_window">Kept for %1$d days, then removed automatically.</string>
+    <string name="trash_window_unknown">How long the Trash keeps notes could not be read, so nothing is removed from it. Choose the number of days again.</string>
+    <string name="trash_kept">kept until the days are chosen</string>
+    <string name="trash_empty">The Trash is empty.</string>
+    <string name="trash_unknown">deleted (date unknown)</string>
+    <string name="trash_next_start">removed the next time the app starts</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%d day left</item>
+        <item quantity="other">%d days left</item>
+    </plurals>
+    <plurals name="restore_n">
+        <item quantity="one">↩ Restore %d selected</item>
+        <item quantity="other">↩ Restore %d selected</item>
+    </plurals>
+    <string name="delete_forever">Delete for good</string>
+    <plurals name="delete_forever_text">
+        <item quantity="one">Delete this note for good? This can\'t be undone.</item>
+        <item quantity="other">Delete these %d notes for good? This can\'t be undone.</item>
+    </plurals>
+    <string name="empty_trash">Empty Trash</string>
+    <plurals name="empty_trash_text">
+        <item quantity="one">Delete the %d note in the Trash for good, and its attached files? This can\'t be undone.</item>
+        <item quantity="other">Delete all %d notes in the Trash for good, and their attached files? This can\'t be undone.</item>
+    </plurals>
+    <string name="shorter_window">Keep deleted notes for less time</string>
+    <plurals name="shorter_window_text">
+        <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes it for good the next time the app starts. This can\'t be undone.</item>
+        <item quantity="other">The Trash holds %1$d notes older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes them for good the next time the app starts. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="chosen_window_text">
+        <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days removes it for good the next time the app starts. This can\'t be undone.</item>
+        <item quantity="other">The Trash holds %1$d notes older than %2$d days. Keeping deleted notes for %2$d days removes them for good the next time the app starts. This can\'t be undone.</item>
+    </plurals>
+    <string name="keep_for_days">Keep for %1$d days</string>
+    <string name="about_version">Note Organizer for Android, version %1$s</string>
+    <string name="about_storage">Your notes are kept on this phone, in the app\'s own storage, where no other app can read them. Uninstalling the app removes them too, so Settings → Backup is the way to keep a copy, or to move them.</string>
+    <string name="welcome_note">Welcome note</string>
+    <string name="welcome_note_sub">The note this app opened with on its first start. Bring it back here if you deleted it.</string>
+    <string name="feedback">Feedback</string>
+    <string name="feedback_sub">Something not working, slow, or an idea? Tell us — it takes a minute. Your browser opens a short form; nothing from your notes is sent.</string>
+    <string name="send_feedback">Send feedback</string>
+    <string name="no_browser">There is no browser on this phone to open the form in.</string>
 </resources>

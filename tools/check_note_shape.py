@@ -15,10 +15,12 @@ than by any check:
   somebody noticed -- and a notebook written by a blind app is a notebook
   whose notes cannot be recognised when they come back.
 * The rule "what fields does a new note have" was written out twice
-  inside THIS app (`createNote` and `fillNewNoteDefaults`), and a third
-  copy sat in `importShareCode` until it was removed. Add a field
-  tomorrow and one copy gets it while the others rot, with their tests
-  still passing, because the tests test the copy.
+  inside THIS app (`createNote`, and `fillNewNoteDefaults` for an
+  imported note -- since replaced by `Normalize.normalizeNote`, the
+  choke point every note from outside passes), and a third copy sat in
+  `importShareCode` until it was removed. Add a field tomorrow and one
+  copy gets it while the others rot, with their tests still passing,
+  because the tests test the copy.
 
 The desktop has a gate for the same shape of failure
 (`tools/check_one_definition.py`, "one definition per judgement"). This
@@ -33,7 +35,8 @@ WHAT IT CHECKS
    each other.
 3. The fields a share code carries match the desktop's `SHAREABLE_FIELDS`.
 4. The fields an arriving shared note may replace match the desktop's
-   `UPDATABLE_FROM_SHARED`.
+   `UPDATABLE_FROM_SHARED`, and the ones a note from a backup may replace
+   match `UPDATABLE_FROM_BACKUP`.
 
 It reads the desktop's source. It never writes there -- that is the hard
 rule of this project, and a gate is no exception.
@@ -56,6 +59,8 @@ NOTEBOOK_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                            "noteorganizer", "app", "Notebook.kt")
 SHARING_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                           "noteorganizer", "app", "Sharing.kt")
+NORMALIZE_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                            "noteorganizer", "app", "Normalize.kt")
 MODEL_PY = os.path.join(DESKTOP, "noteorganizer", "core", "model.py")
 SHARING_PY = os.path.join(DESKTOP, "noteorganizer", "core", "sharing.py")
 
@@ -73,6 +78,11 @@ NOT_ON_THE_PHONE = {
 # report three disagreements on its first run, all of them its own.
 NOT_A_DEFAULT = {
     "id": "computed as max + 1 where a note is appended, never defaulted",
+    "_prev": "carried through when a note from outside has one, never "
+             "made for a new note -- see NOT_ON_THE_PHONE",
+    "order": "a note's place in Custom order: kept when it is a finite "
+             "number, never defaulted -- 'not placed yet' is its own "
+             "answer, and it is not in the desktop's NOTE_DEFAULTS either",
 }
 
 failures = []
@@ -156,15 +166,21 @@ def kotlin_function(source, name):
     return None
 
 
-def fields_written(body):
-    """Every note field a Kotlin body names -- as a put() key or in a
-    listOf() of field names it then puts."""
+def fields_written(body, source=None):
+    """Every note field a Kotlin body names -- as a put() key, in a
+    listOf() of field names it then puts, or in a named list it walks
+    (`for (field in TEXT_FIELDS) out.put(field, ...)`), resolved in
+    *source*."""
     found = set(re.findall(r'\.put\(\s*"([a-z_]+)"', body))
+    puts_a_variable = re.search(r"\.put\(\s*field", body)
     for group in re.findall(r'listOf\(([^)]*)\)', body):
         names = re.findall(r'"([a-z_]+)"', group)
         # A listOf of field names is only that when the body puts them.
-        if names and re.search(r"\.put\(\s*field", body):
+        if names and puts_a_variable:
             found.update(names)
+    if source is not None and puts_a_variable:
+        for name in re.findall(r"for\s*\(\s*field\s+in\s+([A-Z_]+)\s*\)", body):
+            found.update(kotlin_list(source, name) or [])
     return found
 
 
@@ -186,14 +202,17 @@ def kotlin_list(source, name):
 
 notebook = read(NOTEBOOK_KT)
 sharing_kt = read(SHARING_KT)
+normalize_kt = read(NORMALIZE_KT)
 if notebook:
     notebook = without_comments(notebook)
 if sharing_kt:
     sharing_kt = without_comments(sharing_kt)
+if normalize_kt:
+    normalize_kt = without_comments(normalize_kt)
 model_py = read(MODEL_PY)
 sharing_py = read(SHARING_PY)
 
-if notebook is None or sharing_kt is None:
+if notebook is None or sharing_kt is None or normalize_kt is None:
     print("cannot find the Kotlin sources")
     sys.exit(2)
 if model_py is None or sharing_py is None:
@@ -213,19 +232,19 @@ if model_py is None or sharing_py is None:
 # ---- 1 & 2: what a new note is made of -------------------------------
 
 create = kotlin_function(notebook, "createNote")
-fill = kotlin_function(notebook, "fillNewNoteDefaults")
+fill = kotlin_function(normalize_kt, "normalizeNote")
 if create is None or fill is None:
     fail("I can find the two places that build a new note",
-         "createNote or fillNewNoteDefaults has been renamed")
+         "Notebook.createNote or Normalize.normalizeNote has been renamed")
 else:
-    created = fields_written(create) - set(NOT_A_DEFAULT)
-    filled = fields_written(fill) - set(NOT_A_DEFAULT)
+    created = fields_written(create, notebook) - set(NOT_A_DEFAULT)
+    filled = fields_written(fill, normalize_kt) - set(NOT_A_DEFAULT)
     if created == filled:
         ok("the two places that make a new note name the same fields "
            "(%d)" % len(created))
     else:
         fail("the two places that make a new note name the same fields",
-             "only in createNote: %s\nonly in fillNewNoteDefaults: %s"
+             "only in createNote: %s\nonly in normalizeNote: %s"
              % (sorted(created - filled) or "-", sorted(filled - created) or "-"))
 
     if model_py is not None:
@@ -261,29 +280,73 @@ if sharing_py is not None:
                 sorted(set(ours) - set(theirs)) or "-"))
 
 # ---- 4: what an arriving note may replace ----------------------------
+#
+# Two lists, both by the desktop's names: what a share code may replace,
+# and what a backup -- the person's own notebook -- may replace besides.
+# The desktop writes the second as the first plus four fields, so both
+# readers below resolve "A + [...]" rather than giving up on it.
+
+
+def python_list_sum(source, name, seen=None):
+    """A list constant, or NAME = OTHER + [...], resolved."""
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            value = node.value
+            if isinstance(value, ast.BinOp) and isinstance(value.op, ast.Add):
+                left = (python_list_sum(source, value.left.id)
+                        if isinstance(value.left, ast.Name) else None)
+                try:
+                    right = list(ast.literal_eval(value.right))
+                except ValueError:
+                    right = None
+                return None if left is None or right is None else left + right
+            try:
+                return list(ast.literal_eval(value))
+            except ValueError:
+                return None
+    return None
+
+
+def kotlin_list_sum(source, name):
+    """A Kotlin listOf constant, or NAME = OTHER + listOf(...), resolved."""
+    plain = kotlin_list(source, name)
+    if plain is not None:
+        return plain
+    match = re.search(r"val\s+%s\s*=\s*(\w+)\s*\+\s*listOf\(" % re.escape(name), source)
+    if not match:
+        return None
+    left = kotlin_list(source, match.group(1))
+    start = source.index("(", match.end() - 1)
+    depth = 0
+    for position in range(start, len(source)):
+        if source[position] == "(":
+            depth += 1
+        elif source[position] == ")":
+            depth -= 1
+            if depth == 0:
+                right = re.findall(r'"([^"]+)"', source[start:position])
+                return None if left is None else left + right
+    return None
+
 
 if model_py is not None:
-    theirs = python_list(model_py, "UPDATABLE_FROM_SHARED")
-    body = kotlin_function(notebook, "applySharedUpdate")
-    ours = None
-    if body is not None:
-        for group in re.findall(r"listOf\(([^)]*)\)", body, re.S):
-            names = re.findall(r'"([a-z_]+)"', group)
-            if len(names) > 3:
-                ours = names
-                break
-    if ours is None or theirs is None:
-        fail("I can find what an arriving note replaces, in both languages")
-    elif set(ours) == set(theirs):
-        ok("an arriving note replaces exactly what it replaces on the "
-           "desktop (%d fields)" % len(theirs))
-    else:
-        fail("an arriving note replaces exactly what it replaces on the "
-             "desktop",
-             "the desktop replaces and we do not: %s\n"
-             "we replace and the desktop does not: %s"
-             % (sorted(set(theirs) - set(ours)) or "-",
-                sorted(set(ours) - set(theirs)) or "-"))
+    for name, what in (("UPDATABLE_FROM_SHARED", "an arriving shared note"),
+                       ("UPDATABLE_FROM_BACKUP", "a note from a backup")):
+        theirs = python_list_sum(model_py, name)
+        ours = kotlin_list_sum(notebook, name)
+        if ours is None or theirs is None:
+            fail("I can find what %s replaces (%s), in both languages" % (what, name))
+        elif set(ours) == set(theirs):
+            ok("%s replaces exactly what it replaces on the desktop (%d fields)"
+               % (what, len(theirs)))
+        else:
+            fail("%s replaces exactly what it replaces on the desktop" % what,
+                 "the desktop replaces and we do not: %s\n"
+                 "we replace and the desktop does not: %s"
+                 % (sorted(set(theirs) - set(ours)) or "-",
+                    sorted(set(ours) - set(theirs)) or "-"))
 
 print()
 if failures:

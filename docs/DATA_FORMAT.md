@@ -22,22 +22,27 @@ that reads or writes what it covers.
 ## Contents
 
 - [The data contract](#the-data-contract)
+  - [Settings the two apps share](#settings-the-two-apps-share)
 - [A note](#a-note)
   - [Where `uid` comes from, and who may mint one](#where-uid-comes-from-and-who-may-mint-one)
   - [Recurrence](#recurrence)
   - [Clearing a date deletes a recurrence rule](#clearing-a-date-deletes-a-recurrence-rule)
   - [The ceilings, and why they exist](#the-ceilings-and-why-they-exist)
 - [Formatting](#formatting)
+  - [A list item is told by its marker, not by its entry](#a-list-item-is-told-by-its-marker-not-by-its-entry)
   - [What a span is](#what-a-span-is)
   - [Offsets are code points, and Kotlin counts UTF-16](#offsets-are-code-points-and-kotlin-counts-utf-16)
   - [Styles are algebra, not a flag](#styles-are-algebra-not-a-flag)
   - [Editing plain text moves formatting onto the wrong words](#editing-plain-text-moves-formatting-onto-the-wrong-words)
   - [A highlight must blend toward the page](#a-highlight-must-blend-toward-the-page)
   - [A format bar has two enemies on a phone, and both are the system's](#a-format-bar-has-two-enemies-on-a-phone-and-both-are-the-systems)
+  - [What a paste may bring](#what-a-paste-may-bring)
 - [Tables](#tables)
   - [Measure the real notebook before deciding what to support](#measure-the-real-notebook-before-deciding-what-to-support)
   - [Editing one cell must not rewrite the whole table](#editing-one-cell-must-not-rewrite-the-whole-table)
   - [The drawn grid and the file do not number rows the same way](#the-drawn-grid-and-the-file-do-not-number-rows-the-same-way)
+  - [Where a table keeps what is not words](#where-a-table-keeps-what-is-not-words)
+- [Templates](#templates)
 - [Share codes](#share-codes)
   - [What a code carries](#what-a-code-carries)
   - [Interop is the test](#interop-is-the-test)
@@ -45,6 +50,10 @@ that reads or writes what it covers.
   - [Build the code from the stored note, never from what is on screen](#build-the-code-from-the-stored-note-never-from-what-is-on-screen)
   - [The code field on a phone](#the-code-field-on-a-phone)
   - [What a shared note is allowed to change](#what-a-shared-note-is-allowed-to-change)
+- [Backups](#backups)
+  - [What a backup holds](#what-a-backup-holds)
+  - [The guards on the way in](#the-guards-on-the-way-in)
+  - [The questions, and what joins without asking](#the-questions-and-what-joins-without-asking)
 - [Writing the file](#writing-the-file)
   - [A partial reader must not become a total writer](#a-partial-reader-must-not-become-a-total-writer)
   - [A delete touches two files, so the ORDER of the writes is the safety](#a-delete-touches-two-files-so-the-order-of-the-writes-is-the-safety)
@@ -54,22 +63,78 @@ that reads or writes what it covers.
 
 Plain JSON, no database. When the desktop app runs as its packaged
 `.exe`, its files are in `%APPDATA%\NoteOrganizer\`; this app keeps its
-copy of the notebook in its own folder on the device
-([how to put one there](../README.md#building-and-running-it)).
+own notebook in its private storage, in `files/notebook/`, where no other
+app can read it. The files are the same files, byte for byte in shape;
+a notebook moves between the two as a [backup](#backups), and single
+notes as [share codes](#share-codes).
 
 | File | Holds |
 |---|---|
 | `notes_data.json` | the notes, as a JSON array |
-| `settings.json` | theme, sort, filter, last-open note, categories |
+| `settings.json` | name, theme, sort, filter, categories, the Trash's window, and more ([below](#settings-the-two-apps-share)) |
 | `trash.json` | deleted notes awaiting purge — the Trash |
 | `templates.json` | saved templates |
 | `attachments/` | files attached to notes |
+
+A file that exists and will not parse is **kept aside, not refused**: its
+bytes are copied beside it as `<name>_corrupt_<yyyyMMdd_HHmmss>.json`
+(once per distinct content), and the app opens without it and says where
+the copy is — the desktop's answer, so that a broken file costs a
+message, not a phone that cannot take a single note.
+
+### Settings the two apps share
+
+`settings.json` is read with the desktop's own keys — `username`,
+`theme`, `note_sort`, `note_filter`, `categories`, `trash_retention_days`,
+`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a backup
+carries the person's choices both ways. A key the phone does not use is
+kept, never dropped.
+
+Phase 2 reads and writes five more, and two old ones with every value
+the desktop gives them, each as the desktop keeps it:
+
+| Key | Holds |
+|---|---|
+| `note_sort`, `note_filter` | not new, but now every value the desktop stores: the sort's own words (`"Calendar: soonest"`, `"Custom order"`), and Show as a category's name or a type's label (`"🔁 Repeating"`, `"📅 Dated"`, `"📎 With files"`). A filter naming a category since deleted reads as All. |
+| `group_by_category` | `true` when the list is grouped |
+| `collapsed_groups` | the folded groups' category names |
+| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real colours are read |
+| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most; the older one-marker string is read too |
+| `first_launch_date` | the day this install was first used, stamped once and never again |
+
+A rename of a category carries its name along in `note_filter` and
+`collapsed_groups`; a delete drops its folded group and returns Show to
+All — and the categories, the folds and the filter are written in one
+write, so no file ever holds one without the others.
+
+The phone adds three keys of its own, for **"Follow the phone"**:
+`phone_theme_follows_phone` (on unless turned off), `phone_theme_light`
+and `phone_theme_dark`. They are separate on purpose: the desktop reads
+`theme` and ignores these, so following the phone's dark mode can never
+change the theme the desktop opens in. With following off, the phone
+writes `theme`, as the desktop does.
+
+And one for the Trash: `phone_trash_window_unknown`, `true` when
+`settings.json` could not be read at a start. The window chosen before
+was lost with it, and the fresh file written after would otherwise read
+as "never chosen" — the default 30 days — so the next start would purge
+what the person had kept for 90. While it is set, and while
+`trash_retention_days` is anything but a whole number from 1 to 365,
+the start purges nothing; choosing a window in Settings → Trash removes
+it. The desktop ignores it, and still purges by its own reading
+([the story](ISSUES_LOG.md#a-trash-emptied-by-a-window-nobody-chose)).
+
+The categories are an ordered map of name to colour, and the order is the
+order Settings shows. Categories found on notes but missing from the map
+are adopted with a colour, as the desktop's `load_categories` does.
 
 ## A note
 
 Every note passes through one choke point in the desktop app
 (`normalize_note`), which coerces anything malformed into these defaults.
-Field for field, as of `0.73.165`:
+Field for field, as of the desktop's `0.95.382` — and
+`tools/check_note_shape.py` fails the day this list and the Python's
+stop agreeing:
 
 ```jsonc
 {
@@ -86,18 +151,43 @@ Field for field, as of `0.73.165`:
   "comments": "",           // str — the separate comments box
   "category": "General",    // str — one of the categories in settings.json
   "date": "",               // "" or "YYYY-MM-DD"
-  "color": "",              // "" or "#rrggbb"
+  "color": "",              // "" or "#rrggbb"; a "#rgb" that arrives is
+                            //   written back as "#rrggbb", as the desktop's
+                            //   sanitize_color expands it -- in a day's colour,
+                            //   a category's and a text colour too
   "attachments": [],        // [{"filename": str, "stored_as": str}, ...]
   "updated": "",            // "YYYY-MM-DD HH:MM:SS" -- seconds included
   "created": "",            // same shape; backfilled from updated if absent
   "recurrence": {},         // the repeat rule; "" freq = one-off. See below
   "exceptions": [],         // ["YYYY-MM-DD", ...] dates removed from a series
   "overrides": {},          // {"YYYY-MM-DD": {partial note}, ...}
+  "moved": {},              // {"YYYY-MM-DD": "YYYY-MM-DD"}: a day of a series
+                            //   held on another date (desktop 0.92.374)
   "pinned": false,          // bool — pinned notes float to the top
   "checklist": [],          // [{"text": str, "done": bool}, ...]
-  "paragraphs": []          // [{"line": int, "kind": "bullet"|"number"}, ...]
+  "paragraphs": []          // [{"line": int, "kind": "bullet"|"number",
+                            //   "indent": int, "align": str}, ...] -- an entry
+                            //   may have NO kind: a centred line is one
 }
 ```
+
+Two more keys travel beside these and are kept whole, though they are not
+defaults: `_prev`, the one-step rescue copy
+([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
+and `order`, the desktop's custom order.
+
+Since Phase 3 the phone writes `order` too, as the desktop's arranging
+does: every note numbered by its place — the hidden ones too, so a
+search or a filter never loses a note its place — in one write, and with
+**no `updated` stamp**, because arranging a list is not editing a note.
+Choosing Custom order before anything has been placed numbers the notes
+as the list was showing them, so the choice changes nothing on screen.
+
+**An attached file** is kept in `attachments/` under the moment it was
+added, to the microsecond, and its own name — the desktop's
+`add_attachment` — made a name Windows will take, because a backup
+carries it there. Taking a file off a note deletes the stored file only
+when no other note, and no note in the Trash, still names it.
 
 ### Where `uid` comes from, and who may mint one
 
@@ -143,13 +233,44 @@ return bool((note.get("recurrence") or {}).get("freq"))
 Measured against a real 77-note file: emptiness said 77 recurring,
 `freq` said 0. Copy the Python's test, not the field list's shape.
 
-Plus two maps on the note itself: `exceptions` (dates deleted
-individually) and `overrides` (date → partial note, for "edit only this
-day").
+Plus three maps on the note itself: `exceptions` (dates deleted
+individually), `overrides` (date → partial note, for "edit only this
+day") and `moved` (a day of the series held on another date).
 
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
 Getting this wrong produces a note that looks edited and is not.
+
+Since Phase 2 the phone writes all three, as the desktop's day mode
+writes them:
+
+- **A day saved on its own** keeps only those five fields, and only
+  plain text — a day's body carries no styles. A day that says exactly
+  what the series says keeps no override at all, and follows the series
+  again.
+- **A day deleted** from its series goes into `exceptions` — a moved day
+  by the date its rule gives it, not the date it was moved to — and its
+  Undo finds the note by `uid`, not by `id`, and brings back the day's own
+  edit and its move with it.
+- **A repeat turned off** when some day holds its own text puts the whole
+  note — the rule, the deleted days, the edits — into `_prev` first, so
+  "↩ Restore previous" brings the series back whole.
+
+Phase 3 writes the other two the day mode has:
+
+- **A day moved** is written in `moved` against the date its rule gives
+  it — `{"2026-10-20": "2026-10-22"}` — and its own edit, if it has one,
+  moves with it in `overrides`. Moved back home, the entry goes. A day
+  may move only to a date the series has no day on, and comes home only
+  to one ([the desktop's own date rule does not ask](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+- **A day off the schedule** — an override on a date the rule no longer
+  gives, after the repeat changed — is settled as the desktop settles
+  it: made a note of its own on that date (its title, text, comments,
+  category and colour; the series' formatting only where the day's text
+  is the series' own; the lines' entries; none of the checklist or the
+  files, which were never the day's), or that note sent to the Trash.
+  Either way the override goes, and so does a move that brought the day
+  there.
 
 ### Clearing a date deletes a recurrence rule
 
@@ -201,6 +322,37 @@ A note's styling lives in two fields: `formatting` holds character
 styles as spans over the body, and `paragraphs` holds the bullet and
 number markers by line. The traps below cover how a style is stored,
 applied, kept through an edit, and drawn.
+
+**A size is a number.** `font_size`'s value is an `int` in the file —
+`{"style": "font_size", "value": 24}` — and the desktop's
+`normalize_formatting` drops a size written as text. The phone once read
+only text there, so every desktop size came in empty and went back out
+without a value ([the story](ISSUES_LOG.md#a-desktop-note-lost-its-sizes-on-the-way-through-the-phone)).
+It reads and writes numbers now, and only numbers: a size in quotes,
+which the desktop refuses, is not revived here either.
+
+### A list item is told by its marker, not by its entry
+
+The desktop draws a list from the **text**: a line that begins with a
+bullet glyph (`• `, `◦ `, `▪ ` by depth) or a number (`1. `) is a list
+item. What `paragraphs` stores is worked out from the body when the note
+is saved — the kind read off the marker, and the indent and alignment
+kept for the line — so a body and its entries cannot disagree for long.
+The phone does the same: the editor keeps each line's indent and
+alignment in step with its text, and the save writes the entries.
+
+What counts as an entry is the desktop's `normalize_paragraphs`: `line`
+a whole number within the text — `true` and `false` count as 1 and 0,
+as Python counts them, and `1.0` does not count — and the **first**
+usable entry for a line wins. Every numbered run is renumbered 1, 2, 3
+after each change: a counter per depth, a deeper list starting again
+under each item, a bullet interrupting its depth and those below, one
+blank line not ending a list and two ending it. That rule was checked
+against the desktop's own renumbering over 300 bodies.
+
+Typing into a line keeps its entry. Only a change in the number of
+lines — a break added or taken away — may drop the entries inside the
+edited stretch, for fear of moving one onto a stranger's line.
 
 ### What a span is
 
@@ -302,6 +454,26 @@ which an edge-to-edge window does not make room for. `Modifier.imePadding()`
 on the screen's root is what lifts it. Both problems are invisible in
 source and obvious in one photograph.
 
+### What a paste may bring
+
+Exactly what the desktop's paste brings, because it is the desktop's
+reader (`html_to_note`) ported, and what it reads passes the same two
+gatekeepers a saved note does: bold, italic, underline, strikethrough;
+a text colour only when it is really a colour (a page's greys are its
+theme, not anyone's choice); a highlight only when it is pale enough to
+read black text through; lists as markers in the text; alignment; tables
+as pipe rows, re-padded. Sizes and faces are left behind — a web page
+uses neither of the desktop's lists, and matching would mean claiming a
+note is set in something it never was.
+
+Laid into the note, a pasted highlight goes **line by line, never over a
+line's end**, as the desktop lays every highlight. The app's own copy is
+the exception to what is left behind: pasted back into a note, it brings
+its sizes and faces, kept from the moment it was copied.
+
+The caps are the desktop's: 100,000 characters and 2,000 styled pieces,
+past which the paste says what it left out.
+
 ## Tables
 
 A table is not a field of its own: it is pipe rows inside `body`, drawn
@@ -352,7 +524,12 @@ So a cell edit rewrites only that cell's stretch of its own line and
 leaves every other byte alone — which also preserves each cell's
 alignment for free, since the padding IS the alignment and untouched
 padding cannot be misread. Structural changes (a row or column added or
-removed) do rebuild, because they must.
+removed) do rebuild, because they must — and then the styles are carried
+cell by cell, as the desktop's `_grid_lay_cell_styles` carries them: the
+styles on a cell's words go with the words, while they are the same, and
+a highlight laid pipe to pipe goes with its cell. The remap alone, which
+sees one change from the first altered character to the last, dropped
+every style in between.
 
 ### The drawn grid and the file do not number rows the same way
 
@@ -366,11 +543,76 @@ A related trap for the tests, not the app: a one-column table is **not a
 table**. A row needs at least two cells (`_MIN_CELLS`), so a test written
 with `| --- |` measures nothing at all. One was.
 
+### Where a table keeps what is not words
+
+A table's edits — Phase 2's cell menu, the table's bar since — write
+five things, each where the desktop keeps it, none of them in a field of
+its own:
+
+| What | Where it lives |
+|---|---|
+| A cell's alignment | its **padding**: spaces after the words for left, before for right, both for centre — and room kept for it when the words fill the column. It is what the drawing reads, as the desktop's does; the separator's colons only travel with the table. |
+| A cell's highlight | a `highlight` span laid **pipe to pipe**, over the whole cell and its padding, so whatever is later typed in the cell lands inside it. A span over part of a cell is a style on its words, not a fill. |
+| A merge | the marker as the cell's whole text: `<` joins the cell to its left, `^` to the one above. Merging writes every cell's words into the cell kept at the top left, joined in reading order by a space, as the desktop's `_grid_merge_selection` does, and a marker in each of the others; a merge it touches is taken in whole. Splitting empties every cell the merge took and leaves the first its words. |
+| A row's height | empty `<br>` lines at the end of the row's tallest cell, as the desktop's `_grid_set_row_lines` writes them; made shorter, every cell's trailing empty lines go, never its words |
+| The table's place on the page | the alignment of **its lines** in `paragraphs` — a centred table is every one of its lines centred |
+
+Phase 3 adds three more, all in the text:
+
+| What | Where it lives |
+|---|---|
+| A column's width | the **dashes** of its separator cell, counted with its colons. Three or fewer is markdown's way of writing any separator at all and sets no width; a hand-widened column is always wider. Narrowed below its words, a column is drawn clipped, an ellipsis at the cut; its words stay whole in the file. |
+| A hidden column | `~` as its separator cell |
+| A caption | two lines under the table, `Table N: …` and `Source: …`, placed as the table is; N comes after every caption the note already has, the older `Tab. N:` ones included |
+
+The separator is read in a table's first two lines only, as the
+desktop's `separator_index` reads it — a row of dashes lower down is a
+row — and it stays under the first row, whatever is inserted above,
+under or deleted: moved to the third line it is no longer read as a
+separator, and its dashes turn into a row of text, and left on the first
+line it makes no table at all. So the header row deleted, the next row
+is the header, and a row added under the header goes under the
+separator. Squared up, it grows by `---` cells, never empty ones. A table keeps two columns, as the desktop's does: a
+column of two deleted is emptied, since one column reads as prose. And
+a merge marker whose partner a deletion took is emptied, as
+`_dissolve_orphan_markers` empties it
+([the story](ISSUES_LOG.md#two-deletes-the-desktop-had-already-settled)).
+And **an edit that changes nothing writes
+nothing** — a marker asked for on the separator, the last row asked to
+go — or the whole table comes back re-padded, every style in it at risk
+([the story](ISSUES_LOG.md#a-table-edit-nobody-asked-for)).
+
+## Templates
+
+`templates.json` is a list of templates, each shaped as the desktop's
+`normalize_template` leaves it:
+
+```jsonc
+{
+  "name": "Weekly plan",   // str, the template's own name; "Untitled template" if empty
+  "title": "",             // what a note made from it is called
+  "body": "",              // its text, tables and list markers included
+  "formatting": [],        // spans, kept only as normalize_formatting keeps them
+  "paragraphs": [],        // line entries, as normalize_paragraphs keeps them
+  "comments": "",
+  "category": "General",   // "General" when empty; a note made from it files
+                           //   under General when the category is gone
+  "checklist": []          // [{"text": str, "done": bool}, ...], ticks kept
+}
+```
+
+Two saving rules, both the desktop's: **Save as template** from a note
+puts the template last and drops any other with its name — after asking;
+the **editor in Settings** keeps an edited template in its place. A file
+nobody can read, or a list of junk, is copied aside before anything
+writes over it, as a broken `notes_data.json` is. Templates do not go to
+the Trash: a delete is for good, and says so.
+
 ## Share codes
 
 Share codes are the transfer mechanism between the two programs, and
 interop is the test. What the user sees of them is in the
-[README](../README.md#what-it-does-today); this is what they contain and
+[README](../README.md#what-it-does); this is what they contain and
 what they may do.
 
 ### What a code carries
@@ -432,10 +674,12 @@ never carries files**: it holds text, and a note's attachments live
 beside the notebook. Replacing them from a code would empty them.
 
 The old version goes into `_prev` first — the desktop's own one-step
-rescue, which its editor restores from with "↩ Restore previous". So an
-update accepted by mistake on the phone is one button away from being
-undone on the machine that has the button. The phone still cannot restore
-from `_prev` itself.
+rescue — and both apps restore from it with **"↩ Restore previous"**. So
+an update accepted by mistake is one button away from being undone, on
+either device. `_prev` holds the text fields and, after an update, every
+other field the update replaced; restoring puts all of them back and
+spends the copy. An update that would change nothing does not touch the
+note at all, so it cannot spend a rescue copy on nothing.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the
@@ -445,6 +689,63 @@ notes into one, which is the collision the field exists to prevent.
 The update itself is written the way every write is, with one trap of its
 own: [a copy of the array is not a copy of the
 notes](#a-copy-of-the-array-is-not-a-copy-of-the-notes).
+
+## Backups
+
+A backup is the whole notebook in one `.zip`, the same file the desktop's
+Settings → Backup writes and reads, so a backup made on either device
+restores on the other. It is how a notebook moves; a share code is how a
+note does.
+
+### What a backup holds
+
+`notes_data.json`, `settings.json`, `templates.json`, `trash.json`, and
+every attached file under `attachments/`. An export is built in a scratch
+folder first and checked by the import's own rules before it is handed
+to the file picker: a backup this app wrote must be one it agrees to read
+back.
+
+### The guards on the way in
+
+A backup arrives from anywhere, so reading one is guarded as the
+desktop's `_safe_extract_zip` guards it, with the desktop's numbers —
+these are what a hostile archive could do, not a size cap:
+
+| Guard | Value |
+|---|---|
+| `MAX_BACKUP_FILES` | 100,000 entries |
+| Decompression bomb | any entry, or the backup as a whole, expanding to over 50 MB **and** to more than 100 times its packed size |
+| Disk margin | 200 MB must stay free after unpacking — the attached files counted twice, since on a phone the unpacking and the notebook share one disk |
+
+And one step stricter than the desktop: **only the names a backup is made
+of are unpacked at all** — the four data files by their exact names, and
+attached files only as `attachments/<bare name>`. `../x`, an absolute
+path and a nested folder are refused before a byte is written. The sizes
+the guards read are the archive's own claim, so an entry that unpacks to
+more than it declared is stopped at what it declared.
+
+### The questions, and what joins without asking
+
+A backup's notes go through the same planner a share code does, and the
+desktop's three questions are asked before anything is written:
+
+1. Notes this device already has, by `uid`, that arrive **changed**:
+   update them, or add them as new notes. The question says when the
+   arriving copy is *older* than the one here.
+2. Notes that arrive **exactly as they are** here: skip them, or add
+   copies.
+3. New notes that **look identical** to one here (the desktop's
+   `_dup_key`: title, text, comments, category, checklist and repeat
+   rule): skip them, or import them anyway.
+
+Then the rest joins without replacing anything: the backup's categories
+(a name already here keeps its own colour), its painted calendar days, a
+template only when none here has its name, and its Trash — an entry
+already in this Trash is skipped, so re-importing your own backup changes
+nothing. A file another note here already uses is given a copy of its
+own, so deleting one note can never take another's file with it. The
+writes go in the desktop's order: settings, templates, the Trash, and
+the notes last.
 
 ## Writing the file
 
@@ -478,10 +779,19 @@ Restoring mirrors it: the notebook first. If the trash cannot be read at
 all, the delete refuses to start rather than proceeding without a
 rescue copy.
 
-**The phone never purges.** The countdown is read and shown; running it
-out is the desktop's job, because the desktop is also what can delete a
-purged note's attachment files. A phone that emptied the Trash without
-them would leave orphans on every machine sharing the folder.
+**The Trash empties itself when the app starts**, of every note older
+than `trash_retention_days` (1 to 365, default 30; anything that is not
+a whole number is the default). A note whose `deleted_at` cannot be read
+is never removed: better kept too long than gone too soon. Until
+2026-10-15 the phone never purged, because it read a folder it shared
+with the desktop and the desktop owned the purge; with a notebook of its
+own, the reason went and so did the rule.
+
+When a note leaves the Trash for good, its attached files go with it —
+**except any file a note still uses**, living or still in the Trash, and
+any stored name that tries to point outside the attachments folder. The
+desktop's automatic purge does not spare them yet
+([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses)).
 
 A rollback must never edit the shared array in place: `JSONArray.remove`
 shifts everything left, so putting a note back at its old index

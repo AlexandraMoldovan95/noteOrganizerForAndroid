@@ -18,6 +18,9 @@ local.properties
 # It changes every time the editor runs and says nothing about the project.
 .idea/
 
+# Python's compiled copies of the tools, made whenever one imports another.
+__pycache__/
+
 # A byproduct of tools/make_launcher_icon.py --preview, regenerated on
 # demand. The icon itself is committed; a picture OF it is not.
 tools/launcher_preview.png

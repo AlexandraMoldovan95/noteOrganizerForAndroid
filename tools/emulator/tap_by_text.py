@@ -9,14 +9,15 @@ import re
 import subprocess
 import sys
 
-ADB = os.path.join(os.environ["LOCALAPPDATA"], "Android", "Sdk",
-                   "platform-tools", "adb.exe")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from emulator_only import command  # noqa: E402 -- the emulator, never a phone
+
 NEEDLE = sys.argv[1]
 XML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui.xml")
 
 
 def adb(*args):
-    return subprocess.run([ADB] + list(args), capture_output=True, text=True,
+    return subprocess.run(command(*args), capture_output=True, text=True,
                           encoding="utf-8", errors="replace").stdout
 
 

@@ -11,18 +11,44 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NoteOrganizer">
+        <!-- configChanges: the phone turning, going dark, growing its
+             letters or splitting its screen is drawn again by Compose,
+             not answered by destroying the Activity. All of the app's
+             state lives in that Activity, so rebuilding it dropped the
+             person out of the note they were writing and back onto the
+             list - found on the emulator, with a note open. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.NoteOrganizer"
-            android:windowSoftInputMode="adjustResize">
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Share -> Note Organizer" from WhatsApp, email, anything
+                 that sends text: a share code arrives in the import panel. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
+        <!-- Lets another app open ONE attached file the person tapped, by a
+             temporary grant, while the notebook stays private. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

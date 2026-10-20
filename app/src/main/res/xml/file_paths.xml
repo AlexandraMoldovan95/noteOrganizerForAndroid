@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What can be offered to another app, one file at a time, by a temporary
+     grant: an attached file the person tapped, and the page of a note the
+     person is sharing, written to the cache for the app they pick. The
+     notebook itself never leaves this way. -->
+<paths>
+    <files-path name="attachments" path="notebook/attachments/" />
+    <cache-path name="share" path="share/" />
+</paths>

@@ -1,0 +1,458 @@
+package ro.noteorganizer.app
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Lists, indents and alignment: what a note's lines are, beyond their words.
+ *
+ * The desktop's model, kept whole. A list item is told by the MARKER in its
+ * text -- "• " (◦ and ▪ deeper down) or "1. " -- not by anything stored
+ * beside it: the marker is what is saved, read back and copied. A line's
+ * indent and alignment are its paragraph properties. What the file stores
+ * in `paragraphs` is worked out from both at the moment of saving, as the
+ * desktop's `_extract_paragraphs` does: the kind from the marker, the
+ * indent and alignment from the properties.
+ *
+ * Every operation here is the desktop's, line for line, from its editor:
+ * turning lines into a list and back, indenting, aligning, Enter in a list
+ * (it continues; on an empty item it steps out), Backspace against a
+ * marker (it climbs out a level, then takes the marker away), and
+ * renumbering every numbered run afterwards. Each returns the new body
+ * and the EDITS it made -- marker text put in or taken out at the start of
+ * lines -- so styles move with exactly the text they were on.
+ */
+object Paragraphs {
+
+    val BULLET_GLYPHS = listOf("•", "◦", "▪")
+    const val MAX_INDENT = 8
+    private val NUMBER = Regex("^\\p{Nd}+\\. ")
+
+    /** A line's list kind, its marker, and the text after it. */
+    data class Marker(val kind: String?, val marker: String, val rest: String)
+
+    /** `parse_list_marker`. */
+    fun parseListMarker(line: String): Marker {
+        for (glyph in BULLET_GLYPHS) {
+            if (line.startsWith("$glyph ")) return Marker("bullet", "$glyph ", line.substring(glyph.length + 1))
+        }
+        NUMBER.find(line)?.let { return Marker("number", it.value, line.substring(it.value.length)) }
+        return Marker(null, "", line)
+    }
+
+    /** `marker_for`: bullets change glyph with depth; numbers never do. */
+    fun markerFor(kind: String, number: Int = 1, level: Int = 0): String =
+        if (kind == "bullet") BULLET_GLYPHS[level % BULLET_GLYPHS.size] + " " else "$number. "
+
+    /** A line's indent and alignment; a plain left line has none. */
+    data class Props(val indent: Int = 0, val align: String = "left") {
+        val plain: Boolean get() = indent == 0 && align == "left"
+    }
+
+    /**
+     * The properties a note's stored paragraphs give the lines of [body].
+     * A list entry whose line no longer starts with its kind of marker --
+     * the body rewritten outside the app, its paragraphs not -- keeps its
+     * alignment but not its depth, as the desktop's `_apply_paragraphs`
+     * reads it: kept, the phone indented a plain line and saved the indent,
+     * which the desktop then honoured.
+     */
+    fun propsOf(paragraphs: Any?, body: String): Map<Int, Props> {
+        val lines = body.split("\n")
+        return Exporting.normalizeParagraphs(paragraphs, lines.size)
+            .associate { entry ->
+                val stale = entry.kind != null && parseListMarker(lines.getOrElse(entry.line) { "" }).kind != entry.kind
+                entry.line to Props(if (stale) 0 else entry.indent, entry.align ?: "left")
+            }
+            .filterValues { !it.plain }
+    }
+
+    /** `_extract_paragraphs`: what the file stores, the kind read off each line's marker. */
+    fun extract(body: String, props: Map<Int, Props>): JSONArray {
+        val out = JSONArray()
+        for ((n, line) in body.split("\n").withIndex()) {
+            val kind = parseListMarker(line).kind
+            val p = props[n] ?: Props()
+            if (kind == null && p.plain) continue
+            val entry = JSONObject().put("line", n)
+            if (kind != null) entry.put("kind", kind)
+            if (p.indent != 0) entry.put("indent", p.indent)
+            if (p.align != "left") entry.put("align", p.align)
+            out.put(entry)
+        }
+        return out
+    }
+
+    /**
+     * One change to the text, in the positions of the text before it: at
+     * [at], [removed] code points taken out and [inserted] put in.
+     */
+    data class Edit(val at: Int, val removed: Int, val inserted: Int)
+
+    /** A body after an operation, its lines' properties, and what was edited. */
+    data class Result(val body: String, val props: Map<Int, Props>, val edits: List<Edit>)
+
+    /**
+     * Styles moved through [edits]: text put in at the start of a styled run
+     * goes before it, text put in at its end stays outside it, and a span
+     * that lay wholly in removed text is gone.
+     */
+    fun moveSpans(spans: List<FormatSpan>, edits: List<Edit>): List<FormatSpan> {
+        if (edits.isEmpty()) return spans
+        return spans.mapNotNull { s ->
+            val a = moveStart(s.start, edits)
+            val b = moveEnd(s.end, edits)
+            if (b > a) s.copy(start = a, end = b) else null
+        }
+    }
+
+    /** Where a start -- or a cursor -- goes: text put in right at it goes before it. */
+    fun moveStart(x: Int, edits: List<Edit>): Int = x + edits.sumOf { e ->
+        when {
+            x >= e.at + e.removed && (e.removed > 0 || x >= e.at) -> e.inserted - e.removed
+            x > e.at -> e.at - x
+            else -> 0
+        }
+    }
+
+    /** Where an end goes: text put in right at it stays after it. */
+    fun moveEnd(x: Int, edits: List<Edit>): Int = x + edits.sumOf { e ->
+        when {
+            x > e.at && x >= e.at + e.removed -> e.inserted - e.removed
+            x > e.at -> e.at - x
+            else -> 0
+        }
+    }
+
+    private fun cpLength(text: String) = text.codePointCount(0, text.length)
+
+    /** Where each line starts, in code points. */
+    private fun lineStarts(lines: List<String>): IntArray {
+        val starts = IntArray(lines.size)
+        var at = 0
+        for ((n, line) in lines.withIndex()) {
+            starts[n] = at
+            at += cpLength(line) + 1
+        }
+        return starts
+    }
+
+    /**
+     * `renumber`: every numbered run reads 1, 2, 3 from its own start; one
+     * counter per depth, a deeper list starting again under each item; a
+     * bullet interrupts numbering at its depth and below; one blank line
+     * does not end a list, two do.
+     */
+    fun renumber(body: String, props: Map<Int, Props>): Result {
+        val lines = body.split("\n").toMutableList()
+        val starts = lineStarts(lines)
+        val edits = ArrayList<Edit>()
+        val counters = HashMap<Int, Int>()
+        var blanks = 0
+        for (i in lines.indices) {
+            val parsed = parseListMarker(lines[i])
+            val level = props[i]?.indent ?: 0
+            when {
+                parsed.kind == "number" -> {
+                    blanks = 0
+                    counters[level] = (counters[level] ?: 0) + 1
+                    counters.keys.filter { it > level }.forEach { counters.remove(it) }
+                    val fresh = markerFor("number", counters.getValue(level), level)
+                    if (fresh != parsed.marker) {
+                        edits.add(Edit(starts[i], cpLength(parsed.marker), cpLength(fresh)))
+                        lines[i] = fresh + parsed.rest
+                    }
+                }
+                parsed.kind == "bullet" -> {
+                    blanks = 0
+                    counters.keys.filter { it >= level }.forEach { counters.remove(it) }
+                }
+                PyText.strip(lines[i]).isNotEmpty() -> {
+                    blanks = 0
+                    counters.clear()
+                }
+                else -> {
+                    blanks += 1
+                    if (blanks > 1) counters.clear()
+                }
+            }
+        }
+        return Result(lines.joinToString("\n"), props, edits)
+    }
+
+    /**
+     * An operation's outcome: the body, the lines' properties, and the
+     * edits in the order they were made -- each step's positions those of
+     * the text the step before it left. [move] carries styles through all
+     * of them, from the text the operation started with.
+     */
+    data class Done(val body: String, val props: Map<Int, Props>, val steps: List<List<Edit>>,
+                    /** Where the cursor goes, after an edit made from the keyboard. */
+                    val caret: Int? = null) {
+        fun move(spans: List<FormatSpan>): List<FormatSpan> = steps.fold(spans) { s, edits -> moveSpans(s, edits) }
+
+        /** A cursor or a selection's edge, carried through every step. */
+        fun movePoint(at: Int): Int = steps.fold(at) { x, edits -> moveStart(x, edits) }
+    }
+
+    /** The lines' properties after a typed edit added or took away lines. */
+    fun follow(old: String, new: String, props: Map<Int, Props>): Map<Int, Props> {
+        if (props.isEmpty() || old == new) return props
+        breakAt(old, new)?.let { (line, column, made) -> return if (made) split(props, line, column) else join(props, line) }
+        val moved = remapParagraphLines(old, new, props.keys.toList())
+        return moved.entries.associate { (from, to) -> to to props.getValue(from) }
+    }
+
+    /**
+     * One line break typed or taken away, and nothing else: the line it
+     * broke (or the upper of the two it joined), the column it broke at,
+     * and whether it was made. A break is the one edit whose lines are
+     * known exactly -- the remap, finding lines added, dropped the
+     * properties of the lines around the edit for fear of putting them on
+     * a stranger's line.
+     */
+    private fun breakAt(old: String, new: String): Triple<Int, Int, Boolean>? {
+        val made = new.length == old.length + 1
+        if (!made && old.length != new.length + 1) return null
+        val (long, short) = if (made) new to old else old to new
+        var i = 0
+        while (i < short.length && long[i] == short[i]) i++
+        if (long[i] != '\n' || !long.regionMatches(i + 1, short, i, short.length - i)) return null
+        val line = short.substring(0, i).count { it == '\n' }
+        val column = i - (short.lastIndexOf('\n', i - 1) + 1)
+        return Triple(line, column, made)
+    }
+
+    /**
+     * A line broken in two keeps its centring and indent on both halves, as
+     * the desktop's tags, laid over the text, stay on both -- Enter in a
+     * centred paragraph left both halves at the margin. Broken at its very
+     * start, the line moved down whole, a blank line put above it.
+     */
+    private fun split(props: Map<Int, Props>, line: Int, column: Int): Map<Int, Props> {
+        val out = HashMap<Int, Props>()
+        for ((n, p) in props) {
+            when {
+                n < line -> out[n] = p
+                n > line -> out[n + 1] = p
+                column == 0 -> out[n + 1] = p
+                else -> { out[n] = p; out[n + 1] = p }
+            }
+        }
+        return out
+    }
+
+    /** Two lines joined into one: the upper's properties kept, as the desktop keeps the tags at the line's start. */
+    private fun join(props: Map<Int, Props>, line: Int): Map<Int, Props> {
+        val out = HashMap<Int, Props>()
+        for ((n, p) in props) {
+            when {
+                n <= line -> out[n] = p
+                n == line + 1 -> Unit
+                else -> out[n - 1] = p
+            }
+        }
+        return out
+    }
+
+    /** A step, then the renumbering every list change ends with. */
+    private fun finish(step: Result, before: List<List<Edit>> = emptyList()): Done {
+        val renumbered = renumber(step.body, step.props)
+        return Done(renumbered.body, renumbered.props, before + listOf(step.edits, renumbered.edits))
+    }
+
+    private fun withProps(props: Map<Int, Props>, line: Int, p: Props): Map<Int, Props> =
+        if (p.plain) props - line else props + (line to p)
+
+    /**
+     * `_set_paragraph_indent`: one line at a depth, its bullet's glyph
+     * rewritten for that depth -- a demoted item must not keep its
+     * parent's bullet, or the two levels look the same.
+     */
+    private fun setIndent(lines: MutableList<String>, starts: IntArray, props: Map<Int, Props>, line: Int,
+                          indent: Int, edits: MutableList<Edit>): Map<Int, Props> {
+        val parsed = parseListMarker(lines[line])
+        if (parsed.kind == "bullet") {
+            val fresh = markerFor("bullet", 1, indent)
+            if (fresh != parsed.marker) {
+                edits.add(Edit(starts[line], cpLength(parsed.marker), cpLength(fresh)))
+                lines[line] = fresh + parsed.rest
+            }
+        }
+        return withProps(props, line, (props[line] ?: Props()).copy(indent = indent))
+    }
+
+    /**
+     * `_toggle_list`: the lines from [first] to [last] become a list of
+     * [kind], or stop being one when every item already is one. Blank lines
+     * get no marker -- a numbered list with gaps read 1, 3, 5 -- unless a
+     * single empty line is chosen, which starts a list there. Table rows
+     * are never list items. Depth is kept across the change.
+     */
+    fun toggleList(body: String, props: Map<Int, Props>, first: Int, last: Int, kind: String): Done? {
+        val lines = body.split("\n").toMutableList()
+        val starts = lineStarts(lines)
+        val range = first.coerceIn(0, lines.lastIndex)..last.coerceIn(0, lines.lastIndex)
+        fun blank(n: Int) = isTableRow(lines[n]) || PyText.strip(parseListMarker(lines[n]).rest).isEmpty()
+        var items = range.filter { !blank(it) }
+        if (items.isEmpty()) {
+            if (range.first != range.last || isTableRow(lines[range.first])) return null
+            items = listOf(range.first)
+        }
+        val turningOff = items.all { parseListMarker(lines[it]).kind == kind }
+        val edits = ArrayList<Edit>()
+        for (n in range) {
+            if (!turningOff && n !in items) continue
+            if (isTableRow(lines[n])) continue
+            val parsed = parseListMarker(lines[n])
+            val indent = props[n]?.indent ?: 0
+            if (turningOff) {
+                if (parsed.marker.isNotEmpty()) {
+                    edits.add(Edit(starts[n], cpLength(parsed.marker), 0))
+                    lines[n] = parsed.rest
+                }
+                continue
+            }
+            val fresh = markerFor(kind, 1, indent)
+            edits.add(Edit(starts[n], cpLength(parsed.marker), cpLength(fresh)))
+            lines[n] = fresh + parsed.rest
+        }
+        // Depth stays where it was, on and off: the properties are untouched.
+        return finish(Result(lines.joinToString("\n"), props, edits))
+    }
+
+    /**
+     * `_change_paragraph_indent`: the lines one step deeper or back out,
+     * each clamped on its own, list items or not.
+     */
+    fun changeIndent(body: String, props: Map<Int, Props>, first: Int, last: Int, delta: Int): Done {
+        val lines = body.split("\n").toMutableList()
+        val starts = lineStarts(lines)
+        val edits = ArrayList<Edit>()
+        var next = props
+        for (n in first.coerceIn(0, lines.lastIndex)..last.coerceIn(0, lines.lastIndex)) {
+            if (isTableRow(lines[n])) continue
+            val current = props[n]?.indent ?: 0
+            next = setIndent(lines, starts, next, n, (current + delta).coerceIn(0, MAX_INDENT), edits)
+        }
+        return finish(Result(lines.joinToString("\n"), next, edits))
+    }
+
+    /**
+     * `_set_paragraph_align`: the lines aligned -- or, when every one of
+     * them already is, back to the left, as a pressed button undoes itself.
+     */
+    fun setAlign(body: String, props: Map<Int, Props>, first: Int, last: Int, align: String): Map<Int, Props> {
+        val lines = body.split("\n")
+        val range = first.coerceIn(0, lines.lastIndex)..last.coerceIn(0, lines.lastIndex)
+        val target = if (range.all { (props[it]?.align ?: "left") == align }) "left" else align
+        var next = props
+        for (n in range) {
+            if (isTableRow(lines[n])) continue
+            next = withProps(next, n, (next[n] ?: Props()).copy(align = target))
+        }
+        return next
+    }
+
+    /**
+     * What a typed edit means in a list, if anything -- the desktop's Enter
+     * and Backspace keys, read off the text the keyboard produced:
+     *
+     *  - A line break typed after an item's marker continues the list: the
+     *    new line gets a marker of the same kind, at the same depth. On an
+     *    item with nothing written in it, the break is taken back and the
+     *    item steps out a level -- or, at the margin, stops being one.
+     *  - The marker's last character deleted takes the item out a level, or
+     *    at the margin the whole marker -- not one character of it.
+     *
+     * [old] and [new] are the body before and after the keyboard's edit;
+     * [props] are the properties as they were. The result's steps start
+     * from [old] -- the keyboard's own edit is the first of them, or is
+     * taken back -- so styles move from the text before the keystroke.
+     * Null when the edit is not one of these, and the text stays as typed.
+     */
+    fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
+        val (done, from) = typed(old, new, props, caret) ?: return null
+        return done.copy(caret = done.movePoint(from))
+    }
+
+    /** Whether [longer] is [shorter] with one code point put in at [at]. */
+    private fun oneMore(shorter: IntArray, longer: IntArray, at: Int): Boolean {
+        if (longer.size != shorter.size + 1 || at !in longer.indices) return false
+        for (i in 0 until at) if (shorter[i] != longer[i]) return false
+        for (i in at until shorter.size) if (shorter[i] != longer[i + 1]) return false
+        return true
+    }
+
+    /**
+     * The operation a keystroke stands for, and where its cursor was in the
+     * text before it. Where the keystroke landed is read off the cursor
+     * ([caret], after it, in [new]) -- not off a comparison of the texts,
+     * which cannot tell a break typed at the end of "• a" from one typed at
+     * the start of the next line when both read the same.
+     */
+    private fun typed(old: String, new: String, props: Map<Int, Props>, caret: Int): Pair<Done, Int>? {
+        val a = old.codePoints().toArray()
+        val b = new.codePoints().toArray()
+        val oldLines = old.split("\n")
+        val starts = lineStarts(oldLines)
+        fun lineAt(offset: Int): Int {
+            var n = 0
+            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
+            return n
+        }
+
+        // Enter: one line break, just before the cursor.
+        if (caret >= 1 && oneMore(a, b, caret - 1) && b[caret - 1] == '\n'.code) {
+            val prefix = caret - 1
+            val n = lineAt(prefix)
+            val parsed = parseListMarker(oldLines[n])
+            val kind = parsed.kind ?: return null
+            if (prefix - starts[n] < cpLength(parsed.marker)) return null
+            val indent = props[n]?.indent ?: 0
+            if (PyText.strip(parsed.rest).isEmpty()) {
+                // An empty item: the break is taken back, and the item steps
+                // out a level -- or, at the margin, the line is emptied.
+                val lines = oldLines.toMutableList()
+                val edits = ArrayList<Edit>()
+                if (indent > 0) {
+                    val next = setIndent(lines, starts, props, n, indent - 1, edits)
+                    return finish(Result(lines.joinToString("\n"), next, edits)) to prefix
+                }
+                edits.add(Edit(starts[n], cpLength(oldLines[n]), 0))
+                lines[n] = ""
+                return finish(Result(lines.joinToString("\n"), props - n, edits)) to prefix
+            }
+            // The line broke in two: what follows moves down a line, and
+            // the new line carries the item's depth with a fresh marker --
+            // and its centring, as the desktop's new item carries the tags
+            // of the one it came from.
+            val shifted = props.mapKeys { (line, _) -> if (line > n) line + 1 else line }
+            val withNew = withProps(shifted, n + 1, Props(indent = indent, align = props[n]?.align ?: "left"))
+            val marker = markerFor(kind, 1, indent)
+            val text = String(b, 0, prefix + 1) + marker + String(b, prefix + 1, b.size - prefix - 1)
+            return finish(Result(text, withNew, listOf(Edit(prefix + 1, 0, cpLength(marker)))),
+                          before = listOf(listOf(Edit(prefix, 0, 1)))) to prefix
+        }
+
+        // Backspace against a marker: its last character, alone, just
+        // after the cursor in the old text.
+        if (oneMore(b, a, caret)) {
+            val n = lineAt(caret)
+            val parsed = parseListMarker(oldLines[n])
+            if (parsed.kind == null || caret != starts[n] + cpLength(parsed.marker) - 1) return null
+            // The deletion is taken back: the marker goes, or the item climbs.
+            val lines = oldLines.toMutableList()
+            val edits = ArrayList<Edit>()
+            val indent = props[n]?.indent ?: 0
+            if (indent > 0) {
+                val next = setIndent(lines, starts, props, n, indent - 1, edits)
+                return finish(Result(lines.joinToString("\n"), next, edits)) to caret + 1
+            }
+            edits.add(Edit(starts[n], cpLength(parsed.marker), 0))
+            lines[n] = parsed.rest
+            return finish(Result(lines.joinToString("\n"), props, edits)) to caret + 1
+        }
+        return null
+    }
+}

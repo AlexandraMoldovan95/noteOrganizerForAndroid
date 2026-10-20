@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -104,37 +105,115 @@ class NotebookTest {
 
     @Test
     fun `an untitled note borrows its headline from the body`() {
-        val json = """[{"id": 1, "title": "  ", "body": "\n\nPrima linie\nA doua"}]"""
+        val json = """[{"id": 1, "title": "  ", "body": "\n\nFirst line\nSecond"}]"""
         val note = Notebook.parseNotes(json).single()
         assertTrue(note.headlineIsBorrowed)
-        assertEquals("Prima linie", note.headline)
-        assertEquals("A doua", note.snippet)
+        assertEquals("First line", note.headline)
+        assertEquals("Second", note.snippet)
     }
 
     @Test
     fun `a titled note keeps its whole body as the snippet`() {
-        val json = """[{"id": 1, "title": "Titlu", "body": "Prima\nA doua"}]"""
+        val json = """[{"id": 1, "title": "Title", "body": "First\nSecond"}]"""
         val note = Notebook.parseNotes(json).single()
         assertFalse(note.headlineIsBorrowed)
-        assertEquals("Titlu", note.headline)
-        assertEquals("Prima A doua", note.snippet)
+        assertEquals("Title", note.headline)
+        assertEquals("First Second", note.snippet)
     }
 
     @Test
     fun `table rows stay out of the preview and are counted instead`() {
         val json = """
-            [{"id": 1, "body": "Lista mea\n| a | b |\n| c | d |\nDupa tabel"}]
+            [{"id": 1, "body": "My list\n| a | b |\n| c | d |\nAfter the table"}]
         """.trimIndent()
         val note = Notebook.parseNotes(json).single()
-        assertEquals("Lista mea", note.headline)
-        assertEquals("Dupa tabel", note.snippet)
+        assertEquals("My list", note.headline)
+        assertEquals("After the table", note.snippet)
         assertEquals(1, note.tableCount)
+    }
+
+    @Test
+    fun `a date is shown the desktop's way, and stored its own way`() {
+        // show_date in core/recurrence.py. The card used to print the
+        // stored form while the editor printed this one: the same date
+        // two ways on two screens, found by looking at a screenshot.
+        assertEquals("17.10.2026", Recurrence.showDate("2026-10-17"))
+        assertEquals("05.01.2026", Recurrence.showDate("2026-1-5"))
+        assertEquals("", Recurrence.showDate(""))
+        // Not a date: shown exactly as it was typed, never guessed at.
+        assertEquals("32 January", Recurrence.showDate("32 January"))
+        assertEquals("2026-02-30", Recurrence.showDate("2026-02-30"))
+    }
+
+    @Test
+    fun `the card's tags line carries the date as the desktop draws it`() {
+        val json = """[{"id": 1, "category": "Work", "date": "2026-10-18",
+                         "checklist": [{"text": "a", "done": true}, {"text": "b"}]}]"""
+        assertEquals("Work   📅 18.10.2026   ☑ 1/2",
+            Notebook.parseNotes(json).single().tagLine())
+    }
+
+    @Test
+    fun `the card's tags line says the repeat rule in the desktop's words`() {
+        // describe_recurrence, whole: it used to be "weekly ×2".
+        val json = """[{"id": 1, "category": "Work", "date": "2026-10-05",
+                         "recurrence": {"freq": "weekly", "interval": 2, "weekdays": [0, 3], "count": 6},
+                         "exceptions": ["2026-10-19"], "overrides": {"2026-11-02": {"title": "x"}}}]"""
+        assertEquals("Work   🔁 Every 2 weeks on Mon, Thu, 6 times   ✕1   ✎1",
+            Notebook.parseNotes(json).single().tagLine())
     }
 
     @Test
     fun `two separated tables count as two`() {
         val json = """[{"id": 1, "body": "| a | b |\ntext\n| c | d |"}]"""
         assertEquals(2, Notebook.parseNotes(json).single().tableCount)
+    }
+
+    @Test
+    fun `a row never closed or typed past is still a table line - not the card's words`() {
+        // "Only vertical lines": the strict row rule let these through.
+        val note = Notebook.parseNotes("""[{"id": 1, "body": "Intro\n| a | b\n| c | d |and more\nAfter"}]""").single()
+        assertEquals("Intro", note.headline)
+        assertEquals("After", note.snippet)
+        assertEquals(1, note.tableCount)
+    }
+
+    @Test
+    fun `the preview rule answers as the desktop's preview_text does`() {
+        // Each answer from the desktop's own function (core/tables.py).
+        val cases = listOf(
+            "Intro\n| a | b\n| c | d |and more\nAfter" to ("Intro\nAfter" to 1),
+            "|x| = 5\n|a|b|c\n| y" to ("|x| = 5\n|a|b|c\n| y" to 0),
+            "Top\n\n| a | b |\n| --- | --- |\n\n\nBottom\n\n" to ("Top\n\nBottom" to 1),
+            "| a | b |\n\n| c | d |" to ("" to 2),
+            "\n\nwords\n \n\t\nmore" to ("words\n \nmore" to 0),
+            "| only | table |" to ("" to 1),
+        )
+        for ((body, want) in cases) assertEquals(body, want, previewText(body))
+    }
+
+    @Test
+    fun `an untitled note of nothing but a table is untitled, not empty`() {
+        val note = Notebook.parseNotes("""[{"id": 1, "body": "| a | b |\n| c | d |"}]""").single()
+        assertEquals("(untitled)", note.headline)
+        assertEquals("", note.snippet)
+        assertEquals("(empty)", Notebook.parseNotes("""[{"id": 2, "body": " \n "}]""").single().headline)
+    }
+
+    @Test
+    fun `a card is given a glimpse of a long note, never the whole of it`() {
+        // Laying out tens of thousands of characters to show two lines is
+        // what made the list stutter on a real phone.
+        val long = "word ".repeat(20_000)
+        val note = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("title", "T").put("body", long)).toString()).single()
+        assertTrue(note.snippet.length <= 300)
+        assertTrue(note.snippet.startsWith("word word"))
+        val untitled = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("body", long)).toString()).single()
+        assertTrue(untitled.headline.length <= 300)
+        // Never cut through an emoji.
+        val emoji = Notebook.parseNotes(JSONArray().put(JSONObject().put("id", 1).put("title", "T")
+            .put("body", "a".repeat(299) + "😀 tail")).toString()).single()
+        assertFalse(Character.isHighSurrogate(emoji.snippet.last()))
     }
 
     // ---- code points vs UTF-16, the offset trap ----
@@ -208,13 +287,13 @@ class NotebookTest {
     @Test
     fun `checklist items keep their text and their state`() {
         val json = """
-            [{"id": 1, "checklist": [{"text": "unu", "done": true},
-                                     {"text": "doi", "done": false}]}]
+            [{"id": 1, "checklist": [{"text": "one", "done": true},
+                                     {"text": "two", "done": false}]}]
         """.trimIndent()
         val note = Notebook.parseNotes(json).single()
         assertEquals(2, note.checklistTotal)
         assertEquals(1, note.checklistDone)
-        assertEquals("unu", note.checklist.first().text)
+        assertEquals("one", note.checklist.first().text)
     }
 
     // ---- the rendering, end to end ----
@@ -239,14 +318,38 @@ class NotebookTest {
 
     @Test
     fun `a style this screen cannot draw is admitted, not silently dropped`() {
+        // A face the desktop offers is drawn as its kind now (Consolas,
+        // fixed-width); one it does not offer is still admitted to.
         val json = """
             [{"id": 1, "body": "abc", "formatting": [
+              {"start": 0, "end": 3, "style": "font_family", "value": "Comic Sans"},
               {"start": 0, "end": 3, "style": "font_family", "value": "Consolas"},
               {"start": 0, "end": 3, "style": "bold"}]}]
         """.trimIndent()
         val rendered = renderBody(Notebook.parseNotes(json).single())
         assertEquals(setOf("font_family"), rendered.ignoredStyles)
-        assertEquals(1, rendered.text.spanStyles.size)
+        assertEquals("bold, and Consolas as fixed-width", 2, rendered.text.spanStyles.size)
+    }
+
+    @Test
+    fun `letters both underlined and struck through are drawn with both lines`() {
+        // Two styles naming a decoration do not add up -- the later won, and
+        // the strike under an underline was not drawn while S said it was.
+        val json = """
+            [{"id": 1, "body": "abcdef", "formatting": [
+              {"start": 0, "end": 4, "style": "strike"},
+              {"start": 2, "end": 6, "style": "underline"}]}]
+        """.trimIndent()
+        val drawn = renderBody(Notebook.parseNotes(json).single()).text.spanStyles
+            .filter { it.item.textDecoration != null }
+            .map { Triple(it.start, it.end, it.item.textDecoration) }
+        assertEquals(listOf(
+            Triple(0, 2, androidx.compose.ui.text.style.TextDecoration.LineThrough),
+            Triple(2, 4, androidx.compose.ui.text.style.TextDecoration.combine(listOf(
+                androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                androidx.compose.ui.text.style.TextDecoration.Underline))),
+            Triple(4, 6, androidx.compose.ui.text.style.TextDecoration.Underline),
+        ), drawn)
     }
 
     @Test
@@ -263,7 +366,7 @@ class NotebookTest {
     fun `a bad colour value is refused rather than drawn as black`() {
         val json = """
             [{"id": 1, "body": "abc", "formatting":
-              [{"start": 0, "end": 3, "style": "text_color", "value": "rosu"}]}]
+              [{"start": 0, "end": 3, "style": "text_color", "value": "reddish"}]}]
         """.trimIndent()
         val rendered = renderBody(Notebook.parseNotes(json).single())
         assertEquals(0, rendered.text.spanStyles.size)
@@ -284,7 +387,7 @@ class NotebookTest {
 
         val painted = renderBody(note, Color.Black).text.spanStyles.single().item.background
         assertEquals(0.45f, painted.red, 0.01f)
-        assertTrue("evidentierea nu trebuie sa ramana alb plin", painted.red < 0.9f)
+        assertTrue("the highlight must not stay solid white", painted.red < 0.9f)
     }
 
     @Test
@@ -302,21 +405,21 @@ class NotebookTest {
     @Test
     fun `search looks in the title, the body and the comments`() {
         val json = """
-            [{"id": 1, "title": "Cumparaturi", "body": "lapte", "comments": "urgent"}]
+            [{"id": 1, "title": "Shopping", "body": "milk", "comments": "urgent"}]
         """.trimIndent()
         val note = Notebook.parseNotes(json).single()
-        assertTrue(note.matches("cumpar"))
-        assertTrue(note.matches("lapte"))
+        assertTrue(note.matches("shop"))
+        assertTrue(note.matches("milk"))
         assertTrue(note.matches("urgent"))
-        assertFalse(note.matches("paine"))
+        assertFalse(note.matches("bread"))
     }
 
     @Test
     fun `search ignores letter case in both directions`() {
-        val note = Notebook.parseNotes("""[{"id": 1, "title": "LAPTE"}]""").single()
-        assertTrue(note.matches("lapte"))
-        assertTrue(Notebook.parseNotes("""[{"id": 1, "title": "lapte"}]""")
-            .single().matches("LAPTE"))
+        val note = Notebook.parseNotes("""[{"id": 1, "title": "MILK"}]""").single()
+        assertTrue(note.matches("milk"))
+        assertTrue(Notebook.parseNotes("""[{"id": 1, "title": "milk"}]""")
+            .single().matches("MILK"))
     }
 
     @Test
@@ -327,16 +430,16 @@ class NotebookTest {
     @Test
     fun `search reads inside a table's cells, not its plumbing`() {
         val json = """
-            [{"id": 1, "body": "| Lapte | 2 |\n| --- | --- |\n| Paine | [x] |"}]
+            [{"id": 1, "body": "| Milk | 2 |\n| --- | --- |\n| Bread | [x] |"}]
         """.trimIndent()
         val note = Notebook.parseNotes(json).single()
-        assertTrue("cuvintele din celule se gasesc", note.matches("lapte"))
-        assertTrue(note.matches("paine"))
+        assertTrue("the words in the cells are found", note.matches("milk"))
+        assertTrue(note.matches("bread"))
         // The separator row is mechanics. Searching "---" used to match
         // every note that had a table at all, which is not a search.
-        assertFalse("separatorul nu e continut", note.matches("---"))
+        assertFalse("the separator is not content", note.matches("---"))
         // A checkbox is a control, not a word.
-        assertFalse("bifa nu e continut", note.matches("[x]"))
+        assertFalse("the tick box is not content", note.matches("[x]"))
     }
 
     @Test
@@ -347,11 +450,11 @@ class NotebookTest {
 
     @Test
     fun `content_text leaves prose alone and strips only tables`() {
-        assertEquals("doar text", contentText("doar text"))
+        assertEquals("only text", contentText("only text"))
         assertEquals("a b", contentText("| a | b |"))
         assertEquals("", contentText("| --- | --- |"))
         // A break marker inside a cell is the gap it draws.
-        assertEquals("unu doi", contentText("| unu<br>doi | ^ |"))
+        assertEquals("one two", contentText("| one<br>two | ^ |"))
     }
 
     @Test
@@ -386,21 +489,92 @@ class NotebookTest {
         JSONArray(load.file!!.readText())
 
     @Test
+    fun `a font size the desktop set is read, and written back as the desktop's number`() {
+        // The desktop stores a size as a number; read as text alone it came
+        // in empty, and the next save on the phone wrote it back with no
+        // value at all -- which the desktop's normalize_formatting drops.
+        val load = scratch("""
+            [{"id": 1, "body": "big text here",
+              "formatting": [{"start": 0, "end": 3, "style": "font_size", "value": 20},
+                             {"start": 4, "end": 8, "style": "text_color", "value": "#ff0000"}]}]
+        """.trimIndent())
+        assertEquals(FormatSpan(0, 3, "font_size", "20"), load.notes[0].formatting[0])
+        Notebook.updateNote(load, 1, "", "big text here!")
+        val written = onDisk(load).getJSONObject(0).getJSONArray("formatting")
+        assertEquals("a number, as the desktop keeps it", 20, written.getJSONObject(0).get("value"))
+        assertEquals("#ff0000", written.getJSONObject(1).get("value"))
+        // The editor's own spans travel the same road.
+        Notebook.updateNote(load, 1, "", "big text here!!", formatting = Notebook.refreshed(load).notes[0].formatting)
+        assertEquals(20, onDisk(load).getJSONObject(0).getJSONArray("formatting").getJSONObject(0).get("value"))
+    }
+
+    /**
+     * The class the font size belonged to: a value the phone reads or
+     * writes in a shape the desktop's gatekeepers refuse. Every note in the
+     * export fixture -- styles valid and not, sizes as numbers, text and
+     * true/false -- goes through a save on the phone, and what the desktop
+     * would keep of its styles and its paragraph lines must come back
+     * exactly. (Spans past the end of the text are left out: they style
+     * nothing, and an edit at the end rightly moves them.)
+     */
+    @Test
+    fun `whatever styling the desktop would keep survives a save on the phone`() {
+        val stream = javaClass.classLoader?.getResourceAsStream("export_cases.json")
+        val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
+        var compared = 0
+        for (i in 0 until cases.length()) {
+            val note = JSONObject(cases.getJSONObject(i).getJSONObject("note").toString()).put("id", 1)
+            val body = note.getString("body")
+            val length = body.codePointCount(0, body.length)
+            fun kept(n: JSONObject) = Exporting.normalizeFormatting(n.opt("formatting")).filter { it.end <= length }
+            fun lines(n: JSONObject, text: String) = Exporting.normalizeParagraphs(n.opt("paragraphs"), text.split("\n").size)
+            val load = scratch(JSONArray().put(note).toString())
+            Notebook.updateNote(load, 1, note.optString("title"), "$body!")
+            val written = onDisk(load).getJSONObject(0)
+            assertEquals("note #$i: styles", kept(note), kept(written))
+            assertEquals("note #$i: paragraph lines", lines(note, body), lines(written, "$body!"))
+            compared++
+        }
+        assertTrue(compared > 300)
+    }
+
+    @Test
+    fun `a size and a face chosen on the phone are written as the desktop keeps them`() {
+        val load = scratch("[]")
+        val spans = setStyle(setStyle(emptyList(), 0, 3, "font_size", "20"), 4, 8, "font_family", "Georgia")
+        Notebook.createNote(load, "", "big text here", formatting = spans)
+        val written = onDisk(load).getJSONObject(0).getJSONArray("formatting")
+        val bySpan = (0 until written.length()).map { written.getJSONObject(it) }.associateBy { it.getString("style") }
+        assertEquals(20, bySpan.getValue("font_size").get("value"))
+        assertEquals("Georgia", bySpan.getValue("font_family").get("value"))
+        assertEquals("every choice the picker offers is one the desktop keeps",
+            Fonts.SIZES.map { FormatSpan(0, 1, "font_size", it.toString()) } +
+                Fonts.FAMILIES.map { FormatSpan(0, 1, "font_family", it) },
+            Exporting.normalizeFormatting(JSONArray(
+                Fonts.SIZES.map { JSONObject().put("start", 0).put("end", 1).put("style", "font_size").put("value", it) } +
+                    Fonts.FAMILIES.map { JSONObject().put("start", 0).put("end", 1).put("style", "font_family").put("value", it) })))
+        assertEquals("serif", Fonts.kindOf("Georgia"))
+        assertEquals("monospace", Fonts.kindOf("Courier New"))
+        assertEquals("sans", Fonts.kindOf("Calibri"))
+        assertEquals(null, Fonts.kindOf("Comic Sans"))
+    }
+
+    @Test
     fun `a captured note lands with the whole default shape`() {
         val load = scratch("[]")
-        val result = Notebook.createNote(load, "Titlu", "Corp")
-        assertTrue("salvarea trebuie sa reuseasca", result is SaveResult.Ok)
+        val result = Notebook.createNote(load, "Title", "Body")
+        assertTrue("the save must succeed", result is SaveResult.Ok)
 
         val saved = onDisk(load).getJSONObject(0)
         assertEquals(1, saved.getInt("id"))
-        assertEquals("Titlu", saved.getString("title"))
-        assertEquals("Corp", saved.getString("body"))
+        assertEquals("Title", saved.getString("title"))
+        assertEquals("Body", saved.getString("body"))
         // Every field of the contract, so nothing downstream meets a gap.
         for (field in listOf("formatting", "comments", "category", "date",
                              "color", "attachments", "updated", "created",
                              "recurrence", "exceptions", "overrides",
                              "pinned", "checklist", "paragraphs")) {
-            assertTrue("lipseste campul $field", saved.has(field))
+            assertTrue("missing field: $field", saved.has(field))
         }
         assertEquals("General", saved.getString("category"))
         assertEquals("", saved.getJSONObject("recurrence").getString("freq"))
@@ -415,21 +589,21 @@ class NotebookTest {
         // lists and per-day overrides; rebuilding the file from it would
         // delete them from every other note, invisibly and permanently.
         val existing = """
-            [{"id": 4, "title": "veche",
-              "attachments": [{"filename": "poza.png", "stored_as": "a1.png"}],
-              "overrides": {"2026-01-01": {"title": "doar in ziua aia"}},
-              "un_camp_viitor": "pe care aplicatia asta nu-l cunoaste"}]
+            [{"id": 4, "title": "old",
+              "attachments": [{"filename": "photo.png", "stored_as": "a1.png"}],
+              "overrides": {"2026-01-01": {"title": "only on that day"}},
+              "a_future_field": "that this app does not know"}]
         """.trimIndent()
         val load = scratch(existing)
-        assertTrue(Notebook.createNote(load, "noua", "") is SaveResult.Ok)
+        assertTrue(Notebook.createNote(load, "new", "") is SaveResult.Ok)
 
         val old = onDisk(load).getJSONObject(0)
-        assertEquals("poza.png",
+        assertEquals("photo.png",
             old.getJSONArray("attachments").getJSONObject(0).getString("filename"))
-        assertEquals("doar in ziua aia",
+        assertEquals("only on that day",
             old.getJSONObject("overrides").getJSONObject("2026-01-01").getString("title"))
-        assertEquals("pe care aplicatia asta nu-l cunoaste",
-            old.getString("un_camp_viitor"))
+        assertEquals("that this app does not know",
+            old.getString("a_future_field"))
     }
 
     @Test
@@ -442,12 +616,32 @@ class NotebookTest {
     }
 
     @Test
-    fun `a notebook that exists but cannot be read is never written over`() {
-        val load = scratch("{ asta nu e un fisier de notite")
-        val result = Notebook.createNote(load, "x", "")
-        assertTrue(result is SaveResult.Failed)
-        // And the original bytes are still there, untouched.
-        assertEquals("{ asta nu e un fisier de notite", load.file!!.readText())
+    fun `a notebook that cannot be read is kept aside before anything is written`() {
+        // The desktop's answer, ported: the unreadable bytes are copied
+        // beside the original, the app starts with an empty list, and it
+        // says where the copy is. Writing over the file is then safe --
+        // and refusing every write forever would make a phone that cannot
+        // take a single note.
+        val load = scratch("{ not a notes file")
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("notes_data_corrupt_") }
+        assertEquals("{ not a notes file", kept.readText())
+        assertTrue("the problem names the copy", load.problem!!.contains(kept.name))
+        assertEquals(0, load.notes.size)
+        assertTrue(Notebook.createNote(load, "x", "") is SaveResult.Ok)
+        assertEquals("{ not a notes file", kept.readText())
+    }
+
+    @Test
+    fun `a notebook that can neither be read nor copied aside is never written over`() {
+        val load = scratch("[]")
+        val stuck = Notebook.Load(
+            notes = emptyList(), categories = load.categories, source = "x",
+            file = load.file, raw = null,
+        )
+        load.file!!.writeText("{ unreadable")
+        assertTrue(Notebook.createNote(stuck, "x", "") is SaveResult.Failed)
+        assertEquals("{ unreadable", load.file!!.readText())
     }
 
     @Test
@@ -456,21 +650,21 @@ class NotebookTest {
         // A path whose parent directory does not exist: the stream throws.
         val nowhere = Notebook.Load(
             notes = load.notes, categories = load.categories, source = "x",
-            file = File(load.file!!.parentFile, "nu/exista/notes_data.json"),
+            file = File(load.file!!.parentFile, "no/such/notes_data.json"),
             raw = load.raw,
         )
         val before = nowhere.raw!!.length()
         val result = Notebook.createNote(nowhere, "x", "")
         assertTrue(result is SaveResult.Failed)
-        assertTrue("motivul nu trebuie sa fie gol",
+        assertTrue("the reason must not be empty",
             (result as SaveResult.Failed).reason.isNotEmpty())
-        assertEquals("nota adaugata trebuie scoasa inapoi", before, nowhere.raw!!.length())
+        assertEquals("the added note must be taken back out", before, nowhere.raw!!.length())
     }
 
     @Test
     fun `a first note creates the file on a phone that has none`() {
         val load = scratch(null)
-        assertTrue(Notebook.createNote(load, "prima", "corp") is SaveResult.Ok)
+        assertTrue(Notebook.createNote(load, "first", "body") is SaveResult.Ok)
         assertEquals(1, onDisk(load).length())
     }
 
@@ -488,20 +682,20 @@ class NotebookTest {
     @Test
     fun `a whole emoji is kept, only broken halves are dropped`() {
         val load = scratch("[]")
-        Notebook.createNote(load, "👣 pasi", "")
-        assertEquals("👣 pasi", onDisk(load).getJSONObject(0).getString("title"))
+        Notebook.createNote(load, "👣 steps", "")
+        assertEquals("👣 steps", onDisk(load).getJSONObject(0).getString("title"))
     }
 
     @Test
     fun `what was written reads back as the same note`() {
         val load = scratch("[]")
-        Notebook.createNote(load, "Dus la cumparaturi", "lapte\npaine")
+        Notebook.createNote(load, "Gone shopping", "milk\nbread")
         // Not the object we built -- the bytes on disk, read by the same
         // reader the app uses at startup.
         val reread = Notebook.parseNotes(load.file!!.readText()).single()
-        assertEquals("Dus la cumparaturi", reread.title)
-        assertEquals("lapte\npaine", reread.body)
-        assertTrue(reread.matches("paine"))
+        assertEquals("Gone shopping", reread.title)
+        assertEquals("milk\nbread", reread.body)
+        assertTrue(reread.matches("bread"))
         assertFalse(reread.isRecurring)
     }
 
@@ -529,13 +723,13 @@ class NotebookTest {
 
     @Test
     fun `deleting before a span pulls it back onto the same words`() {
-        val old = "Lista mea de cumparaturi"
-        val new = "Lista de cumparaturi"
-        // bold on "cumparaturi"
-        val at = old.indexOf("cumparaturi")
-        val moved = remapSpans(old, new, spans(Triple(at, at + 11, "bold")))
+        val old = "My weekly list of groceries"
+        val new = "My list of groceries"
+        // bold on "groceries"
+        val at = old.indexOf("groceries")
+        val moved = remapSpans(old, new, spans(Triple(at, at + "groceries".length, "bold")))
         val span = moved.spans.single()
-        assertEquals("cumparaturi", new.substring(span.start, span.end))
+        assertEquals("groceries", new.substring(span.start, span.end))
     }
 
     @Test
@@ -553,12 +747,12 @@ class NotebookTest {
         // Bold covered "bb" and only "bb". The user replaces it. The new
         // words are the user's, not the deleted word's, so they get no
         // styling -- and nothing may end up covering them.
-        val moved = remapSpans("aa bb cc", "aa NOU NOU cc", spans(Triple(3, 5, "bold")))
+        val moved = remapSpans("aa bb cc", "aa NEW NEW cc", spans(Triple(3, 5, "bold")))
         assertEquals(1, moved.lost)
         for (span in moved.spans) {
-            val covered = "aa NOU NOU cc".substring(span.start, span.end)
-            assertFalse("formatarea a ajuns peste text nou: $covered",
-                covered.contains("NOU"))
+            val covered = "aa NEW NEW cc".substring(span.start, span.end)
+            assertFalse("the styling reached the new text: $covered",
+                covered.contains("NEW"))
         }
     }
 
@@ -568,7 +762,7 @@ class NotebookTest {
         // edit is stretched, or fixing a typo would strip the styling off
         // everything around it.
         val old = "aa bb cc"
-        val new = "aa NOU cc"
+        val new = "aa NEW cc"
         val moved = remapSpans(old, new, spans(Triple(0, 8, "bold")))
         assertEquals(0, moved.lost)
         val span = moved.spans.single()
@@ -599,7 +793,7 @@ class NotebookTest {
 
     @Test
     fun `a line inserted above a bullet renumbers it`() {
-        val moved = remapParagraphLines("a\nb\nc", "NOU\na\nb\nc", listOf(1, 2))
+        val moved = remapParagraphLines("a\nb\nc", "NEW\na\nb\nc", listOf(1, 2))
         assertEquals(mapOf(1 to 2, 2 to 3), moved)
     }
 
@@ -607,6 +801,24 @@ class NotebookTest {
     fun `a marker on a line that was edited away is dropped`() {
         val moved = remapParagraphLines("a\nb\nc", "a\nc", listOf(1))
         assertEquals(emptyMap<Int, Int>(), moved)
+    }
+
+    @Test
+    fun `typing into a list item keeps its bullet`() {
+        // The edit was inside the line, so the line is still the bullet's:
+        // this once dropped it, on every letter typed into a list item.
+        assertEquals(mapOf(0 to 0, 1 to 1), remapParagraphLines("• milk\n• bread", "• milk!\n• bread", listOf(0, 1)))
+        assertEquals("two lines rewritten in one edit stay two lines",
+            mapOf(1 to 1, 2 to 2), remapParagraphLines("a\nb\nc\nd", "a\nB\nC\nd", listOf(1, 2)))
+        val load = scratch("""
+            [{"id": 1, "body": "• milk\nplain",
+              "paragraphs": [{"line": 0, "kind": "bullet", "indent": 1}]}]
+        """.trimIndent())
+        Notebook.updateNote(load, 1, "", "• milk and eggs\nplain")
+        val kept = onDisk(load).getJSONObject(0).getJSONArray("paragraphs")
+        assertEquals(1, kept.length())
+        assertEquals("bullet", kept.getJSONObject(0).getString("kind"))
+        assertEquals(1, kept.getJSONObject(0).getInt("indent"))
     }
 
     @Test
@@ -626,22 +838,43 @@ class NotebookTest {
         assertEquals(1, kept.getJSONObject(0).getInt("line"))
     }
 
+    @Test
+    fun `a centred or indented line keeps what it is, and does not become a list`() {
+        // A paragraph entry is not only a list marker: the desktop stores
+        // a line's alignment and indent in it too, with no kind at all.
+        val load = scratch("""
+            [{"id": 1, "body": "Title line\nbody",
+              "paragraphs": [{"line": 0, "align": "center"},
+                             {"line": 1, "kind": "number", "indent": 2, "align": "right"}]}]
+        """.trimIndent())
+        Notebook.updateNote(load, 1, "", "new first line\nTitle line\nbody")
+        val kept = onDisk(load).getJSONObject(0).getJSONArray("paragraphs")
+        val centred = kept.getJSONObject(0)
+        assertEquals(1, centred.getInt("line"))
+        assertEquals("center", centred.getString("align"))
+        assertFalse("a centred line is not a bullet", centred.has("kind"))
+        val numbered = kept.getJSONObject(1)
+        assertEquals(2, numbered.getInt("line"))
+        assertEquals(2, numbered.getInt("indent"))
+        assertEquals("right", numbered.getString("align"))
+    }
+
     // ---- editing: the file ----
 
     @Test
     fun `an edit rewrites only that note and only its own fields`() {
         val load = scratch("""
-            [{"id": 1, "title": "veche", "body": "corp vechi", "category": "Work",
+            [{"id": 1, "title": "old", "body": "old body", "category": "Work",
               "created": "2020-01-01 00:00:00", "color": "#ff0000",
               "attachments": [{"filename": "x.png"}]},
-             {"id": 2, "title": "vecina"}]
+             {"id": 2, "title": "the neighbour"}]
         """.trimIndent())
-        val result = Notebook.updateNote(load, 1, "noua", "corp nou")
+        val result = Notebook.updateNote(load, 1, "new", "new body")
         assertTrue(result is SaveResult.Ok)
 
         val edited = onDisk(load).getJSONObject(0)
-        assertEquals("noua", edited.getString("title"))
-        assertEquals("corp nou", edited.getString("body"))
+        assertEquals("new", edited.getString("title"))
+        assertEquals("new body", edited.getString("body"))
         // Everything the edit did not touch is still there.
         assertEquals("Work", edited.getString("category"))
         assertEquals("#ff0000", edited.getString("color"))
@@ -651,36 +884,36 @@ class NotebookTest {
         assertEquals("2020-01-01 00:00:00", edited.getString("created"))
         assertEquals(19, edited.getString("updated").length)
         // And the neighbour is untouched.
-        assertEquals("vecina", onDisk(load).getJSONObject(1).getString("title"))
+        assertEquals("the neighbour", onDisk(load).getJSONObject(1).getString("title"))
     }
 
     @Test
     fun `the note is found by id, not by where it sits in the list`() {
         val load = scratch("""[{"id": 7, "title": "a"}, {"id": 3, "title": "b"}]""")
-        Notebook.updateNote(load, 3, "schimbata", "")
+        Notebook.updateNote(load, 3, "changed", "")
         assertEquals("a", onDisk(load).getJSONObject(0).getString("title"))
-        assertEquals("schimbata", onDisk(load).getJSONObject(1).getString("title"))
+        assertEquals("changed", onDisk(load).getJSONObject(1).getString("title"))
     }
 
     @Test
     fun `emptying a note keeps the old version inside it`() {
         val load = scratch("""
-            [{"id": 1, "title": "Lista", "body": "lapte, paine",
-              "formatting": [{"start": 0, "end": 5, "style": "bold"}]}]
+            [{"id": 1, "title": "List", "body": "milk, bread",
+              "formatting": [{"start": 0, "end": 4, "style": "bold"}]}]
         """.trimIndent())
         Notebook.updateNote(load, 1, "", "")
         val note = onDisk(load).getJSONObject(0)
         val previous = note.getJSONObject("_prev")
-        assertEquals("Lista", previous.getString("title"))
-        assertEquals("lapte, paine", previous.getString("body"))
+        assertEquals("List", previous.getString("title"))
+        assertEquals("milk, bread", previous.getString("body"))
         // The styling comes back with the text, not stripped off it.
         assertEquals(1, previous.getJSONArray("formatting").length())
     }
 
     @Test
     fun `a small tidy-up does not litter the note with rescue copies`() {
-        val load = scratch("""[{"id": 1, "title": "Lista", "body": "lapte si paine"}]""")
-        Notebook.updateNote(load, 1, "Lista", "lapte si paine.")
+        val load = scratch("""[{"id": 1, "title": "List", "body": "milk and bread"}]""")
+        Notebook.updateNote(load, 1, "List", "milk and bread.")
         assertFalse(onDisk(load).getJSONObject(0).has("_prev"))
     }
 
@@ -688,13 +921,13 @@ class NotebookTest {
     fun `the desktop's shrink thresholds, case by case`() {
         val long = "x".repeat(500)
         // Emptied completely, however short it was.
-        assertTrue(Notebook.shouldKeepPrevious("", "scurt", "", ""))
+        assertTrue(Notebook.shouldKeepPrevious("", "short", "", ""))
         // 41 characters gone out of 50 is both a big fraction and over 40.
         assertTrue(Notebook.shouldKeepPrevious("", "y".repeat(50), "", "y".repeat(9)))
         // 200+ characters gone, even though 500 -> 290 keeps 58%.
         assertTrue(Notebook.shouldKeepPrevious("", long, "", "x".repeat(290)))
         // A typo fix is not a disaster.
-        assertFalse(Notebook.shouldKeepPrevious("", "lapte", "", "lapte."))
+        assertFalse(Notebook.shouldKeepPrevious("", "milk", "", "milk."))
         // Exactly 40 removed is not "more than 40".
         assertFalse(Notebook.shouldKeepPrevious("", "z".repeat(100), "", "z".repeat(60)))
     }
@@ -796,8 +1029,8 @@ class NotebookTest {
         // means by "A to Z".
         val notes = listOfNotes(
             """{"id": 1, "title": ""}""",
-            """{"id": 2, "title": "banane"}""",
-            """{"id": 3, "title": "Alune"}""",
+            """{"id": 2, "title": "bananas"}""",
+            """{"id": 3, "title": "Almonds"}""",
         )
         assertEquals(listOf(3, 2, 1), sortNotes(notes, SortOrder.TITLE_AZ).map { it.id })
         // And they stay at the bottom when the order is reversed -- the
@@ -834,17 +1067,17 @@ class NotebookTest {
     fun `ticking a row changes only that row`() {
         val load = scratch("""
             [{"id": 1, "updated": "2020-01-01 00:00:00", "checklist": [
-               {"text": "unu", "done": false},
-               {"text": "doi", "done": false, "un_camp_viitor": "pastreaza-ma"}]}]
+               {"text": "one", "done": false},
+               {"text": "two", "done": false, "a_future_field": "keep-me"}]}]
         """.trimIndent())
         assertTrue(Notebook.setChecklistDone(load, 1, 1, true) is SaveResult.Ok)
 
         val rows = onDisk(load).getJSONObject(0).getJSONArray("checklist")
         assertFalse(rows.getJSONObject(0).getBoolean("done"))
         assertTrue(rows.getJSONObject(1).getBoolean("done"))
-        assertEquals("doi", rows.getJSONObject(1).getString("text"))
+        assertEquals("two", rows.getJSONObject(1).getString("text"))
         // A field this app never reads must survive being ticked past.
-        assertEquals("pastreaza-ma", rows.getJSONObject(1).getString("un_camp_viitor"))
+        assertEquals("keep-me", rows.getJSONObject(1).getString("a_future_field"))
         // Ticking IS a save.
         assertFalse("2020-01-01 00:00:00" ==
             onDisk(load).getJSONObject(0).getString("updated"))
@@ -888,7 +1121,7 @@ class NotebookTest {
     @Test
     fun `deleting moves the note to the trash instead of destroying it`() {
         val load = scratchWithTrash(
-            """[{"id": 1, "title": "a"}, {"id": 2, "title": "de sters"}]""", "[]")
+            """[{"id": 1, "title": "a"}, {"id": 2, "title": "to delete"}]""", "[]")
         assertTrue(Notebook.deleteNote(load, 2) is SaveResult.Ok)
 
         // Gone from the notebook...
@@ -896,7 +1129,7 @@ class NotebookTest {
             .map { onDisk(load).getJSONObject(it).getInt("id") })
         // ...and whole in the trash, with the day it went there.
         val trashed = trashOnDisk(load).getJSONObject(0)
-        assertEquals("de sters", trashed.getString("title"))
+        assertEquals("to delete", trashed.getString("title"))
         assertEquals(19, trashed.getString("deleted_at").length)
     }
 
@@ -905,13 +1138,13 @@ class NotebookTest {
         val load = scratchWithTrash("""
             [{"id": 1, "title": "x", "attachments": [{"filename": "p.png"}],
               "checklist": [{"text": "t", "done": true}],
-              "un_camp_viitor": "pastreaza-ma"}]
+              "a_future_field": "keep-me"}]
         """.trimIndent(), "[]")
         Notebook.deleteNote(load, 1)
         val trashed = trashOnDisk(load).getJSONObject(0)
         assertEquals("p.png",
             trashed.getJSONArray("attachments").getJSONObject(0).getString("filename"))
-        assertEquals("pastreaza-ma", trashed.getString("un_camp_viitor"))
+        assertEquals("keep-me", trashed.getString("a_future_field"))
     }
 
     @Test
@@ -920,24 +1153,39 @@ class NotebookTest {
         // trusted: make the NOTEBOOK unwritable and delete. The trash copy
         // must already exist -- meaning the interrupted state is "in both
         // files", never "in neither".
-        val load = scratchWithTrash("""[{"id": 1, "title": "pretioasa"}]""", "[]")
+        val load = scratchWithTrash("""[{"id": 1, "title": "precious"}]""", "[]")
         val doomed = Notebook.Load(
             notes = load.notes, categories = load.categories, source = "x",
-            file = File(load.file!!.parentFile, "nu/exista/notes_data.json"),
+            file = File(load.file!!.parentFile, "no/such/notes_data.json"),
             raw = load.raw, trash = load.trash,
             trashFile = load.trashFile, trashRaw = load.trashRaw,
         )
         val result = Notebook.deleteNote(doomed, 1)
         assertTrue(result is SaveResult.Failed)
-        assertEquals("pretioasa", trashOnDisk(load).getJSONObject(0).getString("title"))
-        assertTrue("mesajul trebuie sa spuna ca nu s-a pierdut nimic",
-            (result as SaveResult.Failed).reason.contains("nu s-a pierdut"))
+        assertEquals("precious", trashOnDisk(load).getJSONObject(0).getString("title"))
+        assertTrue("the message must say nothing was lost",
+            (result as SaveResult.Failed).reason.contains("nothing was lost"))
     }
 
     @Test
-    fun `a trash that cannot be read stops the delete before it starts`() {
-        val load = scratchWithTrash("""[{"id": 1}]""", "{ nu e un cos")
-        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Failed)
+    fun `an unreadable trash is kept aside, and a delete still keeps the note`() {
+        val load = scratchWithTrash("""[{"id": 1, "title": "kept"}]""", "{ not a trash")
+        val kept = load.file!!.parentFile!!.listFiles()!!
+            .single { it.name.startsWith("trash_corrupt_") }
+        assertEquals("{ not a trash", kept.readText())
+        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Ok)
+        assertEquals("kept", trashOnDisk(load).getJSONObject(0).getString("title"))
+    }
+
+    @Test
+    fun `a trash that can neither be read nor kept aside stops the delete`() {
+        val load = scratchWithTrash("""[{"id": 1}]""", "[]")
+        val stuck = Notebook.Load(
+            notes = load.notes, categories = load.categories, source = "x",
+            file = load.file, raw = load.raw, trashFile = load.trashFile, trashRaw = null,
+        )
+        load.trashFile!!.writeText("{ unreadable")
+        assertTrue(Notebook.deleteNote(stuck, 1) is SaveResult.Failed)
         // The notebook is untouched: the note is still there.
         assertEquals(1, onDisk(load).length())
     }
@@ -952,12 +1200,12 @@ class NotebookTest {
     @Test
     fun `restoring brings the note back and takes it out of the trash`() {
         val load = scratchWithTrash("""[{"id": 1}]""",
-            """[{"id": 5, "title": "revin", "deleted_at": "2026-01-01 10:00:00"}]""")
+            """[{"id": 5, "title": "coming back", "deleted_at": "2026-01-01 10:00:00"}]""")
         assertTrue(Notebook.restoreFromTrash(load, 5) is SaveResult.Ok)
 
         val back = onDisk(load).getJSONObject(1)
-        assertEquals("revin", back.getString("title"))
-        assertFalse("stampila de stergere nu are ce cauta pe o notita vie",
+        assertEquals("coming back", back.getString("title"))
+        assertFalse("a deletion stamp has no business on a live note",
             back.has("deleted_at"))
         assertEquals(0, trashOnDisk(load).length())
     }
@@ -966,8 +1214,8 @@ class NotebookTest {
     fun `a restored note gets a fresh id, because its old one may be taken`() {
         // Note 5 was deleted; a note created afterwards took id 5. Restoring
         // with the old id would put two notes under one id.
-        val load = scratchWithTrash("""[{"id": 5, "title": "cea noua"}]""",
-            """[{"id": 5, "title": "cea veche", "deleted_at": "2026-01-01 10:00:00"}]""")
+        val load = scratchWithTrash("""[{"id": 5, "title": "the new one"}]""",
+            """[{"id": 5, "title": "the old one", "deleted_at": "2026-01-01 10:00:00"}]""")
         val result = Notebook.restoreFromTrash(load, 5) as SaveResult.Ok
         assertEquals(6, result.id)
         val ids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getInt("id") }
@@ -978,16 +1226,16 @@ class NotebookTest {
     fun `the notebook is written BEFORE the trash on the way back`() {
         // Mirrored reasoning: interrupted, the note is in both files.
         val load = scratchWithTrash("""[{"id": 1}]""",
-            """[{"id": 5, "title": "revin", "deleted_at": "2026-01-01 10:00:00"}]""")
+            """[{"id": 5, "title": "coming back", "deleted_at": "2026-01-01 10:00:00"}]""")
         val doomed = Notebook.Load(
             notes = load.notes, categories = load.categories, source = "x",
             file = load.file, raw = load.raw, trash = load.trash,
-            trashFile = File(load.trashFile!!.parentFile, "nu/exista/trash.json"),
+            trashFile = File(load.trashFile!!.parentFile, "no/such/trash.json"),
             trashRaw = load.trashRaw,
         )
         assertTrue(Notebook.restoreFromTrash(doomed, 5) is SaveResult.Failed)
         // The note is already safely back in the notebook.
-        assertEquals("revin", onDisk(load).getJSONObject(1).getString("title"))
+        assertEquals("coming back", onDisk(load).getJSONObject(1).getString("title"))
     }
 
     @Test
@@ -1010,31 +1258,12 @@ class NotebookTest {
         // Fail-safe: better to keep a note too long than to suggest it is
         // about to go.
         assertNull(Notebook.daysLeftInTrash("", 30))
-        assertNull(Notebook.daysLeftInTrash("ieri", 30))
+        assertNull(Notebook.daysLeftInTrash("yesterday", 30))
     }
 
     @Test
     fun `an overdue note shows zero days, never a negative number`() {
         assertEquals(0, Notebook.daysLeftInTrash("2020-01-01 00:00:00", 30))
-    }
-
-    @Test
-    fun `a hand-edited retention window is clamped, not obeyed`() {
-        // These match the desktop's CODE, which is the specification --
-        // not its docstring, which claims 0 and -3 fall back to the
-        // default. They do not: `max(1, min(days, 365))` clamps them to 1
-        // day. Only a value that is not a whole number at all ("forever")
-        // reaches the default. Both are safe -- neither makes the purge
-        // take everything -- but the two statements disagree, and the one
-        // that runs wins.
-        assertEquals(1, Notebook.parseRetentionDays("""{"trash_retention_days": 0}"""))
-        assertEquals(1, Notebook.parseRetentionDays("""{"trash_retention_days": -3}"""))
-        assertEquals(30,
-            Notebook.parseRetentionDays("""{"trash_retention_days": "forever"}"""))
-        assertEquals(365,
-            Notebook.parseRetentionDays("""{"trash_retention_days": 99999}"""))
-        assertEquals(7, Notebook.parseRetentionDays("""{"trash_retention_days": 7}"""))
-        assertEquals(30, Notebook.parseRetentionDays("nu e json"))
     }
 
     // ---- category, colour, date, pin ----
@@ -1047,7 +1276,7 @@ class NotebookTest {
             [{"id": 1, "title": "a", "body": "b", "category": "Work",
               "color": "#ff0000", "date": "2026-01-01", "pinned": true}]
         """.trimIndent())
-        Notebook.updateNote(load, 1, "schimbat", "b")
+        Notebook.updateNote(load, 1, "changed", "b")
         val note = onDisk(load).getJSONObject(0)
         assertEquals("Work", note.getString("category"))
         assertEquals("#ff0000", note.getString("color"))
@@ -1081,7 +1310,7 @@ class NotebookTest {
         // that had none, "no colour" is not a change and nothing is
         // written at all -- which is also correct, just not a test of this.
         val load = scratch("""[{"id": 1, "color": "#ff0000"}]""")
-        Notebook.updateNote(load, 1, "", "", color = "rosu aprins")
+        Notebook.updateNote(load, 1, "", "", color = "bright red")
         assertEquals("", onDisk(load).getJSONObject(0).getString("color"))
     }
 
@@ -1103,6 +1332,16 @@ class NotebookTest {
     }
 
     @Test
+    fun `a three-digit colour comes in as six, as the desktop's sanitize_color expands it`() {
+        assertEquals("#ff00aa", Notebook.sanitizeColor("#f0a"))
+        assertEquals("the letters' case kept, as Python's ch * 2 keeps it", "#ff00AA", Notebook.sanitizeColor(" #f0A "))
+        assertEquals("#123456", Notebook.sanitizeColor("#123456"))
+        assertEquals("x", Notebook.sanitizeColor("#12", "x"))
+        // And drawn as six: read as six digits, #f00 was a near-black green.
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFFF0000), hexColor("#f00"))
+    }
+
+    @Test
     fun `a date must name a day that actually exists`() {
         assertTrue(Notebook.isDate("2026-02-28"))
         assertTrue(Notebook.isDate("2024-02-29"))
@@ -1110,13 +1349,13 @@ class NotebookTest {
         assertFalse(Notebook.isDate("2026-02-30"))
         assertFalse(Notebook.isDate("2026-13-01"))
         assertFalse(Notebook.isDate("12-09-2026"))
-        assertFalse(Notebook.isDate("maine"))
+        assertFalse(Notebook.isDate("tomorrow"))
     }
 
     @Test
     fun `a date the user typed wrong is refused, not silently dropped`() {
         val load = scratch("""[{"id": 1, "date": "2026-01-01"}]""")
-        val result = Notebook.updateNote(load, 1, "", "", date = "32 ianuarie")
+        val result = Notebook.updateNote(load, 1, "", "", date = "32 January")
         assertTrue(result is SaveResult.Failed)
         assertEquals("2026-01-01", onDisk(load).getJSONObject(0).getString("date"))
     }
@@ -1132,7 +1371,7 @@ class NotebookTest {
         """.trimIndent())
         val result = Notebook.updateNote(load, 1, "", "", date = "")
         assertTrue(result is SaveResult.Failed)
-        assertTrue((result as SaveResult.Failed).reason.contains("repet"))
+        assertTrue((result as SaveResult.Failed).reason.contains("repeat"))
         assertEquals("2026-01-01", onDisk(load).getJSONObject(0).getString("date"))
     }
 
@@ -1155,18 +1394,18 @@ class NotebookTest {
     @Test
     fun `a row can be added, renamed and removed`() {
         val load = scratch("""[{"id": 1, "checklist": []}]""")
-        assertTrue(Notebook.addChecklistItem(load, 1, "lapte") is SaveResult.Ok)
-        assertTrue(Notebook.addChecklistItem(load, 1, "paine") is SaveResult.Ok)
+        assertTrue(Notebook.addChecklistItem(load, 1, "milk") is SaveResult.Ok)
+        assertTrue(Notebook.addChecklistItem(load, 1, "bread") is SaveResult.Ok)
         assertEquals(2, onDisk(load).getJSONObject(0).getJSONArray("checklist").length())
 
-        Notebook.renameChecklistItem(load, 1, 0, "lapte de vaca")
-        assertEquals("lapte de vaca", onDisk(load).getJSONObject(0)
+        Notebook.renameChecklistItem(load, 1, 0, "oat milk")
+        assertEquals("oat milk", onDisk(load).getJSONObject(0)
             .getJSONArray("checklist").getJSONObject(0).getString("text"))
 
         Notebook.removeChecklistItem(load, 1, 0)
         val left = onDisk(load).getJSONObject(0).getJSONArray("checklist")
         assertEquals(1, left.length())
-        assertEquals("paine", left.getJSONObject(0).getString("text"))
+        assertEquals("bread", left.getJSONObject(0).getString("text"))
     }
 
     @Test
@@ -1181,13 +1420,13 @@ class NotebookTest {
     fun `renaming a row keeps whether it was ticked, and anything else on it`() {
         val load = scratch("""
             [{"id": 1, "checklist":
-              [{"text": "vechi", "done": true, "un_camp_viitor": "pastreaza-ma"}]}]
+              [{"text": "old", "done": true, "a_future_field": "keep-me"}]}]
         """.trimIndent())
-        Notebook.renameChecklistItem(load, 1, 0, "nou")
+        Notebook.renameChecklistItem(load, 1, 0, "new")
         val row = onDisk(load).getJSONObject(0).getJSONArray("checklist").getJSONObject(0)
-        assertEquals("nou", row.getString("text"))
+        assertEquals("new", row.getString("text"))
         assertTrue(row.getBoolean("done"))
-        assertEquals("pastreaza-ma", row.getString("un_camp_viitor"))
+        assertEquals("keep-me", row.getString("a_future_field"))
     }
 
     @Test
@@ -1195,7 +1434,7 @@ class NotebookTest {
         val rows = (1..Notebook.MAX_CHECKLIST_ITEMS)
             .joinToString(",") { """{"text": "$it", "done": false}""" }
         val load = scratch("""[{"id": 1, "checklist": [$rows]}]""")
-        val result = Notebook.addChecklistItem(load, 1, "inca unul")
+        val result = Notebook.addChecklistItem(load, 1, "one more")
         assertTrue(result is SaveResult.Failed)
         assertEquals(Notebook.MAX_CHECKLIST_ITEMS,
             onDisk(load).getJSONObject(0).getJSONArray("checklist").length())
@@ -1214,7 +1453,7 @@ class NotebookTest {
         val load = scratch("""[{"id": 1, "checklist": [{"text": "a", "done": false}]}]""")
         val doomed = Notebook.Load(
             notes = load.notes, categories = load.categories, source = "x",
-            file = File(load.file!!.parentFile, "nu/exista/notes_data.json"),
+            file = File(load.file!!.parentFile, "no/such/notes_data.json"),
             raw = load.raw,
         )
         assertTrue(Notebook.addChecklistItem(doomed, 1, "b") is SaveResult.Failed)
@@ -1237,7 +1476,7 @@ class NotebookTest {
             FormatSpan(0, 4, "bold"),
             FormatSpan(5, 9, "text_color", "#e63946"),
         )
-        assertTrue(Notebook.createNote(load, "t", "unu doi", formatting = spans)
+        assertTrue(Notebook.createNote(load, "t", "one two", formatting = spans)
             is SaveResult.Ok)
         val written = onDisk(load).getJSONObject(0).getJSONArray("formatting")
         assertEquals(2, written.length())
@@ -1281,14 +1520,5 @@ class NotebookTest {
         assertFalse(span.has("value"))
     }
 
-    // ---- settings.json ----
-
-    @Test
-    fun `only well-formed category colours are kept`() {
-        val json = """
-            {"categories": {"Work": "#4cc9f0", "Bad": "#not-a-colour",
-                            "Worse": 5, "  ": "#ffffff"}}
-        """.trimIndent()
-        assertEquals(mapOf("Work" to "#4cc9f0"), Notebook.parseCategories(json))
-    }
+    // settings.json, the retention window and the category map: SettingsTest.
 }
