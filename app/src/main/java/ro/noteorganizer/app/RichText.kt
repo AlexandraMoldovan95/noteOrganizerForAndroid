@@ -29,6 +29,7 @@ data class RenderedBody(val text: AnnotatedString, val ignoredStyles: Set<String
 fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
     val ignored = LinkedHashSet<String>()
     val offsets = utf16Offsets(note.body, note.formatting.flatMap { listOf(it.start, it.end) })
+    val lines = ArrayList<Triple<Int, Int, TextDecoration>>()
     val text = buildAnnotatedString {
         append(note.body)
         for (span in note.formatting) {
@@ -38,6 +39,10 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
             // the end collapses to nothing rather than throwing inside a
             // draw. Dropping it is the same choice normalize_note makes.
             if (end <= start) continue
+            when (span.style) {
+                "underline" -> { lines.add(Triple(start, end, TextDecoration.Underline)); continue }
+                "strike" -> { lines.add(Triple(start, end, TextDecoration.LineThrough)); continue }
+            }
             val style = styleOf(span, surface)
             if (style == null) {
                 ignored.add(span.style)
@@ -45,8 +50,29 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
             }
             addStyle(style, start, end)
         }
+        for ((start, end, decoration) in decorations(lines)) addStyle(SpanStyle(textDecoration = decoration), start, end)
     }
     return RenderedBody(text, ignored)
+}
+
+/**
+ * Underline and strike over the same letters, as one decoration: two
+ * styles each naming a decoration do not add up -- the later wins -- so
+ * letters both underlined and struck through showed one line while the S
+ * key said both. The desktop draws both, its two being independent.
+ */
+private fun decorations(lines: List<Triple<Int, Int, TextDecoration>>): List<Triple<Int, Int, TextDecoration>> {
+    if (lines.isEmpty()) return emptyList()
+    val edges = lines.flatMap { listOf(it.first, it.second) }.toSortedSet().toList()
+    val out = ArrayList<Triple<Int, Int, TextDecoration>>()
+    for (i in 0 until edges.size - 1) {
+        val from = edges[i]
+        val to = edges[i + 1]
+        val here = lines.filter { it.first <= from && it.second >= to }.map { it.third }.distinct()
+        if (here.isEmpty()) continue
+        out.add(Triple(from, to, if (here.size == 1) here[0] else TextDecoration.combine(here)))
+    }
+    return out
 }
 
 /**
@@ -102,7 +128,9 @@ fun blend(top: Color, base: Color, opacity: Float): Color = Color(
 )
 
 fun hexColor(value: String): Color? {
-    if (!Notebook.isHexColor(value)) return null
-    val rgb = value.substring(1).toIntOrNull(16) ?: return null
+    // Expanded first: #f00 read as six digits drew a near-black green.
+    val full = Notebook.sanitizeColor(value)
+    if (full.isEmpty()) return null
+    val rgb = full.substring(1).toIntOrNull(16) ?: return null
     return Color(0xFF000000.toInt() or rgb)
 }

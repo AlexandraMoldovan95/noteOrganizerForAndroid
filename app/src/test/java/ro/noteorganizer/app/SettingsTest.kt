@@ -77,6 +77,19 @@ class SettingsTest {
     }
 
     @Test
+    fun `a category's three-digit colour is read as six, and its name counted in characters`() {
+        // 78 characters, four of them emoji: 82 in UTF-16, where the phone
+        // counted it too long and dropped what the desktop keeps.
+        val long = "🌿".repeat(4) + "a".repeat(74)
+        val raw = JSONObject().put("categories", JSONObject().put("Home", "#abc").put(long, "#123456"))
+        val map = Settings.categories(raw)
+        assertEquals("#aabbcc", map["Home"])
+        assertEquals("#123456", map[long])
+        assertNull(Settings.categoryNameRefusal(long, map, adding = false))
+        assertTrue(Settings.categoryNameRefusal("🌿" + "a".repeat(80), map, adding = false)!!.contains("this one has 81"))
+    }
+
+    @Test
     fun `a saved map is the map -- deleted starting categories stay deleted`() {
         // The phone used to lay the starting set UNDER whatever was saved,
         // so a category deleted on the desktop came back on the phone.

@@ -151,7 +151,10 @@ stop agreeing:
   "comments": "",           // str — the separate comments box
   "category": "General",    // str — one of the categories in settings.json
   "date": "",               // "" or "YYYY-MM-DD"
-  "color": "",              // "" or "#rrggbb"
+  "color": "",              // "" or "#rrggbb"; a "#rgb" that arrives is
+                            //   written back as "#rrggbb", as the desktop's
+                            //   sanitize_color expands it -- in a day's colour,
+                            //   a category's and a text colour too
   "attachments": [],        // [{"filename": str, "stored_as": str}, ...]
   "updated": "",            // "YYYY-MM-DD HH:MM:SS" -- seconds included
   "created": "",            // same shape; backfilled from updated if absent

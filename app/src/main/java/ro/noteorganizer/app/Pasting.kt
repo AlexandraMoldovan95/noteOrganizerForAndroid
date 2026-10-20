@@ -136,6 +136,35 @@ object Pasting {
     /** `is_table_row`, with Python's spaces. */
     fun isRow(line: String): Boolean = isTableRow(cps(line))
 
+    /**
+     * Words pasted into the comments, which are plain text and draw no
+     * table: the table's rows taken out and the prose kept, the blank runs
+     * a table leaves collapsed -- the desktop's `_on_comments_paste`. Null
+     * when [pasted] holds no row, and goes in as it is.
+     */
+    fun intoComments(pasted: String): String? {
+        val lines = pasted.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        if (lines.none { isRow(it) }) return null
+        return Regex("\n{3,}").replace(lines.filterNot { isRow(it) }.joinToString("\n"), "\n\n").trim('\n')
+    }
+
+    /**
+     * The comments [old] become [new], with what went in at once cleared of
+     * table rows by [intoComments]. Null when nothing was taken out. Only
+     * rows wholly inside what went in count -- a paste -- so a row typed
+     * letter by letter is the person's own and stays, as on the desktop.
+     */
+    fun commentsAfter(old: String, new: String): String? {
+        var front = 0
+        while (front < old.length && front < new.length && old[front] == new[front]) front++
+        var back = 0
+        while (back < old.length - front && back < new.length - front &&
+            old[old.length - 1 - back] == new[new.length - 1 - back]) back++
+        val went = new.substring(front, new.length - back)
+        val kept = intoComments(went) ?: return null
+        return new.substring(0, front) + kept + new.substring(new.length - back)
+    }
+
     /** A body after a paste: its text, styles and lines, and where the cursor goes. */
     data class Inserted(val body: String, val spans: List<FormatSpan>, val props: Map<Int, Paragraphs.Props>, val caret: Int)
 
@@ -220,6 +249,19 @@ object Pasting {
             if (p.kind != null && Paragraphs.parseListMarker(texts[n]).kind != p.kind) continue
             if (p.kind == null && p.indent == 0) continue
             lines[n] = (lines[n] ?: Paragraphs.Props()).copy(indent = p.indent)
+        }
+        // A bullet pasted as words, with no depth of its own, takes the one
+        // its glyph says -- "◦ " one in, "▪ " two -- as the desktop's
+        // _paragraph_indent_of reads a line with no margin: pasted plain,
+        // "◦ b" sat at the margin here. Only lines the paste began: a line
+        // already in the note keeps the depth it was given.
+        val first = base + if (lead.isEmpty() && before.isNotEmpty()) 1 else 0
+        for (n in first..minOf(firstLine + added, texts.size - 1)) {
+            if ((lines[n]?.indent ?: 0) != 0) continue
+            val marker = Paragraphs.parseListMarker(texts[n])
+            if (marker.kind != "bullet") continue
+            val level = Paragraphs.BULLET_GLYPHS.indexOf(marker.marker.trim())
+            if (level > 0) lines[n] = (lines[n] ?: Paragraphs.Props()).copy(indent = level)
         }
         // A pasted list starts at one; renumbering makes it continue the one it joined.
         val renumbered = Paragraphs.renumber(newBody, lines.filterValues { !it.plain })

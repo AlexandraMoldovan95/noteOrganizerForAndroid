@@ -36,6 +36,41 @@ class ImportingTest {
     private fun backupPlan(load: Notebook.Load, incoming: String) =
         Importing.plan(load.raw!!, notes(incoming), Importing.Source.BACKUP)
 
+    // ---- the desktop's door ----
+
+    @Test
+    fun `a day filed under a category this phone lacks comes in under General, as the note does`() {
+        // The desktop's clean_override files a day under one it lacks; the
+        // phone refiled the note alone, and a day kept a name no Show offers.
+        val note = JSONObject("""{"title": "Gym", "category": "Sport", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]},
+            "overrides": {"2026-10-12": {"category": "Sport"}, "2026-10-19": {"category": "Work"}, "2026-10-26": {"body": "x"}}}""")
+        val filed = Importing.fileUnder(note, setOf("General", "Work"))
+        assertEquals("General", filed.getString("category"))
+        val days = filed.getJSONObject("overrides")
+        assertEquals("General", days.getJSONObject("2026-10-12").getString("category"))
+        assertEquals("Work", days.getJSONObject("2026-10-19").getString("category"))
+        assertFalse(days.getJSONObject("2026-10-26").has("category"))
+    }
+
+    @Test
+    fun `styles piled too deep on one line are dropped at the door, as the desktop's clamp drops them`() {
+        // The desktop's clamp_spans_per_line, run on these same cases, kept
+        // the first 500, 500, 200 and 500.
+        fun clamp(body: String, spans: List<FormatSpan>) = Normalize.clampSpansPerLine(body, spans)
+        val oneLine = List(600) { FormatSpan(0, 1, "bold") }
+        assertEquals(500, clamp("x".repeat(10), oneLine).size)
+        val five = List(5) { "abcd" }.joinToString("\n")
+        assertEquals(500, clamp(five, List(600) { FormatSpan(0, five.length, "bold") }).size)
+        val hundred = List(100) { "ab" }.joinToString("\n")
+        assertEquals("the whole note's ranges capped", 200, clamp(hundred, List(300) { FormatSpan(0, hundred.length, "bold") }).size)
+        val ten = List(10) { "abc" }.joinToString("\n")
+        val toTheEnd = (0 until 10).flatMap { i -> List(60) { FormatSpan(i * 4, ten.length, "bold") } }
+        assertEquals("counted where they cover, not where they start", toTheEnd.take(500), clamp(ten, toTheEnd))
+        val few = listOf(FormatSpan(0, 2, "bold"), FormatSpan(3, 5, "italic"))
+        assertEquals("a note a person writes is unchanged", few, clamp("ab\ncd", few))
+    }
+
     // ---- the plan, which writes nothing ----
 
     @Test

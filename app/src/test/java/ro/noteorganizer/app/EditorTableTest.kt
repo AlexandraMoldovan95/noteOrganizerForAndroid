@@ -45,6 +45,26 @@ class EditorTableTest {
         assertEquals(listOf(FormatSpan(gym, gym + 3, "bold")), model.spans)
     }
 
+    @Test
+    fun `the calculator's answer goes into the cell being written in, at its cursor`() {
+        // The desktop's _calc_insert_formula puts it in the open cell; the
+        // phone put it on a line under the table.
+        val body = "Costs\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |"
+        val model = editor(body)
+        val table = Editing.segments(model.body).first { it.table }
+        model.activeCell = ActiveCell(table.firstLine, CellAt(1, 1))
+        model.cellCaret = 0
+        model.insertCalculation("100+20=")
+        val row = model.body.split("\n")[3].split("|").map { it.trim() }
+        assertEquals("100+20=120", row[2])
+        assertEquals("nothing under the table", 4, model.body.split("\n").size)
+        assertEquals("the cursor after what went in", 7, model.cellCaretNext)
+        // With no cell, the answer goes on a line of its own, as before.
+        model.activeCell = null
+        model.insertCalculation("1+1=2")
+        assertTrue(model.body, model.body.contains("1+1=2"))
+    }
+
     /** A table whose middle cell is filled yellow pipe to pipe and whose "gym" is bold. */
     private fun styledTable(): EditorModel {
         val body = "| Day | Task | Time |\n| --- | --- | --- |\n| Mon | gym | 7am |\n| Tue | run | 8am |"

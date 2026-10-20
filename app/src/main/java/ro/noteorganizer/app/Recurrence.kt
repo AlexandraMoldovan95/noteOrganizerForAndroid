@@ -616,6 +616,27 @@ object Recurrence {
         return off
     }
 
+    /**
+     * What the series view says of its days, counted as the desktop's
+     * `_update_occurrence_banner` counts them: the days keeping their own
+     * edits, less those the schedule no longer reaches (the next line shows
+     * those), and the days held on another date the calendar still draws
+     * them on. An edit to the series not reaching three days looked like an
+     * edit that failed -- the desktop's field report, and the phone's until
+     * it said so.
+     */
+    fun seriesCounts(note: JSONObject): Pair<Int, Int> {
+        if (!isRecurring(note)) return 0 to 0
+        val own = ((note.opt("overrides") as? JSONObject)?.length() ?: 0) - offScheduleDays(note).size
+        val moved = note.opt("moved") as? JSONObject
+        val held = moved?.keys()?.asSequence()?.count { key ->
+            val now = moved.opt(key) as? String
+            val whenDay = now?.let { parseDate(it) }
+            whenDay != null && expand(note, whenDay, whenDay) == listOf(now)
+        } ?: 0
+        return maxOf(0, own) to held
+    }
+
     /** "Every 2 weeks on Mon, Thu, until 31.12.2026" -- or "" for a one-off note. */
     fun describe(note: JSONObject): String {
         val rule = normalize(note.opt("recurrence"))

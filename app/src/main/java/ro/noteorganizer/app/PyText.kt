@@ -18,6 +18,25 @@ object PyText {
             cp in 0x2000..0x200A || cp == 0x2028 || cp == 0x2029 || cp == 0x202F ||
             cp == 0x205F || cp == 0x3000
 
+    /** `str.split()` with no separator: the words between runs of Python's spaces, none empty. */
+    fun split(text: String): List<String> {
+        val words = ArrayList<String>()
+        val word = StringBuilder()
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            if (isSpace(cp)) {
+                if (word.isNotEmpty()) words.add(word.toString())
+                word.setLength(0)
+            } else {
+                word.appendCodePoint(cp)
+            }
+            i += Character.charCount(cp)
+        }
+        if (word.isNotEmpty()) words.add(word.toString())
+        return words
+    }
+
     /** `str.strip()`. */
     fun strip(text: String): String {
         var from = 0

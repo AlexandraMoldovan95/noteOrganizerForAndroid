@@ -36,6 +36,26 @@ class ParagraphsTest {
     // ---- markers ----
 
     @Test
+    fun `a list entry whose marker is gone keeps its alignment, not its depth`() {
+        // The desktop's _apply_paragraphs: the body rewritten outside the
+        // app, its paragraphs not. Kept, the phone indented a plain line and
+        // saved an indent the desktop then honoured.
+        val stored = org.json.JSONArray("""[
+            {"line": 0, "kind": "bullet", "indent": 2, "align": "center"},
+            {"line": 1, "kind": "bullet", "indent": 1},
+            {"line": 2, "indent": 1}]""")
+        val props = P.propsOf(stored, "plain line\n◦ still a bullet\nindented prose")
+        assertEquals(mapOf(0 to Paragraphs.Props(0, "center"), 1 to Paragraphs.Props(1), 2 to Paragraphs.Props(1)), props)
+        // By content: the test's JSON library keeps keys in its own order.
+        val written = P.extract("plain line\n◦ still a bullet\nindented prose", props)
+        val entries = (0 until written.length()).map { i ->
+            val o = written.getJSONObject(i)
+            o.keys().asSequence().sorted().joinToString(",") { "$it=${o.get(it)}" }
+        }
+        assertEquals(listOf("align=center,line=0", "indent=1,kind=bullet,line=1", "indent=1,line=2"), entries)
+    }
+
+    @Test
     fun `a marker is a glyph and a space, or a number, a dot and a space`() {
         assertEquals(Paragraphs.Marker("bullet", "◦ ", "deeper"), P.parseListMarker("◦ deeper"))
         assertEquals(Paragraphs.Marker("number", "12. ", "x"), P.parseListMarker("12. x"))

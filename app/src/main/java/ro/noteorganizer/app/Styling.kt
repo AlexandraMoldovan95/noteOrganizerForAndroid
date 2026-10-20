@@ -127,9 +127,91 @@ private fun coversAll(spans: List<FormatSpan>, start: Int, end: Int): Boolean {
     return at >= end
 }
 
+/** The four styles a key turns on and off, which wait for what is typed next when nothing is selected. */
+val PENDING_STYLES = setOf("bold", "italic", "underline", "strike")
+
+/**
+ * The styles after typing: [deleted] code points at [at] replaced by
+ * [typed], as the desktop's text box leaves them, its
+ * `_spread_typed_run` included.
+ *
+ * - Letters typed at the start of a styled run stay outside it, and
+ *   letters typed inside a run are inside it: a run takes what lands
+ *   between two of its own letters.
+ * - Letters glued onto a styled non-space character [before] wear its
+ *   styles -- weight, lines, colour, highlight, size and face -- up to a
+ *   space typed with them: "ly" typed after a highlighted "quick" is
+ *   highlighted, "Very " typed before a bold "Important" is not.
+ * - [pending] styles, turned on with nothing selected, go on everything
+ *   typed: the desktop's pending style, on until its key is pressed again.
+ *
+ * The phone once did the opposite at both edges, by the rule an edit
+ * found from the text alone keeps ([remapSpans]).
+ */
+fun typedSpans(
+    spans: List<FormatSpan>,
+    at: Int,
+    deleted: Int,
+    typed: IntArray,
+    before: Int?,
+    pending: Set<String> = emptySet(),
+): List<FormatSpan> {
+    val k = typed.size
+    val out = ArrayList<FormatSpan>(spans.size)
+    for (span in spans) {
+        // The stretch replaced taken out first, as the text box deletes a
+        // selection before it types.
+        var s = if (span.start <= at) span.start else maxOf(at, span.start - deleted)
+        var e = if (span.end <= at) span.end else maxOf(at, span.end - deleted)
+        if (e <= s) continue
+        if (s >= at) {
+            s += k
+            e += k
+        } else if (e > at) {
+            e += k
+        }
+        out.add(span.copy(start = s, end = e))
+    }
+    // A space typed first stops the styles there and then: up to it is nothing.
+    if (k > 0 && before != null && !PyText.isSpace(before)) {
+        val space = typed.indexOfFirst { PyText.isSpace(it) }
+        val stop = at + if (space >= 0) space else k
+        for (i in out.indices) {
+            val span = out[i]
+            if (span.end == at) out[i] = span.copy(end = stop)
+        }
+    }
+    var result: List<FormatSpan> = out
+    if (k > 0) for (style in pending.filter { it in PENDING_STYLES }) result = setStyle(result, at, at + k, style)
+    return result.sortedWith(compareBy({ it.start }, { it.style }))
+}
+
+/**
+ * [old] become [new] by typing that left the caret at [caret], in code
+ * points: the edit found from the caret -- what follows it is the old
+ * text's end -- and the styles moved by [typedSpans]. A change that is not
+ * letters typed before the caret, or that only took letters away, is
+ * moved by [remapSpans].
+ */
+fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpan>,
+                     pending: Set<String> = emptySet()): List<FormatSpan> {
+    val a = codePointsOf(old)
+    val b = codePointsOf(new)
+    val tail = b.size - caret
+    if (caret < 0 || tail < 0 || tail > a.size) return remapSpans(old, new, spans).spans
+    for (i in 0 until tail) if (a[a.size - tail + i] != b[caret + i]) return remapSpans(old, new, spans).spans
+    val oldTail = a.size - tail
+    var at = 0
+    while (at < oldTail && at < caret && a[at] == b[at]) at++
+    if (caret == at) return remapSpans(old, new, spans).spans
+    return typedSpans(spans, at, oldTail - at, b.copyOfRange(at, caret), if (at > 0) a[at - 1] else null, pending)
+}
+
 /**
  * Turns a style on over [start, end), or off if it is already on
- * throughout — which is what a toolbar button means by "toggle".
+ * throughout — which is what a toolbar button means by "toggle". A colour,
+ * a size or a face is set, never toggled: the same swatch again leaves it,
+ * as the desktop's does, and only ✕ takes it away.
  */
 fun toggleStyle(
     spans: List<FormatSpan>,
@@ -139,16 +221,10 @@ fun toggleStyle(
     value: String = "",
 ): List<FormatSpan> {
     if (end <= start) return spans
+    // The same colour tapped again to be sure took it away; the desktop's
+    // swatch always sets, and its Clear -- the phone's ✕ -- clears.
+    if (isValueStyle(style)) return setStyle(spans, start, end, style, value)
     val on = stylesOver(spans, start, end).contains(style)
-    // A colour is not a toggle in the same sense: asking for a DIFFERENT
-    // colour over text that already has one replaces it rather than
-    // clearing it. Only asking for the same one again clears it.
-    if (on && isValueStyle(style)) {
-        val same = spans.any {
-            it.style == style && it.value == value && it.start <= start && it.end >= end
-        }
-        if (!same) return setStyle(spans, start, end, style, value)
-    }
     return if (on) clearStyle(spans, start, end, style)
     else setStyle(spans, start, end, style, value)
 }

@@ -282,6 +282,7 @@ def main():
     duplicates(folder)
     statistics(folder)
     calculator(folder)
+    calculator_in_cell(folder)
     finding(folder)
     exporting(folder)
     sharing(folder)
@@ -299,6 +300,8 @@ def main():
     undoing(folder)
     pasting(folder)
     copy_after_styling(folder)
+    typing_styles(folder)
+    comments_paste(folder)
     wide(folder)
     changes(folder)
 
@@ -579,7 +582,13 @@ def seeded(folder):
         tap("A code starts with")
         type_long(code)
         tap("Import", exact=True, wait=2.0)
+        # The one note offered to open, as the desktop opens it -- read
+        # once and tapped at once: the offer does not wait for long.
+        opened = tap("Open", exact=True, wait=1.5, patience=2.0)
         check("a code the desktop made is read and added", note_by_uid("from-desktop") is not None)
+        check("...and the one note that came is offered to open, and opens",
+              opened and find("ⓘ", exact=True) is not None and not screen_says("From the desktop"),
+              str(screen_says("From the desktop")))
 
     # Trash, from Settings.
     back_to("Search notes")
@@ -1025,6 +1034,30 @@ def statistics(folder):
           not screen_says("Total notes", "Using Note Organizer since 01.09.2026"),
           str(screen_says("Total notes", "Using Note Organizer since 01.09.2026")))
     shot(folder, "31-statistics", "Total notes")
+    back_to("Search notes")
+
+
+def calculator_in_cell(folder):
+    """A cell being written in, the calculator opened from the menu, Insert:
+    the answer in the cell, as the desktop puts it there -- the phone put it
+    on a line under the table."""
+    print("\n-- the calculator's answer in a cell --")
+    if not seed_inside([
+        {"id": 1, "uid": "walk-cell-sum", "title": "Costs", "body": "Costs\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |",
+         "category": "Personal", "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:00:00"},
+    ], {"welcome_offered": True}, "Costs"):
+        return
+    choose_cell("Costs", "120")
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+    keyboard_down()
+    for key in ("4", "+", "5", "="):
+        tap(key, exact=True, wait=0.3)
+    tap("⬇ Insert into note", wait=1.2)
+    body = (note_by_uid("walk-cell-sum") or {}).get("body", "")
+    rows = body.split("\n")
+    check("the calculator's answer goes into the cell being written in, not under the table",
+          len(rows) == 4 and "4+5=9" in rows[3].split("|")[2], repr(body))
     back_to("Search notes")
 
 
@@ -1717,7 +1750,8 @@ def move_day(folder):
     seen = nodes()
     shown = " | ".join(part for t, d, _ in seen for part in (t, d) if part)
     offer = [centre for t, d, centre in seen if t == "Undo"]
-    missing = [w for w in ("Only this day: " + said(to), "Moved to") if w not in shown]
+    # The banner says where the day came from, as the desktop's strip does.
+    missing = [w for w in ("Only this day: " + said(to), "moved from " + said(second), "Moved to") if w not in shown]
     check("the editor follows the day, and the move offers its Undo", not missing and bool(offer),
           str(missing + ([] if offer else ["the offer's Undo"])))
     adb("shell", "screencap", "-p", "/sdcard/shot.png")
@@ -1763,6 +1797,11 @@ def off_schedule(folder):
     open_note("Yoga")
     check("the series says two days' edits are off its schedule",
           not screen_says("2 days' own edits are off the schedule"))
+    # And, above it, that its edits reach every day: the desktop's banner.
+    # Both days are off the schedule, so none is counted as keeping its own.
+    check("the series says its edits apply to every day, counting no day off the schedule as its own",
+          not screen_says("This note repeats", "edits here apply to every day")
+          and find("keep their own edits") is None and find("keeps its own edits") is None)
     tap("off the schedule", wait=1.5)
     check("one question a day, in the desktop's words", not screen_says("Day 1 of 2 off the schedule", "Yoga in the park"))
     shot(folder, "54-off-schedule", "Day 1 of 2 off the schedule")
@@ -2233,6 +2272,87 @@ def sheets_over_buttons(folder):
 
 OPENS_NEXT = ("Your phone's share sheet opens next: WhatsApp, mail, Teams and the rest. "
               "Nothing is sent until you send it there.")
+
+
+def typing_styles(folder):
+    """What letters typed wear, by the desktop's rules, which the phone had
+    the wrong way round: glued after a highlighted word, its highlight;
+    before a bold word, nothing; with B pressed and nothing selected, bold,
+    until B is pressed again. And a colour tapped a second time stays --
+    it once took itself away."""
+    print("\n-- typing next to styles --")
+    if not seed_inside([
+        {"id": 1, "uid": "ts-words", "title": "Words", "body": "Important quick",
+         "formatting": [{"start": 0, "end": 9, "style": "bold"},
+                        {"start": 10, "end": 15, "style": "highlight", "value": "#fff3b0"}],
+         "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:00:00"},
+    ], {"welcome_offered": True}, "Words"):
+        return
+
+    def note():
+        return note_by_uid("ts-words") or {}
+
+    open_note("Words")
+    tap("Important quick", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text("ly")
+    tap("B", exact=True, wait=0.8)
+    check("B with nothing selected says it waits for what is typed",
+          find("On for what you type next: bold") is not None)
+    type_text(" big")
+    tap("B", exact=True, wait=0.8)
+    type_text(" end")
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    type_text("Very ")
+    want = [{"start": 5, "end": 14, "style": "bold"},
+            {"start": 15, "end": 22, "style": "highlight", "value": "#fff3b0"},
+            {"start": 22, "end": 26, "style": "bold"}]
+    check_settled("typed letters take the desktop's styles: glued after, not before, and B's until pressed again",
+                  lambda: (note().get("body"), sorted(note().get("formatting") or [], key=lambda s: (s["start"], s["style"]))),
+                  lambda got: got == ("Very Important quickly big end", want))
+    shot(folder, "63-typing-styles", "Very Important quickly big end")
+
+    # The same colour twice, over everything: it stays.
+    adb("shell", "input", "keycombination", "113", "29")      # Ctrl+A
+    time.sleep(1.0)
+    for _ in range(2):
+        tap("A", exact=True, wait=0.8)
+        tap("Text colour 1", exact=True, wait=1.0)
+    keyboard_down()
+    check_settled("a colour tapped a second time stays",
+                  lambda: [s for s in note().get("formatting") or [] if s.get("style") == "text_color"],
+                  lambda got: len(got) == 1 and got[0]["start"] == 0 and got[0]["end"] == 30)
+    back_to("Search notes")
+
+
+def comments_paste(folder):
+    """A table's row pasted into the comments, which draw no table: left
+    out, and the person told -- the desktop's _on_comments_paste. The row
+    is copied from the title, the one plain field a walk can fill with it."""
+    print("\n-- a table pasted into the comments --")
+    if not seed_inside([
+        {"id": 1, "uid": "cp-note", "title": "| a | b |", "body": "words", "comments": "seen",
+         "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:00:00"},
+    ], {"welcome_offered": True}, "| a | b |"):
+        return
+
+    def keys(*codes):
+        adb("shell", "input", "keycombination", *map(str, codes))
+        time.sleep(1.0)
+
+    open_note("| a | b |")
+    tap("| a | b |", exact=True, wait=0.8)
+    keys(113, 29)                                  # Ctrl+A: the title's words, a row
+    keys(113, 31)                                  # Ctrl+C
+    tap("seen", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    keys(113, 50)                                  # Ctrl+V
+    told = find("Comments keep text only") is not None
+    keyboard_down()
+    check_settled("a table's row pasted into the comments is left out, and that is said",
+                  lambda: ((note_by_uid("cp-note") or {}).get("comments"), told),
+                  lambda got: got == ("seen", True))
+    back_to("Search notes")
 
 
 def copy_after_styling(folder):

@@ -18,22 +18,25 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-633 checks across twenty-seven suites — `NotebookTest` (122),
+656 checks across twenty-eight suites — `NotebookTest` (124),
 `TablesTest` (75), `RecurrenceTest` (46), `CalculatorTest` (34),
-`IdentityTest` (30), `OrganizingTest` (30), `PastingTest` (29),
-`StylingTest` (26), `DaysTest` (26), `SharingTest` (22), `EditingTest`
-(20), `ParagraphsTest` (21), `ImportingTest` (19), `SettingsTest` (18),
-`FindingTest` (16), `ExportingTest` (15), `AppStateTest` (15),
-`TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `ThemesTest`
-(7), `OutgoingTest` (7), `StatsTest` (4), `StartupTest` (8),
-`EditorTableTest` (6), `EditorCopyTest` (3) and `InteropTest` (2). No
+`StylingTest` (33), `OrganizingTest` (31), `PastingTest` (31),
+`IdentityTest` (30), `DaysTest` (27), `SharingTest` (22), `ParagraphsTest`
+(22), `ImportingTest` (21), `EditingTest` (20), `SettingsTest` (19),
+`FindingTest` (16), `AppStateTest` (16), `ExportingTest` (15),
+`TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
+(8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
+`StatsTest` (4), `EditorTypingTest` (4), `EditorCopyTest` (3) and
+`InteropTest` (2). No
 device, no emulator:
 they test the twenty-five files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
 which is what makes them cost seconds instead of minutes — and two
 drawing-side classes: `AppState`, whose order of saves around the open
 note no emulator tap can time, and the editor's model, whose copy must
-carry styling put on after the words were selected.
+carry styling put on after the words were selected, whose typed letters
+take styles by the caret they were typed at, and whose calculator writes
+into the cell being written in.
 
 ### Fixtures the desktop wrote
 
@@ -189,8 +192,8 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 32 parts and
-240 checks: a brand-new notebook, a notebook copied in, the
+notebook the app wrote is read back through `run-as`. 35 parts and
+250 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, and the phone changing
@@ -289,15 +292,15 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 138 cases across sixteen areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 149 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than
 the desktop's because the two projects are deliberately separate.
 
-Its **"Who runs it"** column is the point. 84 rows are already walked by
-unit tests, 92 are driven on the emulator, and 66 need a person with a
-real phone in their hand — the three add up to more than 138 because a row
+Its **"Who runs it"** column is the point. 94 rows are already walked by
+unit tests, 100 are driven on the emulator, and 70 need a person with a
+real phone in their hand — the three add up to more than 149 because a row
 can carry two or three, and the honest ones do: a rule proved on the JVM
 whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a

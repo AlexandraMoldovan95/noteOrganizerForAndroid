@@ -261,7 +261,15 @@ fun finishImport(
         is Importing.Result.Failed -> state.say(result.reason)
         is Importing.Result.Done -> {
             state.afterImport()
-            state.say(importMessage(result.outcome))
+            // One note arrived: a tap opens it, where the desktop opens it
+            // for review. The phone said "Added 1 note" and left it to be
+            // found in the list.
+            val o = result.outcome
+            if (o.added + o.updated == 1 && o.firstId > 0) {
+                state.offer(importMessage(o), "Open") { state.openNote(o.firstId) }
+            } else {
+                state.say(importMessage(o))
+            }
         }
     }
 }

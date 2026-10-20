@@ -47,6 +47,32 @@ class AppStateTest {
     }
 
     @Test
+    fun `a cleared day's Undo never paints over what was chosen since`() {
+        // Cleared red, painted green within the Undo's seconds, Undo tapped:
+        // the green stays, as the desktop's _undo_day_clear refuses.
+        val state = state()
+        state.paintDay("2026-10-24", "#ff0000")
+        state.paintDay("2026-10-24", "")
+        state.paintDay("2026-10-24", "#00ff00")
+        assertFalse(state.undoDayClear("2026-10-24", colour = "#ff0000"))
+        assertEquals("#00ff00", state.dayColours["2026-10-24"])
+        // Still empty, it is put back.
+        state.paintDay("2026-10-25", "#ff0000")
+        state.paintDay("2026-10-25", "")
+        assertTrue(state.undoDayClear("2026-10-25", colour = "#ff0000"))
+        assertEquals("#ff0000", state.dayColours["2026-10-25"])
+        // The markers the same.
+        state.markDay("2026-10-26", listOf("⭐"))
+        state.markDay("2026-10-26", emptyList())
+        state.markDay("2026-10-26", listOf("🎂"))
+        assertFalse(state.undoDayClear("2026-10-26", markers = listOf("⭐")))
+        assertEquals(listOf("🎂"), state.dayMarkers["2026-10-26"])
+        state.markDay("2026-10-26", emptyList())
+        assertTrue(state.undoDayClear("2026-10-26", markers = listOf("⭐")))
+        assertEquals(listOf("⭐"), state.dayMarkers["2026-10-26"])
+    }
+
+    @Test
     fun `the calendar's month stays within the years a date is written in, as the desktop's shift_calendar`() {
         // Past December 9999 a day's key no longer read back as a date.
         val state = state()

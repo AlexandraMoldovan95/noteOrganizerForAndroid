@@ -62,6 +62,20 @@ tested as from now on. Built on Phase 3.
   native library 16 KB-aligned, and an app bundle beside it. Signed for
   now with this machine's debug key, so it installs over a debug build
   and keeps the notebook.
+- **B, I, U and S with nothing selected style what is typed next**, until
+  pressed again — the desktop's pending style, by the owner's choice. The
+  line over the keys says which are on. A colour, a size or a face still
+  asks for a selection.
+- **A repeating note's own view says what its edits reach**, in the
+  desktop's banner: "This note repeats (every week on Mon) — edits here
+  apply to every day · 3 days keep their own edits (✎) · 1 day moved
+  (↷)". An edit not reaching three days looked like one that failed.
+- **One note imported is offered to open**, where the desktop opens it
+  for review; "Added 1 note" left it to be found in the list.
+- **A day of a series says what is its own**, as the desktop's does: its
+  banner where it was moved from, its checklist "· whole series" — a tick
+  there is a tick on every day — and its details "This day's category"
+  and "This day's colour".
 
 ### Changed
 
@@ -199,6 +213,44 @@ tested as from now on. Built on Phase 3.
   9999, stopped the app.
 - **"↩ Restore previous" saves first, then asks**, as on the desktop, so
   the question names the copy it will bring back.
+- **Letters typed beside a styled word take styles as on the desktop**:
+  glued after it they wear its bold, colour, highlight, size and face, up
+  to a space; typed before it they stay plain. The phone did the
+  opposite at both edges.
+- **A colour tapped a second time stays**; only ✕ takes it away, as the
+  desktop's swatch always sets. Tapped again "to be sure", it vanished.
+- **A day given only its own colour or category keeps the series'
+  styles**, as the desktop keeps them while the day's words are the
+  series'; the phone showed every day with an edit plain.
+- **A cleared day's Undo never paints over what was chosen since**: a
+  colour or markers cleared, then chosen again within the Undo's
+  seconds, stay, and the desktop's words say why.
+- **The calculator's answer goes into the cell being written in**, at its
+  cursor, where it landed on a line under the table.
+- **Letters both underlined and struck through show both lines**; one
+  hid the other while S said both.
+- **A list entry whose marker is gone keeps its alignment, not its
+  depth**, as the desktop reads it: the phone indented a plain line and
+  saved the indent.
+- **Bullets pasted as words take the depth their glyph says** — "◦ " one
+  in, "▪ " two — where they sat at the margin.
+- **A table pasted into the comments is left out**, its prose kept, and
+  the line at the foot says so: the comments draw no table, and the
+  desktop's showed its rows as bars.
+- **A three-digit colour reads as six**, `#f00` as `#ff0000`, in a note,
+  a day, a category and the text's own colours, as the desktop expands
+  it; drawn as six digits' worth, it was a near-black green.
+- **The duplicate check takes every Unicode space for a space**, as
+  Python's split does: a non-breaking space pasted from the web made two
+  copies look different.
+- **A category's name is counted in characters**: an emoji counted twice,
+  and a long name with a few was dropped that the desktop keeps.
+- **A day filed under a category this phone lacks comes in under
+  General**, as the note itself does, where it kept a name no Show here
+  offers.
+- **Styles piled too deep on one line are dropped at the door**, by the
+  desktop's two ceilings, counted where a style covers — a note made to
+  stop the drawing cannot come in by code or backup.
 - **The Trash is emptied only by a window that can be read.** Settings
   that could not be read gave the default 30 days, and the start purged
   by it whatever window the person had chosen — notes kept for 90 went
@@ -214,15 +266,19 @@ tested as from now on. Built on Phase 3.
 
 ### Testing
 
-- 633 JVM unit tests in 27 suites, from 572 in 24. 72 mutants against
-  them, all killed — one, a deleted row's orphan marker, only after a
-  test was written for it. The seven against the email's rules went with
-  that code, and twelve against Share's took their place, four of them
-  on its one-share-at-a-time rule; nine are on the Trash's window.
-  Twenty-four more built into the app: twenty-two caught by the walk —
-  among them the three against the sheets' bars and opening, and the
-  Trash page's backup opening a file to import, caught only once its
-  check asked for a Save button; two only on a second try, after the
+- 656 JVM unit tests in 28 suites, from 572 in 24. 102 mutants against
+  them: 99 killed — one, a deleted row's orphan marker, only after a
+  test was written for it — and three equivalent, each removing a check
+  another line already made, taken out with that redundant check. The
+  seven against the email's rules went with that code, and twelve
+  against Share's took their place, four of them on its one share at a
+  time; nine are on the Trash's window, and thirty on the desktop's old
+  way brought over. Twenty-nine more built into the app: twenty-seven
+  caught by the walk — among them the three against the sheets' bars and
+  opening, the Trash page's backup opening a file to import, caught only
+  once its check asked for a Save button, and the five on the old way's
+  screens; one of those, the series' banner, first written so it would
+  not build and not counted until it did; two only on a second try, after the
   walk learned to type a letter after Undo and to type "<" on its own;
   one, a paste losing its formatting in the release build only, caught
   by the new release gate and not by any screen; and one survived the
@@ -243,19 +299,19 @@ tested as from now on. Built on Phase 3.
 - `tools/emulator/emulator_only.py`: every emulator script reaches an
   emulator, never a phone that happens to be plugged in, even when
   `ANDROID_SERIAL` names the phone.
-- `tools/emulator/walk.py`: 240 checks in 32 parts, from 177 in 25 —
+- `tools/emulator/walk.py`: 250 checks in 35 parts, from 177 in 25 —
   previews, a table at larger letters, sharing a note, a sheet over
-  three buttons, a copy and a cut made right after styling, the table
-  written in place and its dragged edges, Select all with a group
-  folded, a History row off the schedule, the Trash page's backup, and
-  checks grown in older parts. Every read of a file the autosave writes
+  three buttons, a copy and a cut made right after styling, typing next
+  to styles, the calculator's answer in a cell, a table pasted into the
+  comments, the table written in place and its dragged edges, Select all
+  with a group folded, a History row off the schedule, the Trash page's
+  backup, and checks grown in older parts. Every read of a file the autosave writes
   now waits for the save (`settle`), where one Redo read a moment too
   soon; so does the first read after a start, where a brand-new notebook
   was read before the first start after an install had written it; and
   a photograph waits for its screen, where one was taken before that
-  start had drawn the list. The last full run, after the sheets were
-  fixed, passed all 238 it then had; the two added after it, and their
-  part, were walked on their own. Two mutants' first runs failed for a
+  start had drawn the list. The last full run, after the old way was
+  brought over, passed all 250 on its first try. Two mutants' first runs failed for a
   reason that was not theirs — the list not yet on the screen after an
   install, and the emulator's System UI not answering on a computer
   short of memory — and were not counted: run again, one was killed and

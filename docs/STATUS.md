@@ -163,7 +163,12 @@ Grouped by what the app does; when each item arrived is in the
     ([the trap](DATA_FORMAT.md#editing-plain-text-moves-formatting-onto-the-wrong-words)).
     The desktop's Windows faces are drawn as the kind they are: serif,
     fixed-width or plain. The size box says the size of what is selected,
-    or "Default" for a mix, as the desktop's does. **Copy and paste keep it**: a copy carries HTML
+    or "Default" for a mix, as the desktop's does. With nothing selected,
+    **B, I, U and S style what is typed next**, until pressed again, as
+    the desktop's pending style; letters glued after a styled word wear
+    its styles up to a space, and letters typed before one stay plain, as
+    on the desktop; a colour tapped again stays, and ✕ clears it.
+    **Copy and paste keep it**: a copy carries HTML
     beside the words, so they arrive formatted elsewhere; a paste from a
     browser, a word processor or a spreadsheet brings what the desktop's
     brings — styles, real colours, lists, alignment, tables — and the
@@ -307,7 +312,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 633 JVM unit tests in 27 suites, mutation-tested; six ports held to
+39. 656 JVM unit tests in 28 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -496,14 +501,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 240 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 250 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 633 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 656 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -511,12 +516,12 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-32 parts, 240 checks. The last full run, after the sheets were fixed,
-passed all 238 it then had on its first try; the two written after it,
-the Trash page's backup, and the part they are in passed when walked on
-their own — once a photograph taken on the file's word, before the
-first start after an install had drawn the list, learned to wait for
-the screen. The run before it, after Share, passed 229 and failed two:
+35 parts, 250 checks. The last full run, after the desktop's old way was
+brought over, passed all 250 on its first try. The one before it, after
+the sheets were fixed, passed all 238 it then had; the parts written
+after it were walked on their own — once a photograph taken on the
+file's word, before the first start after an install had drawn the list,
+learned to wait for the screen. The run after Share passed 229 and failed two:
 a brand-new notebook read three seconds after the first start following
 an install, on an emulator short of memory, before the app had written
 it. Those reads now wait for the file, as every read of the autosave
@@ -612,7 +617,7 @@ Phase 3 added a part for each of its features, the same way:
   menu is photographed, with "Paste as plain text" on it, not pressed
   ([why](ISSUES_LOG.md#a-menu-the-phones-own-tree-leaves-out)).
 
-The first test on a real phone added five parts and grew four:
+The first test on a real phone added eight parts and grew seven:
 
 * **Previews**: a table with a row left open and one typed past its last
   cell — the card shows words only and "▦ 1 table", a table-only note is
@@ -639,11 +644,23 @@ The first test on a real phone added five parts and grew four:
   format bar, copied at once and pasted elsewhere with both; then made
   italic and cut, pasted with the italic, gone from where they were
   ([why](ISSUES_LOG.md#a-copy-of-the-selection-as-it-was-when-selected)).
+* **Typing next to styles**: letters glued after a highlighted word
+  highlighted, letters typed before a bold word plain, B pressed with
+  nothing selected styling what follows until pressed again — read back
+  from the file — and a colour tapped twice staying
+  ([why](ISSUES_LOG.md#letters-typed-beside-a-style-read-from-the-text-alone)).
+* **The calculator's answer in a cell**: a cell being written in, the
+  calculator opened from the menu, Insert — the answer in the cell, the
+  table no longer.
+* **A table pasted into the comments**: a row copied and pasted there,
+  left out, and the line at the foot saying so.
 * Grown: Appearance's Dark | Light switch (light themes on a light phone,
   the dark ones a tap away, a dark pick saved as dark mode's); the size
   box saying "Default" then "20"; Autofit all columns, tapped from the
   first column, fitting the second; a template's body with its words and
-  cells and no pipe row.
+  cells and no pipe row; the series saying its edits reach every day; a
+  moved day saying where it came from; one imported note opened from the
+  line that says it came.
 
 The photographs it takes are looked at, not only saved: the walk is
 where the Settings switch that did not redraw, Back closing the app from
@@ -752,7 +769,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-633 JVM unit tests in 27 suites pin the rules ported from Python, and
+656 JVM unit tests in 28 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
@@ -779,21 +796,24 @@ Four more were built into the app: an editor that never records a step
 for Undo, and the copy, the paste and the kept copy behind the note's
 clipboard. Each was caught by the walk.
 
-The first test on a real phone, the table's audit and Share ran 72
-against the unit tests — the card's table rule, Autofit all, a copy's
-selection brought up to date, the table's merge, widths, rows and
-styles, the audit's graves, what Share sends and its one share at a
-time, and the Trash's window — all killed, one, a deleted row's orphan
-marker, only after a test was written for it. Seven more, against the email's addresses and
-its words, went with the code they mutated when Share replaced it.
+The first test on a real phone, the table's audit, Share and the
+desktop's old way ran 102 against the unit tests — the card's table
+rule, Autofit all, a copy's selection brought up to date, the table's
+merge, widths, rows and styles, the audit's graves, what Share sends and
+its one share at a time, the Trash's window, typing beside styles and
+the old way's other rules. 99 were killed, one, a deleted row's orphan
+marker, only after a test was written for it; three were equivalent,
+each removing a check another line already made, and each redundant
+check went with its mutant. Seven more, against the email's addresses
+and its words, went with the code they mutated when Share replaced it.
 
-Twenty-four were built into the app. Twenty-two were caught by the
+Twenty-nine were built into the app. Twenty-seven were caught by the
 walk, among them a PDF painting every page on one picture, a long note
 printed as its first page, a note with a table offered as words, a PDF
 handed over as the page's code, a sheet opened half-way or drawing the
-phone's bars light over the dark app, and the Trash page's backup
-opening a file to import — that one only once the check asked for a
-Save button. One, the entities file looked up
+phone's bars light over the dark app, the Trash page's backup opening a
+file to import — that one only once the check asked for a Save button —
+and B pressed with nothing selected doing nothing. One, the entities file looked up
 relative to a class the release build renames, passed the walk — a
 paste with its formatting and one without look the same on a screen —
 and is caught by `tools/check_release_lookups.py` on the built APK. One

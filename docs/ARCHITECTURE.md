@@ -26,7 +26,7 @@ object, `AppState`. Below the screens sit twenty-five files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 633 tests run on a laptop in seconds,
+about Android. That split is why 656 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -44,8 +44,8 @@ here.
 
 ## The map
 
-About 20,000 lines of Kotlin. The rules are 11,400 of them, in files that
-import nothing from Android; the drawing is 8,700, in files that may.
+About 20,500 lines of Kotlin. The rules are 11,700 of them, in files that
+import nothing from Android; the drawing is 8,900, in files that may.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
@@ -81,7 +81,7 @@ import nothing from Android; the drawing is 8,700, in files that may.
 
 | File | Lines | What lives there |
 |---|---|---|
-| `NoteEditor.kt` | 2,720 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, a cell written in place and the table's bar and More |
+| `NoteEditor.kt` | 2,820 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
 | `SettingsScreens.kt` | 780 | Settings and its nine pages, Duplicates among them |
 | `CalendarScreen.kt` | 570 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 550 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |

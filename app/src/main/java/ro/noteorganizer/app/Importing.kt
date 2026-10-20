@@ -104,11 +104,38 @@ object Importing {
      * read as "edited elsewhere", and Update changed nothing but its rescue
      * copy.
      */
+    /**
+     * [note] filed as this device files it: under General when its category
+     * is not one here -- and each of its days' own categories too, as the
+     * desktop's `clean_override` files a day under one it lacks. Only the
+     * note's was refiled; a day's kept a name no Show here offers. Changes
+     * [note], and gives it back.
+     */
+    internal fun fileUnder(note: JSONObject, categories: Set<String>): JSONObject {
+        if ((note.opt("category") as? String ?: "").ifEmpty { "General" } !in categories) note.put("category", "General")
+        val overrides = note.opt("overrides") as? JSONObject ?: return note
+        for (day in overrides.keys()) {
+            val patch = overrides.opt(day) as? JSONObject ?: continue
+            val category = patch.opt("category") as? String ?: continue
+            if (category !in categories) patch.put("category", "General")
+        }
+        return note
+    }
+
+    private fun needsFiling(note: JSONObject, categories: Set<String>): Boolean {
+        if ((note.opt("category") as? String ?: "").ifEmpty { "General" } !in categories) return true
+        val overrides = note.opt("overrides") as? JSONObject ?: return false
+        return overrides.keys().asSequence().any { day ->
+            val category = (overrides.opt(day) as? JSONObject)?.opt("category") as? String
+            category != null && category !in categories
+        }
+    }
+
     fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
              categories: Set<String>? = null): Plan {
         val asHere: (JSONObject) -> JSONObject = { note ->
-            if (categories == null || (note.opt("category") as? String ?: "").ifEmpty { "General" } in categories) note
-            else JSONObject(note.toString()).put("category", "General")
+            if (categories == null || !needsFiling(note, categories)) note
+            else fileUnder(JSONObject(note.toString()), categories)
         }
         val byUid = HashMap<String, Int>()
         for (i in 0 until notebook.length()) {
@@ -264,7 +291,7 @@ object Importing {
                 val theirs = Normalize.normalizeNote(known.theirs)
                 // A category this device does not have files the note under
                 // General, as normalize_note files it on the desktop.
-                if (theirs.optString("category") !in categories) theirs.put("category", "General")
+                fileUnder(theirs, categories.keys)
                 val claimedElsewhere = HashSet(claimed).apply { removeAll(storedNames(mine)) }
                 // Counted only when the note changed: "Updated 1" was said
                 // of an update that changed nothing.
@@ -300,7 +327,7 @@ object Importing {
             // A code never carries one, and one that claims to is not taken.
             val note = Normalize.normalizeNote(incoming)
             if (plan.source != Source.BACKUP) note.remove("_prev")
-            if (note.optString("category") !in categories) note.put("category", "General")
+            fileUnder(note, categories.keys)
             note.put("attachments", placeFiles(note.getJSONArray("attachments"), claimed,
                 attachmentsDir, extras.attachments))
             note.put("id", nextId)

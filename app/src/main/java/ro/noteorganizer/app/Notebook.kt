@@ -1823,9 +1823,16 @@ object Notebook {
         return v.drop(1).all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
     }
 
-    /** The colour if it is one, otherwise [fallback]. */
-    fun sanitizeColor(value: String, fallback: String = ""): String =
-        if (isHexColor(value)) value.trim() else fallback
+    /**
+     * The colour if it is one, otherwise [fallback] -- and #rgb comes back as
+     * #rrggbb, as the desktop's `sanitize_color` expands it at the door:
+     * read as six digits, `#f00` drew a near-black green.
+     */
+    fun sanitizeColor(value: String, fallback: String = ""): String {
+        if (!isHexColor(value)) return fallback
+        val v = value.trim()
+        return if (v.length == 4) "#" + v.drop(1).map { "$it$it" }.joinToString("") else v
+    }
 
     /**
      * True for a stored date naming a day that exists -- the desktop's

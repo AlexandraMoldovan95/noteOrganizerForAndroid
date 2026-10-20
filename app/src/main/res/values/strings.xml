@@ -44,6 +44,16 @@
     <string name="day_edit_series">🔁 Edit the whole series</string>
     <string name="day_reset">↺ Reset this day</string>
     <string name="day_move">📅 Move this day…</string>
+    <!-- The series view's line: the desktop's banner, in its words -->
+    <string name="series_banner">🔁 This note repeats (%1$s) — edits here apply to every day</string>
+    <plurals name="series_own_edits">
+        <item quantity="one">%d day keeps its own edits (✎)</item>
+        <item quantity="other">%d days keep their own edits (✎)</item>
+    </plurals>
+    <plurals name="series_moved">
+        <item quantity="one">%d day moved (↷)</item>
+        <item quantity="other">%d days moved (↷)</item>
+    </plurals>
     <!-- Days off the schedule: the desktop's words -->
     <plurals name="off_schedule_banner">
         <item quantity="one">✎ %d day\'s own edits are off the schedule — Show it</item>
@@ -57,6 +67,10 @@
     <string name="day_delete">Delete this day</string>
     <string name="series_delete">Delete the whole series</string>
     <string name="day_banner">📅 Only this day: %1$s</string>
+    <string name="day_moved_from">— moved from %1$s</string>
+    <string name="whole_series_mark">· whole series</string>
+    <string name="this_day_category">This day\'s category</string>
+    <string name="this_day_colour">This day\'s colour</string>
     <string name="day_whole_series">🔁 Whole series</string>
     <string name="day_saved">Saved for this day only</string>
     <string name="day_follows">This day follows the series again</string>
@@ -165,7 +179,12 @@
     <string name="restore_text_only">Bring back the earlier version of this note\'s text? The current text will be replaced.</string>
     <string name="restore_text_with">Bring back this note as it was before it was updated? Its text comes back, and so do its %1$s. What the note holds now will be replaced.</string>
     <string name="restore_confirm">Restore</string>
-    <string name="select_to_format">Select some text to format it</string>
+    <string name="select_to_format">Select text to format it, or tap B, I, U or S for what you type next</string>
+    <string name="pending_on">On for what you type next: %1$s — tap again to stop</string>
+    <string name="style_bold">bold</string>
+    <string name="style_italic">italic</string>
+    <string name="style_underline">underline</string>
+    <string name="style_strike">strikethrough</string>
     <string name="add_checklist">+ Add a checklist</string>
     <string name="checklist_label">Checklist · %1$d/%2$d</string>
     <string name="checklist_new">A new item…</string>
@@ -239,6 +258,7 @@
     <string name="delete_table">Delete table</string>
     <string name="delete_table_text">Delete this table and everything in it?</string>
     <string name="highlight_colour">Highlight colour %1$d</string>
+    <string name="text_colour">Text colour %1$d</string>
 
     <!-- Templates: the desktop's words -->
     <string name="template_use">📎 Use template</string>

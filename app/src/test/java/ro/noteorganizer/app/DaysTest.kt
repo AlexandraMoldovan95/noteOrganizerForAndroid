@@ -402,4 +402,26 @@ class DaysTest {
         assertTrue(Days.settleOffScheduleDay(load, 1, "2026-10-14", Days.Settle.NOTE) is SaveResult.Ok)
         assertEquals(0, onDisk(load).getJSONObject("moved").length())
     }
+
+    // ---- what the series says of its days ----
+
+    @Test
+    fun `the series counts the days keeping their own edits, and the days moved, as the desktop's banner`() {
+        // Mondays: the 19th has its own words; the 7th, a Wednesday, has some
+        // the schedule no longer reaches (the next line shows those); the
+        // 12th is held on the 14th, and the 26th on the 2nd, a Monday the
+        // series gives anyway -- one day there all the same. The desktop's
+        // own functions, run on this note, answer 1 and 2.
+        val note = JSONObject("""{"id": 1, "title": "Stand-up", "body": "agenda", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]},
+            "overrides": {"2026-10-19": {"body": "own"}, "2026-10-07": {"body": "off"}},
+            "moved": {"2026-10-12": "2026-10-14", "2026-10-26": "2026-11-02"}}""")
+        assertEquals(1 to 2, Recurrence.seriesCounts(note))
+        // Ended on the 12th: the 19th's edits are off the schedule now, and
+        // the 26th's move draws nothing. The desktop answers 0 and 1.
+        note.getJSONObject("recurrence").put("end", "2026-10-12")
+        assertEquals(0 to 1, Recurrence.seriesCounts(note))
+        assertEquals("a note that does not repeat says nothing", 0 to 0,
+                     Recurrence.seriesCounts(JSONObject("""{"id": 2, "date": "2026-10-05", "overrides": {"2026-10-19": {}}}""")))
+    }
 }

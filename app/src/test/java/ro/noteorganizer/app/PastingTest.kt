@@ -20,6 +20,17 @@ class PastingTest {
     // ---- by hand ----
 
     @Test
+    fun `a table pasted into the comments leaves its rows behind, the prose kept`() {
+        // The desktop's _on_comments_paste: the comments draw no table.
+        val pasted = "Notes:\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n\nThanks"
+        assertEquals("Notes:\n\nThanks", Pasting.intoComments(pasted))
+        assertEquals(null, Pasting.intoComments("plain words\nand more"))
+        assertEquals("Seen: Notes:\n\nThanks!", Pasting.commentsAfter("Seen: !", "Seen: $pasted!"))
+        assertEquals("a row typed letter by letter stays", null, Pasting.commentsAfter("| a | b ", "| a | b |"))
+        assertEquals("a table alone leaves nothing", "", Pasting.commentsAfter("", "| a | b |\n| 1 | 2 |"))
+    }
+
+    @Test
     fun `bold, italic and a real colour come in - a page's grey and its dark background do not`() {
         val p = Pasting.htmlToNote("""<b>Bold</b> <i>it</i> <span style="color:#d32f2f">red</span>""" +
             """ <span style="color:#777777">grey</span> <span style="background:#222244">dark</span>""")
@@ -100,6 +111,17 @@ class PastingTest {
         assertEquals(listOf(FormatSpan(0, 6, "bold")), atEnd.spans)
         val atStart = Pasting.insert("abcdef", bold, emptyMap(), 0, 0, "XY")
         assertEquals(listOf(FormatSpan(2, 8, "bold")), atStart.spans)
+    }
+
+    @Test
+    fun `bullets pasted as words take the depth their glyphs say`() {
+        // The desktop's _paragraph_indent_of: "◦ " is one in, "▪ " two.
+        val done = Pasting.insert("Start", emptyList(), emptyMap(), 5, 5, "\n• a\n◦ b\n▪ c")
+        assertEquals("Start\n• a\n◦ b\n▪ c", done.body)
+        assertEquals(mapOf(2 to Paragraphs.Props(1), 3 to Paragraphs.Props(2)), done.props)
+        // A line already in the note keeps the depth it was given.
+        val joined = Pasting.insert("◦ old", emptyList(), emptyMap(), 5, 5, " more\n◦ new")
+        assertEquals(mapOf(1 to Paragraphs.Props(1)), joined.props)
     }
 
     @Test

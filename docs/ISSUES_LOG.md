@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-six are
+**the code**, or in **the design**. Fourteen of the forty-seven are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-20](#letters-typed-beside-a-style-read-from-the-text-alone) | code | Letters typed after a styled word stayed plain and letters typed before it took its style — the desktop does the opposite at both edges | An edit worked out from the text alone cannot know where the caret was; typing knows, and should say so |
 | [2026-10-20](#a-trash-emptied-by-a-window-nobody-chose) | design | Settings that could not be read made the start purge the Trash at the default 30 days, whatever window the person had chosen | When the rule for deleting is not known, delete nothing — and remember that it is not known |
 | [2026-10-19](#a-sheet-dressed-for-the-phone-not-the-app) | design | On the owner's phone every sheet put a white bar of buttons over the dark app and the clock dark on dark, and Share's opened half-way, its last card under the buttons | A window of its own takes none of the app's settings; and walk with the phone's own navigation, not only the emulator's |
 | [2026-10-19](#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been) | code | "Not responding" while sharing on the emulator was the computer building, not the PDF; a 40-page PDF did hold the app 1.2 s, and a second Share cleared the first one's folder | Read a freeze's own report before changing code, then size the work by the largest input it allows; hold an order in a test, not in racing taps |
@@ -63,6 +64,36 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## Letters typed beside a style, read from the text alone
+
+**2026-10-20.** Found by the audit: "ly" typed after a highlighted
+"quick" came out plain, and "Very " typed before a bold "Important" came
+out bold. The desktop does the opposite at both edges — Tk gives typed
+letters the tags on both sides of them, so nothing joins a word from
+the front, and its `_spread_typed_run` gives letters glued after a
+styled word the word's styles, up to a space.
+
+The phone moved styles through typing by the rule every edit uses:
+compare the text before and after, find what changed, keep each style's
+start where it was. That rule is right when nothing says where the edit
+happened — a paste, a table rebuilt — and wrong for typing, because
+"keep the start" puts letters typed at a style's first character inside
+it, and "keep the end" leaves letters typed at its last outside. It was
+also blind where the text repeats: "l" typed into "he|lo" is found at
+either "l".
+
+Typing knows where the caret is. The edit is now found from the caret —
+what follows it is the old text's end — and the desktop's rules applied
+there (`spansAfterTyping`). The same place holds the pending styles of
+a B pressed with nothing selected. Three of the mutants run on it
+survived for a good reason: each removed a check another line already
+made, and the redundant checks were taken out with them.
+
+**The class:** a rule that works an edit out from the text alone is the
+fallback for edits that cannot say where they happened. When an edit can
+say — typing has a caret — use it, or the rule decides what the person
+never meant.
 
 ## A Trash emptied by a window nobody chose
 
@@ -1287,21 +1318,27 @@ note?", the share code's limits, a pin's "updated", shared ids, bold
 with italic, a line's alignment through Enter and Backspace, History's
 days off the schedule and a deleted day's Undo, the rescue copy's start,
 and the two ways the app could stop on a date (all in the
-[changelog](../CHANGELOG.md)). Still to do, each found by reading both
-apps and to be proved by a test as it is fixed:
+[changelog](../CHANGELOG.md)).
 
-* **Not yet ported from `normalize_note`:** `clamp_spans_per_line`, the
-  per-line ceiling on styles, and refiling a day's own category the
-  phone lacks.
-* **The desktop's old way:** typing next to a styled word, a colour
-  tapped twice, B with nothing selected (to become the desktop's, by the
-  owner's choice), the calculator's Insert in a cell, a day's own edits
-  losing the series' formatting, a deleted day's Undo and a cleared
-  colour's Undo overwriting what came after, the series banner's count of
-  days with their own edits, a single imported note not offered to
-  open, 🔗 on an empty
-  note, 3-digit colours, Unicode spaces in the duplicate check, and a
-  list entry whose marker is gone keeping its indent.
+The rest followed on 2026-10-20, each proved by a test and its mutants:
+the two parts of `normalize_note` not yet ported (the per-line ceiling
+on styles, a day's own category the phone lacks) and the desktop's old
+way — typing next to a styled word
+([the story](#letters-typed-beside-a-style-read-from-the-text-alone)),
+a colour tapped twice, B with nothing selected (the desktop's now, by
+the owner's choice), the calculator's Insert in a cell, a day's own
+colour losing the series' formatting, a cleared colour's Undo
+overwriting what came after, the series banner's counts, a single
+imported note offered to open, 3-digit colours, Unicode spaces in the
+duplicate check, a stale list entry's indent, underline with strike,
+pasted bullets' depth, a table pasted into the comments, a category
+name's length, and the three labels of a day of a series. 🔗 on an
+empty note went with 🔗, Share refusing an empty note.
+
+Left, each small and none losing anything: the History's search worked
+out again on every letter (not measured on a large notebook), its rows
+showing fewer counts than the desktop's, and the desktop's "notes for
+today" reminder, not built.
 
 ### Seven DESKTOP findings from the audit of 2026-10-19
 

@@ -22,6 +22,15 @@ object Normalize {
     const val MAX_CHECKLIST_ITEMS = 1000
     const val MAX_ATTACHMENTS = 200
 
+    /**
+     * The desktop's two ceilings on styles (`formatting.py`): at most this
+     * many covering any one line, and this many line-ranges in the whole
+     * note -- the shape that stopped Tk finishing a draw, and a note is
+     * saved before it is drawn. No note a person writes comes near.
+     */
+    const val MAX_SPANS_PER_LINE = 500
+    const val MAX_LINE_RANGES = 20000
+
     /** NOTE_DEFAULTS, field for field, in the desktop's order. */
     private val TEXT_FIELDS = listOf("title", "body", "comments", "date", "color",
                                      "updated", "created")
@@ -74,7 +83,7 @@ object Normalize {
         // imported note was in a form no load of either app gives it.
         val body = withCaretLine(out.getString("body"))
         out.put("body", body)
-        out.put("formatting", Notebook.spansToJson(Exporting.normalizeFormatting(raw.opt("formatting"))))
+        out.put("formatting", Notebook.spansToJson(clampSpansPerLine(body, Exporting.normalizeFormatting(raw.opt("formatting")))))
         out.put("paragraphs", Templates.paragraphsJson(
             Exporting.normalizeParagraphs(raw.opt("paragraphs"), body.split("\n").size)))
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
@@ -87,6 +96,42 @@ object Normalize {
         // longer holds.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", JSONObject(it.toString())) }
         return out
+    }
+
+    /**
+     * The desktop's `clamp_spans_per_line`: the styles that would pile too
+     * deep on one line dropped, counted by the lines a style COVERS, not
+     * where it starts -- spans each starting on another line and running to
+     * the end all lay on the last one -- and the whole note's line-ranges
+     * capped as well. [spans] unchanged unless a ceiling is broken.
+     */
+    fun clampSpansPerLine(body: String, spans: List<FormatSpan>): List<FormatSpan> {
+        if (spans.isEmpty()) return spans
+        val cps = codePointsOf(body)
+        val breaks = cps.indices.filter { cps[it] == '\n'.code }
+        if (breaks.isEmpty()) return if (spans.size <= MAX_SPANS_PER_LINE) spans else spans.take(MAX_SPANS_PER_LINE)
+        // Python's bisect_left: the first break at or after [at].
+        fun lineOf(at: Int): Int = java.util.Collections.binarySearch(breaks, at).let { if (it >= 0) it else -it - 1 }
+        val kept = ArrayList<FormatSpan>()
+        val covered = HashMap<Int, Int>()
+        val full = java.util.TreeSet<Int>()
+        var drawn = 0
+        for (span in spans) {
+            val first = lineOf(span.start)
+            val last = lineOf(maxOf(span.start, span.end - 1))
+            val width = last - first + 1
+            if (drawn + width > MAX_LINE_RANGES) continue
+            val crossed = full.ceiling(first)
+            if (crossed != null && crossed <= last) continue
+            for (line in first..last) {
+                val seen = (covered[line] ?: 0) + 1
+                covered[line] = seen
+                if (seen >= MAX_SPANS_PER_LINE) full.add(line)
+            }
+            drawn += width
+            kept.add(span)
+        }
+        return kept
     }
 
     /**
@@ -255,8 +300,10 @@ object Normalize {
         return t
     }
 
-    private fun squeeze(text: String): String = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        .joinToString(" ")
+    // The desktop's `_normalize_ws`, " ".join(s.split()): Python splits on
+    // every Unicode space, Java's \s on ASCII alone -- a non-breaking space
+    // pasted from the web made two copies look different here.
+    private fun squeeze(text: String): String = PyText.split(text).joinToString(" ")
 
     private fun str(note: JSONObject, key: String): String = note.opt(key) as? String ?: ""
 

@@ -321,7 +321,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val old = dayColours[day]
         if (!putSetting(Days.DAY_COLORS, Days.withColour(settings, day, colour))) return
         if (colour.isEmpty() && old != null) {
-            offerUndo("Day colour cleared") { putSetting(Days.DAY_COLORS, Days.withColour(settings, day, old)) }
+            offerUndo("Day colour cleared") { undoDayClear(day, colour = old) }
         }
     }
 
@@ -330,8 +330,32 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val old = dayMarkers[day]
         if (!putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, markers))) return
         if (markers.isEmpty() && old != null) {
-            offerUndo("Day markers cleared") { putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, old)) }
+            offerUndo("Day markers cleared") { undoDayClear(day, markers = old) }
         }
+    }
+
+    /**
+     * A cleared colour, or cleared markers, put back -- only into a day
+     * still empty: anything there now was chosen in the seconds since, and
+     * a stale Undo painted over it. The desktop's `_undo_day_clear`, in its
+     * words. True when it was put back.
+     */
+    fun undoDayClear(day: String, colour: String? = null, markers: List<String>? = null): Boolean {
+        if (colour != null) {
+            if (!dayColours[day].isNullOrEmpty()) {
+                say("That day has a colour again")
+                return false
+            }
+            return putSetting(Days.DAY_COLORS, Days.withColour(settings, day, colour))
+        }
+        if (markers != null) {
+            if (!dayMarkers[day].isNullOrEmpty()) {
+                say("That day has markers again")
+                return false
+            }
+            return putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, markers))
+        }
+        return false
     }
 
     /** One day out of its series, with the Undo the desktop's toast offers. */

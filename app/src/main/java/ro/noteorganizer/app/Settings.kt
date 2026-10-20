@@ -208,8 +208,8 @@ object Settings {
                 val colour = saved.opt(key) as? String ?: continue
                 val name = key.trim()
                 if (name.isEmpty() || !Notebook.isHexColor(colour)) continue
-                if (name.length > MAX_CATEGORY_NAME) continue
-                result[name] = colour.trim()
+                if (characters(name) > MAX_CATEGORY_NAME) continue
+                result[name] = Notebook.sanitizeColor(colour)
             }
         }
         if (result.isEmpty()) result.putAll(Themes.DEFAULT_CATEGORY_COLORS)
@@ -220,6 +220,14 @@ object Settings {
         if (notes != null) adoptCategoriesOf(ordered, notes)
         return ordered
     }
+
+    /**
+     * A name's length as the desktop's `len` counts it, in characters: in
+     * UTF-16 units an emoji counted twice, and a 78-character name with a
+     * few was dropped here that the desktop keeps -- its notes refiled
+     * under General.
+     */
+    private fun characters(name: String): Int = name.codePointCount(0, name.length)
 
     private fun adoptCategoriesOf(map: LinkedHashMap<String, String>, notes: JSONArray) {
         val palette = Themes.DEFAULT_CATEGORY_COLORS.values.toList()
@@ -237,7 +245,7 @@ object Settings {
                 // adopted in stripped form would still miss.
                 if (name !is String || name.isEmpty() || name != name.trim()) continue
                 if (name in map) continue
-                if (name.length > MAX_CATEGORY_NAME || map.size >= MAX_CATEGORIES) continue
+                if (characters(name) > MAX_CATEGORY_NAME || map.size >= MAX_CATEGORIES) continue
                 map[name] = palette[map.size % palette.size]
             }
         }
@@ -249,9 +257,9 @@ object Settings {
      * does not vanish tomorrow. The desktop's `category_name_refusal`.
      */
     fun categoryNameRefusal(name: String, current: Map<String, String>, adding: Boolean = true): String? {
-        if (name.length > MAX_CATEGORY_NAME) {
+        if (characters(name) > MAX_CATEGORY_NAME) {
             return "A category name can be at most $MAX_CATEGORY_NAME characters long, " +
-                "and this one has ${name.length}."
+                "and this one has ${characters(name)}."
         }
         if (adding && current.size >= MAX_CATEGORIES) {
             return "You already have $MAX_CATEGORIES categories, which is the most the " +

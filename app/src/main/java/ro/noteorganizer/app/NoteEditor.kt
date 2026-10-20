@@ -148,7 +148,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> =
         if (day != null || note == null) emptyMap()
-        else Paragraphs.propsOf(state.rawNote(note.id)?.opt("paragraphs"), note.body.split("\n").size)
+        else Paragraphs.propsOf(state.rawNote(note.id)?.opt("paragraphs"), note.body)
 
     init {
         if (day != null && note != null) showDay(note.id, day)
@@ -169,7 +169,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         comments = shown.opt("comments") as? String ?: ""
         category = (shown.opt("category") as? String)?.ifEmpty { null } ?: Themes.PROTECTED_CATEGORY
         color = shown.opt("color") as? String ?: ""
-        if (own?.has("body") == true) spans = emptyList()
+        // A day's own text is plain -- but a day given only its own colour
+        // or category keeps the series' words, and with them their styles,
+        // as the desktop's load_note keeps them while the two bodies agree.
+        if (own?.has("body") == true && body != (raw.opt("body") as? String ?: "")) spans = emptyList()
     }
 
     /** Counts changes; the autosave runs a moment after the last one. */
@@ -237,6 +240,24 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** Which prose field has the cursor, and its value -- selection and all. */
     var focus by mutableStateOf<Int?>(null)
     var focused by mutableStateOf<TextFieldValue?>(null)
+
+    /**
+     * B, I, U or S pressed with nothing selected: what is typed next wears
+     * them, until the key is pressed again -- the desktop's pending style.
+     * Never in a day of a series, whose own text is plain.
+     */
+    var pending by mutableStateOf(emptySet<String>())
+
+    /** A line at the foot of the screen, from the editor. */
+    fun say(message: String) = state.say(message)
+
+    /**
+     * Where the cursor is in the words of the cell being written in, as its
+     * field counts them, and where it is put when the cell is read again
+     * after the calculator wrote into it.
+     */
+    var cellCaret: Int? = null
+    var cellCaretNext: Int? = null
 
     /**
      * The table cell being written in, by the line its table starts on --
@@ -520,6 +541,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // -- the steps of Undo included, which would put the old one back.
         caret = null
         calcMark = null
+        // As the desktop clears its pending styles when a note is loaded:
+        // a stale one would style the next word typed in the new body.
+        pending = emptySet()
         history.clear()
         settled = snap()
         steps()
@@ -545,7 +569,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             }
         }
         // A day's own text is plain: once typed in, it carries no styling.
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
+        // Otherwise the letters take styles as the desktop's text box gives
+        // them, found from the caret ([spansAfterTyping]).
+        spans = if (day != null) emptyList() else spansAfterTyping(body, next, caretIn(segment, typed), spans, pending)
         follow(next)
         body = next
         changed(Editing.History.TYPING)
@@ -713,6 +739,21 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * desktop's Insert into note.
      */
     fun insertCalculation(formula: String) {
+        // A cell being written in takes the answer at its cursor, as the
+        // desktop's _calc_insert_formula puts it in the open cell; the phone
+        // put it on a line under the table.
+        val cell = activeCell
+        val segment = cell?.let { c -> Editing.segments(body).firstOrNull { it.table && it.firstLine == c.firstLine } }
+        if (cell != null && segment != null) {
+            val table = parseTable(segment.text.split("\n"))
+            val words = cellTextAt(table, cell.at).replace("<br>", "\n")
+            val at = (cellCaret ?: words.trimEnd('\n').length).coerceIn(0, words.length)
+            val now = (words.substring(0, at) + formula + words.substring(at)).replace("|", "/")
+            editTable(segment, "calculation") { it.setCell(table.fileRow(cell.at.row), cell.at.column, now.replace("\n", "<br>")) }
+            cellCaretNext = at + formula.length
+            cellEpoch += 1
+            return
+        }
         val placed = Calculator.place(body, formula, calcMark, caret)
         spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
         props = Paragraphs.follow(body, placed.body, props)
@@ -1132,7 +1173,10 @@ fun NoteEditor(state: AppState, openId: Int) {
                         .background(palette.card)
                         .padding(12.dp),
                 ) {
-                    Text(stringResource(R.string.day_banner, Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day),
+                    // A moved day says where it came from, as the desktop's strip says it.
+                    val from = cameFrom?.let { Recurrence.parseDate(it) }?.let { Recurrence.showDay(it, year = false) }
+                    Text(stringResource(R.string.day_banner, Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day) +
+                         (from?.let { " " + stringResource(R.string.day_moved_from, it) } ?: ""),
                          color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     // Wrapping: three ways out of one day do not fit a
                     // phone's width on one line.
@@ -1153,6 +1197,17 @@ fun NoteEditor(state: AppState, openId: Int) {
             // The whole series, with days whose own edits its repeat no longer
             // reaches: no calendar shows them, so the note says so and offers
             // the way to each -- the desktop's button under its banner.
+            // The series itself says that its edits reach every day but the
+            // ones keeping their own: the desktop's banner, wrapped.
+            if (day == null && raw != null && Recurrence.isRecurring(raw)) {
+                val (own, held) = Recurrence.seriesCounts(raw)
+                val line = buildString {
+                    append(stringResource(R.string.series_banner, Recurrence.describe(raw)))
+                    if (own > 0) append(" · ").append(pluralStringResource(R.plurals.series_own_edits, own, own))
+                    if (held > 0) append(" · ").append(pluralStringResource(R.plurals.series_moved, held, held))
+                }
+                Text(line, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+            }
             val offDays = if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
             if (offDays.isNotEmpty()) {
                 Text(
@@ -1667,11 +1722,19 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
     val active = stylesOver(model.spans, from, to)
     var palettePicker by remember { mutableStateOf("") }
 
+    // With nothing selected, B, I, U and S wait for what is typed next.
+    val waits = !hasSelection && model.day == null
     fun apply(style: String, colour: String = "") {
-        if (!hasSelection) return
+        if (!hasSelection) {
+            if (waits && style in PENDING_STYLES) {
+                model.pending = if (style in model.pending) model.pending - style else model.pending + style
+            }
+            return
+        }
         model.spans = toggleStyle(model.spans, from, to, style, colour)
         model.changed()
     }
+    fun on(style: String) = if (hasSelection) style in active else style in model.pending
 
     Column(Modifier.fillMaxWidth().background(palette.sidebar)) {
         if ((palettePicker == "size" || palettePicker == "face") && hasSelection) {
@@ -1727,29 +1790,36 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                     fontSize = 14.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
-                for (colour in colours) {
+                for ((n, colour) in colours.withIndex()) {
+                    // Named, as the table bar's swatches are: a screen reader
+                    // said nothing for them, and the walk could not find one.
+                    val said = stringResource(if (style == "highlight") R.string.highlight_colour else R.string.text_colour, n + 1)
                     Box(
                         Modifier
                             .size(32.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(hexColor(colour))
+                            .semantics { contentDescription = said }
                             .clickable { apply(style, colour); palettePicker = "" },
                     )
                 }
             }
         }
         if (!hasSelection) {
-            Text(stringResource(R.string.select_to_format), color = palette.subtext, fontSize = 11.sp,
+            val waiting = PENDING_STYLES.filter { it in model.pending }.map { stringResource(styleName(it)) }
+            Text(if (waiting.isNotEmpty()) stringResource(R.string.pending_on, waiting.joinToString(", "))
+                 else stringResource(R.string.select_to_format),
+                 color = if (waiting.isNotEmpty()) palette.accentText else palette.subtext, fontSize = 11.sp,
                  modifier = Modifier.padding(start = 12.dp, top = 6.dp))
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            FormatKey("B", "bold" in active, hasSelection, weight = FontWeight.Bold) { apply("bold") }
-            FormatKey("I", "italic" in active, hasSelection, italic = true) { apply("italic") }
-            FormatKey("U", "underline" in active, hasSelection, decoration = TextDecoration.Underline) { apply("underline") }
-            FormatKey("S", "strike" in active, hasSelection, decoration = TextDecoration.LineThrough) { apply("strike") }
+            FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold) { apply("bold") }
+            FormatKey("I", on("italic"), hasSelection || waits, italic = true) { apply("italic") }
+            FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline) { apply("underline") }
+            FormatKey("S", on("strike"), hasSelection || waits, decoration = TextDecoration.LineThrough) { apply("strike") }
             FormatKey("A", "text_color" in active, hasSelection, weight = FontWeight.Bold) {
                 palettePicker = if (palettePicker == "text") "" else "text"
             }
@@ -1891,6 +1961,14 @@ private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String,
     }
 }
 
+/** A pending style's name, as the format bar says it. */
+private fun styleName(style: String): Int = when (style) {
+    "bold" -> R.string.style_bold
+    "italic" -> R.string.style_italic
+    "underline" -> R.string.style_underline
+    else -> R.string.style_strike
+}
+
 @Composable
 private fun FormatKey(
     label: String,
@@ -1954,7 +2032,10 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
         )
         return
     }
-    SectionLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size))
+    // On one day of a series the checklist is the series': a tick here is
+    // a tick on every day, and the label says so, as the desktop's does.
+    SectionLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size) +
+                 if (model.day != null) " " + stringResource(R.string.whole_series_mark) else "")
     var dragging by remember { mutableIntStateOf(-1) }
     var offset by remember { mutableFloatStateOf(0f) }
     val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
@@ -2079,7 +2160,13 @@ private fun CommentsSection(model: EditorModel) {
     SectionLabel(stringResource(R.string.comments_label))
     BasicTextField(
         value = model.comments,
-        onValueChange = { model.comments = it; model.changed(Editing.History.TYPING + ":comments") },
+        onValueChange = { now ->
+            // A table pasted here showed as rows of bars: the comments draw no table.
+            val kept = Pasting.commentsAfter(model.comments, now)
+            model.comments = kept ?: now
+            if (kept != null) model.say("Comments keep text only — the table wasn't added")
+            model.changed(Editing.History.TYPING + ":comments")
+        },
         textStyle = TextStyle(color = palette.text, fontSize = 15.sp, lineHeight = 22.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -2232,7 +2319,9 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     AppSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            DetailRow(stringResource(R.string.category)) {
+            // On one day, its own category and colour: said, as the desktop
+            // puts "This day:" beside them.
+            DetailRow(stringResource(if (onADay) R.string.this_day_category else R.string.category)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { picking = true }) {
                     Dot(state.load.categories[model.category] ?: palette.hex.getValue("accent"))
                     Text("  ${model.category} ▾", color = palette.text, fontSize = 15.sp)
@@ -2265,7 +2354,8 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
             } else if (note?.isRecurring == true) {
                 Text(stringResource(R.string.repeats_note), color = palette.subtext, fontSize = 12.sp)
             }
-            Text(stringResource(R.string.colour), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
+            Text(stringResource(if (onADay) R.string.this_day_colour else R.string.colour), color = palette.subtext, fontSize = 14.sp,
+                 modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
             Swatches(Themes.PRESET_NOTE_COLORS, model.color, allowNone = true) { model.color = it; model.changed() }
             // The pin is the whole note's: a day has nowhere to keep one.
             if (!onADay) {
@@ -2449,8 +2539,11 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     var draft by remember(key) {
         val text = cellTextAt(table, at).replace("<br>", "\n")
         // At the end of the words, not under the empty lines a row made
-        // taller keeps: typed there, the words went to its last line.
-        val end = text.trimEnd('\n').length
+        // taller keeps: typed there, the words went to its last line. After
+        // the calculator wrote in, after what it wrote.
+        val end = (model.cellCaretNext ?: text.trimEnd('\n').length).coerceIn(0, text.length)
+        model.cellCaretNext = null
+        model.cellCaret = end
         mutableStateOf(TextFieldValue(text, TextRange(end)))
     }
     val typing = remember(key) { FocusRequester() }
@@ -2461,6 +2554,7 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
         onValueChange = { next ->
             val clean = next.text.replace("|", "/")
             draft = next.copy(text = clean)
+            model.cellCaret = next.selection.end
             // Not written while it is a merge's marker or a box's -- "<" on
             // its way to "<5 €", "[ ]" to "[ ] milk": written, the cell would
             // turn into a merge or a box under the finger, its field gone.

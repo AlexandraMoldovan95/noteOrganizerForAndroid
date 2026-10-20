@@ -49,11 +49,23 @@ object Paragraphs {
         val plain: Boolean get() = indent == 0 && align == "left"
     }
 
-    /** The properties a note's stored paragraphs give its lines. */
-    fun propsOf(paragraphs: Any?, lineCount: Int): Map<Int, Props> =
-        Exporting.normalizeParagraphs(paragraphs, lineCount)
-            .associate { it.line to Props(it.indent, it.align ?: "left") }
+    /**
+     * The properties a note's stored paragraphs give the lines of [body].
+     * A list entry whose line no longer starts with its kind of marker --
+     * the body rewritten outside the app, its paragraphs not -- keeps its
+     * alignment but not its depth, as the desktop's `_apply_paragraphs`
+     * reads it: kept, the phone indented a plain line and saved the indent,
+     * which the desktop then honoured.
+     */
+    fun propsOf(paragraphs: Any?, body: String): Map<Int, Props> {
+        val lines = body.split("\n")
+        return Exporting.normalizeParagraphs(paragraphs, lines.size)
+            .associate { entry ->
+                val stale = entry.kind != null && parseListMarker(lines.getOrElse(entry.line) { "" }).kind != entry.kind
+                entry.line to Props(if (stale) 0 else entry.indent, entry.align ?: "left")
+            }
             .filterValues { !it.plain }
+    }
 
     /** `_extract_paragraphs`: what the file stores, the kind read off each line's marker. */
     fun extract(body: String, props: Map<Int, Props>): JSONArray {

@@ -359,6 +359,17 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a non-breaking space pasted from the web is a space to the duplicate check, as to the desktop's`() {
+        // Python's split() parts words on every Unicode space; Java's \s on ASCII alone.
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "hi world"},
+             {"id": 2, "title": "Trip", "body": "hi world"},
+             {"id": 3, "title": "Trip", "body": "hi 　world\u0085"}]
+        """.trimIndent())
+        assertEquals(listOf(listOf(1, 2, 3)), Organizing.duplicateGroups(load))
+    }
+
+    @Test
     fun `cleaning up moves the ticked copies to the Trash, their files copied to the copy kept`() {
         val load = notebook("""
             [{"id": 1, "title": "Trip", "body": "b"},

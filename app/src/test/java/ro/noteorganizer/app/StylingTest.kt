@@ -159,12 +159,75 @@ class StylingTest {
     }
 
     @Test
-    fun `asking for the SAME colour again clears it`() {
+    fun `the SAME colour tapped again stays, as the desktop's swatch sets it`() {
+        // Tapped again "to be sure", it took the colour away; only ✕ does now.
         val red = listOf(s(0, 10, "text_color", "#ff0000"))
-        assertEquals(
-            emptyList<String>(),
-            shape(toggleStyle(red, 0, 10, "text_color", "#ff0000")),
-        )
+        assertEquals(listOf("0-10:text_color=#ff0000"), shape(toggleStyle(red, 0, 10, "text_color", "#ff0000")))
+        val marked = listOf(s(0, 10, "highlight", "#fff3b0"))
+        assertEquals(listOf("0-10:highlight=#fff3b0"), shape(toggleStyle(marked, 0, 10, "highlight", "#fff3b0")))
+        assertEquals("over half of it, the whole selection takes it",
+                     listOf("0-10:text_color=#ff0000"),
+                     shape(toggleStyle(listOf(s(0, 5, "text_color", "#ff0000")), 0, 10, "text_color", "#ff0000")))
+    }
+
+    // ---- typing, as the desktop's text box styles what is typed ----
+
+    private fun typed(old: String, new: String, caret: Int, spans: List<FormatSpan>, pending: Set<String> = emptySet()) =
+        shape(spansAfterTyping(old, new, caret, spans, pending))
+
+    @Test
+    fun `letters typed before a styled word stay plain`() {
+        // "Very " typed at a line's start, before a bold "Important".
+        assertEquals(listOf("5-14:bold"), typed("Important", "Very Important", 5, listOf(s(0, 9, "bold"))))
+    }
+
+    @Test
+    fun `letters glued after a styled word wear its styles, up to a space`() {
+        val quick = listOf(s(0, 5, "highlight", "#fff3b0"), s(0, 5, "bold"))
+        assertEquals("\"ly\" after a highlighted bold \"quick\"",
+                     listOf("0-7:bold", "0-7:highlight=#fff3b0"), typed("quick fox", "quickly fox", 7, quick))
+        assertEquals("typed with a space, the styles stop at it",
+                     listOf("0-7:bold", "0-7:highlight=#fff3b0"), typed("quick", "quicker now", 11, quick))
+        assertEquals("a space typed first, nothing follows",
+                     listOf("0-5:bold", "0-5:highlight=#fff3b0"), typed("quick", "quick ly", 8, quick))
+        assertEquals("after a styled space, nothing follows either",
+                     listOf("0-6:bold"), typed("quick ", "quick ly", 8, listOf(s(0, 6, "bold"))))
+        assertEquals("its size and face too",
+                     listOf("0-7:font_family=Georgia", "0-7:font_size=20"),
+                     typed("Title", "Titles!", 7, listOf(s(0, 5, "font_size", "20"), s(0, 5, "font_family", "Georgia"))))
+    }
+
+    @Test
+    fun `letters typed inside a styled run are inside it, spaces and all`() {
+        assertEquals(listOf("0-12:bold"), typed("bold run", "bold new run", 9, listOf(s(0, 8, "bold"))))
+    }
+
+    @Test
+    fun `typing over a selection takes the selection's styles out first`() {
+        // "big" selected inside "a big dog", red on "big" alone, "red" typed over it.
+        assertEquals(emptyList<String>(), typed("a big dog", "a red dog", 5, listOf(s(2, 5, "text_color", "#ff0000"))))
+        // A bold run reaching past the selection keeps the rest and takes the new word in.
+        assertEquals(listOf("0-9:bold"), typed("a big dog", "a red dog", 5, listOf(s(0, 9, "bold"))))
+    }
+
+    @Test
+    fun `an emoji before the caret counts as one`() {
+        assertEquals(listOf("0-4:bold"), typed("😀ab", "😀abc", 4, listOf(s(0, 3, "bold"))))
+    }
+
+    @Test
+    fun `a pending style goes on everything typed, and nothing else`() {
+        assertEquals(listOf("4-7:bold"), typed("say ", "say new", 7, emptyList(), setOf("bold")))
+        assertEquals("italic over bold: both", listOf("0-3:bold", "3-5:bold_italic"),
+                     typed("abc", "abcde", 5, listOf(s(0, 3, "bold")), setOf("italic")))
+        assertEquals(listOf("0-2:strike", "0-2:underline"), typed("", "ok", 2, emptyList(), setOf("underline", "strike")))
+        assertEquals("a colour is never pending", emptyList<String>(),
+                     typed("", "ok", 2, emptyList(), setOf("text_color")))
+    }
+
+    @Test
+    fun `a change that only takes letters away moves styles as before`() {
+        assertEquals(listOf("0-3:bold"), typed("abcdef", "abcef", 3, listOf(s(0, 3, "bold"))))
     }
 
     // ---- what a button should look like ----

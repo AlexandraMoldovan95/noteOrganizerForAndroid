@@ -332,6 +332,27 @@ class NotebookTest {
     }
 
     @Test
+    fun `letters both underlined and struck through are drawn with both lines`() {
+        // Two styles naming a decoration do not add up -- the later won, and
+        // the strike under an underline was not drawn while S said it was.
+        val json = """
+            [{"id": 1, "body": "abcdef", "formatting": [
+              {"start": 0, "end": 4, "style": "strike"},
+              {"start": 2, "end": 6, "style": "underline"}]}]
+        """.trimIndent()
+        val drawn = renderBody(Notebook.parseNotes(json).single()).text.spanStyles
+            .filter { it.item.textDecoration != null }
+            .map { Triple(it.start, it.end, it.item.textDecoration) }
+        assertEquals(listOf(
+            Triple(0, 2, androidx.compose.ui.text.style.TextDecoration.LineThrough),
+            Triple(2, 4, androidx.compose.ui.text.style.TextDecoration.combine(listOf(
+                androidx.compose.ui.text.style.TextDecoration.LineThrough,
+                androidx.compose.ui.text.style.TextDecoration.Underline))),
+            Triple(4, 6, androidx.compose.ui.text.style.TextDecoration.Underline),
+        ), drawn)
+    }
+
+    @Test
     fun `a span running past the end of the body collapses instead of throwing`() {
         val json = """
             [{"id": 1, "body": "abc", "formatting":
@@ -1308,6 +1329,16 @@ class NotebookTest {
         assertFalse(Notebook.isHexColor("#ab"))
         assertFalse(Notebook.isHexColor("abc"))
         assertFalse(Notebook.isHexColor("#not-a-colour"))
+    }
+
+    @Test
+    fun `a three-digit colour comes in as six, as the desktop's sanitize_color expands it`() {
+        assertEquals("#ff00aa", Notebook.sanitizeColor("#f0a"))
+        assertEquals("the letters' case kept, as Python's ch * 2 keeps it", "#ff00AA", Notebook.sanitizeColor(" #f0A "))
+        assertEquals("#123456", Notebook.sanitizeColor("#123456"))
+        assertEquals("x", Notebook.sanitizeColor("#12", "x"))
+        // And drawn as six: read as six digits, #f00 was a near-black green.
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFFF0000), hexColor("#f00"))
     }
 
     @Test
