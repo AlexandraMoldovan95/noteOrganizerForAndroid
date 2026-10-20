@@ -47,7 +47,7 @@ RULES = ["Notebook.kt", "Sharing.kt", "Tables.kt", "Styling.kt",
 # The deliberate exceptions, named here so the list is a decision rather
 # than an omission: these exist to turn rules into pixels.
 DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
-         "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt",
+         "ui/theme/Color.kt", "ui/theme/Theme.kt", "ui/theme/Type.kt", "ui/theme/ThemeVeil.kt",
          "AppState.kt", "Components.kt", "ImportFlow.kt", "NoteEditor.kt",
          "NotesScreen.kt", "SettingsScreens.kt", "CalendarScreen.kt",
          "RepeatSheet.kt", "CalculatorPanel.kt", "FindBar.kt", "ExportFlow.kt",
