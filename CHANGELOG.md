@@ -29,9 +29,19 @@ dates given and in that order — the git history, the test suites and
 so no numbered release existed at the time. It is written down so the
 trail is not lost, not to claim releases that were never cut.
 
+**`0.6.0` to `0.8.0` were not installed for use on their own.** Each is
+a phase, finished and tested on the emulator in the order given; the
+first build used on a phone is `0.9.0`, which carries all three. They
+are numbered as the steps they were, each adding what the app could not
+do before, not as releases anyone ran.
+
 ---
 
-## [Unreleased] — The first test on a real phone
+## [Unreleased]
+
+---
+
+## [0.9.0] — 2026-10-20 — The first test on a real phone
 
 What the app's first afternoon on a real phone asked for — a Samsung
 Galaxy S24 Ultra, its letters set to 115% — and the release build it is
@@ -321,14 +331,14 @@ tested as from now on. Built on Phase 3.
   start and the Trash page saying so, a window chosen ending it —
   photographed, and each step read back from the files.
 
-## [Unreleased] — Phase 3
+## [0.8.0] — 2026-10-16 — Phase 3
 
 The rest of what the desktop does with a note, each kept to what a
 phone's screen holds: arranging the list by hand, moving one day of a
 series and settling days its schedule left behind, attaching files,
 finding duplicates, a table's caption and column widths, undo and redo,
-and copy and paste that keep the formatting. Built on Phase 2 and to be
-numbered after it. What is still left is in
+and copy and paste that keep the formatting. Built on Phase 2. What is
+still left is in
 [docs/STATUS.md](docs/STATUS.md#not-built-yet).
 
 ### Added
@@ -381,13 +391,13 @@ numbered after it. What is still left is in
   start to end failed five steps, all the walk's own, in older parts the
   new screens had changed under them; fixed, the second passed all 177.
 
-## [Unreleased] — Phase 2
+## [0.7.0] — 2026-10-16 — Phase 2
 
 The desktop's remaining everyday features, each kept to what a phone's
 screen holds: the calendar and repeating notes, the whole format bar,
 templates, find, the calculator, export, statistics, and a layout for
-wide screens. Built on Phase 1 and to be numbered after it. What is left
-for Phase 3 is in [docs/STATUS.md](docs/STATUS.md#not-built-yet).
+wide screens. Built on Phase 1. What is left for Phase 3 is in
+[docs/STATUS.md](docs/STATUS.md#not-built-yet).
 
 ### Added
 
@@ -467,7 +477,7 @@ for Phase 3 is in [docs/STATUS.md](docs/STATUS.md#not-built-yet).
   `e29e9a1` (24 mutants tried, 22 killed, 2 equivalent — not 26, 23 and
   3) and `314e89a` (`DaysTest` has 16 cases, not 17).
 
-## [Unreleased] — Phase 1
+## [0.6.0] — 2026-10-15 — Phase 1
 
 Phase 1: from a viewer for the desktop's file to a notes app of its own,
 ready for a store listing. What it covers, and what is left for Phases 2
