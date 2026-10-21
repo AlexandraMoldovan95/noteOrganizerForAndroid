@@ -34,7 +34,9 @@ The app reads and writes the same JSON files the desktop app reads and
 writes, in its own private folder on the device. The only doors out are
 Android's own: the file picker for a backup, the share sheet for a note
 or a code, a temporary grant for an attached file, and the browser for
-feedback.
+the privacy policy — and, once the app is published, its Google Play page,
+where feedback is a review. Both addresses live in `Links.kt`; the app
+sends nothing with either.
 
 Words follow the desktop's: a **popup** is anchored to what opened it (a
 menu, a bottom sheet), a **dialog** holds the screen until it is

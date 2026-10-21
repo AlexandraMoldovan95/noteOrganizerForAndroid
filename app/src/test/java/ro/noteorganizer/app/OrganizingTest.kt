@@ -311,6 +311,30 @@ class OrganizingTest {
     // ---- the welcome note ----
 
     @Test
+    fun `the welcome note gives privacy a section of its own, and says where the policy is`() {
+        val note = Welcome.build()
+        val body = note.getString("body")
+        val lines = body.split("\n")
+        // Under a heading of its own, the owner's call: a line inside
+        // another section did not catch the eye.
+        val heading = lines.indexOf("🛡 Your privacy")
+        assertTrue(heading >= 0)
+        val section = lines.drop(heading + 1).takeWhile { it.isNotEmpty() }
+        assertTrue(section.any { it.contains("collects nothing") })
+        assertTrue(section.any { it.contains("Settings → About → Privacy policy") })
+        val spans = note.getJSONArray("formatting")
+        val cp = body.codePoints().toArray()
+        assertTrue((0 until spans.length()).map { spans.getJSONObject(it) }.any {
+            String(cp, it.getInt("start"), it.getInt("end") - it.getInt("start")) == "🛡 Your privacy"
+        })
+        // A backup carries this note to the desktop, where Tk draws the
+        // emoji variation selector as a blank after the icon.
+        assertFalse((note.getString("title") + body).contains("\uFE0F"))
+        // 0.9.1 took "Follow the phone" away; the note went on promising it.
+        assertFalse(body.contains("follow your phone"))
+    }
+
+    @Test
     fun `the welcome note is stored as the editor would store it`() {
         val note = Welcome.build()
         val body = note.getString("body")
@@ -329,7 +353,7 @@ class OrganizingTest {
             val cp = body.codePoints().toArray()
             String(cp, span.getInt("start"), span.getInt("end") - span.getInt("start"))
         }
-        assertTrue(bold.contains("✍ Write"))
+        assertTrue(bold.contains("📝 Write"))
         assertTrue(bold.contains("Settings → Backup"))
         assertTrue(bold.none { it.contains("**") || it.isBlank() })
         assertFalse(body.contains("**"))
@@ -341,6 +365,19 @@ class OrganizingTest {
             paragraphs = paragraphs) is SaveResult.Ok)
         assertEquals(paragraphs.length(),
             notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
+    }
+
+    @Test
+    fun `every heading of the welcome note starts with an icon from the emoji block`() {
+        // An older symbol such as ✍ was drawn in black and white and
+        // narrower, here and on the desktop, so its title started left of
+        // the others; the emoji block is drawn by one font, at one width.
+        val icons = Welcome.LINES.filter { it.startsWith("# ") }
+            .map { it.removePrefix("# ").substringBefore(' ') }
+        assertTrue(icons.size >= 5)
+        assertEquals(emptyList<String>(), icons.filter {
+            it.codePointCount(0, it.length) != 1 || it.codePointAt(0) < 0x1F000
+        })
     }
 
     // ---- duplicates ----

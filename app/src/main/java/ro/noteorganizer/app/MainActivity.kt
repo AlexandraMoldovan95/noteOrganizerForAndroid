@@ -74,7 +74,6 @@ import ro.noteorganizer.app.ui.theme.Palette
 import ro.noteorganizer.app.ui.theme.ThemeVeil
 import ro.noteorganizer.app.ui.theme.paletteOf
 import java.io.File
-import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -296,7 +295,9 @@ fun AppRoot(state: AppState, version: String) {
                 when (state.tab) {
                     Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
                     Tab.CALENDAR -> CalendarScreen(state)
-                    Tab.SETTINGS -> SettingsScreen(state, backup, version, openFeedback = { openFeedback(context, state, version) })
+                    Tab.SETTINGS -> SettingsScreen(state, backup, version,
+                        openPrivacy = { openInBrowser(context, state, Links.PRIVACY) },
+                        openReview = Links.STORE?.let { page -> { openInBrowser(context, state, page) } })
                 }
             }
         }
@@ -492,26 +493,13 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
 }
 
 /**
- * The desktop's feedback page, carrying the details the form shows under
- * the person's words -- the version, the theme, how big the notebook is.
- * Never what a note says. The app itself connects to nothing: the browser
- * opens the page, and nothing is sent until Send is pressed there.
+ * A page the app opens -- the privacy policy, or its Google Play page for a
+ * review -- in the phone's browser or the store's app; a phone with neither
+ * is told so. The app itself connects to nothing.
  */
-private fun openFeedback(context: android.content.Context, state: AppState, version: String) {
-    val files = state.load.notes.sumOf { it.attachments }
-    val mb = state.load.file?.length()?.let { Math.round(it / 1e5) / 10.0 }
-    val details = listOf(
-        "version" to "android $version",
-        "theme" to (Themes.LABELS[state.themeName(false)] ?: ""),
-        "notes" to state.load.notes.size.toString(),
-        "files" to files.toString(),
-        "mb" to (mb?.toString() ?: ""),
-        "build" to "android",
-    ).filter { it.second.isNotEmpty() }
-    val query = details.joinToString("&") { (k, v) -> k + "=" + URLEncoder.encode(v, "UTF-8") }
-    val page = Uri.parse("https://note-organizer-8f7772.netlify.app/feedback.html?$query")
+private fun openInBrowser(context: android.content.Context, state: AppState, url: String) {
     try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, page))
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: ActivityNotFoundException) {
         state.say(context.getString(R.string.no_browser))
     }
