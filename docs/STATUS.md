@@ -14,8 +14,8 @@ templates, find, calculator, export and statistics, on a phone or beside
 the list on a wide screen; since Phase 3, custom order arranged by hand,
 one day of a series moved, files attached, duplicates found, a table's
 caption and column widths, Undo and Redo, and copy and paste that keep
-the formatting. It wears the desktop's eight themes or follows the
-phone's light and dark, and moves notes to and from the desktop by share
+the formatting. It wears the desktop's eight themes under one Light |
+Dark switch, and moves notes to and from the desktop by share
 code or by the desktop's own backup `.zip`; a note is shared as a PDF, a
 web page, its words or a share code through the phone's own share sheet.
 Nothing is ever overwritten without asking. It does not sync.
@@ -40,7 +40,7 @@ simple enough for a phone's screen rather than copied button for button:
 2. **Phase 2** — the calendar with its day list, repeating notes, the
    full format bar, templates, find in a note, the calculator, export,
    statistics, and a layout for wide screens.
-3. **Phase 3** (this branch, built on Phase 2's) — custom order arranged
+3. **Phase 3** (built on Phase 2's) — custom order arranged
    by hand, moving one day of a series and settling days left off its
    schedule, adding attachments, the duplicates finder, a table's caption
    and column widths, undo and redo, and pasting with the formatting.
@@ -312,12 +312,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 664 JVM unit tests in 29 suites, mutation-tested; six ports held to
+39. 665 JVM unit tests in 29 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 205
+    where the shrunk code will look); and an emulator walk of 258
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -346,9 +346,9 @@ unsearchable under a strict rule. **Worth porting back to the desktop**
 **Light | Dark remembers a theme for each mode.** The desktop's quick
 toggle goes between the last dark and the last light theme of a session;
 the phone keeps the two under keys of its own (`phone_theme_light`,
-`phone_theme_dark`), which the desktop ignores. Until 0.9.0 the theme
-could also follow the phone's dark mode; the owner asked for the one
-switch instead.
+`phone_theme_dark`), which the desktop ignores. Up to 0.9.0 the theme
+could also follow the phone's dark mode; 0.9.1 replaced it with the one
+switch, at the owner's ask.
 
 **The Trash's automatic emptying spares files still in use.** When a
 note leaves the Trash for good, its attached files are deleted — except
@@ -464,13 +464,13 @@ do, each a decision or an account step for the owner:
   Play App Signing; the release build's signing moves to it. A phone
   holding a debug-signed build has to uninstall it to take the store's,
   so its notebook goes to a backup `.zip` first.
-* **The privacy policy: written, not yet published.** One page for both
+* **The privacy policy: published** (2026-10-21). One page for both
   apps, on Google Sites (`Links.PRIVACY`), its text the desktop
   repository's `docs/PRIVACY.md`, copied there by hand; in the app at
   Settings → About → Privacy policy, which Play asks for as well. Its
   address goes into the Console's App content → Privacy policy. The owner
-  makes the Google Site before the first release, and every release
-  checks it still matches the file (the desktop repository's
+  made the Google Site on 2026-10-21, and every release checks it still
+  matches the file (the desktop repository's
   RELEASE_WINDOWS, "The privacy page, at every release").
 * **Feedback: a review on Google Play** (the owner's choice,
   2026-10-21). `Links.STORE` stays null until the app is published; set
@@ -486,9 +486,9 @@ do, each a decision or an account step for the owner:
     a transfer the person starts, to a place the person picks.
   * Feedback is a review on Google Play: Google's, under its own policy.
     The app only opens its Play page, and the policy's page, sending
-    nothing with either. (Until 0.9.1 Send feedback opened the site's form
-    with the app's version and the notebook's size in the address; the
-    form is gone.)
+    nothing with either. (Up to 0.9.1, Send feedback opened the site's
+    form with the app's version, its theme and the notebook's size in the
+    address; 0.10.0 took it out, and the form is gone.)
   * Android's own backup (`allowBackup`, on by the owner's choice) is
     the system's, not the app's code, end to end encrypted with the
     phone's lock, kept in the person's own Google account. Google's
@@ -496,6 +496,10 @@ do, each a decision or an account step for the owner:
     what the app's code sends, it is not collected, and the privacy
     policy says plainly that it happens. This is the one judgement in
     the answer.
+  * The system's WebView, which prints a note to PDF, may send Google
+    usage statistics when the person has allowed them for the phone; the
+    app opts its WebView out in the manifest (`MetricsOptOut`, since
+    0.10.0), so nothing goes from it either.
 * **A closed test before production.** Play asks a personal developer
   account made after November 2023 to run one with at least 12 testers
   for 14 days in a row before the app can go to production — the
@@ -531,14 +535,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 258 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 258 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 664 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 665 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -546,7 +550,14 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 258 checks. The last full run, with 257, after About gained the
+36 parts, 258 checks. The last full run, on 0.10.0 (2026-10-21), passed
+all 258 on an emulator given a minute and a half to settle after it
+started. The run before it, on the same build less the WebView's opt-out,
+lost one: a search typed after two blind flings up the list, which
+stopped anywhere from Card 14 to Card 16, so the results opened with
+"Card 15" above the screen — the setup now scrolls until the top card is
+seen, and the part passed six times running. The run before that, with
+257, after About gained the
 privacy policy, was the first on an emulator started a moment before: its first
 typing never reached the editor, so the first part failed in a chain —
 six of its checks — and the dissolve's shades jumped from light to dark
@@ -576,9 +587,10 @@ Phase 1's four:
 
 * **A brand-new notebook**: the welcome note, written and remembered; a
   note typed, saved by Back, and born with the desktop's whole shape;
-  pinning from a selection; Move to Trash and its Undo; "Follow the
-  phone" turned off and a theme picked, under the desktop's own key; the
-  name, and the greeting that uses it.
+  pinning from a selection; Move to Trash and its Undo; Light | Dark
+  moved — no "Follow the phone" on the page, the change dissolving, each
+  mode's last theme kept — and a theme picked, under the desktop's own
+  key; the name, and the greeting that uses it.
 * **A notebook copied in**, written for the camera: copied in without a
   welcome note; a table cell edited, the table still a table; a checklist
   row ticked with the desktop's styling still in place; a category chosen
@@ -810,7 +822,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-664 JVM unit tests in 29 suites pin the rules ported from Python, and
+665 JVM unit tests in 29 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

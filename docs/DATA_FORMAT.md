@@ -114,7 +114,7 @@ Settings → Appearance's Light | Dark switch goes back to. The desktop
 ignores them.
 
 A third, `phone_theme_follows_phone`, is left from **"Follow the phone"**,
-on by default until 0.9.0 and gone since. A notebook that still follows
+on by default up to 0.9.0 and gone since 0.9.1. A notebook that still follows
 (the key missing or `true`) is settled once, at a start, on the theme it
 is wearing for the phone's mode, and the key is then `false` for good.
 
@@ -784,8 +784,9 @@ all, the delete refuses to start rather than proceeding without a
 rescue copy.
 
 **The Trash empties itself when the app starts**, of every note older
-than `trash_retention_days` (1 to 365, default 30; anything that is not
-a whole number is the default). A note whose `deleted_at` cannot be read
+than `trash_retention_days` (1 to 365; 30 when never chosen — a value
+that is anything else, or a window lost with an unreadable file, purges
+nothing, [above](#settings-the-two-apps-share)). A note whose `deleted_at` cannot be read
 is never removed: better kept too long than gone too soon. Until
 2026-10-15 the phone never purged, because it read a folder it shared
 with the desktop and the desktop owned the purge; with a notebook of its
@@ -794,7 +795,7 @@ own, the reason went and so did the rule.
 When a note leaves the Trash for good, its attached files go with it —
 **except any file a note still uses**, living or still in the Trash, and
 any stored name that tries to point outside the attachments folder. The
-desktop's automatic purge does not spare them yet
+desktop's automatic purge spares them too, since its 0.95.391
 ([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses)).
 
 A rollback must never edit the shared array in place: `JSONArray.remove`

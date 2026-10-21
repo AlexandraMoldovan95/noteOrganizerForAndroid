@@ -1,6 +1,6 @@
 # How this app is tested
 
-Four layers, and each one exists because the layer below it cannot see a
+Five layers, and each one exists because the layer below it cannot see a
 certain kind of failure. Read this before adding a check, so the new one
 lands where it can actually fail.
 
@@ -18,18 +18,17 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-656 checks across twenty-eight suites — `NotebookTest` (124),
+665 checks across twenty-nine suites — `NotebookTest` (124),
 `TablesTest` (75), `RecurrenceTest` (46), `CalculatorTest` (34),
-`StylingTest` (33), `OrganizingTest` (31), `PastingTest` (31),
+`StylingTest` (33), `OrganizingTest` (33), `PastingTest` (31),
 `IdentityTest` (30), `DaysTest` (27), `SharingTest` (22), `ParagraphsTest`
-(22), `ImportingTest` (21), `EditingTest` (20), `SettingsTest` (19),
-`FindingTest` (16), `AppStateTest` (16), `ExportingTest` (15),
+(22), `ImportingTest` (21), `SettingsTest` (21), `EditingTest` (20),
+`AppStateTest` (18), `FindingTest` (16), `ExportingTest` (15),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
 (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
-`StatsTest` (4), `EditorTypingTest` (4), `EditorCopyTest` (3) and
-`InteropTest` (2). No
-device, no emulator:
-they test the twenty-five files that contain no Android at all (see
+`StatsTest` (4), `EditorTypingTest` (4), `EditorCopyTest` (3),
+`LinksTest` (3) and `InteropTest` (2). No device, no emulator:
+they test the twenty-six files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
 which is what makes them cost seconds instead of minutes — and two
 drawing-side classes: `AppState`, whose order of saves around the open

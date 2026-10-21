@@ -1,13 +1,13 @@
-"""Fail when Android leaks into the four files that must not know about it.
+"""Fail when Android leaks into the files that must not know about it.
 
 WHY THIS GATE EXISTS
 --------------------
-`Notebook.kt`, `Sharing.kt`, `Tables.kt` and `Styling.kt` hold the rules
-this app was ported from the desktop's Python: what a note is, how a
-table is written down, what a share code carries. They contain no
-`import android` and no `import androidx`, and that is not an accident to
-be preserved by good intentions -- it is what makes 221 unit tests run on
-a laptop in seconds instead of on an emulator in minutes.
+The files in RULES below -- `Notebook.kt`, `Sharing.kt`, `Tables.kt` and
+the rest -- hold the rules this app was ported from the desktop's Python:
+what a note is, how a table is written down, what a share code carries.
+They contain no `import android` and no `import androidx`, and that is not
+an accident to be preserved by good intentions -- it is what makes the
+unit tests run on a laptop in seconds instead of on an emulator in minutes.
 
 The leak is easy and quiet. Reach for `android.util.Base64` because it is
 the first Base64 in the autocomplete, or for a Compose `Color` because a
