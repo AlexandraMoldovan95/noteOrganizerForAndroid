@@ -317,7 +317,7 @@ Grouped by what the app does; when each item arrived is in the
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 258
+    where the shrunk code will look); and an emulator walk of 259
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -535,7 +535,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 258 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 259 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -550,10 +550,12 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 258 checks. The last full run, on 0.10.0 (2026-10-21), passed
-all 258 on an emulator given a minute and a half to settle after it
-started. The run before it, on the same build less the WebView's opt-out,
-lost one: a search typed after two blind flings up the list, which
+36 parts, 259 checks. The last full run, after a new search began to
+show its results from the top (2026-10-22), passed all 259; the one
+before it, with deletes across a numbered list fixed, all 258. On 0.10.0
+(2026-10-21) all 258 passed on an emulator given a minute and a half to
+settle after it started. A run on the same build less the WebView's
+opt-out lost one: a search typed after two blind flings up the list, which
 stopped anywhere from Card 14 to Card 16, so the results opened with
 "Card 15" above the screen — the setup now scrolls until the top card is
 seen, and the part passed six times running. The run before that, with

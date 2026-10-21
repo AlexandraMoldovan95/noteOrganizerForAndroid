@@ -1016,19 +1016,18 @@ def list_keeps_place(folder):
           after[:1] == before[:1] and target in after, "before %s, after %s" % (before[:3], after[:3]))
     shot(folder, "31-list-kept-its-place", target)
 
-    # To the top, and seen to be there. Two blind flings stopped anywhere
-    # from Card 14 to Card 16, the search's results then kept the card the
-    # list had stopped on at their top, and "Card 15" was above the screen
-    # in one walk of three (2026-10-21) -- as the desktop keeps its place
-    # through a search too. The setup, not the app, was what varied.
-    for _ in range(6):
-        if "Card 30" in cards():
-            break
-        adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
-        time.sleep(0.8)
+    # Searched with the list still scrolled down: a new search starts its
+    # results at the top. Kept in place, they opened at whichever card the
+    # list had stopped on, and "Card 15" was above the screen in one walk of
+    # three (2026-10-21); the owner chose the top, on both apps.
     tap("Search notes", wait=0.8)
     type_text("Card 1")
     keyboard_down()
+    # The search box's own words read "Card 1" too: left out. Waited for:
+    # the list drawn again at the top is read mid-redraw on a first start.
+    check_settled("a new search shows its results from the top, Card 19 first",
+                  lambda: [t for t in cards() if t != "Card 1"],
+                  lambda found: found[:1] == ["Card 19"], within=6.0, first=0.5)
     if not open_note("Card 15"):
         return
     back_to("Show: All")

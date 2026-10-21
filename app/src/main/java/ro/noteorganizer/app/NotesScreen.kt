@@ -98,6 +98,18 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // slot would be dropped from the list by the first long scroll, and its
     // drag with it -- and the one move is written when it is let go.
     val listState = rememberLazyListState()
+    // A new search starts its results at the top: kept in place, the first
+    // matches of a search typed with the list scrolled down sat above the
+    // screen (the owner's call, 2026-10-21, as on the desktop). Back from a
+    // note, the search is the one the list was drawn for, and it keeps its
+    // place.
+    var listedFor by rememberSaveable { mutableStateOf(query) }
+    LaunchedEffect(query) {
+        if (query != listedFor) {
+            listedFor = query
+            listState.scrollToItem(0)
+        }
+    }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }
     var dragBy by remember { mutableFloatStateOf(0f) }

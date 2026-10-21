@@ -51,6 +51,15 @@ do before, not as releases anyone ran.
   whole items takes their place while the next item keeps its own.
   Enter over a selection stands as before.
 
+### Changed
+
+- **A new search shows its results from the top** — the owner's call,
+  on both apps. With the list scrolled down, a search typed kept the
+  list where it was, and its first matches could sit above the screen.
+  Each new search, and clearing one, now starts at the top; Back from a
+  note, the search is the one the list was drawn for, and it keeps its
+  place.
+
 ### Testing
 
 - 675 JVM unit tests in 29 suites, from 665: `ParagraphsTest` holds
@@ -60,6 +69,11 @@ do before, not as releases anyone ran.
   itself. Seven mutants watched failing, one of them Enter over a
   selection, which must stand as typed. `tools/emulator/walk.py` passed
   all 258 with every keystroke now passing through it.
+- `tools/emulator/walk.py`: 259 checks, from 258 — a search typed with
+  the list scrolled down shows Card 19, its first result, at the top;
+  the build before it failed that check on every run, at Card 14. The
+  part no longer scrolls up before it searches, which is what the new
+  check is for.
 
 ---
 
