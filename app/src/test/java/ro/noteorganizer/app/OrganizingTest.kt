@@ -353,7 +353,7 @@ class OrganizingTest {
             val cp = body.codePoints().toArray()
             String(cp, span.getInt("start"), span.getInt("end") - span.getInt("start"))
         }
-        assertTrue(bold.contains("✍ Write"))
+        assertTrue(bold.contains("📝 Write"))
         assertTrue(bold.contains("Settings → Backup"))
         assertTrue(bold.none { it.contains("**") || it.isBlank() })
         assertFalse(body.contains("**"))
@@ -365,6 +365,19 @@ class OrganizingTest {
             paragraphs = paragraphs) is SaveResult.Ok)
         assertEquals(paragraphs.length(),
             notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
+    }
+
+    @Test
+    fun `every heading of the welcome note starts with an icon from the emoji block`() {
+        // An older symbol such as ✍ was drawn in black and white and
+        // narrower, here and on the desktop, so its title started left of
+        // the others; the emoji block is drawn by one font, at one width.
+        val icons = Welcome.LINES.filter { it.startsWith("# ") }
+            .map { it.removePrefix("# ").substringBefore(' ') }
+        assertTrue(icons.size >= 5)
+        assertEquals(emptyList<String>(), icons.filter {
+            it.codePointCount(0, it.length) != 1 || it.codePointAt(0) < 0x1F000
+        })
     }
 
     // ---- duplicates ----

@@ -24,14 +24,20 @@ object Welcome {
     /** The bullet the editor writes at the start of a list line. */
     private const val BULLET = "• "
 
-    /** "# " starts a heading, "- " a bullet, "" a blank line. **Bold** is bold. */
+    /**
+     * "# " starts a heading, "- " a bullet, "" a blank line. **Bold** is bold.
+     * Every heading's icon is from the emoji block (U+1F000 up): an older
+     * symbol such as ✍ is drawn in black and white, narrower, and its title
+     * starts left of the others -- here, and on the desktop a backup takes
+     * the note to.
+     */
     val LINES = listOf(
         "Hi, and welcome! This is your own space for everything worth keeping: ideas, " +
             "plans, lists, the things you don't want to forget. It all stays on this phone, " +
             "with no account and no internet needed. Here is a quick look around. When you no " +
             "longer need this note, delete it; Settings → About brings it back.",
         "",
-        "# ✍ Write",
+        "# 📝 Write",
         "- The **+** button starts a note. Give it a title and write; it saves itself as you go.",
         "- The bar above the keyboard shapes your words: bold, italic, colours and highlights.",
         "- Under the text: a checklist for to-dos, and comments.",

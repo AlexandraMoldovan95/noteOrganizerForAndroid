@@ -60,6 +60,10 @@ do before, not as releases anyone ran.
 - **The welcome note no longer says the app can follow the phone's dark
   mode** — "Follow the phone" left in 0.9.1, and the note a new notebook
   opens on went on promising it. It now names the Light | Dark switch.
+- **The welcome note's Write heading lines up with the others.** Its ✍
+  was drawn in black and white and narrower than the other icons, so
+  "Write" started left of every other title. It is 📝 now, from the
+  emoji block like the rest — the desktop's note made the same change.
 
 ### Changed
 
@@ -76,7 +80,7 @@ do before, not as releases anyone ran.
 
 ### Testing
 
-- 663 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
+- 664 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
   policy's address to the desktop's and keeps the store page unset until
   publishing. `tools/emulator/walk.py`: 258 checks in 36 parts, from 256 —
   it reads the as-is line on About, finds no Feedback section there before
@@ -88,8 +92,9 @@ do before, not as releases anyone ran.
 - `OrganizingTest`: the welcome note gives privacy a section of its own,
   under its own heading, which says the app collects nothing and points
   to the privacy policy; no icon in it carries the emoji variation
-  selector the desktop draws as a gap; and it no longer promises to
-  follow the phone's dark mode.
+  selector the desktop draws as a gap; it no longer promises to follow
+  the phone's dark mode; and every heading's icon is from the emoji
+  block.
 
 ---
 
