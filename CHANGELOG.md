@@ -63,10 +63,10 @@ do before, not as releases anyone ran.
 
 ### Changed
 
-- **The welcome note says what the app does with your data** — it
-  collects nothing and cannot use the internet — and that Settings →
-  About → Privacy policy has the whole of it, so a new notebook meets the
-  policy on its first page.
+- **The welcome note gives your privacy a section of its own** — 🛡 Your
+  privacy: the app collects nothing and cannot use the internet, and
+  Settings → About → Privacy policy has the whole of it — so a new
+  notebook meets the policy on its first page.
 - **About says the app is free software under the MIT license, provided
   as is** — where someone who installed it from Google Play, and never
   sees the license file, will read it. The line about the notes' backup
@@ -85,9 +85,11 @@ do before, not as releases anyone ran.
   check on an emulator started a moment before — the third cold emulator
   to decide it, a 20 and then a 30 second wait notwithstanding; walked
   again warm, it passes. The check, not the app, is what needs mending.
-- `OrganizingTest`: the welcome note says the app collects nothing,
-  points to the privacy policy, and no longer promises to follow the
-  phone's dark mode.
+- `OrganizingTest`: the welcome note gives privacy a section of its own,
+  under its own heading, which says the app collects nothing and points
+  to the privacy policy; no icon in it carries the emoji variation
+  selector the desktop draws as a gap; and it no longer promises to
+  follow the phone's dark mode.
 
 ---
 

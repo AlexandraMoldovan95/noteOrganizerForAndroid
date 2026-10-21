@@ -311,10 +311,25 @@ class OrganizingTest {
     // ---- the welcome note ----
 
     @Test
-    fun `the welcome note says what the app does with your data, and where the policy is`() {
-        val body = Welcome.build().getString("body")
-        assertTrue(body.contains("collects nothing"))
-        assertTrue(body.contains("Settings → About → Privacy policy"))
+    fun `the welcome note gives privacy a section of its own, and says where the policy is`() {
+        val note = Welcome.build()
+        val body = note.getString("body")
+        val lines = body.split("\n")
+        // Under a heading of its own, the owner's call: a line inside
+        // another section did not catch the eye.
+        val heading = lines.indexOf("🛡 Your privacy")
+        assertTrue(heading >= 0)
+        val section = lines.drop(heading + 1).takeWhile { it.isNotEmpty() }
+        assertTrue(section.any { it.contains("collects nothing") })
+        assertTrue(section.any { it.contains("Settings → About → Privacy policy") })
+        val spans = note.getJSONArray("formatting")
+        val cp = body.codePoints().toArray()
+        assertTrue((0 until spans.length()).map { spans.getJSONObject(it) }.any {
+            String(cp, it.getInt("start"), it.getInt("end") - it.getInt("start")) == "🛡 Your privacy"
+        })
+        // A backup carries this note to the desktop, where Tk draws the
+        // emoji variation selector as a blank after the icon.
+        assertFalse((note.getString("title") + body).contains("\uFE0F"))
         // 0.9.1 took "Follow the phone" away; the note went on promising it.
         assertFalse(body.contains("follow your phone"))
     }
