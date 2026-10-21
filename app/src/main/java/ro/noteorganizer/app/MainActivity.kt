@@ -296,8 +296,8 @@ fun AppRoot(state: AppState, version: String) {
                     Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
                     Tab.CALENDAR -> CalendarScreen(state)
                     Tab.SETTINGS -> SettingsScreen(state, backup, version,
-                        openFeedback = { openFeedback(context, state, version) },
-                        openPrivacy = { openInBrowser(context, state, Links.PRIVACY) })
+                        openPrivacy = { openInBrowser(context, state, Links.PRIVACY) },
+                        openReview = Links.STORE?.let { page -> { openInBrowser(context, state, page) } })
                 }
             }
         }
@@ -493,25 +493,10 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
 }
 
 /**
- * The desktop's feedback page, carrying the details the form shows under
- * the person's words -- the version, the theme, how big the notebook is.
- * Never what a note says. The app itself connects to nothing: the browser
- * opens the page, and nothing is sent until Send is pressed there.
+ * A page the app opens -- the privacy policy, or its Google Play page for a
+ * review -- in the phone's browser or the store's app; a phone with neither
+ * is told so. The app itself connects to nothing.
  */
-private fun openFeedback(context: android.content.Context, state: AppState, version: String) {
-    val files = state.load.notes.sumOf { it.attachments }
-    val mb = state.load.file?.length()?.let { Math.round(it / 1e5) / 10.0 }
-    openInBrowser(context, state, Links.feedback(listOf(
-        "version" to "android $version",
-        "theme" to (Themes.LABELS[state.themeName(false)] ?: ""),
-        "notes" to state.load.notes.size.toString(),
-        "files" to files.toString(),
-        "mb" to (mb?.toString() ?: ""),
-        "build" to "android",
-    )))
-}
-
-/** A page of the project's site, in the phone's browser; a phone with none is told so. */
 private fun openInBrowser(context: android.content.Context, state: AppState, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))

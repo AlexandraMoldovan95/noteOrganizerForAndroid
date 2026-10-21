@@ -70,7 +70,7 @@ class BackupActions(
 @Composable
 fun SettingsScreen(
     state: AppState, backup: BackupActions, appVersion: String,
-    openFeedback: () -> Unit, openPrivacy: () -> Unit,
+    openPrivacy: () -> Unit, openReview: (() -> Unit)?,
 ) {
     val palette = LocalPalette.current
     val page = state.settingsPage
@@ -93,7 +93,7 @@ fun SettingsScreen(
             SettingsPage.TRASH -> TrashPage(state, backup)
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
-            SettingsPage.ABOUT -> AboutPage(state, appVersion, openFeedback, openPrivacy)
+            SettingsPage.ABOUT -> AboutPage(state, appVersion, openPrivacy, openReview)
         }
     }
 }
@@ -767,28 +767,35 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
 // ---- About ----
 
 @Composable
-private fun AboutPage(state: AppState, appVersion: String, openFeedback: () -> Unit, openPrivacy: () -> Unit) {
+private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Unit, openReview: (() -> Unit)?) {
     val palette = LocalPalette.current
     PageColumn {
         Text(stringResource(R.string.about_version, appVersion), color = palette.text, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
+        // Someone who installs from Google Play never sees the LICENSE file,
+        // so the MIT license's "as is" is said here, as on the desktop.
+        Text(stringResource(R.string.about_terms), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
         Text(stringResource(R.string.about_storage), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
         SectionLabel(stringResource(R.string.welcome_note))
         Text(stringResource(R.string.welcome_note_sub), color = palette.subtext, fontSize = 14.sp)
         OutlinedButton(onClick = { showWelcome(state) }, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.show))
         }
-        SectionLabel(stringResource(R.string.feedback))
-        Text(stringResource(R.string.feedback_sub), color = palette.subtext, fontSize = 14.sp)
-        Button(
-            onClick = openFeedback,
-            modifier = Modifier.padding(top = 8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-        ) { Text(stringResource(R.string.send_feedback)) }
         // Google Play asks for the policy to be reachable from inside the app too.
         SectionLabel(stringResource(R.string.privacy_policy))
         Text(stringResource(R.string.privacy_policy_sub), color = palette.subtext, fontSize = 14.sp)
         OutlinedButton(onClick = openPrivacy, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.read_policy))
+        }
+        // Feedback is a review on Google Play, so before the app is there
+        // (Links.STORE is null) there is no Feedback section at all.
+        if (openReview != null) {
+            SectionLabel(stringResource(R.string.feedback))
+            Text(stringResource(R.string.feedback_sub), color = palette.subtext, fontSize = 14.sp)
+            Button(
+                onClick = openReview,
+                modifier = Modifier.padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
+            ) { Text(stringResource(R.string.write_review)) }
         }
     }
 }

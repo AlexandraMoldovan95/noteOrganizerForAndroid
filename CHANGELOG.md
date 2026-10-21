@@ -43,29 +43,41 @@ do before, not as releases anyone ran.
 
 - **The privacy policy, from Settings → About** — Google Play asks for it
   to be reachable inside the app as well as on the store page. Privacy
-  policy → Read opens it on the project's site: the same page as the
+  policy → Read opens it, on Google Sites: the same page as the
   desktop's, covering both apps.
+
+### Removed
+
+- **Send feedback, and the site's form behind it** — the owner's choice:
+  feedback is a review on Google Play. Once the app is published there
+  (`Links.STORE`), About shows a Feedback section whose Write a review
+  opens its page; until then there is none. The form held every message,
+  with its sender's address, on the site's host; now the app hands
+  nobody anything, and the Data safety answer stays "no data collected".
 
 ### Changed
 
-- **Send feedback's details reach the site only when Send is pressed.**
-  They travel after the link's `#`, a part a browser never sends, so
-  opening the form no longer hands them to the site's host. The form
-  shows them as before. This is what lets the policy say nothing leaves
-  the phone before Send, and the Data safety form say no data is
-  collected.
+- **About says the app is free software under the MIT license, provided
+  as is** — where someone who installed it from Google Play, and never
+  sees the license file, will read it. The line about the notes' backup
+  follows it, as before. Its privacy line says the policy tells what
+  leaves the phone, and when: "only when you send it" was untrue with
+  Android's own backup on.
 
 ### Testing
 
-- 663 JVM unit tests in 29 suites, from 660. `LinksTest`: the feedback
-  link keeps every detail after the `#`, none in the query, leaves out an
-  empty one and encodes the rest; both pages are the desktop's addresses.
-  Two mutants (the details back in the query, an empty detail sent),
-  both killed. `tools/emulator/walk.py`: 257 checks in 36 parts, from
-  256 — it taps Privacy policy → Read and finds a browser in front. On an
-  emulator started a moment before, the first part failed in a chain
-  (its first typing never reached the editor) and the dissolve's check
-  with it; walked again once warm, it passed, as the other 33 parts had.
+- 662 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
+  policy's address to the desktop's and keeps the store page unset until
+  publishing. `tools/emulator/walk.py`: 258 checks in 36 parts, from 256 —
+  it reads the as-is line on About, finds no Feedback section there before
+  the app is on Google Play, and taps Privacy policy → Read to find a
+  browser in front. Its first three parts pass, but for the dissolve's
+  check on an emulator started a moment before — the third cold emulator
+  to decide it, a 20 and then a 30 second wait notwithstanding; walked
+  again warm, it passes. The check, not the app, is what needs mending. Its first
+  three parts, walked on an emulator started a moment before, passed but
+  for the dissolve's check, whose shades jumped from light to dark; walked
+  again warm, it passed — the second cold emulator to decide that check.
 
 ---
 
