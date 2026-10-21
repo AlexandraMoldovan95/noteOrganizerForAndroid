@@ -55,8 +55,22 @@ do before, not as releases anyone ran.
   with its sender's address, on the site's host; now the app hands
   nobody anything, and the Data safety answer stays "no data collected".
 
+### Fixed
+
+- **The welcome note no longer says the app can follow the phone's dark
+  mode** — "Follow the phone" left in 0.9.1, and the note a new notebook
+  opens on went on promising it. It now names the Light | Dark switch.
+- **The welcome note's Write heading lines up with the others.** Its ✍
+  was drawn in black and white and narrower than the other icons, so
+  "Write" started left of every other title. It is 📝 now, from the
+  emoji block like the rest — the desktop's note made the same change.
+
 ### Changed
 
+- **The welcome note gives your privacy a section of its own** — 🛡 Your
+  privacy: the app collects nothing and cannot use the internet, and
+  Settings → About → Privacy policy has the whole of it — so a new
+  notebook meets the policy on its first page.
 - **About says the app is free software under the MIT license, provided
   as is** — where someone who installed it from Google Play, and never
   sees the license file, will read it. The line about the notes' backup
@@ -66,7 +80,7 @@ do before, not as releases anyone ran.
 
 ### Testing
 
-- 662 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
+- 664 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
   policy's address to the desktop's and keeps the store page unset until
   publishing. `tools/emulator/walk.py`: 258 checks in 36 parts, from 256 —
   it reads the as-is line on About, finds no Feedback section there before
@@ -74,10 +88,13 @@ do before, not as releases anyone ran.
   browser in front. Its first three parts pass, but for the dissolve's
   check on an emulator started a moment before — the third cold emulator
   to decide it, a 20 and then a 30 second wait notwithstanding; walked
-  again warm, it passes. The check, not the app, is what needs mending. Its first
-  three parts, walked on an emulator started a moment before, passed but
-  for the dissolve's check, whose shades jumped from light to dark; walked
-  again warm, it passed — the second cold emulator to decide that check.
+  again warm, it passes. The check, not the app, is what needs mending.
+- `OrganizingTest`: the welcome note gives privacy a section of its own,
+  under its own heading, which says the app collects nothing and points
+  to the privacy policy; no icon in it carries the emoji variation
+  selector the desktop draws as a gap; it no longer promises to follow
+  the phone's dark mode; and every heading's icon is from the emoji
+  block.
 
 ---
 
