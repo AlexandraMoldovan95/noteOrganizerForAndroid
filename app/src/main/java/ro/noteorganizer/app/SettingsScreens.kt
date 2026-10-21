@@ -771,6 +771,9 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
     val palette = LocalPalette.current
     PageColumn {
         Text(stringResource(R.string.about_version, appVersion), color = palette.text, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
+        // Someone who installs from Google Play never sees the LICENSE file,
+        // so the MIT license's "as is" is said here, as on the desktop.
+        Text(stringResource(R.string.about_terms), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
         Text(stringResource(R.string.about_storage), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp))
         SectionLabel(stringResource(R.string.welcome_note))
         Text(stringResource(R.string.welcome_note_sub), color = palette.subtext, fontSize = 14.sp)

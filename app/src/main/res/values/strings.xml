@@ -501,6 +501,7 @@
     </plurals>
     <string name="keep_for_days">Keep for %1$d days</string>
     <string name="about_version">Note Organizer for Android, version %1$s</string>
+    <string name="about_terms">Free software under the MIT license, provided as is.</string>
     <string name="about_storage">Your notes are kept on this phone, in the app\'s own storage, where no other app can read them. Uninstalling the app removes them too, so Settings → Backup is the way to keep a copy, or to move them.</string>
     <string name="welcome_note">Welcome note</string>
     <string name="welcome_note_sub">The note this app opened with on its first start. Bring it back here if you deleted it.</string>

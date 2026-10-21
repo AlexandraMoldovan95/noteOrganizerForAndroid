@@ -531,7 +531,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 257 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 258 checks walked on the built app, upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -546,8 +546,8 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 257 checks. The last full run, after About gained the privacy
-policy, was the first on an emulator started a moment before: its first
+36 parts, 258 checks. The last full run, with 257, after About gained the
+privacy policy, was the first on an emulator started a moment before: its first
 typing never reached the editor, so the first part failed in a chain —
 six of its checks — and the dissolve's shades jumped from light to dark
 between two frames. The first three parts, walked again on the same

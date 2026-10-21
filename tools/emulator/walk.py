@@ -778,6 +778,9 @@ def outward(folder):
     # section until the app is published there (Links.STORE).
     tap("Settings", exact=True)
     tap("About")
+    missing = screen_says("Free software under the MIT license, provided as is.")
+    check("About says the app is free software under the MIT license, provided as is",
+          not missing, ", ".join(missing))
     if find("Read", True) is None:
         adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
         time.sleep(0.8)
