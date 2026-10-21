@@ -45,9 +45,12 @@ object Welcome {
         "- **Share as a code** turns a note into text you can send; whoever has Note Organizer can bring it in.",
         "- **Settings → Backup** saves your whole notebook in one file — the same file the desktop app reads.",
         "- Deleted notes wait in **Settings → Trash**, so a slip can be undone.",
+        "- **Your privacy:** the app collects nothing and cannot use the internet; a note leaves this " +
+            "phone only when you share it, save a backup, or your phone backs itself up to your Google " +
+            "account. **Settings → About → Privacy policy** has the whole of it.",
         "",
         "# 🎨 Make it yours",
-        "- Eight light and dark themes in **Settings → Appearance**, and the app can follow your phone's dark mode.",
+        "- Eight light and dark themes in **Settings → Appearance**, with a Light | Dark switch.",
         "",
         "Good luck, and may your notes bring you success! 🍀",
     )

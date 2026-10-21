@@ -311,6 +311,15 @@ class OrganizingTest {
     // ---- the welcome note ----
 
     @Test
+    fun `the welcome note says what the app does with your data, and where the policy is`() {
+        val body = Welcome.build().getString("body")
+        assertTrue(body.contains("collects nothing"))
+        assertTrue(body.contains("Settings → About → Privacy policy"))
+        // 0.9.1 took "Follow the phone" away; the note went on promising it.
+        assertFalse(body.contains("follow your phone"))
+    }
+
+    @Test
     fun `the welcome note is stored as the editor would store it`() {
         val note = Welcome.build()
         val body = note.getString("body")
