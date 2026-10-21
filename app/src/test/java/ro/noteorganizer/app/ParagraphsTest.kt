@@ -191,6 +191,82 @@ class ParagraphsTest {
         assertNull(P.afterTyping("• a", "• ab", emptyMap(), 4))
     }
 
+    // ---- a deletion that reaches a list: renumbered, no marker among the words ----
+
+    private val list4 = "1. one\n2. two\n3. three\n4. four"
+
+    /** What the keyboard gives: [from, to) of [old] replaced by [typed], the cursor after it. */
+    private fun keyed(old: String, from: Int, to: Int, typed: String = "", p: Map<Int, Paragraphs.Props> = emptyMap()) =
+        P.afterTyping(old, old.substring(0, from) + typed + old.substring(to), p, from + typed.length)
+
+    @Test
+    fun `items deleted whole renumber what follows`() {
+        assertEquals("1. one\n2. four", keyed(list4, 7, 23)!!.body)
+    }
+
+    @Test
+    fun `typing over whole items keeps the next item's number`() {
+        val done = keyed(list4, 7, 23, "x")!!
+        assertEquals("1. one\n2. x\n3. four", done.body)
+        assertEquals("the cursor after the letter", 11, done.caret)
+    }
+
+    @Test
+    fun `two items joined keep the first one's marker and lose the second's`() {
+        // BackSpace at item 3's very start, or Delete at item 2's end.
+        val done = keyed(list4, 13, 14)!!
+        assertEquals("1. one\n2. twothree\n3. four", done.body)
+        assertEquals(13, done.caret)
+    }
+
+    @Test
+    fun `a marker deleted, or only part of it, goes whole`() {
+        assertEquals("1. one\ntwo\n1. three\n2. four", keyed(list4, 7, 10)!!.body)
+        assertEquals("1. one\ntwo\n1. three\n2. four", keyed(list4, 7, 8)!!.body)
+    }
+
+    @Test
+    fun `words deleted across items join them, renumbered`() {
+        assertEquals("1. one\n2. tree\n3. four", keyed(list4, 11, 19)!!.body)
+        assertEquals("1. one\n2. txfour", keyed(list4, 11, 23, "x")!!.body)
+    }
+
+    @Test
+    fun `a joined word keeps its style, and a nested item its depth`() {
+        val done = keyed(list4, 13, 14)!!
+        assertEquals(listOf(FormatSpan(13, 18, "bold")), done.move(listOf(FormatSpan(17, 22, "bold"))))
+        val nested = keyed("1. one\n1. sub a\n2. sub b\n2. two", 7, 16, p = props(1 to 1, 2 to 1))!!
+        assertEquals("1. one\n1. sub b\n2. two", nested.body)
+        assertEquals(props(1 to 1), nested.props)
+        // The only sub-item deleted whole: the line that takes its place
+        // keeps its own depth, not the sub-item's.
+        val out = keyed("1. one\n1. sub a\n2. two", 7, 16, p = props(1 to 1))!!
+        assertEquals("1. one\n2. two", out.body)
+        assertEquals(props(), out.props)
+    }
+
+    @Test
+    fun `Enter over a selection, and a letter in an item's words, stand as typed`() {
+        assertNull(keyed(list4, 7, 23, "\n"))
+        assertNull(keyed(list4, 11, 12))
+    }
+
+    @Test
+    fun `the deletion's range is the desktop's list_deletion_range`() {
+        fun at(line: Int, column: Int) = Paragraphs.Pos(line, column)
+        val lines = list4.split("\n")
+        assertEquals(at(1, 0) to at(3, 0), P.deletionRange(lines, at(1, 0), at(3, 0)))
+        assertEquals(at(1, 3) to at(2, 8), P.deletionRange(lines, at(1, 0), at(3, 0), typing = true))
+        assertEquals(at(1, 6) to at(2, 3), P.deletionRange(lines, at(1, 6), at(2, 0)))
+        assertEquals(at(1, 3) to at(2, 5), P.deletionRange(lines, at(1, 3), at(2, 5)))
+        assertEquals("from a line's very start the marker goes too",
+            at(0, 0) to at(3, 7), P.deletionRange(lines, at(0, 0), at(3, 7)))
+        assertEquals("an empty item joined from below goes",
+            at(1, 0) to at(2, 0), P.deletionRange(listOf("1. one", "2. ", "3. three"), at(1, 3), at(2, 0)))
+        assertNull("no list, nothing to decide",
+            P.deletionRange(listOf("plain words", "more words"), at(0, 2), at(1, 2)))
+    }
+
     // ---- lines and styles through edits ----
 
     @Test

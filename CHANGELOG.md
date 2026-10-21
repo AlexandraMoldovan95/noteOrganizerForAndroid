@@ -39,6 +39,28 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A numbered list stays numbered when you delete across it** — the
+  desktop's fix, ported with its rules. Items selected and deleted left
+  the numbers after them as they were ("1. one / 4. four"); two items
+  joined from either side kept the second one's number among the words
+  ("2. two3. three"); typing or pasting over whole items glued the next
+  item's number onto what went in ("x4. four"). Now the list renumbers at
+  once, a joined item's number goes, and what is typed or pasted over
+  whole items takes their place while the next item keeps its own.
+  Enter over a selection stands as before.
+
+### Testing
+
+- 675 JVM unit tests in 29 suites, from 665: `ParagraphsTest` holds
+  `deletionRange` to the desktop's `list_deletion_range` and walks each
+  keyboard route through `afterTyping` (styles and depths carried along);
+  `PastingTest` a paste over whole items; `EditorTypingTest` the editor
+  itself. Seven mutants watched failing, one of them Enter over a
+  selection, which must stand as typed. `tools/emulator/walk.py` passed
+  all 258 with every keystroke now passing through it.
+
 ---
 
 ## [0.10.0] — 2026-10-21 — The privacy policy

@@ -47,6 +47,18 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `items deleted or typed over in the editor are renumbered, no marker among the words`() {
+        // What the keyboard leaves: items 2 and 3 selected and deleted, then
+        // a letter typed over them -- the editor gives back the list mended.
+        val model = editor("1. one\\n2. two\\n3. three\\n4. four")
+        model.type("1. one\n4. four", 7)
+        assertEquals("1. one\n2. four", model.body)
+        val again = editor("1. one\\n2. two\\n3. three\\n4. four")
+        again.type("1. one\nx4. four", 8)
+        assertEquals("1. one\n2. x\n3. four", again.body)
+    }
+
+    @Test
     fun `a pending style is gone when the note is read again`() {
         val model = editor("Hello")
         model.pending = setOf("italic")
