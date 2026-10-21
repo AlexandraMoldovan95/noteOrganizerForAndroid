@@ -22,11 +22,11 @@ the surprises live.
 
 One Activity, no fragments, no navigation library: the whole app is
 Compose, and which screen you are looking at is a value in one state
-object, `AppState`. Below the screens sit twenty-five files of plain
+object, `AppState`. Below the screens sit twenty-six files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 656 tests run on a laptop in seconds,
+about Android. That split is why 665 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -46,50 +46,51 @@ here.
 
 ## The map
 
-About 20,500 lines of Kotlin. The rules are 11,700 of them, in files that
-import nothing from Android; the drawing is 8,900, in files that may.
+About 20,750 lines of Kotlin. The rules are 11,700 of them, in files that
+import nothing from Android; the drawing is 9,000, in files that may.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
-| `Notebook.kt` | 1,850 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
-| `Pasting.kt` | 1,530 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
-| `Recurrence.kt` | 810 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
-| `Organizing.kt` | 720 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
+| `Notebook.kt` | 1,940 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Pasting.kt` | 1,580 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
+| `Recurrence.kt` | 830 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
+| `Organizing.kt` | 770 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 950 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 530 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
-| `Days.kt` | 460 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
+| `Importing.kt` | 580 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Days.kt` | 490 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
-| `Paragraphs.kt` | 390 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
+| `Paragraphs.kt` | 460 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
 | `Themes.kt` | 350 | The eight themes, the palettes, and the contrast rules that pick legible words | `themes.py` |
-| `Normalize.kt` | 280 | The parts of `normalize_note` a writer needs, `_dup_key`, `content_signature` | `model.py` |
+| `Normalize.kt` | 350 | The parts of `normalize_note` a writer needs, `_dup_key`, `content_signature` | `model.py` |
 | `Backup.kt` | 270 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
-| `Styling.kt` | 270 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
-| `Settings.kt` | 240 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
+| `Styling.kt` | 360 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
+| `Settings.kt` | 300 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 200 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
 | `Editing.kt` | 300 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
-| `Sharing.kt` | 190 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
+| `Sharing.kt` | 220 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
 | `Finding.kt` | 110 | Find in note: matches in prose and cells, the count, stepping | the find bar |
-| `Welcome.kt` | 95 | The welcome note a new notebook opens on | `welcome.py` |
+| `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
 | `Files.kt` | 95 | The atomic write, and keeping a broken file aside | `storage.py` |
-| `Startup.kt` | 90 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
+| `Startup.kt` | 110 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 90 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
-| `PyText.kt` | 40 | Python's idea of a space, for the ports that strip and split as it does | `str.isspace` |
+| `PyText.kt` | 55 | Python's idea of a space, for the ports that strip and split as it does | `str.isspace` |
+| `Links.kt` | 20 | The pages the app opens in the browser: the privacy policy, and its Google Play page once the app is there | `core/diagnostics.py`'s addresses |
 
 **The drawing** — turns rules into pixels, checked on the emulator:
 
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 2,820 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 780 | Settings and its nine pages, Duplicates among them |
+| `SettingsScreens.kt` | 830 | Settings and its nine pages, Duplicates among them |
 | `CalendarScreen.kt` | 570 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 550 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
-| `AppState.kt` | 510 | The app's state, and every action a screen can take on the notebook |
-| `MainActivity.kt` | 470 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
-| `TemplateScreens.kt` | 440 | Choosing and saving a template, Settings → Templates, the template editor |
+| `AppState.kt` | 590 | The app's state, and every action a screen can take on the notebook |
+| `MainActivity.kt` | 510 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
+| `TemplateScreens.kt` | 480 | Choosing and saving a template, Settings → Templates, the template editor |
 | `ImportFlow.kt` | 290 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
 | `RepeatSheet.kt` | 250 | The Repeat sheet |
@@ -99,15 +100,16 @@ import nothing from Android; the drawing is 8,900, in files that may.
 | `PdfPrint.kt` | 280 | The export's page printed to an A4 PDF by the system's WebView: drawn page by page on the main thread, the file written off it |
 | `ShareFlow.kt` | 180 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |
 | `ExportFlow.kt` | 155 | Export as file through Android's "save as" |
-| `RichText.kt` | 110 | A note plus its spans, turned into an `AnnotatedString` |
-| `ui/theme/` | 160 | A palette as Compose colours, and Material 3 mapped onto it |
+| `RichText.kt` | 140 | A note plus its spans, turned into an `AnnotatedString` |
+| `ui/theme/` | 280 | A palette as Compose colours, Material 3 mapped onto it, and `ThemeVeil`, the picture a change of theme dissolves under |
 
 The tests mirror the rules, a suite for each file of them; the suites
 and their counts are listed in [qa/README](../qa/README.md#the-unit-tests).
-Three hold drawing-side classes: `AppStateTest`, the order of the saves
+Four hold drawing-side classes: `AppStateTest`, the order of the saves
 around the open note, which no emulator tap can time
 ([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)), and
-`EditorCopyTest` and `EditorTableTest`, the editor's model.
+`EditorCopyTest`, `EditorTableTest` and `EditorTypingTest`, the editor's
+model.
 
 ## Decision: a note has two representations, on purpose
 
@@ -162,13 +164,13 @@ Two traps live here, and both have drawn blood:
 
 ## Decision: the rules layer knows nothing about Android
 
-The twenty-four files in the first table contain **zero** `import android`
+The twenty-six files in the first table contain **zero** `import android`
 and **zero** `import androidx`. This is not a coincidence to be preserved
 by good intentions; it is the same rule the desktop keeps between its
 `core/` layer and tkinter, and it buys two things:
 
 - the tests for those files run on the JVM, with no device and no
-  emulator — which is why there are 572 of them and why running them
+  emulator — which is why there are 665 of them and why running them
   costs seconds;
 - the rules can be read, and compared against the Python they were ported
   from, without Compose in the way.
@@ -268,7 +270,7 @@ It returns one line worth saying at the top of the list, or nothing.
 The doors out are all the system's, so the app needs no permission at
 all: the file picker (`CreateDocument` / `OpenDocument`) for a backup,
 the share sheet for a note or a code, an intent filter for text shared in,
-and a `FileProvider` that grants one attached file, or the PDF or page
+the browser, opened on the privacy policy's page, and a `FileProvider` that grants one attached file, or the PDF or page
 being shared, to the app that opens it, for as long as it is open. The
 share sheet lists the apps itself, so the app declares no `<queries>`
 and never looks at what is installed. A backup is written and read on
@@ -395,7 +397,7 @@ Named here so nobody has to discover them by surprise:
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.
-- **`Notebook.kt` is 1,850 lines, `NoteEditor.kt` 2,720.** The first is
+- **`Notebook.kt` is 1,940 lines, `NoteEditor.kt` 2,820.** The first is
   the note model and every write to a note; the seam to split on is the
   day a group of writes needs state the others do not — not before, and
   not by line count. The second holds the editor's model, its clipboard

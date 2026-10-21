@@ -39,12 +39,17 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.10.0] — 2026-10-21 — The privacy policy
+
 ### Added
 
 - **The privacy policy, from Settings → About** — Google Play asks for it
   to be reachable inside the app as well as on the store page. Privacy
   policy → Read opens it, on Google Sites: the same page as the
-  desktop's, covering both apps.
+  desktop's, covering both apps. Its line says the policy tells what
+  leaves the phone, and when.
 
 ### Removed
 
@@ -74,21 +79,28 @@ do before, not as releases anyone ran.
 - **About says the app is free software under the MIT license, provided
   as is** — where someone who installed it from Google Play, and never
   sees the license file, will read it. The line about the notes' backup
-  follows it, as before. Its privacy line says the policy tells what
-  leaves the phone, and when: "only when you send it" was untrue with
-  Android's own backup on.
+  follows it, as before.
+- **The WebView a note is printed to PDF with sends Google no usage
+  statistics.** Android's WebView may send them when the person has
+  allowed them for the phone; the app opts its own out in the manifest,
+  so what the privacy policy says — the app sends nothing — holds for it
+  too.
 
 ### Testing
 
-- 664 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
-  policy's address to the desktop's and keeps the store page unset until
-  publishing. `tools/emulator/walk.py`: 258 checks in 36 parts, from 256 —
-  it reads the as-is line on About, finds no Feedback section there before
-  the app is on Google Play, and taps Privacy policy → Read to find a
-  browser in front. Its first three parts pass, but for the dissolve's
-  check on an emulator started a moment before — the third cold emulator
-  to decide it, a 20 and then a 30 second wait notwithstanding; walked
-  again warm, it passes. The check, not the app, is what needs mending.
+- 665 JVM unit tests in 29 suites, from 660: `LinksTest` holds the
+  policy's address to the desktop's, keeps the store page unset until
+  publishing, and reads the WebView's opt-out from the manifest.
+- `tools/emulator/walk.py`: 258 checks in 36 parts, from 256 — it reads
+  the as-is line on About, finds no Feedback section there before the app
+  is on Google Play, and taps Privacy policy → Read to find a browser in
+  front. On 0.10.0 it passed all 258, on an emulator given a minute and a
+  half to settle; on one started a moment before, the dissolve's check
+  had failed three times, and the check, not the app, still needs
+  mending. The list-keeps-its-place part now scrolls until the top card
+  is seen before it searches: two blind flings stopped anywhere from
+  Card 14 to Card 16, and a third of the runs then lost "Card 15" above
+  the screen.
 - `OrganizingTest`: the welcome note gives privacy a section of its own,
   under its own heading, which says the app collects nothing and points
   to the privacy policy; no icon in it carries the emoji variation

@@ -1016,9 +1016,16 @@ def list_keeps_place(folder):
           after[:1] == before[:1] and target in after, "before %s, after %s" % (before[:3], after[:3]))
     shot(folder, "31-list-kept-its-place", target)
 
-    adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
-    adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
-    time.sleep(0.8)
+    # To the top, and seen to be there. Two blind flings stopped anywhere
+    # from Card 14 to Card 16, the search's results then kept the card the
+    # list had stopped on at their top, and "Card 15" was above the screen
+    # in one walk of three (2026-10-21) -- as the desktop keeps its place
+    # through a search too. The setup, not the app, was what varied.
+    for _ in range(6):
+        if "Card 30" in cards():
+            break
+        adb("shell", "input", "swipe", "540", "700", "540", "2100", "200")
+        time.sleep(0.8)
     tap("Search notes", wait=0.8)
     type_text("Card 1")
     keyboard_down()
@@ -1092,8 +1099,9 @@ def large_letters_table(folder):
 
 
 def changes(folder):
-    """The phone changing under an OPEN note: going dark (followed, by
-    default), larger letters, turned on its side. Each is a configuration
+    """The phone changing under an OPEN note: going dark (the app no longer
+    follows it, but still receives it), larger letters, turned on its side.
+    Each is a configuration
     change, and each used to rebuild the Activity and drop the person back
     on the list. These were photographs of the LIST once, which is why
     they never noticed."""

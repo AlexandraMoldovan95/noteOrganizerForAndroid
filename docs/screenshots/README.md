@@ -66,5 +66,5 @@ The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
 month's notes in it would be an empty grid.
 
-**Current set:** captured 2026-10-16 on the emulator, in English, for
-Phase 2. Update this line whenever the set is recaptured.
+**Current set:** captured 2026-10-20 on the emulator, in English, for
+0.9.1's Light | Dark switch. Update this line whenever the set is recaptured.

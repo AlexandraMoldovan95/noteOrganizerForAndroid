@@ -12,7 +12,7 @@ desktop's is. No sync: notes move by share code or backup, and an
 arriving copy never overwrites a note without the person choosing.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
-Python and Tkinter, fully offline, at version `0.95.391`. It lives at
+Python and Tkinter, fully offline, at version `0.96.392`. It lives at
 `D:\Projects\NoteOrganizer` and has **its own `CLAUDE.md` with its own
 rules**. Read that file before touching anything there.
 
@@ -44,7 +44,7 @@ interface, and any Android version rewrites the interface whatever the
 technology. What is portable is the rules: recurrence, rich text,
 tables, the note model, share codes, backups, themes. The rest of
 `core/` — filesystem paths, the single-instance lock, the clipboard — is
-desktop too. Here the rules are fourteen Kotlin files with no Android in
+desktop too. Here the rules are twenty-six Kotlin files with no Android in
 them ([the map](docs/ARCHITECTURE.md#the-map)).
 
 **The Python is the specification.** When a rule is re-implemented here,
