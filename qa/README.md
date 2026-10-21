@@ -295,11 +295,15 @@ and decoded **in the desktop's own Python**.
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than
-the desktop's because the two projects are deliberately separate.
+the desktop's because the two projects are deliberately separate. Since
+2026-10-20 it has the desktop plan's shape — its sixteen columns, a
+Summary that counts itself, and a **Merged cases** sheet where a case
+folded into another, or written for what the app no longer does (Follow
+the phone), is kept with the reason.
 
-Its **"Who runs it"** column is the point. 94 rows are already walked by
-unit tests, 100 are driven on the emulator, and 70 need a person with a
-real phone in their hand — the three add up to more than 149 because a row
+Its **"Automation status (Claude)"** column is the point. 98 rows are
+already walked by unit tests, 100 are driven on the emulator, and 70 need a
+person with a real phone in their hand — the three add up to more than 149 because a row
 can carry two or three, and the honest ones do: a rule proved on the JVM
 whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a
@@ -309,8 +313,10 @@ like a trap.
 
 A row whose behaviour changed keeps its number and says so: cases 11 and
 19 were rewritten on 2026-10-15, when the phone took the desktop's answer
-to a broken file and started emptying its own Trash, and cases 106 and
-107 on 2026-10-19, when "Send by email" became Share. Phase 2's cases are
+to a broken file and started emptying its own Trash, cases 106 and
+107 on 2026-10-19, when "Send by email" became Share, and case 55 on
+2026-10-21, when Send feedback left and About opened the privacy policy
+instead. Phase 2's cases are
 58 to 85; two of them carry a question only a person can answer about
 the desktop's side of a trip — a day or a template made on the phone, as
 the desktop shows it. Phase 3's are 86 to 100, and three of its rows
@@ -319,4 +325,8 @@ mail app makes of a paste, a keyboard's Ctrl+Z, and the selection menu's
 own buttons, which the walk can photograph but not press.
 
 Nothing is ever deleted from the plan. A case that gets automated keeps
-its row and gains a note saying so.
+its row and gains a note saying so; one folded into another, or about a
+feature that is gone, moves to Merged cases with the case that took its
+place. Rows only scripts reach are filled in as Pass by them, with the
+build and the date of the last run; a row that needs a person stays Not
+Tested until she runs it, whatever the scripts already cover.
