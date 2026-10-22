@@ -103,6 +103,7 @@ Grouped by what the app does; when each item arrived is in the
 7. Search by the desktop's own rule — title, body and comments, a
    table's plumbing stripped — with diacritics folded
    ([the one difference](#where-it-differs-from-the-desktop-on-purpose)).
+   A new search shows its results from the top, as on the desktop.
 8. **The desktop's whole Sort and Show**, remembered under its own setting
    keys: updated, title, category, Calendar: soonest and oldest, and
    Custom order; and Show by category, 🔁 Repeating, 📅 Dated or 📎 With
