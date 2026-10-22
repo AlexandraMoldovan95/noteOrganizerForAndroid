@@ -39,6 +39,10 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.10.1] — 2026-10-22 — Numbered lists, and a search from the top
+
 ### Fixed
 
 - **A numbered list stays numbered when you delete across it** — the
