@@ -440,19 +440,105 @@ object Paragraphs {
         if (oneMore(b, a, caret)) {
             val n = lineAt(caret)
             val parsed = parseListMarker(oldLines[n])
-            if (parsed.kind == null || caret != starts[n] + cpLength(parsed.marker) - 1) return null
-            // The deletion is taken back: the marker goes, or the item climbs.
-            val lines = oldLines.toMutableList()
-            val edits = ArrayList<Edit>()
-            val indent = props[n]?.indent ?: 0
-            if (indent > 0) {
-                val next = setIndent(lines, starts, props, n, indent - 1, edits)
-                return finish(Result(lines.joinToString("\n"), next, edits)) to caret + 1
+            if (parsed.kind != null && caret == starts[n] + cpLength(parsed.marker) - 1) {
+                // The deletion is taken back: the marker goes, or the item climbs.
+                val lines = oldLines.toMutableList()
+                val edits = ArrayList<Edit>()
+                val indent = props[n]?.indent ?: 0
+                if (indent > 0) {
+                    val next = setIndent(lines, starts, props, n, indent - 1, edits)
+                    return finish(Result(lines.joinToString("\n"), next, edits)) to caret + 1
+                }
+                edits.add(Edit(starts[n], cpLength(parsed.marker), 0))
+                lines[n] = parsed.rest
+                return finish(Result(lines.joinToString("\n"), props, edits)) to caret + 1
             }
-            edits.add(Edit(starts[n], cpLength(parsed.marker), 0))
-            lines[n] = parsed.rest
-            return finish(Result(lines.joinToString("\n"), props, edits)) to caret + 1
         }
-        return null
+        return listEdit(a, b, oldLines, starts, props, caret)
+    }
+
+    /** A place in a body: a line, and a column in code points. */
+    data class Pos(val line: Int, val column: Int)
+
+    /**
+     * `list_deletion_range`: where a deletion should fall when it reaches a
+     * list, or null when it reaches none. A marker is characters, and the
+     * keyboard's own deletes saw only characters: two lines joined kept the
+     * second one's marker among the words ("2. two3. three"), typing over
+     * whole items swallowed the next item's ("x4. four"), and nothing
+     * renumbered. Word's answer, where a marker is no character at all: two
+     * lines joined keep the first one's marker and lose the second's --
+     * unless nothing of the first line is kept, when the second takes its
+     * place; typing over a selection that ends at an item's start keeps
+     * that item; a deletion from just after a marker keeps it, one into a
+     * marker takes all of it, and one from a line's very start takes the
+     * marker it chose. [start] and [end] are what the key would delete;
+     * [typing]: the selection is being typed over.
+     */
+    fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false): Pair<Pos, Pos>? {
+        val (l1, c1) = start
+        val (l2, c2) = end
+        val first = parseListMarker(lines[l1])
+        val m1 = cpLength(first.marker)
+        if (l1 == l2) {
+            // Within one line only its own marker can be reached.
+            if (first.kind == null || c1 >= m1) return null
+            return Pos(l1, 0) to Pos(l2, maxOf(c2, m1))
+        }
+        val last = parseListMarker(lines[l2])
+        val m2 = cpLength(last.marker)
+        if (first.kind == null && last.kind == null &&
+            (l1 + 1 until l2).none { parseListMarker(lines[it]).kind != null }) return null
+        val keepsWords = c1 > (if (first.kind != null) m1 else 0)
+        if (last.kind != null && c2 <= m2) {
+            // The end is at the start of an item, before its words.
+            if (keepsWords) return start to Pos(l2, m2)
+            if (typing) return Pos(l1, if (first.kind != null) m1 else 0) to Pos(l2 - 1, cpLength(lines[l2 - 1]))
+            return Pos(l1, 0) to Pos(l2, 0)
+        }
+        // From just after (or inside) a marker into words: the item keeps it.
+        if (first.kind != null && c1 in 1..m1) return Pos(l1, m1) to end
+        return start to end
+    }
+
+    /**
+     * Anything else the keyboard took away where a list is -- a selection
+     * deleted or typed over, a line's break taken from either side, a paste
+     * over items -- done as [deletionRange] says, from the text before it,
+     * then renumbered: what was put in is read off the cursor, the text
+     * after it being the old text's after the edit. Enter over a selection
+     * stands as typed, as before.
+     */
+    private fun listEdit(a: IntArray, b: IntArray, oldLines: List<String>, starts: IntArray,
+                         props: Map<Int, Props>, caret: Int): Pair<Done, Int>? {
+        val end = caret + a.size - b.size          // in the old text
+        if (caret !in 0..b.size || end !in 0..a.size) return null
+        for (i in 0 until b.size - caret) if (b[caret + i] != a[end + i]) return null
+        var p = 0
+        while (p < minOf(caret, end) && a[p] == b[p]) p++
+        if (end <= p) return null                   // nothing taken away
+        val typed = String(b, p, caret - p)
+        if (typed == "\n") return null
+        fun pos(offset: Int): Pos {
+            var n = 0
+            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
+            return Pos(n, offset - starts[n])
+        }
+        val (from, to) = deletionRange(oldLines, pos(p), pos(end), typing = typed.isNotEmpty()) ?: return null
+        val at = starts[from.line] + from.column
+        val upto = starts[to.line] + to.column
+        val text = String(a, 0, at) + typed + String(a, upto, a.size - upto)
+        // The lines' properties: those above stay; the line the edit lands
+        // on keeps the first line's -- or the last line's, when that line
+        // took the first one's place whole -- and those below move up.
+        val landing = if (from.column == 0 && to.column == 0 && typed.isEmpty()) props[to.line] else props[from.line]
+        val added = typed.count { it == '\n' }
+        val moved = HashMap<Int, Props>()
+        for ((n, prop) in props) {
+            if (n < from.line) moved[n] = prop
+            else if (n > to.line) moved[n - (to.line - from.line) + added] = prop
+        }
+        if (landing != null && !landing.plain) moved[from.line] = landing
+        return finish(Result(text, moved, listOf(Edit(at, upto - at, cpLength(typed))))) to upto
     }
 }

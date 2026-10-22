@@ -114,6 +114,14 @@ class PastingTest {
     }
 
     @Test
+    fun `a paste over whole list items keeps the next item's number`() {
+        // "zz" over items 2 and 3 gave "zz4. four": the next marker among the words.
+        val done = Pasting.insert("1. one\n2. two\n3. three\n4. four", emptyList(), emptyMap(), 7, 23, "zz")
+        assertEquals("1. one\n2. zz\n3. four", done.body)
+        assertEquals(12, done.caret)
+    }
+
+    @Test
     fun `bullets pasted as words take the depth their glyphs say`() {
         // The desktop's _paragraph_indent_of: "◦ " is one in, "▪ " two.
         val done = Pasting.insert("Start", emptyList(), emptyMap(), 5, 5, "\n• a\n◦ b\n▪ c")

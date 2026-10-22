@@ -257,12 +257,19 @@ def hide_keyboard():
 
     It is asked whether it is showing rather than blindly sent a BACK:
     a BACK with no keyboard up leaves the screen we came to photograph.
+    And asked again until it says it has gone: the answer stays "showing"
+    for a moment after the BACK that hid it, over a second on an emulator
+    started that day, and a second BACK sent in that moment leaves the
+    screen just the same (the walk's keyboard_down, 2026-10-22).
     """
-    for _ in range(3):
+    for _ in range(2):
         if not keyboard_up():
             return
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
-        time.sleep(1)
+        for _ in range(15):
+            time.sleep(0.3)
+            if not keyboard_up():
+                return
 
 
 def act(step):

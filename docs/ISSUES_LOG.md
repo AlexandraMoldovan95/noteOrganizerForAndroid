@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fourteen of the forty-eight are
+**the code**, or in **the design**. Fifteen of the forty-nine are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-22](#a-check-that-held-by-one-frame) | checking | The walk's first run on an emulator just started lost its first typing and saw the dissolve cut; the fade had always held by about three captures, and on a busy emulator by one or none. Then a keyboard flag read too soon pressed Back off a table cell | A check whose margin is the machine's speed is not about the app: slow down what is watched, and wait for the machine the check was written on |
 | [2026-10-20](#a-flicker-a-sharper-cut-made-worse) | design | A theme change flickered; made a cleaner cut, it flickered more on the owner's phone; dissolved over 320 ms, "better now" | A change of the whole screen wants easing, and the eye is the verdict |
 | [2026-10-20](#letters-typed-beside-a-style-read-from-the-text-alone) | code | Letters typed after a styled word stayed plain and letters typed before it took its style — the desktop does the opposite at both edges | An edit worked out from the text alone cannot know where the caret was; typing knows, and should say so |
 | [2026-10-20](#a-trash-emptied-by-a-window-nobody-chose) | design | Settings that could not be read made the start purge the Trash at the default 30 days, whatever window the person had chosen | When the rule for deleting is not known, delete nothing — and remember that it is not known |
@@ -65,6 +66,55 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A check that held by one frame
+
+**2026-10-22.** The walk's first run on an emulator started a moment
+before (2026-10-21) failed its first part: its first typing never
+reached the editor, failing the checks after it in a chain, and the
+capture burst behind the dissolve went from the light theme to the dark
+one between two frames, which is what the check reads as no fade at all.
+Walked again once the emulator was warm, everything passed.
+
+Measured after a fresh start, the emulator's processor was fully busy
+until 68 seconds of uptime, quiet for twelve, busy again until 102, and
+quiet after that, at 1% once warm. `boot_completed` had said 1 at 30.
+And the dissolve's check never had much room: the fade lasts 320 ms and
+the emulator takes a capture every 100 to 130 ms, so a warm run caught
+about three shades between the two themes. Started a moment after a
+fresh start, the old check passed again with exactly one. It passed or
+failed by a single frame.
+
+Two changes, one for each failure. Before its first step, the walk now
+waits until the processor has been under a quarter busy for 30 seconds
+running, past twice the false lull. And the dissolve is watched with
+the system's animator duration scale at five, which Compose follows, put
+back afterwards. On an emulator just started, without that wait, the
+burst now holds twelve shades between 242 and 35. A build with the fade
+cut at once still goes from 242 to 35 in one frame, and fails. The lost
+typing did not come back to be watched; the wait is there for it, the
+first part being the one that had run on a busy machine.
+
+The first full walk with both, begun on an emulator just started, then
+lost two checks in its nineteenth part: a table cell chosen, the
+keyboard put down, and the table's bar gone. The part puts the keyboard
+down twice, once inside `choose_cell` and once after it, and
+`keyboard_down` asks the system whether the keyboard is up. The answer
+stays "up" for over a second after the Back that hid it on an emulator
+started that day; read in that second, it pressed Back again, off the
+cell. Four runs in four failed there, the old walk's too, where it had
+passed all day on an emulator two hours old. `keyboard_down` now
+returns only once the answer says the keyboard has gone, and the part
+passed four in four on the same emulator. `take_screenshots.py` asked
+the same question a second after its BACK and could send a second one
+the same way; it waits for the answer too. It does not wait for a
+settled emulator: a shot whose screen does not say its words is
+refused, so a busy emulator costs it a retake, never a wrong picture.
+
+**The class:** a check whose margin is the machine's speed passes on a
+fast day and fails on a slow one, and neither verdict is about the app.
+Slow down what is watched rather than hurrying the watcher, and wait for
+the machine the check was written on.
 
 ## A flicker a sharper cut made worse
 

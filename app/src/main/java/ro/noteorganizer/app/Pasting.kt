@@ -183,8 +183,24 @@ object Pasting {
                text: String, pastedSpans: List<FormatSpan> = emptyList(),
                pastedLines: List<Exporting.Paragraph> = emptyList()): Inserted {
         val c = cps(body)
-        val a = from.coerceIn(0, c.size)
-        val b = to.coerceIn(a, c.size)
+        var a = from.coerceIn(0, c.size)
+        var b = to.coerceIn(a, c.size)
+        // Over a selection that reaches a list, the paste takes the place
+        // typing over it would (Paragraphs.deletionRange): the next item keeps
+        // its number, and no marker is left among the words -- "zz" over items
+        // 2 and 3 gave "zz4. four".
+        if (b > a && text.isNotEmpty()) {
+            val starts = ArrayList<Int>().apply { add(0) }
+            for (i in c.indices) if (c[i] == '\n'.code) starts.add(i + 1)
+            fun pos(x: Int): Paragraphs.Pos {
+                val n = starts.indexOfLast { it <= x }
+                return Paragraphs.Pos(n, x - starts[n])
+            }
+            Paragraphs.deletionRange(body.split("\n"), pos(a), pos(b), typing = true)?.let { (s, e) ->
+                a = starts[s.line] + s.column
+                b = starts[e.line] + e.column
+            }
+        }
         val firstLine = (0 until a).count { c[it] == '\n'.code }
         val lastLine = firstLine + (a until b).count { c[it] == '\n'.code }
         val kept = c.copyOfRange(0, a) + c.copyOfRange(b, c.size)

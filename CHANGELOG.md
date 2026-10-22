@@ -39,6 +39,53 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A numbered list stays numbered when you delete across it** — the
+  desktop's fix, ported with its rules. Items selected and deleted left
+  the numbers after them as they were ("1. one / 4. four"); two items
+  joined from either side kept the second one's number among the words
+  ("2. two3. three"); typing or pasting over whole items glued the next
+  item's number onto what went in ("x4. four"). Now the list renumbers at
+  once, a joined item's number goes, and what is typed or pasted over
+  whole items takes their place while the next item keeps its own.
+  Enter over a selection stands as before.
+
+### Changed
+
+- **A new search shows its results from the top** — the owner's call,
+  on both apps. With the list scrolled down, a search typed kept the
+  list where it was, and its first matches could sit above the screen.
+  Each new search, and clearing one, now starts at the top; Back from a
+  note, the search is the one the list was drawn for, and it keeps its
+  place.
+
+### Testing
+
+- 675 JVM unit tests in 29 suites, from 665: `ParagraphsTest` holds
+  `deletionRange` to the desktop's `list_deletion_range` and walks each
+  keyboard route through `afterTyping` (styles and depths carried along);
+  `PastingTest` a paste over whole items; `EditorTypingTest` the editor
+  itself. Seven mutants watched failing, one of them Enter over a
+  selection, which must stand as typed. `tools/emulator/walk.py` passed
+  all 258 with every keystroke now passing through it.
+- `tools/emulator/walk.py`: 259 checks, from 258 — a search typed with
+  the list scrolled down shows Card 19, its first result, at the top;
+  the build before it failed that check on every run, at Card 14. The
+  part no longer scrolls up before it searches, which is what the new
+  check is for.
+- `tools/emulator/walk.py` waits for an emulator just started to settle
+  (its processor under a quarter busy for 30 seconds running), and
+  watches the theme's dissolve with the animations five times slower,
+  then puts them back. The fade had held by about three captures when
+  warm and by one or none on an emulator just started; slowed, it holds
+  twelve even there, and a build that cuts at once still fails. And
+  `keyboard_down` returns only once the system says the keyboard has
+  gone: on an emulator started that day the answer stayed "up" for over
+  a second after the Back, and a second call pressed Back off a table
+  cell, four runs in four; `take_screenshots.py` waits the same way.
+  ([The story](docs/ISSUES_LOG.md#a-check-that-held-by-one-frame).)
+
 ---
 
 ## [0.10.0] — 2026-10-21 — The privacy policy
