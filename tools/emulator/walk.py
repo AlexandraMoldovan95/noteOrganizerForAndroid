@@ -16,6 +16,7 @@ folder given.
 Needs: a running emulator, and the debug APK built
 (gradlew assembleDebug). Exit code 1 when any step's check fails.
 """
+import contextlib
 import io
 import json
 import os
@@ -46,13 +47,41 @@ def adb(*args, binary=False, check=False):
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
 
 
-def wait_for_boot(limit=300):
+def busy_share(seconds=3.0):
+    """How much of the emulator's processor was at work over [seconds], 0 to
+    1, from the counters in /proc/stat (idle and waiting count as rest)."""
+    def counters():
+        values = [int(v) for v in adb("shell", "head", "-1", "/proc/stat").split()[1:]]
+        return sum(values), values[3] + values[4]
+    total, rest = counters()
+    time.sleep(seconds)
+    total_after, rest_after = counters()
+    spent = total_after - total
+    return 1.0 - (rest_after - rest) / spent if spent > 0 else 0.0
+
+
+def wait_for_boot(limit=300, quiet_for=30.0):
+    """Until the emulator has started AND settled. boot_completed comes long
+    before the work a start sets going is done: measured, the processor was
+    busy to 68 s of uptime, quiet for 12, busy again to 102 -- and a walk
+    begun a moment after a start lost its first typing, which never reached
+    the editor, and saw the dissolve jump from light to dark between two
+    captures (2026-10-21). Settled is under a quarter busy for [quiet_for]
+    seconds running, past twice that lull; warm, it idles at 1%."""
     start = time.time()
-    while time.time() - start < limit:
-        if adb("shell", "getprop", "sys.boot_completed").strip() == "1":
-            return True
+    while adb("shell", "getprop", "sys.boot_completed").strip() != "1":
+        if time.time() - start > limit:
+            return False
         time.sleep(3)
-    return False
+    quiet_since = time.time()
+    while time.time() - quiet_since < quiet_for:
+        if time.time() - start > limit:
+            print("   the emulator was still busy after %d s: walking anyway" % limit)
+            return True
+        if busy_share() >= 0.25:
+            quiet_since = time.time()
+    print("   the emulator settled %.0f s after the walk began waiting" % (time.time() - start))
+    return True
 
 
 def nodes():
@@ -151,15 +180,26 @@ def back(wait=1.0):
     time.sleep(wait)
 
 
+def keyboard_shown():
+    return "mInputShown=true" in adb("shell", "dumpsys", "input_method")
+
+
 def keyboard_down(patience=4.0):
     """Back to put the keyboard down -- once it is up, and only then. It
     rises half a second after a field takes the cursor, later on a busy
     emulator; a Back pressed before it rose closed what was open instead
-    (a cell's sheet, once in a full run, and every step after it failed)."""
+    (a cell's sheet, once in a full run, and every step after it failed).
+    And it is down when the system says so: the flag stays up for a moment
+    after the Back, over a second on an emulator started that day, and a
+    second keyboard_down read in that moment pressed Back again -- off the
+    cell, the table's bar gone with it (2026-10-22)."""
     deadline = time.time() + patience
     while time.time() < deadline:
-        if "mInputShown=true" in adb("shell", "dumpsys", "input_method"):
+        if keyboard_shown():
             back(wait=0.8)
+            gone_by = time.time() + patience
+            while keyboard_shown() and time.time() < gone_by:
+                time.sleep(0.3)
             return True
         time.sleep(0.3)
     return False
@@ -280,6 +320,23 @@ def shades_while_tapping(label, frames=10):
         shades.append(round(sum(seen) / len(seen)))
     adb("shell", "rm", "-f", "/data/local/tmp/shades.sh", "/data/local/tmp/shade_*.raw")
     return shades
+
+
+@contextlib.contextmanager
+def animations_slowed(times):
+    """The system's animator duration scale at [times] for the steps inside,
+    then back to what it was -- an emulator setting, which Compose's
+    animations follow. A fade can then be watched by captures that come
+    slower than it runs; a cut stays a cut at any speed."""
+    was = adb("shell", "settings", "get", "global", "animator_duration_scale").strip()
+    adb("shell", "settings", "put", "global", "animator_duration_scale", str(times))
+    try:
+        yield
+    finally:
+        if was in ("", "null"):
+            adb("shell", "settings", "delete", "global", "animator_duration_scale")
+        else:
+            adb("shell", "settings", "put", "global", "animator_duration_scale", was)
 
 
 def read_file(name):
@@ -446,7 +503,10 @@ def brand_new(folder):
     # The change dissolves: captured as fast as the emulator can while Dark
     # is tapped, the page passes through a shade between the light one and
     # the dark one. Cut in one frame, as it was, no capture can hold one.
-    shades = shades_while_tapping("Dark")
+    # Watched at five times its length: 320 ms held about three captures
+    # on a warm emulator and none on one just started.
+    with animations_slowed(5):
+        shades = shades_while_tapping("Dark", frames=24)
     between = [s for s in shades[1:-1] if shades[0] - 40 > s > shades[-1] + 40]
     check("Light to Dark dissolves: the page passes through shades between the two",
           len(shades) >= 4 and bool(between), "page shades %s" % shades)

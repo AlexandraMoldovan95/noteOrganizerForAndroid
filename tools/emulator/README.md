@@ -21,7 +21,7 @@ pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
 
 | Tool | What it does | Why it exists |
 |---|---|---|
-| `walk.py <folder>` | installs the debug build, starts from nothing (`pm clear`) and walks the app the way a person would — 259 checks in 36 parts, upright and on its side and at larger letters, with a keyboard's copy and paste keys where the selection menu cannot be pressed — reading the notebook the app wrote through `run-as` after each step, and photographing the screens. One part can be run on its own by importing `walk` and calling it | a suite proves the code does what it says; this proves the built app does it on a phone, on the screen **and** in the file. What it checks: [qa/README.md](../../qa/README.md#the-emulator-walk) |
+| `walk.py <folder>` | waits for an emulator just started to settle — it is busy for a minute and more after it says it has started ([why](../../docs/ISSUES_LOG.md#a-check-that-held-by-one-frame)) — installs the debug build, starts from nothing (`pm clear`) and walks the app the way a person would — 259 checks in 36 parts, upright and on its side and at larger letters, with a keyboard's copy and paste keys where the selection menu cannot be pressed — reading the notebook the app wrote through `run-as` after each step, and photographing the screens. One part can be run on its own by importing `walk` and calling it | a suite proves the code does what it says; this proves the built app does it on a phone, on the screen **and** in the file. What it checks: [qa/README.md](../../qa/README.md#the-emulator-walk) |
 | `emulator_only.py` | the one door every script here sends adb through: it picks the running emulator, honours `ANDROID_SERIAL` only when that names an emulator, and refuses a real phone outright (an emulator says `ro.kernel.qemu` or `ro.boot.qemu` is 1; a phone says 0 or nothing) | these scripts clear the app's data, write notebooks into it and install builds with mutations in them; with a person's own phone plugged in beside the emulator, a script that picked "the device" could do all of that to their notes |
 | `tap_by_text.py "Some label"` | dumps the live UI tree, finds the node whose text contains the label, taps its centre | tapping remembered coordinates lands on whatever moved into that spot; the dump is taken FRESH every time |
 | `take_screenshots.py` | writes a notebook made for the camera straight into the app's own storage, walks eight screens — one of them on its side — and photographs each one | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen — and those that must be gone — before the shutter opens; a screen that does not say them is not photographed |
@@ -56,7 +56,7 @@ for the whole script.
 screencap -p > shot.png` corrupts the file, because `>` is a text
 pipeline. Use `adb shell screencap -p /sdcard/shot.png` and pull it.
 
-## Three things the UI dump does not say, and one the keyboard does
+## Three things the UI dump does not say, and two the keyboard does
 
 **A node scrolled out of sight is still in the tree.** Only its box, cut
 to what shows, says it is hidden — a title scrolled above its pane was
@@ -74,6 +74,12 @@ And one thing the keyboard does to what is typed: in a field that
 capitalises sentences, `input text` sometimes arrives with a capital at
 the start and sometimes not, run to run. Start such text with its
 capital already, or compare in lower case.
+
+And one thing it says late: `mInputShown` in `dumpsys input_method`
+stays true for a moment after Back has put the keyboard down, over a
+second on an emulator started that day. Ask until it says false before
+asking again, or the second Back leaves the screen
+([the story](../../docs/ISSUES_LOG.md#a-check-that-held-by-one-frame)).
 
 Each of these, and the other environment traps met on this machine, is
 told in full in [CLAUDE.md](../../CLAUDE.md).

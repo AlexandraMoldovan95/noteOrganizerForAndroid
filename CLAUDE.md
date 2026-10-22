@@ -259,6 +259,15 @@ and turn it off:
 The general lesson: when scripted input seems ignored, photograph the
 screen before debugging the code. The first look answered it.
 
+### An emulator just started is busy for a minute and more
+
+`sys.boot_completed` says 1 about 30 seconds after a start, and the
+processor stays fully busy until about 100, with a quiet gap in between
+that looks like the end. A walk begun then lost its first typing and
+read a 320 ms fade as a cut. `walk.wait_for_boot()` waits for 30 quiet
+seconds running; a script of its own should call it, or wait as long
+([the story](docs/ISSUES_LOG.md#a-check-that-held-by-one-frame)).
+
 ### The Windows console kills a script before it acts
 
 `py` writes to a cp1252 console here, so printing a `▦` or a `‹` raises

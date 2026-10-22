@@ -550,9 +550,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-36 parts, 259 checks. The last full run, after a new search began to
-show its results from the top (2026-10-22), passed all 259; the one
-before it, with deletes across a numbered list fixed, all 258. On 0.10.0
+36 parts, 259 checks. The last full run (2026-10-22) was begun the
+moment an emulator had started: the walk waited 93 seconds for it to
+settle, then passed all 259. The one before it, the same but for
+`keyboard_down`, lost two checks in the sheet part to a Back pressed off
+a table cell ([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)).
+Before them, after a new search began to show its results from the top,
+all 259; with deletes across a numbered list fixed, all 258. On 0.10.0
 (2026-10-21) all 258 passed on an emulator given a minute and a half to
 settle after it started. A run on the same build less the WebView's
 opt-out lost one: a search typed after two blind flings up the list, which
@@ -565,8 +569,9 @@ typing never reached the editor, so the first part failed in a chain —
 six of its checks — and the dissolve's shades jumped from light to dark
 between two frames. The first three parts, walked again on the same
 emulator once warm, passed every check, and the other 33 had passed in
-the full run; a cold emulator is something the walk does not wait for
-yet. The run before, after Appearance became one
+the full run. The walk now waits for a just-started emulator to settle,
+and watches the dissolve slowed fivefold
+([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). The run before, after Appearance became one
 Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before that,
 after the list learned to keep its place, all 253. Before them,
 the run after the desktop's old way was

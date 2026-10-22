@@ -74,6 +74,17 @@ do before, not as releases anyone ran.
   the build before it failed that check on every run, at Card 14. The
   part no longer scrolls up before it searches, which is what the new
   check is for.
+- `tools/emulator/walk.py` waits for an emulator just started to settle
+  (its processor under a quarter busy for 30 seconds running), and
+  watches the theme's dissolve with the animations five times slower,
+  then puts them back. The fade had held by about three captures when
+  warm and by one or none on an emulator just started; slowed, it holds
+  twelve even there, and a build that cuts at once still fails. And
+  `keyboard_down` returns only once the system says the keyboard has
+  gone: on an emulator started that day the answer stayed "up" for over
+  a second after the Back, and a second call pressed Back off a table
+  cell, four runs in four; `take_screenshots.py` waits the same way.
+  ([The story](docs/ISSUES_LOG.md#a-check-that-held-by-one-frame).)
 
 ---
 
