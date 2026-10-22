@@ -185,6 +185,13 @@ the same way; it waits for the answer too. It does not wait for a
 settled emulator: a shot whose screen does not say its words is
 refused, so a busy emulator costs it a retake, never a wrong picture.
 
+The same day, a part walked on its own failed three checks for one
+cause: the backup was never made. The walk tapped "Save a backup", waited
+three seconds, and looked once for the Save of the phone's own picker,
+another app, which on that run had not drawn it yet; nothing was pressed.
+The walk's three picker steps now wait for Save to be offered, up to
+fifteen seconds, and say so by name when it never is.
+
 **The class:** a check whose margin is the machine's speed passes on a
 fast day and fails on a slow one, and neither verdict is about the app.
 Slow down what is watched rather than hurrying the watcher, and wait for

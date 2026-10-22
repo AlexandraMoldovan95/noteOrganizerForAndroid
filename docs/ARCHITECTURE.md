@@ -26,7 +26,7 @@ object, `AppState`. Below the screens sit twenty-six files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 682 tests run on a laptop in seconds,
+about Android. That split is why 683 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -170,7 +170,7 @@ by good intentions; it is the same rule the desktop keeps between its
 `core/` layer and tkinter, and it buys two things:
 
 - the tests for those files run on the JVM, with no device and no
-  emulator — which is why there are 682 of them and why running them
+  emulator — which is why there are 683 of them and why running them
   costs seconds;
 - the rules can be read, and compared against the Python they were ported
   from, without Compose in the way.

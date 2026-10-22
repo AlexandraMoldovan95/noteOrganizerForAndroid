@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -92,6 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -2101,12 +2103,25 @@ private fun FormatKey(
  * each write at once, as the desktop's do; the handle ⠿ drags a row to
  * another place.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChecklistSection(state: AppState, model: EditorModel) {
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
     var adding by remember { mutableStateOf("") }
+    // The new row's box whole above the keyboard: the field brings only its
+    // line of words into view, and in a long note the box's lower half and
+    // Add stayed under the keys.
+    // Asked again at each height the keyboard passes through as it rises:
+    // asked once, when it began to, the screen had not shrunk yet and there
+    // was nothing to scroll.
+    val addRow = remember { BringIntoViewRequester() }
+    var addFocused by remember { mutableStateOf(false) }
+    val keyboardHeight = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(addFocused, keyboardHeight) {
+        if (addFocused && keyboardHeight > 0) addRow.bringIntoView()
+    }
     var open by remember(model.id) { mutableStateOf(items.isNotEmpty()) }
 
     fun ensureSaved(): Int? {
@@ -2187,7 +2202,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
         val id = ensureSaved() ?: return
         if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) adding = ""
     }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
         BasicTextField(
             value = adding,
             onValueChange = { adding = it },
@@ -2199,6 +2215,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             keyboardActions = KeyboardActions(onDone = { add() }),
             modifier = Modifier
                 .weight(1f)
+                .onFocusChanged { addFocused = it.isFocused }
                 .clip(RoundedCornerShape(8.dp))
                 .background(palette.card)
                 .padding(horizontal = 12.dp, vertical = 10.dp),

@@ -313,12 +313,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 682 JVM unit tests in 29 suites, mutation-tested; six ports held to
+39. 683 JVM unit tests in 29 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 269
+    where the shrunk code will look); and an emulator walk of 271
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -536,14 +536,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 269 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 271 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 682 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 683 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -551,10 +551,11 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-38 parts, 269 checks. The last full run (2026-10-22), with the two parts
-for what the owner's phone and an agent playing an ordinary user found,
-was begun on an emulator just started and alone on the computer: it
-waited 90 seconds, then passed all 269. A run before it, made while the
+38 parts, 271 checks. The last full run (2026-10-22), with the two parts
+for what the owner's phone and an agent playing an ordinary user found
+and the checklist's box above the keyboard, was begun on an emulator just
+started and alone on the computer: it waited 127 seconds, then passed
+all 271; the one before it, without that check, all 269. A run before them, made while the
 computer also built the app and ran the desktop's suite, failed a
 hundred checks, the emulator's own home screen hung under the load ("Pixel
 Launcher isn't responding") — the walk wants the machine to itself. The
@@ -728,7 +729,7 @@ The first test on a real phone added eight parts and grew seven:
 * **The editor's corners** (2026-10-22, found by an agent playing an
   ordinary user): a tap at the end of the last item over the empty line a
   list leaves, a tap on a marker, a letter after Undo, Enter in the title,
-  the checklist's ✓.
+  the checklist's ✓, and in a long note its box and Add above the keyboard.
 * Grown: Appearance's Dark | Light switch (light themes on a light phone,
   the dark ones a tap away, a dark pick saved as dark mode's); the size
   box saying "Default" then "20"; Autofit all columns, tapped from the
@@ -844,7 +845,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-682 JVM unit tests in 29 suites pin the rules ported from Python, and
+683 JVM unit tests in 29 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

@@ -435,10 +435,20 @@ class IdentityTest {
             [{"id": 7, "title": "t", "body": "",
               "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
         """.trimIndent())
+        assertFalse("the question does not promise to keep it", load.notes.single().previousKeeps)
         assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("a long text that was deleted by accident", note.getString("body"))
         assertFalse(note.has("_prev"))
+    }
+
+    @Test
+    fun `a note whose words a restore would replace says so, for the question to promise it`() {
+        val load = scratch("""
+            [{"id": 7, "title": "t", "body": "written since",
+              "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
+        """.trimIndent())
+        assertTrue(load.notes.single().previousKeeps)
     }
 
     @Test

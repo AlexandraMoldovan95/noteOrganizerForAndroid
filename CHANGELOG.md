@@ -68,7 +68,9 @@ do before, not as releases anyone ran.
   its depth, and in the middle of a list it left an empty line.
 - **The keyboard's ✓ in a checklist's "A new item…" adds the row**, as
   Add does, the keyboard left up for the next; it only closed the
-  keyboard. The desktop's Enter in its entry does the same.
+  keyboard. The desktop's Enter in its entry does the same. And in a long
+  note the box stands whole above the keyboard, with its Add: the field
+  brought only its line of words into view, the rest under the keys.
 - **Enter in the title goes on to the note's words**, and a line break
   pasted into the title becomes a space; it put a break in the title, which
   the list then cut at.
@@ -96,13 +98,20 @@ do before, not as releases anyone ran.
   failed all three, on every run, the way the owner's phone did. The other
   walks what the agent found: a tap at the end of the last item over the
   hidden empty line, a tap on a marker, a letter after Undo, Enter in the
-  title, the checklist's tick — all five failed on the build before.
-- 682 JVM unit tests, from 675: `ParagraphsTest` holds Enter with a
+  title, the checklist's tick — all five failed on the build before — and,
+  in a long note, the checklist's box and Add above the keyboard (a build
+  without the fix put Add 32 pixels under its top edge).
+- The walk waits for the phone's "save as" picker to offer Save, instead
+  of looking once after three seconds: a picker slower than that left a
+  backup unmade and three checks failed for one cause. All three of the
+  walk's picker steps, the backup, the Trash page's and the export.
+- 683 JVM unit tests, from 675: `ParagraphsTest` holds Enter with a
   corrected word — at the end of a list, on an indented item, in the
   middle of one, the styles after it moved; `IdentityTest` holds the copy
   spent by a save that puts its text back, kept by one that does not, the
-  replaced text kept by a restore, a second restore bringing it back, and
-  nothing kept over an emptied note. Four mutants watched failing.
+  replaced text kept by a restore, a second restore bringing it back,
+  nothing kept over an emptied note, and the question promising to keep
+  only what it will. Five mutants watched failing.
 - The agent itself, playing an ordinary user on the emulator and typing
   on Gboard's keys, is a new way of testing here
   ([the story](docs/ISSUES_LOG.md#what-a-persons-keyboard-found-that-the-walk-could-not)).

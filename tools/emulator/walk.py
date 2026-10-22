@@ -722,9 +722,9 @@ def seeded(folder):
     shot(folder, "16-trash", "Kept for", "days left")
     # A backup at hand on the Trash page: the phone's own "save as", which
     # offers Google Drive where Drive is signed in. Cancelled, nothing saved.
-    if tap("Save a backup — the Trash too", wait=3.0):
+    if tap("Save a backup — the Trash too", wait=1.0):
+        saving = picker_save_button() is not None
         picker = foreground()
-        saving = find("SAVE", exact=True) is not None or find("Save", exact=True) is not None
         check("the Trash page's backup opens the phone's own save as", picker != PACKAGE and saving,
               "%s, a Save button: %s" % (picker, saving))
         # Back, then the app waited for before another: the activity on top
@@ -765,12 +765,15 @@ def seeded(folder):
     earlier = backups()
     back_to("Your name")
     tap("Backup")
-    tap("Save a backup", exact=True, wait=3.0)
-    if find("SAVE") is not None or find("Save") is not None:
-        tap("SAVE", exact=True, wait=3.0) if find("SAVE") else tap("Save", exact=True, wait=3.0)
-    settings = read_file("settings.json") or {}
+    tap("Save a backup", exact=True, wait=1.0)
+    button = picker_save_button()
+    if button:
+        tap(button, exact=True, wait=1.0)
+    else:
+        fail("the phone's picker offered no Save")
+    settings = settle(lambda: read_file("settings.json") or {}, lambda s: bool(s.get("last_export_at")))
     check("an export through the picker is remembered as the last", bool(settings.get("last_export_at")))
-    made = sorted(backups() - earlier)
+    made = settle(lambda: sorted(backups() - earlier), lambda m: len(m) == 1)
     check("the backup is where the picker put it", len(made) == 1, str(made))
     mine = made[0] if len(made) == 1 else None
     if mine:
@@ -1389,12 +1392,15 @@ def exporting(folder):
         open_note("Trip: day 1/2")
         tap("⋮", exact=True)
         tap("💾 Export as file", wait=1.2)
-        tap(label, wait=3.0)
+        tap(label, wait=1.0)
+        button = picker_save_button()
         check("the picker offers the desktop's file name (%s)" % fmt, bool(find("Trip_ day 1_2" + ext)),
               " | ".join(t for t, d, _ in nodes() if t)[:200])
-        if find("SAVE") is not None or find("Save") is not None:
-            tap("SAVE", exact=True, wait=3.0) if find("SAVE") else tap("Save", exact=True, wait=3.0)
-        made = sorted(f for f in downloads() - earlier if f.endswith(ext))
+        if button:
+            tap(button, exact=True, wait=1.0)
+        else:
+            fail("the phone's picker offered no Save (%s)" % fmt)
+        made = settle(lambda: sorted(f for f in downloads() - earlier if f.endswith(ext)), lambda m: len(m) == 1)
         check("one %s file is where the picker put it" % fmt, len(made) == 1, str(made))
         check("the message says where it went", not screen_says("Exported to"))
         if fmt == "html":
@@ -2843,6 +2849,21 @@ def bounds(label):
     return out
 
 
+def picker_save_button(within=15.0):
+    """The phone's own "save as" picker's Save button, waited for. The
+    picker is another app, slower to come up than any fixed wait on a busy
+    emulator: looked for once, three seconds after the tap, a Save not
+    drawn yet was never pressed, no file was made, and three checks failed
+    for one cause (2026-10-22)."""
+    deadline = time.time() + within
+    while time.time() < deadline:
+        for label in ("SAVE", "Save"):
+            if find(label, exact=True) is not None:
+                return label
+        time.sleep(0.5)
+    return None
+
+
 def lines_of_field(words):
     """The note's text field holding [words]: its box and its lines. The tree
     gives the field as one node, its lines joined by the stand-in each break
@@ -2979,6 +3000,24 @@ def editor_corners(folder):
                   # Lower case: the field capitalises a row's first word as it likes.
                   lambda: [(i.get("text") or "").lower() for i in note().get("checklist") or []],
                   lambda c: c == ["bags"])
+    keyboard_down()
+    back_to("Search notes")
+    # A long note: the new row's box near the foot of the screen. The field
+    # brought only its line of words into view, and the box's lower half and
+    # Add stayed under the keyboard.
+    long_body = "\n".join("%d. item number %d" % (i, i) for i in range(1, 19))
+    if not seed_inside([{"id": 1, "uid": "walk-long", "title": "Long", "body": long_body,
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Long"):
+        return
+    if not open_note("Long"):
+        return
+    tap("+ Add a checklist", wait=1.0)
+    tap("A new item…", wait=2.5)
+    keyboard, add = bar_frame("ime"), bounds("Add")
+    check("in a long note the new row's box and its Add stand whole above the keyboard",
+          keyboard is not None and keyboard[0] > 0 and len(add) == 1 and add[0][3] <= keyboard[0],
+          "Add %s, the keyboard from %s" % (add, keyboard))
     keyboard_down()
     back_to("Search notes")
 
