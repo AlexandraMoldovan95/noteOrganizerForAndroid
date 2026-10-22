@@ -372,8 +372,34 @@ object Paragraphs {
      * Null when the edit is not one of these, and the text stays as typed.
      */
     fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
+        corrected(old, new, props, caret)?.let { return it }
         val (done, from) = typed(old, new, props, caret) ?: return null
         return done.copy(caret = done.movePoint(from))
+    }
+
+    /**
+     * Enter sent together with a word the keyboard corrected: Gboard's
+     * autocorrect makes "monday" "Monday" and breaks the line in one edit,
+     * which is not one break typed, so the list did not go on -- the new line
+     * came with no marker, and the item's depth was lost. The correction is
+     * made first, as plain typing, and then the Enter.
+     */
+    private fun corrected(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
+        val a = old.codePoints().toArray()
+        val b = new.codePoints().toArray()
+        if (caret < 1 || caret > b.size || b[caret - 1] != '\n'.code || oneMore(a, b, caret - 1)) return null
+        val m = b.copyOfRange(0, caret - 1) + b.copyOfRange(caret, b.size)
+        val mid = String(m, 0, m.size)
+        if (mid == old || mid.count { it == '\n' } != old.count { it == '\n' }) return null
+        // A correction that is itself a list edit is not a word corrected.
+        if (typed(old, mid, props, caret - 1) != null) return null
+        val enter = afterTyping(mid, new, props, caret) ?: return null
+        var head = 0
+        while (head < a.size && head < m.size && a[head] == m[head]) head++
+        var tail = 0
+        while (tail < a.size - head && tail < m.size - head && a[a.size - 1 - tail] == m[m.size - 1 - tail]) tail++
+        val word = Edit(head, a.size - head - tail, m.size - head - tail)
+        return enter.copy(steps = listOf(listOf(word)) + enter.steps)
     }
 
     /** Whether [longer] is [shorter] with one code point put in at [at]. */

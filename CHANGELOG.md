@@ -39,6 +39,74 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A tap past the end of a line puts the cursor at the end of that
+  line** — found on the owner's phone. In any note holding a list, it went
+  to the start of the next line instead: words added to an item went in
+  front of the next item's number ("2. two" then "more3. three"), and
+  Enter after the last item broke the line before the empty "4." under it,
+  leaving an empty line. Each line's break is drawn as an invisible
+  stand-in at the end of the line, which a tap could land after; such a
+  tap is now put back before it. Since lists were drawn a line at a time
+  (2026-10-15).
+- **The empty line a list leaves at the end of a note is drawn.** Enter on
+  an empty item to leave a list left the note ending in an empty line
+  that was not drawn: the cursor shown at the end of the last item was on
+  it, and a tap at the end of the item landed there ("2. two" then a new
+  line "s"). Found by an agent playing an ordinary user, like the four
+  below.
+- **After Undo or Redo, typing goes on where the change was.** The next
+  letter went to the end of the note, the keyboard still up but the
+  cursor nowhere, the format bar gone. It now stands where the change
+  undone or redone was, as on the desktop, or where it stood when only
+  styles changed.
+- **Enter after a word the keyboard corrected continues the list.**
+  Gboard's autocorrect sends the corrected word and the line break as one
+  edit ("monday" becomes "Monday"), which the list did not take for an
+  Enter: the new line came with no number or bullet, an indented item lost
+  its depth, and in the middle of a list it left an empty line.
+- **The keyboard's ✓ in a checklist's "A new item…" adds the row**, as
+  Add does, the keyboard left up for the next; it only closed the
+  keyboard. The desktop's Enter in its entry does the same.
+- **Enter in the title goes on to the note's words**, and a line break
+  pasted into the title becomes a space; it put a break in the title, which
+  the list then cut at.
+- **One note is said as one** in the questions an import asks: "All 1
+  notes", "Skip the 1" and "1 notes you already have" now read "The note…",
+  "Skip it", "1 note you already have", as the desktop words them.
+
+### Changed
+
+- **A tap on a list's number or bullet puts the cursor after it**, at the
+  item's words — the owner's call, on both apps. Before it, a letter typed
+  made "x3. ham", a line that is no item any more.
+- **"↩ Restore previous" keeps what it replaces, and its banner leaves
+  once the text is back** — the owner's call, on both apps. After a big
+  deletion taken back by Undo, the banner stayed, and pressed later it put
+  the old version over everything written since, with no way back. Now a
+  save that holds what the copy kept spends it, and a restore keeps the
+  text it replaces as the copy, so the same banner brings that back —
+  unless it holds nothing the restored text lacks, such as an emptied note.
+
+### Testing
+
+- `tools/emulator/walk.py` gains two parts. One taps past the end of an
+  item, of a plain line, and of an item before Enter; the build before
+  failed all three, on every run, the way the owner's phone did. The other
+  walks what the agent found: a tap at the end of the last item over the
+  hidden empty line, a tap on a marker, a letter after Undo, Enter in the
+  title, the checklist's tick — all five failed on the build before.
+- 682 JVM unit tests, from 675: `ParagraphsTest` holds Enter with a
+  corrected word — at the end of a list, on an indented item, in the
+  middle of one, the styles after it moved; `IdentityTest` holds the copy
+  spent by a save that puts its text back, kept by one that does not, the
+  replaced text kept by a restore, a second restore bringing it back, and
+  nothing kept over an emptied note. Four mutants watched failing.
+- The agent itself, playing an ordinary user on the emulator and typing
+  on Gboard's keys, is a new way of testing here
+  ([the story](docs/ISSUES_LOG.md#what-a-persons-keyboard-found-that-the-walk-could-not)).
+
 ---
 
 ## [0.10.1] — 2026-10-22 — Numbered lists, and a search from the top

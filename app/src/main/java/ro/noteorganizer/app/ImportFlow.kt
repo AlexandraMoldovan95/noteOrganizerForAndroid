@@ -122,11 +122,18 @@ fun ImportQuestions(
         Step.KNOWN -> {
             val count = plan.differing.size
             val one = count == 1
-            val title = if (one && plan.total == 1) stringResource(R.string.q_same_note_title)
-                        else stringResource(R.string.q_known_title, count)
+            val title = when {
+                one && plan.total == 1 -> stringResource(R.string.q_same_note_title)
+                one -> stringResource(R.string.q_known_title_one)
+                else -> stringResource(R.string.q_known_title, count)
+            }
             val text = buildString {
-                if (one && plan.total == 1) append(stringResource(R.string.q_same_note_text))
-                else append(stringResource(R.string.q_known_text, count, plan.total, source))
+                when {
+                    one && plan.total == 1 -> append(stringResource(R.string.q_same_note_text))
+                    one -> append(stringResource(R.string.q_known_text_one, plan.total, source))
+                    count == plan.total -> append(stringResource(R.string.q_known_all, count, source))
+                    else -> append(stringResource(R.string.q_known_text, count, plan.total, source))
+                }
                 if (plan.older > 0) {
                     append("\n\n")
                     append(if (one) stringResource(R.string.q_older_one) else stringResource(R.string.q_older_many, plan.older))
@@ -148,16 +155,25 @@ fun ImportQuestions(
         }
         Step.UNCHANGED -> {
             val count = plan.unchanged.size
+            // One note is said as one, as the desktop says it: "All 1 notes"
+            // and "Skip the 1" came of counting it.
+            val one = count == 1
             Choice(
                 title = stringResource(R.string.q_unchanged_title),
-                text = if (count == plan.total) stringResource(R.string.q_unchanged_all, count, source)
-                       else stringResource(R.string.q_unchanged_some, count, plan.total, source),
+                text = when {
+                    count == plan.total && one -> stringResource(R.string.q_unchanged_one, source)
+                    count == plan.total -> stringResource(R.string.q_unchanged_all, count, source)
+                    one -> stringResource(R.string.q_unchanged_some_one, plan.total, source)
+                    else -> stringResource(R.string.q_unchanged_some, count, plan.total, source)
+                },
                 // Skipping is the safe answer and changes nothing, so it is
                 // the one that stands out -- and there is no Cancel: skipping
                 // already is one.
                 options = listOf(
-                    stringResource(R.string.q_skip_n, count) to { next(Step.UNCHANGED, answers.copy(copyUnchanged = false)) },
-                    stringResource(R.string.q_add_copies) to { next(Step.UNCHANGED, answers.copy(copyUnchanged = true)) },
+                    (if (one) stringResource(R.string.q_skip_one) else stringResource(R.string.q_skip_n, count)) to
+                        { next(Step.UNCHANGED, answers.copy(copyUnchanged = false)) },
+                    stringResource(if (one) R.string.q_add_copy else R.string.q_add_copies) to
+                        { next(Step.UNCHANGED, answers.copy(copyUnchanged = true)) },
                 ),
                 cancel = null,
             )
@@ -169,7 +185,8 @@ fun ImportQuestions(
             if (count == remaining) {
                 Choice(
                     title = stringResource(R.string.q_all_imported_title),
-                    text = stringResource(R.string.q_all_imported_text, count, source),
+                    text = if (count == 1) stringResource(R.string.q_all_imported_one, source)
+                           else stringResource(R.string.q_all_imported_text, count, source),
                     options = listOf(stringResource(R.string.q_import_anyway) to {
                         onAnswered(answers.copy(skipDuplicates = false))
                     }),
@@ -178,9 +195,11 @@ fun ImportQuestions(
             } else {
                 Choice(
                     title = stringResource(R.string.q_duplicates_title),
-                    text = stringResource(R.string.q_duplicates_text, count, remaining, source),
+                    text = if (count == 1) stringResource(R.string.q_duplicates_one, remaining, source)
+                           else stringResource(R.string.q_duplicates_text, count, remaining, source),
                     options = listOf(
-                        stringResource(R.string.q_skip_duplicates, count) to { onAnswered(answers.copy(skipDuplicates = true)) },
+                        (if (count == 1) stringResource(R.string.q_skip_duplicate)
+                         else stringResource(R.string.q_skip_duplicates, count)) to { onAnswered(answers.copy(skipDuplicates = true)) },
                         stringResource(R.string.q_import_all) to { onAnswered(answers.copy(skipDuplicates = false)) },
                     ),
                     cancel = onCancel,

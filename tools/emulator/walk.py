@@ -389,6 +389,8 @@ def main():
     templates(folder)
     sizes_and_faces(folder)
     lists(folder)
+    tap_past_line_end(folder)
+    editor_corners(folder)
     new_table(folder)
     cell_menu(folder)
     table_bar(folder)
@@ -2839,6 +2841,146 @@ def bounds(label):
             if len(box) == 4:
                 out.append(tuple(box))
     return out
+
+
+def lines_of_field(words):
+    """The note's text field holding [words]: its box and its lines. The tree
+    gives the field as one node, its lines joined by the stand-in each break
+    is drawn as (U+200B); where a line is comes from [body_line_px], the box
+    being taller than its words when they are few."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return None, []
+    for node in root.iter("node"):
+        text = node.get("text", "")
+        if words in text and node.get("class") == "android.widget.EditText":
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return tuple(box), text.split("​")
+    return None, []
+
+
+def body_line_px():
+    """One line of a note's text on this screen: the editor's 24 sp
+    (BODY_LINE_HEIGHT), at the emulator's density and letter size."""
+    density = int(re.findall(r"\d+", adb("shell", "wm", "density"))[-1])
+    try:
+        scale = float(adb("shell", "settings", "get", "system", "font_scale").strip())
+    except ValueError:
+        scale = 1.0
+    return 24 * density / 160 * scale
+
+
+def tap_past_line_end(folder):
+    """A tap past a line's end puts the cursor at that line's end. Each break
+    is drawn as a stand-in at the end of its line, and a tap past the end
+    landed after it, at the next line's start: words typed there went in
+    front of its marker ("more3. three"), and Enter after "3. three" broke
+    before "4. " -- found on the owner's phone, 2026-10-22."""
+    print("\n-- a tap past a line's end --")
+    if not seed_inside([{"id": 1, "uid": "walk-tap-end", "title": "Taps", "body": "Plan\n1. one\n2. two\n3. three",
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Taps"):
+        return
+    if not open_note("Taps"):
+        return
+
+    def body():
+        return (note_by_uid("walk-tap-end") or {}).get("body") or ""
+
+    row = body_line_px()
+
+    def past_end_of(line):
+        box, lines = lines_of_field("Plan")
+        if box is None or line >= len(lines):
+            fail("the note's text field is not on the screen")
+            return False
+        adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * (line + 0.5))))
+        time.sleep(1.0)
+        return True
+
+    if past_end_of(2):
+        type_text("X")
+    check_settled("a tap past a list item's end, then a letter: the letter ends the item",
+                  body, lambda b: b == "Plan\n1. one\n2. twoX\n3. three")
+    if past_end_of(0):
+        type_text("Y")
+    check_settled("...and the same past a plain line's end",
+                  body, lambda b: b == "PlanY\n1. one\n2. twoX\n3. three")
+    if past_end_of(1):
+        adb("shell", "input", "keyevent", "66")                    # Enter
+        time.sleep(0.6)
+    check_settled("...and Enter there continues the list under that item",
+                  body, lambda b: b == "PlanY\n1. one\n2. \n3. twoX\n4. three")
+    keyboard_down()
+    back_to("Search notes")
+
+
+def editor_corners(folder):
+    """What an agent playing an ordinary user found in the editor, typing on
+    the phone's own keyboard (2026-10-22), each walked here: the empty line
+    a list leaves at the end of a note was not drawn, and a tap at the end of
+    the last item landed on it; a tap on a marker put the cursor before it;
+    after Undo the next letter went to the end of the note; Enter in the
+    title broke the title; the keyboard's tick did not add a checklist row.
+    (Enter with a word the keyboard corrected is held by ParagraphsTest: the
+    walk's injected letters are never corrected.)"""
+    print("\n-- the editor's corners --")
+    if not seed_inside([{"id": 1, "uid": "walk-corners", "title": "Corners", "body": "1. one\n2. two\n",
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Corners"):
+        return
+    if not open_note("Corners"):
+        return
+
+    def note():
+        return note_by_uid("walk-corners") or {}
+
+    row = body_line_px()
+
+    def tap_line(line, x=None):
+        box, lines = lines_of_field("one")
+        if box is None:
+            fail("the note's text field is not on the screen")
+            return
+        adb("shell", "input", "tap", str(box[2] - 40 if x is None else box[0] + x),
+            str(int(box[1] + row * (line + 0.5))))
+        time.sleep(1.0)
+
+    tap_line(1)
+    type_text("s")
+    check_settled("a tap at the end of the last item, the note ending in an empty line: the letter ends the item",
+                  lambda: note().get("body"), lambda b: b == "1. one\n2. twos\n")
+    tap_line(0, x=8)
+    type_text("x")
+    check_settled("a tap on a marker puts the cursor after it, at the item's words",
+                  lambda: note().get("body"), lambda b: b == "1. xone\n2. twos\n")
+    tap("Undo", exact=True, wait=1.0)
+    type_text("y")
+    check_settled("after Undo the next letter goes where the change undone was, not to the end",
+                  lambda: note().get("body"), lambda b: b == "1. yone\n2. twos\n")
+    tap("Corners", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "123")                       # end of line
+    adb("shell", "input", "keyevent", "66")                        # Enter
+    time.sleep(0.8)
+    type_text("z")
+    check_settled("Enter in the title goes on to the note's words, the title one line",
+                  note, lambda n: n.get("title") == "Corners" and "z" in (n.get("body") or ""))
+    keyboard_down()
+    tap("+ Add a checklist", wait=1.0)
+    tap("A new item…", wait=1.0)
+    type_text("bags")
+    adb("shell", "input", "keyevent", "66")                        # the keyboard's tick
+    check_settled("the keyboard's tick adds the checklist row, as Add does",
+                  # Lower case: the field capitalises a row's first word as it likes.
+                  lambda: [(i.get("text") or "").lower() for i in note().get("checklist") or []],
+                  lambda c: c == ["bags"])
+    keyboard_down()
+    back_to("Search notes")
 
 
 def wide(folder):

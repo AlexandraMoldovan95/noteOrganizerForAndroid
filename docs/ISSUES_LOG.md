@@ -7,11 +7,13 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fifteen of the forty-nine are
-about the checking.
+**the code**, or in **the design**. Sixteen of the fifty-one are about
+the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-22](#what-a-persons-keyboard-found-that-the-walk-could-not) | checking | An agent playing an ordinary user, typing on the keyboard's keys, found in forty minutes what 259 checks had walked past: Enter after an autocorrected word, the cursor after Undo, a hidden last line, a tap on a marker | The walk proves the app's rules with letters it injects; a person's keyboard feeds them differently, and only someone using it finds the seam |
+| [2026-10-22](#a-break-drawn-as-a-character-a-tap-could-land-after) | code | On the owner's phone a tap past a list item's end put the cursor at the next line's start: words went in front of its number, and Enter made an empty line | A field drawn differently from its text answers taps in the drawing's terms: test where a tap lands, not only where text goes |
 | [2026-10-22](#a-check-that-held-by-one-frame) | checking | The walk's first run on an emulator just started lost its first typing and saw the dissolve cut; the fade had always held by about three captures, and on a busy emulator by one or none. Then a keyboard flag read too soon pressed Back off a table cell | A check whose margin is the machine's speed is not about the app: slow down what is watched, and wait for the machine the check was written on |
 | [2026-10-20](#a-flicker-a-sharper-cut-made-worse) | design | A theme change flickered; made a cleaner cut, it flickered more on the owner's phone; dissolved over 320 ms, "better now" | A change of the whole screen wants easing, and the eye is the verdict |
 | [2026-10-20](#letters-typed-beside-a-style-read-from-the-text-alone) | code | Letters typed after a styled word stayed plain and letters typed before it took its style — the desktop does the opposite at both edges | An edit worked out from the text alone cannot know where the caret was; typing knows, and should say so |
@@ -66,6 +68,78 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## What a person's keyboard found that the walk could not
+
+**2026-10-22.** After the tap past a line's end turned up on the owner's
+phone, she asked for an agent that uses the app the way an ordinary
+person does, finds what is wrong, and hands it over to be fixed. It ran
+on the emulator for forty minutes with one rule beyond the owner's
+safety ones: anything typed in or near a list, after moving the cursor,
+was typed by tapping the on-screen keyboard's letters, Enter and
+Backspace, the way a thumb does.
+
+It reported ten findings. Four were confirmed on the emulator at once,
+each in a place no check had been: Gboard's autocorrect sends the
+corrected word and the line break as one edit, which the list did not
+take for an Enter; after Undo the cursor was nowhere and the next letter
+went to the end of the note; the empty line a list leaves at the end of
+a note was not drawn; a tap on a marker put the cursor before it. The
+rest were a rescue copy that outlived its use, a checklist's ✓, Enter in
+the title, an import's wording, a layout on a phone on its side, and an
+Undo in two steps. Every time it compared, the saved file matched the
+screen.
+
+None of it was within the walk's reach, and the reason is how the walk
+types: it injects finished letters with `input text`, taps by the words
+on the screen, and puts the cursor only where it is already going. A
+keyboard composes a word, corrects it, and sends it with the break; a
+person taps past a line's end, on a number, on an empty line. The walk
+proves the app's rules; the keyboard is a second program feeding them,
+in its own way.
+
+The four confirmed are fixed, each with a check that failed on the build
+before: three in a walk part of their own, the autocorrect one in the
+JVM tests, which can send exactly the edit Gboard sends. Two more
+behaviours, the rescue copy and the tap on a marker, were the desktop's
+too, and the owner chose new ones for both apps.
+
+**The class:** a check that only injects input tests the rules and
+never the way input really arrives. An exploratory pass by someone using
+the real keyboard, reporting rather than fixing, finds the seam between
+the two; every finding is then confirmed by hand before it is believed,
+and fixed with a check of its own.
+
+## A break drawn as a character a tap could land after
+
+**2026-10-22.** On the owner's phone, in a numbered list typed item by
+item: a tap after item 2, to finish its idea, put the words in front of
+"3." instead, and Enter after item 3 made an empty line rather than a
+"4.". On the emulator it took two taps to see: a tap *on* a letter
+landed where it was aimed, and a tap to the right of a line's words
+landed at the start of the next line.
+
+The cause was in the drawing, not in the list rules. Since lists were
+drawn a line at a time ([the double spacing](#a-list-drawn-double-spaced-then-bunched)),
+every line is a paragraph of its own, and the break between two is
+drawn as a zero-width stand-in kept at the end of the line's paragraph:
+one character for one, so every offset stays where the text has it. But
+a stand-in is a character the layout can be tapped after, which a real
+line break is not. A tap past a line's end asks for the end of that
+line, and the end of the line is after the stand-in, the first position
+of the next line. A field showing a list draws every line this way,
+plain lines included.
+
+The tap is now put back: when the cursor lands just after a break and
+the press came down on a line above the one it landed on, it moves
+before the break (`tapLanding`). A walk part taps past the end of an
+item, of a plain line, and of an item before Enter, and reads the file;
+the build before failed all three on every run, as the phone had.
+
+**The class:** a field drawn differently from its text answers taps in
+the drawing's terms. Where the drawing adds or moves even an invisible
+character, test where a tap lands, not only where the text goes. A walk
+that types only where the cursor already is never asks.
 
 ## A check that held by one frame
 

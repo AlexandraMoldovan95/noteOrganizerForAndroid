@@ -400,7 +400,7 @@ class IdentityTest {
     }
 
     @Test
-    fun `restoring brings back everything the update replaced, and spends the copy`() {
+    fun `restoring brings back everything the update replaced, and keeps what it replaced`() {
         val load = scratch("""
             [{"id": 7, "uid": "abc", "title": "New", "body": "new", "category": "General",
               "checklist": [],
@@ -420,8 +420,57 @@ class IdentityTest {
         assertEquals("c", note.getString("comments"))
         assertEquals("Work", note.getString("category"))
         assertTrue(note.getJSONArray("checklist").getJSONObject(0).getBoolean("done"))
-        assertFalse("the copy is spent", note.has("_prev"))
+        // The version it replaced is the copy now, its own extras with it.
+        val kept = note.getJSONObject("_prev")
+        assertEquals("New", kept.getString("title"))
+        assertEquals("new", kept.getString("body"))
+        assertEquals("General", kept.getString("category"))
+        assertEquals(0, kept.getJSONArray("checklist").length())
         assertEquals("the identity stays", "abc", note.getString("uid"))
+    }
+
+    @Test
+    fun `restoring over an emptied note keeps nothing, so no banner offers the empty note back`() {
+        val load = scratch("""
+            [{"id": 7, "title": "t", "body": "",
+              "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
+        """.trimIndent())
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("a long text that was deleted by accident", note.getString("body"))
+        assertFalse(note.has("_prev"))
+    }
+
+    @Test
+    fun `restoring twice brings back what the first restore replaced`() {
+        val load = scratch("""
+            [{"id": 7, "title": "t", "body": "written since",
+              "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
+        """.trimIndent())
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        assertTrue(Notebook.restorePrevious(Notebook.load(load.file!!.parentFile!!), 7) is SaveResult.Ok)
+        assertEquals("written since", onDisk(load).getJSONObject(0).getString("body"))
+    }
+
+    @Test
+    fun `a save that puts back what the copy kept spends it, and no banner stays`() {
+        // A big deletion keeps a copy; Undo brings the words back, and the save
+        // that follows holds what the copy holds.
+        val long = "a long text, long enough that deleting it keeps a rescue copy of the note"
+        val load = scratch("""[{"id": 7, "title": "t", "body": "$long"}]""")
+        assertTrue(Notebook.updateNote(load, 7, "t", "") is SaveResult.Ok)
+        assertTrue("the deletion kept a copy", onDisk(load).getJSONObject(0).has("_prev"))
+        assertTrue(Notebook.updateNote(Notebook.load(load.file!!.parentFile!!), 7, "t", long) is SaveResult.Ok)
+        assertFalse("the words are back: nothing to rescue", onDisk(load).getJSONObject(0).has("_prev"))
+    }
+
+    @Test
+    fun `a save that differs from the copy keeps it`() {
+        val long = "a long text, long enough that deleting it keeps a rescue copy of the note"
+        val load = scratch("""[{"id": 7, "title": "t", "body": "$long"}]""")
+        Notebook.updateNote(load, 7, "t", "")
+        Notebook.updateNote(Notebook.load(load.file!!.parentFile!!), 7, "t", "something else")
+        assertTrue(onDisk(load).getJSONObject(0).has("_prev"))
     }
 
     @Test

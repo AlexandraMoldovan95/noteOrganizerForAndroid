@@ -681,9 +681,13 @@ The old version goes into `_prev` first — the desktop's own one-step
 rescue — and both apps restore from it with **"↩ Restore previous"**. So
 an update accepted by mistake is one button away from being undone, on
 either device. `_prev` holds the text fields and, after an update, every
-other field the update replaced; restoring puts all of them back and
-spends the copy. An update that would change nothing does not touch the
-note at all, so it cannot spend a rescue copy on nothing.
+other field the update replaced; restoring puts all of them back. Since
+2026-10-22, on both apps, what the restore replaces becomes the copy in
+its turn, so the same button brings it back, unless it holds nothing
+the restored version lacks (an emptied note), when the copy is spent;
+and a save whose text matches the copy spends it too, since there is
+nothing left to rescue. An update that would change nothing does not
+touch the note at all, so it cannot spend a rescue copy on nothing.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the

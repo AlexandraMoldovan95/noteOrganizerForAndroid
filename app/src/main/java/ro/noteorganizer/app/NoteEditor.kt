@@ -28,6 +28,8 @@ import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +56,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -81,12 +84,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -105,6 +110,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
@@ -220,6 +226,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     private fun restore(to: Snap) {
+        val was = body
+        val kept = focus to focused
         title = to.title
         body = to.body
         spans = to.spans
@@ -235,6 +243,37 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         steps()
         edits += 1
         status = null
+        // ...but the cursor stays in the note, as Tk leaves it: where the
+        // change undone or redone was, or where it stood when only styles
+        // changed. Left with no place, the field kept the keyboard and the
+        // next letter went to the end of the note.
+        val (index, value) = kept
+        if (was == body && index != null && value != null) {
+            ask(index, value)
+        } else {
+            changeSite(was, body)?.let { at ->
+                val segments = Editing.segments(body)
+                val within = segments.indexOfFirst { s ->
+                    !s.table && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+                }
+                if (within >= 0) {
+                    caret = at
+                    ask(within, fieldValue(within, at))
+                }
+            }
+        }
+    }
+
+    /** Where [was] and [now] differ, as a place in [now], in code points: the end of what changed. */
+    private fun changeSite(was: String, now: String): Int? {
+        if (was == now) return null
+        val a = was.codePoints().toArray()
+        val b = now.codePoints().toArray()
+        var head = 0
+        while (head < a.size && head < b.size && a[head] == b[head]) head++
+        var tail = 0
+        while (tail < a.size - head && tail < b.size - head && a[a.size - 1 - tail] == b[b.size - 1 - tail]) tail++
+        return b.size - tail
     }
 
     /** Which prose field has the cursor, and its value -- selection and all. */
@@ -1250,9 +1289,17 @@ fun NoteEditor(state: AppState, openId: Int) {
             BasicTextField(
                 value = model.title,
                 onValueChange = {
-                    // The desktop's ceiling: far more than a title needs.
-                    model.title = it.take(200)
-                    model.changed(Editing.History.TYPING + ":title")
+                    // One line, as the desktop's title is: Enter goes on to
+                    // the note's words, and a break pasted in becomes a space.
+                    // It put a break in the title, which the list cut at.
+                    val enter = it.length == model.title.length + 1 && it.count { c -> c == '\n' } == 1
+                    val title = if (enter) it.replace("\n", "") else it.replace('\n', ' ')
+                    if (title != model.title) {
+                        // The desktop's ceiling: far more than a title needs.
+                        model.title = title.take(200)
+                        model.changed(Editing.History.TYPING + ":title")
+                    }
+                    if (enter) focusManager.moveFocus(FocusDirection.Down)
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
@@ -1443,8 +1490,10 @@ fun NoteEditor(state: AppState, openId: Int) {
         val also = note.previousAlso
         Ask(
             title = stringResource(R.string.restore_title),
-            text = if (also.isEmpty()) stringResource(R.string.restore_text_only)
-                   else stringResource(R.string.restore_text_with, joinWithAnd(also)),
+            // ...and kept, said only when it is: an emptied note is not.
+            text = (if (also.isEmpty()) stringResource(R.string.restore_text_only)
+                    else stringResource(R.string.restore_text_with, joinWithAnd(also))) +
+                   (if (note.previousKeeps) " " + stringResource(R.string.restore_kept) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
                 askRestore = false
@@ -1508,6 +1557,8 @@ private fun ProseField(
         }
     }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    // Where the last press came down, for [tapLanding].
+    var pressedAt by remember { mutableStateOf<Offset?>(null) }
     LaunchedEffect(reveal) {
         val at = match ?: return@LaunchedEffect
         val drawn = layout
@@ -1530,8 +1581,12 @@ private fun ProseField(
             model.freshenPick()
             val pasted = clipboard.pasteOf(value, next)
             if (pasted != null && model.paste(segment, value, pasted.html, pasted.text)) return@BasicTextField
-            // A keystroke that meant a list operation comes back rewritten.
-            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null) ?: next
+            val pressed = pressedAt
+            if (next.selection != value.selection) pressedAt = null
+            // A keystroke that meant a list operation comes back rewritten;
+            // a tap past a line's end, put back on that line.
+            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null)
+                ?: if (pressed != null && next.text == value.text) tapLanding(next, pressed, layout) else next
             model.focus = index
             model.focused = shown
             model.caret = caretIn(segment, shown)
@@ -1551,6 +1606,11 @@ private fun ProseField(
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
             .focusRequester(focuser)
             .bringIntoViewRequester(requester)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    pressedAt = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
+                }
+            }
             // The desktop's Ctrl+Shift+V, for a keyboard: the words alone.
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed || !event.isShiftPressed ||
@@ -1668,7 +1728,7 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     // drew an empty line after it (a list came out double-spaced), while a
     // break left between two became an empty paragraph of its own. The
     // stand-in is one character for one, so every position stays where
-    // the field's text has it.
+    // the field's text has it -- but a tap can land after it ([tapLanding]).
     val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
     var at = 0
     for ((i, line) in lines.withIndex()) {
@@ -1692,7 +1752,38 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
         if (end > at) paragraphs.add(AnnotatedString.Range(style, at, end))
         at = end
     }
-    return AnnotatedString(text.text.replace('\n', '​'), text.spanStyles, paragraphs)
+    // A break that ends the text stays a real one: the empty line after it
+    // is then drawn, a line to tap on and to hold the cursor. As a stand-in
+    // it closed the line above and the last line was not drawn at all -- the
+    // cursor shown at the end of "2. two" was on the hidden line below, and
+    // a tap at the end of the item landed there.
+    val drawn = if (text.text.endsWith('\n')) text.text.dropLast(1).replace('\n', '​') + "\n"
+                else text.text.replace('\n', '​')
+    return AnnotatedString(drawn, text.spanStyles, paragraphs)
+}
+
+/**
+ * Where a tap meant the cursor to go. [paintLines] draws each break as a
+ * stand-in at the end of its line's paragraph, a character the layout can
+ * be tapped after; a tap past a line's end landed there, at the start of
+ * the next line, and what was typed went in front of its marker ("2. two"
+ * then "more3. three"), Enter after "3. three" broke before "4. ". Put back
+ * before the break when the press was on a line above the one the cursor
+ * landed on. And a tap on a list's marker -- "3." or "•" -- puts the cursor
+ * after it, at the item's words: before it, a letter typed made "x3. ham",
+ * a line that is no item any more.
+ */
+private fun tapLanding(value: TextFieldValue, pressed: Offset, layout: TextLayoutResult?): TextFieldValue {
+    val drawn = layout ?: return value
+    var at = value.selection.start
+    if (!value.selection.collapsed || at > value.text.length || at > drawn.layoutInput.text.length) return value
+    if (at > 0 && value.text[at - 1] == '\n' &&
+        drawn.getLineForVerticalPosition(pressed.y) < drawn.getLineForOffset(at)) at -= 1
+    val lineStart = value.text.lastIndexOf('\n', at - 1) + 1
+    val lineEnd = value.text.indexOf('\n', lineStart).let { if (it < 0) value.text.length else it }
+    val parsed = Paragraphs.parseListMarker(value.text.substring(lineStart, lineEnd))
+    if (parsed.kind != null && at < lineStart + parsed.marker.length) at = lineStart + parsed.marker.length
+    return if (at == value.selection.start) value else value.copy(selection = TextRange(at))
 }
 
 /**
@@ -2088,6 +2179,14 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             )
         }
     }
+    // The keyboard's ✓ adds the row as Add does, the keyboard left up for the
+    // next -- the desktop's Enter in its entry. It only closed the keyboard,
+    // the words left in the box and the list still empty.
+    fun add() {
+        if (adding.isBlank()) return
+        val id = ensureSaved() ?: return
+        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) adding = ""
+    }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
         BasicTextField(
             value = adding,
@@ -2095,7 +2194,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences,
+                                              imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { add() }),
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
@@ -2111,10 +2212,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             color = if (adding.isBlank()) palette.subtext else palette.accentText,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .clickable(enabled = adding.isNotBlank()) {
-                    val id = ensureSaved() ?: return@clickable
-                    if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) adding = ""
-                }
+                .clickable(enabled = adding.isNotBlank()) { add() }
                 .padding(12.dp),
         )
     }
