@@ -3072,6 +3072,17 @@ def wide(folder):
     tap_last("milk", wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" and eggs")
+    # The keyboard up, the phone on its side: the top bar, a line of words
+    # and two rows of format keys took every pixel it left, and not a word
+    # of the note showed; + sat on the search box (an agent playing an
+    # ordinary user, 2026-10-22). A line at least now, and no +.
+    box, _lines = lines_of_field("milk and eggs")
+    keyboard = bar_frame("ime")
+    check("on its side with the keyboard up, the note's words stay in sight above the keys",
+          box is not None and keyboard is not None and keyboard[0] > 0
+          and box[3] - box[1] >= body_line_px() and box[1] < keyboard[0],
+          "field %s, the keyboard from %s" % (box, keyboard))
+    check("...and + keeps off the search box while the keyboard is up", find("+", exact=True) is None)
     keyboard_down()
     shot(folder, "45-wide-note", "Groceries", "milk and eggs", "ⓘ")
 

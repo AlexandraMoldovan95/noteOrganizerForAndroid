@@ -318,7 +318,7 @@ Grouped by what the app does; when each item arrived is in the
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 271
+    where the shrunk code will look); and an emulator walk of 273
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -536,7 +536,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 271 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 273 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -551,11 +551,12 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-38 parts, 271 checks. The last full run (2026-10-22), with the two parts
-for what the owner's phone and an agent playing an ordinary user found
-and the checklist's box above the keyboard, was begun on an emulator just
-started and alone on the computer: it waited 127 seconds, then passed
-all 271; the one before it, without that check, all 269. A run before them, made while the
+38 parts, 273 checks. The last full run (2026-10-22), with the two parts
+for what the owner's phone and an agent playing an ordinary user found,
+the checklist's box above the keyboard and the note in sight on its side,
+was begun on an emulator just started and alone on the computer: it
+waited 106 seconds, then passed all 273; the two before it, with fewer
+of those checks, all 271 and all 269. A run before them, made while the
 computer also built the app and ran the desktop's suite, failed a
 hundred checks, the emulator's own home screen hung under the load ("Pixel
 Launcher isn't responding") — the walk wants the machine to itself. The
@@ -649,7 +650,8 @@ it and read back from the file:
 * **Size and face**, **lists**, **a new table** and **the table's bar**, each
   read back in the shape the desktop writes.
 * **A wide window**: a selection and an open find bar surviving the
-  phone turning; the rail; a note beside the list; a pin from the list
+  phone turning; the rail; a note beside the list, its words in sight
+  above the keyboard and no + over the search box while typing; a pin from the list
   kept by the editor's next save; another note opened from its title;
   the note beside the calendar, and closed for Settings; two new notes in
   a row; a code shared in over an open note, upright, and the update

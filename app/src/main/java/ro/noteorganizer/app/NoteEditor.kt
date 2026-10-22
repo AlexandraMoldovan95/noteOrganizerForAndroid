@@ -93,6 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -1022,7 +1023,11 @@ fun NoteEditor(state: AppState, openId: Int) {
                 }
             },
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // The phone on its side with the keyboard up: no top bar, Undo and
+        // Redo at the start of the format bar's one row instead, so a few of
+        // the note's lines stay above the keys. With the bar, none did.
+        val compact = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP && WindowInsets.isImeVisible
+        if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
             // Undo and Redo, the desktop's Ctrl+Z and Ctrl+Y: the note's
             // words and their styling, a step at a time.
@@ -1803,6 +1808,7 @@ private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
  * keyboard, where the thumb already is and where Android's own selection
  * menu does not reach.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
     val palette = LocalPalette.current
@@ -1898,17 +1904,61 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                 }
             }
         }
-        if (!hasSelection) {
+        // The phone on its side: one row of keys that scrolls, and no line of
+        // words above it. The line and two rows took what height the keyboard
+        // left, and not a word of the note showed while it was up; the keys'
+        // own pressed look says what waits for the next letter.
+        val short = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
+        if (!hasSelection && !short) {
             val waiting = PENDING_STYLES.filter { it in model.pending }.map { stringResource(styleName(it)) }
             Text(if (waiting.isNotEmpty()) stringResource(R.string.pending_on, waiting.joinToString(", "))
                  else stringResource(R.string.select_to_format),
                  color = if (waiting.isNotEmpty()) palette.accentText else palette.subtext, fontSize = 11.sp,
                  modifier = Modifier.padding(start = 12.dp, top = 6.dp))
         }
+        // The lines the cursor or the selection covers: lists, depth and
+        // alignment, which need no selection -- the cursor's line will do.
+        // Not in the empty field under a table that ends the note: it has
+        // no line of its own until something is typed there.
+        val lineKeys = !segment.isVirtual
+        val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
+        val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
+        val lineText = model.body.split("\n").getOrElse(firstLine) { "" }
+        val kind = Paragraphs.parseListMarker(lineText).kind
+        val align = model.props[firstLine]?.align ?: "left"
+        fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
+        @Composable
+        fun lineButtons() {
+            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
+            }
+            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
+            }
+            FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, -1))
+            }
+            FormatKey("⇥", false, lineKeys, said = stringResource(R.string.indent_more)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, 1))
+            }
+            for ((way, said) in listOf("left" to R.string.align_left, "center" to R.string.align_center,
+                                       "right" to R.string.align_right)) {
+                AlignKey(way, align == way && (way != "left" || lineKeys), lineKeys, stringResource(said)) {
+                    model.alignLines(firstLine, lastLine, way)
+                }
+            }
+            FormatKey("▦", false, true, said = stringResource(R.string.table_insert), onClick = onTable)
+        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // The top bar stands aside on its side with the keyboard up: its
+            // Undo and Redo come here.
+            if (short && WindowInsets.isImeVisible) {
+                FormatKey("↶", false, model.canUndo, said = stringResource(R.string.undo)) { model.undo() }
+                FormatKey("↷", false, model.canRedo, said = stringResource(R.string.redo)) { model.redo() }
+            }
             FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold) { apply("bold") }
             FormatKey("I", on("italic"), hasSelection || waits, italic = true) { apply("italic") }
             FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline) { apply("underline") }
@@ -1933,44 +1983,19 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                       wide = sizeLabel.length > 3, said = stringResource(R.string.size_key_said, sizeLabel)) {
                 palettePicker = if (palettePicker == "size") "" else "size"
             }
+            if (short) lineButtons()
         }
-        // The lines the cursor or the selection covers: lists, depth and
-        // alignment, which need no selection -- the cursor's line will do.
-        // Not in the empty field under a table that ends the note: it has
-        // no line of its own until something is typed there.
-        val lineKeys = !segment.isVirtual
-        val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
-        val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
-        val lineText = model.body.split("\n").getOrElse(firstLine) { "" }
-        val kind = Paragraphs.parseListMarker(lineText).kind
-        val align = model.props[firstLine]?.align ?: "left"
-        fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
-                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
-            }
-            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
-                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
-            }
-            FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
-                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, -1))
-            }
-            FormatKey("⇥", false, lineKeys, said = stringResource(R.string.indent_more)) {
-                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, 1))
-            }
-            for ((way, said) in listOf("left" to R.string.align_left, "center" to R.string.align_center,
-                                       "right" to R.string.align_right)) {
-                AlignKey(way, align == way && (way != "left" || lineKeys), lineKeys, stringResource(said)) {
-                    model.alignLines(firstLine, lastLine, way)
-                }
-            }
-            FormatKey("▦", false, true, said = stringResource(R.string.table_insert), onClick = onTable)
+        if (!short) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) { lineButtons() }
         }
     }
 }
+
+/** Under this height in dp the window is a phone on its side: the format bar takes one row. */
+private const val SHORT_SCREEN_DP = 480
 
 /**
  * The desktop's size grid: the shape of a table is what is chosen, and a

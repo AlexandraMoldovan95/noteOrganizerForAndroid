@@ -74,6 +74,14 @@ do before, not as releases anyone ran.
 - **Enter in the title goes on to the note's words**, and a line break
   pasted into the title becomes a space; it put a break in the title, which
   the list then cut at.
+- **The phone on its side keeps the note in sight while you type.** With
+  the keyboard up, the top bar, a line of hints and two rows of format keys
+  took all the height it left, and not a word of the note showed. On a
+  window that short the format keys are one row that scrolls, with no
+  line of hints, and while the keyboard is up the top bar stands aside, its
+  Undo and Redo at the start of that row: three lines of the note show
+  above the keys. And + no longer sits on the search box while the
+  keyboard is up, on its side or upright; it comes back when it goes down.
 - **One note is said as one** in the questions an import asks: "All 1
   notes", "Skip the 1" and "1 notes you already have" now read "The note…",
   "Skip it", "1 note you already have", as the desktop words them.
@@ -100,7 +108,10 @@ do before, not as releases anyone ran.
   hidden empty line, a tap on a marker, a letter after Undo, Enter in the
   title, the checklist's tick — all five failed on the build before — and,
   in a long note, the checklist's box and Add above the keyboard (a build
-  without the fix put Add 32 pixels under its top edge).
+  without the fix put Add 32 pixels under its top edge). The part for a
+  wide window checks, the keyboard up on its side, that the note's words
+  stand above the keys and + is gone; the build before showed no word of
+  the note, and its + was there.
 - The walk waits for the phone's "save as" picker to offer Save, instead
   of looking once after three seconds: a picker slower than that left a
   backup unmade and three checks failed for one cause. All three of the
