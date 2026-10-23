@@ -39,6 +39,187 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Added
+
+- **On a wide screen the list can be put aside for a wider note** — asked
+  for on the owner's phone, turned on its side. « beside ← in the note's
+  top bar hides the list (or the calendar) and the note takes the whole
+  width; » brings it back, as do closing the note and the rail's own
+  button. The choice holds from note to note until the app is closed.
+- **The day's reminder bar, the desktop's** — the owner's ask. On a day
+  that has notes, repeats included, the app opens with "🔔 You have 2
+  notes for today (Friday, 23 October)." above the notes, once a day, by
+  the desktop's rule and under its key; a tap opens the day on the
+  calendar, ✕ puts it away.
+- **A notification for the day's notes**, the phone's own — the owner's
+  ask. Off until turned on in the new Settings → Reminders, where Android
+  asks first whether the app may send notifications; then, at the hour
+  chosen (nine unless changed), with the app closed, it says how many notes
+  the day has — never their words, which a locked screen would show — and
+  a tap opens the day. The phone may bring it a few minutes late to spare
+  its battery: an exact hour needs a permission the app does without. It
+  only reads the notebook, and sets itself again after a restart or an
+  update.
+
+### Fixed
+
+- **A tap past the end of a line puts the cursor at the end of that
+  line** — found on the owner's phone. In any note holding a list, it went
+  to the start of the next line instead: words added to an item went in
+  front of the next item's number ("2. two" then "more3. three"), and
+  Enter after the last item broke the line before the empty "4." under it,
+  leaving an empty line. Each line's break is drawn as an invisible
+  stand-in at the end of the line, which a tap could land after; such a
+  tap is now put back before it. Since lists were drawn a line at a time
+  (2026-10-15).
+- **The empty line a list leaves at the end of a note is drawn.** Enter on
+  an empty item to leave a list left the note ending in an empty line
+  that was not drawn: the cursor shown at the end of the last item was on
+  it, and a tap at the end of the item landed there ("2. two" then a new
+  line "s"). Found by an agent playing an ordinary user, like the four
+  below.
+- **After Undo or Redo, typing goes on where the change was.** The next
+  letter went to the end of the note, the keyboard still up but the
+  cursor nowhere, the format bar gone. It now stands where the change
+  undone or redone was, as on the desktop, or where it stood when only
+  styles changed.
+- **Enter after a word the keyboard corrected continues the list.**
+  Gboard's autocorrect sends the corrected word and the line break as one
+  edit ("monday" becomes "Monday"), which the list did not take for an
+  Enter: the new line came with no number or bullet, an indented item lost
+  its depth, and in the middle of a list it left an empty line.
+- **The keyboard's ✓ in a checklist's "A new item…" adds the row**, as
+  Add does, the keyboard left up for the next; it only closed the
+  keyboard. The desktop's Enter in its entry does the same. And in a long
+  note the box stands whole above the keyboard, with its Add: the field
+  brought only its line of words into view, the rest under the keys.
+- **The note follows the cursor as you write** — found on the owner's
+  phone. Enter on the last line the keyboard left showing made the next
+  one under the format bar and the keys, and the screen stayed where it
+  was: what was typed there could not be seen until the note was scrolled
+  by hand. The field brought the cursor into view only when it took the
+  focus; it now does after every change to its words — and so do the
+  note's comments, a table's cell being written, and a template's text
+  and comments, which had the same fault. And on a phone on its side, a
+  tap on line 2 of a long note no longer shows lines 20 to 22 once the
+  keyboard is up: the line with the cursor stays in sight.
+- **The checklist row just added stays in sight** — found on the owner's
+  phone. Each row added pushed the "A new item…" box a row further down,
+  under the keyboard, and the screen stayed where it was, the new row out
+  of sight with it. The screen now follows the box after each row.
+- **Enter after a word breaks one line with Samsung's keyboard** — found
+  on the owner's phone. With Samsung's own keyboard and its predictive text
+  on, as it comes, every Enter after a word skipped a line: the keyboard
+  finishes the word and presses Enter in one batch, the field reports the
+  result twice, and the note's text applied the second report too. The
+  same change from the same value, a moment apart, is now taken once.
+  Gboard never sends it that way, so no emulator showed it.
+- **An empty last line takes its own alignment** — found on the owner's
+  phone. Centre (or Right, or an indent) on a new last line kept the
+  cursor at the left until a letter was typed, and Left on it under a
+  centred line kept it in the middle: drawn inside the line above, the
+  empty line wore that line's style. It is now a line of its own, and the
+  cursor moves at once; a tap past the end of the line above still lands
+  on that line.
+- **Settings → Your name says "Saved" under the box**, in green, where it
+  shows above the keyboard — found on the owner's phone, where the message
+  at the foot of the screen was under the keys. The keyboard's ✓ saves too.
+- **Settings' list keeps its place** — found on the owner's phone. Back
+  from a page low in it, the Trash say, came back at the list's top, the
+  row just left out of sight. The calendar's month and its History did
+  the same to each other. Each tab already kept its place while out of
+  sight; the screens inside a tab now do too.
+- **Beside the calendar, the empty pane no longer offers a + it does not
+  have.** It read "Pick a note to open it here, or tap + for a new one",
+  and the calendar's tab has no +; it now reads "Pick a note of the day to
+  open it here."
+- **Enter in the title goes on to the note's words**, and a line break
+  pasted into the title becomes a space; it put a break in the title, which
+  the list then cut at.
+- **The phone on its side keeps the note in sight while you type.** With
+  the keyboard up, the top bar, a line of hints and two rows of format keys
+  took all the height it left, and not a word of the note showed. On a
+  window that short the format keys are one row that scrolls, with no
+  line of hints, and while the keyboard is up the top bar stands aside, its
+  Undo and Redo at the start of that row: three lines of the note show
+  above the keys. And + no longer sits on the search box while the
+  keyboard is up, on its side or upright; it comes back when it goes down.
+- **One note is said as one** in the questions an import asks: "All 1
+  notes", "Skip the 1" and "1 notes you already have" now read "The note…",
+  "Skip it", "1 note you already have", as the desktop words them.
+
+### Changed
+
+- **A tap on a list's number or bullet puts the cursor after it**, at the
+  item's words — the owner's call, on both apps. Before it, a letter typed
+  made "x3. ham", a line that is no item any more.
+- **"↩ Restore previous" keeps what it replaces, and its banner leaves
+  once the text is back** — the owner's call, on both apps. After a big
+  deletion taken back by Undo, the banner stayed, and pressed later it put
+  the old version over everything written since, with no way back. Now a
+  save that holds what the copy kept spends it, and a restore keeps the
+  text it replaces as the copy, so the same banner brings that back —
+  unless it holds nothing the restored text lacks, such as an emptied note.
+- **A checklist, comments and files are added from the note's ⋮** — the
+  owner's call. Three links under every note made it busier than it needs
+  to be; ⋮ now holds ☑ Add a checklist, 💬 Add comments and 📎 Attach
+  files, the desktop's marks. A checklist or comments asked for there
+  come with the keyboard in them; ⋮ stops offering what the note already
+  shows; a note that has them shows them as before. The welcome note says
+  where they are.
+
+### Testing
+
+- `tools/emulator/walk.py` gains a part for the day's reminder: the bar on
+  a day with a note, its day written under the desktop's key, a tap on it
+  opening the day, no bar on a second start; the notification turned on
+  through Android's question, its alarm set, fired (the debug build lets
+  the walk fire it) and saying the count without the note's words, a tap
+  on it opening the day, and turned off with its alarm gone. The editor's
+  corners and the attaching part reach the checklist, the comments and
+  files through ⋮, and check the links under the note are gone.
+- `tools/emulator/walk.py` gains two parts. One taps past the end of an
+  item, of a plain line, and of an item before Enter; the build before
+  failed all three, on every run, the way the owner's phone did. The other
+  walks what the agent found: a tap at the end of the last item over the
+  hidden empty line, a tap on a marker, a letter after Undo, Enter in the
+  title, the checklist's tick — all five failed on the build before — and,
+  in a long note, the checklist's box and Add above the keyboard (a build
+  without the fix put Add 32 pixels under its top edge). The part for a
+  wide window checks, the keyboard up on its side, that the note's words
+  stand above the keys and + is gone; the build before showed no word of
+  the note, and its + was there. And, from the owner's phone: three rows
+  added with the tick in a long note, the newest and the box under it above
+  the keyboard; Enter after Enter at the foot of what shows, the line being
+  written in sight above the format bar — measured by how far the note
+  moved. A build without either fix fails its own check: the newest row out
+  of sight, the note moved 0 pixels and its last line 116 under the bar.
+  The same Enter in the comments, measured from the field's own top; on
+  its side, a tap on line 2 of a long note, the cursor looked for in the
+  note's pane by its colour once the keyboard is up (none of it there on
+  the build before). The wide part puts the list aside and back with a
+  find bar open, closes and opens notes with it aside, scrolls Settings'
+  list and the calendar's month and comes back to each after a page or the
+  History, and reads the empty pane beside the calendar.
+- The walk waits for the phone's "save as" picker to offer Save, instead
+  of looking once after three seconds: a picker slower than that left a
+  backup unmade and three checks failed for one cause. All three of the
+  walk's picker steps, the backup, the Trash page's and the export.
+- 690 JVM unit tests in 30 suites, from 675 in 29: `RemindersTest` holds
+  what the reminder counts, when its bar shows, the notification's hour and
+  when it is next due; `EditingTest` holds where a change ends,
+  Enter at the end of the text included, and a change told twice taken
+  once, as Samsung's keyboard told it on the owner's phone; `ParagraphsTest` holds Enter with a
+  corrected word — at the end of a list, on an indented item, in the
+  middle of one, the styles after it moved; `IdentityTest` holds the copy
+  spent by a save that puts its text back, kept by one that does not, the
+  replaced text kept by a restore, a second restore bringing it back,
+  nothing kept over an emptied note, and the question promising to keep
+  only what it will. Five mutants watched failing.
+- The agent itself, playing an ordinary user on the emulator and typing
+  on Gboard's keys, is a new way of testing here
+  ([the story](docs/ISSUES_LOG.md#what-a-persons-keyboard-found-that-the-walk-could-not)).
+
 ---
 
 ## [0.10.1] — 2026-10-22 — Numbered lists, and a search from the top

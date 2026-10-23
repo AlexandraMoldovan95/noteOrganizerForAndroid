@@ -290,6 +290,30 @@ class ParagraphsTest {
     }
 
     @Test
+    fun `Enter with a word the keyboard corrected still continues the list`() {
+        // Gboard's autocorrect sends "monday" -> "Monday" and the break as one edit.
+        val done = P.afterTyping("1. milk\n2. meet on monday", "1. milk\n2. meet on Monday\n", emptyMap(), 26)!!
+        assertEquals("1. milk\n2. meet on Monday\n3. ", done.body)
+        assertEquals("the cursor after the new marker", 29, done.caret)
+    }
+
+    @Test
+    fun `a corrected word with Enter keeps the item's depth on both lines`() {
+        val done = P.afterTyping("• one\n◦ before friday", "• one\n◦ before Friday\n",
+                                 mapOf(1 to Paragraphs.Props(1)), 22)!!
+        assertEquals("• one\n◦ before Friday\n◦ ", done.body)
+        assertEquals(1, done.props[1]?.indent)
+        assertEquals(1, done.props[2]?.indent)
+    }
+
+    @Test
+    fun `a corrected word with Enter mid-list makes a new item, not an empty line, the styles after it moved`() {
+        val done = P.afterTyping("1. a\n2. teh\n3. b", "1. a\n2. the\n\n3. b", emptyMap(), 12)!!
+        assertEquals("1. a\n2. the\n3. \n4. b", done.body)
+        assertEquals(listOf(FormatSpan(19, 20, "bold")), done.move(listOf(FormatSpan(15, 16, "bold"))))
+    }
+
+    @Test
     fun `Enter after a centred item continues it centred`() {
         val done = P.afterTyping("1. milk", "1. milk\n", mapOf(0 to Paragraphs.Props(align = "center")), 8)!!
         assertEquals("center", done.props[1]?.align)

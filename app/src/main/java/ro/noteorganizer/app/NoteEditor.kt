@@ -28,7 +28,10 @@ import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +46,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -54,6 +58,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -78,15 +83,20 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -105,6 +115,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
@@ -220,6 +231,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     private fun restore(to: Snap) {
+        val was = body
+        val kept = focus to focused
         title = to.title
         body = to.body
         spans = to.spans
@@ -235,7 +248,30 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         steps()
         edits += 1
         status = null
+        // ...but the cursor stays in the note, as Tk leaves it: where the
+        // change undone or redone was, or where it stood when only styles
+        // changed. Left with no place, the field kept the keyboard and the
+        // next letter went to the end of the note.
+        val (index, value) = kept
+        if (was == body && index != null && value != null) {
+            ask(index, value)
+        } else {
+            changeSite(was, body)?.let { at ->
+                val segments = Editing.segments(body)
+                val within = segments.indexOfFirst { s ->
+                    !s.table && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+                }
+                if (within >= 0) {
+                    caret = at
+                    ask(within, fieldValue(within, at))
+                }
+            }
+        }
     }
+
+    /** Where [was] and [now] differ, as a place in [now], in code points: the end of what changed. */
+    private fun changeSite(was: String, now: String): Int? =
+        if (was == now) null else Editing.changeEndPoints(was, now)
 
     /** Which prose field has the cursor, and its value -- selection and all. */
     var focus by mutableStateOf<Int?>(null)
@@ -869,7 +905,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun NoteEditor(state: AppState, openId: Int) {
+fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val palette = LocalPalette.current
     // Not keyed on the id: a new note's first save gives it one, and the
     // editor goes on as it was.
@@ -905,6 +941,18 @@ fun NoteEditor(state: AppState, openId: Int) {
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    // The checklist and the comments under the text: shown when the note has
+    // them, or once asked for from ⋮, where adding them and files lives --
+    // three links under every note made it busier than it needs to be (the
+    // owner's call, 2026-10-23). Shown once, they stay for this visit, even
+    // emptied, so a field never goes from under the finger.
+    var checklistOpen by remember(model.id) { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
+    var commentsOpen by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
+    val checklistShown = checklistOpen || note?.checklist.orEmpty().isNotEmpty()
+    val commentsShown = commentsOpen || model.comments.isNotEmpty()
+    var checklistAsk by remember { mutableIntStateOf(0) }
+    var commentsAsk by remember { mutableIntStateOf(0) }
+    var attachAsk by remember { mutableIntStateOf(0) }
     var askRestore by remember { mutableStateOf(false) }
     var tableMore by remember { mutableStateOf(false) }
     var askDeleteTable by remember { mutableStateOf(false) }
@@ -981,8 +1029,25 @@ fun NoteEditor(state: AppState, openId: Int) {
                 }
             },
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // The phone on its side with the keyboard up: no top bar, Undo and
+        // Redo at the start of the format bar's one row instead, so a few of
+        // the note's lines stay above the keys. With the bar, none did.
+        val compact = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP && WindowInsets.isImeVisible
+        if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
+            // Beside the list or the calendar: « puts it aside for a wider
+            // note, » brings it back (asked for on the owner's phone).
+            if (beside) {
+                val aside = state.listAside
+                val asideSaid = stringResource(when {
+                    state.tab == Tab.CALENDAR -> if (aside) R.string.show_calendar else R.string.hide_calendar
+                    else -> if (aside) R.string.show_list else R.string.hide_list
+                })
+                IconButton(onClick = { state.listAside = !aside },
+                           modifier = Modifier.semantics { contentDescription = asideSaid }) {
+                    Text(if (aside) "»" else "«", fontSize = 22.sp, color = palette.text)
+                }
+            }
             // Undo and Redo, the desktop's Ctrl+Z and Ctrl+Y: the note's
             // words and their styling, a step at a time.
             val undoSaid = stringResource(R.string.undo)
@@ -1046,6 +1111,25 @@ fun NoteEditor(state: AppState, openId: Int) {
                             calc.open = true
                         },
                     )
+                    if (!checklistShown) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.add_checklist)) },
+                            onClick = { menu = false; checklistOpen = true; checklistAsk += 1 },
+                        )
+                    }
+                    if (!commentsShown) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.add_comments)) },
+                            onClick = { menu = false; commentsOpen = true; commentsAsk += 1 },
+                        )
+                    }
+                    // A day of a series adds no files: they are the series'.
+                    if (day == null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.attach_files)) },
+                            onClick = { menu = false; attachAsk += 1 },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.template_use)) },
                         onClick = {
@@ -1250,9 +1334,17 @@ fun NoteEditor(state: AppState, openId: Int) {
             BasicTextField(
                 value = model.title,
                 onValueChange = {
-                    // The desktop's ceiling: far more than a title needs.
-                    model.title = it.take(200)
-                    model.changed(Editing.History.TYPING + ":title")
+                    // One line, as the desktop's title is: Enter goes on to
+                    // the note's words, and a break pasted in becomes a space.
+                    // It put a break in the title, which the list cut at.
+                    val enter = it.length == model.title.length + 1 && it.count { c -> c == '\n' } == 1
+                    val title = if (enter) it.replace("\n", "") else it.replace('\n', ' ')
+                    if (title != model.title) {
+                        // The desktop's ceiling: far more than a title needs.
+                        model.title = title.take(200)
+                        model.changed(Editing.History.TYPING + ":title")
+                    }
+                    if (enter) focusManager.moveFocus(FocusDirection.Down)
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
@@ -1333,9 +1425,9 @@ fun NoteEditor(state: AppState, openId: Int) {
                 }
             }
 
-            ChecklistSection(state, model)
-            CommentsSection(model)
-            AttachmentsSection(state, model)
+            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk)
+            CommentsSection(model, shown = commentsShown, focusAsk = commentsAsk)
+            AttachmentsSection(state, model, pickAsk = attachAsk)
             Spacer(Modifier.height(48.dp))
         }
 
@@ -1443,8 +1535,10 @@ fun NoteEditor(state: AppState, openId: Int) {
         val also = note.previousAlso
         Ask(
             title = stringResource(R.string.restore_title),
-            text = if (also.isEmpty()) stringResource(R.string.restore_text_only)
-                   else stringResource(R.string.restore_text_with, joinWithAnd(also)),
+            // ...and kept, said only when it is: an emptied note is not.
+            text = (if (also.isEmpty()) stringResource(R.string.restore_text_only)
+                    else stringResource(R.string.restore_text_with, joinWithAnd(also))) +
+                   (if (note.previousKeeps) " " + stringResource(R.string.restore_kept) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
                 askRestore = false
@@ -1508,6 +1602,29 @@ private fun ProseField(
         }
     }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    // Where the last press came down, for [tapLanding].
+    var pressedAt by remember { mutableStateOf<Offset?>(null) }
+    // A press let go, and the field said nothing of it: it landed where the
+    // cursor already was -- the end of the text, past an empty last line's
+    // stand-in -- so the change that puts a tap back never came. Put back
+    // here, a frame later, once the field has had its say.
+    var letGo by remember { mutableIntStateOf(0) }
+    LaunchedEffect(letGo) {
+        if (letGo == 0) return@LaunchedEffect
+        withFrameNanos { }
+        val pressed = pressedAt ?: return@LaunchedEffect
+        val now = model.focused?.takeIf { model.focus == index && it.text == segment.text } ?: return@LaunchedEffect
+        pressedAt = null
+        val landed = tapLanding(now, pressed, layout)
+        if (landed != now) {
+            model.focused = landed
+            model.caret = caretIn(segment, landed)
+            model.pick(segment, landed)
+        }
+    }
+    // The line being written kept in sight as it is typed, and as the keyboard rises.
+    val following = rememberFollowing(cursor = value.selection.end.takeIf { model.focus == index })
+    val once = remember { Editing.Once() }
     LaunchedEffect(reveal) {
         val at = match ?: return@LaunchedEffect
         val drawn = layout
@@ -1526,12 +1643,20 @@ private fun ProseField(
     BasicTextField(
         value = value,
         onValueChange = { next ->
+            // Told twice, taken once ([Editing.Once]): Samsung's keyboard's
+            // Enter on a word it is composing.
+            if (!once.news(value, next, SystemClock.uptimeMillis())) return@BasicTextField
             // Before anything moves: a cut arrives here with its words already gone.
             model.freshenPick()
             val pasted = clipboard.pasteOf(value, next)
             if (pasted != null && model.paste(segment, value, pasted.html, pasted.text)) return@BasicTextField
-            // A keystroke that meant a list operation comes back rewritten.
-            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null) ?: next
+            val pressed = pressedAt
+            if (next.selection != value.selection) pressedAt = null
+            // A keystroke that meant a list operation comes back rewritten;
+            // a tap past a line's end, put back on that line.
+            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null)
+                ?: if (pressed != null && next.text == value.text) tapLanding(next, pressed, layout) else next
+            following.typed(value.text, shown.text, shown.selection.end)
             model.focus = index
             model.focused = shown
             model.caret = caretIn(segment, shown)
@@ -1539,10 +1664,11 @@ private fun ProseField(
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
-            TransformedText(paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props),
-                            OffsetMapping.Identity)
+            val painted = paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props)
+            TransformedText(painted,
+                            if (painted.length > text.length) StandInAtEnd(text.length) else OffsetMapping.Identity)
         },
-        onTextLayout = { layout = it },
+        onTextLayout = { layout = it; following.laidOut(it) },
         textStyle = TextStyle(color = palette.text, fontSize = BODY_SIZE.sp, lineHeight = BODY_LINE_HEIGHT.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -1551,6 +1677,13 @@ private fun ProseField(
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
             .focusRequester(focuser)
             .bringIntoViewRequester(requester)
+            .bringIntoViewRequester(following.requester)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    pressedAt = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
+                    if (waitForUpOrCancellation(PointerEventPass.Initial) != null) letGo += 1
+                }
+            }
             // The desktop's Ctrl+Shift+V, for a keyboard: the words alone.
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed || !event.isShiftPressed ||
@@ -1668,8 +1801,19 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     // drew an empty line after it (a list came out double-spaced), while a
     // break left between two became an empty paragraph of its own. The
     // stand-in is one character for one, so every position stays where
-    // the field's text has it.
+    // the field's text has it -- but a tap can land after it ([tapLanding]).
     val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
+    // An empty last line is given a stand-in of its own, drawn after the text
+    // ([StandInAtEnd]), and so a paragraph and a style of its own. With no
+    // character it made no paragraph: the line was not drawn at all -- the
+    // cursor shown at the end of "2. two" was on it, hidden -- and kept as a
+    // real break inside the line above, it wore that line's style: centred,
+    // its cursor stayed at the left until a letter came, and put back to the
+    // left under a centred line, it stayed in the middle (the owner's phone,
+    // 2026-10-23). A tap past the end of the line above now lands on the end
+    // of the text, where the cursor may already be, and the field says
+    // nothing; the press is put back when it is let go ([tapLanding]).
+    val standIn = lines.last().isEmpty()
     var at = 0
     for ((i, line) in lines.withIndex()) {
         val end = at + line.length + if (i < lines.lastIndex) 1 else 0
@@ -1689,10 +1833,46 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
             lineHeight = BODY_LINE_HEIGHT.sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         )
-        if (end > at) paragraphs.add(AnnotatedString.Range(style, at, end))
+        val last = standIn && i == lines.lastIndex
+        if (end > at || last) paragraphs.add(AnnotatedString.Range(style, at, if (last) end + 1 else end))
         at = end
     }
-    return AnnotatedString(text.text.replace('\n', '​'), text.spanStyles, paragraphs)
+    val drawn = text.text.replace('\n', '​') + if (standIn) "​" else ""
+    return AnnotatedString(drawn, text.spanStyles, paragraphs)
+}
+
+/**
+ * The positions of a field drawn with one stand-in more than its text, after
+ * an empty last line ([paintLines]): every position of the text where it was,
+ * and the stand-in's own, after it, the end of the text.
+ */
+private class StandInAtEnd(private val length: Int) : OffsetMapping {
+    override fun originalToTransformed(offset: Int): Int = offset
+    override fun transformedToOriginal(offset: Int): Int = minOf(offset, length)
+}
+
+/**
+ * Where a tap meant the cursor to go. [paintLines] draws each break as a
+ * stand-in at the end of its line's paragraph, a character the layout can
+ * be tapped after; a tap past a line's end landed there, at the start of
+ * the next line, and what was typed went in front of its marker ("2. two"
+ * then "more3. three"), Enter after "3. three" broke before "4. ". Put back
+ * before the break when the press was on a line above the one the cursor
+ * landed on. And a tap on a list's marker -- "3." or "•" -- puts the cursor
+ * after it, at the item's words: before it, a letter typed made "x3. ham",
+ * a line that is no item any more.
+ */
+private fun tapLanding(value: TextFieldValue, pressed: Offset, layout: TextLayoutResult?): TextFieldValue {
+    val drawn = layout ?: return value
+    var at = value.selection.start
+    if (!value.selection.collapsed || at > value.text.length || at > drawn.layoutInput.text.length) return value
+    if (at > 0 && value.text[at - 1] == '\n' &&
+        drawn.getLineForVerticalPosition(pressed.y) < drawn.getLineForOffset(at)) at -= 1
+    val lineStart = value.text.lastIndexOf('\n', at - 1) + 1
+    val lineEnd = value.text.indexOf('\n', lineStart).let { if (it < 0) value.text.length else it }
+    val parsed = Paragraphs.parseListMarker(value.text.substring(lineStart, lineEnd))
+    if (parsed.kind != null && at < lineStart + parsed.marker.length) at = lineStart + parsed.marker.length
+    return if (at == value.selection.start) value else value.copy(selection = TextRange(at))
 }
 
 /**
@@ -1710,6 +1890,7 @@ private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
  * keyboard, where the thumb already is and where Android's own selection
  * menu does not reach.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
     val palette = LocalPalette.current
@@ -1805,17 +1986,61 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                 }
             }
         }
-        if (!hasSelection) {
+        // The phone on its side: one row of keys that scrolls, and no line of
+        // words above it. The line and two rows took what height the keyboard
+        // left, and not a word of the note showed while it was up; the keys'
+        // own pressed look says what waits for the next letter.
+        val short = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
+        if (!hasSelection && !short) {
             val waiting = PENDING_STYLES.filter { it in model.pending }.map { stringResource(styleName(it)) }
             Text(if (waiting.isNotEmpty()) stringResource(R.string.pending_on, waiting.joinToString(", "))
                  else stringResource(R.string.select_to_format),
                  color = if (waiting.isNotEmpty()) palette.accentText else palette.subtext, fontSize = 11.sp,
                  modifier = Modifier.padding(start = 12.dp, top = 6.dp))
         }
+        // The lines the cursor or the selection covers: lists, depth and
+        // alignment, which need no selection -- the cursor's line will do.
+        // Not in the empty field under a table that ends the note: it has
+        // no line of its own until something is typed there.
+        val lineKeys = !segment.isVirtual
+        val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
+        val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
+        val lineText = model.body.split("\n").getOrElse(firstLine) { "" }
+        val kind = Paragraphs.parseListMarker(lineText).kind
+        val align = model.props[firstLine]?.align ?: "left"
+        fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
+        @Composable
+        fun lineButtons() {
+            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
+            }
+            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
+                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
+            }
+            FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, -1))
+            }
+            FormatKey("⇥", false, lineKeys, said = stringResource(R.string.indent_more)) {
+                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, 1))
+            }
+            for ((way, said) in listOf("left" to R.string.align_left, "center" to R.string.align_center,
+                                       "right" to R.string.align_right)) {
+                AlignKey(way, align == way && (way != "left" || lineKeys), lineKeys, stringResource(said)) {
+                    model.alignLines(firstLine, lastLine, way)
+                }
+            }
+            FormatKey("▦", false, true, said = stringResource(R.string.table_insert), onClick = onTable)
+        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // The top bar stands aside on its side with the keyboard up: its
+            // Undo and Redo come here.
+            if (short && WindowInsets.isImeVisible) {
+                FormatKey("↶", false, model.canUndo, said = stringResource(R.string.undo)) { model.undo() }
+                FormatKey("↷", false, model.canRedo, said = stringResource(R.string.redo)) { model.redo() }
+            }
             FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold) { apply("bold") }
             FormatKey("I", on("italic"), hasSelection || waits, italic = true) { apply("italic") }
             FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline) { apply("underline") }
@@ -1840,44 +2065,19 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                       wide = sizeLabel.length > 3, said = stringResource(R.string.size_key_said, sizeLabel)) {
                 palettePicker = if (palettePicker == "size") "" else "size"
             }
+            if (short) lineButtons()
         }
-        // The lines the cursor or the selection covers: lists, depth and
-        // alignment, which need no selection -- the cursor's line will do.
-        // Not in the empty field under a table that ends the note: it has
-        // no line of its own until something is typed there.
-        val lineKeys = !segment.isVirtual
-        val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
-        val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
-        val lineText = model.body.split("\n").getOrElse(firstLine) { "" }
-        val kind = Paragraphs.parseListMarker(lineText).kind
-        val align = model.props[firstLine]?.align ?: "left"
-        fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
-                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
-            }
-            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
-                lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
-            }
-            FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
-                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, -1))
-            }
-            FormatKey("⇥", false, lineKeys, said = stringResource(R.string.indent_more)) {
-                lines(Paragraphs.changeIndent(model.body, model.props, firstLine, lastLine, 1))
-            }
-            for ((way, said) in listOf("left" to R.string.align_left, "center" to R.string.align_center,
-                                       "right" to R.string.align_right)) {
-                AlignKey(way, align == way && (way != "left" || lineKeys), lineKeys, stringResource(said)) {
-                    model.alignLines(firstLine, lastLine, way)
-                }
-            }
-            FormatKey("▦", false, true, said = stringResource(R.string.table_insert), onClick = onTable)
+        if (!short) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) { lineButtons() }
         }
     }
 }
+
+/** Under this height in dp the window is a phone on its side: the format bar takes one row. */
+private const val SHORT_SCREEN_DP = 480
 
 /**
  * The desktop's size grid: the shape of a table is what is chosen, and a
@@ -2006,32 +2206,47 @@ private fun FormatKey(
 }
 
 /**
- * The checklist, under the text. Ticking, adding, renaming and removing
- * each write at once, as the desktop's do; the handle ⠿ drags a row to
- * another place.
+ * The checklist, under the text, when [shown]. Ticking, adding, renaming
+ * and removing each write at once, as the desktop's do; the handle ⠿ drags
+ * a row to another place. [focusAsk] counts the times ⋮ asked for it: the
+ * keyboard then comes up in "A new item…", ready for the first row.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChecklistSection(state: AppState, model: EditorModel) {
+private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean, focusAsk: Int) {
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
     var adding by remember { mutableStateOf("") }
-    var open by remember(model.id) { mutableStateOf(items.isNotEmpty()) }
+    // The new row's box whole above the keyboard: the field brings only its
+    // line of words into view, and in a long note the box's lower half and
+    // Add stayed under the keys.
+    // Asked again at each height the keyboard passes through as it rises:
+    // asked once, when it began to, the screen had not shrunk yet and there
+    // was nothing to scroll.
+    val addRow = remember { BringIntoViewRequester() }
+    var addFocused by remember { mutableStateOf(false) }
+    val keyboardHeight = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(addFocused, keyboardHeight) {
+        if (addFocused && keyboardHeight > 0) addRow.bringIntoView()
+    }
+    // And again after each row added, once it is laid out: the new row
+    // pushed the box down a row at a time, under the keys, and the newest
+    // item was out of sight with it.
+    var added by remember { mutableIntStateOf(0) }
+    LaunchedEffect(added) {
+        if (added == 0) return@LaunchedEffect
+        withFrameNanos { }
+        addRow.bringIntoView()
+    }
+    val addFocus = remember { FocusRequester() }
 
     fun ensureSaved(): Int? {
         if (model.id == 0 && !model.save(force = true)) return null
         return model.id
     }
 
-    if (!open && items.isEmpty()) {
-        Text(
-            stringResource(R.string.add_checklist),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 18.dp).clickable { open = true }.padding(vertical = 6.dp),
-        )
-        return
-    }
+    if (!shown) return
     // On one day of a series the checklist is the series': a tick here is
     // a tick on every day, and the label says so, as the desktop's does.
     SectionLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size) +
@@ -2088,16 +2303,32 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             )
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+    // The keyboard's ✓ adds the row as Add does, the keyboard left up for the
+    // next -- the desktop's Enter in its entry. It only closed the keyboard,
+    // the words left in the box and the list still empty.
+    fun add() {
+        if (adding.isBlank()) return
+        val id = ensureSaved() ?: return
+        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) {
+            adding = ""
+            added += 1
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
         BasicTextField(
             value = adding,
             onValueChange = { adding = it },
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences,
+                                              imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { add() }),
             modifier = Modifier
                 .weight(1f)
+                .focusRequester(addFocus)
+                .onFocusChanged { addFocused = it.isFocused }
                 .clip(RoundedCornerShape(8.dp))
                 .background(palette.card)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -2111,13 +2342,12 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             color = if (adding.isBlank()) palette.subtext else palette.accentText,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .clickable(enabled = adding.isNotBlank()) {
-                    val id = ensureSaved() ?: return@clickable
-                    if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) adding = ""
-                }
+                .clickable(enabled = adding.isNotBlank()) { add() }
                 .padding(12.dp),
         )
     }
+    // Run once the box is there to take it: asked for from ⋮.
+    LaunchedEffect(focusAsk) { if (focusAsk > 0) addFocus.requestFocus() }
 }
 
 /** A row's words, renamed when the field is left -- one write per edit, not per letter. */
@@ -2143,50 +2373,52 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     )
 }
 
-/** Comments: plain text under the note, saved with it. */
+/**
+ * Comments: plain text under the note, saved with it, when [shown]. Asked
+ * for from ⋮ ([focusAsk]), the cursor goes into them.
+ */
 @Composable
-private fun CommentsSection(model: EditorModel) {
+private fun CommentsSection(model: EditorModel, shown: Boolean, focusAsk: Int) {
     val palette = LocalPalette.current
-    var open by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
-    if (!open) {
-        Text(
-            stringResource(R.string.add_comments),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 10.dp).clickable { open = true }.padding(vertical = 6.dp),
-        )
-        return
-    }
+    if (!shown) return
     SectionLabel(stringResource(R.string.comments_label))
+    val following = rememberFollowing()
+    val typing = remember { FocusRequester() }
+    LaunchedEffect(focusAsk) { if (focusAsk > 0) typing.requestFocus() }
     BasicTextField(
         value = model.comments,
         onValueChange = { now ->
             // A table pasted here showed as rows of bars: the comments draw no table.
             val kept = Pasting.commentsAfter(model.comments, now)
+            following.typed(model.comments, kept ?: now)
             model.comments = kept ?: now
             if (kept != null) model.say("Comments keep text only — the table wasn't added")
             model.changed(Editing.History.TYPING + ":comments")
         },
+        onTextLayout = following::laidOut,
         textStyle = TextStyle(color = palette.text, fontSize = 15.sp, lineHeight = 22.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
+            .focusRequester(typing)
             .clip(RoundedCornerShape(8.dp))
             .background(palette.card)
-            .padding(12.dp),
+            .padding(12.dp)
+            .bringIntoViewRequester(following.requester),
     )
 }
 
 /**
  * The note's attached files, each opened with the phone's own apps, taken
  * off with ✕ -- which asks first, as the desktop does, the stored copy
- * going with it -- and more added from Android's own file picker. A day of
- * a series shows the series' files and adds none: they are never a day's.
+ * going with it -- and more added from Android's own file picker, which
+ * ⋮'s Attach files opens ([pickAsk] counts the times). A day of a series
+ * shows the series' files and adds none: they are never a day's.
  */
 @Composable
-private fun AttachmentsSection(state: AppState, model: EditorModel) {
+private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int) {
     val palette = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -2221,6 +2453,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel) {
             else -> attach(uris)
         }
     }
+    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) picker.launch(arrayOf("*/*")) }
 
     if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
@@ -2243,14 +2476,6 @@ private fun AttachmentsSection(state: AppState, model: EditorModel) {
                          .padding(10.dp))
             }
         }
-    }
-    if (model.day == null) {
-        Text(
-            stringResource(R.string.attach_files),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 10.dp).clickable { picker.launch(arrayOf("*/*")) }.padding(vertical = 6.dp),
-        )
     }
     removing?.let { (name, stored) ->
         Ask(
@@ -2549,10 +2774,12 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val typing = remember(key) { FocusRequester() }
     LaunchedEffect(key) { typing.requestFocus() }
     val said = stringResource(R.string.cell)
+    val following = rememberFollowing()
     BasicTextField(
         value = draft,
         onValueChange = { next ->
             val clean = next.text.replace("|", "/")
+            following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)
             model.cellCaret = next.selection.end
             // Not written while it is a merge's marker or a box's -- "<" on
@@ -2566,11 +2793,13 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
                 }
             }
         },
+        onTextLayout = following::laidOut,
         textStyle = style,
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier.fillMaxWidth().focusRequester(typing).semantics { contentDescription = said }
-            .onFocusChanged { if (it.isFocused) model.focus = null },
+            .onFocusChanged { if (it.isFocused) model.focus = null }
+            .bringIntoViewRequester(following.requester),
     )
 }
 

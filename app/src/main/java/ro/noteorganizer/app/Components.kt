@@ -26,7 +26,18 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +77,72 @@ fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -
         ),
         content = content,
     )
+}
+
+/**
+ * A text field in a column that scrolls, kept in sight where it is typed
+ * into. Compose's field brings its cursor into view only when it takes the
+ * focus: Enter on the last line the keyboard left showing made the next one
+ * under the keys, and the screen stayed where it was (the owner's phone,
+ * 2026-10-23). After each change to the words, once they are laid out, the
+ * place where the change ended is brought into view.
+ *
+ * On the field: [requester] in its modifier, after any padding, so its box
+ * is the words' own; [laidOut] as its onTextLayout; [typed] from its
+ * onValueChange.
+ */
+@Stable
+class Following {
+    val requester = BringIntoViewRequester()
+    var layout by mutableStateOf<TextLayoutResult?>(null)
+        private set
+    // Where the last change ended, and the length of the text it made: kept
+    // until a layout of that text arrives.
+    var pending by mutableStateOf<Pair<Int, Int>?>(null)
+
+    fun laidOut(result: TextLayoutResult) {
+        layout = result
+    }
+
+    /** A change from [old] to [new]; [end] where the cursor stands, when the field knows it. */
+    fun typed(old: String, new: String, end: Int? = null) {
+        if (old != new) pending = (end ?: Editing.changeEnd(old, new)) to new.length
+    }
+}
+
+/**
+ * [cursor], given while the field has the focus, is also kept in sight as
+ * the keyboard rises. Compose keeps the focused field in view as the screen
+ * shrinks, and for a field longer than what is left that showed another part
+ * of it: a tap on line 2 of a long note, the phone on its side, left lines
+ * 20 to 22 in sight (2026-10-23). Asked at each height the keyboard passes
+ * through, as the checklist's box is. The note still jumps away as the
+ * keyboard rises and scrolls back to the line: Compose's own move comes
+ * first, at each height, and a request can only answer it.
+ */
+@Composable
+fun rememberFollowing(cursor: Int? = null): Following {
+    val following = remember { Following() }
+    val drawn = following.layout
+    LaunchedEffect(drawn) {
+        val (at, length) = following.pending ?: return@LaunchedEffect
+        // Laid out for this text: its length, or one more where an empty last
+        // line is drawn with a stand-in of its own (the editor's paintLines).
+        val laidOut = drawn ?: return@LaunchedEffect
+        val laid = laidOut.layoutInput.text
+        if (at > length || !(laid.length == length ||
+                laid.length == length + 1 && laid.text.endsWith('​'))) return@LaunchedEffect
+        following.pending = null
+        following.requester.bringIntoView(laidOut.getCursorRect(at))
+    }
+    val keyboard = if (cursor != null) WindowInsets.ime.getBottom(LocalDensity.current) else 0
+    LaunchedEffect(keyboard) {
+        val laid = following.layout ?: return@LaunchedEffect
+        if (cursor != null && keyboard > 0 && cursor <= laid.layoutInput.text.length) {
+            following.requester.bringIntoView(laid.getCursorRect(cursor))
+        }
+    }
+    return following
 }
 
 /** A small heading over a group of rows, as Settings' sections have. */

@@ -66,6 +66,8 @@ data class Note(
      * drastic shrink's copy, which is the text alone.
      */
     val previousAlso: List<String> = emptyList(),
+    /** Whether restoring that copy would keep what the note holds now ([Notebook.replacedByRestore]). */
+    val previousKeeps: Boolean = false,
 ) {
     /**
      * A note repeats when its rule names a frequency -- NOT when its
@@ -1129,6 +1131,7 @@ object Notebook {
                 SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
         }
         // `created` is deliberately untouched: an edit is not a birth.
+        dropSpentCopy(note)
 
         val problem = writeAtomic(file, array)
         if (problem != null) return SaveResult.Failed(problem)
@@ -1650,10 +1653,47 @@ object Notebook {
     }
 
     /**
+     * The rescue copy is spent once the note holds what it kept: Undo after
+     * a big deletion brought the words back, yet the banner stayed, and
+     * "↩ Restore previous" pressed later put the old version over everything
+     * written since.
+     */
+    internal fun dropSpentCopy(note: JSONObject) {
+        val previous = note.opt("_prev") as? JSONObject ?: return
+        val same = PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(note, field), shaped(previous, field)) }
+        if (same) note.remove("_prev")
+    }
+
+    /**
+     * What a restore keeps of the version it replaces, to be the copy in its
+     * turn: its text, and every other field [previous] brings back -- so the
+     * same banner brings it back. Null when it holds nothing the restored
+     * version lacks (an emptied note, words the restored text contains): a
+     * banner offering that back would only mislead. The desktop's
+     * `copy_replaced_by_restore`.
+     */
+    internal fun replacedByRestore(live: JSONObject, previous: JSONObject): JSONObject? {
+        val wasTitle = (live.opt("title") as? String).orEmpty()
+        val nothingLost = (previous.opt("body") as? String).orEmpty().contains((live.opt("body") as? String).orEmpty().trim()) &&
+            (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
+            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) }
+        if (nothingLost) return null
+        val replaced = JSONObject()
+        for (field in PREV_TEXT_FIELDS) replaced.put(field, deepCopy(shaped(live, field)))
+        for ((field, _) in PREV_EXTRA_LABELS) {
+            if (previous.has(field)) replaced.put(field, deepCopy(shaped(live, field)))
+        }
+        return replaced
+    }
+
+    /**
      * Brings back the rescue copy: the text a drastic shortening replaced,
      * or everything an update replaced. Written straight onto the note, as
-     * the desktop writes it; the copy is spent, and a category deleted in
-     * the meantime comes back as General.
+     * the desktop writes it, and a category deleted in the meantime comes
+     * back as General. What it replaces becomes the copy ([replacedByRestore]),
+     * so the same banner brings that back: spent, the copy took everything
+     * written since the deletion with no way back.
      */
     fun restorePrevious(load: Load, id: Int): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -1663,6 +1703,7 @@ object Notebook {
         val live = array.get(index) as JSONObject
         val previous = live.opt("_prev") as? JSONObject
             ?: return SaveResult.Failed("This note has no earlier version to bring back.")
+        val replaced = replacedByRestore(live, previous)
         val note = JSONObject(live.toString())
         for (field in PREV_TEXT_FIELDS) note.put(field, shaped(previous, field))
         for ((field, _) in PREV_EXTRA_LABELS) {
@@ -1678,7 +1719,7 @@ object Notebook {
                 }
             }
         }
-        note.remove("_prev")
+        if (replaced == null) note.remove("_prev") else note.put("_prev", replaced)
         note.put("updated", Files.now())
         val candidate = copyOf(array)
         candidate.put(index, note)
@@ -1872,6 +1913,7 @@ object Notebook {
             previousAlso = (o.opt("_prev") as? JSONObject)?.let { prev ->
                 PREV_EXTRA_LABELS.filter { (key, _) -> prev.has(key) }.map { it.second }
             } ?: emptyList(),
+            previousKeeps = (o.opt("_prev") as? JSONObject)?.let { replacedByRestore(o, it) != null } ?: false,
         )
     }
 

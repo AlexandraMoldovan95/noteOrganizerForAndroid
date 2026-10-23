@@ -15,6 +15,13 @@
     <string name="nav_settings">Settings</string>
     <!-- A wide screen's second pane, before a note is opened in it -->
     <string name="pick_a_note">Pick a note to open it here, or tap + for a new one.</string>
+    <!-- ...beside the calendar, which has no + -->
+    <string name="pick_a_day_note">Pick a note of the day to open it here.</string>
+    <!-- The note's button that puts the pane beside it aside, and back -->
+    <string name="hide_list">Hide the list</string>
+    <string name="show_list">Show the list</string>
+    <string name="hide_calendar">Hide the calendar</string>
+    <string name="show_calendar">Show the calendar</string>
 
     <!-- The calendar: the desktop's words wherever it has them -->
     <string name="cal_today">Today</string>
@@ -178,6 +185,7 @@
     <string name="restore_title">Restore previous version</string>
     <string name="restore_text_only">Bring back the earlier version of this note\'s text? The current text will be replaced.</string>
     <string name="restore_text_with">Bring back this note as it was before it was updated? Its text comes back, and so do its %1$s. What the note holds now will be replaced.</string>
+    <string name="restore_kept">It is kept in its turn, so “↩ Restore previous” brings it back.</string>
     <string name="restore_confirm">Restore</string>
     <string name="select_to_format">Select text to format it, or tap B, I, U or S for what you type next</string>
     <string name="pending_on">On for what you type next: %1$s — tap again to stop</string>
@@ -185,14 +193,15 @@
     <string name="style_italic">italic</string>
     <string name="style_underline">underline</string>
     <string name="style_strike">strikethrough</string>
-    <string name="add_checklist">+ Add a checklist</string>
+    <!-- ⋮'s three ways to add to a note, with the desktop's marks -->
+    <string name="add_checklist">☑ Add a checklist</string>
     <string name="checklist_label">Checklist · %1$d/%2$d</string>
     <string name="checklist_new">A new item…</string>
-    <string name="add_comments">+ Add comments</string>
+    <string name="add_comments">💬 Add comments</string>
     <string name="comments_label">Comments</string>
     <string name="files_label">Attached files · %1$d</string>
     <!-- Attaching and removing files: the desktop's words -->
-    <string name="attach_files">+ Attach files</string>
+    <string name="attach_files">📎 Attach files</string>
     <string name="attach_remove_said">Remove %1$s</string>
     <string name="attach_remove_title">Remove attachment</string>
     <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it — this can\'t be undone.</string>
@@ -360,6 +369,9 @@
     <string name="q_same_note_title">Same note, a different version</string>
     <string name="q_same_note_text">Updating replaces what is on this device; you can undo it with “↩ Restore previous”. Adding leaves both, so you can compare them and delete one.</string>
     <string name="q_known_title">%1$d notes you already have</string>
+    <string name="q_known_title_one">1 note you already have</string>
+    <string name="q_known_text_one">1 of the %1$d notes in this %2$s is already here, edited elsewhere.\n\nUpdating replaces this device\'s copy; it can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
+    <string name="q_known_all">All %1$d notes in this %2$s are already here, edited elsewhere.\n\nUpdating replaces this device\'s copies; each one can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
     <string name="q_known_text">%1$d of the %2$d notes in this %3$s are already here, edited elsewhere.\n\nUpdating replaces this device\'s copies; each one can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
     <string name="q_older_one">It is OLDER than the copy on this device.</string>
     <string name="q_older_many">%1$d of them are OLDER than the copy on this device.</string>
@@ -370,14 +382,21 @@
     <string name="q_unchanged_title">Already here, unchanged</string>
     <string name="q_unchanged_all">All %1$d notes in this %2$s are already here: the %2$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
     <string name="q_unchanged_some">%1$d of the %2$d notes in this %3$s are already here: the %3$s holds nothing about them that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_unchanged_one">The note in this %1$s is already here: the %1$s holds nothing about it that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
+    <string name="q_unchanged_some_one">1 of the %1$d notes in this %2$s is already here: the %2$s holds nothing about it that this device lacks.\n\nSkipping changes nothing. A copy is a second, separate note.</string>
     <string name="q_skip_n">Skip the %1$d</string>
+    <string name="q_skip_one">Skip it</string>
     <string name="q_add_copies">Add copies anyway</string>
+    <string name="q_add_copy">Add a copy anyway</string>
     <string name="q_duplicates_title">Possible duplicates</string>
     <string name="q_duplicates_text">%1$d of the %2$d new notes in this %3$s look identical to notes you already have (same title, text, comments, category, checklist and repeat rule).</string>
     <string name="q_skip_duplicates">Skip the %1$d duplicates</string>
+    <string name="q_duplicates_one">1 of the %1$d new notes in this %2$s looks identical to a note you already have (same title, text, comments, category, checklist and repeat rule).</string>
+    <string name="q_skip_duplicate">Skip the duplicate</string>
     <string name="q_import_all">Import all anyway</string>
     <string name="q_all_imported_title">All notes already imported</string>
     <string name="q_all_imported_text">All %1$d new notes in this %2$s look identical to notes you already have. Import them anyway as new copies?</string>
+    <string name="q_all_imported_one">The new note in this %1$s looks identical to one you already have. Import it anyway as a new copy?</string>
     <string name="q_import_anyway">Import anyway</string>
 
     <!-- Settings -->
@@ -427,8 +446,26 @@
     <string name="stats_by_category">By category</string>
     <string name="stats_since">Using Note Organizer since %1$s</string>
     <string name="no_notes_short">No notes yet.</string>
+    <!-- The day's reminder: the desktop's bar, and the phone's notification -->
+    <plurals name="reminder_today">
+        <item quantity="one">You have %1$d note for today (%2$s).</item>
+        <item quantity="other">You have %1$d notes for today (%2$s).</item>
+    </plurals>
+    <string name="reminder_close">Close the reminder</string>
+    <string name="reminder_channel">Today\'s notes</string>
+    <string name="settings_reminders">Reminders</string>
+    <string name="settings_reminders_sub">The day\'s notes, when you open the app or at an hour</string>
+    <string name="reminder_bar_explain">When you open the app on a day that has notes, a bar above your notes says how many, once a day. A tap on it opens the day.</string>
+    <string name="reminder_notify">Notify me about today\'s notes</string>
+    <string name="reminder_notify_sub">A notification at the hour below, even with the app closed, on a day that has notes. It says how many, never their words.</string>
+    <string name="reminder_at">At</string>
+    <string name="reminder_inexact">The phone may bring it a few minutes late, to save its battery.</string>
+    <string name="reminder_denied">The phone does not allow Note Organizer to send notifications, so the reminder stays off.</string>
+    <string name="reminder_blocked">Notifications are turned off for Note Organizer on this phone.</string>
+    <string name="reminder_open_settings">Open the phone\'s settings</string>
     <string name="settings_about">About</string>
     <string name="settings_about_sub">Version, the welcome note, and the privacy policy</string>
+    <string name="name_saved">✓ Saved</string>
     <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
     <string name="themes_dark">Dark</string>
     <string name="themes_light">Light</string>

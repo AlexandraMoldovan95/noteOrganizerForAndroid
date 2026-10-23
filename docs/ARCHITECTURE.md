@@ -26,7 +26,7 @@ object, `AppState`. Below the screens sit twenty-six files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 675 tests run on a laptop in seconds,
+about Android. That split is why 683 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -170,7 +170,7 @@ by good intentions; it is the same rule the desktop keeps between its
 `core/` layer and tkinter, and it buys two things:
 
 - the tests for those files run on the JVM, with no device and no
-  emulator — which is why there are 675 of them and why running them
+  emulator — which is why there are 683 of them and why running them
   costs seconds;
 - the rules can be read, and compared against the Python they were ported
   from, without Compose in the way.
@@ -339,6 +339,34 @@ The cost is that the menu cannot be walked: it is a floating bar the
 phone's UI tree leaves out, so the walk presses the keys that call the
 same code, and the menu itself is photographed
 ([the story](ISSUES_LOG.md#a-menu-the-phones-own-tree-leaves-out)).
+
+## Decision: the reminder's alarm reads, inexactly, and asks late
+
+The day's notification (`ReminderAlarm.kt`; its rules in `Reminders.kt`,
+tested on the JVM) is the first code that runs with the app closed, and
+three choices shape it:
+
+- **It only reads.** It opens `settings.json` and `notes_data.json` as
+  text, counts the day's notes as the calendar does, and writes nothing —
+  no rescue copy of a file it cannot read, no Trash purge, both of which
+  the app's own start does. A notebook it cannot read gets no
+  notification. A second writer behind the app's back is the one thing
+  the notebook's every rule is built to avoid.
+- **Inexact.** `setAndAllowWhileIdle` may come a few minutes late to
+  spare the battery. An exact alarm needs `SCHEDULE_EXACT_ALARM`, which
+  Google Play reviews and the phone's settings can take away, for a
+  reminder that does not need the minute. It is set one day at a time,
+  again after each one fires, at every start, and after a restart or an
+  update — both of which clear an app's alarms.
+- **Asked for late.** The notification is off until the person turns it
+  on in Settings → Reminders; Android's question about notifications comes
+  then, not at the app's first start for something nobody chose yet.
+
+The receiver is not exported: only the system and the app's own alarm
+reach it. **The debug build exports it** (`app/src/debug/AndroidManifest.xml`)
+so the walk can fire the alarm at once instead of waiting for its hour.
+That is the one place the build that is walked differs from the one
+people run, and it is named here so it stays the only one.
 
 ## The desktop is the specification
 

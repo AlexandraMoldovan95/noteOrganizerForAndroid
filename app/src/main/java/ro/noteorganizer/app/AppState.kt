@@ -18,7 +18,7 @@ import java.io.File
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
 /** One page of Settings, or the list of them. */
-enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, BACKUP, TRASH, DUPLICATES, STATS, ABOUT }
+enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, REMINDERS, BACKUP, TRASH, DUPLICATES, STATS, ABOUT }
 
 /**
  * The app's state, and every action a screen can take on the notebook.
@@ -59,6 +59,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var openId by mutableStateOf<Int?>(null)
 
     /**
+     * On a wide screen, the list (or the calendar) put aside for a wider
+     * note -- remembered until the app is closed, the owner's choice. With
+     * no note open it shows all the same: there would be nothing else.
+     */
+    var listAside by mutableStateOf(false)
+
+    /**
      * Counts the notes opened: each gets an editor of its own, scrolled to
      * its top, its sheets shut. On a wide screen the editor stays on screen
      * from one note to the next, and a second new note is "note 0" again,
@@ -94,6 +101,37 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** The History in place of the month, as the desktop's toggle swaps them. */
     var showHistory by mutableStateOf(false)
+
+    // ---- the day's reminder ([Reminders]) ----
+
+    /** How many notes today's bar says, while it shows; null when it does not. */
+    var reminderDue by mutableStateOf<Int?>(null)
+
+    /** Moves when today is asked for -- the bar tapped, the notification -- for the calendar to show it. */
+    var todayAsked by mutableIntStateOf(0)
+
+    /**
+     * The bar, once a day: shown when notes fall on [today] and it was not
+     * shown yet that day -- marked as shown when it shows, as the desktop
+     * marks it, so a second start that day says nothing. A mark that could
+     * not be written still shows the bar; it may show once more.
+     */
+    fun checkReminder(today: String) {
+        val due = Reminders.dueOn(rawNotes(), today)
+        if (!Reminders.barDue(settings, today, due)) return
+        load.settings?.let { Settings.put(it, Reminders.LAST_SHOWN, today) }
+        reminderDue = due
+    }
+
+    /** The calendar on [today], the bar gone: what the bar and the notification open. */
+    fun showToday(today: String) {
+        Recurrence.parseDate(today)?.let { calendarMonth = java.time.YearMonth.from(it) }
+        selectedDay = today
+        showHistory = false
+        reminderDue = null
+        // Reminded already, by the notification: the bar does not say it again.
+        if (settings.opt(Reminders.LAST_SHOWN) != today) load.settings?.let { Settings.put(it, Reminders.LAST_SHOWN, today) }
+    }
 
     /**
      * The find bar's words and its "Aa", kept from note to note while the

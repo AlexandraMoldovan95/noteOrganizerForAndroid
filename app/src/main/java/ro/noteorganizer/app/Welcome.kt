@@ -40,7 +40,7 @@ object Welcome {
         "# 📝 Write",
         "- The **+** button starts a note. Give it a title and write; it saves itself as you go.",
         "- The bar above the keyboard shapes your words: bold, italic, colours and highlights.",
-        "- Under the text: a checklist for to-dos, and comments.",
+        "- **⋮** at the top of a note adds a checklist for to-dos, comments and files.",
         "",
         "# 🗂 Organise",
         "- **Search** at the top looks through all your notes at once.",

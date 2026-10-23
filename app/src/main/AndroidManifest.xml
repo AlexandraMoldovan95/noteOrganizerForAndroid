@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The day's reminder (ReminderAlarm), and only when the person turns
+         it on in Settings -> Reminders: a notification, asked for there;
+         and setting the next one again after the phone restarts, which
+         clears every app's alarms. Neither reaches anything but the phone. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -49,6 +56,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- The reminder's alarm, and the phone's restart and the app's
+             update, after which the next one is set again. Not exported:
+             only the system and the app's own alarm reach it. -->
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <!-- The WebView a note is printed to PDF with may send Google usage
              statistics, when the person has allowed them for the phone.
              The privacy policy says the app sends nothing, so its WebView

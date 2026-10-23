@@ -85,6 +85,56 @@ object Editing {
     }
 
     /**
+     * Where a change from [old] to [new] ended in [new], in code points:
+     * after its last changed character -- where the cursor stands after
+     * typing, for a field that does not say, and where Undo puts it. The
+     * ends are matched only outside what the starts matched, so Enter at
+     * the end of "a\n" ends after the new break, not before it.
+     */
+    fun changeEndPoints(old: String, new: String): Int {
+        val a = old.codePoints().toArray()
+        val b = new.codePoints().toArray()
+        var head = 0
+        while (head < a.size && head < b.size && a[head] == b[head]) head++
+        var tail = 0
+        while (tail < a.size - head && tail < b.size - head && a[a.size - 1 - tail] == b[b.size - 1 - tail]) tail++
+        return b.size - tail
+    }
+
+    /** The same place in UTF-16 units, as a text field and its layout count. */
+    fun changeEnd(old: String, new: String): Int = new.offsetByCodePoints(0, changeEndPoints(old, new))
+
+    /**
+     * A field's change taken once. Samsung's keyboard, pressing Enter on a
+     * word it is still composing, finishes the word and presses the key in
+     * one batch, and the field reports the result twice, a millisecond
+     * apart, both times from the value before it. The note's text applies
+     * a change to the body as it is now, so the second report broke a second
+     * line -- every Enter after a word skipped one (the owner's phone,
+     * 2026-10-23, read off the field's own log). The same change from the
+     * same value within [WINDOW_MS] is the same report; a person cannot
+     * repeat a keystroke from the very same state that fast.
+     */
+    class Once {
+        private var from: Any? = null
+        private var to: Any? = null
+        private var at = Long.MIN_VALUE
+
+        /** Whether a change from [from] to [to], at [now] in milliseconds, is news. */
+        fun news(from: Any, to: Any, now: Long): Boolean {
+            val again = from == this.from && to == this.to && now - at in 0 until WINDOW_MS
+            this.from = from
+            this.to = to
+            at = now
+            return !again
+        }
+
+        companion object {
+            const val WINDOW_MS = 150L
+        }
+    }
+
+    /**
      * The spans that fall inside a segment, moved so 0 is the segment's
      * first character -- what its field draws. A span reaching past either
      * end is cut to the segment.

@@ -7,11 +7,15 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Fifteen of the forty-nine are
-about the checking.
+**the code**, or in **the design**. Sixteen of the fifty-three are about
+the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-23](#one-change-told-twice-by-samsungs-keyboard) | code | With Samsung's keyboard every Enter after a word skipped a line, on the owner's phone and on no emulator; the field reported one change twice and the note applied both | When a report and a reproduction disagree, read what the real device sends -- a log that writes no letter of the person's |
+| [2026-10-23](#a-field-that-looked-for-its-cursor-once) | code | On the owner's phone, Enter at the foot of a long note made a line under the keyboard and the screen stayed still; each checklist row added went the same way; on its side the rising keyboard showed another part of the note; Settings' list forgot its place under a page | An answer given once, when the focus came, holds only until something moves; and a fix made at one level of a pattern is worth a grep one level down |
+| [2026-10-22](#what-a-persons-keyboard-found-that-the-walk-could-not) | checking | An agent playing an ordinary user, typing on the keyboard's keys, found in forty minutes what 259 checks had walked past: Enter after an autocorrected word, the cursor after Undo, a hidden last line, a tap on a marker | The walk proves the app's rules with letters it injects; a person's keyboard feeds them differently, and only someone using it finds the seam |
+| [2026-10-22](#a-break-drawn-as-a-character-a-tap-could-land-after) | code | On the owner's phone a tap past a list item's end put the cursor at the next line's start: words went in front of its number, and Enter made an empty line | A field drawn differently from its text answers taps in the drawing's terms: test where a tap lands, not only where text goes |
 | [2026-10-22](#a-check-that-held-by-one-frame) | checking | The walk's first run on an emulator just started lost its first typing and saw the dissolve cut; the fade had always held by about three captures, and on a busy emulator by one or none. Then a keyboard flag read too soon pressed Back off a table cell | A check whose margin is the machine's speed is not about the app: slow down what is watched, and wait for the machine the check was written on |
 | [2026-10-20](#a-flicker-a-sharper-cut-made-worse) | design | A theme change flickered; made a cleaner cut, it flickered more on the owner's phone; dissolved over 320 ms, "better now" | A change of the whole screen wants easing, and the eye is the verdict |
 | [2026-10-20](#letters-typed-beside-a-style-read-from-the-text-alone) | code | Letters typed after a styled word stayed plain and letters typed before it took its style — the desktop does the opposite at both edges | An edit worked out from the text alone cannot know where the caret was; typing knows, and should say so |
@@ -67,6 +71,189 @@ Findings still open, and those closed since, are at the
 
 ---
 
+## One change told twice by Samsung's keyboard
+
+**2026-10-23.** On the owner's phone, Enter after a word made an empty
+line and put the cursor on the line after it. On the emulator it never
+did, typed on Gboard's own keys. A photograph of the cursor there showed
+it where it belonged, and for a while the report looked like a drawing
+problem.
+
+It was not. A test note on her phone, read back through the app's own
+screen tree, held `ABC\nGgh\n\nGff\n\n`: one break after "ABC", two
+after every other word. The difference was the keyboard's: Samsung's,
+with predictive text on as it comes, keeps a word "composing" while it
+offers completions, and "ABC" in capitals it did not. Turned off, the
+breaks were single — her test, which settled the cause.
+
+What the keyboard sends then was read from the field itself: a build
+logging each change it reported, as a position, a count and the breaks,
+never a letter of what was typed, installed with her consent and read by
+the app's own tag. Enter on a composing word came as one batch, the word
+finished and the key pressed together, and the field reported the result
+**twice**, a millisecond apart, both times from the value before it. The
+note's text applies a change to the body as it is now, through the field's
+segment as it was drawn; the second report was applied to a body the
+first had already changed, and broke a second line. Every other field —
+the title, the comments, a cell, a template — writes its value whole, so
+a second report changed nothing there.
+
+The same change from the same value within 150 ms is now taken once
+(`Editing.Once`, held by `EditingTest`): a person cannot repeat a
+keystroke from the very same state that fast. On her phone the log then
+showed each second report skipped, and two Enters pressed on purpose
+on an empty line, 270 ms apart, both kept.
+
+What is not covered: no emulator here can send Samsung's batch, and the
+walk cannot check the field's wiring; the rule is held on the JVM and
+the fix was seen on the owner's phone. The test plan marks it for her eye.
+
+**The class:** a report a reproduction cannot meet is evidence about the
+device, not about the person. Read what the real device sends before
+changing anything, in a form that carries no word of theirs.
+
+## A field that looked for its cursor once
+
+**2026-10-23.** On the owner's phone, writing at the foot of a long note
+with the keyboard up: Enter made the new line under the keyboard, and the
+screen stayed where it was. What she typed next could not be seen until
+she scrolled to it with a finger. Adding checklist rows did the same: each
+row pushed the "A new item…" box a row lower, and the row just added went
+out of sight with it.
+
+The emulator showed it at once, in a note of thirty lines: Enter on the
+last line above the format bar, a word, Enter again, and the screen never
+moved. A Compose text field over a `TextFieldValue` or a `String` brings
+its cursor into view when it takes the focus, and not after; in a column
+that scrolls, every line it grows past the bottom of the screen goes there
+unseen. Every field of that kind that can grow in a scrolling column had
+it: the note's text, its comments, a table's cell being written, and a
+template's text and comments.
+
+They now share one answer, `Following`: after each change to the words,
+once the field has laid them out, the place where the change ended is
+brought into view. A template's comments, a Material field with no layout
+to ask, moved to the newer field over a `TextFieldState`, which keeps its
+cursor in sight itself. The checklist asks once more after each row it
+adds.
+
+Checking it on its side found the other end of the same answer. A tap on
+line 2 of a thirty-line note, the keyboard rising, left lines 20 to 22 in
+sight and the cursor nowhere: as the screen shrinks, Compose keeps the
+focused *field* in view, and a field taller than what is left is in view
+whatever part of it shows. The note's text now also asks for its cursor's
+line at each height the keyboard passes through. It still jumps away
+first and scrolls back: Compose's own move comes first at each height, and
+a request can only answer it. On an emulator just started the way back
+took two seconds after the keyboard was up, which a first check, looking
+once two seconds after the tap, read as a failure; it now looks until the
+line is there, eight seconds at most.
+
+The walk now presses Enter again and again at the foot of what shows, in
+the text and in the comments, and adds three rows with the keyboard's tick
+in a long note, measuring how far the note moved and where its last line
+is now. A build without the fix fails each: the note moved 0 pixels, its
+last line 116 under the format bar; the newest row out of sight.
+
+**The class:** an answer given once, at a moment (the focus taken, the
+keyboard risen), holds only as long as nothing moves after it, and typing
+moves the very thing it brought into view. Ask again at each change, once
+it is laid out.
+
+The same evening's report held a sibling of an older fix. Back from a page
+low in Settings, the Trash, the list came back at its top. In 0.9.0 each
+*tab* was given a holder that keeps what it remembers while out of sight
+([the list built again on Back](../CHANGELOG.md#090--2026-10-20--the-first-test-on-a-real-phone));
+the screens *inside* a tab, Settings' list under its pages and the
+calendar's month under its History, were swapped the same way and kept
+nothing. They now keep theirs. A fix made at one level of a pattern is
+worth a grep for the same pattern one level down.
+
+## What a person's keyboard found that the walk could not
+
+**2026-10-22.** After the tap past a line's end turned up on the owner's
+phone, she asked for an agent that uses the app the way an ordinary
+person does, finds what is wrong, and hands it over to be fixed. It ran
+on the emulator for forty minutes with one rule beyond the owner's
+safety ones: anything typed in or near a list, after moving the cursor,
+was typed by tapping the on-screen keyboard's letters, Enter and
+Backspace, the way a thumb does.
+
+It reported ten findings. Four were confirmed on the emulator at once,
+each in a place no check had been: Gboard's autocorrect sends the
+corrected word and the line break as one edit, which the list did not
+take for an Enter; after Undo the cursor was nowhere and the next letter
+went to the end of the note; the empty line a list leaves at the end of
+a note was not drawn; a tap on a marker put the cursor before it. The
+rest were a rescue copy that outlived its use, a checklist's ✓, Enter in
+the title, an import's wording, a layout on a phone on its side, and an
+Undo in two steps. Every time it compared, the saved file matched the
+screen.
+
+None of it was within the walk's reach, and the reason is how the walk
+types: it injects finished letters with `input text`, taps by the words
+on the screen, and puts the cursor only where it is already going. A
+keyboard composes a word, corrects it, and sends it with the break; a
+person taps past a line's end, on a number, on an empty line. The walk
+proves the app's rules; the keyboard is a second program feeding them,
+in its own way.
+
+The four confirmed are fixed, each with a check that failed on the build
+before: three in a walk part of their own, the autocorrect one in the
+JVM tests, which can send exactly the edit Gboard sends. Two more
+behaviours, the rescue copy and the tap on a marker, were the desktop's
+too, and the owner chose new ones for both apps.
+
+**The class:** a check that only injects input tests the rules and
+never the way input really arrives. An exploratory pass by someone using
+the real keyboard, reporting rather than fixing, finds the seam between
+the two; every finding is then confirmed by hand before it is believed,
+and fixed with a check of its own.
+
+## A break drawn as a character a tap could land after
+
+**2026-10-22.** On the owner's phone, in a numbered list typed item by
+item: a tap after item 2, to finish its idea, put the words in front of
+"3." instead, and Enter after item 3 made an empty line rather than a
+"4.". On the emulator it took two taps to see: a tap *on* a letter
+landed where it was aimed, and a tap to the right of a line's words
+landed at the start of the next line.
+
+The cause was in the drawing, not in the list rules. Since lists were
+drawn a line at a time ([the double spacing](#a-list-drawn-double-spaced-then-bunched)),
+every line is a paragraph of its own, and the break between two is
+drawn as a zero-width stand-in kept at the end of the line's paragraph:
+one character for one, so every offset stays where the text has it. But
+a stand-in is a character the layout can be tapped after, which a real
+line break is not. A tap past a line's end asks for the end of that
+line, and the end of the line is after the stand-in, the first position
+of the next line. A field showing a list draws every line this way,
+plain lines included.
+
+The tap is now put back: when the cursor lands just after a break and
+the press came down on a line above the one it landed on, it moves
+before the break (`tapLanding`). A walk part taps past the end of an
+item, of a plain line, and of an item before Enter, and reads the file;
+the build before failed all three on every run, as the phone had.
+
+The next day the drawing moved again. An empty last line had been kept as
+a real break inside the line above, so that it was drawn at all, and it
+wore that line's style: centred on its own, its cursor stayed at the left
+until a letter came; put back to the left under a centred line, it stayed
+in the middle (the owner's phone, 2026-10-23). It now has a stand-in of
+its own after the text, one character more than the text, with a mapping
+that sends it back to the end. And a tap past the end of the line above
+then landed on the end of the text, where an unfocused field already keeps
+its cursor: the field reported no change, and the correction that runs on
+a change never ran. The press is now also put back a frame after it is
+let go, when nothing was reported; the walk's tap at the end of the last
+item failed without it.
+
+**The class:** a field drawn differently from its text answers taps in
+the drawing's terms. Where the drawing adds or moves even an invisible
+character, test where a tap lands, not only where the text goes. A walk
+that types only where the cursor already is never asks.
+
 ## A check that held by one frame
 
 **2026-10-22.** The walk's first run on an emulator started a moment
@@ -110,6 +297,27 @@ the same question a second after its BACK and could send a second one
 the same way; it waits for the answer too. It does not wait for a
 settled emulator: a shot whose screen does not say its words is
 refused, so a busy emulator costs it a retake, never a wrong picture.
+
+The same day, a part walked on its own failed three checks for one
+cause: the backup was never made. The walk tapped "Save a backup", waited
+three seconds, and looked once for the Save of the phone's own picker,
+another app, which on that run had not drawn it yet; nothing was pressed.
+The walk's three picker steps now wait for Save to be offered, up to
+fifteen seconds, and say so by name when it never is.
+
+On 2026-10-23 a full walk on an emulator just started lost three checks of
+its first part, both passing at once on a warm one. The dissolve, slowed
+five times to 1.6 seconds, fell between two captures, each now slower
+than the whole fade; it is watched at ten times, by forty captures. And
+Undo was tapped where it had been: the photograph of the offer made its
+own look at the screen, a second look found Undo, and the ten seconds the
+offer lasts were gone between the two. One look now finds it, the
+photograph is a plain capture, and the tap follows at once. The next run,
+also on an emulator just started, lost two more of the kind: the
+calculator's panel looked for 1.5 seconds after Back, before the keyboard
+had gone, and the cursor's line on its side looked for before the note had
+scrolled back to it. The first now waits for the keyboard to be down, the
+second looks until the line is there. The run after passed all 305.
 
 **The class:** a check whose margin is the machine's speed passes on a
 fast day and fails on a slow one, and neither verdict is about the app.

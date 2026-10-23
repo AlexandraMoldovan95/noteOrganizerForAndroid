@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -74,6 +75,7 @@ import ro.noteorganizer.app.ui.theme.Palette
 import ro.noteorganizer.app.ui.theme.ThemeVeil
 import ro.noteorganizer.app.ui.theme.paletteOf
 import java.io.File
+import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,6 +89,12 @@ class MainActivity : ComponentActivity() {
 
     /** A share code handed over by another app, for the import panel. */
     private val incoming = mutableStateOf<String?>(null)
+
+    /** Counts the times the reminder's notification was tapped: today, on the calendar. */
+    private val todayTapped = mutableIntStateOf(0)
+
+    /** Counts the returns to the app, where the day may have turned since the last. */
+    private val resumes = mutableIntStateOf(0)
 
     private var flush: (() -> Unit)? = null
 
@@ -104,6 +112,7 @@ class MainActivity : ComponentActivity() {
         // Where the development tools pushed a notebook before this one.
         val notice = Startup.prepare(dir, getExternalFilesDir(null))
         incoming.value = codeIn(intent)
+        if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
         setContent {
             val scope = rememberCoroutineScope()
             val state = remember { AppState(dir, scope).also { it.notice = notice } }
@@ -118,6 +127,16 @@ class MainActivity : ComponentActivity() {
                     state.incomingCode = waiting
                     incoming.value = null
                 }
+            }
+            val tapped by todayTapped
+            LaunchedEffect(tapped) { if (tapped > 0) state.todayAsked += 1 }
+            // At every return: the day's bar, once a day, and the next
+            // notification set -- an app's alarms go with a restart and an
+            // update, and the setting may have changed on another device.
+            val resumed by resumes
+            LaunchedEffect(resumed) {
+                state.checkReminder(Recurrence.formatDate(LocalDate.now()))
+                ReminderAlarm.schedule(this@MainActivity, state.settings)
             }
             val phoneDark = isSystemInDarkTheme()
             val palette = paletteOf(state.themeName(phoneDark))
@@ -162,6 +181,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         codeIn(intent)?.let { incoming.value = it }
+        if (intent.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumes.intValue += 1
     }
 
     /** Whatever the editor holds is saved when the app leaves the screen. */
@@ -308,13 +333,23 @@ fun AppRoot(state: AppState, version: String) {
             if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote()
             state.tab = tab
             state.settingsPage = null
+            // A tab asked for is a tab shown, beside the note again.
+            state.listAside = false
+        }
+        // Today asked for -- the reminder's bar or its notification: the
+        // calendar on the day, the way the rail would go there.
+        LaunchedEffect(state.todayAsked) {
+            if (state.todayAsked > 0) {
+                goTo(Tab.CALENDAR)
+                state.showToday(Recurrence.formatDate(LocalDate.now()))
+            }
         }
         // One shape at every width, the rail, the panes and the bar each
         // there or not: the list and the editor keep their places in it, so
         // turning the phone moves them without rebuilding them -- an editor
         // built again would lose its find bar, its cursor and whatever it
         // had not saved yet, and the list its selection.
-        val tabShown = open == null || twoPanes
+        val tabShown = open == null || (twoPanes && !state.listAside)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 if (wide) {
@@ -361,13 +396,13 @@ fun AppRoot(state: AppState, version: String) {
                                     .then(if (wide) Modifier else Modifier.statusBarsPadding()),
                             ) { tabContent() }
                         }
-                        if (twoPanes) VerticalDivider(color = palette.hairline)
+                        if (twoPanes && tabShown) VerticalDivider(color = palette.hairline)
                         if (open != null) {
                             Box(Modifier.weight(1f).fillMaxHeight()) {
-                                key(state.opening) { NoteEditor(state, open) }
+                                key(state.opening) { NoteEditor(state, open, beside = twoPanes) }
                             }
                         } else if (twoPanes) {
-                            Box(Modifier.weight(1f).fillMaxHeight()) { NothingOpen() }
+                            Box(Modifier.weight(1f).fillMaxHeight()) { NothingOpen(calendar = state.tab == Tab.CALENDAR) }
                         }
                     }
                 }
@@ -458,12 +493,17 @@ private val RAIL_FROM = 600.dp
 /** Material's expanded window: the note beside the list. */
 private val TWO_PANES_FROM = 840.dp
 
-/** The second pane before a note is picked: what it is for. */
+/**
+ * The second pane before a note is picked: what it is for. Beside the
+ * calendar it offered a + that is only on the list's tab, and a tap on the
+ * words did nothing (the owner's phone, 2026-10-23).
+ */
 @Composable
-private fun NothingOpen() {
+private fun NothingOpen(calendar: Boolean) {
     val palette = LocalPalette.current
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(stringResource(R.string.pick_a_note), color = palette.subtext, fontSize = 15.sp,
+        Text(stringResource(if (calendar) R.string.pick_a_day_note else R.string.pick_a_note),
+             color = palette.subtext, fontSize = 15.sp,
              textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

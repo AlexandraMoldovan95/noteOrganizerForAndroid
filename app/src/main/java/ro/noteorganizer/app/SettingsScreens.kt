@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ fun SettingsScreen(
 ) {
     val palette = LocalPalette.current
     val page = state.settingsPage
+    val listKept = rememberSaveableStateHolder()
     BackHandler(enabled = page != null) { state.settingsPage = null }
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
@@ -84,11 +86,14 @@ fun SettingsScreen(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
         )
         when (page) {
-            null -> SettingsList(state)
+            // The list keeps its place while a page is open: built again on
+            // Back, it came back at its top, the row just left out of sight.
+            null -> listKept.SaveableStateProvider("list") { SettingsList(state) }
             SettingsPage.NAME -> NamePage(state)
             SettingsPage.APPEARANCE -> AppearancePage(state)
             SettingsPage.CATEGORIES -> CategoriesPage(state)
             SettingsPage.TEMPLATES -> TemplatesPage(state)
+            SettingsPage.REMINDERS -> RemindersPage(state)
             SettingsPage.BACKUP -> BackupPage(state, backup)
             SettingsPage.TRASH -> TrashPage(state, backup)
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
@@ -103,6 +108,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.APPEARANCE -> R.string.settings_appearance
     SettingsPage.CATEGORIES -> R.string.settings_categories
     SettingsPage.TEMPLATES -> R.string.settings_templates
+    SettingsPage.REMINDERS -> R.string.settings_reminders
     SettingsPage.BACKUP -> R.string.settings_backup
     SettingsPage.TRASH -> R.string.settings_trash
     SettingsPage.DUPLICATES -> R.string.settings_duplicates
@@ -117,6 +123,7 @@ private fun SettingsList(state: AppState) {
         Triple(SettingsPage.APPEARANCE, R.string.settings_appearance, R.string.settings_appearance_sub),
         Triple(SettingsPage.CATEGORIES, R.string.settings_categories, R.string.settings_categories_sub),
         Triple(SettingsPage.TEMPLATES, R.string.settings_templates, R.string.settings_templates_sub),
+        Triple(SettingsPage.REMINDERS, R.string.settings_reminders, R.string.settings_reminders_sub),
         Triple(SettingsPage.BACKUP, R.string.settings_backup, R.string.settings_backup_sub),
         Triple(SettingsPage.TRASH, R.string.settings_trash, R.string.settings_trash_sub),
         Triple(SettingsPage.DUPLICATES, R.string.settings_duplicates, R.string.settings_duplicates_sub),
@@ -349,12 +356,26 @@ private fun StatsPage(state: AppState) {
 private fun NamePage(state: AppState) {
     val palette = LocalPalette.current
     var draft by remember { mutableStateOf(Settings.username(state.settings)) }
+    // Said under the box, in green, where the eye is: said at the foot of
+    // the screen, it was under the keyboard (the owner's phone, 2026-10-23).
+    var saved by remember { mutableStateOf(false) }
+    fun save() {
+        saved = state.putSetting(Settings.USERNAME, draft.trim())
+    }
     PageColumn {
         Text(stringResource(R.string.name_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
-        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80) }, singleLine = true,
-                          label = { Text(stringResource(R.string.category_name)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80); saved = false }, singleLine = true,
+                          label = { Text(stringResource(R.string.category_name)) },
+                          keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                              imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                          keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
+                          modifier = Modifier.fillMaxWidth())
+        if (saved) {
+            Text(stringResource(R.string.name_saved), color = palette.successText, fontSize = 13.sp,
+                 modifier = Modifier.padding(top = 6.dp))
+        }
         Button(
-            onClick = { if (state.putSetting(Settings.USERNAME, draft.trim())) state.say("Saved") },
+            onClick = { save() },
             modifier = Modifier.padding(top = 12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
         ) { Text(stringResource(R.string.save)) }
@@ -797,6 +818,96 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
                 colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
             ) { Text(stringResource(R.string.write_review)) }
         }
+    }
+}
+
+/**
+ * Reminders: the day's bar, which always shows, said in words; and the
+ * phone's notification, off until it is turned on here -- where Android
+ * asks, once, whether the app may send notifications, rather than at the
+ * app's first start for something nobody chose yet.
+ */
+@Composable
+private fun RemindersPage(state: AppState) {
+    val palette = LocalPalette.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings = state.settings
+    val on = Reminders.notifies(settings)
+    val hour = Reminders.hour(settings)
+    var hours by remember { mutableStateOf(false) }
+    val deniedSaid = stringResource(R.string.reminder_denied)
+    val openSaid = stringResource(R.string.reminder_open_settings)
+
+    fun turn(want: Boolean) {
+        if (state.putSetting(Reminders.PHONE_NOTIFY, want)) ReminderAlarm.schedule(context, state.settings)
+    }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) turn(true) else state.offer(deniedSaid, openSaid) { openNotificationSettings(context) }
+    }
+
+    PageColumn {
+        Text(stringResource(R.string.reminder_bar_explain), color = palette.subtext, fontSize = 14.sp,
+             modifier = Modifier.padding(top = 4.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(stringResource(R.string.reminder_notify), color = palette.text, fontSize = 16.sp)
+                Text(stringResource(R.string.reminder_notify_sub), color = palette.subtext, fontSize = 13.sp)
+            }
+            androidx.compose.material3.Switch(
+                checked = on,
+                onCheckedChange = { want ->
+                    val needsAsking = want && android.os.Build.VERSION.SDK_INT >= 33 &&
+                        context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                        android.content.pm.PackageManager.PERMISSION_GRANTED
+                    if (needsAsking) ask.launch(android.Manifest.permission.POST_NOTIFICATIONS) else turn(want)
+                },
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = palette.onAccent, checkedTrackColor = palette.accent),
+            )
+        }
+        if (on) {
+            Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.reminder_at), color = palette.text, fontSize = 15.sp)
+                Box {
+                    Text(Reminders.showHour(hour) + "  ▾", color = palette.accentText, fontSize = 15.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { hours = true }.padding(horizontal = 12.dp, vertical = 8.dp))
+                    androidx.compose.material3.DropdownMenu(expanded = hours, onDismissRequest = { hours = false }) {
+                        for (h in 0..23) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(Reminders.showHour(h), fontWeight = if (h == hour) FontWeight.Bold else FontWeight.Normal) },
+                                onClick = {
+                                    hours = false
+                                    if (state.putSetting(Reminders.PHONE_HOUR, h)) ReminderAlarm.schedule(context, state.settings)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            Text(stringResource(R.string.reminder_inexact), color = palette.subtext, fontSize = 13.sp)
+            // Turned off since, in the phone's own settings: said, with the way there.
+            if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                Text(stringResource(R.string.reminder_blocked), color = palette.dangerText, fontSize = 13.sp,
+                     modifier = Modifier.padding(top = 12.dp))
+                OutlinedButton(onClick = { openNotificationSettings(context) }, modifier = Modifier.padding(top = 6.dp)) {
+                    Text(openSaid)
+                }
+            }
+        }
+    }
+}
+
+/** The phone's own page of this app's notifications. */
+private fun openNotificationSettings(context: android.content.Context) {
+    val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (e: android.content.ActivityNotFoundException) {
+        // A phone with no such page: nothing to open.
     }
 }
 

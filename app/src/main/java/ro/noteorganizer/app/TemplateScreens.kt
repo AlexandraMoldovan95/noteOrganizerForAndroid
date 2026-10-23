@@ -21,7 +21,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -274,12 +277,18 @@ private fun TemplateBody(body: String, onChange: (String) -> Unit) {
                 if (segment.table) {
                     TableView(parseTable(segment.text.split("\n")), Modifier.padding(vertical = 6.dp))
                 } else {
+                    val following = rememberFollowing()
                     BasicTextField(
                         value = segment.text,
-                        onValueChange = { onChange(Editing.replaceProse(body, segment, it)) },
+                        onValueChange = {
+                            following.typed(segment.text, it)
+                            onChange(Editing.replaceProse(body, segment, it))
+                        },
+                        onTextLayout = following::laidOut,
                         textStyle = TextStyle(color = palette.text, fontSize = 16.sp),
                         cursorBrush = SolidColor(palette.accent),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = if (body.isEmpty()) 72.dp else 24.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = if (body.isEmpty()) 72.dp else 24.dp)
+                            .bringIntoViewRequester(following.requester),
                     )
                 }
             }
@@ -306,7 +315,10 @@ private fun TemplateEditor(
     var name by remember { mutableStateOf(if (original == null) "" else start.optString("name")) }
     var title by remember { mutableStateOf(start.optString("title")) }
     var body by remember { mutableStateOf(start.optString("body")) }
-    var comments by remember { mutableStateOf(start.optString("comments")) }
+    // Held by the field itself: a field over a TextFieldState keeps its
+    // cursor in sight as it is typed into, where one over a String does not
+    // and has no layout to ask with ([Following]).
+    val comments = rememberTextFieldState(start.optString("comments"))
     val categories = state.load.categories.keys.toList()
     var category by remember { mutableStateOf(start.optString("category").takeIf { it in categories } ?: "General") }
     val checklist = remember {
@@ -322,7 +334,7 @@ private fun TemplateEditor(
 
     // The styles and lines it had ride along unchanged, as on the desktop.
     fun collect(): JSONObject = Templates.normalize(JSONObject()
-        .put("name", name).put("title", title).put("body", body).put("comments", comments).put("category", category)
+        .put("name", name).put("title", title).put("body", body).put("comments", comments.text.toString()).put("category", category)
         .put("checklist", JSONArray(checklist.map { JSONObject().put("text", it.first).put("done", it.second) }))
         .put("formatting", start.optJSONArray("formatting") ?: JSONArray())
         .put("paragraphs", start.optJSONArray("paragraphs") ?: JSONArray()))
@@ -378,7 +390,7 @@ private fun TemplateEditor(
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 TemplateBody(body) { body = it }
-                OutlinedTextField(comments, { comments = it }, minLines = 2,
+                OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2),
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
 
