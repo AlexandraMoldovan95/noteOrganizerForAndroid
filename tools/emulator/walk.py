@@ -468,11 +468,22 @@ def brand_new(folder):
     # ---- the Trash, and Undo ----
     long_press("Groceries")
     tap("🗑", wait=0.8)
+    # Read once, act at once: the offer lasts ten seconds, and on an
+    # emulator just started a photograph's own look at the screen and a
+    # second look for Undo took them all -- the tap landed where Undo had
+    # been, and the note stayed in the Trash (2026-10-23). One look finds
+    # Undo; the photograph is a plain capture, with no look of its own.
+    undo_at = find("Undo", exact=True)
+    adb("shell", "screencap", "-p", "/sdcard/shot.png")
     trash = read_file("trash.json") or []
     trashed = any(t.get("title") == "Groceries" for t in trash)
+    if undo_at is not None:
+        adb("shell", "input", "tap", str(undo_at[0]), str(undo_at[1]))
+        time.sleep(1.5)
+    with open(os.path.join(folder, "05-undo.png"), "wb") as f:
+        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
     check("Move to Trash puts the note in trash.json", trashed)
-    shot(folder, "05-undo", "Moved to Trash", "Undo")
-    tap("Undo", wait=1.5)
+    check("...and offers Undo", undo_at is not None)
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []
     # Only a note that LEFT can be brought back: without the step above
@@ -506,10 +517,14 @@ def brand_new(folder):
     # The change dissolves: captured as fast as the emulator can while Dark
     # is tapped, the page passes through a shade between the light one and
     # the dark one. Cut in one frame, as it was, no capture can hold one.
-    # Watched at five times its length: 320 ms held about three captures
-    # on a warm emulator and none on one just started.
-    with animations_slowed(5):
-        shades = shades_while_tapping("Dark", frames=24)
+    # Watched at ten times its length: 320 ms held about three captures
+    # on a warm emulator and none on one just started; at five times, on an
+    # emulator just started, one capture still took longer than the whole
+    # fade (2026-10-23, [242, 242, 35, ...]).
+    with animations_slowed(10):
+        # Enough captures to outlast the slowed fade on a warm emulator too,
+        # so the last one is the dark page the fade ends on.
+        shades = shades_while_tapping("Dark", frames=40)
     between = [s for s in shades[1:-1] if shades[0] - 40 > s > shades[-1] + 40]
     check("Light to Dark dissolves: the page passes through shades between the two",
           len(shades) >= 4 and bool(between), "page shades %s" % shades)
@@ -3439,8 +3454,9 @@ def wide(folder):
     tap("Trash", exact=True, wait=1.5)
     back(wait=1.5)
     again = bounds("Trash")
+    # Moved up, or off the top: a longer list scrolls it further.
     check("Settings' list, scrolled, keeps its place after a page and Back",
-          len(before) == 1 and len(moved) == 1 and before[0][1] - moved[0][1] >= 100
+          len(before) == 1 and (not moved or before[0][1] - moved[0][1] >= 100)
           and len(trash) == 1 and len(again) == 1 and abs(again[0][1] - trash[0][1]) <= 8,
           "Templates at %s, scrolled to %s; Trash at %s, after Back %s" % (before, moved, trash, again))
     # No note open beside the calendar: the pane offered a + that is only on

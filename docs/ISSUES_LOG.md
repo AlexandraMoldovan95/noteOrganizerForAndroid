@@ -245,6 +245,15 @@ another app, which on that run had not drawn it yet; nothing was pressed.
 The walk's three picker steps now wait for Save to be offered, up to
 fifteen seconds, and say so by name when it never is.
 
+On 2026-10-23 a full walk on an emulator just started lost three checks of
+its first part, both passing at once on a warm one. The dissolve, slowed
+five times to 1.6 seconds, fell between two captures, each now slower
+than the whole fade; it is watched at ten times, by forty captures. And
+Undo was tapped where it had been: the photograph of the offer made its
+own look at the screen, a second look found Undo, and the ten seconds the
+offer lasts were gone between the two. One look now finds it, the
+photograph is a plain capture, and the tap follows at once.
+
 **The class:** a check whose margin is the machine's speed passes on a
 fast day and fails on a slow one, and neither verdict is about the app.
 Slow down what is watched rather than hurrying the watcher, and wait for
