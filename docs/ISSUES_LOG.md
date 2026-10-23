@@ -100,7 +100,12 @@ line 2 of a thirty-line note, the keyboard rising, left lines 20 to 22 in
 sight and the cursor nowhere: as the screen shrinks, Compose keeps the
 focused *field* in view, and a field taller than what is left is in view
 whatever part of it shows. The note's text now also asks for its cursor's
-line at each height the keyboard passes through.
+line at each height the keyboard passes through. It still jumps away
+first and scrolls back: Compose's own move comes first at each height, and
+a request can only answer it. On an emulator just started the way back
+took two seconds after the keyboard was up, which a first check, looking
+once two seconds after the tap, read as a failure; it now looks until the
+line is there, eight seconds at most.
 
 The walk now presses Enter again and again at the foot of what shows, in
 the text and in the comments, and adds three rows with the keyboard's tick

@@ -269,16 +269,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /** Where [was] and [now] differ, as a place in [now], in code points: the end of what changed. */
-    private fun changeSite(was: String, now: String): Int? {
-        if (was == now) return null
-        val a = was.codePoints().toArray()
-        val b = now.codePoints().toArray()
-        var head = 0
-        while (head < a.size && head < b.size && a[head] == b[head]) head++
-        var tail = 0
-        while (tail < a.size - head && tail < b.size - head && a[a.size - 1 - tail] == b[b.size - 1 - tail]) tail++
-        return b.size - tail
-    }
+    private fun changeSite(was: String, now: String): Int? =
+        if (was == now) null else Editing.changeEndPoints(was, now)
 
     /** Which prose field has the cursor, and its value -- selection and all. */
     var focus by mutableStateOf<Int?>(null)

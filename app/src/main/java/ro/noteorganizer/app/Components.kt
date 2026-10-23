@@ -116,7 +116,9 @@ class Following {
  * shrinks, and for a field longer than what is left that showed another part
  * of it: a tap on line 2 of a long note, the phone on its side, left lines
  * 20 to 22 in sight (2026-10-23). Asked at each height the keyboard passes
- * through, as the checklist's box is.
+ * through, as the checklist's box is. The note still jumps away as the
+ * keyboard rises and scrolls back to the line: Compose's own move comes
+ * first, at each height, and a request can only answer it.
  */
 @Composable
 fun rememberFollowing(cursor: Int? = null): Following {

@@ -283,5 +283,9 @@ class EditingTest {
         // A deletion ends where it was; a paste, after what came in.
         assertEquals(1, Editing.changeEnd("abc", "ac"))
         assertEquals(5, Editing.changeEnd("ab", "aXYZWb"))
+        // An emoji is one code point, two UTF-16 units: the field counts the
+        // second way, the body and Undo the first.
+        assertEquals(4, Editing.changeEnd("a😀", "a😀b"))
+        assertEquals(3, Editing.changeEndPoints("a😀", "a😀b"))
     }
 }

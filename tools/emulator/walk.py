@@ -1299,8 +1299,11 @@ def calculator(folder):
     # comes back when the keyboard goes down.
     tap("Fuel and tolls:", wait=1.5)
     check("the panel stands aside while the keyboard is up for the note", bool(screen_says(insert)))
-    back(wait=1.5)
-    check("and is back when the keyboard is down", not screen_says(insert))
+    # Down for certain, then looked for until it is there: one look 1.5 s
+    # after Back, on an emulator just started, came before the keyboard
+    # had gone (2026-10-23).
+    keyboard_down()
+    check_settled("and is back when the keyboard is down", lambda: screen_says(insert), lambda m: not m)
 
     tap("More functions")
     press("√", "9", "=")
@@ -3196,7 +3199,13 @@ def editor_corners(folder):
     adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 1.5)))
     time.sleep(2.0)
     keyboard = bar_frame("ime")
-    inked = [accent_pixels(box[0], 0, box[2], keyboard[0] if keyboard else 0) for _ in range(3)]
+    # Looked for until it is there, up to eight seconds: the note jumps away
+    # as the keyboard rises and scrolls back, which on an emulator just
+    # started took two seconds after the keyboard was up. Without the fix
+    # it never comes back, so waiting costs the check nothing.
+    inked, deadline = [], time.time() + 8.0
+    while time.time() < deadline and (not inked or inked[-1] < 40):
+        inked.append(accent_pixels(box[0], 0, box[2], keyboard[0] if keyboard else 0))
     check("on its side, the keyboard risen over a long note leaves the cursor's line in sight",
           keyboard is not None and keyboard[0] > 0 and max(inked) >= 40,
           "accent pixels above the keys %s, the keyboard from %s" % (inked, keyboard))

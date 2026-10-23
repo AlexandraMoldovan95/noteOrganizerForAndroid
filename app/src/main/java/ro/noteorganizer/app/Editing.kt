@@ -85,20 +85,24 @@ object Editing {
     }
 
     /**
-     * Where a change from [old] to [new] ended in [new], in UTF-16 units:
+     * Where a change from [old] to [new] ended in [new], in code points:
      * after its last changed character -- where the cursor stands after
-     * typing, for a field that does not say. The ends are matched only
-     * outside what the starts matched, so Enter at the end of "a\n" ends
-     * after the new break, not before it.
+     * typing, for a field that does not say, and where Undo puts it. The
+     * ends are matched only outside what the starts matched, so Enter at
+     * the end of "a\n" ends after the new break, not before it.
      */
-    fun changeEnd(old: String, new: String): Int {
+    fun changeEndPoints(old: String, new: String): Int {
+        val a = old.codePoints().toArray()
+        val b = new.codePoints().toArray()
         var head = 0
-        while (head < old.length && head < new.length && old[head] == new[head]) head++
+        while (head < a.size && head < b.size && a[head] == b[head]) head++
         var tail = 0
-        while (tail < old.length - head && tail < new.length - head &&
-            old[old.length - 1 - tail] == new[new.length - 1 - tail]) tail++
-        return new.length - tail
+        while (tail < a.size - head && tail < b.size - head && a[a.size - 1 - tail] == b[b.size - 1 - tail]) tail++
+        return b.size - tail
     }
+
+    /** The same place in UTF-16 units, as a text field and its layout count. */
+    fun changeEnd(old: String, new: String): Int = new.offsetByCodePoints(0, changeEndPoints(old, new))
 
     /**
      * The spans that fall inside a segment, moved so 0 is the segment's
