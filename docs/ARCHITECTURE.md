@@ -22,11 +22,11 @@ the surprises live.
 
 One Activity, no fragments, no navigation library: the whole app is
 Compose, and which screen you are looking at is a value in one state
-object, `AppState`. Below the screens sit twenty-six files of plain
+object, `AppState`. Below the screens sit twenty-seven files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 683 tests run on a laptop in seconds,
+about Android. That split is why 692 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
@@ -46,8 +46,8 @@ here.
 
 ## The map
 
-About 20,750 lines of Kotlin. The rules are 11,700 of them, in files that
-import nothing from Android; the drawing is 9,000, in files that may.
+About 21,700 lines of Kotlin. The rules are 12,000 of them, in files that
+import nothing from Android; the drawing is 9,700, in files that may.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
@@ -77,6 +77,7 @@ import nothing from Android; the drawing is 9,000, in files that may.
 | `Files.kt` | 95 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 110 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 90 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
+| `Reminders.kt` | 65 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
 | `PyText.kt` | 55 | Python's idea of a space, for the ports that strip and split as it does | `str.isspace` |
 | `Links.kt` | 20 | The pages the app opens in the browser: the privacy policy, and its Google Play page once the app is there | `core/diagnostics.py`'s addresses |
 
@@ -85,7 +86,7 @@ import nothing from Android; the drawing is 9,000, in files that may.
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 2,820 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 830 | Settings and its nine pages, Duplicates among them |
+| `SettingsScreens.kt` | 830 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 570 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 550 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 590 | The app's state, and every action a screen can take on the notebook |
@@ -100,6 +101,7 @@ import nothing from Android; the drawing is 9,000, in files that may.
 | `PdfPrint.kt` | 280 | The export's page printed to an A4 PDF by the system's WebView: drawn page by page on the main thread, the file written off it |
 | `ShareFlow.kt` | 180 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |
 | `ExportFlow.kt` | 155 | Export as file through Android's "save as" |
+| `ReminderAlarm.kt` | 120 | The day's notification: the alarm set for the chosen hour, the receiver that counts the day's notes with the app closed, set again after a restart or an update ([why it only reads](#decision-the-reminders-alarm-reads-inexactly-and-asks-late)) |
 | `RichText.kt` | 140 | A note plus its spans, turned into an `AnnotatedString` |
 | `ui/theme/` | 280 | A palette as Compose colours, Material 3 mapped onto it, and `ThemeVeil`, the picture a change of theme dissolves under |
 
@@ -109,7 +111,8 @@ Four hold drawing-side classes: `AppStateTest`, the order of the saves
 around the open note, which no emulator tap can time
 ([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)), and
 `EditorCopyTest`, `EditorTableTest` and `EditorTypingTest`, the editor's
-model.
+model. One holds the test run itself: `TempPlaceTest`, where its
+temporary folders go.
 
 ## Decision: a note has two representations, on purpose
 
@@ -164,7 +167,7 @@ Two traps live here, and both have drawn blood:
 
 ## Decision: the rules layer knows nothing about Android
 
-The twenty-six files in the first table contain **zero** `import android`
+The twenty-seven files in the first table contain **zero** `import android`
 and **zero** `import androidx`. This is not a coincidence to be preserved
 by good intentions; it is the same rule the desktop keeps between its
 `core/` layer and tkinter, and it buys two things:
