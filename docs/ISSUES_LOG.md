@@ -257,7 +257,12 @@ than the whole fade; it is watched at ten times, by forty captures. And
 Undo was tapped where it had been: the photograph of the offer made its
 own look at the screen, a second look found Undo, and the ten seconds the
 offer lasts were gone between the two. One look now finds it, the
-photograph is a plain capture, and the tap follows at once.
+photograph is a plain capture, and the tap follows at once. The next run,
+also on an emulator just started, lost two more of the kind: the
+calculator's panel looked for 1.5 seconds after Back, before the keyboard
+had gone, and the cursor's line on its side looked for before the note had
+scrolled back to it. The first now waits for the keyboard to be down, the
+second looks until the line is there. The run after passed all 305.
 
 **The class:** a check whose margin is the machine's speed passes on a
 fast day and fails on a slow one, and neither verdict is about the app.

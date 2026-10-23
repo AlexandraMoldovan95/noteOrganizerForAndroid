@@ -326,7 +326,7 @@ Grouped by what the app does; when each item arrived is in the
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 291
+    where the shrunk code will look); and an emulator walk of 305
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -544,7 +544,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 291 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 305 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -559,14 +559,21 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-38 parts, 291 checks. The last full run (2026-10-23), with the checks for
-what the owner's phone found that evening — the screen following the
-cursor in the text and the comments, the newest checklist row, the
-keyboard rising on its side, the list put aside, Settings' list and the
-month keeping their places — was begun on an emulator just started and
-alone on the computer: it waited 72 seconds, then passed all 291. The one
-before it, on the first of those fixes with the first five of the checks,
-all 278. On 2026-10-22, with the two parts for what the owner's phone and
+39 parts, 305 checks. The last full run (2026-10-23), with the day's
+reminder and the note's ⋮ added, was begun on an emulator just started
+and alone on the computer: it waited 72 seconds, then passed all 305. The
+two before it, on emulators just started too, lost four checks and then
+two, every one a check whose margin was the machine's speed and none the
+app — Undo tapped after its offer had gone, the theme's fade between two
+captures, the calculator looked for before the keyboard was down, the
+cursor's line looked for before the note had scrolled back to it; each
+check was changed, not run again until it passed
+([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)). Earlier that
+day, with the checks for what the owner's phone found that evening — the
+screen following the cursor in the text and the comments, the newest
+checklist row, the keyboard rising on its side, the list put aside,
+Settings' list and the month keeping their places — all 291; before them,
+on the first of those fixes, all 278. On 2026-10-22, with the two parts for what the owner's phone and
 an agent playing an ordinary user found, the checklist's box above the
 keyboard and the note in sight on its side, all 273, after a wait of 106
 seconds; the two before it, with fewer of those checks, all 271 and all
