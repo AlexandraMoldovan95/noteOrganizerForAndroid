@@ -100,6 +100,10 @@ SETTINGS = {
     "theme": "light",
     "day_colors": {BIRTHDAY: "#f9c74f"},
     "day_emoji": {BIRTHDAY: ["🎂"]},
+    # The day's reminder already shown today: on a Monday or a Thursday the
+    # series falls on the day, and the list would open under its bar -- the
+    # pictures would change with the day they were taken.
+    "reminder_last_shown": TODAY.isoformat(),
 }
 
 # The last shot: the same list in a dark theme.
