@@ -465,6 +465,7 @@
     <string name="reminder_open_settings">Open the phone\'s settings</string>
     <string name="settings_about">About</string>
     <string name="settings_about_sub">Version, the welcome note, and the privacy policy</string>
+    <string name="name_saved">✓ Saved</string>
     <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
     <string name="themes_dark">Dark</string>
     <string name="themes_light">Light</string>

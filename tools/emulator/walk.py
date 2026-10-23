@@ -562,6 +562,12 @@ def brand_new(folder):
     tap("Save", exact=True)
     settings = read_file("settings.json") or {}
     check("the name is saved under the desktop's key", settings.get("username") == "Maria")
+    # Said under the box, above the keyboard: said at the foot of the screen
+    # it was under the keys (the owner's phone, 2026-10-23).
+    said, keyboard = bounds("✓ Saved"), bar_frame("ime")
+    check("...and says so under the box, in sight above the keyboard",
+          len(said) == 1 and keyboard is not None and keyboard[0] > 0 and said[0][3] <= keyboard[0],
+          "Saved %s, the keyboard from %s" % (said, keyboard))
     # The keyboard covers the bar at the bottom: down first. And the page
     # itself says "Hi Maria," in its explanation, so the greeting is looked
     # for together with the list's own search box.
@@ -3170,6 +3176,44 @@ def editor_corners(folder):
           last is not None and last <= keyboard[0] + line * 0.3,
           "the last line ends at %s, the keyboard from %s (%d breaks; the field from %s, then %s)"
           % (last, keyboard[0], enters, spoken, after))
+    keyboard_down()
+    back_to("Search notes")
+
+    # A new last line centred before a word is typed on it: the cursor moves
+    # to the middle at once. An empty last line was drawn as no paragraph at
+    # all, so it took no alignment, and the cursor stayed at the left until
+    # a letter came (the owner's phone, 2026-10-23). Seen by the handle a tap
+    # on the line puts under the cursor, in the accent: the cursor itself
+    # blinks about once a second, as often as a capture comes, and eight
+    # captures in a row once all fell on it dark.
+    # Not titled "Centre": a tap on the key of that name found the title first.
+    if not seed_inside([{"id": 1, "uid": "walk-centre", "title": "Middle", "body": "Hello\nWorld",
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}],
+                       {"welcome_offered": True, "categories": {"General": "#2a9d8f"}}, "Middle"):
+        return
+    if not open_note("Middle"):
+        return
+    box, _lines = lines_of_field("Hello")
+    if box is None:
+        fail("the note's text field is not on the screen")
+        return
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 1.5)))
+    time.sleep(1.0)
+    adb("shell", "input", "keyevent", "66")
+    time.sleep(1.0)
+    tap("Centre", exact=True, wait=1.0)
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 2.5)))
+    time.sleep(1.0)
+    middle = (box[0] + box[2]) // 2
+    top, bottom = int(box[1] + row * 2), int(box[1] + row * 3 + 90)
+    seen, deadline = [], time.time() + 5.0
+    while time.time() < deadline and (not seen or seen[-1][0] < 20):
+        seen.append((accent_pixels(middle - 80, top, middle + 80, bottom), accent_pixels(box[0], top, box[0] + 80, bottom)))
+    check("a new last line centred has its cursor in the middle before a word is typed, not at the left",
+          (note_by_uid("walk-centre") or {}).get("body") == "Hello\nWorld\n"
+          and max(m for m, _ in seen) >= 20 and all(left == 0 for _, left in seen),
+          "accent in the middle and at the left, look by look: %s" % seen)
     keyboard_down()
     back_to("Search notes")
 

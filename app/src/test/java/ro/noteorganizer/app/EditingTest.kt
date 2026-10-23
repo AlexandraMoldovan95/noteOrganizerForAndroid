@@ -288,4 +288,19 @@ class EditingTest {
         assertEquals(4, Editing.changeEnd("a😀", "a😀b"))
         assertEquals(3, Editing.changeEndPoints("a😀", "a😀b"))
     }
+
+    @Test
+    fun `a change told twice from the same value at once is taken once`() {
+        val once = Editing.Once()
+        // Samsung's keyboard's Enter on a word it is composing, as the
+        // field's log on the owner's phone showed it: twice, 1 ms apart.
+        assertTrue(once.news("word", "word\n", 1000))
+        assertFalse(once.news("word", "word\n", 1001))
+        // The next change is news, and so is the same change much later --
+        // a person's own repeat, never within the window.
+        assertTrue(once.news("word\n", "word\nx", 1200))
+        assertTrue(once.news("word\n", "word\nx", 1200 + Editing.Once.WINDOW_MS))
+        // A different change from the same value is news at once.
+        assertTrue(once.news("word\n", "word\ny", 1200 + Editing.Once.WINDOW_MS + 1))
+    }
 }

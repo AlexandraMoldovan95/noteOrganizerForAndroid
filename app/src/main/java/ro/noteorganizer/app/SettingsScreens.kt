@@ -356,12 +356,26 @@ private fun StatsPage(state: AppState) {
 private fun NamePage(state: AppState) {
     val palette = LocalPalette.current
     var draft by remember { mutableStateOf(Settings.username(state.settings)) }
+    // Said under the box, in green, where the eye is: said at the foot of
+    // the screen, it was under the keyboard (the owner's phone, 2026-10-23).
+    var saved by remember { mutableStateOf(false) }
+    fun save() {
+        saved = state.putSetting(Settings.USERNAME, draft.trim())
+    }
     PageColumn {
         Text(stringResource(R.string.name_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
-        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80) }, singleLine = true,
-                          label = { Text(stringResource(R.string.category_name)) }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80); saved = false }, singleLine = true,
+                          label = { Text(stringResource(R.string.category_name)) },
+                          keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                              imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                          keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
+                          modifier = Modifier.fillMaxWidth())
+        if (saved) {
+            Text(stringResource(R.string.name_saved), color = palette.successText, fontSize = 13.sp,
+                 modifier = Modifier.padding(top = 6.dp))
+        }
         Button(
-            onClick = { if (state.putSetting(Settings.USERNAME, draft.trim())) state.say("Saved") },
+            onClick = { save() },
             modifier = Modifier.padding(top = 12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
         ) { Text(stringResource(R.string.save)) }

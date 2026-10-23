@@ -1605,6 +1605,7 @@ private fun ProseField(
     var pressedAt by remember { mutableStateOf<Offset?>(null) }
     // The line being written kept in sight as it is typed, and as the keyboard rises.
     val following = rememberFollowing(cursor = value.selection.end.takeIf { model.focus == index })
+    val once = remember { Editing.Once() }
     LaunchedEffect(reveal) {
         val at = match ?: return@LaunchedEffect
         val drawn = layout
@@ -1623,6 +1624,9 @@ private fun ProseField(
     BasicTextField(
         value = value,
         onValueChange = { next ->
+            // Told twice, taken once ([Editing.Once]): Samsung's keyboard's
+            // Enter on a word it is composing.
+            if (!once.news(value, next, SystemClock.uptimeMillis())) return@BasicTextField
             // Before anything moves: a cut arrives here with its words already gone.
             model.freshenPick()
             val pasted = clipboard.pasteOf(value, next)
@@ -1641,8 +1645,9 @@ private fun ProseField(
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
-            TransformedText(paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props),
-                            OffsetMapping.Identity)
+            val painted = paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props)
+            TransformedText(painted,
+                            if (painted.length > text.length) StandInAtEnd(text.length) else OffsetMapping.Identity)
         },
         onTextLayout = { layout = it; following.laidOut(it) },
         textStyle = TextStyle(color = palette.text, fontSize = BODY_SIZE.sp, lineHeight = BODY_LINE_HEIGHT.sp),
@@ -1778,6 +1783,15 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     // stand-in is one character for one, so every position stays where
     // the field's text has it -- but a tap can land after it ([tapLanding]).
     val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
+    // An empty last line centred, put right or indented is given a stand-in
+    // of its own, drawn after the text ([StandInAtEnd]): with no character it
+    // made no paragraph, took no alignment, and its cursor stayed at the left
+    // until a letter came (the owner's phone, 2026-10-23). A plain one keeps
+    // its break real, below -- with a stand-in, a tap at the end of the line
+    // above landed on the end of the text where the cursor already was, the
+    // field said nothing, and [tapLanding] never put it back.
+    val lastProps = props[firstLine + lines.lastIndex]
+    val standIn = lines.last().isEmpty() && lastProps != null && !lastProps.plain
     var at = 0
     for ((i, line) in lines.withIndex()) {
         val end = at + line.length + if (i < lines.lastIndex) 1 else 0
@@ -1797,7 +1811,8 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
             lineHeight = BODY_LINE_HEIGHT.sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         )
-        if (end > at) paragraphs.add(AnnotatedString.Range(style, at, end))
+        val last = standIn && i == lines.lastIndex
+        if (end > at || last) paragraphs.add(AnnotatedString.Range(style, at, if (last) end + 1 else end))
         at = end
     }
     // A break that ends the text stays a real one: the empty line after it
@@ -1805,9 +1820,22 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     // it closed the line above and the last line was not drawn at all -- the
     // cursor shown at the end of "2. two" was on the hidden line below, and
     // a tap at the end of the item landed there.
-    val drawn = if (text.text.endsWith('\n')) text.text.dropLast(1).replace('\n', '​') + "\n"
-                else text.text.replace('\n', '​')
+    val drawn = when {
+        standIn -> text.text.replace('\n', '​') + "​"
+        text.text.endsWith('\n') -> text.text.dropLast(1).replace('\n', '​') + "\n"
+        else -> text.text.replace('\n', '​')
+    }
     return AnnotatedString(drawn, text.spanStyles, paragraphs)
+}
+
+/**
+ * The positions of a field drawn with one stand-in more than its text, after
+ * an empty last line ([paintLines]): every position of the text where it was,
+ * and the stand-in's own, after it, the end of the text.
+ */
+private class StandInAtEnd(private val length: Int) : OffsetMapping {
+    override fun originalToTransformed(offset: Int): Int = offset
+    override fun transformedToOriginal(offset: Int): Int = minOf(offset, length)
 }
 
 /**

@@ -126,9 +126,14 @@ fun rememberFollowing(cursor: Int? = null): Following {
     val drawn = following.layout
     LaunchedEffect(drawn) {
         val (at, length) = following.pending ?: return@LaunchedEffect
-        if (drawn == null || drawn.layoutInput.text.length != length || at > length) return@LaunchedEffect
+        // Laid out for this text: its length, or one more where an empty last
+        // line is drawn with a stand-in of its own (the editor's paintLines).
+        val laidOut = drawn ?: return@LaunchedEffect
+        val laid = laidOut.layoutInput.text
+        if (at > length || !(laid.length == length ||
+                laid.length == length + 1 && laid.text.endsWith('​'))) return@LaunchedEffect
         following.pending = null
-        following.requester.bringIntoView(drawn.getCursorRect(at))
+        following.requester.bringIntoView(laidOut.getCursorRect(at))
     }
     val keyboard = if (cursor != null) WindowInsets.ime.getBottom(LocalDensity.current) else 0
     LaunchedEffect(keyboard) {
