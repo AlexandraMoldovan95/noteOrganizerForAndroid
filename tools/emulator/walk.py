@@ -2105,7 +2105,12 @@ def attaching(folder):
         return note_by_uid("at-trip") or {}
 
     open_note("Trip")
-    tap("+ Attach files", wait=3.0)
+    # Adding to a note lives in ⋮ (2026-10-23): under the text, nothing
+    # offers it any more.
+    check("no link under the note offers a checklist, comments or files; ⋮ does",
+          find("+ Attach files") is None and find("+ Add a checklist") is None and find("+ Add comments") is None)
+    tap("⋮", exact=True, wait=1.0)
+    tap("📎 Attach files", exact=True, wait=3.0)
     tap("walk-receipt.txt", exact=True, wait=3.0)
     atts = trip().get("attachments") or []
     stored = atts[0].get("stored_as", "") if atts else ""
@@ -3010,14 +3015,24 @@ def editor_corners(folder):
     check_settled("Enter in the title goes on to the note's words, the title one line",
                   note, lambda n: n.get("title") == "Corners" and "z" in (n.get("body") or ""))
     keyboard_down()
-    tap("+ Add a checklist", wait=1.0)
-    tap("A new item…", wait=1.0)
+    # From ⋮ (2026-10-23): the checklist shows with the keyboard up in its
+    # box, so the words go there with no tap of their own.
+    tap("⋮", exact=True, wait=1.0)
+    tap("☑ Add a checklist", exact=True, wait=1.5)
     type_text("bags")
     adb("shell", "input", "keyevent", "66")                        # the keyboard's tick
-    check_settled("the keyboard's tick adds the checklist row, as Add does",
+    check_settled("⋮'s checklist comes with the keyboard in its box, and the tick adds the row, as Add does",
                   # Lower case: the field capitalises a row's first word as it likes.
                   lambda: [(i.get("text") or "").lower() for i in note().get("checklist") or []],
                   lambda c: c == ["bags"])
+    keyboard_down()
+    tap("⋮", exact=True, wait=1.0)
+    check("...and ⋮ no longer offers the checklist the note now shows", find("☑ Add a checklist") is None
+          and find("💬 Add comments") is not None and find("📎 Attach files") is not None)
+    tap("💬 Add comments", exact=True, wait=1.5)
+    type_text("Packed")
+    check_settled("⋮'s comments come with the cursor in them",
+                  lambda: note().get("comments"), lambda c: (c or "").lower() == "packed")
     keyboard_down()
     back_to("Search notes")
     # A long note: the new row's box near the foot of the screen. The field
@@ -3030,8 +3045,8 @@ def editor_corners(folder):
         return
     if not open_note("Long"):
         return
-    tap("+ Add a checklist", wait=1.0)
-    tap("A new item…", wait=2.5)
+    tap("⋮", exact=True, wait=1.0)
+    tap("☑ Add a checklist", exact=True, wait=2.5)
     keyboard, add = bar_frame("ime"), bounds("Add")
     check("in a long note the new row's box and its Add stand whole above the keyboard",
           keyboard is not None and keyboard[0] > 0 and len(add) == 1 and add[0][3] <= keyboard[0],

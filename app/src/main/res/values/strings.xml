@@ -193,14 +193,15 @@
     <string name="style_italic">italic</string>
     <string name="style_underline">underline</string>
     <string name="style_strike">strikethrough</string>
-    <string name="add_checklist">+ Add a checklist</string>
+    <!-- ⋮'s three ways to add to a note, with the desktop's marks -->
+    <string name="add_checklist">☑ Add a checklist</string>
     <string name="checklist_label">Checklist · %1$d/%2$d</string>
     <string name="checklist_new">A new item…</string>
-    <string name="add_comments">+ Add comments</string>
+    <string name="add_comments">💬 Add comments</string>
     <string name="comments_label">Comments</string>
     <string name="files_label">Attached files · %1$d</string>
     <!-- Attaching and removing files: the desktop's words -->
-    <string name="attach_files">+ Attach files</string>
+    <string name="attach_files">📎 Attach files</string>
     <string name="attach_remove_said">Remove %1$s</string>
     <string name="attach_remove_title">Remove attachment</string>
     <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it — this can\'t be undone.</string>

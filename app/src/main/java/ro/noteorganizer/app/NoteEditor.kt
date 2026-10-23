@@ -948,6 +948,18 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    // The checklist and the comments under the text: shown when the note has
+    // them, or once asked for from ⋮, where adding them and files lives --
+    // three links under every note made it busier than it needs to be (the
+    // owner's call, 2026-10-23). Shown once, they stay for this visit, even
+    // emptied, so a field never goes from under the finger.
+    var checklistOpen by remember(model.id) { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
+    var commentsOpen by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
+    val checklistShown = checklistOpen || note?.checklist.orEmpty().isNotEmpty()
+    val commentsShown = commentsOpen || model.comments.isNotEmpty()
+    var checklistAsk by remember { mutableIntStateOf(0) }
+    var commentsAsk by remember { mutableIntStateOf(0) }
+    var attachAsk by remember { mutableIntStateOf(0) }
     var askRestore by remember { mutableStateOf(false) }
     var tableMore by remember { mutableStateOf(false) }
     var askDeleteTable by remember { mutableStateOf(false) }
@@ -1106,6 +1118,25 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             calc.open = true
                         },
                     )
+                    if (!checklistShown) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.add_checklist)) },
+                            onClick = { menu = false; checklistOpen = true; checklistAsk += 1 },
+                        )
+                    }
+                    if (!commentsShown) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.add_comments)) },
+                            onClick = { menu = false; commentsOpen = true; commentsAsk += 1 },
+                        )
+                    }
+                    // A day of a series adds no files: they are the series'.
+                    if (day == null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.attach_files)) },
+                            onClick = { menu = false; attachAsk += 1 },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.template_use)) },
                         onClick = {
@@ -1401,9 +1432,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
-            ChecklistSection(state, model)
-            CommentsSection(model)
-            AttachmentsSection(state, model)
+            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk)
+            CommentsSection(model, shown = commentsShown, focusAsk = commentsAsk)
+            AttachmentsSection(state, model, pickAsk = attachAsk)
             Spacer(Modifier.height(48.dp))
         }
 
@@ -2142,13 +2173,14 @@ private fun FormatKey(
 }
 
 /**
- * The checklist, under the text. Ticking, adding, renaming and removing
- * each write at once, as the desktop's do; the handle ⠿ drags a row to
- * another place.
+ * The checklist, under the text, when [shown]. Ticking, adding, renaming
+ * and removing each write at once, as the desktop's do; the handle ⠿ drags
+ * a row to another place. [focusAsk] counts the times ⋮ asked for it: the
+ * keyboard then comes up in "A new item…", ready for the first row.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChecklistSection(state: AppState, model: EditorModel) {
+private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean, focusAsk: Int) {
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
@@ -2174,22 +2206,14 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
         withFrameNanos { }
         addRow.bringIntoView()
     }
-    var open by remember(model.id) { mutableStateOf(items.isNotEmpty()) }
+    val addFocus = remember { FocusRequester() }
 
     fun ensureSaved(): Int? {
         if (model.id == 0 && !model.save(force = true)) return null
         return model.id
     }
 
-    if (!open && items.isEmpty()) {
-        Text(
-            stringResource(R.string.add_checklist),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 18.dp).clickable { open = true }.padding(vertical = 6.dp),
-        )
-        return
-    }
+    if (!shown) return
     // On one day of a series the checklist is the series': a tick here is
     // a tick on every day, and the label says so, as the desktop's does.
     SectionLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size) +
@@ -2270,6 +2294,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
             keyboardActions = KeyboardActions(onDone = { add() }),
             modifier = Modifier
                 .weight(1f)
+                .focusRequester(addFocus)
                 .onFocusChanged { addFocused = it.isFocused }
                 .clip(RoundedCornerShape(8.dp))
                 .background(palette.card)
@@ -2288,6 +2313,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
                 .padding(12.dp),
         )
     }
+    // Run once the box is there to take it: asked for from ⋮.
+    LaunchedEffect(focusAsk) { if (focusAsk > 0) addFocus.requestFocus() }
 }
 
 /** A row's words, renamed when the field is left -- one write per edit, not per letter. */
@@ -2313,22 +2340,18 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     )
 }
 
-/** Comments: plain text under the note, saved with it. */
+/**
+ * Comments: plain text under the note, saved with it, when [shown]. Asked
+ * for from ⋮ ([focusAsk]), the cursor goes into them.
+ */
 @Composable
-private fun CommentsSection(model: EditorModel) {
+private fun CommentsSection(model: EditorModel, shown: Boolean, focusAsk: Int) {
     val palette = LocalPalette.current
-    var open by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
-    if (!open) {
-        Text(
-            stringResource(R.string.add_comments),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 10.dp).clickable { open = true }.padding(vertical = 6.dp),
-        )
-        return
-    }
+    if (!shown) return
     SectionLabel(stringResource(R.string.comments_label))
     val following = rememberFollowing()
+    val typing = remember { FocusRequester() }
+    LaunchedEffect(focusAsk) { if (focusAsk > 0) typing.requestFocus() }
     BasicTextField(
         value = model.comments,
         onValueChange = { now ->
@@ -2346,6 +2369,7 @@ private fun CommentsSection(model: EditorModel) {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
+            .focusRequester(typing)
             .clip(RoundedCornerShape(8.dp))
             .background(palette.card)
             .padding(12.dp)
@@ -2356,11 +2380,12 @@ private fun CommentsSection(model: EditorModel) {
 /**
  * The note's attached files, each opened with the phone's own apps, taken
  * off with ✕ -- which asks first, as the desktop does, the stored copy
- * going with it -- and more added from Android's own file picker. A day of
- * a series shows the series' files and adds none: they are never a day's.
+ * going with it -- and more added from Android's own file picker, which
+ * ⋮'s Attach files opens ([pickAsk] counts the times). A day of a series
+ * shows the series' files and adds none: they are never a day's.
  */
 @Composable
-private fun AttachmentsSection(state: AppState, model: EditorModel) {
+private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int) {
     val palette = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -2395,6 +2420,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel) {
             else -> attach(uris)
         }
     }
+    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) picker.launch(arrayOf("*/*")) }
 
     if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
@@ -2417,14 +2443,6 @@ private fun AttachmentsSection(state: AppState, model: EditorModel) {
                          .padding(10.dp))
             }
         }
-    }
-    if (model.day == null) {
-        Text(
-            stringResource(R.string.attach_files),
-            color = palette.accentText,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 10.dp).clickable { picker.launch(arrayOf("*/*")) }.padding(vertical = 6.dp),
-        )
     }
     removing?.let { (name, stored) ->
         Ask(
