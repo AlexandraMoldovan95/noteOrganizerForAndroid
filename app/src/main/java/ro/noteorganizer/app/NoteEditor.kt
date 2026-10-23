@@ -849,19 +849,35 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /**
      * A paste the field was about to make, made here instead: HTML with its
-     * formatting, or table rows on lines of their own. False lets the
-     * field's own plain paste stand -- ordinary text, or a day's own text,
-     * which is plain.
+     * formatting, table rows on lines of their own, or words holding a
+     * table whose separator spells widths ([Pasting.foreignPlain]). False
+     * lets the field's own plain paste stand -- ordinary text, or a day's
+     * own text with no such table, which is plain.
      */
     fun paste(segment: Editing.Segment, old: TextFieldValue, html: String?, plain: String): Boolean {
-        if (day != null) return false
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
+        if (day != null) {
+            // A day's own text takes the words only -- but a table in them
+            // still comes without the widths its separator's dashes spell.
+            val text = Pasting.foreignPlain(plain, state.ownCopy)
+            if (text == plain.replace("\r\n", "\n").replace("\r", "\n")) return false
+            land(Pasting.insert(body, emptyList(), emptyMap(), from, to, text))
+            return true
+        }
         val read = if (html.isNullOrEmpty()) null else Pasting.fromHtml(html, state.ownCopy)
         val done = if (read != null) {
             Pasting.insert(body, spans, props, from, to, read.text, read.formatting, read.paragraphs)
         } else {
-            val rows = Pasting.pipeRows(plain) ?: return false
-            Pasting.insert(body, spans, props, from, to, rows)
+            // Words from elsewhere: a table's separator at markdown's minimum.
+            // A table in the middle of the text, which pipeRows leaves to the
+            // field, is pasted here too, or its widths would come with it.
+            val text = Pasting.foreignPlain(plain, state.ownCopy)
+            val rows = Pasting.pipeRows(text)
+            when {
+                rows != null -> Pasting.insert(body, spans, props, from, to, rows)
+                text != plain.replace("\r\n", "\n").replace("\r", "\n") -> Pasting.insert(body, spans, props, from, to, text)
+                else -> return false
+            }
         }
         land(done)
         if (read?.textCut == true) {
@@ -881,7 +897,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * Ctrl+Shift+V pastes them.
      */
     fun pastePlain(segment: Editing.Segment, old: TextFieldValue, raw: String) {
-        val text = Pasting.plainText(raw.replace("\r\n", "\n").replace("\r", "\n"))
+        val text = Pasting.plainText(Pasting.foreignPlain(raw, state.ownCopy))
         if (text.isEmpty() && old.selection.collapsed) return
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
         land(Pasting.insert(body, spans, if (day != null) emptyMap() else props, from, to, text))

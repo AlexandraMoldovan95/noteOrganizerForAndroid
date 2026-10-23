@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Sixteen of the fifty-three are about
+**the code**, or in **the design**. Sixteen of the fifty-four are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-23](#a-separators-dashes-read-as-a-width-nobody-set) | code | The documentation's photograph of a table showed its header "How…": its separator was markdown's `---:`, which both apps read as a column set by hand to four characters | When a format borrows another's syntax, decide whose a form is where that is still known -- at the way in -- and leave what is stored alone |
 | [2026-10-23](#one-change-told-twice-by-samsungs-keyboard) | code | With Samsung's keyboard every Enter after a word skipped a line, on the owner's phone and on no emulator; the field reported one change twice and the note applied both | When a report and a reproduction disagree, read what the real device sends -- a log that writes no letter of the person's |
 | [2026-10-23](#a-field-that-looked-for-its-cursor-once) | code | On the owner's phone, Enter at the foot of a long note made a line under the keyboard and the screen stayed still; each checklist row added went the same way; on its side the rising keyboard showed another part of the note; Settings' list forgot its place under a page | An answer given once, when the focus came, holds only until something moves; and a fix made at one level of a pattern is worth a grep one level down |
 | [2026-10-22](#what-a-persons-keyboard-found-that-the-walk-could-not) | checking | An agent playing an ordinary user, typing on the keyboard's keys, found in forty minutes what 259 checks had walked past: Enter after an autocorrected word, the cursor after Undo, a hidden last line, a tap on a marker | The walk proves the app's rules with letters it injects; a person's keyboard feeds them differently, and only someone using it finds the seam |
@@ -68,6 +69,43 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A separator's dashes, read as a width nobody set
+
+**2026-10-23.** The photograph of a table taken for this repository's
+documentation showed its header as "How…", the column barely wider than
+"1500", and its caption promised a right-aligned column that the picture
+did not have. The note had been written for the camera the way GitHub's
+markdown writes such a table: `| What | How much |` over `| --- | ---: |`.
+
+Not the camera's fault, and not the phone's alone. Both apps keep a
+column's hand-set width in the separator, as its dash count, and draw a
+set width exactly, cut short with an ellipsis. Three characters or fewer
+was already read as markdown's spelling rather than a width — but
+markdown spells an aligned column in four or five, and a column as wide
+as its header in more. Any table pasted as text, from a chat's Copy
+button or a `.md` file, came in cut the same way. (And a cell's alignment
+is its padding in both apps, so the colon right-aligned nothing.)
+
+The file cannot say whose dashes a separator holds; a paste can. So
+`Pasting.forgetWidths`, the desktop's `tables.forget_widths`, spells every
+separator in text from outside the app at the minimum — `---:` becomes
+`--:`, colons and `~` kept — inside `htmlToNote` for a page's HTML, and
+through `foreignPlain` for words: a note's paste, its plain paste, a day
+of a series, and a template's text, whose plain field takes it from
+`forgetPastedWidths` when more than a line arrives at once. The app's own
+copy keeps its dashes, and notes already saved are read as before: a
+changed reading rule would have widened every column someone narrowed on
+purpose. The paste fixture holds the port to the desktop's answers on 86
+texts, and the walk measures the drawn header.
+
+**The lesson:** when a format borrows another's syntax, the borrowed form
+arrives written the way the other world writes it. Decide whose it is
+where that is still known — at the way in — and leave what is already
+stored alone. The seed for the photograph is now written as the app
+writes a table.
 
 ---
 

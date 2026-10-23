@@ -20,6 +20,39 @@ class PastingTest {
     // ---- by hand ----
 
     @Test
+    fun `a pasted markdown separator is spelled at its minimum, colons and the hidden mark kept`() {
+        // "---:" is four characters, read as a width set by hand: the column
+        // was drawn four wide and "How much" cut to "How…".
+        val (text, shifts) = Pasting.forgetWidths("| What | How much |\n| --- | ---: |\n| rent | 1500 |")
+        assertEquals("| What | How much |\n| --- | --: |\n| rent | 1500 |", text)
+        assertEquals(listOf(31 to -1), shifts)
+        assertEquals("|:--|:-:|~|", Pasting.forgetWidths("| a | b | c |\n|:------|:-----:|~|").first.split("\n")[1])
+        val minimum = "| a | b |\n| --- | :-: |"
+        assertEquals("one already at its minimum comes back as it went", minimum to emptyList<Pair<Int, Int>>(),
+                     Pasting.forgetWidths(minimum))
+    }
+
+    @Test
+    fun `the app's own copy keeps the widths set in it, words from elsewhere do not`() {
+        val table = "| a | b |\r\n| ------------ | ---: |"
+        val mine = Pasting.OwnCopy("| a | b |\n| ------------ | ---: |", emptyList(), emptyList(), "<table></table>")
+        assertEquals("| a | b |\n| ------------ | ---: |", Pasting.foreignPlain(table, mine))
+        assertEquals("| a | b |\n| --- | --: |", Pasting.foreignPlain(table, null))
+    }
+
+    @Test
+    fun `a template's text forgets the widths of what is pasted in, never of what is typed`() {
+        val before = "Shopping\n"
+        val pasted = before + "| What | How much |\n| --- | ---: |\n| milk | 2 |"
+        assertEquals(before + "| What | How much |\n| --- | --: |\n| milk | 2 |",
+                     Pasting.forgetPastedWidths(before, pasted, null))
+        val typing = "| a | b |\n| --- | ---"
+        assertEquals("a dash typed is the person's own", "$typing:", Pasting.forgetPastedWidths(typing, "$typing:", null))
+        val mine = Pasting.OwnCopy("| What | How much |\n| --- | ---: |\n| milk | 2 |", emptyList(), emptyList(), "")
+        assertEquals("our own copy keeps its dashes", pasted, Pasting.forgetPastedWidths(before, pasted, mine))
+    }
+
+    @Test
     fun `a table pasted into the comments leaves its rows behind, the prose kept`() {
         // The desktop's _on_comments_paste: the comments draw no table.
         val pasted = "Notes:\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n\nThanks"
@@ -368,6 +401,26 @@ class PastingTest {
             val unmarked = Pasting.stripListMarkers(text)
             if (unmarked != case.getString("unmarked")) wrong.add("#$i markers:\n  desktop ${JSONObject.quote(case.getString("unmarked"))}\n  phone   ${JSONObject.quote(unmarked)}")
         }
+        assertEquals("${wrong.size} differences:\n" + wrong.take(4).joinToString("\n"), 0, wrong.size)
+    }
+
+    @Test
+    fun `markdown tables lose their separators' widths as the desktop's forget_widths loses them`() {
+        val cases = fixture().getJSONArray("forgotten")
+        assertTrue(cases.length() > 50)
+        val wrong = ArrayList<String>()
+        var forgot = 0
+        for (i in 0 until cases.length()) {
+            val case = cases.getJSONObject(i)
+            val (text, shifts) = Pasting.forgetWidths(case.getString("text"))
+            val want = case.getJSONArray("shifts")
+            val wanted = (0 until want.length()).map { want.getJSONArray(it).let { s -> s.getInt(0) to s.getInt(1) } }
+            if (wanted.isNotEmpty()) forgot++
+            if (text != case.getString("forgotten") || shifts != wanted) {
+                wrong.add("#$i:\n  desktop ${JSONObject.quote(case.getString("forgotten"))} $wanted\n  phone   ${JSONObject.quote(text)} $shifts")
+            }
+        }
+        assertTrue("the fixture forgets widths in most of its texts ($forgot)", forgot > 30)
         assertEquals("${wrong.size} differences:\n" + wrong.take(4).joinToString("\n"), 0, wrong.size)
     }
 }

@@ -18,15 +18,15 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-692 checks across thirty-one suites — `NotebookTest` (124),
-`TablesTest` (75), `RecurrenceTest` (46), `IdentityTest` (35),
+701 checks across thirty-one suites — `NotebookTest` (124),
+`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (36), `IdentityTest` (35),
 `CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
-`ParagraphsTest` (33), `PastingTest` (32), `DaysTest` (27), `SharingTest`
+`ParagraphsTest` (33), `DaysTest` (27), `SharingTest`
 (22), `ImportingTest` (21), `SettingsTest` (21), `EditingTest` (22),
 `AppStateTest` (18), `FindingTest` (16), `ExportingTest` (15),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
-(8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
-`EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4), `EditorCopyTest` (3),
+(8), `EditorCopyTest` (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
+`EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4),
 `LinksTest` (3), `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
@@ -34,8 +34,10 @@ which is what makes them cost seconds instead of minutes — and two
 drawing-side classes: `AppState`, whose order of saves around the open
 note no emulator tap can time, and the editor's model, whose copy must
 carry styling put on after the words were selected, whose typed letters
-take styles by the caret they were typed at, and whose calculator writes
-into the cell being written in. `TempPlaceTest` checks the run itself:
+take styles by the caret they were typed at, whose calculator writes
+into the cell being written in, and whose paste of a markdown table
+leaves its separator's widths behind — in a note, in a day of a series,
+and never in the app's own copy. `TempPlaceTest` checks the run itself:
 its temporary folders made under `app/build/`, which each run empties
 first, and never left in the system's temp folder (30,640 were, by
 2026-10-23).
@@ -54,7 +56,7 @@ and never writes to it:
 | `export_cases.json` | `make_export_fixture.py` | 400 notes exported as `.html` and `.txt`, 794 files |
 | `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
-| `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, and 117 plain texts rejoined and unmarked |
+| `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
 
 The paste fixture leans on one more file the app itself carries:
 `html_entities.json`, the HTML named references and Python's rules for
@@ -294,7 +296,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 166 cases across sixteen areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 167 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than
@@ -304,9 +306,9 @@ Summary that counts itself, and a **Merged cases** sheet where a case
 folded into another, or written for what the app no longer does (Follow
 the phone), is kept with the reason.
 
-Its **"Automation status (Claude)"** column is the point. 102 rows are
-already walked by unit tests, 113 are driven on the emulator, and 80 need a
-person with a real phone in their hand — the three add up to more than 166 because a row
+Its **"Automation status (Claude)"** column is the point. 103 rows are
+already walked by unit tests, 114 are driven on the emulator, and 81 need a
+person with a real phone in their hand — the three add up to more than 167 because a row
 can carry two or three, and the honest ones do: a rule proved on the JVM
 whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a

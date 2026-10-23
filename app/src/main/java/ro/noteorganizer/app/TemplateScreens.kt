@@ -260,7 +260,7 @@ fun TemplatesPage(state: AppState) {
  * edited, as in the desktop's preview.
  */
 @Composable
-private fun TemplateBody(body: String, onChange: (String) -> Unit) {
+private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (String) -> Unit) {
     val palette = LocalPalette.current
     val label = stringResource(R.string.template_field_body)
     Column(
@@ -281,8 +281,11 @@ private fun TemplateBody(body: String, onChange: (String) -> Unit) {
                     BasicTextField(
                         value = segment.text,
                         onValueChange = {
-                            following.typed(segment.text, it)
-                            onChange(Editing.replaceProse(body, segment, it))
+                            // A table pasted in comes without the widths its
+                            // separator's dashes spell, as in a note.
+                            val kept = Pasting.forgetPastedWidths(segment.text, it, ownCopy)
+                            following.typed(segment.text, kept)
+                            onChange(Editing.replaceProse(body, segment, kept))
                         },
                         onTextLayout = following::laidOut,
                         textStyle = TextStyle(color = palette.text, fontSize = 16.sp),
@@ -389,7 +392,7 @@ private fun TemplateEditor(
                 OutlinedTextField(title, { title = it.take(200) }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                TemplateBody(body) { body = it }
+                TemplateBody(body, state.ownCopy) { body = it }
                 OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2),
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))

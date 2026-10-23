@@ -314,7 +314,11 @@ object Pasting {
         // padding them here keeps the offsets and the text in step, and
         // align() reports what it moved so the spans move with it.
         if (findBlocks(text.split("\n").map(::cps)).isNotEmpty()) {
-            val (aligned, shifts) = align(text)
+            // A page's own markdown brings its separator's dashes as whoever
+            // typed them; the app's own copy is put back whole by [fromHtml].
+            val (forgot, forgotten) = forgetWidths(text)
+            spans = shiftSpans(spans, forgotten)
+            val (aligned, shifts) = align(forgot)
             out = aligned
             spans = shiftSpans(spans, shifts)
         }
@@ -1445,6 +1449,76 @@ object Pasting {
             }
         }
         return lines.joinToString("\n") { String(it, 0, it.size) } to shifts
+    }
+
+    /**
+     * `tables.forget_widths`: every table's separator spelled at markdown's
+     * minimum, for text from outside the app. Its dashes are as many as its
+     * writer typed -- "---:" is how markdown spells a right-aligned column --
+     * and read as this app's own record they were a width set by hand: the
+     * column drawn four characters wide, its header cut to "How…". The
+     * colons and a hidden mark stay. Offsets in code points, counted in the
+     * text as it came, for [shiftSpans].
+     */
+    fun forgetWidths(text: String): Pair<String, List<Pair<Int, Int>>> {
+        val lines = text.split("\n").map(::cps).toMutableList()
+        val starts = IntArray(lines.size)
+        var pos = 0
+        for (i in lines.indices) {
+            starts[i] = pos
+            pos += lines[i].size + 1
+        }
+        val shifts = ArrayList<Pair<Int, Int>>()
+        for ((first, last) in findBlocks(lines)) {
+            val block = lines.subList(first, last + 1).toList()
+            val at = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) } ?: continue
+            val n = first + at
+            val line = lines[n]
+            var new = line
+            var cut = 0
+            for ((bounds, column) in cellBounds(line).zip(parseSeparator(String(line, 0, line.size)))) {
+                if (column.width == null) continue
+                val (a, b) = bounds
+                val short = cps(separatorCells(listOf(column.copy(width = null)))[0])
+                new = new.copyOfRange(0, a - cut) + short + new.copyOfRange(b - cut, new.size)
+                shifts.add(starts[n] + a + short.size to short.size - (b - a))
+                cut += (b - a) - short.size
+            }
+            lines[n] = new
+        }
+        return lines.joinToString("\n") { String(it, 0, it.size) } to shifts
+    }
+
+    /**
+     * `_foreign_plain`: [raw], pasted as text, with its tables' separators
+     * at markdown's minimum ([forgetWidths]) -- unless it is the app's own
+     * copy from a note ([mine]), whose dashes are widths set here. Line
+     * endings come back as the note's.
+     */
+    fun foreignPlain(raw: String, mine: OwnCopy?): String {
+        val text = raw.replace("\r\n", "\n").replace("\r", "\n")
+        if (mine != null && text == mine.text) return text
+        return forgetWidths(text).first
+    }
+
+    /**
+     * What a plain field holds after [old] became [new], when the change put
+     * in more than a line at once -- a paste -- with the separators in what
+     * went in at markdown's minimum ([foreignPlain]). The template editor's
+     * text, which has no paste of its own to ask. A change of one line or
+     * less is typing, and comes back as it is: a separator typed dash by
+     * dash is the person's own.
+     */
+    fun forgetPastedWidths(old: String, new: String, mine: OwnCopy?): String {
+        var head = 0
+        while (head < old.length && head < new.length && old[head] == new[head]) head++
+        var tail = 0
+        while (tail < old.length - head && tail < new.length - head &&
+               old[old.length - 1 - tail] == new[new.length - 1 - tail]) tail++
+        val came = new.substring(head, new.length - tail)
+        if ('\n' !in came) return new
+        val kept = foreignPlain(came, mine)
+        return if (kept == came) new else new.substring(0, head) + kept + new.substring(new.length - tail)
     }
 
     // ---- a PDF's column, and markers a plain paste leaves behind ----

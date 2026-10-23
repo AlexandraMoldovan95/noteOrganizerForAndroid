@@ -321,7 +321,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 692 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 701 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -551,7 +551,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 692 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 701 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -799,7 +799,7 @@ the desktop's source and never write to it.
 | Export | `note_to_html`, `html_document` and the page around them | 400 notes, 794 files compared byte for byte |
 | Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
 | Lists | its renumbering | 300 bodies |
-| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts |
+| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts, 86 markdown tables |
 
 Pasting is the one port where the phone answers differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
@@ -885,7 +885,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-692 JVM unit tests in 31 suites pin the rules ported from Python, and
+701 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

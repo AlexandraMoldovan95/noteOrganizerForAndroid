@@ -402,6 +402,7 @@ def main():
     copy_after_styling(folder)
     typing_styles(folder)
     comments_paste(folder)
+    pasted_tables(folder)
     reminders(folder)
     wide(folder)
     changes(folder)
@@ -2593,6 +2594,92 @@ def comments_paste(folder):
     check_settled("a table's row pasted into the comments is left out, and that is said",
                   lambda: ((note_by_uid("cp-note") or {}).get("comments"), told),
                   lambda got: got == ("seen", True))
+    back_to("Search notes")
+
+
+def separator_widths(text):
+    """The widths each markdown separator in [text] spells, the desktop's
+    rule: a cell over three characters is a width, one of three or fewer
+    (or the hidden mark) none."""
+    out = []
+    for line in (text or "").split("\n"):
+        cells = line.strip()
+        if not re.fullmatch(r"\|(\s*(:?-+:?|~)\s*\|)+", cells):
+            continue
+        out.append([len(c.strip()) if len(c.strip()) > 3 else None for c in cells[1:-1].split("|")])
+    return out
+
+
+def pasted_tables(folder):
+    """A markdown table pasted from elsewhere -- copied as words, its
+    separator "---:", markdown's right-aligned column -- into a note and into
+    a template's text. "---:" is four characters, which both apps read as a
+    column set by hand to four: the header was drawn "How…". Pasted, the
+    separator is spelled at markdown's minimum and the column fits what it
+    holds. The words are copied from a note's comments, the plain field a
+    walk can fill with them; read back from both files, and the drawn
+    header measured against a word of four letters."""
+    print("\n-- a markdown table pasted in --")
+    markdown = "Costs:\n| What | How much |\n| --- | ---: |\n| rent | 1500 |\nthat is all"
+    if not seed_inside([
+        {"id": 1, "uid": "pt-source", "title": "Copied from", "body": "words", "comments": markdown,
+         "created": "2026-10-23 09:00:00", "updated": "2026-10-23 09:00:00"},
+        {"id": 2, "uid": "pt-note", "title": "Pasted into", "body": "Start here",
+         "created": "2026-10-23 09:00:01", "updated": "2026-10-23 09:00:01"},
+    ], {"welcome_offered": True}, "Copied from"):
+        return
+
+    def keys(*codes):
+        adb("shell", "input", "keycombination", *map(str, codes))
+        time.sleep(1.0)
+
+    def paste_after(words):
+        tap(words, wait=0.8)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+        time.sleep(0.5)
+        keys(113, 50)                              # Ctrl+V
+
+    open_note("Copied from")
+    tap("that is all", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A: the comments' words
+    keys(113, 31)                                  # Ctrl+C
+    keyboard_down()
+    # A template first, made from the note to paste into while it still
+    # holds its two words.
+    back_to("Search notes")
+    open_note("Pasted into")
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Save", exact=True, wait=1.5)
+    back_to("Search notes")
+
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("Pasted into", exact=True, wait=1.5)
+    paste_after("Start here")
+    keyboard_down()
+    tap("Save", exact=True, wait=1.5)
+    saved = (read_file("templates.json") or [{}])[0]
+    check("a template's text takes the table without the width its separator spelled",
+          separator_widths(saved.get("body")) == [[None, None]] and "How much" in (saved.get("body") or ""),
+          repr(saved.get("body")))
+    back_to("Search notes")
+
+    open_note("Pasted into")
+    paste_after("Start here")
+    keyboard_down()
+    pasted = settle(lambda: note_by_uid("pt-note") or {}, lambda n: "How much" in (n.get("body") or ""))
+    check("a note takes it the same way, the words around it kept",
+          separator_widths(pasted.get("body")) == [[None, None]]
+          and (pasted.get("body") or "").endswith("that is all"), repr(pasted.get("body")))
+    # Measured, not read: the tree holds a cell's whole words even when
+    # they are drawn cut short. Cut to four characters, the header was as
+    # wide as "rent"; drawn whole, it is twice that.
+    header, word = bounds("How much"), bounds("rent")
+    wide = bool(header and word) and (header[0][2] - header[0][0]) > 1.6 * (word[0][2] - word[0][0])
+    check("and its header is drawn whole, twice as wide as a word of four letters", wide, repr((header, word)))
+    shot(folder, "72-pasted-markdown-table", "How much")
     back_to("Search notes")
 
 
