@@ -52,6 +52,20 @@ android {
     }
 }
 
+// The unit tests' temporary folders go under build/, one folder per test
+// task, emptied when the task starts. In the system's temp folder they
+// were never removed -- deleteOnExit takes only an EMPTY folder -- and
+// 30,640 of them had piled up there by 2026-10-23. TempPlaceTest fails if
+// this is taken away.
+tasks.withType<Test>().configureEach {
+    val scratch = layout.buildDirectory.dir("test-tmp/$name").get().asFile
+    systemProperty("java.io.tmpdir", scratch.absolutePath)
+    doFirst {
+        scratch.deleteRecursively()
+        scratch.mkdirs()
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

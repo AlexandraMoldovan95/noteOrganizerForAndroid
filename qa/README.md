@@ -18,7 +18,7 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-690 checks across thirty suites — `NotebookTest` (124),
+692 checks across thirty-one suites — `NotebookTest` (124),
 `TablesTest` (75), `RecurrenceTest` (46), `IdentityTest` (35),
 `CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
 `ParagraphsTest` (33), `PastingTest` (32), `DaysTest` (27), `SharingTest`
@@ -27,15 +27,18 @@ lands where it can actually fail.
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
 (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
 `EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4), `EditorCopyTest` (3),
-`LinksTest` (3) and `InteropTest` (2). No device, no emulator:
-they test the twenty-six files that contain no Android at all (see
+`LinksTest` (3), `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
+they test the twenty-seven files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
 which is what makes them cost seconds instead of minutes — and two
 drawing-side classes: `AppState`, whose order of saves around the open
 note no emulator tap can time, and the editor's model, whose copy must
 carry styling put on after the words were selected, whose typed letters
 take styles by the caret they were typed at, and whose calculator writes
-into the cell being written in.
+into the cell being written in. `TempPlaceTest` checks the run itself:
+its temporary folders made under `app/build/`, which each run empties
+first, and never left in the system's temp folder (30,640 were, by
+2026-10-23).
 
 ### Fixtures the desktop wrote
 

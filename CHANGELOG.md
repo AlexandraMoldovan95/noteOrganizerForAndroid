@@ -39,6 +39,17 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Testing
+
+- The unit tests' temporary folders go under `app/build/test-tmp/`, one
+  per test task, emptied when the task starts. In the system's temp folder
+  they were never removed — `deleteOnExit` takes only an empty folder —
+  and 30,640 had piled up there by 2026-10-23, 665 more on every run.
+  `TempPlaceTest` holds both halves: a folder made under `build`, and none
+  left from an earlier run. 692 JVM unit tests in 31 suites. Two mutants
+  watched failing — the second only on a second run, the first having left
+  the folder it finds.
+
 ---
 
 ## [0.11.0] — 2026-10-23 — The day's reminder, and the note's menu
