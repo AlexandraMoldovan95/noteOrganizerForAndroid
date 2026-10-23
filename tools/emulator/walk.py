@@ -3214,6 +3214,23 @@ def editor_corners(folder):
           (note_by_uid("walk-centre") or {}).get("body") == "Hello\nWorld\n"
           and max(m for m, _ in seen) >= 20 and all(left == 0 for _, left in seen),
           "accent in the middle and at the left, look by look: %s" % seen)
+    # ...and put back to the left under a centred line, it goes to the left:
+    # kept inside the line above, the empty line wore that line's centring
+    # and its cursor stayed in the middle (the owner's phone, 2026-10-23).
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 1.5)))
+    time.sleep(1.0)
+    tap("Centre", exact=True, wait=1.0)
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 2.5)))
+    time.sleep(1.0)
+    tap("Align left", exact=True, wait=1.0)
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 2.5)))
+    time.sleep(1.0)
+    seen, deadline = [], time.time() + 5.0
+    while time.time() < deadline and (not seen or seen[-1][1] < 20):
+        seen.append((accent_pixels(middle - 80, top, middle + 80, bottom), accent_pixels(box[0], top, box[0] + 80, bottom)))
+    check("...and put back to the left under a centred line, its cursor goes to the left",
+          max(left for _, left in seen) >= 20 and all(m == 0 for m, _ in seen),
+          "accent in the middle and at the left, look by look: %s" % seen)
     keyboard_down()
     back_to("Search notes")
 

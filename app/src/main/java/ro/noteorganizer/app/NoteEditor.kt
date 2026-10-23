@@ -31,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1603,6 +1604,24 @@ private fun ProseField(
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // Where the last press came down, for [tapLanding].
     var pressedAt by remember { mutableStateOf<Offset?>(null) }
+    // A press let go, and the field said nothing of it: it landed where the
+    // cursor already was -- the end of the text, past an empty last line's
+    // stand-in -- so the change that puts a tap back never came. Put back
+    // here, a frame later, once the field has had its say.
+    var letGo by remember { mutableIntStateOf(0) }
+    LaunchedEffect(letGo) {
+        if (letGo == 0) return@LaunchedEffect
+        withFrameNanos { }
+        val pressed = pressedAt ?: return@LaunchedEffect
+        val now = model.focused?.takeIf { model.focus == index && it.text == segment.text } ?: return@LaunchedEffect
+        pressedAt = null
+        val landed = tapLanding(now, pressed, layout)
+        if (landed != now) {
+            model.focused = landed
+            model.caret = caretIn(segment, landed)
+            model.pick(segment, landed)
+        }
+    }
     // The line being written kept in sight as it is typed, and as the keyboard rises.
     val following = rememberFollowing(cursor = value.selection.end.takeIf { model.focus == index })
     val once = remember { Editing.Once() }
@@ -1662,6 +1681,7 @@ private fun ProseField(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     pressedAt = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
+                    if (waitForUpOrCancellation(PointerEventPass.Initial) != null) letGo += 1
                 }
             }
             // The desktop's Ctrl+Shift+V, for a keyboard: the words alone.
@@ -1783,15 +1803,17 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     // stand-in is one character for one, so every position stays where
     // the field's text has it -- but a tap can land after it ([tapLanding]).
     val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
-    // An empty last line centred, put right or indented is given a stand-in
-    // of its own, drawn after the text ([StandInAtEnd]): with no character it
-    // made no paragraph, took no alignment, and its cursor stayed at the left
-    // until a letter came (the owner's phone, 2026-10-23). A plain one keeps
-    // its break real, below -- with a stand-in, a tap at the end of the line
-    // above landed on the end of the text where the cursor already was, the
-    // field said nothing, and [tapLanding] never put it back.
-    val lastProps = props[firstLine + lines.lastIndex]
-    val standIn = lines.last().isEmpty() && lastProps != null && !lastProps.plain
+    // An empty last line is given a stand-in of its own, drawn after the text
+    // ([StandInAtEnd]), and so a paragraph and a style of its own. With no
+    // character it made no paragraph: the line was not drawn at all -- the
+    // cursor shown at the end of "2. two" was on it, hidden -- and kept as a
+    // real break inside the line above, it wore that line's style: centred,
+    // its cursor stayed at the left until a letter came, and put back to the
+    // left under a centred line, it stayed in the middle (the owner's phone,
+    // 2026-10-23). A tap past the end of the line above now lands on the end
+    // of the text, where the cursor may already be, and the field says
+    // nothing; the press is put back when it is let go ([tapLanding]).
+    val standIn = lines.last().isEmpty()
     var at = 0
     for ((i, line) in lines.withIndex()) {
         val end = at + line.length + if (i < lines.lastIndex) 1 else 0
@@ -1815,16 +1837,7 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
         if (end > at || last) paragraphs.add(AnnotatedString.Range(style, at, if (last) end + 1 else end))
         at = end
     }
-    // A break that ends the text stays a real one: the empty line after it
-    // is then drawn, a line to tap on and to hold the cursor. As a stand-in
-    // it closed the line above and the last line was not drawn at all -- the
-    // cursor shown at the end of "2. two" was on the hidden line below, and
-    // a tap at the end of the item landed there.
-    val drawn = when {
-        standIn -> text.text.replace('\n', '​') + "​"
-        text.text.endsWith('\n') -> text.text.dropLast(1).replace('\n', '​') + "\n"
-        else -> text.text.replace('\n', '​')
-    }
+    val drawn = text.text.replace('\n', '​') + if (standIn) "​" else ""
     return AnnotatedString(drawn, text.spanStyles, paragraphs)
 }
 
