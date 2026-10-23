@@ -21,8 +21,8 @@ android {
         // sections there, so the two cannot drift apart; versionName is
         // the newest of them. Both were the template's 1 / "1.0" until
         // 2026-09-15, and "1.0" was not true of an app still exploring.
-        versionCode = 12
-        versionName = "0.10.1"
+        versionCode = 13
+        versionName = "0.11.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

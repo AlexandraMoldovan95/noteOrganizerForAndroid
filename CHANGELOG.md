@@ -39,6 +39,10 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.11.0] — 2026-10-23 — The day's reminder, and the note's menu
+
 ### Added
 
 - **On a wide screen the list can be put aside for a wider note** — asked
