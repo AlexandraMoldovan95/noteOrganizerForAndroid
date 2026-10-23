@@ -55,7 +55,7 @@ white signal icon.
 |---|---|
 | `01-note-list.png` | The note list in Soft Lavender: the greeting, search, sort and show, and the cards — colour stripe, headline, preview, and the category, date, table, checklist and repeat badges. The pinned note floats to the top; the last card has no title, so it borrows its first line, set lighter |
 | `02-a-note.png` | A note open in the editor, its bold first line drawn and its checklist below, ticked rows struck through |
-| `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as, with the right-aligned column the separator row asked for |
+| `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as, its figures right-aligned, as the spaces in those rows say |
 | `04-search.png` | Search: one of four notes left, matched on a word in its body rather than its title |
 | `05-appearance.png` | Settings → Appearance: the Light \| Dark switch, and the four light themes |
 | `06-dark.png` | The same list in Midnight Purple |
@@ -70,4 +70,9 @@ month's notes in it would be an empty grid.
 0.11.0: a note's checklist, comments and files added from its ⋮, no links
 under it, and « beside a note on a wide screen. The notebook marks the
 day's reminder as already shown, so a day the series falls on does not
-put its bar over the list. Update this line whenever the set is recaptured.
+put its bar over the list. Retaken the same day for the table: its seed
+had a markdown `---:` under the figures, which both apps read as a column
+set by hand to four characters, so the header was drawn "How…" and the
+figures sat on the left; it is now written as the app writes a table.
+The other pictures of that run differ only by a blinking cursor and
+faint anti-aliasing. Update this line whenever the set is recaptured.

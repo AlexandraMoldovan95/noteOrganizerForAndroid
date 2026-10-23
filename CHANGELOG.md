@@ -39,6 +39,41 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A table pasted as markdown fits its words**, as on the desktop. A
+  table copied as text — from a chat, a `.md` file, a page's code — came
+  in with its columns cut short, "How much" drawn "How…": markdown spells
+  a right-aligned column `---:`, and the app read every separator cell
+  longer than three characters as a width set by hand. A paste from
+  elsewhere now spells the separator at markdown's minimum, its colons and
+  hidden marks kept — into a note's text, a day of a series and a
+  template's text, as words or as a page's HTML. The app's own copy keeps
+  the widths set in it, and notes already saved are read as before.
+  Found in the documentation's own photograph of a table.
+
+### Testing
+
+- The unit tests' temporary folders go under `app/build/test-tmp/`, one
+  per test task, emptied when the task starts. In the system's temp folder
+  they were never removed — `deleteOnExit` takes only an empty folder —
+  and 30,640 had piled up there by 2026-10-23, 665 more on every run.
+  `TempPlaceTest` holds both halves: a folder made under `build`, and none
+  left from an earlier run. Two mutants watched failing — the second only
+  on a second run, the first having left the folder it finds.
+- The paste fixture gains 86 texts with markdown tables, each with what
+  the desktop's `forget_widths` makes of it and where it moved the text;
+  `PastingTest` asks the phone the same. `EditorCopyTest` pastes a table
+  into a note in the middle of words, on its own lines, plainly and into a
+  day of a series, and a note's own copy back by the plain route and by its
+  HTML, its widths kept. A new walk part copies the table from a note's
+  comments, pastes it into a template's text and into a note, reads both
+  files and measures the drawn header against "rent"; on the build before,
+  all three of its checks failed (the header 82 pixels wide, "rent" 80).
+  701 JVM unit tests in 31 suites. Mutants PT1–PT12 watched failing: eleven
+  on the rules and the editor's model, caught by the unit tests, and one
+  on the template's field, an APK caught by the walk part.
+
 ---
 
 ## [0.11.0] — 2026-10-23 — The day's reminder, and the note's menu

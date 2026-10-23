@@ -343,6 +343,37 @@ def plain_texts(rng):
     return out
 
 
+SEPARATOR_CELLS = ["---", ":---", "---:", ":---:", "------", ":-:", "--:", ":--", "~", "-",
+                   "----------:", ":------:", "----"]
+
+
+def separator_texts(rng):
+    """Markdown tables as other programs write them, for `forget_widths`:
+    every spelling of a separator cell, with prose and an emoji around the
+    tables so the offsets are counted in code points."""
+    out = ["", "no table", "| a | b |\n| --- | ---: |\n| x | y |",
+           "| a | b |\n| c | d |\n| ---- | ---- |",
+           "a ---- b\n|---|---:|",
+           "\U0001F600 first\n| \U0001F600 | b |\n|:----|----:|\n| x | y |\n\n| p | q |\n|------|~|"]
+    for _ in range(80):
+        blocks = []
+        for _ in range(rng.randrange(1, 4)):
+            if rng.random() < 0.3:
+                blocks.append(" ".join(rng.choice(PROSE) for _ in range(rng.randrange(1, 6))))
+                continue
+            cols = rng.randrange(2, 5)
+            gap = rng.choice([" | ", "|", "  |  "])
+            edge = gap[:gap.index("|")]
+            rows = ["|" + edge + gap.join(rng.choice(PROSE) for _ in range(cols)) + edge + "|"]
+            sep = "|" + edge + gap.join(rng.choice(SEPARATOR_CELLS) for _ in range(cols)) + edge + "|"
+            rows.insert(rng.choice([1, 1, 1, 0]), sep)
+            rows += ["| " + " | ".join(rng.choice(PROSE) for _ in range(cols)) + " |"
+                     for _ in range(rng.randrange(0, 3))]
+            blocks.append("\n".join(rows))
+        out.append(rng.choice(["\n", "\n\n"]).join(blocks))
+    return out
+
+
 def round_trip_sources(rng):
     """Notes the app itself copies out: the export fixture's notes, as HTML."""
     path = os.path.join(ANDROID, "app", "src", "test", "resources", "export_cases.json")
@@ -427,12 +458,22 @@ def main():
         case = {"kind": "caps", "html_parts": parts}
         case.update(expect("".join(piece * times for piece, times in parts)))
         big.append(case)
+    if not hasattr(tables, "forget_widths"):
+        print("the desktop has no tables.forget_widths: bring it up to date first")
+        return 2
+    # A generator of its own, so the sections above keep their cases.
+    forgotten = []
+    for text in separator_texts(random.Random(SEED + 1)):
+        out, shifts = tables.forget_widths(text)
+        forgotten.append({"text": text, "forgotten": out, "shifts": [list(s) for s in shifts]})
     # One case to a line, so a change to the reader shows as the lines it moved.
     with io.open(FIXTURE, "w", encoding="ascii", newline="\n") as f:
         f.write('{"seed": %d, "python": "%s", "cases": [\n' % (SEED, sys.version.split()[0]))
         f.write(",\n".join(json.dumps(c, ensure_ascii=True, separators=(",", ":")) for c in cases + big))
         f.write('\n], "plain": [\n')
         f.write(",\n".join(json.dumps(p, ensure_ascii=True, separators=(",", ":")) for p in plain))
+        f.write('\n], "forgotten": [\n')
+        f.write(",\n".join(json.dumps(p, ensure_ascii=True, separators=(",", ":")) for p in forgotten))
         f.write("\n]}\n")
     raised = sum("raises" in c for c in cases + big)
     empty = sum(c.get("text") == "" for c in cases + big)
@@ -443,6 +484,8 @@ def main():
           % (len(plain), sum(p["reflowed"] != p["plain"] for p in plain)))
     print("%d where the desktop's second table puts its styles beside their words"
           % sum("desktop_formatting" in c for c in cases + big))
+    print("%d texts with markdown tables, %d of them with a width forgotten"
+          % (len(forgotten), sum(p["shifts"] != [] for p in forgotten)))
     print("written: %s" % os.path.relpath(FIXTURE, ANDROID))
     return 0
 
