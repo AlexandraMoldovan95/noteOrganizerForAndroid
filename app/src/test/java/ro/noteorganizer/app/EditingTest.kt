@@ -270,4 +270,18 @@ class EditingTest {
         val emoji = Editing.addCaption("😀\n| a | b |", 1)
         assertEquals(emoji.body.codePointCount(0, emoji.body.indexOf("description")), emoji.selectStart)
     }
+
+    @Test
+    fun `a change ends after what it changed, where the cursor stands after typing`() {
+        assertEquals(2, Editing.changeEnd("a", "ab"))
+        assertEquals(3, Editing.changeEnd("a\nc", "a\nbc"))
+        // Enter at the end of a line ending the text: after the new break,
+        // on the line it made -- not on the one before it, which matched the
+        // break as well and left the new line under the keyboard.
+        assertEquals(3, Editing.changeEnd("a\n", "a\n\n"))
+        assertEquals(4, Editing.changeEnd("one", "one\n"))
+        // A deletion ends where it was; a paste, after what came in.
+        assertEquals(1, Editing.changeEnd("abc", "ac"))
+        assertEquals(5, Editing.changeEnd("ab", "aXYZWb"))
+    }
 }

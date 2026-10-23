@@ -303,7 +303,9 @@ Grouped by what the app does; when each item arrived is in the
     tablet — the bar becomes a rail down the left edge; from an expanded
     one, a note opens beside the notes or the calendar, which stay in
     reach, its card outlined. What the list does to the note beside it —
-    a pin, a category — the note shows at once and keeps.
+    a pin, a category — the note shows at once and keeps. « in the note's
+    top bar puts the list (or the calendar) aside for a wider note, »
+    brings it back; the choice holds until the app is closed.
 37. Settings: your name, appearance, categories, templates, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
     notebook — and About: the version, the welcome note, the **privacy
@@ -313,12 +315,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 683 JVM unit tests in 29 suites, mutation-tested; six ports held to
+39. 684 JVM unit tests in 29 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 273
+    where the shrunk code will look); and an emulator walk of 291
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -536,14 +538,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 273 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 291 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 683 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 684 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -551,12 +553,18 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-38 parts, 273 checks. The last full run (2026-10-22), with the two parts
-for what the owner's phone and an agent playing an ordinary user found,
-the checklist's box above the keyboard and the note in sight on its side,
-was begun on an emulator just started and alone on the computer: it
-waited 106 seconds, then passed all 273; the two before it, with fewer
-of those checks, all 271 and all 269. A run before them, made while the
+38 parts, 291 checks. The last full run (2026-10-23), with the checks for
+what the owner's phone found that evening — the screen following the
+cursor in the text and the comments, the newest checklist row, the
+keyboard rising on its side, the list put aside, Settings' list and the
+month keeping their places — was begun on an emulator just started and
+alone on the computer: it waited 72 seconds, then passed all 291. The one
+before it, on the first of those fixes with the first five of the checks,
+all 278. On 2026-10-22, with the two parts for what the owner's phone and
+an agent playing an ordinary user found, the checklist's box above the
+keyboard and the note in sight on its side, all 273, after a wait of 106
+seconds; the two before it, with fewer of those checks, all 271 and all
+269. A run before them, made while the
 computer also built the app and ran the desktop's suite, failed a
 hundred checks, the emulator's own home screen hung under the load ("Pixel
 Launcher isn't responding") — the walk wants the machine to itself. The
@@ -653,7 +661,10 @@ it and read back from the file:
   phone turning; the rail; a note beside the list, its words in sight
   above the keyboard and no + over the search box while typing; a pin from the list
   kept by the editor's next save; another note opened from its title;
-  the note beside the calendar, and closed for Settings; two new notes in
+  the list put aside and back, a find bar open across both, and kept aside
+  from note to note; the note beside the calendar, and closed for
+  Settings; Settings' list and the calendar's month back in their places
+  after a page and the History; the pane beside the calendar; two new notes in
   a row; a code shared in over an open note, upright, and the update
   kept; and a medium window, the note in the list's place.
 
@@ -732,6 +743,10 @@ The first test on a real phone added eight parts and grew seven:
   ordinary user): a tap at the end of the last item over the empty line a
   list leaves, a tap on a marker, a letter after Undo, Enter in the title,
   the checklist's ✓, and in a long note its box and Add above the keyboard.
+  Since 2026-10-23, from the owner's phone: three rows added with the ✓,
+  the newest in sight; Enter after Enter at the foot of what shows, in the
+  text and in the comments, the line being written in sight; on its side,
+  the keyboard rising over a long note and the cursor's line still there.
 * Grown: Appearance's Dark | Light switch (light themes on a light phone,
   the dark ones a tap away, a dark pick saved as dark mode's); the size
   box saying "Default" then "20"; Autofit all columns, tapped from the
@@ -847,7 +862,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-683 JVM unit tests in 29 suites pin the rules ported from Python, and
+684 JVM unit tests in 29 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

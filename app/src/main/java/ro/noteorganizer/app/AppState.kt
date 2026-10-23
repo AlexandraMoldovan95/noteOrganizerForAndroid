@@ -59,6 +59,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var openId by mutableStateOf<Int?>(null)
 
     /**
+     * On a wide screen, the list (or the calendar) put aside for a wider
+     * note -- remembered until the app is closed, the owner's choice. With
+     * no note open it shows all the same: there would be nothing else.
+     */
+    var listAside by mutableStateOf(false)
+
+    /**
      * Counts the notes opened: each gets an editor of its own, scrolled to
      * its top, its sheets shut. On a wide screen the editor stays on screen
      * from one note to the next, and a second new note is "note 0" again,

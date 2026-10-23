@@ -308,13 +308,15 @@ fun AppRoot(state: AppState, version: String) {
             if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote()
             state.tab = tab
             state.settingsPage = null
+            // A tab asked for is a tab shown, beside the note again.
+            state.listAside = false
         }
         // One shape at every width, the rail, the panes and the bar each
         // there or not: the list and the editor keep their places in it, so
         // turning the phone moves them without rebuilding them -- an editor
         // built again would lose its find bar, its cursor and whatever it
         // had not saved yet, and the list its selection.
-        val tabShown = open == null || twoPanes
+        val tabShown = open == null || (twoPanes && !state.listAside)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 if (wide) {
@@ -361,13 +363,13 @@ fun AppRoot(state: AppState, version: String) {
                                     .then(if (wide) Modifier else Modifier.statusBarsPadding()),
                             ) { tabContent() }
                         }
-                        if (twoPanes) VerticalDivider(color = palette.hairline)
+                        if (twoPanes && tabShown) VerticalDivider(color = palette.hairline)
                         if (open != null) {
                             Box(Modifier.weight(1f).fillMaxHeight()) {
-                                key(state.opening) { NoteEditor(state, open) }
+                                key(state.opening) { NoteEditor(state, open, beside = twoPanes) }
                             }
                         } else if (twoPanes) {
-                            Box(Modifier.weight(1f).fillMaxHeight()) { NothingOpen() }
+                            Box(Modifier.weight(1f).fillMaxHeight()) { NothingOpen(calendar = state.tab == Tab.CALENDAR) }
                         }
                     }
                 }
@@ -458,12 +460,17 @@ private val RAIL_FROM = 600.dp
 /** Material's expanded window: the note beside the list. */
 private val TWO_PANES_FROM = 840.dp
 
-/** The second pane before a note is picked: what it is for. */
+/**
+ * The second pane before a note is picked: what it is for. Beside the
+ * calendar it offered a + that is only on the list's tab, and a tap on the
+ * words did nothing (the owner's phone, 2026-10-23).
+ */
 @Composable
-private fun NothingOpen() {
+private fun NothingOpen(calendar: Boolean) {
     val palette = LocalPalette.current
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(stringResource(R.string.pick_a_note), color = palette.subtext, fontSize = 15.sp,
+        Text(stringResource(if (calendar) R.string.pick_a_day_note else R.string.pick_a_note),
+             color = palette.subtext, fontSize = 15.sp,
              textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

@@ -15,6 +15,13 @@
     <string name="nav_settings">Settings</string>
     <!-- A wide screen's second pane, before a note is opened in it -->
     <string name="pick_a_note">Pick a note to open it here, or tap + for a new one.</string>
+    <!-- ...beside the calendar, which has no + -->
+    <string name="pick_a_day_note">Pick a note of the day to open it here.</string>
+    <!-- The note's button that puts the pane beside it aside, and back -->
+    <string name="hide_list">Hide the list</string>
+    <string name="show_list">Show the list</string>
+    <string name="hide_calendar">Hide the calendar</string>
+    <string name="show_calendar">Show the calendar</string>
 
     <!-- The calendar: the desktop's words wherever it has them -->
     <string name="cal_today">Today</string>

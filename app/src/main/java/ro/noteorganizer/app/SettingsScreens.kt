@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ fun SettingsScreen(
 ) {
     val palette = LocalPalette.current
     val page = state.settingsPage
+    val listKept = rememberSaveableStateHolder()
     BackHandler(enabled = page != null) { state.settingsPage = null }
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
@@ -84,7 +86,9 @@ fun SettingsScreen(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
         )
         when (page) {
-            null -> SettingsList(state)
+            // The list keeps its place while a page is open: built again on
+            // Back, it came back at its top, the row just left out of sight.
+            null -> listKept.SaveableStateProvider("list") { SettingsList(state) }
             SettingsPage.NAME -> NamePage(state)
             SettingsPage.APPEARANCE -> AppearancePage(state)
             SettingsPage.CATEGORIES -> CategoriesPage(state)

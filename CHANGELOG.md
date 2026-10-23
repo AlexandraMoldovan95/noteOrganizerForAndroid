@@ -39,6 +39,14 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Added
+
+- **On a wide screen the list can be put aside for a wider note** — asked
+  for on the owner's phone, turned on its side. « beside ← in the note's
+  top bar hides the list (or the calendar) and the note takes the whole
+  width; » brings it back, as do closing the note and the rail's own
+  button. The choice holds from note to note until the app is closed.
+
 ### Fixed
 
 - **A tap past the end of a line puts the cursor at the end of that
@@ -71,6 +79,29 @@ do before, not as releases anyone ran.
   keyboard. The desktop's Enter in its entry does the same. And in a long
   note the box stands whole above the keyboard, with its Add: the field
   brought only its line of words into view, the rest under the keys.
+- **The note follows the cursor as you write** — found on the owner's
+  phone. Enter on the last line the keyboard left showing made the next
+  one under the format bar and the keys, and the screen stayed where it
+  was: what was typed there could not be seen until the note was scrolled
+  by hand. The field brought the cursor into view only when it took the
+  focus; it now does after every change to its words — and so do the
+  note's comments, a table's cell being written, and a template's text
+  and comments, which had the same fault. And on a phone on its side, a
+  tap on line 2 of a long note no longer shows lines 20 to 22 once the
+  keyboard is up: the line with the cursor stays in sight.
+- **The checklist row just added stays in sight** — found on the owner's
+  phone. Each row added pushed the "A new item…" box a row further down,
+  under the keyboard, and the screen stayed where it was, the new row out
+  of sight with it. The screen now follows the box after each row.
+- **Settings' list keeps its place** — found on the owner's phone. Back
+  from a page low in it, the Trash say, came back at the list's top, the
+  row just left out of sight. The calendar's month and its History did
+  the same to each other. Each tab already kept its place while out of
+  sight; the screens inside a tab now do too.
+- **Beside the calendar, the empty pane no longer offers a + it does not
+  have.** It read "Pick a note to open it here, or tap + for a new one",
+  and the calendar's tab has no +; it now reads "Pick a note of the day to
+  open it here."
 - **Enter in the title goes on to the note's words**, and a line break
   pasted into the title becomes a space; it put a break in the title, which
   the list then cut at.
@@ -111,12 +142,25 @@ do before, not as releases anyone ran.
   without the fix put Add 32 pixels under its top edge). The part for a
   wide window checks, the keyboard up on its side, that the note's words
   stand above the keys and + is gone; the build before showed no word of
-  the note, and its + was there.
+  the note, and its + was there. And, from the owner's phone: three rows
+  added with the tick in a long note, the newest and the box under it above
+  the keyboard; Enter after Enter at the foot of what shows, the line being
+  written in sight above the format bar — measured by how far the note
+  moved. A build without either fix fails its own check: the newest row out
+  of sight, the note moved 0 pixels and its last line 116 under the bar.
+  The same Enter in the comments, measured from the field's own top; on
+  its side, a tap on line 2 of a long note, the cursor looked for in the
+  note's pane by its colour once the keyboard is up (none of it there on
+  the build before). The wide part puts the list aside and back with a
+  find bar open, closes and opens notes with it aside, scrolls Settings'
+  list and the calendar's month and comes back to each after a page or the
+  History, and reads the empty pane beside the calendar.
 - The walk waits for the phone's "save as" picker to offer Save, instead
   of looking once after three seconds: a picker slower than that left a
   backup unmade and three checks failed for one cause. All three of the
   walk's picker steps, the backup, the Trash page's and the export.
-- 683 JVM unit tests, from 675: `ParagraphsTest` holds Enter with a
+- 684 JVM unit tests, from 675: `EditingTest` holds where a change ends,
+  Enter at the end of the text included; `ParagraphsTest` holds Enter with a
   corrected word — at the end of a list, on an indented item, in the
   middle of one, the styles after it moved; `IdentityTest` holds the copy
   spent by a save that puts its text back, kept by one that does not, the

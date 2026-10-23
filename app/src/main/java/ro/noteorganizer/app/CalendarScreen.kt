@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +81,7 @@ private fun dayKey(month: YearMonth, day: Int) = String.format(Locale.US, "%04d-
 fun CalendarScreen(state: AppState) {
     val palette = LocalPalette.current
     val month = state.calendarMonth
+    val kept = rememberSaveableStateHolder()
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = {
@@ -109,7 +111,9 @@ fun CalendarScreen(state: AppState) {
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg, titleContentColor = palette.text),
         )
-        if (state.showHistory) History(state) else Month(state)
+        // Each keeps its place while the other is shown, as Settings' list does.
+        val showing = if (state.showHistory) "history" else "month"
+        kept.SaveableStateProvider(showing) { if (state.showHistory) History(state) else Month(state) }
     }
 }
 

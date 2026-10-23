@@ -2418,6 +2418,24 @@ def bars_drawn():
     return dark, clock
 
 
+def accent_pixels(left, top, right, bottom):
+    """How many pixels of the default theme's accent -- a cursor, its handle
+    -- the screen holds in a box, sampled every other pixel."""
+    raw = adb("exec-out", "screencap", binary=True)
+    w, h = struct.unpack_from("<II", raw, 0)
+    head = len(raw) - w * h * 4
+    if head < 12 or bottom <= top:
+        return 0
+    seen = 0
+    for y in range(max(0, top), min(h, bottom), 2):
+        for x in range(max(0, left), min(w, right), 2):
+            at = head + (y * w + x) * 4
+            r, g, b = raw[at], raw[at + 1], raw[at + 2]
+            if b > 200 and r < 150 and g < 130:
+                seen += 1
+    return seen
+
+
 def sheets_over_buttons(folder):
     """A sheet over three-button navigation, the app dark on a light phone:
     the owner's phone. A sheet is a window of its own, and Android drew its
@@ -3018,8 +3036,142 @@ def editor_corners(folder):
     check("in a long note the new row's box and its Add stand whole above the keyboard",
           keyboard is not None and keyboard[0] > 0 and len(add) == 1 and add[0][3] <= keyboard[0],
           "Add %s, the keyboard from %s" % (add, keyboard))
+    # Rows added one after another with the keyboard's tick: each pushed the
+    # box a row further down, under the keys, and the screen stayed where it
+    # was -- the newest row out of sight with it (Alexandra's phone, 2026-10-23).
+    for word in ("Bread", "Milk", "Eggs"):
+        type_text(word)
+        adb("shell", "input", "keyevent", "66")
+        time.sleep(1.0)
+    check_settled("three rows added with the keyboard's tick",
+                  lambda: [(i.get("text") or "").lower() for i in (note_by_uid("walk-long") or {}).get("checklist") or []],
+                  lambda c: c == ["bread", "milk", "eggs"])
+    keyboard, newest, add = bar_frame("ime"), bounds("Eggs"), bounds("Add")
+    check("...and the newest row and the box under it stay in sight above the keyboard",
+          keyboard is not None and keyboard[0] > 0 and len(newest) == 1 and len(add) == 1
+          and newest[0][3] - newest[0][1] >= 20 and newest[0][3] <= keyboard[0] and add[0][3] <= keyboard[0],
+          "Eggs %s, Add %s, the keyboard from %s" % (newest, add, keyboard))
     keyboard_down()
     back_to("Search notes")
+
+    # Enter after Enter at the foot of what shows: each new line went under
+    # the format bar and the keys, the screen still, and what was typed there
+    # could not be seen (Alexandra's phone, 2026-10-23). Measured from the
+    # category line above the text, which stays in sight: how far the note
+    # moved, and so where its last line now is.
+    if not seed_inside([{"id": 1, "uid": "walk-follow", "title": "Follow", "body": "a\nb\nc",
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Follow"):
+        return
+    if not open_note("Follow"):
+        return
+    box, _lines = lines_of_field("a")
+    if box is None:
+        fail("the note's text field is not on the screen")
+        return
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 2.5)))
+    time.sleep(2.0)
+    box, _lines = lines_of_field("a")
+    category, hint = bounds("General"), bounds("Select text to format it, or tap B, I, U or S for what you type next")
+    if box is None or len(category) != 1 or len(hint) != 1:
+        fail("the note's text, its category and the format bar are on the screen (%s %s %s)" % (box, category, hint))
+        return
+    # Enough breaks that, the screen standing still, the last would end a
+    # line and a half below the top of the format bar.
+    enters = max(1, int((hint[0][1] + 1.5 * row - box[1]) / row + 0.999) - 3)
+    for _ in range(enters):
+        adb("shell", "input", "keyevent", "66")
+        time.sleep(0.3)
+    type_text("end")
+    check_settled("Enter at the foot of what shows, again and again: every break in the note",
+                  lambda: (note_by_uid("walk-follow") or {}).get("body"),
+                  lambda b: b == "a\nb\nc" + "\n" * enters + "end")
+    after = bounds("General")
+    moved = category[0][3] - after[0][3] if len(after) == 1 else None
+    last = None if moved is None else box[1] - moved + row * (3 + enters)
+    check("...and the line being written follows the cursor up, in sight above the format bar",
+          last is not None and last <= hint[0][1] + row * 0.3,
+          "the last line ends at %s, the format bar from %s (the note moved %s px, %d breaks)"
+          % (last, hint[0][1], moved, enters))
+    keyboard_down()
+    back_to("Search notes")
+
+    # The same in the comments, under a long note -- another field of the
+    # editor's, given the same following. Measured from the field's own top,
+    # which the few lines it has to move leave in sight.
+    if not seed_inside([{"id": 1, "uid": "walk-remarks", "title": "Remarks",
+                         "body": "\n".join("Line %d" % i for i in range(1, 25)), "comments": "First",
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Remarks"):
+        return
+    if not open_note("Remarks"):
+        return
+    for _ in range(2):
+        adb("shell", "input", "swipe", "540", "1900", "540", "500", "300")
+        time.sleep(0.8)
+    spoken, _lines = lines_of_field("First")
+    if spoken is None:
+        fail("the comments are on the screen")
+        return
+    line = 22 * row / 24                                           # the comments' line, at this density
+    adb("shell", "input", "tap", str(spoken[2] - 40), str((spoken[1] + spoken[3]) // 2))
+    time.sleep(2.0)
+    (spoken, _lines), keyboard = lines_of_field("First"), bar_frame("ime")
+    if spoken is None or keyboard is None or keyboard[0] <= 0:
+        fail("the comments field took the keyboard (%s, %s)" % (spoken, keyboard))
+        return
+    # Its top taken for its first line's: a line and a half past the keys,
+    # wherever the words sit inside the box.
+    enters = max(1, int((keyboard[0] + 1.5 * line - spoken[1]) / line + 0.999) - 1)
+    for _ in range(enters):
+        adb("shell", "input", "keyevent", "66")
+        time.sleep(0.3)
+    type_text("end")
+    check_settled("Enter after Enter in the comments: every break kept",
+                  lambda: ((note_by_uid("walk-remarks") or {}).get("comments") or "").lower(),
+                  lambda c: c == "first" + "\n" * enters + "end")
+    after, _lines = lines_of_field("First")
+    last = None if after is None else after[1] + line * (enters + 1)
+    check("...and the comments' line being written stays in sight above the keyboard",
+          last is not None and last <= keyboard[0] + line * 0.3,
+          "the last line ends at %s, the keyboard from %s (%d breaks; the field from %s, then %s)"
+          % (last, keyboard[0], enters, spoken, after))
+    keyboard_down()
+    back_to("Search notes")
+
+    # On its side, a tap on line 2 of a long note: the keyboard rose and the
+    # note showed lines 20 to 22, the cursor nowhere -- Compose keeps the
+    # whole focused field in view as the screen shrinks (2026-10-23). Seen
+    # by the cursor itself: it and its handle are drawn in the accent, the
+    # only thing in the note's pane that is; looked for in three photographs,
+    # the cursor blinking.
+    if not seed_inside([{"id": 1, "uid": "walk-sideways", "title": "Sideways",
+                         "body": "\n".join("Line %d" % i for i in range(1, 31)),
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         # A category in green: its name, over the text, is
+                         # then no accent the check could take for the cursor.
+                         "updated": "2026-10-22 09:00:00"}],
+                       {"welcome_offered": True, "categories": {"General": "#2a9d8f"}}, "Sideways"):
+        return
+    turn(1)
+    if not open_note("Sideways"):
+        turn(0)
+        return
+    box, _lines = lines_of_field("Line 1")
+    if box is None:
+        fail("the long note's text is beside the list, on its side")
+        turn(0)
+        return
+    adb("shell", "input", "tap", str(box[2] - 40), str(int(box[1] + row * 1.5)))
+    time.sleep(2.0)
+    keyboard = bar_frame("ime")
+    inked = [accent_pixels(box[0], 0, box[2], keyboard[0] if keyboard else 0) for _ in range(3)]
+    check("on its side, the keyboard risen over a long note leaves the cursor's line in sight",
+          keyboard is not None and keyboard[0] > 0 and max(inked) >= 40,
+          "accent pixels above the keys %s, the keyboard from %s" % (inked, keyboard))
+    keyboard_down()
+    back_to("Search notes")
+    turn(0)
 
 
 def wide(folder):
@@ -3111,11 +3263,73 @@ def wide(folder):
     check("another card's note takes the pane, its title in sight", count("trip") == 2 and shown >= 40,
           "boxes %s" % titles)
 
+    # « beside the note puts the list aside for a wider note, » brings it
+    # back (asked for on the owner's phone, 2026-10-23). The editor is not
+    # built again: its find bar stays open across both.
+    # The note's title, measured: the card's own is the one further left.
+    narrow = max(bounds("Plans"), default=None)
+    tap_last("⋮", wait=1.0)                                       # the note's; the list has one too
+    tap("Find in note", wait=1.0)
+    type_text("trip")
+    keyboard_down()
+    tap("Hide the list", exact=True, wait=1.5)
+    wider = bounds("Plans")
+    check("« puts the list aside: the note takes its width, its find bar still open",
+          find("Search notes") is None and narrow is not None and len(wider) == 1
+          and wider[0][0] < narrow[0] - 200 and not screen_says("Close find"),
+          "the title from %s, then %s" % (narrow, wider))
+    shot(folder, "70-wide-list-aside", "trip", "Show the list")
+    tap("Show the list", exact=True, wait=1.5)
+    check("» brings the list back beside the note, the find bar still open",
+          not screen_says("Search notes", "Groceries", "Close find", "Hide the list"))
+    tap("Hide the list", exact=True, wait=1.5)
+    tap("←", exact=True, wait=1.5)
+    check("with the list aside, closing the note shows the list", not screen_says("Search notes", "Pick a note"))
+    tap("Plans", exact=True, wait=1.5)
+    check("...and the next note opens with the list still aside, until the app is closed",
+          find("Search notes") is None and not screen_says("Show the list"))
+    tap("Notes", exact=True, wait=1.5)
+    check("the rail's Notes brings the list back beside the note",
+          not screen_says("Search notes", "Hide the list"))
+
     tap("Calendar", exact=True, wait=1.5)
     check("the note stays open beside the calendar", not screen_says("📋 History", "ⓘ", "trip"))
     shot(folder, "46-wide-calendar", "📋 History", "ⓘ")
+    # The month keeps its place while the History is shown, as Settings'
+    # list does: scrolled down to the day's notes, then History and back.
+    days = bounds("Mon")
+    adb("shell", "input", "swipe", "700", "950", "700", "350", "400")
+    time.sleep(1.0)
+    gone, header = bounds("Mon"), bounds("+ Add note")
+    tap("📋 History", exact=True, wait=1.5)
+    tap("📅 Calendar", exact=True, wait=1.5)
+    again = bounds("+ Add note")
+    check("the month, scrolled, keeps its place after the History and back",
+          len(days) == 1 and (not gone or days[0][1] - gone[0][1] >= 100)
+          and len(header) == 1 and len(again) == 1 and abs(again[0][1] - header[0][1]) <= 8,
+          "Mon at %s, then %s; + Add note at %s, after the History %s" % (days, gone, header, again))
     tap("Settings", exact=True, wait=1.5)
     check("Settings has no note beside it: the note is closed", not screen_says("Your name") and find("ⓘ") is None)
+    # Its list keeps its place while a page is open: on its side the list
+    # scrolls, and Back from the Trash came back at its top, the row just
+    # left below the screen (the owner's phone, 2026-10-23).
+    # Templates, in sight from the start, says the list really moved.
+    before = bounds("Templates")
+    adb("shell", "input", "swipe", "1200", "900", "1200", "350", "400")
+    time.sleep(1.0)
+    moved, trash = bounds("Templates"), bounds("Trash")
+    tap("Trash", exact=True, wait=1.5)
+    back(wait=1.5)
+    again = bounds("Trash")
+    check("Settings' list, scrolled, keeps its place after a page and Back",
+          len(before) == 1 and len(moved) == 1 and before[0][1] - moved[0][1] >= 100
+          and len(trash) == 1 and len(again) == 1 and abs(again[0][1] - trash[0][1]) <= 8,
+          "Templates at %s, scrolled to %s; Trash at %s, after Back %s" % (before, moved, trash, again))
+    # No note open beside the calendar: the pane offered a + that is only on
+    # the list's tab.
+    tap("Calendar", exact=True, wait=1.5)
+    check("beside the calendar the empty pane points to the day's notes, not to a + it has not",
+          not screen_says("Pick a note of the day") and find("tap +") is None)
     tap("Notes", exact=True, wait=1.2)
 
     # Two new notes in a row: the second + must give a second, empty note

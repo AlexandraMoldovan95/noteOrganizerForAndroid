@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Sixteen of the fifty-one are about
+**the code**, or in **the design**. Sixteen of the fifty-two are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-23](#a-field-that-looked-for-its-cursor-once) | code | On the owner's phone, Enter at the foot of a long note made a line under the keyboard and the screen stayed still; each checklist row added went the same way; on its side the rising keyboard showed another part of the note; Settings' list forgot its place under a page | An answer given once, when the focus came, holds only until something moves; and a fix made at one level of a pattern is worth a grep one level down |
 | [2026-10-22](#what-a-persons-keyboard-found-that-the-walk-could-not) | checking | An agent playing an ordinary user, typing on the keyboard's keys, found in forty minutes what 259 checks had walked past: Enter after an autocorrected word, the cursor after Undo, a hidden last line, a tap on a marker | The walk proves the app's rules with letters it injects; a person's keyboard feeds them differently, and only someone using it finds the seam |
 | [2026-10-22](#a-break-drawn-as-a-character-a-tap-could-land-after) | code | On the owner's phone a tap past a list item's end put the cursor at the next line's start: words went in front of its number, and Enter made an empty line | A field drawn differently from its text answers taps in the drawing's terms: test where a tap lands, not only where text goes |
 | [2026-10-22](#a-check-that-held-by-one-frame) | checking | The walk's first run on an emulator just started lost its first typing and saw the dissolve cut; the fade had always held by about three captures, and on a busy emulator by one or none. Then a keyboard flag read too soon pressed Back off a table cell | A check whose margin is the machine's speed is not about the app: slow down what is watched, and wait for the machine the check was written on |
@@ -68,6 +69,58 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## A field that looked for its cursor once
+
+**2026-10-23.** On the owner's phone, writing at the foot of a long note
+with the keyboard up: Enter made the new line under the keyboard, and the
+screen stayed where it was. What she typed next could not be seen until
+she scrolled to it with a finger. Adding checklist rows did the same: each
+row pushed the "A new item…" box a row lower, and the row just added went
+out of sight with it.
+
+The emulator showed it at once, in a note of thirty lines: Enter on the
+last line above the format bar, a word, Enter again, and the screen never
+moved. A Compose text field over a `TextFieldValue` or a `String` brings
+its cursor into view when it takes the focus, and not after; in a column
+that scrolls, every line it grows past the bottom of the screen goes there
+unseen. Every field of that kind that can grow in a scrolling column had
+it: the note's text, its comments, a table's cell being written, and a
+template's text and comments.
+
+They now share one answer, `Following`: after each change to the words,
+once the field has laid them out, the place where the change ended is
+brought into view. A template's comments, a Material field with no layout
+to ask, moved to the newer field over a `TextFieldState`, which keeps its
+cursor in sight itself. The checklist asks once more after each row it
+adds.
+
+Checking it on its side found the other end of the same answer. A tap on
+line 2 of a thirty-line note, the keyboard rising, left lines 20 to 22 in
+sight and the cursor nowhere: as the screen shrinks, Compose keeps the
+focused *field* in view, and a field taller than what is left is in view
+whatever part of it shows. The note's text now also asks for its cursor's
+line at each height the keyboard passes through.
+
+The walk now presses Enter again and again at the foot of what shows, in
+the text and in the comments, and adds three rows with the keyboard's tick
+in a long note, measuring how far the note moved and where its last line
+is now. A build without the fix fails each: the note moved 0 pixels, its
+last line 116 under the format bar; the newest row out of sight.
+
+**The class:** an answer given once, at a moment (the focus taken, the
+keyboard risen), holds only as long as nothing moves after it, and typing
+moves the very thing it brought into view. Ask again at each change, once
+it is laid out.
+
+The same evening's report held a sibling of an older fix. Back from a page
+low in Settings, the Trash, the list came back at its top. In 0.9.0 each
+*tab* was given a holder that keeps what it remembers while out of sight
+([the list built again on Back](../CHANGELOG.md#090--2026-10-20--the-first-test-on-a-real-phone));
+the screens *inside* a tab, Settings' list under its pages and the
+calendar's month under its History, were swapped the same way and kept
+nothing. They now keep theirs. A fix made at one level of a pattern is
+worth a grep for the same pattern one level down.
 
 ## What a person's keyboard found that the walk could not
 

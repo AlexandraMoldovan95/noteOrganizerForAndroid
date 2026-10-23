@@ -82,6 +82,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -911,7 +912,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun NoteEditor(state: AppState, openId: Int) {
+fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val palette = LocalPalette.current
     // Not keyed on the id: a new note's first save gives it one, and the
     // editor goes on as it was.
@@ -1029,6 +1030,19 @@ fun NoteEditor(state: AppState, openId: Int) {
         val compact = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP && WindowInsets.isImeVisible
         if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
+            // Beside the list or the calendar: « puts it aside for a wider
+            // note, » brings it back (asked for on the owner's phone).
+            if (beside) {
+                val aside = state.listAside
+                val asideSaid = stringResource(when {
+                    state.tab == Tab.CALENDAR -> if (aside) R.string.show_calendar else R.string.hide_calendar
+                    else -> if (aside) R.string.show_list else R.string.hide_list
+                })
+                IconButton(onClick = { state.listAside = !aside },
+                           modifier = Modifier.semantics { contentDescription = asideSaid }) {
+                    Text(if (aside) "»" else "«", fontSize = 22.sp, color = palette.text)
+                }
+            }
             // Undo and Redo, the desktop's Ctrl+Z and Ctrl+Y: the note's
             // words and their styling, a step at a time.
             val undoSaid = stringResource(R.string.undo)
@@ -1566,6 +1580,8 @@ private fun ProseField(
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // Where the last press came down, for [tapLanding].
     var pressedAt by remember { mutableStateOf<Offset?>(null) }
+    // The line being written kept in sight as it is typed, and as the keyboard rises.
+    val following = rememberFollowing(cursor = value.selection.end.takeIf { model.focus == index })
     LaunchedEffect(reveal) {
         val at = match ?: return@LaunchedEffect
         val drawn = layout
@@ -1594,6 +1610,7 @@ private fun ProseField(
             // a tap past a line's end, put back on that line.
             val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null)
                 ?: if (pressed != null && next.text == value.text) tapLanding(next, pressed, layout) else next
+            following.typed(value.text, shown.text, shown.selection.end)
             model.focus = index
             model.focused = shown
             model.caret = caretIn(segment, shown)
@@ -1604,7 +1621,7 @@ private fun ProseField(
             TransformedText(paintLines(paintFound(drawn, found, match, palette), segment.firstLine, model.props),
                             OffsetMapping.Identity)
         },
-        onTextLayout = { layout = it },
+        onTextLayout = { layout = it; following.laidOut(it) },
         textStyle = TextStyle(color = palette.text, fontSize = BODY_SIZE.sp, lineHeight = BODY_LINE_HEIGHT.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -1613,6 +1630,7 @@ private fun ProseField(
             .heightIn(min = if (placeholder) 160.dp else 24.dp)
             .focusRequester(focuser)
             .bringIntoViewRequester(requester)
+            .bringIntoViewRequester(following.requester)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     pressedAt = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial).position
@@ -2147,6 +2165,15 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
     LaunchedEffect(addFocused, keyboardHeight) {
         if (addFocused && keyboardHeight > 0) addRow.bringIntoView()
     }
+    // And again after each row added, once it is laid out: the new row
+    // pushed the box down a row at a time, under the keys, and the newest
+    // item was out of sight with it.
+    var added by remember { mutableIntStateOf(0) }
+    LaunchedEffect(added) {
+        if (added == 0) return@LaunchedEffect
+        withFrameNanos { }
+        addRow.bringIntoView()
+    }
     var open by remember(model.id) { mutableStateOf(items.isNotEmpty()) }
 
     fun ensureSaved(): Int? {
@@ -2225,7 +2252,10 @@ private fun ChecklistSection(state: AppState, model: EditorModel) {
     fun add() {
         if (adding.isBlank()) return
         val id = ensureSaved() ?: return
-        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) adding = ""
+        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) {
+            adding = ""
+            added += 1
+        }
     }
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
@@ -2298,15 +2328,18 @@ private fun CommentsSection(model: EditorModel) {
         return
     }
     SectionLabel(stringResource(R.string.comments_label))
+    val following = rememberFollowing()
     BasicTextField(
         value = model.comments,
         onValueChange = { now ->
             // A table pasted here showed as rows of bars: the comments draw no table.
             val kept = Pasting.commentsAfter(model.comments, now)
+            following.typed(model.comments, kept ?: now)
             model.comments = kept ?: now
             if (kept != null) model.say("Comments keep text only — the table wasn't added")
             model.changed(Editing.History.TYPING + ":comments")
         },
+        onTextLayout = following::laidOut,
         textStyle = TextStyle(color = palette.text, fontSize = 15.sp, lineHeight = 22.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -2315,7 +2348,8 @@ private fun CommentsSection(model: EditorModel) {
             .heightIn(min = 64.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(palette.card)
-            .padding(12.dp),
+            .padding(12.dp)
+            .bringIntoViewRequester(following.requester),
     )
 }
 
@@ -2689,10 +2723,12 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val typing = remember(key) { FocusRequester() }
     LaunchedEffect(key) { typing.requestFocus() }
     val said = stringResource(R.string.cell)
+    val following = rememberFollowing()
     BasicTextField(
         value = draft,
         onValueChange = { next ->
             val clean = next.text.replace("|", "/")
+            following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)
             model.cellCaret = next.selection.end
             // Not written while it is a merge's marker or a box's -- "<" on
@@ -2706,11 +2742,13 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
                 }
             }
         },
+        onTextLayout = following::laidOut,
         textStyle = style,
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         modifier = Modifier.fillMaxWidth().focusRequester(typing).semantics { contentDescription = said }
-            .onFocusChanged { if (it.isFocused) model.focus = null },
+            .onFocusChanged { if (it.isFocused) model.focus = null }
+            .bringIntoViewRequester(following.requester),
     )
 }
 
