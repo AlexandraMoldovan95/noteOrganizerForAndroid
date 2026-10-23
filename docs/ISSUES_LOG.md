@@ -236,6 +236,19 @@ before the break (`tapLanding`). A walk part taps past the end of an
 item, of a plain line, and of an item before Enter, and reads the file;
 the build before failed all three on every run, as the phone had.
 
+The next day the drawing moved again. An empty last line had been kept as
+a real break inside the line above, so that it was drawn at all, and it
+wore that line's style: centred on its own, its cursor stayed at the left
+until a letter came; put back to the left under a centred line, it stayed
+in the middle (the owner's phone, 2026-10-23). It now has a stand-in of
+its own after the text, one character more than the text, with a mapping
+that sends it back to the end. And a tap past the end of the line above
+then landed on the end of the text, where an unfocused field already keeps
+its cursor: the field reported no change, and the correction that runs on
+a change never ran. The press is now also put back a frame after it is
+let go, when nothing was reported; the walk's tap at the end of the last
+item failed without it.
+
 **The class:** a field drawn differently from its text answers taps in
 the drawing's terms. Where the drawing adds or moves even an invisible
 character, test where a tap lands, not only where the text goes. A walk

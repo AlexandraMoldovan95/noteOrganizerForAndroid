@@ -114,9 +114,13 @@ do before, not as releases anyone ran.
   result twice, and the note's text applied the second report too. The
   same change from the same value, a moment apart, is now taken once.
   Gboard never sends it that way, so no emulator showed it.
-- **A centred empty last line has its cursor centred** — found on the
-  owner's phone. Centre (or Right, or an indent) on a new last line kept
-  the cursor at the left until a letter was typed; it now moves at once.
+- **An empty last line takes its own alignment** — found on the owner's
+  phone. Centre (or Right, or an indent) on a new last line kept the
+  cursor at the left until a letter was typed, and Left on it under a
+  centred line kept it in the middle: drawn inside the line above, the
+  empty line wore that line's style. It is now a line of its own, and the
+  cursor moves at once; a tap past the end of the line above still lands
+  on that line.
 - **Settings → Your name says "Saved" under the box**, in green, where it
   shows above the keyboard — found on the owner's phone, where the message
   at the foot of the screen was under the keys. The keyboard's ✓ saves too.
