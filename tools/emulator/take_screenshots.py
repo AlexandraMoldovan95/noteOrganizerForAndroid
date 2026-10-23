@@ -66,8 +66,12 @@ NOTES = [
      "formatting": [{"start": 0, "end": 11, "style": "bold"}],   # "500 g flour"
      "created": "2026-10-14 09:12:00", "updated": "2026-10-14 09:40:00"},
     {"id": 2, "uid": "shot-expenses", "title": "September expenses",
-     "body": "| What | How much |\n| --- | ---: |\n| rent | 1500 |\n"
-             "| electricity | 180 |\n| internet | 60 |",
+     # Written as the app writes a table: the figures right-aligned by
+     # the spaces before them, which is where both apps keep a cell's
+     # alignment. A markdown "---:" under them read as a column set by
+     # hand to four characters, and the header was drawn "How…".
+     "body": "| What        |  How much |\n| rent        |      1500 |\n"
+             "| electricity |       180 |\n| internet    |        60 |",
      "category": "General",
      "created": "2026-10-13 18:00:00", "updated": "2026-10-13 18:20:00"},
     {"id": 3, "uid": "shot-idea", "title": "",
