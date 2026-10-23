@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Sixteen of the fifty-two are about
+**the code**, or in **the design**. Sixteen of the fifty-three are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-23](#one-change-told-twice-by-samsungs-keyboard) | code | With Samsung's keyboard every Enter after a word skipped a line, on the owner's phone and on no emulator; the field reported one change twice and the note applied both | When a report and a reproduction disagree, read what the real device sends -- a log that writes no letter of the person's |
 | [2026-10-23](#a-field-that-looked-for-its-cursor-once) | code | On the owner's phone, Enter at the foot of a long note made a line under the keyboard and the screen stayed still; each checklist row added went the same way; on its side the rising keyboard showed another part of the note; Settings' list forgot its place under a page | An answer given once, when the focus came, holds only until something moves; and a fix made at one level of a pattern is worth a grep one level down |
 | [2026-10-22](#what-a-persons-keyboard-found-that-the-walk-could-not) | checking | An agent playing an ordinary user, typing on the keyboard's keys, found in forty minutes what 259 checks had walked past: Enter after an autocorrected word, the cursor after Undo, a hidden last line, a tap on a marker | The walk proves the app's rules with letters it injects; a person's keyboard feeds them differently, and only someone using it finds the seam |
 | [2026-10-22](#a-break-drawn-as-a-character-a-tap-could-land-after) | code | On the owner's phone a tap past a list item's end put the cursor at the next line's start: words went in front of its number, and Enter made an empty line | A field drawn differently from its text answers taps in the drawing's terms: test where a tap lands, not only where text goes |
@@ -69,6 +70,47 @@ Findings still open, and those closed since, are at the
 [end](#still-open).
 
 ---
+
+## One change told twice by Samsung's keyboard
+
+**2026-10-23.** On the owner's phone, Enter after a word made an empty
+line and put the cursor on the line after it. On the emulator it never
+did, typed on Gboard's own keys. A photograph of the cursor there showed
+it where it belonged, and for a while the report looked like a drawing
+problem.
+
+It was not. A test note on her phone, read back through the app's own
+screen tree, held `ABC\nGgh\n\nGff\n\n`: one break after "ABC", two
+after every other word. The difference was the keyboard's: Samsung's,
+with predictive text on as it comes, keeps a word "composing" while it
+offers completions, and "ABC" in capitals it did not. Turned off, the
+breaks were single — her test, which settled the cause.
+
+What the keyboard sends then was read from the field itself: a build
+logging each change it reported, as a position, a count and the breaks,
+never a letter of what was typed, installed with her consent and read by
+the app's own tag. Enter on a composing word came as one batch, the word
+finished and the key pressed together, and the field reported the result
+**twice**, a millisecond apart, both times from the value before it. The
+note's text applies a change to the body as it is now, through the field's
+segment as it was drawn; the second report was applied to a body the
+first had already changed, and broke a second line. Every other field —
+the title, the comments, a cell, a template — writes its value whole, so
+a second report changed nothing there.
+
+The same change from the same value within 150 ms is now taken once
+(`Editing.Once`, held by `EditingTest`): a person cannot repeat a
+keystroke from the very same state that fast. On her phone the log then
+showed each second report skipped, and two Enters pressed on purpose
+on an empty line, 270 ms apart, both kept.
+
+What is not covered: no emulator here can send Samsung's batch, and the
+walk cannot check the field's wiring; the rule is held on the JVM and
+the fix was seen on the owner's phone. The test plan marks it for her eye.
+
+**The class:** a report a reproduction cannot meet is evidence about the
+device, not about the person. Read what the real device sends before
+changing anything, in a form that carries no word of theirs.
 
 ## A field that looked for its cursor once
 

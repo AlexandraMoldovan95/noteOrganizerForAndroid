@@ -107,6 +107,19 @@ do before, not as releases anyone ran.
   phone. Each row added pushed the "A new item…" box a row further down,
   under the keyboard, and the screen stayed where it was, the new row out
   of sight with it. The screen now follows the box after each row.
+- **Enter after a word breaks one line with Samsung's keyboard** — found
+  on the owner's phone. With Samsung's own keyboard and its predictive text
+  on, as it comes, every Enter after a word skipped a line: the keyboard
+  finishes the word and presses Enter in one batch, the field reports the
+  result twice, and the note's text applied the second report too. The
+  same change from the same value, a moment apart, is now taken once.
+  Gboard never sends it that way, so no emulator showed it.
+- **A centred empty last line has its cursor centred** — found on the
+  owner's phone. Centre (or Right, or an indent) on a new last line kept
+  the cursor at the left until a letter was typed; it now moves at once.
+- **Settings → Your name says "Saved" under the box**, in green, where it
+  shows above the keyboard — found on the owner's phone, where the message
+  at the foot of the screen was under the keys. The keyboard's ✓ saves too.
 - **Settings' list keeps its place** — found on the owner's phone. Back
   from a page low in it, the Trash say, came back at the list's top, the
   row just left out of sight. The calendar's month and its History did
@@ -188,10 +201,11 @@ do before, not as releases anyone ran.
   of looking once after three seconds: a picker slower than that left a
   backup unmade and three checks failed for one cause. All three of the
   walk's picker steps, the backup, the Trash page's and the export.
-- 689 JVM unit tests in 30 suites, from 675 in 29: `RemindersTest` holds
+- 690 JVM unit tests in 30 suites, from 675 in 29: `RemindersTest` holds
   what the reminder counts, when its bar shows, the notification's hour and
   when it is next due; `EditingTest` holds where a change ends,
-  Enter at the end of the text included; `ParagraphsTest` holds Enter with a
+  Enter at the end of the text included, and a change told twice taken
+  once, as Samsung's keyboard told it on the owner's phone; `ParagraphsTest` holds Enter with a
   corrected word — at the end of a list, on an indented item, in the
   middle of one, the styles after it moved; `IdentityTest` holds the copy
   spent by a save that puts its text back, kept by one that does not, the
