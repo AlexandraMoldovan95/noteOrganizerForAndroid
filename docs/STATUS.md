@@ -130,7 +130,11 @@ Grouped by what the app does; when each item arrived is in the
     cleared.
 13. **The History**, in the month's place as the desktop's toggle swaps
     them: search, the year filters, dated notes, and each series with its
-    days edited on their own.
+    days edited on their own. **The day's reminder** (2026-10-23): the
+    desktop's bar above the notes once a day when the day has notes, a tap
+    opening it here; and, turned on in Settings → Reminders, a
+    notification at an hour chosen, with the app closed, saying how many
+    and never their words.
 
 ### Repeating notes
 
@@ -203,7 +207,8 @@ Grouped by what the app does; when each item arrived is in the
     of the phone's text sizes
     ([why](ISSUES_LOG.md#widths-in-one-unit-letters-in-another)).
 20. Checklists: add, tick, rename, remove, and **drag to reorder** by the
-    ⠿ handle.
+    ⠿ handle. A checklist, comments and files are added from the note's
+    ⋮ (since 2026-10-23), no longer from links under every note.
 21. Comments, the desktop's separate box under the note.
 22. Attached files listed and opened in whatever app on the phone opens
     that kind of file, through Android's own file sharing — never by
@@ -306,7 +311,8 @@ Grouped by what the app does; when each item arrived is in the
     a pin, a category — the note shows at once and keeps. « in the note's
     top bar puts the list (or the calendar) aside for a wider note, »
     brings it back; the choice holds until the app is closed.
-37. Settings: your name, appearance, categories, templates, backup, the
+37. Settings: your name, appearance, categories, templates,
+    **Reminders**, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
     notebook — and About: the version, the welcome note, the **privacy
     policy**, and — once the app is on Google Play — **Feedback**, a
@@ -315,7 +321,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 684 JVM unit tests in 29 suites, mutation-tested; six ports held to
+39. 689 JVM unit tests in 30 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -545,7 +551,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 684 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 689 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -747,6 +753,13 @@ The first test on a real phone added eight parts and grew seven:
   the newest in sight; Enter after Enter at the foot of what shows, in the
   text and in the comments, the line being written in sight; on its side,
   the keyboard rising over a long note and the cursor's line still there.
+  The checklist, the comments and files reached through ⋮, the links under
+  the note gone.
+* **The day's reminder** (2026-10-23): the bar on a day with a note, its
+  day written under the desktop's key, a tap opening the day, none on a
+  second start; the notification turned on through Android's question,
+  its alarm set, fired, saying the count and not the note's words, a tap
+  on it opening the day, and turned off with its alarm gone.
 * Grown: Appearance's Dark | Light switch (light themes on a light phone,
   the dark ones a tap away, a dark pick saved as dark mode's); the size
   box saying "Default" then "20"; Autofit all columns, tapped from the
@@ -862,7 +875,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-684 JVM unit tests in 29 suites pin the rules ported from Python, and
+689 JVM unit tests in 30 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

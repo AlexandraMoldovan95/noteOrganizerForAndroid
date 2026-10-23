@@ -3235,13 +3235,19 @@ def reminders(folder):
           (read_file("settings.json") or {}).get("reminder_last_shown") == today,
           repr((read_file("settings.json") or {}).get("reminder_last_shown")))
     shot(folder, "71-reminder-bar", "You have 1 note for today")
-    tap("You have 1 note for today", wait=1.5)
-    check("a tap on the bar opens the day on the calendar",
-          not screen_says("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
+    # Started again before the bar is touched: only the day it wrote can
+    # keep it away (a tap on it writes the day too).
     adb("shell", "am", "force-stop", PACKAGE)
     start_app()
     check("a second start the same day shows no bar", find("You have 1 note for today") is None
           and not screen_says("Dentist"))
+    # The day forgotten, the bar back, and tapped.
+    adb("shell", "am", "force-stop", PACKAGE)
+    put_inside("settings.json", {"welcome_offered": True})
+    start_app()
+    tap("You have 1 note for today", wait=1.5)
+    check("a tap on the bar opens the day on the calendar",
+          not screen_says("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
 
     # The notification: off until turned on, Android asked first.
     tap("Settings", exact=True, wait=1.2)

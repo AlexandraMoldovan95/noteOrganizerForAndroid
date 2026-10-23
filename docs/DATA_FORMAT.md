@@ -128,6 +128,19 @@ the start purges nothing; choosing a window in Settings → Trash removes
 it. The desktop ignores it, and still purges by its own reading
 ([the story](ISSUES_LOG.md#a-trash-emptied-by-a-window-nobody-chose)).
 
+The day's reminder (since 2026-10-23) uses the desktop's own key for its
+bar, and two of the phone's for its notification:
+
+| Key | Holds |
+|---|---|
+| `reminder_last_shown` | the desktop's: `"YYYY-MM-DD"`, the day the bar was last shown, written when it shows, so a second start that day shows none |
+| `phone_reminder_notify` | `true` when the notification is on; anything else is off, the default |
+| `phone_reminder_hour` | the hour it comes at, a whole number from 0 to 23; anything else reads as 9 |
+
+The notification reads `notes_data.json` and `settings.json` with the app
+closed and writes nothing: a file it cannot read gets no notification,
+never a rescue copy or a purge.
+
 The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
 are adopted with a colour, as the desktop's `load_categories` does.

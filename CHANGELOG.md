@@ -46,6 +46,20 @@ do before, not as releases anyone ran.
   top bar hides the list (or the calendar) and the note takes the whole
   width; » brings it back, as do closing the note and the rail's own
   button. The choice holds from note to note until the app is closed.
+- **The day's reminder bar, the desktop's** — the owner's ask. On a day
+  that has notes, repeats included, the app opens with "🔔 You have 2
+  notes for today (Friday, 23 October)." above the notes, once a day, by
+  the desktop's rule and under its key; a tap opens the day on the
+  calendar, ✕ puts it away.
+- **A notification for the day's notes**, the phone's own — the owner's
+  ask. Off until turned on in the new Settings → Reminders, where Android
+  asks first whether the app may send notifications; then, at the hour
+  chosen (nine unless changed), with the app closed, it says how many notes
+  the day has — never their words, which a locked screen would show — and
+  a tap opens the day. The phone may bring it a few minutes late to spare
+  its battery: an exact hour needs a permission the app does without. It
+  only reads the notebook, and sets itself again after a restart or an
+  update.
 
 ### Fixed
 
@@ -129,9 +143,24 @@ do before, not as releases anyone ran.
   save that holds what the copy kept spends it, and a restore keeps the
   text it replaces as the copy, so the same banner brings that back —
   unless it holds nothing the restored text lacks, such as an emptied note.
+- **A checklist, comments and files are added from the note's ⋮** — the
+  owner's call. Three links under every note made it busier than it needs
+  to be; ⋮ now holds ☑ Add a checklist, 💬 Add comments and 📎 Attach
+  files, the desktop's marks. A checklist or comments asked for there
+  come with the keyboard in them; ⋮ stops offering what the note already
+  shows; a note that has them shows them as before. The welcome note says
+  where they are.
 
 ### Testing
 
+- `tools/emulator/walk.py` gains a part for the day's reminder: the bar on
+  a day with a note, its day written under the desktop's key, a tap on it
+  opening the day, no bar on a second start; the notification turned on
+  through Android's question, its alarm set, fired (the debug build lets
+  the walk fire it) and saying the count without the note's words, a tap
+  on it opening the day, and turned off with its alarm gone. The editor's
+  corners and the attaching part reach the checklist, the comments and
+  files through ⋮, and check the links under the note are gone.
 - `tools/emulator/walk.py` gains two parts. One taps past the end of an
   item, of a plain line, and of an item before Enter; the build before
   failed all three, on every run, the way the owner's phone did. The other
@@ -159,7 +188,9 @@ do before, not as releases anyone ran.
   of looking once after three seconds: a picker slower than that left a
   backup unmade and three checks failed for one cause. All three of the
   walk's picker steps, the backup, the Trash page's and the export.
-- 684 JVM unit tests, from 675: `EditingTest` holds where a change ends,
+- 689 JVM unit tests in 30 suites, from 675 in 29: `RemindersTest` holds
+  what the reminder counts, when its bar shows, the notification's hour and
+  when it is next due; `EditingTest` holds where a change ends,
   Enter at the end of the text included; `ParagraphsTest` holds Enter with a
   corrected word — at the end of a list, on an indented item, in the
   middle of one, the styles after it moved; `IdentityTest` holds the copy

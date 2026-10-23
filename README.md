@@ -45,7 +45,9 @@ for the camera rather than anybody&rsquo;s real one &mdash;
   desktop's **↩ Restore previous**.
 - **The calendar and repeating notes**: the month with each day's notes,
   painted days and markers, the History, repeats chosen on a sheet, and
-  one day of a series edited on its own or moved to another date.
+  one day of a series edited on its own or moved to another date. **The
+  day's reminder**: a bar when the app opens on a day with notes, and, if
+  you turn it on, a notification at the hour you choose.
 - **Find and organise**: search by the desktop's rule (diacritics folded),
   the desktop's every sort and filter, Custom order arranged by hand,
   groups by category, duplicates found and cleaned up, long press to
@@ -108,7 +110,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 684 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 689 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in

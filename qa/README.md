@@ -18,7 +18,7 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-684 checks across twenty-nine suites — `NotebookTest` (124),
+689 checks across thirty suites — `NotebookTest` (124),
 `TablesTest` (75), `RecurrenceTest` (46), `IdentityTest` (35),
 `CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
 `ParagraphsTest` (33), `PastingTest` (32), `DaysTest` (27), `SharingTest`
@@ -26,7 +26,7 @@ lands where it can actually fail.
 `AppStateTest` (18), `FindingTest` (16), `ExportingTest` (15),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
 (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
-`EditorTypingTest` (5), `StatsTest` (4), `EditorCopyTest` (3),
+`EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4), `EditorCopyTest` (3),
 `LinksTest` (3) and `InteropTest` (2). No device, no emulator:
 they test the twenty-six files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
@@ -291,7 +291,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 160 cases across sixteen areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 163 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than
@@ -302,8 +302,8 @@ folded into another, or written for what the app no longer does (Follow
 the phone), is kept with the reason.
 
 Its **"Automation status (Claude)"** column is the point. 101 rows are
-already walked by unit tests, 108 are driven on the emulator, and 77 need a
-person with a real phone in their hand — the three add up to more than 160 because a row
+already walked by unit tests, 111 are driven on the emulator, and 79 need a
+person with a real phone in their hand — the three add up to more than 163 because a row
 can carry two or three, and the honest ones do: a rule proved on the JVM
 whose *screen* still has to be looked at. Marking a row as already covered is
 what makes a hand check a choice instead of a duty — and the rows that a
