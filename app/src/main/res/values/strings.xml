@@ -446,6 +446,23 @@
     <string name="stats_by_category">By category</string>
     <string name="stats_since">Using Note Organizer since %1$s</string>
     <string name="no_notes_short">No notes yet.</string>
+    <!-- The day's reminder: the desktop's bar, and the phone's notification -->
+    <plurals name="reminder_today">
+        <item quantity="one">You have %1$d note for today (%2$s).</item>
+        <item quantity="other">You have %1$d notes for today (%2$s).</item>
+    </plurals>
+    <string name="reminder_close">Close the reminder</string>
+    <string name="reminder_channel">Today\'s notes</string>
+    <string name="settings_reminders">Reminders</string>
+    <string name="settings_reminders_sub">The day\'s notes, when you open the app or at an hour</string>
+    <string name="reminder_bar_explain">When you open the app on a day that has notes, a bar above your notes says how many, once a day. A tap on it opens the day.</string>
+    <string name="reminder_notify">Notify me about today\'s notes</string>
+    <string name="reminder_notify_sub">A notification at the hour below, even with the app closed, on a day that has notes. It says how many, never their words.</string>
+    <string name="reminder_at">At</string>
+    <string name="reminder_inexact">The phone may bring it a few minutes late, to save its battery.</string>
+    <string name="reminder_denied">The phone does not allow Note Organizer to send notifications, so the reminder stays off.</string>
+    <string name="reminder_blocked">Notifications are turned off for Note Organizer on this phone.</string>
+    <string name="reminder_open_settings">Open the phone\'s settings</string>
     <string name="settings_about">About</string>
     <string name="settings_about_sub">Version, the welcome note, and the privacy policy</string>
     <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>

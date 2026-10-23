@@ -301,6 +301,33 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 }
             }
 
+            // The day's reminder, the desktop's bar in its accent: once a
+            // day, when notes fall on it. A tap opens the day on the calendar.
+            state.reminderDue?.let { due ->
+                val today = Recurrence.formatDate(java.time.LocalDate.now())
+                val day = Recurrence.parseDate(today)?.let { Recurrence.showDay(it, year = false) } ?: today
+                val closeSaid = stringResource(R.string.reminder_close)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(palette.accent)
+                        .clickable { state.todayAsked += 1 }
+                        .padding(start = 14.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("🔔  " + pluralStringResource(R.plurals.reminder_today, due, due, day),
+                         color = palette.onAccent, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                         modifier = Modifier.weight(1f))
+                    Text("✕", color = palette.onAccent, fontSize = 14.sp,
+                         modifier = Modifier
+                             .semantics { contentDescription = closeSaid }
+                             .clickable { state.reminderDue = null }
+                             .padding(horizontal = 14.dp))
+                }
+            }
+
             // What the start did, said once: a calm banner rather than red
             // words -- most of what it says is news, not trouble, and red
             // read as an error over a notebook that had simply arrived.

@@ -402,6 +402,7 @@ def main():
     copy_after_styling(folder)
     typing_styles(folder)
     comments_paste(folder)
+    reminders(folder)
     wide(folder)
     changes(folder)
 
@@ -3187,6 +3188,102 @@ def editor_corners(folder):
     keyboard_down()
     back_to("Search notes")
     turn(0)
+
+
+def switches():
+    """The centres of the app's switches on the screen: a switch says no
+    words, so it is found by what it is -- a node that can be checked."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return []
+    out = []
+    for node in root.iter("node"):
+        if node.get("checkable") == "true" and node.get("package") == PACKAGE:
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds", "")))
+            out.append(((x1 + x2) // 2, (y1 + y2) // 2))
+    return out
+
+
+def our_alarm():
+    """Whether an alarm of the app's is waiting, read from the system's own
+    list of pending alarms -- not its statistics, which remember an alarm
+    long after it was cancelled."""
+    pending = adb("shell", "dumpsys", "alarm").split("Past-due non-wakeup alarms")[0]
+    return re.search(r"Alarm\{[^}]*\b" + re.escape(PACKAGE) + r"\}", pending) is not None
+
+
+def reminders(folder):
+    """The day's reminder (2026-10-23, the owner's ask): the desktop's bar,
+    once a day, its day written to settings.json under the desktop's key, a
+    tap on it opening the day; and the phone's notification -- turned on in
+    Settings, where Android asks first, set as an alarm, said when it fires
+    (the debug build lets the walk fire it), opening the day when tapped,
+    and the alarm gone when turned off."""
+    print("\n-- the day's reminder --")
+    today = adb("shell", "date", "+%Y-%m-%d").strip()
+    if not seed_inside([{"id": 1, "uid": "rem-today", "title": "Dentist", "body": "at ten", "date": today,
+                         "category": "General", "created": "2026-10-22 09:00:00",
+                         "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Dentist"):
+        return
+    check("on a day with a note, the bar says so above the notes",
+          not screen_says("You have 1 note for today"), " | ".join(t for t, d, _ in nodes() if t)[:200])
+    check("...and its day is written where the desktop writes it",
+          (read_file("settings.json") or {}).get("reminder_last_shown") == today,
+          repr((read_file("settings.json") or {}).get("reminder_last_shown")))
+    shot(folder, "71-reminder-bar", "You have 1 note for today")
+    tap("You have 1 note for today", wait=1.5)
+    check("a tap on the bar opens the day on the calendar",
+          not screen_says("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    check("a second start the same day shows no bar", find("You have 1 note for today") is None
+          and not screen_says("Dentist"))
+
+    # The notification: off until turned on, Android asked first.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Reminders", exact=True, wait=1.2)
+    toggle = switches()
+    if len(toggle) != 1 or find("Notify me about today's notes", exact=True) is None:
+        fail("Settings → Reminders shows its switch (%s)" % toggle)
+        back_to("Search notes")
+        return
+    adb("shell", "input", "tap", str(toggle[0][0]), str(toggle[0][1]))
+    time.sleep(2.0)
+    allow = find("Allow", exact=True)
+    if allow is not None:
+        adb("shell", "input", "tap", str(allow[0]), str(allow[1]))
+        time.sleep(1.5)
+    check("turned on, after Android asked: the setting saved, an hour shown",
+          (read_file("settings.json") or {}).get("phone_reminder_notify") is True and not screen_says("09:00"),
+          repr(read_file("settings.json")))
+    check("...and the next one set as an alarm", our_alarm())
+    adb("shell", "am", "broadcast", "-n", PACKAGE + "/.ReminderReceiver", "-a", "ro.noteorganizer.app.REMIND")
+    time.sleep(2.0)
+    said = adb("shell", "dumpsys", "notification", "--noredact")
+    check("fired, it says how many notes the day has, and not their words",
+          "You have 1 note for today" in said and "Dentist" not in said,
+          "the notification %s" % ("found" if "You have 1 note" in said else "missing"))
+    back_to("Search notes")
+    adb("shell", "cmd", "statusbar", "expand-notifications")
+    time.sleep(1.5)
+    if tap("You have 1 note for today", wait=2.5):
+        check("a tap on the notification opens the day on the calendar",
+              not screen_says("📋 History", "Dentist", "+ Add note"))
+    adb("shell", "cmd", "statusbar", "collapse")
+    time.sleep(1.0)
+    tap("Settings", exact=True, wait=1.2)
+    tap("Reminders", exact=True, wait=1.2)
+    toggle = switches()
+    if len(toggle) == 1:
+        adb("shell", "input", "tap", str(toggle[0][0]), str(toggle[0][1]))
+        time.sleep(1.5)
+    check("turned off: the setting saved, and the alarm gone",
+          (read_file("settings.json") or {}).get("phone_reminder_notify") is False and not our_alarm())
+    back_to("Search notes")
 
 
 def wide(folder):

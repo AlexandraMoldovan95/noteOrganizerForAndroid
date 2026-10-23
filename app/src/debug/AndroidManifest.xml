@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!-- The debug build only: the walk fires the reminder's alarm itself
+             (am broadcast) rather than waiting hours for it. The release
+             build, the one people run, keeps the receiver closed. -->
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
+
+</manifest>
