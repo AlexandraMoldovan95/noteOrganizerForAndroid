@@ -66,6 +66,22 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// The release's Kotlin is compiled whole, never incrementally. Twice
+// (2026-10-23 on debug, 2026-10-24 on release) an incremental compile lost
+// sight of every top-level declaration in the module's other files and
+// failed with the same 226 errors in NoteEditor.kt, while a whole compile
+// of the same sources passed: a fault in Kotlin's incremental compilation,
+// not in the code. A failure that loud does no harm; the same fault made
+// quiet would ship stale classes, so what ships is compiled whole (about
+// 10 s instead of 4). Debug stays incremental. Set after evaluation: the
+// Android plugin sets `incremental` itself later than a configureEach
+// here, and its setting won.
+afterEvaluate {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
+        .matching { it.name == "compileReleaseKotlin" }
+        .configureEach { incremental = false }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
