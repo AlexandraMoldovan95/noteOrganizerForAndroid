@@ -39,6 +39,27 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Restore previous keeps a note's words when they are replaced, not
+  only when they shrink**, as on the desktop. A note of a few short
+  lines replaced by a new line before it saved, or a paragraph replaced
+  by one as long, kept no rescue copy: the copy was made when the text got
+  shorter by more than 40 characters. It is now decided by how much of
+  the old text is gone — emptied, a big part of it, or most of a short
+  note. Found by the owner on the desktop's test case 692.
+
+### Testing
+
+- `NotebookTest` holds the rule case by case — a short note replaced and
+  a paragraph replaced by one as long keep a copy; a word changed, words
+  added, a tiny note retyped and a title renamed keep none — and through
+  `updateNote`, the old words in `_prev`. Mutants RA1 and RA2 watched
+  failing.
+- The emulator walk selects a note's whole text, types a new line in its
+  place and finds the old words kept for Restore previous. 41 parts, 333
+  checks.
+
 ---
 
 ## [0.11.1] — 2026-10-24 — A pasted table fits its words

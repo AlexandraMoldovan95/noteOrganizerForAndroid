@@ -18,7 +18,7 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-701 checks across thirty-one suites — `NotebookTest` (124),
+703 checks across thirty-one suites — `NotebookTest` (126),
 `TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (36), `IdentityTest` (35),
 `CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
 `ParagraphsTest` (33), `DaysTest` (27), `SharingTest`
@@ -197,7 +197,7 @@ forgotten a token was ever involved.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 41 parts and
-332 checks: a brand-new notebook, a notebook copied in, the
+333 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, screens of every size

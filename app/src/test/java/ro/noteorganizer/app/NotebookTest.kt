@@ -933,6 +933,36 @@ class NotebookTest {
     }
 
     @Test
+    fun `a copy is kept by what is gone, not by how much shorter the text got`() {
+        // The desktop's test case 692: a short note replaced by a new line
+        // before the autosave shrank by 20, and no copy was kept.
+        val short = "Buy milk\nCall mom\nPay the rent"
+        assertTrue(Notebook.shouldKeepPrevious("", short, "", "A new line"))
+        // A paragraph replaced by one as long did not shrink at all.
+        val para = "x".repeat(200) + "\n" + "an old paragraph of three hundred characters ".repeat(6) + "\n" + "y".repeat(100)
+        assertTrue(Notebook.shouldKeepPrevious("t", para, "t",
+            para.replace("an old paragraph", "a new paragraph!").replace("of three hundred characters", "freshly typed in place of it.")))
+        // A word changed, words added, a tiny note retyped, a title renamed: none.
+        assertFalse(Notebook.shouldKeepPrevious("", short, "", short.replace("mom", "dad")))
+        assertFalse(Notebook.shouldKeepPrevious("", short, "", short.replace("Call", "Please call")))
+        assertFalse(Notebook.shouldKeepPrevious("", "Milk", "", "Eggs"))
+        assertFalse(Notebook.shouldKeepPrevious("Shopping", short, "Groceries", short))
+        assertFalse(Notebook.shouldKeepPrevious("", "", "Title", "text"))
+        // What neither end keeps.
+        assertEquals(2, Notebook.textLost("abcdef", "abXYef"))
+        assertEquals(0, Notebook.textLost("", "new"))
+        assertEquals(3, Notebook.textLost("abc", ""))
+    }
+
+    @Test
+    fun `a short note replaced by a new line keeps its words, through updateNote`() {
+        val load = scratch("""[{"id": 1, "title": "", "body": "Buy milk\nCall mom\nPay the rent"}]""")
+        Notebook.updateNote(load, 1, "", "A new line")
+        val prev = onDisk(load).getJSONObject(0).optJSONObject("_prev")
+        assertEquals("Buy milk\nCall mom\nPay the rent", prev?.optString("body"))
+    }
+
+    @Test
     fun `saving a note that did not change writes nothing`() {
         val load = scratch("""[{"id": 1, "title": "a", "body": "b"}]""")
         val before = load.file!!.readText()

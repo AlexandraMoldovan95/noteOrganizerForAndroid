@@ -703,6 +703,21 @@ def seeded(folder):
     meeting = note_by_uid("walk-rescued") or {}
     check("Restore previous brings the text back and spends the copy",
           meeting.get("body", "").startswith("Decisions") and "_prev" not in meeting, str(meeting)[:200])
+    # Replaced, not shrunk: the whole text selected and a new line typed
+    # before the note saves -- 34 characters shorter, under the old bar of
+    # 40, so no copy and the words gone (the desktop's test case 692,
+    # 2026-10-24). Counted by what is gone, 44 characters: a copy.
+    tap("Decisions", wait=1.0)
+    adb("shell", "input", "keycombination", "113", "29")       # Ctrl+A
+    time.sleep(0.6)
+    type_text("A new line")
+    keyboard_down()
+    back_to("Search notes")
+    replaced = settle(lambda: note_by_uid("walk-rescued") or {},
+                      lambda n: isinstance(n.get("_prev"), dict))
+    check("a note's whole text replaced by a new line keeps its words for Restore previous",
+          (replaced.get("_prev") or {}).get("body", "").startswith("Decisions")
+          and replaced.get("body", "").lower() == "a new line", str(replaced)[:200])
     back_to("Search notes")
 
     # Categories: add one, rename one, and the notes follow.

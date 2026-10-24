@@ -322,12 +322,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 701 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 703 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 332
+    where the shrunk code will look); and an emulator walk of 333
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -545,14 +545,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 332 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 333 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 701 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 703 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -560,9 +560,12 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-41 parts, 332 checks. The last full run (2026-10-24), with the part for
+41 parts, 333 checks. The last full run (2026-10-24, evening), with a
+note's whole text replaced by a new line and its words kept for Restore
+previous, began on an emulator just started cold: it waited 31 seconds,
+then passed all 333. The run before it that day, with the part for
 screens of every size and the walk's own files taken out of Downloads
-again, waited 31 seconds and passed all 332. The two before it that day
+again, waited 31 seconds and passed all 332. The two before that
 lost six checks to Android's picker refusing a 33rd file of one name
 ([the story](ISSUES_LOG.md#thirty-two-copies-and-a-save-that-did-nothing)),
 and then one to the calendar's row of the day read once, a moment before
@@ -903,7 +906,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-701 JVM unit tests in 31 suites pin the rules ported from Python, and
+703 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

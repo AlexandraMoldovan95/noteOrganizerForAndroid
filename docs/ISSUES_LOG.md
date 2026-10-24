@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Seventeen of the fifty-five are about
+**the code**, or in **the design**. Seventeen of the fifty-six are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-24](#a-rescue-copy-measured-by-how-much-shorter) | code | On the desktop, a short note replaced by a new line before it saved kept no rescue copy, its words gone; the phone, holding the desktop's thresholds by design, did the same | A guard has to measure the harm itself, not something that usually moves with it |
 | [2026-10-24](#thirty-two-copies-and-a-save-that-did-nothing) | checking | A full walk lost six checks in the export part: Save in Android's picker did nothing, because earlier walks had left 32 copies of the file's name in the emulator's Downloads, the most Android numbers | A check that leaves its work behind changes the ground the next run stands on |
 | [2026-10-23](#a-separators-dashes-read-as-a-width-nobody-set) | code | The documentation's photograph of a table showed its header "How…": its separator was markdown's `---:`, which both apps read as a column set by hand to four characters | When a format borrows another's syntax, decide whose a form is where that is still known -- at the way in -- and leave what is stored alone |
 | [2026-10-23](#one-change-told-twice-by-samsungs-keyboard) | code | With Samsung's keyboard every Enter after a word skipped a line, on the owner's phone and on no emulator; the field reported one change twice and the note applied both | When a report and a reproduction disagree, read what the real device sends -- a log that writes no letter of the person's |
@@ -70,6 +71,34 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A rescue copy measured by how much shorter
+
+**2026-10-24.** Walking the desktop's test case 692 on its `.exe`, the
+owner selected a note of three short lines, deleted them and typed a new
+line before the autosave ran: no **↩ Restore previous**, and the three
+lines were gone. `Notebook.shouldKeepPrevious` holds the desktop's
+thresholds by design, and did the same.
+
+The rule made a copy when the text got shorter by more than 40
+characters (30% of it, or 200) or was emptied. Thirty characters
+replaced by ten shrink by twenty, under the bar; a paragraph replaced by
+one as long does not shrink at all, in a note of any length. The rule
+measured how much shorter the text was, while what it guards is how much
+of it is gone.
+
+Both apps now count what is gone (`textLost`: the old text's length
+less the longest start and end the two share), with the same bars, plus
+one for most of a short note — 70% of it, 15 characters at least. A word
+changed, words added, a tiny note retyped and a title renamed still keep
+no copy. The desktop's story: ["The safety net that measured the wrong
+thing"](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/ISSUES_LOG.md#the-safety-net-that-measured-the-wrong-thing).
+
+**The lesson:** a guard has to measure the harm itself, not something
+that usually moves with it. A proxy holds until the day the two part
+ways.
 
 ---
 
