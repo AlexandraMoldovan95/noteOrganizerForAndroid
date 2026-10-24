@@ -39,6 +39,10 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.11.1] — 2026-10-24 — A pasted table fits its words
+
 ### Fixed
 
 - **A table pasted as markdown fits its words**, as on the desktop. A
@@ -73,6 +77,22 @@ do before, not as releases anyone ran.
   701 JVM unit tests in 31 suites. Mutants PT1–PT12 watched failing: eleven
   on the rules and the editor's model, caught by the unit tests, and one
   on the template's field, an APK caught by the walk part.
+- **Screens of every size.** A walk part sets the emulator's display to a
+  small phone and to tablets of 7, 10 and 14 inches, upright: the tabs a
+  bar or a rail, a note in the list's place or beside it, + on the screen
+  and the calendar's whole week in sight. The app needed no change; a rail
+  moved to 700dp and two panes to 900dp each failed it.
+- **The walk leaves the emulator's Downloads as it found them.** Every
+  walk had left its exported files and its backup there, and at 32
+  copies of one name Android's picker refused the next, its Save doing
+  nothing: a full run lost six checks, the app not at fault. The walk now
+  removes what it saved once it has read it back. Four checks that read
+  the screen once after the calendar opened now wait for what they look
+  for. 41 parts, 332 checks.
+- **The documentation's screenshots in both themes**, every screen taken
+  again in Midnight Purple as `NN-name-dark.png`, and two more on its
+  side: the calendar with a note open beside it, and Settings with
+  Categories open.
 
 ---
 

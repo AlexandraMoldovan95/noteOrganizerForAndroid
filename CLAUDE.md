@@ -12,7 +12,7 @@ desktop's is. No sync: notes move by share code or backup, and an
 arriving copy never overwrites a note without the person choosing.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
-Python and Tkinter, fully offline, at version `0.96.395`. It lives at
+Python and Tkinter, fully offline, at version `0.96.396`. It lives at
 `D:\Projects\NoteOrganizer` and has **its own `CLAUDE.md` with its own
 rules**. Read that file before touching anything there.
 
