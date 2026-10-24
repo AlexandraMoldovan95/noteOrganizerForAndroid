@@ -12,6 +12,10 @@ straight into the app's own folder through `run-as`, which a debug build
 allows -- so the first screen is the list, with no "brought in" notice
 and no welcome note in the way.
 
+The set is taken twice in one run: in Soft Lavender, then every screen
+again in Midnight Purple as NN-name-dark.png, for the website, which shows
+each picture in the theme its page is in.
+
 Every shot names what must be ON the screen before the shutter opens --
 and, where it matters, what must be GONE from it. A shot whose screen
 does not say so is not saved. A screenshot tool that photographs whatever
@@ -93,6 +97,11 @@ NOTES = [
 # Ana's birthday, from the idea above: a painted day with its marker.
 BIRTHDAY = (TODAY + timedelta(days=7)).isoformat()
 
+# The bread's day as the calendar's cell names it ("Monday, 26 October"),
+# for the shot of the calendar with the note open beside it.
+_BREAD = TODAY + timedelta(days=2)
+BREAD_DAY = "%s, %d %s" % (_BREAD.strftime("%A"), _BREAD.day, _BREAD.strftime("%B"))
+
 SETTINGS = {
     "username": "Maria",
     "categories": {"General": "#7c5cff", "Work": "#4cc9f0",
@@ -112,6 +121,16 @@ SETTINGS = {
 
 # The last shot: the same list in a dark theme.
 DARK = dict(SETTINGS, theme="dark")
+
+# Then every screen again in Midnight Purple, as NN-name-dark.png: the
+# website shows each picture in the theme its page is in (the owner,
+# 2026-10-24). 06-dark is the light set's one dark picture, so it is not
+# taken twice. Settings shows the dark themes there, not the light ones.
+DARK_PASS_SKIPS = {"06-dark"}
+DARK_WORDS = {
+    "05-appearance": (["Light", "Dark", "Midnight Purple", "Ocean Blue"],
+                      ["Soft Lavender", "Follow the phone"]),
+}
 
 # name, what it shows, the steps that get there, what the screen must
 # say, and what it must NOT say once it has arrived.
@@ -137,6 +156,18 @@ SHOTS = [
     ("08-wide", "On its side: the note beside the list, the rail at the left",
      [("tap_exact", "Notes"), ("turn", 1), ("tap", "Home-made bread")],
      ["Search notes", "Home-made bread", "500 g flour", "Calendar"], []),
+    # The note stays open beside the calendar, its day chosen in the month
+    # (the day's notes under the month are below the foot of a phone on its
+    # side).
+    ("09-wide-calendar", "On its side: the calendar, the note's day chosen, the note open beside it",
+     [("tap_exact", "Calendar"), ("tap", BREAD_DAY)],
+     ["📋 History", "Home-made bread", "500 g flour"], []),
+    # Settings has no note beside it: a section open across the width.
+    # Categories, which fits a phone on its side; Appearance's four themes
+    # run off its foot.
+    ("10-wide-settings", "On its side: Settings, Categories open",
+     [("tap_exact", "Settings"), ("tap_exact", "Categories")],
+     ["General", "Work", "Personal", "Ideas", "Urgent", "1 note"], ["500 g flour", "Your name"]),
     ("06-dark", "The same list in Midnight Purple",
      [("turn", 0), ("settings", DARK)],
      ["Hi Maria,", "Home-made bread", "To read"], []),
@@ -179,11 +210,11 @@ def restart():
     time.sleep(4)
 
 
-def seed():
+def seed(settings=SETTINGS):
     """A notebook written for the camera, in place of anybody's real one."""
     adb("shell", "pm", "clear", PACKAGE)
     put("notes_data.json", NOTES)
-    put("settings.json", SETTINGS)
+    put("settings.json", settings)
     restart()
     titles = [n.get("title") for n in read("notes_data.json") or []]
     if titles != [n["title"] for n in NOTES]:
@@ -333,34 +364,42 @@ def main():
         return 2
     os.makedirs(OUT, exist_ok=True)
 
-    if not seed():
-        return 1
-    demo_status_bar(True)
     failed = []
     try:
-        for name, caption, steps, present, absent in SHOTS:
-            print("-- %s: %s" % (name, caption))
-            if not all(act(step) for step in steps):
-                failed.append(name)
-                continue
-            hide_keyboard()
-            time.sleep(0.8)
-            text = screen_text()
-            missing = [w for w in present if w not in text]
-            still = [w for w in absent if w in text]
-            if missing or still:
-                print("   the screen does not say %s%s -- not photographing"
-                      % (", ".join(repr(m) for m in missing),
-                         (" and still says %s" % ", ".join(repr(s) for s in still))
-                         if still else ""))
-                failed.append(name)
-                continue
-            adb("shell", "screencap", "-p", "/sdcard/shot.png")
-            data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
-            target = os.path.join(OUT, name + ".png")
-            with open(target, "wb") as f:
-                f.write(data)
-            print("   %s" % os.path.relpath(target, ANDROID))
+        for settings, suffix in ((SETTINGS, ""), (DARK, "-dark")):
+            if not seed(settings):
+                return 1
+            demo_status_bar(True)
+            for name, caption, steps, present, absent in SHOTS:
+                if suffix and name in DARK_PASS_SKIPS:
+                    continue
+                if suffix:
+                    present, absent = DARK_WORDS.get(name, (present, absent))
+                name += suffix
+                print("-- %s: %s" % (name, caption))
+                if not all(act(step) for step in steps):
+                    failed.append(name)
+                    continue
+                hide_keyboard()
+                time.sleep(0.8)
+                text = screen_text()
+                missing = [w for w in present if w not in text]
+                still = [w for w in absent if w in text]
+                if missing or still:
+                    print("   the screen does not say %s%s -- not photographing"
+                          % (", ".join(repr(m) for m in missing),
+                             (" and still says %s" % ", ".join(repr(s) for s in still))
+                             if still else ""))
+                    failed.append(name)
+                    continue
+                adb("shell", "screencap", "-p", "/sdcard/shot.png")
+                data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
+                target = os.path.join(OUT, name + ".png")
+                with open(target, "wb") as f:
+                    f.write(data)
+                print("   %s" % os.path.relpath(target, ANDROID))
+            # Upright again: the dark pass ends on its side, at 08-wide.
+            act(("turn", 0))
     finally:
         demo_status_bar(False)
 
