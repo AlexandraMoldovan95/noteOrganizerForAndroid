@@ -196,11 +196,12 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 40 parts and
-313 checks: a brand-new notebook, a notebook copied in, the
+notebook the app wrote is read back through `run-as`. 41 parts and
+332 checks: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
-it, a wide window with the phone on its side, and the phone changing
+it, a wide window with the phone on its side, screens of every size
+(a small phone, tablets of 7, 10 and 14 inches), and the phone changing
 under an open note (dark mode, larger letters, turned on its side). The list of parts,
 and what each one checks, is in
 [STATUS](../docs/STATUS.md#an-emulator-walk-that-reads-the-files). The
@@ -296,7 +297,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 167 cases across sixteen areas
+`NoteOrganizer_Android_TestPlan.xlsx` — 168 cases across sixteen areas
 (Reading, Search, Writing, Organising, Trash, Backup, Sharing, Settings,
 The phone, Interop, Look & feel, and since Phase 2 Calendar, Repeating,
 Tools, Templates and Wide screens), kept in this repository rather than

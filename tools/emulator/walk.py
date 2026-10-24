@@ -216,6 +216,14 @@ def back_to(*words, tries=4):
     return not screen_says(*words)
 
 
+def says_soon(*words, within=6.0):
+    """[screen_says], asked again until every word is there or [within]
+    seconds pass: what a tab draws in a moment, not read once after a fixed
+    pause (the calendar's row of the day, 2026-10-24). Words that never
+    come are still reported missing."""
+    return settle(lambda: screen_says(*words), lambda missing: not missing, within=within, first=0)
+
+
 def screen_says(*words):
     # The text AND the description: a button drawn as "✕" is said "Close
     # find", and reading only one of them, a check looking for the other
@@ -405,6 +413,7 @@ def main():
     pasted_tables(folder)
     reminders(folder)
     wide(folder)
+    screen_sizes(folder)
     changes(folder)
 
     print()
@@ -782,9 +791,12 @@ def seeded(folder):
     # never "the last name ls prints", which was the OLDEST, at the bottom
     # of the picker's list where a tap can land on the screen's edge.
     def backups():
-        listing = adb("shell", "ls", "/sdcard/Download")
-        return {line.strip() for line in listing.splitlines() if line.strip().endswith(".zip")}
+        return {name for name in downloads_list() if name.endswith(".zip")}
 
+    # The backups of walks before this one, gone first: the picker stops
+    # at 32 files of one name (clear_from_downloads).
+    walk_backups = r"NotesBackup_\d{4}-\d\d-\d\d( \(\d+\))?\.zip"
+    clear_from_downloads(walk_backups)
     earlier = backups()
     back_to("Your name")
     tap("Backup")
@@ -825,6 +837,8 @@ def seeded(folder):
         tap("Skip the", wait=2.0)
     check("re-importing your own backup asks, and skipping changes nothing",
           asked and read_file("notes_data.json") == before)
+    left = clear_from_downloads(walk_backups)
+    check("...and the walk takes its backup out of Downloads again", not left, str(left))
 
 
 def foreground():
@@ -903,6 +917,26 @@ def put_inside(name, value):
     adb("shell", "rm", "-f", staging)
 
 
+def downloads_list():
+    """The names in the emulator's Downloads, one per line as ls gives them."""
+    listing = adb("shell", "ls", "/sdcard/Download")
+    return {line.strip() for line in listing.splitlines() if line.strip()}
+
+
+def clear_from_downloads(keep_out):
+    """Every file in the emulator's Downloads whose name [keep_out] matches,
+    removed: what a walk saved there through the picker, once it has been
+    read back. Android's picker names a second file of the same name
+    "name (1)", and so on up to 32 -- then refuses the next, its Save
+    pressed and doing nothing. Every walk since the export part was
+    written had left its two files, and by 2026-10-24 there were 32 of
+    each: that run failed six checks on it, the app not at fault."""
+    for name in sorted(downloads_list()):
+        if re.fullmatch(keep_out, name):
+            adb("shell", "rm", "-f", "'/sdcard/Download/%s'" % name)
+    return [name for name in downloads_list() if re.fullmatch(keep_out, name)]
+
+
 def seed_inside(notes, settings, shows):
     """A notebook written for the walk, the app started on it -- and a
     failure, at once and by name, when the app does not show it. Once, of
@@ -958,8 +992,8 @@ def calendar(folder):
     ], {"username": "Maria", "welcome_offered": True}, "Stand-up"):
         return
     tap("Calendar", exact=True, wait=1.5)
-    check("the calendar opens on this month", not screen_says(LONG_MONTHS[today.month - 1] + " " + str(today.year)))
-    check("a day the series lands on says it holds a note", not screen_says(said(second) + ", 1 note"))
+    check("the calendar opens on this month", not says_soon(LONG_MONTHS[today.month - 1] + " " + str(today.year)))
+    check("a day the series lands on says it holds a note", not says_soon(said(second) + ", 1 note"))
     shot(folder, "24-calendar", LONG_MONTHS[today.month - 1])
 
     # One day of the series, on its own.
@@ -1151,9 +1185,11 @@ def previews(folder):
           "(untitled)" in seen and "(empty)" not in seen, repr(seen[:12]))
     shot(folder, "57-previews", "Trip", "▦ 1 table")
     tap("Calendar", exact=True, wait=1.5)
-    row = [t for t, d, _ in nodes() if t and "▦×1" in t]
+    # Looked for until it is drawn, not read once: on a full run the month
+    # was in the tree and the day's row under it not yet (2026-10-24).
+    row = settle(lambda: [t for t, d, _ in nodes() if t and "▦×1" in t], bool, within=6.0, first=0)
     check("the note's row on the calendar says its table too", bool(row),
-          repr([t for t, d, _ in nodes() if t][:20]))
+          repr([t for t, d, _ in nodes() if t][:40]))
     tap("Notes", exact=True, wait=1.0)
 
 
@@ -1408,10 +1444,11 @@ def exporting(folder):
          "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Trip: day 1/2")
 
-    def downloads():
-        listing = adb("shell", "ls", "/sdcard/Download")
-        return {line.strip() for line in listing.splitlines() if line.strip()}
-
+    # The files of walks before this one, gone first: 32 of them had
+    # filled every name the picker would give (clear_from_downloads).
+    walk_exports = r"Trip_ day 1_2( \(\d+\))?\.(html|txt)"
+    clear_from_downloads(walk_exports)
+    downloads = downloads_list
     desktop = desktop_export()
     for fmt, label, ext in (("html", "Web page (.html)", ".html"), ("txt", "Plain text (.txt)", ".txt")):
         earlier = downloads()
@@ -1448,6 +1485,8 @@ def exporting(folder):
             check("Open shows the page in another app", foreground() not in ("", PACKAGE), foreground())
             start_app()
         back_to("Search notes")
+    left = clear_from_downloads(walk_exports)
+    check("the walk takes its exported files out of Downloads again", not left, str(left))
 
 
 def styles_through_an_edit(folder):
@@ -3583,7 +3622,7 @@ def wide(folder):
           not screen_says("Search notes", "Hide the list"))
 
     tap("Calendar", exact=True, wait=1.5)
-    check("the note stays open beside the calendar", not screen_says("📋 History", "ⓘ", "trip"))
+    check("the note stays open beside the calendar", not says_soon("📋 History", "ⓘ", "trip"))
     shot(folder, "46-wide-calendar", "📋 History", "ⓘ")
     # The month keeps its place while the History is shown, as Settings'
     # list does: scrolled down to the day's notes, then History and back.
@@ -3676,6 +3715,90 @@ def wide(folder):
     check("the rail leaves the note for the list", not screen_says("Search notes") and find("ⓘ") is None)
     adb("shell", "wm", "size", "reset")
     turn(0)
+
+
+def box_of(label):
+    """The one on-screen box whose text or description is exactly [label],
+    or None: the tabs are drawn as both."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return None
+    for node in root.iter("node"):
+        if label in (node.get("text", ""), node.get("content-desc", "")):
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return tuple(box)
+    return None
+
+
+def screen_sizes(folder):
+    """Screens the app was not made on: a small phone, and tablets of 7, 10
+    and 14 inches, upright (the owner has no tablet to try it on,
+    2026-10-24). A small phone keeps the tabs in a bar along the bottom;
+    from 600dp they are a rail down the left edge, and a note takes the
+    list's place; from 840dp the note opens beside the list, upright too.
+    On each the week's seven days are in sight, Sunday's edge inside the
+    screen, and + is on it -- nothing laid out past the edge."""
+    print("\n-- screens of every size --")
+    if not seed_inside([
+        {"id": 1, "uid": "s-groceries", "title": "Groceries", "body": "milk and eggs", "category": "General",
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:02:00"},
+        {"id": 2, "uid": "s-plans", "title": "Plans", "body": "trip", "category": "Work",
+         "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:01:00"},
+    ], {"welcome_offered": True}, "Groceries"):
+        return
+    # name, pixels, density (dp = px * 160 / density), the tabs, the note beside
+    sizes = [("a small phone", "720x1280", 320, "bar", False),        # 360 x 640 dp
+             ("a 7-inch tablet", "1200x1920", 320, "rail", False),    # 600 x 960 dp
+             ("a 10-inch tablet", "1600x2560", 320, "rail", False),   # 800 x 1280 dp
+             ("a 14-inch tablet", "1848x2960", 340, "rail", True)]    # 870 x 1393 dp
+    turn(0)
+    try:
+        for name, size, density, tabs, beside in sizes:
+            adb("shell", "wm", "size", size)
+            adb("shell", "wm", "density", str(density))
+            time.sleep(3.0)
+            width, height = map(int, size.split("x"))
+            tag = name.split()[-1] if tabs == "bar" else name.split()[1]
+            back_to("Search notes", "Groceries")
+            notes_at, settings_at = box_of("Notes"), box_of("Settings")
+            if tabs == "rail":
+                ok = (notes_at is not None and settings_at is not None and notes_at[2] < width * 0.15
+                      and notes_at[1] < settings_at[1])
+                said_as = "a rail down the left edge"
+            else:
+                ok = (notes_at is not None and settings_at is not None and notes_at[1] == settings_at[1]
+                      and notes_at[1] > height * 0.8 and notes_at[0] < settings_at[0])
+                said_as = "a bar along the bottom"
+            check("on %s the tabs are %s" % (name, said_as), ok, "Notes %s, Settings %s" % (notes_at, settings_at))
+            plus = box_of("+")
+            check("...and + is on the screen", plus is not None and plus[2] <= width and plus[3] <= height,
+                  str(plus))
+            shot(folder, "80-size-%s-list" % tag, "Search notes", "Groceries")
+            open_note("Groceries")
+            if beside:
+                check("...a note opens beside the list, upright", not screen_says("Search notes", "Plans", "milk and eggs"))
+            else:
+                check("...a note opens in the list's place", find("Search notes") is None
+                      and not screen_says("milk and eggs"))
+            shot(folder, "81-size-%s-note" % tag, "Groceries", "ⓘ")
+            back_to("Search notes", "Groceries")
+            tap("Calendar", exact=True, wait=1.5)
+            sun, mon = settle(lambda: (box_of("Sun"), box_of("Mon")), lambda days: all(days),
+                              within=6.0, first=0)
+            check("...the calendar's week fits, Monday to Sunday in sight",
+                  sun is not None and mon is not None and sun[2] <= width and sun[2] - sun[0] >= 10
+                  and mon[0] >= 0 and mon[1] == sun[1], "Mon %s, Sun %s" % (mon, sun))
+            shot(folder, "82-size-%s-calendar" % tag, "📋 History", "Sun")
+            tap("Notes", exact=True, wait=1.5)
+    finally:
+        adb("shell", "wm", "size", "reset")
+        adb("shell", "wm", "density", "reset")
+        turn(0)
 
 
 if __name__ == "__main__":
