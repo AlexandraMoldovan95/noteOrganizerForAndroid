@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Sixteen of the fifty-four are about
+**the code**, or in **the design**. Seventeen of the fifty-five are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-24](#thirty-two-copies-and-a-save-that-did-nothing) | checking | A full walk lost six checks in the export part: Save in Android's picker did nothing, because earlier walks had left 32 copies of the file's name in the emulator's Downloads, the most Android numbers | A check that leaves its work behind changes the ground the next run stands on |
 | [2026-10-23](#a-separators-dashes-read-as-a-width-nobody-set) | code | The documentation's photograph of a table showed its header "How…": its separator was markdown's `---:`, which both apps read as a column set by hand to four characters | When a format borrows another's syntax, decide whose a form is where that is still known -- at the way in -- and leave what is stored alone |
 | [2026-10-23](#one-change-told-twice-by-samsungs-keyboard) | code | With Samsung's keyboard every Enter after a word skipped a line, on the owner's phone and on no emulator; the field reported one change twice and the note applied both | When a report and a reproduction disagree, read what the real device sends -- a log that writes no letter of the person's |
 | [2026-10-23](#a-field-that-looked-for-its-cursor-once) | code | On the owner's phone, Enter at the foot of a long note made a line under the keyboard and the screen stayed still; each checklist row added went the same way; on its side the rising keyboard showed another part of the note; Settings' list forgot its place under a page | An answer given once, when the focus came, holds only until something moves; and a fix made at one level of a pattern is worth a grep one level down |
@@ -69,6 +70,36 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Thirty-two copies, and a Save that did nothing
+
+**2026-10-24.** A full walk lost six checks in the part that exports a
+note through Android's own "save as": the picker opened, offered the
+desktop's file name, and its Save was pressed — and no file arrived, no
+"Exported to" followed, and the picker stayed on the screen. Run again
+alone, the part failed the same way every time. Nothing in the app or in
+that part had changed.
+
+The picker's own list said why: `Trip_ day 1_2 (32).txt` at its top.
+Every walk since the part was written had saved its two files into the
+emulator's Downloads and left them there — clearing the app does not
+reach that folder — and Android names a second file of one name
+"name (1)", up to 32, then refuses the next without a word: Save does
+nothing. The backups the walk saves were climbing the same way, a day's
+worth of runs at a time.
+
+So the walk now takes out what it saves once it has read it back, and
+clears what earlier walks left before it saves (`clear_from_downloads`),
+each with a check that the folder holds none of its files afterwards.
+Downloads keeps one file of the walk's, `walk-receipt.txt`, which it
+pushes under the same name every time.
+
+**The lesson:** a check that leaves its work behind changes the ground the
+next run stands on. Here the residue was invisible for weeks and then
+became a limit all at once; a part that makes a file should leave the
+folder as it found it.
 
 ---
 

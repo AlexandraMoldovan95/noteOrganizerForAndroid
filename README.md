@@ -52,8 +52,10 @@ for the camera rather than anybody&rsquo;s real one &mdash;
   the desktop's every sort and filter, Custom order arranged by hand,
   groups by category, duplicates found and cleaned up, long press to
   select, pin, move, duplicate or delete several at once — with Undo.
-- **A phone or a tablet**: on a wide screen the note opens beside the
-  list.
+- **A phone or a tablet**, upright or on its side: from a small tablet's
+  width the tabs become a rail down the left edge, and on a wide screen
+  the note opens beside the list. Walked on a small phone and on tablets
+  of 7, 10 and 14 inches.
 - **The Trash**, kept for the desktop's window and emptied on its own.
 - **Your look**: the desktop's eight themes, four light and four dark,
   under one Light | Dark switch.
@@ -145,7 +147,7 @@ at 47% of the canvas is in the
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
 | The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
-| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 313 checks, each reading the file the app wrote |
+| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 332 checks, each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
 The unit tests pin the rules ported from Python rather than the screens,

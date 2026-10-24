@@ -310,7 +310,8 @@ Grouped by what the app does; when each item arrived is in the
     reach, its card outlined. What the list does to the note beside it —
     a pin, a category — the note shows at once and keeps. « in the note's
     top bar puts the list (or the calendar) aside for a wider note, »
-    brings it back; the choice holds until the app is closed.
+    brings it back; the choice holds until the app is closed. Walked on a
+    small phone and on tablets of 7, 10 and 14 inches (2026-10-24).
 37. Settings: your name, appearance, categories, templates,
     **Reminders**, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
@@ -326,7 +327,7 @@ Grouped by what the app does; when each item arrived is in the
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 313
+    where the shrunk code will look); and an emulator walk of 332
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -544,7 +545,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 313 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side and at larger letters, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 332 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -559,7 +560,15 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-40 parts, 313 checks. The last full run (2026-10-23, late), with a
+41 parts, 332 checks. The last full run (2026-10-24), with the part for
+screens of every size and the walk's own files taken out of Downloads
+again, waited 31 seconds and passed all 332. The two before it that day
+lost six checks to Android's picker refusing a 33rd file of one name
+([the story](ISSUES_LOG.md#thirty-two-copies-and-a-save-that-did-nothing)),
+and then one to the calendar's row of the day read once, a moment before
+it was drawn; that check, and three more read once after the calendar
+opened, now wait for what they look for. The run before them
+(2026-10-23, late), with a
 markdown table pasted into a note and a template added, was begun on an
 emulator just started and alone on the computer: it waited 66 seconds,
 then passed all 313. Earlier that evening, with an
@@ -685,6 +694,13 @@ it and read back from the file:
   after a page and the History; the pane beside the calendar; two new notes in
   a row; a code shared in over an open note, upright, and the update
   kept; and a medium window, the note in the list's place.
+* **Screens of every size** (2026-10-24, for tablets the owner has none
+  of to try): the emulator's display set to a small phone and to tablets
+  of 7, 10 and 14 inches, upright. The bar along a small phone's bottom,
+  a rail from the 7-inch, a note in the list's place up to the 10-inch
+  and beside it on the 14-inch; on each, + on the screen and the
+  calendar's week from Monday to Sunday in sight. A rail moved to 700dp
+  and the panes to 900dp each failed it.
 
 Phase 3 added a part for each of its features, the same way:
 

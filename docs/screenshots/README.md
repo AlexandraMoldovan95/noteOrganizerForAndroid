@@ -61,18 +61,36 @@ white signal icon.
 | `06-dark.png` | The same list in Midnight Purple |
 | `07-calendar.png` | The calendar: a series' Mondays and Thursdays as dots, a dated note, and a birthday painted with its marker |
 | `08-wide.png` | The phone on its side: the rail at the left, the list, and the note open beside it, its card outlined |
+| `09-wide-calendar.png` | On its side: the calendar, the note's day chosen in the month and the series' days marked, the note still open beside it |
+| `10-wide-settings.png` | On its side: Settings with Categories open across the width, each category's colour and how many notes it holds |
+| `01-note-list-dark.png` | The note list in Midnight Purple: the greeting, search, sort and show, and the same cards with their stripes and badges, the pinned note at the top |
+| `02-a-note-dark.png` | The bread note open in Midnight Purple, its bold first line and its checklist below, ticked rows struck through |
+| `03-a-table-dark.png` | The expenses table in Midnight Purple, drawn as a grid, its figures right-aligned |
+| `04-search-dark.png` | Search in Midnight Purple: one of four notes left, matched on a word in its body |
+| `05-appearance-dark.png` | Settings → Appearance in a dark theme: the Light \| Dark switch, and the four dark themes |
+| `07-calendar-dark.png` | The calendar in Midnight Purple: the series' Mondays and Thursdays as dots, a dated note, and the painted birthday |
+| `08-wide-dark.png` | On its side in Midnight Purple: the rail, the list, and the note open beside it |
+| `09-wide-calendar-dark.png` | On its side in Midnight Purple: the calendar, the note's day chosen in the month and the series' days marked, the note open beside it |
+| `10-wide-settings-dark.png` | On its side in Midnight Purple: Settings with Categories open, each category's colour and how many notes it holds |
+
+The files ending in `-dark` are the same screens taken again in Midnight
+Purple, by the same run, after the light ones: the website shows every
+picture in the theme its page is in, and a dark page showing a light
+phone read as a mistake (the owner, 2026-10-24). `06-dark.png` stays as
+the set's one dark picture where only one set is shown, as in the
+README's gallery.
 
 The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
 month's notes in it would be an empty grid.
 
-**Current set:** captured 2026-10-23 on the emulator, in English, for
-0.11.0: a note's checklist, comments and files added from its ⋮, no links
-under it, and « beside a note on a wide screen. The notebook marks the
+**Current set:** captured 2026-10-24 on the emulator, in English, for
+0.11.0, the light set and the dark one in one run. The notebook marks the
 day's reminder as already shown, so a day the series falls on does not
-put its bar over the list. Retaken the same day for the table: its seed
-had a markdown `---:` under the figures, which both apps read as a column
-set by hand to four characters, so the header was drawn "How…" and the
-figures sat on the left; it is now written as the app writes a table.
-The other pictures of that run differ only by a blinking cursor and
-faint anti-aliasing. Update this line whenever the set is recaptured.
+put its bar over the list; the table's seed is written as the app writes
+a table, its figures right-aligned by the spaces before them (a markdown
+`---:` under them read as a column set by hand to four characters, and
+the header was drawn "How…" — the 2026-10-23 retake). Against that
+day's light set, these differ by the date the calendar opens on and the
+dates worked out from it. Update this line whenever the set is
+recaptured.
