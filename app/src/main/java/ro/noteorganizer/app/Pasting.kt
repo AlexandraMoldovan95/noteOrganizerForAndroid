@@ -301,12 +301,18 @@ object Pasting {
         }
         for (open in reader.open.toList()) reader.close(open.style)
 
-        val joined = reader.text.joinToString("")
+        val unframed = unframeLoneCells(reader.text.joinToString(""), reader.loneCells)
+        val joined = unframed.text
         val text = joined.trim('\n')
         val dropped = joined.length - joined.trimStart('\n').length
         val length = text.codePointCount(0, text.length)
+        for (i in 0 until reader.paragraphs.length()) {
+            val p = reader.paragraphs.getJSONObject(i)
+            p.put("line", unframed.lineMoved(p.getInt("line")))
+        }
         var spans = reader.spans
-            .map { it.copy(start = maxOf(0, it.start - dropped), end = maxOf(0, it.end - dropped)) }
+            .map { it.copy(start = maxOf(0, unframed.moved(it.start) - dropped),
+                           end = maxOf(0, unframed.moved(it.end) - dropped)) }
             .filter { it.end > it.start && it.start < length }
             .map { it.copy(end = minOf(it.end, length)) }
         var out = text
@@ -335,6 +341,87 @@ object Pasting {
             reader.textCut,
             reader.stylesCut,
         )
+    }
+
+    /** What [unframeLoneCells] made: the text, and where an offset or a line of the old one now falls. */
+    private class Unframed(val text: String, private val cuts: List<IntArray>, private val breaks: IntArray) {
+        private val starts = IntArray(cuts.size) { cuts[it][0] }
+        private val before = IntArray(cuts.size + 1).also { b ->
+            for (i in cuts.indices) b[i + 1] = b[i] + cuts[i][1] - cuts[i][0]
+        }
+
+        fun moved(pos: Int): Int {
+            val i = lowerBound(starts, pos)
+            return if (i == 0) pos else pos - before[i - 1] - (minOf(pos, cuts[i - 1][1]) - starts[i - 1])
+        }
+
+        fun lineMoved(n: Int): Int = n + lowerBound(breaks, n)
+
+        /** `bisect_left`: how many of the sorted [values] are below [key]. */
+        private fun lowerBound(values: IntArray, key: Int): Int {
+            var lo = 0
+            var hi = values.size
+            while (lo < hi) {
+                val mid = (lo + hi) ushr 1
+                if (values[mid] < key) lo = mid + 1 else hi = mid
+            }
+            return lo
+        }
+    }
+
+    /**
+     * `_unframe_lone_cells`: each row of one cell -- [rows], the code-point
+     * (start, end) of its "| ... |" -- written as the cell's words alone, its
+     * line breaks real lines. A row of one cell is no table here: left
+     * framed, one cell or one column copied from a page pasted as "| rent |".
+     * Offsets are looked up by halving: a long styled column has a cut for
+     * every row, and walking them all for every span froze the paste.
+     */
+    private fun unframeLoneCells(text: String, rows: List<IntArray>): Unframed {
+        val cp = cps(text)
+        val cuts = ArrayList<IntArray>()
+        val breaks = ArrayList<Int>()
+        val swaps = ArrayList<Int>()
+        val br = cps(LINE_BREAK)
+        var line = 0
+        var seen = 0
+        for (row in rows) {
+            val start = row[0]
+            val end = row[1]
+            if (end - start < 2 || end > cp.size || cp[start] != PIPE || cp[end - 1] != PIPE) continue
+            for (i in seen until start) if (cp[i] == '\n'.code) line += 1
+            seen = start
+            var first = start + 1
+            while (first < end - 1 && cp[first] == ' '.code) first += 1
+            var last = end - 1
+            while (last > first && cp[last - 1] == ' '.code) last -= 1
+            if (first >= last) {
+                cuts.add(intArrayOf(start, end))
+                continue
+            }
+            cuts.add(intArrayOf(start, first))
+            var at = first
+            while (at + br.size <= last) {
+                if ((br.indices).all { cp[at + it] == br[it] }) {
+                    swaps.add(at)
+                    cuts.add(intArrayOf(at + 1, at + br.size))
+                    breaks.add(line)
+                    at += br.size
+                } else {
+                    at += 1
+                }
+            }
+            cuts.add(intArrayOf(last, end))
+        }
+        for (at in swaps) cp[at] = '\n'.code
+        val out = StringBuilder(text.length)
+        var at = 0
+        for (cut in cuts) {
+            for (i in at until cut[0]) out.appendCodePoint(cp[i])
+            at = cut[1]
+        }
+        for (i in at until cp.size) out.appendCodePoint(cp[i])
+        return Unframed(out.toString(), cuts, breaks.toIntArray())
     }
 
     // ---- the tags ----
@@ -1057,6 +1144,9 @@ object Pasting {
         private var tblCellAlign = ""
         private var tblCell: Triple<Int, Int, Int>? = null
         private val styleOpens = HashMap<String, ArrayList<List<String>>>()
+        private var rowCells = 0          // cells written on the row being read
+        private var rowFrom = 0           // where that row's first cell begins
+        val loneCells = ArrayList<IntArray>()   // (start, end) of each row of one cell
 
         private fun atLineStart() = length == 0 || text.lastOrNull()?.endsWith("\n") == true
 
@@ -1081,6 +1171,13 @@ object Pasting {
                 length -= text.last().length - trimmed.length
                 text[text.lastIndex] = trimmed
             }
+        }
+
+        /** One cell's opening, counted for its row ([loneCells]). */
+        private fun cell(piece: String) {
+            if (rowCells == 0) rowFrom = length
+            rowCells += 1
+            add(piece)
         }
 
         private fun newline() {
@@ -1109,7 +1206,7 @@ object Pasting {
             val col = tblCol ?: 0
             if (pending.isNullOrEmpty() || col !in pending) return false
             val owed = pending.getValue(col)
-            add("$CELL ${owed.marker} ")
+            cell("$CELL ${owed.marker} ")
             if (owed.left - 1 > 0) owed.left -= 1 else pending.remove(col)
             tblCol = col + 1
             return true
@@ -1154,7 +1251,7 @@ object Pasting {
                 while (owedMergeCell()) { /* every column a rowspan still covers */ }
                 tblCell = Triple(tblCol ?: 0, spanAttr(attrs, "colspan"), spanAttr(attrs, "rowspan"))
                 // An extra lead space is how the padding says "not left".
-                add(CELL + if (tblCellAlign == "center" || tblCellAlign == "right") "  " else " ")
+                cell(CELL + if (tblCellAlign == "center" || tblCellAlign == "right") "  " else " ")
             } else if (tag in BLOCK_TAGS) {
                 // A cell is one line of the note: a <br> in it is the cell's
                 // own line break, any other block only a gap between words.
@@ -1206,7 +1303,7 @@ object Pasting {
                 val (col, spanC, spanR) = tblCell ?: Triple(0, 1, 1)
                 // A colspan is the anchor and then "<" cells; a rowspan owes
                 // "^" under the anchor and "<" under the rest of its width.
-                repeat(spanC - 1) { add("$CELL $MERGE_LEFT ") }
+                repeat(spanC - 1) { cell("$CELL $MERGE_LEFT ") }
                 if (spanR > 1) {
                     val pending = tblPending ?: HashMap<Int, Owed>().also { tblPending = it }
                     for (cover in col until col + spanC) pending[cover] = Owed(spanR - 1, if (cover == col) MERGE_UP else MERGE_LEFT)
@@ -1223,13 +1320,15 @@ object Pasting {
                     for (cover in pending.keys.sorted()) {
                         if (cover < (tblCol ?: 0)) continue
                         while ((tblCol ?: 0) < cover) {
-                            add("$CELL  ")
+                            cell("$CELL  ")
                             tblCol = (tblCol ?: 0) + 1
                         }
                         owedMergeCell()
                     }
                 }
                 add(CELL)
+                if (rowCells == 1) loneCells.add(intArrayOf(rowFrom, length))
+                rowCells = 0
                 newline()
             } else if (tag in BLOCK_TAGS) {
                 if (cellDepth == 0) newline()
@@ -1243,6 +1342,10 @@ object Pasting {
             } else {
                 WS_RUN.replace(data, " ")
             }
+            // A page's non-breaking spaces are plain ones in a note: a browser
+            // writes one at each edge of a bold word or a link, and a search
+            // for the words either side found nothing (2026-10-25).
+            cleaned = cleaned.replace(Char(0xA0), ' ')
             if (cellDepth != 0) {
                 // The export draws a checkbox cell as its glyph; coming back,
                 // the glyph is the checkbox again -- only inside a cell.

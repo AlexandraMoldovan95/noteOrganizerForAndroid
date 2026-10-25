@@ -48,6 +48,14 @@ do before, not as releases anyone ran.
   shorter by more than 40 characters. It is now decided by how much of
   the old text is gone — emptied, a big part of it, or most of a short
   note. Found by the owner on the desktop's test case 692.
+- **A single cell or a single column copied from a page pastes as its
+  words**, as on the desktop. It came in framed in pipes, "| rent |",
+  which is no table here, a table having two columns at least.
+- **Words pasted from a web page are found by search**, as on the
+  desktop. A browser puts a non-breaking space at each edge of a bold
+  word or a link, and those came in as they were: the note looked the
+  same, but a search for the words either side found nothing. Seen
+  testing the owner's case 94 on the emulator, a page copied in Chrome.
 
 ### Testing
 
@@ -59,6 +67,11 @@ do before, not as releases anyone ran.
 - The emulator walk selects a note's whole text, types a new line in its
   place and finds the old words kept for Restore previous. 41 parts, 333
   checks.
+- `PastingTest` holds one cell and one column coming in as their words,
+  a lone cell's colour and line breaks with them, and a page's
+  non-breaking spaces as spaces; the paste fixture, rebuilt from the
+  desktop's reader, changed in 94 of its 567 fragments, and the phone
+  reads every one as the desktop does. Mutants PA1–PA5 watched failing.
 
 ---
 

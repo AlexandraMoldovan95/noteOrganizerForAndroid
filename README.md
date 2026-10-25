@@ -40,7 +40,8 @@ for the camera rather than anybody&rsquo;s real one &mdash;
   widths too — checklists you can tick and
   drag, comments, attached files, and a note's category, colour, date and
   pin. **Copy and paste keep the formatting**, from a web page or into a
-  mail. Find in a note, a calculator under it, templates, and export as a
+  mail, through the menu's Paste: a keyboard's own clipboard types the
+  words in, plain. Find in a note, a calculator under it, templates, and export as a
   web page or plain text. A big deletion can be undone with the
   desktop's **↩ Restore previous**.
 - **The calendar and repeating notes**: the month with each day's notes,
@@ -112,7 +113,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 703 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 706 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in

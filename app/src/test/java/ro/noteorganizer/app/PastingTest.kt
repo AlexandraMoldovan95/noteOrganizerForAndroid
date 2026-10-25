@@ -72,6 +72,31 @@ class PastingTest {
     }
 
     @Test
+    fun `one cell or one column copied as a table pastes as its words`() {
+        assertEquals("rent", Pasting.htmlToNote("<table><tr><td>rent</td></tr></table>").text)
+        assertEquals("rent\n\nfood",
+                     Pasting.htmlToNote("<table><tr><td>rent</td></tr><tr><td></td></tr><tr><td>food</td></tr></table>").text)
+        assertTrue(Pasting.htmlToNote("<table><tr><td>a</td><td>b</td></tr></table>").text.startsWith("| a"))
+    }
+
+    @Test
+    fun `a lone cell's colour and line breaks come with its words, and what follows keeps its line`() {
+        val coloured = Pasting.htmlToNote("""<table><tr><td> <span style="color:#d32f2f">rent</span> due</td></tr></table>""")
+        assertEquals("rent due", coloured.text)
+        assertEquals(listOf(listOf(0, 4, "text_color", "#d32f2f")), spans(coloured))
+        val broken = Pasting.htmlToNote("""<table><tr><td>a<br>b</td></tr><tr><td>c</td></tr></table><p style="text-align:center">d</p>""")
+        assertEquals("a\nb\nc\nd", broken.text)
+        assertTrue(broken.paragraphs.toString(), broken.paragraphs.any { it.line == 3 && it.align == "center" })
+    }
+
+    @Test
+    fun `a page's non-breaking spaces come in as spaces, as many as there were`() {
+        val p = Pasting.htmlToNote("<p>The&nbsp;<b>Burj Khalifa</b>&nbsp;is tall, a&nbsp;&nbsp;b</p>")
+        assertEquals("The Burj Khalifa is tall, a  b", p.text)
+        assertEquals(listOf(listOf(4, 16, "bold", "")), spans(p))
+    }
+
+    @Test
     fun `a Google Docs copy is not bold all over because of its wrapper`() {
         val p = Pasting.htmlToNote("""<b style="font-weight:normal"><p><span style="font-weight:700">Title</span> and text</p></b>""")
         assertEquals("Title and text", p.text)
