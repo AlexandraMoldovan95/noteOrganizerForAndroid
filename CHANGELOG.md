@@ -39,6 +39,17 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Added
+
+- **A note's text, checklist and comments fold away**, each under its
+  label — ▾ open, ▸ folded — to make room for the others; the text gets
+  its label once there is a checklist or comments to make room for, and
+  shows again while a search in it is open. A fold is kept while the app
+  runs. Asked for by the owner on case 38; the desktop waits to see it.
+- **The table's bar merges a cell with the one on its right, or below**,
+  besides the left and above it already offered — every way the
+  desktop's selection merges. Asked for by the owner on case 72.
+
 ### Fixed
 
 - **Restore previous keeps a note's words when they are replaced, not
@@ -56,6 +67,17 @@ do before, not as releases anyone ran.
   word or a link, and those came in as they were: the note looked the
   same, but a search for the words either side found nothing. Seen
   testing the owner's case 94 on the emulator, a page copied in Chrome.
+- **A checklist row drags from its handle at once.** The handle waited
+  for a long press nobody could guess, and sat close enough to the box
+  to tick it by mistake; it is a finger wide now, and apart. The owner's
+  case 38.
+- **A day's markers sit under its number**, where the corner put them
+  over it on a phone's narrow cell and the day could not be read. The
+  owner's case 60.
+- **A sheet's values sit right after their labels** — the repeat sheet's
+  Starts, Every and After, the details' Category, Date and Repeat — in
+  one column, where the label took the width and threw the value to the
+  far edge. The owner's case 62.
 
 ### Testing
 
@@ -65,8 +87,12 @@ do before, not as releases anyone ran.
   `updateNote`, the old words in `_prev`. Mutants RA1 and RA2 watched
   failing.
 - The emulator walk selects a note's whole text, types a new line in its
-  place and finds the old words kept for Restore previous. 41 parts, 333
-  checks.
+  place and finds the old words kept for Restore previous.
+- The walk drags a checklist row by its handle with a short swipe, no
+  long press; folds the checklist and the text and opens them again;
+  marks a painted day and reads the marker from the file, photographing
+  where it sits; and merges a cell with the one on its right and the one
+  below, reading the desktop's `<` and `^`. 41 parts, 340 checks.
 - `PastingTest` holds one cell and one column coming in as their words,
   a lone cell's colour and line breaks with them, and a page's
   non-breaking spaces as spaces; the paste fixture, rebuilt from the

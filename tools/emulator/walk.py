@@ -684,6 +684,28 @@ def seeded(folder):
     check("the styling the desktop wrote is still there", bread.get("formatting") == CAMERA[0]["formatting"])
     shot(folder, "12-checklist", "Bread", "flour", "yeast")
 
+    # The handle drags at once: a short swipe, no long press, from yeast's
+    # handle to above flour -- it waited for a long press nobody could guess
+    # (the owner's case 38).
+    handle, target = find("Drag to move yeast"), find("flour", exact=True)
+    if handle and target:
+        adb("shell", "input", "swipe", str(handle[0]), str(handle[1]), str(handle[0]), str(target[1] - 30), "300")
+        time.sleep(1.5)
+    check_settled("a checklist row dragged by its handle at once, no long press, lands where it is let go",
+                  lambda: [r.get("text") for r in (note_by_uid("walk-bread") or {}).get("checklist", [])],
+                  lambda order: order == ["yeast", "flour"])
+    # The note's sections fold away to make room for the others, and open again.
+    tap("CHECKLIST", wait=1.0)
+    check("the checklist folds away under its label, its rows out of sight",
+          find("Drag to move yeast") is None and find("CHECKLIST") is not None)
+    tap("TEXT", wait=1.0)
+    check("the text folds away too, once there is a checklist to make room for",
+          find("Knead ten minutes") is None and find("TEXT") is not None)
+    shot(folder, "12b-folded", "TEXT", "CHECKLIST")
+    tap("TEXT", wait=1.0)
+    tap("CHECKLIST", wait=1.0)
+    check("and both open again", find("Knead ten minutes") is not None and find("Drag to move yeast") is not None)
+
     # The details: category, colour.
     tap("ⓘ", wait=1.2)
     shot(folder, "13-details", "Note details", "Category", "Colour")
@@ -1053,6 +1075,18 @@ def calendar(folder):
     settings = read_file("settings.json") or {}
     check("a painted day is kept under the desktop's key",
           (settings.get("day_colors") or {}).get(other.isoformat()) == "#43aa8b", json.dumps(settings)[:200])
+
+    # The same day marked: the marker under the day's number, where the corner
+    # put it over the number on a phone's narrow cell (the owner's case 60).
+    # Where it sits is for the photograph: the cell is one node to the phone's
+    # tree, its number and markers inside it unseen apart.
+    long_press(said(other))
+    tap("Mark this day", wait=1.2)
+    tap("⭐", exact=True, wait=0.8)
+    tap("Save", exact=True, wait=1.5)
+    settings = read_file("settings.json") or {}
+    check("a marked day is kept under the desktop's key",
+          (settings.get("day_emoji") or {}).get(other.isoformat()) == ["⭐"], json.dumps(settings)[:200])
     shot(folder, "27-painted-day", LONG_MONTHS[today.month - 1])
 
     # The History.
@@ -1821,6 +1855,24 @@ def table_bar(folder):
     tap("Split", exact=True, wait=1.2)
     check_settled("Split takes the marker away, the words staying where they were joined",
                   rows, lambda r: len(r) > 4 and r[-1][0] == "" and r[3][0] == "fuel tolls")
+    # Every way round, as the desktop's selection merges (the owner's case 72):
+    # with the cell on the right, and with the one below -- each split again.
+    choose_cell("Bar", "first")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell on the right", exact=True, wait=1.2)
+    check_settled("Merge, with the cell on the right: the desktop's < beside the cell kept",
+                  rows, lambda r: len(r) > 2 and r[2][:2] == ["first", "<"])
+    choose_cell("Bar", "first")
+    tap("Merge", exact=True, wait=0.8)
+    tap("Split", exact=True, wait=1.2)
+    choose_cell("Bar", "120")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell below", exact=True, wait=1.2)
+    check_settled("Merge, with the cell below: both cells' words in the cell kept, the desktop's ^ under it",
+                  rows, lambda r: len(r) > 4 and r[3][1] == "120 45" and r[4][1] == "^")
+    choose_cell("Bar", "120 45")
+    tap("Merge", exact=True, wait=0.8)
+    tap("Split", exact=True, wait=1.2)
     choose_cell("Bar", "first")
     tap("Delete", exact=True, wait=0.8)
     tap("This row", exact=True, wait=1.2)

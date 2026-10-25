@@ -102,6 +102,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** The History in place of the month, as the desktop's toggle swaps them. */
     var showHistory by mutableStateOf(false)
 
+    /**
+     * A note's sections folded away to make room for the others -- its text,
+     * checklist, comments -- keyed "<note id>:<section>". Kept while the app
+     * runs, not in the notebook: how a note is looked at is not the note.
+     */
+    val folded = androidx.compose.runtime.mutableStateMapOf<String, Boolean>()
+
     // ---- the day's reminder ([Reminders]) ----
 
     /** How many notes today's bar says, while it shows; null when it does not. */
