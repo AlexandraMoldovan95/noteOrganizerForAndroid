@@ -6,7 +6,7 @@ import java.util.Locale
  * Find in note: the desktop's find bar, as rules.
  *
  * It looks through the open note's body -- its prose and its tables' cells
- * -- and never changes it. Matches come in reading order, each one a place
+ * -- then its checklist and comments, and never changes any of it. Matches come in reading order, each one a place
  * the editor can paint and scroll to; the bar counts them "3/12" and steps
  * through them, round from the last to the first.
  *
@@ -42,6 +42,19 @@ object Finding {
     /** A table cell holding the words, in the drawn grid's numbering (the separator is not a row). */
     data class InCell(override val segment: Int, val row: Int, val column: Int) : Match
 
+    /** Words in the checklist's row [item], [start] to [end] in its words -- under the body, no piece of it. */
+    data class InChecklist(val item: Int, val start: Int, val end: Int) : Match {
+        override val segment: Int get() = OUTSIDE
+    }
+
+    /** Words in the comments, [start] to [end] in their text -- under the body, no piece of it. */
+    data class InComments(val start: Int, val end: Int) : Match {
+        override val segment: Int get() = OUTSIDE
+    }
+
+    /** The [Match.segment] of a match outside the body. */
+    const val OUTSIDE = -1
+
     /** Letter by letter, so every position in the text stays where it was. */
     private fun foldEach(text: String): String {
         val out = StringBuilder(text.length)
@@ -57,21 +70,35 @@ object Finding {
     private const val MERGE_LEFT = "<"
     private const val MERGE_UP = "^"
 
-    /** Every match of [query] in [body], top to bottom. */
-    fun scan(body: String, query: String, matchCase: Boolean): List<Match> {
+    /**
+     * Every match of [query] in [body], top to bottom -- then in the
+     * [checklist]'s rows and the [comments] under it, as the note reads
+     * on the screen. Those two are searched as prose is. The desktop's bar
+     * looks through the body alone; on the phone the owner asked for them
+     * too, the checklist and comments being folded away and found the same
+     * way (2026-10-26).
+     */
+    fun scan(body: String, query: String, matchCase: Boolean,
+             checklist: List<String> = emptyList(), comments: String = ""): List<Match> {
         if (query.isEmpty()) return emptyList()
         val found = ArrayList<Match>()
         val needle = if (matchCase) query else foldEach(query)
         val cellNeedle = if (matchCase) query else query.lowercase(Locale.ROOT)
+
+        // Letter by letter, each search one character after the last match began.
+        fun inText(text: String, add: (Int, Int) -> Match) {
+            val hay = if (matchCase) text else foldEach(text)
+            var at = hay.indexOf(needle)
+            while (at >= 0 && found.size < CAP) {
+                found.add(add(at, at + needle.length))
+                at = hay.indexOf(needle, at + Character.charCount(hay.codePointAt(at)))
+            }
+        }
+
         for ((index, segment) in Editing.segments(body).withIndex()) {
             if (found.size >= CAP) break
             if (!segment.table) {
-                val hay = if (matchCase) segment.text else foldEach(segment.text)
-                var at = hay.indexOf(needle)
-                while (at >= 0 && found.size < CAP) {
-                    found.add(InText(index, at, at + needle.length))
-                    at = hay.indexOf(needle, at + Character.charCount(hay.codePointAt(at)))
-                }
+                inText(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
             val table = parseTable(segment.text.split("\n"))
@@ -89,6 +116,11 @@ object Finding {
                 }
             }
         }
+        for ((item, words) in checklist.withIndex()) {
+            if (found.size >= CAP) break
+            inText(words) { start, end -> InChecklist(item, start, end) }
+        }
+        if (found.size < CAP) inText(comments) { start, end -> InComments(start, end) }
         return found
     }
 

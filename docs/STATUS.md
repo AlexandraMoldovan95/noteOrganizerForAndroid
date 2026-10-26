@@ -191,7 +191,8 @@ Grouped by what the app does; when each item arrived is in the
     or removed, merge and split, highlight, alignment, a checkbox. A
     merge joins a cell with the one on its left, right, above or below
     (every way round since 2026-10-25), keeps both cells' words and their
-    styles, as the desktop's does, and a merge down is drawn as one cell; every edit carries each
+    styles, as the desktop's does, and a merge down is drawn as one cell,
+    its words in the middle of the rows it covers; every edit carries each
     cell's styles with it
     ([why](ISSUES_LOG.md#ports-read-side-by-side-with-the-desktop-they-came-from)).
     The chosen cell's right and bottom edges are dragged for its column's
@@ -226,8 +227,9 @@ Grouped by what the app does; when each item arrived is in the
     from elsewhere — the note says so and brings it back, its text and
     everything else the update changed.
 25. **Find in note**: the count, back and next, case, prose and table
-    cells together, every match painted and the current one scrolled into
-    sight.
+    cells together, then the checklist and the comments (since 2026-10-25;
+    the desktop's bar looks through the text alone), every match painted
+    and the current one scrolled into sight.
 26. **The calculator**, docked under the note: the desktop's keypad and
     More functions, a history, and Insert into note — its answer for
     every sum.
@@ -326,7 +328,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 706 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 708 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -556,7 +558,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 706 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 708 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -685,8 +687,10 @@ it and read back from the file:
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
-* **Find in note**: prose and cells counted together, stepping, case, a
-  miss, the bar opening again with the last search, the file unchanged.
+* **Find in note**: prose, cells, the checklist and the comments counted
+  together, a folded checklist shown while the search is open, stepping,
+  case, a miss, the bar opening again with the last search, the file
+  unchanged.
 * **Export**: both formats through Android's "save as", each file read
   back off the phone and compared byte for byte with the desktop's
   export of the same note.
@@ -915,7 +919,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-706 JVM unit tests in 31 suites pin the rules ported from Python, and
+708 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

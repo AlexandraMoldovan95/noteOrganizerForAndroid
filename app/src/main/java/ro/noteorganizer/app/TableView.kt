@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,6 +42,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -173,7 +175,11 @@ fun TableView(
             // Taller as the edge is dragged down; shorter only once written,
             // since a row never draws shorter than what its cells hold.
             val taller = heightDrag?.takeIf { it.first == r }?.let { (_, base, px) -> base + px }
+            // A row whose cell is merged down draws over the rows under it,
+            // where its words are centred ([drop]); an earlier one over a later.
+            val mergesDown = row.indices.any { cc -> row[cc] != null && table.swallowedBy[CellAt(r + 1, cc)] == CellAt(r, cc) }
             Row(modifier = Modifier
+                .zIndex(if (mergesDown) (table.rows.size - r).toFloat() else 0f)
                 .then(if (taller != null) Modifier.heightIn(min = with(density) { taller.toDp() }) else Modifier)
                 .height(IntrinsicSize.Min)
                 .onSizeChanged { if (heightDrag?.first != r) rowHeights[r] = it.height }) {
@@ -252,10 +258,17 @@ fun TableView(
                             if (want != lines) onResizeRow?.invoke(r, want)
                         },
                     )
+                    // Merged down, its words sit in the middle of all the rows it
+                    // covers, as the desktop draws one cell over them; they sat in
+                    // the first, the rest of the cell left empty (the owner,
+                    // 2026-10-26). Written in, the field stays at the top.
+                    val below = (r + 1 until table.rows.size).takeWhile { table.swallowedBy[CellAt(it, c)] == here }
+                    val drop = with(density) { (below.sumOf { rowHeights[it] ?: 0 } / 2f).toDp() }
                     CellBox(cell, span, align, isHeader, editing,
                             found = here in found, current = here == current || here == active, reveal = reveal,
                             fill = highlights[here], clip = column?.width != null,
                             editor = if (writing) editor else null,
+                            drop = if (writing) 0.dp else drop,
                             widthGrip = widthGrip, heightGrip = heightGrip) {
                         onCellTap?.invoke(here)
                     }
@@ -281,6 +294,7 @@ private fun CellBox(
     clip: Boolean = false,
     editor: (@Composable (TextStyle) -> Unit)? = null,
     joinsAbove: Boolean = false,
+    drop: androidx.compose.ui.unit.Dp = 0.dp,
     widthGrip: EdgeDrag? = null,
     heightGrip: EdgeDrag? = null,
     onTap: (() -> Unit)? = null,
@@ -355,6 +369,7 @@ private fun CellBox(
                     null -> cell.lines.joinToString("\n")
                 },
                 style = style,
+                modifier = Modifier.offset(y = drop),
                 // A column narrowed by hand cuts its words short rather than
                 // growing taller, as the desktop's does.
                 softWrap = !clip,

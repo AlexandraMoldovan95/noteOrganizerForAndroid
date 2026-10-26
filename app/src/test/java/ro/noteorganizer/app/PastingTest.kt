@@ -90,6 +90,24 @@ class PastingTest {
     }
 
     @Test
+    fun `words pasted after a note's last table go on a line of their own, the row kept`() {
+        // The place to write after a note's last table pastes at the end of
+        // that table's last row: a paragraph pasted there was glued onto it.
+        val body = "Costs:\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |"
+        val end = body.codePointCount(0, body.length)
+        val after = Pasting.insert(body, emptyList(), emptyMap(), end, end, "A new paragraph.")
+        assertEquals("$body\nA new paragraph.", after.body)
+        assertEquals(after.body.codePointCount(0, after.body.length), after.caret)
+        // ...and words pasted at a row's start leave the row whole below them.
+        val start = body.indexOf("| fuel")
+        val before = Pasting.insert(body, emptyList(), emptyMap(), start, start, "Note:")
+        assertEquals("Costs:\n| Item | Cost |\n| --- | --- |\nNote:\n| fuel | 120 |", before.body)
+        // Rows pasted there are rows, as before: no line of words in between.
+        val rows = Pasting.insert(body, emptyList(), emptyMap(), end, end, "| tolls | 45 |")
+        assertEquals("$body\n| tolls | 45 |", rows.body)
+    }
+
+    @Test
     fun `a page's non-breaking spaces come in as spaces, as many as there were`() {
         val p = Pasting.htmlToNote("<p>The&nbsp;<b>Burj Khalifa</b>&nbsp;is tall, a&nbsp;&nbsp;b</p>")
         assertEquals("The Burj Khalifa is tall, a  b", p.text)

@@ -1427,22 +1427,32 @@ def finding(folder):
                       "| milk | fresh |", "| eggs | MILK too |", "after milk"])
     seed_inside([
         {"id": 1, "uid": "walk-find", "title": "Shopping", "body": body,
+         "checklist": [{"text": "buy milk", "done": False}], "comments": "milk from the farm",
          "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Shopping")
     open_note("Shopping")
+    # Folded before the search: the search opens it, its words being found too.
+    tap("CHECKLIST", wait=1.0)
     tap("⋮", exact=True)
     tap("🔍 Find in note", wait=1.2)
     type_text("milk")
     time.sleep(0.8)
-    check("two in the prose, two cells, one after the table: 1/5", bool(find("1/5", exact=True)),
-          " | ".join(t for t, d, _ in nodes() if t)[:200])
-    shot(folder, "34-find", "1/5")
+    check("two in the prose, two cells, one after the table, the checklist's row, the comments: 1/7",
+          bool(find("1/7", exact=True)), " | ".join(t for t, d, _ in nodes() if t)[:200])
+    shot(folder, "34-find", "1/7")
     tap("Next match", wait=0.6)
     tap("Next match", wait=0.8)
-    check("the third stop is the table's first matching cell", bool(find("3/5", exact=True)))
-    shot(folder, "35-find-cell", "3/5")
+    check("the third stop is the table's first matching cell", bool(find("3/7", exact=True)))
+    shot(folder, "35-find-cell", "3/7")
+    for _ in range(3):
+        tap("Next match", wait=0.8)
+    check("the sixth stop is the checklist's row, shown while the search is open though it was folded",
+          bool(find("6/7", exact=True)) and bool(find("buy milk", exact=True)))
+    shot(folder, "35b-find-checklist", "6/7", "buy milk")
+    tap("Next match", wait=0.8)
+    check("the seventh, the comments", bool(find("7/7", exact=True)))
     tap("Match case", wait=0.8)
-    check("with case on, Milk and MILK drop out: three", bool(find("3/3", exact=True)))
+    check("with case on, Milk and MILK drop out: five", bool(find("5/5", exact=True)))
     tap("Match case", wait=0.6)
     type_text("zzz")
     time.sleep(0.8)
@@ -2732,6 +2742,12 @@ def pasted_tables(folder):
          "created": "2026-10-23 09:00:00", "updated": "2026-10-23 09:00:00"},
         {"id": 2, "uid": "pt-note", "title": "Pasted into", "body": "Start here",
          "created": "2026-10-23 09:00:01", "updated": "2026-10-23 09:00:01"},
+        {"id": 3, "uid": "pt-words", "title": "Words", "body": "A new paragraph.",
+         "formatting": [{"start": 2, "end": 5, "style": "bold"}],
+         "created": "2026-10-23 09:00:02", "updated": "2026-10-23 09:00:02"},
+        {"id": 4, "uid": "pt-end", "title": "Ends with a table",
+         "body": "Costs:\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |",
+         "created": "2026-10-23 09:00:03", "updated": "2026-10-23 09:00:03"},
     ], {"welcome_offered": True}, "Copied from"):
         return
 
@@ -2786,6 +2802,32 @@ def pasted_tables(folder):
     wide = bool(header and word) and (header[0][2] - header[0][0]) > 1.6 * (word[0][2] - word[0][0])
     check("and its header is drawn whole, twice as wide as a word of four letters", wide, repr((header, word)))
     shot(folder, "72-pasted-markdown-table", "How much")
+    back_to("Search notes")
+
+    # A paragraph pasted with its formatting right after a note's last table:
+    # the place to write there pasted at the end of the table's last row, the
+    # words glued onto it -- the row read as words, the table one row short
+    # (the owner's case 180). Copied from a note, so the clipboard holds HTML.
+    open_note("Words")
+    tap("A new paragraph", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    keys(113, 31)                                  # Ctrl+C
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Ends with a table")
+    keyboard_down()
+    cell, first = bounds("120"), bounds("fuel")
+    if cell and first:
+        # Under the grid: the table's own margin, then the place to write.
+        adb("shell", "input", "tap", str(first[0][0] + 20), str(cell[0][3] + 55))
+        time.sleep(1.0)
+        keys(113, 50)                              # Ctrl+V
+    ended = settle(lambda: note_by_uid("pt-end") or {}, lambda n: "paragraph" in (n.get("body") or ""))
+    check("a paragraph pasted after a note's last table goes on its own line, the table's last row kept",
+          (ended.get("body") or "") == "Costs:\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nA new paragraph.",
+          repr(ended.get("body")))
+    keyboard_down()
+    shot(folder, "72b-pasted-after-table", "A new paragraph", "fuel")
     back_to("Search notes")
 
 

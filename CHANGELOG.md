@@ -49,6 +49,11 @@ do before, not as releases anyone ran.
 - **The table's bar merges a cell with the one on its right, or below**,
   besides the left and above it already offered — every way the
   desktop's selection merges. Asked for by the owner on case 72.
+- **Find in a note looks through its checklist and comments too**, after
+  its text and tables, as the note reads; a folded section shows while
+  the search is open, and the match in it is painted and brought into
+  sight as in the text. The desktop's bar looks through the text alone.
+  Asked for by the owner on case 176.
 
 ### Fixed
 
@@ -78,6 +83,16 @@ do before, not as releases anyone ran.
   Starts, Every and After, the details' Category, Date and Repeat — in
   one column, where the label took the width and threw the value to the
   far edge. The owner's case 62.
+- **A paragraph pasted right after a note's last table keeps the table
+  whole.** Pasted with its formatting into the place to write under the
+  table, it was glued onto the end of the table's last row: the row read
+  as words, drawn as a line of bars, and the table lost it. Words pasted
+  at a row's end, or its start, now take a line of their own. Seen by
+  the owner on case 180, and not again until the route was found: only
+  a paste that brings formatting, only under a note's last table.
+- **A cell merged down shows its words in the middle of the rows it
+  covers**, as the desktop draws it, where they sat in the first row and
+  the rest of the cell stayed empty. The owner's case 179.
 
 ### Testing
 
@@ -98,6 +113,13 @@ do before, not as releases anyone ran.
   non-breaking spaces as spaces; the paste fixture, rebuilt from the
   desktop's reader, changed in 94 of its 567 fragments, and the phone
   reads every one as the desktop does. Mutants PA1–PA5 watched failing.
+- `PastingTest` pastes words at the end of a note's last table, at a
+  row's start, and rows after it; `FindingTest` finds words in the
+  checklist and the comments, after the body, case asked or not.
+  Mutants PA6, PA7, FI1 and FI2 watched failing. The walk pastes a
+  formatted paragraph under a note's last table and reads the file; finds
+  the checklist's row and the comments, the checklist folded before the
+  search; and photographs a merge down, its words in the middle.
 
 ---
 

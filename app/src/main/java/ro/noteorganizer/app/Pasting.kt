@@ -217,8 +217,15 @@ object Pasting {
         val above = if (firstLine > 0) keptLines[firstLine - 1] else ""
         val below = keptLines.getOrElse(firstLine + 1) { "" }
         val pasted = text.split("\n")
-        val trail = if (isRow(pasted.last()) && (PyText.strip(after).isNotEmpty() || isRow(below))) "\n" else ""
-        val lead = if (isRow(pasted.first()) && (PyText.strip(before).isNotEmpty() || isRow(above))) "\n" else ""
+        // Words pasted at a table row's end or start take a line of their
+        // own: the place to write after a note's last table pastes at that
+        // row's end, and a paragraph pasted there was glued onto it -- the
+        // row read as words, the table one row short (the owner, 2026-10-26).
+        val onRow = isRow(before + after)
+        val trail = if ((isRow(pasted.last()) && (PyText.strip(after).isNotEmpty() || isRow(below))) ||
+                        (onRow && before.isEmpty() && !isRow(pasted.last()))) "\n" else ""
+        val lead = if ((isRow(pasted.first()) && (PyText.strip(before).isNotEmpty() || isRow(above))) ||
+                       (onRow && after.isEmpty() && !isRow(pasted.first()))) "\n" else ""
 
         val whole = cps(lead + text + trail)
         val newBody = String(kept, 0, a) + String(whole, 0, whole.size) + String(kept, a, kept.size - a)

@@ -18,12 +18,12 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-706 checks across thirty-one suites — `NotebookTest` (126),
-`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (39), `IdentityTest` (35),
+708 checks across thirty-one suites — `NotebookTest` (126),
+`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (40), `IdentityTest` (35),
 `CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
 `ParagraphsTest` (33), `DaysTest` (27), `SharingTest`
 (22), `ImportingTest` (21), `SettingsTest` (21), `EditingTest` (22),
-`AppStateTest` (18), `FindingTest` (16), `ExportingTest` (15),
+`AppStateTest` (18), `FindingTest` (17), `ExportingTest` (15),
 `TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
 (8), `EditorCopyTest` (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
 `EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4),
