@@ -76,17 +76,22 @@ fun findAllColour(palette: Palette): Color =
  * desktop boxes it for a colour-blind eye.
  */
 fun paintFound(text: AnnotatedString, found: List<Finding.InText>, current: Finding.InText?,
-               palette: Palette): AnnotatedString {
+               palette: Palette): AnnotatedString =
+    paintRanges(text, found.map { it.start to it.end }, current?.let { it.start to it.end }, palette)
+
+/** [paintFound] for any field: each match a (start, end) in [text]. */
+fun paintRanges(text: AnnotatedString, found: List<Pair<Int, Int>>, current: Pair<Int, Int>?,
+                palette: Palette): AnnotatedString {
     if (found.isEmpty()) return text
     val all = findAllColour(palette)
     val builder = AnnotatedString.Builder(text)
-    for (match in found) {
-        if (match.end <= text.length) builder.addStyle(SpanStyle(background = all), match.start, match.end)
+    for ((start, end) in found) {
+        if (end <= text.length) builder.addStyle(SpanStyle(background = all), start, end)
     }
-    if (current != null && current.end <= text.length) {
+    if (current != null && current.second <= text.length) {
         builder.addStyle(
             SpanStyle(background = palette.accent, color = palette.onAccent, textDecoration = TextDecoration.Underline),
-            current.start, current.end,
+            current.first, current.second,
         )
     }
     return builder.toAnnotatedString()

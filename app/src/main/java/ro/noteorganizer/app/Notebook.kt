@@ -1024,13 +1024,13 @@ object Notebook {
      * Two things happen that a naive "set the text and save" would miss:
      * the formatting and the bullet markers are moved to follow the edit
      * (see [remapSpans]), and the previous version is kept inside the note
-     * when the edit removes a lot of text.
+     * when the edit takes a lot of text away.
      *
-     * That last guard is the desktop's, thresholds included: emptied
-     * completely, or more than 40 characters gone AND either under 70% of
-     * what was there or 200+ characters removed. Its comment explains the
-     * shape — a 17-character shopping list cleared by accident slipped
-     * under every threshold that only looked at proportions.
+     * That last guard is the desktop's, thresholds included
+     * ([shouldKeepPrevious]): emptied completely, a big part of the text
+     * gone, or most of a short note -- counted by what is gone, not by how
+     * much shorter the text got. A 17-character shopping list cleared by
+     * accident once slipped under thresholds that only looked at size.
      */
     fun updateNote(
         load: Load,
@@ -1738,17 +1738,39 @@ object Notebook {
         return -1
     }
 
-    /** The desktop's rule for when an edit deserves a rescue copy. */
+    /**
+     * The desktop's rule for when an edit deserves a rescue copy
+     * (`rescue_copy_due`): emptied; more than 40 characters gone, 30% of
+     * the text or 200; or most of a short note, 70% and 15 characters at
+     * least. Counted by what is gone ([textLost]), not by how much shorter
+     * the text got: a short note replaced by a new line, and a paragraph
+     * replaced by one as long, kept no copy (2026-10-24, the desktop's test
+     * case 692).
+     */
     internal fun shouldKeepPrevious(
         oldTitle: String, oldBody: String, newTitle: String, newBody: String,
     ): Boolean {
         val oldLen = oldTitle.length + oldBody.length
-        val newLen = newTitle.length + newBody.length
-        val removed = oldLen - newLen
-        if (oldLen > 0 && newLen == 0) return true          // emptied
-        val bigFraction = oldLen > 0 && newLen < oldLen * 0.7
-        val bigAbsolute = removed >= 200
-        return removed > 40 && (bigFraction || bigAbsolute)
+        if (oldLen == 0) return false
+        if (newTitle.length + newBody.length == 0) return true   // emptied
+        val lost = textLost(oldTitle, newTitle) + textLost(oldBody, newBody)
+        if (lost > 40 && (lost >= oldLen * 0.3 || lost >= 200)) return true
+        return lost >= 15 && lost >= oldLen * 0.7
+    }
+
+    /**
+     * How many characters of [old] [new] does not keep at either end: its
+     * length less the longest start the two share and, of what follows, the
+     * longest end -- the desktop's `text_lost`. Words kept in the middle
+     * count as lost, so the measure errs towards keeping a copy.
+     */
+    internal fun textLost(old: String, new: String): Int {
+        val limit = minOf(old.length, new.length)
+        var start = 0
+        while (start < limit && old[start] == new[start]) start++
+        var end = 0
+        while (end < limit - start && old[old.length - 1 - end] == new[new.length - 1 - end]) end++
+        return old.length - start - end
     }
 
     internal fun spansToJson(spans: List<FormatSpan>): JSONArray {

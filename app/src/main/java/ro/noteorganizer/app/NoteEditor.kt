@@ -30,7 +30,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -943,8 +944,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val focusManager = LocalFocusManager.current
     // Worked out again as the note or the search changes; nothing at all
     // while the bar is shut.
-    val matches = remember(model.body, state.findQuery, state.findMatchCase, find.open) {
-        if (find.open) Finding.scan(model.body, state.findQuery, state.findMatchCase) else emptyList()
+    val checkWords = state.note(model.id)?.checklist.orEmpty().map { it.text }
+    val matches = remember(model.body, checkWords, model.comments, state.findQuery, state.findMatchCase, find.open) {
+        if (find.open) Finding.scan(model.body, state.findQuery, state.findMatchCase, checkWords, model.comments)
+        else emptyList()
     }
     val bySegment = remember(matches) { matches.groupBy { it.segment } }
     val currentIndex = Finding.clamp(find.index, matches.size)
@@ -1393,7 +1396,22 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             )
 
             val segments = remember(model.body) { Editing.segments(model.body) }
-            segments.forEachIndexed { index, segment ->
+            // The text folds away too, once there is a checklist or comments to
+            // make room for -- never while a search in it is open.
+            val textKey = "${model.id}:text"
+            val textFoldable = checklistShown || commentsShown
+            val textFolded = textFoldable && state.folded[textKey] == true && !find.open
+            if (textFoldable) {
+                FoldLabel(stringResource(R.string.note_text_label), textFolded) {
+                    if (!textFolded) {
+                        focusManager.clearFocus()
+                        model.focus = null
+                        model.activeCell = null
+                    }
+                    state.folded[textKey] = !textFolded
+                }
+            }
+            if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
                 if (segment.table) {
                     val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
@@ -1441,8 +1459,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
-            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk)
-            CommentsSection(model, shown = commentsShown, focusAsk = commentsAsk)
+            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
+                             found = matches.filterIsInstance<Finding.InChecklist>(),
+                             current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
+            CommentsSection(state, model, shown = commentsShown, focusAsk = commentsAsk,
+                            found = matches.filterIsInstance<Finding.InComments>(),
+                            current = currentMatch as? Finding.InComments, finding = find.open, reveal = find.reveal)
             AttachmentsSection(state, model, pickAsk = attachAsk)
             Spacer(Modifier.height(48.dp))
         }
@@ -2229,7 +2251,9 @@ private fun FormatKey(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean, focusAsk: Int) {
+private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean, focusAsk: Int,
+                             found: List<Finding.InChecklist> = emptyList(), current: Finding.InChecklist? = null,
+                             finding: Boolean = false, reveal: Int = 0) {
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
@@ -2262,30 +2286,55 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         return model.id
     }
 
+    // The last ask from ⋮ the box was given: kept while the section is folded,
+    // so a section opened again does not raise the keyboard for an old ask.
+    var answered by remember { mutableIntStateOf(0) }
     if (!shown) return
+    val foldKey = "${model.id}:checklist"
+    // ⋮ asking for the checklist opens it, folded or not.
+    LaunchedEffect(focusAsk) { if (focusAsk > answered) state.folded.remove(foldKey) }
+    // Shown while a search is open, as the text is: its words are found too.
+    val folded = state.folded[foldKey] == true && !finding
     // On one day of a series the checklist is the series': a tick here is
     // a tick on every day, and the label says so, as the desktop's does.
-    SectionLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size) +
-                 if (model.day != null) " " + stringResource(R.string.whole_series_mark) else "")
+    FoldLabel(stringResource(R.string.checklist_label, items.count { it.done }, items.size) +
+              if (model.day != null) " " + stringResource(R.string.whole_series_mark) else "", folded) {
+        state.folded[foldKey] = !folded
+    }
+    if (folded) return
     var dragging by remember { mutableIntStateOf(-1) }
     var offset by remember { mutableFloatStateOf(0f) }
     val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
     items.forEachIndexed { index, item ->
+        val moveLabel = stringResource(R.string.drag_to_move, item.text)
+        // The row the current match is in, brought into sight as the bar steps.
+        val sight = remember { BringIntoViewRequester() }
+        val here = current?.takeIf { it.item == index }
+        if (here != null) LaunchedEffect(reveal, here) { sight.bringIntoView() }
         Row(
             Modifier
                 .fillMaxWidth()
                 .graphicsLayer { translationY = if (dragging == index) offset else 0f }
-                .height(44.dp),
+                .height(44.dp)
+                .bringIntoViewRequester(sight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // The handle drags at once, a finger's width wide and apart from
+            // the box: it waited for a long press nobody could guess, and sat
+            // close enough to the box to tick it by mistake (the owner,
+            // 2026-10-25). A drag that starts anywhere else scrolls the note.
             Text(
                 "⠿",
                 color = palette.subtext,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .padding(end = 8.dp)
+                    .padding(end = 12.dp)
+                    .size(width = 40.dp, height = 44.dp)
+                    .wrapContentHeight()
+                    .semantics { contentDescription = moveLabel }
                     .pointerInput(index, items.size) {
-                        detectDragGesturesAfterLongPress(
+                        detectDragGestures(
                             onDragStart = { dragging = index; offset = 0f },
                             onDragEnd = {
                                 val to = (index + Math.round(offset / rowHeight)).coerceIn(0, items.size - 1)
@@ -2306,7 +2355,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
-            ChecklistText(item.text, item.done) { text ->
+            ChecklistText(item.text, item.done,
+                          found = found.filter { it.item == index }.map { it.start to it.end },
+                          current = here?.let { it.start to it.end }) { text ->
                 state.report(Notebook.renameChecklistItem(state.load, model.id, index, text))
             }
             Text(
@@ -2363,13 +2414,19 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         )
     }
     // Run once the box is there to take it: asked for from ⋮.
-    LaunchedEffect(focusAsk) { if (focusAsk > 0) addFocus.requestFocus() }
+    LaunchedEffect(focusAsk) {
+        if (focusAsk > answered) {
+            answered = focusAsk
+            addFocus.requestFocus()
+        }
+    }
 }
 
 /** A row's words, renamed when the field is left -- one write per edit, not per letter. */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
-    text: String, done: Boolean, onRename: (String) -> Unit,
+    text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null,
+    onRename: (String) -> Unit,
 ) {
     val palette = LocalPalette.current
     var draft by remember(text) { mutableStateOf(text) }
@@ -2377,6 +2434,8 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
         value = draft,
         onValueChange = { draft = it },
         singleLine = true,
+        // A search's matches painted on the words, as the note's own are.
+        visualTransformation = { words -> TransformedText(paintRanges(words, found, current, palette), OffsetMapping.Identity) },
         textStyle = TextStyle(
             color = if (done) palette.subtext else palette.text,
             fontSize = 15.sp,
@@ -2394,13 +2453,34 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
  * for from ⋮ ([focusAsk]), the cursor goes into them.
  */
 @Composable
-private fun CommentsSection(model: EditorModel, shown: Boolean, focusAsk: Int) {
+private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean, focusAsk: Int,
+                            found: List<Finding.InComments> = emptyList(), current: Finding.InComments? = null,
+                            finding: Boolean = false, reveal: Int = 0) {
     val palette = LocalPalette.current
+    // As the checklist's: the last ask from ⋮ answered, kept while folded.
+    var answered by remember { mutableIntStateOf(0) }
     if (!shown) return
-    SectionLabel(stringResource(R.string.comments_label))
+    val foldKey = "${model.id}:comments"
+    LaunchedEffect(focusAsk) { if (focusAsk > answered) state.folded.remove(foldKey) }
+    // Shown while a search is open, as the text is: its words are found too.
+    val folded = state.folded[foldKey] == true && !finding
+    FoldLabel(stringResource(R.string.comments_label), folded) { state.folded[foldKey] = !folded }
+    if (folded) return
     val following = rememberFollowing()
     val typing = remember { FocusRequester() }
-    LaunchedEffect(focusAsk) { if (focusAsk > 0) typing.requestFocus() }
+    LaunchedEffect(focusAsk) {
+        if (focusAsk > answered) {
+            answered = focusAsk
+            typing.requestFocus()
+        }
+    }
+    // The current match brought into sight as the bar steps, its own line.
+    if (current != null) LaunchedEffect(reveal, current) {
+        val laid = following.layout
+        following.requester.bringIntoView(
+            if (laid != null && current.start < laid.layoutInput.text.length) laid.getBoundingBox(current.start) else null)
+    }
+    val spots = found.map { it.start to it.end }
     BasicTextField(
         value = model.comments,
         onValueChange = { now ->
@@ -2412,6 +2492,10 @@ private fun CommentsSection(model: EditorModel, shown: Boolean, focusAsk: Int) {
             model.changed(Editing.History.TYPING + ":comments")
         },
         onTextLayout = following::laidOut,
+        // A search's matches painted on the words, as the note's own are.
+        visualTransformation = { words ->
+            TransformedText(paintRanges(words, spots, current?.let { it.start to it.end }, palette), OffsetMapping.Identity)
+        },
         textStyle = TextStyle(color = palette.text, fontSize = 15.sp, lineHeight = 22.sp),
         cursorBrush = SolidColor(palette.accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -2629,8 +2713,12 @@ private fun pluralWords(n: Int) = if (n == 1) "1 word" else "$n words"
 @Composable
 internal fun DetailRow(label: String, content: @Composable () -> Unit) {
     val palette = LocalPalette.current
+    // The value right after its label, in a column the rows share: the label
+    // took the whole width and threw the value to the far edge, and reading
+    // a sheet was a slalom from side to side (the owner, 2026-10-25).
     Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = palette.subtext, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(label, color = palette.subtext, fontSize = 14.sp,
+             modifier = Modifier.widthIn(min = 104.dp).padding(end = 12.dp))
         content()
     }
 }
@@ -2862,14 +2950,23 @@ private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
                     // The words of both cells are kept, joined in the cell
                     // kept -- the one on the left, or the one above -- as the
                     // desktop's merge joins them ([EditorModel.mergeCells]).
-                    fun merge(up: Boolean) {
-                        val kept = model.mergeCells(segment, at, up)
+                    // Every way round, as the desktop's selection merges: with
+                    // the cell on the right or below is that cell's merge with
+                    // this one, this one kept (the owner, 2026-10-25).
+                    fun merge(from: CellAt, up: Boolean) {
+                        val kept = model.mergeCells(segment, from, up)
                         open = null
                         model.activeCell = ActiveCell(segment.firstLine, kept ?: at)
                         model.cellEpoch += 1
                     }
-                    if (at.column > 0) Choice(stringResource(R.string.tb_merge_left)) { merge(up = false) }
-                    if (at.row > 0) Choice(stringResource(R.string.tb_merge_up)) { merge(up = true) }
+                    if (at.column > 0) Choice(stringResource(R.string.tb_merge_left)) { merge(at, up = false) }
+                    if (cell != null && at.column + 1 < table.rows[at.row].size) {
+                        Choice(stringResource(R.string.tb_merge_right)) { merge(CellAt(at.row, at.column + 1), up = false) }
+                    }
+                    if (at.row > 0) Choice(stringResource(R.string.tb_merge_up)) { merge(at, up = true) }
+                    if (at.row + 1 < table.rows.size) {
+                        Choice(stringResource(R.string.tb_merge_down)) { merge(CellAt(at.row + 1, at.column), up = true) }
+                    }
                 }
             }
             "color" -> ChoiceRow {

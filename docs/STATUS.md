@@ -189,8 +189,10 @@ Grouped by what the app does; when each item arrived is in the
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added
     or removed, merge and split, highlight, alignment, a checkbox. A
-    merge keeps both cells' words and their styles, as the desktop's
-    does, and a merge down is drawn as one cell; every edit carries each
+    merge joins a cell with the one on its left, right, above or below
+    (every way round since 2026-10-25), keeps both cells' words and their
+    styles, as the desktop's does, and a merge down is drawn as one cell,
+    its words in the middle of the rows it covers; every edit carries each
     cell's styles with it
     ([why](ISSUES_LOG.md#ports-read-side-by-side-with-the-desktop-they-came-from)).
     The chosen cell's right and bottom edges are dragged for its column's
@@ -207,8 +209,11 @@ Grouped by what the app does; when each item arrived is in the
     of the phone's text sizes
     ([why](ISSUES_LOG.md#widths-in-one-unit-letters-in-another)).
 20. Checklists: add, tick, rename, remove, and **drag to reorder** by the
-    ⠿ handle. A checklist, comments and files are added from the note's
-    ⋮ (since 2026-10-23), no longer from links under every note.
+    ⠿ handle, at once, without a long press first. A checklist, comments and files are added from the note's
+    ⋮ (since 2026-10-23), no longer from links under every note. A note's
+    text, checklist and comments **fold away** under their labels to make
+    room for the others, kept while the app runs (since 2026-10-25; the
+    desktop has no fold yet).
 21. Comments, the desktop's separate box under the note.
 22. Attached files listed and opened in whatever app on the phone opens
     that kind of file, through Android's own file sharing — never by
@@ -222,8 +227,9 @@ Grouped by what the app does; when each item arrived is in the
     from elsewhere — the note says so and brings it back, its text and
     everything else the update changed.
 25. **Find in note**: the count, back and next, case, prose and table
-    cells together, every match painted and the current one scrolled into
-    sight.
+    cells together, then the checklist and the comments (since 2026-10-25;
+    the desktop's bar looks through the text alone), every match painted
+    and the current one scrolled into sight.
 26. **The calculator**, docked under the note: the desktop's keypad and
     More functions, a history, and Insert into note — its answer for
     every sum.
@@ -322,12 +328,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 701 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 708 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 332
+    where the shrunk code will look); and an emulator walk of 343
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -545,14 +551,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 332 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 343 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 701 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 708 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -560,9 +566,20 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-41 parts, 332 checks. The last full run (2026-10-24), with the part for
+41 parts, 343 checks. The last full run (2026-10-26), with a paragraph
+pasted under a note's last table, the checklist and comments found by a
+search, and a merge down photographed, began on an emulator just started
+cold: it waited 31 seconds, then passed all 343. The one before it
+(2026-10-25), with a checklist
+row dragged at once, a note's sections folded and opened, a day marked
+and cells merged right and down, began on an emulator just started
+cold: it waited 31 seconds, then passed all 340. The one before it
+(2026-10-24, evening), with a
+note's whole text replaced by a new line and its words kept for Restore
+previous, began on an emulator just started cold: it waited 31 seconds,
+then passed all 333. The run before it that day, with the part for
 screens of every size and the walk's own files taken out of Downloads
-again, waited 31 seconds and passed all 332. The two before it that day
+again, waited 31 seconds and passed all 332. The two before that
 lost six checks to Android's picker refusing a 33rd file of one name
 ([the story](ISSUES_LOG.md#thirty-two-copies-and-a-save-that-did-nothing)),
 and then one to the calendar's row of the day read once, a moment before
@@ -645,7 +662,8 @@ Phase 1's four:
   key; the name, and the greeting that uses it.
 * **A notebook copied in**, written for the camera: copied in without a
   welcome note; a table cell edited, the table still a table; a checklist
-  row ticked with the desktop's styling still in place; a category chosen
+  row ticked with the desktop's styling still in place, and dragged by its
+  handle at once; the checklist and the text folded and opened; a category chosen
   in the details; "↩ Restore previous" bringing the text back and
   spending the copy; a category renamed in every note and in the list; a
   share code made by the **desktop's own encoder** read and added; a note
@@ -665,16 +683,18 @@ it and read back from the file:
 
 * **The calendar**: a day of a series edited on its own and written to
   that day alone; deleted from the series and brought back by Undo with
-  its own text; a day painted under the desktop's key; the History; a
-  repeat chosen on the sheet.
+  its own text; a day painted under the desktop's key, and marked; the
+  History; a repeat chosen on the sheet.
 * **The list**: Show 📅 Dated, grouping, a folded group — the choices kept
   under the desktop's own keys.
 * **Statistics** over a notebook whose figures are known.
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
-* **Find in note**: prose and cells counted together, stepping, case, a
-  miss, the bar opening again with the last search, the file unchanged.
+* **Find in note**: prose, cells, the checklist and the comments counted
+  together, a folded checklist shown while the search is open, stepping,
+  case, a miss, the bar opening again with the last search, the file
+  unchanged.
 * **Export**: both formats through Android's "save as", each file read
   back off the phone and compared byte for byte with the desktop's
   export of the same note.
@@ -903,7 +923,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-701 JVM unit tests in 31 suites pin the rules ported from Python, and
+708 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -143,6 +144,26 @@ fun rememberFollowing(cursor: Int? = null): Following {
         }
     }
     return following
+}
+
+/**
+ * A note's section heading that folds the section away and back, ▾ open and
+ * ▸ folded, as [SectionLabel] draws a heading: room made for the sections
+ * below it, the way the owner asked for checklists and comments (2026-10-25).
+ */
+@Composable
+fun FoldLabel(text: String, folded: Boolean, onToggle: () -> Unit) {
+    val palette = LocalPalette.current
+    val said = stringResource(if (folded) R.string.section_folded else R.string.section_open)
+    Row(
+        Modifier.padding(top = 20.dp, bottom = 8.dp).clickable(onClick = onToggle)
+            .semantics { stateDescription = said },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text.uppercase(), color = palette.subtext, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+             letterSpacing = 0.8.sp)
+        Text(if (folded) "  ▸" else "  ▾", color = palette.subtext, fontSize = 12.sp)
+    }
 }
 
 /** A small heading over a group of rows, as Settings' sections have. */

@@ -684,6 +684,28 @@ def seeded(folder):
     check("the styling the desktop wrote is still there", bread.get("formatting") == CAMERA[0]["formatting"])
     shot(folder, "12-checklist", "Bread", "flour", "yeast")
 
+    # The handle drags at once: a short swipe, no long press, from yeast's
+    # handle to above flour -- it waited for a long press nobody could guess
+    # (the owner's case 38).
+    handle, target = find("Drag to move yeast"), find("flour", exact=True)
+    if handle and target:
+        adb("shell", "input", "swipe", str(handle[0]), str(handle[1]), str(handle[0]), str(target[1] - 30), "300")
+        time.sleep(1.5)
+    check_settled("a checklist row dragged by its handle at once, no long press, lands where it is let go",
+                  lambda: [r.get("text") for r in (note_by_uid("walk-bread") or {}).get("checklist", [])],
+                  lambda order: order == ["yeast", "flour"])
+    # The note's sections fold away to make room for the others, and open again.
+    tap("CHECKLIST", wait=1.0)
+    check("the checklist folds away under its label, its rows out of sight",
+          find("Drag to move yeast") is None and find("CHECKLIST") is not None)
+    tap("TEXT", wait=1.0)
+    check("the text folds away too, once there is a checklist to make room for",
+          find("Knead ten minutes") is None and find("TEXT") is not None)
+    shot(folder, "12b-folded", "TEXT", "CHECKLIST")
+    tap("TEXT", wait=1.0)
+    tap("CHECKLIST", wait=1.0)
+    check("and both open again", find("Knead ten minutes") is not None and find("Drag to move yeast") is not None)
+
     # The details: category, colour.
     tap("ⓘ", wait=1.2)
     shot(folder, "13-details", "Note details", "Category", "Colour")
@@ -703,6 +725,21 @@ def seeded(folder):
     meeting = note_by_uid("walk-rescued") or {}
     check("Restore previous brings the text back and spends the copy",
           meeting.get("body", "").startswith("Decisions") and "_prev" not in meeting, str(meeting)[:200])
+    # Replaced, not shrunk: the whole text selected and a new line typed
+    # before the note saves -- 34 characters shorter, under the old bar of
+    # 40, so no copy and the words gone (the desktop's test case 692,
+    # 2026-10-24). Counted by what is gone, 44 characters: a copy.
+    tap("Decisions", wait=1.0)
+    adb("shell", "input", "keycombination", "113", "29")       # Ctrl+A
+    time.sleep(0.6)
+    type_text("A new line")
+    keyboard_down()
+    back_to("Search notes")
+    replaced = settle(lambda: note_by_uid("walk-rescued") or {},
+                      lambda n: isinstance(n.get("_prev"), dict))
+    check("a note's whole text replaced by a new line keeps its words for Restore previous",
+          (replaced.get("_prev") or {}).get("body", "").startswith("Decisions")
+          and replaced.get("body", "").lower() == "a new line", str(replaced)[:200])
     back_to("Search notes")
 
     # Categories: add one, rename one, and the notes follow.
@@ -1038,6 +1075,18 @@ def calendar(folder):
     settings = read_file("settings.json") or {}
     check("a painted day is kept under the desktop's key",
           (settings.get("day_colors") or {}).get(other.isoformat()) == "#43aa8b", json.dumps(settings)[:200])
+
+    # The same day marked: the marker under the day's number, where the corner
+    # put it over the number on a phone's narrow cell (the owner's case 60).
+    # Where it sits is for the photograph: the cell is one node to the phone's
+    # tree, its number and markers inside it unseen apart.
+    long_press(said(other))
+    tap("Mark this day", wait=1.2)
+    tap("⭐", exact=True, wait=0.8)
+    tap("Save", exact=True, wait=1.5)
+    settings = read_file("settings.json") or {}
+    check("a marked day is kept under the desktop's key",
+          (settings.get("day_emoji") or {}).get(other.isoformat()) == ["⭐"], json.dumps(settings)[:200])
     shot(folder, "27-painted-day", LONG_MONTHS[today.month - 1])
 
     # The History.
@@ -1378,22 +1427,32 @@ def finding(folder):
                       "| milk | fresh |", "| eggs | MILK too |", "after milk"])
     seed_inside([
         {"id": 1, "uid": "walk-find", "title": "Shopping", "body": body,
+         "checklist": [{"text": "buy milk", "done": False}], "comments": "milk from the farm",
          "category": "Personal", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Shopping")
     open_note("Shopping")
+    # Folded before the search: the search opens it, its words being found too.
+    tap("CHECKLIST", wait=1.0)
     tap("⋮", exact=True)
     tap("🔍 Find in note", wait=1.2)
     type_text("milk")
     time.sleep(0.8)
-    check("two in the prose, two cells, one after the table: 1/5", bool(find("1/5", exact=True)),
-          " | ".join(t for t, d, _ in nodes() if t)[:200])
-    shot(folder, "34-find", "1/5")
+    check("two in the prose, two cells, one after the table, the checklist's row, the comments: 1/7",
+          bool(find("1/7", exact=True)), " | ".join(t for t, d, _ in nodes() if t)[:200])
+    shot(folder, "34-find", "1/7")
     tap("Next match", wait=0.6)
     tap("Next match", wait=0.8)
-    check("the third stop is the table's first matching cell", bool(find("3/5", exact=True)))
-    shot(folder, "35-find-cell", "3/5")
+    check("the third stop is the table's first matching cell", bool(find("3/7", exact=True)))
+    shot(folder, "35-find-cell", "3/7")
+    for _ in range(3):
+        tap("Next match", wait=0.8)
+    check("the sixth stop is the checklist's row, shown while the search is open though it was folded",
+          bool(find("6/7", exact=True)) and bool(find("buy milk", exact=True)))
+    shot(folder, "35b-find-checklist", "6/7", "buy milk")
+    tap("Next match", wait=0.8)
+    check("the seventh, the comments", bool(find("7/7", exact=True)))
     tap("Match case", wait=0.8)
-    check("with case on, Milk and MILK drop out: three", bool(find("3/3", exact=True)))
+    check("with case on, Milk and MILK drop out: five", bool(find("5/5", exact=True)))
     tap("Match case", wait=0.6)
     type_text("zzz")
     time.sleep(0.8)
@@ -1806,6 +1865,24 @@ def table_bar(folder):
     tap("Split", exact=True, wait=1.2)
     check_settled("Split takes the marker away, the words staying where they were joined",
                   rows, lambda r: len(r) > 4 and r[-1][0] == "" and r[3][0] == "fuel tolls")
+    # Every way round, as the desktop's selection merges (the owner's case 72):
+    # with the cell on the right, and with the one below -- each split again.
+    choose_cell("Bar", "first")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell on the right", exact=True, wait=1.2)
+    check_settled("Merge, with the cell on the right: the desktop's < beside the cell kept",
+                  rows, lambda r: len(r) > 2 and r[2][:2] == ["first", "<"])
+    choose_cell("Bar", "first")
+    tap("Merge", exact=True, wait=0.8)
+    tap("Split", exact=True, wait=1.2)
+    choose_cell("Bar", "120")
+    tap("Merge", exact=True, wait=0.8)
+    tap("With the cell below", exact=True, wait=1.2)
+    check_settled("Merge, with the cell below: both cells' words in the cell kept, the desktop's ^ under it",
+                  rows, lambda r: len(r) > 4 and r[3][1] == "120 45" and r[4][1] == "^")
+    choose_cell("Bar", "120 45")
+    tap("Merge", exact=True, wait=0.8)
+    tap("Split", exact=True, wait=1.2)
     choose_cell("Bar", "first")
     tap("Delete", exact=True, wait=0.8)
     tap("This row", exact=True, wait=1.2)
@@ -2665,6 +2742,12 @@ def pasted_tables(folder):
          "created": "2026-10-23 09:00:00", "updated": "2026-10-23 09:00:00"},
         {"id": 2, "uid": "pt-note", "title": "Pasted into", "body": "Start here",
          "created": "2026-10-23 09:00:01", "updated": "2026-10-23 09:00:01"},
+        {"id": 3, "uid": "pt-words", "title": "Words", "body": "A new paragraph.",
+         "formatting": [{"start": 2, "end": 5, "style": "bold"}],
+         "created": "2026-10-23 09:00:02", "updated": "2026-10-23 09:00:02"},
+        {"id": 4, "uid": "pt-end", "title": "Ends with a table",
+         "body": "Costs:\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |",
+         "created": "2026-10-23 09:00:03", "updated": "2026-10-23 09:00:03"},
     ], {"welcome_offered": True}, "Copied from"):
         return
 
@@ -2719,6 +2802,32 @@ def pasted_tables(folder):
     wide = bool(header and word) and (header[0][2] - header[0][0]) > 1.6 * (word[0][2] - word[0][0])
     check("and its header is drawn whole, twice as wide as a word of four letters", wide, repr((header, word)))
     shot(folder, "72-pasted-markdown-table", "How much")
+    back_to("Search notes")
+
+    # A paragraph pasted with its formatting right after a note's last table:
+    # the place to write there pasted at the end of the table's last row, the
+    # words glued onto it -- the row read as words, the table one row short
+    # (the owner's case 180). Copied from a note, so the clipboard holds HTML.
+    open_note("Words")
+    tap("A new paragraph", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    keys(113, 31)                                  # Ctrl+C
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Ends with a table")
+    keyboard_down()
+    cell, first = bounds("120"), bounds("fuel")
+    if cell and first:
+        # Under the grid: the table's own margin, then the place to write.
+        adb("shell", "input", "tap", str(first[0][0] + 20), str(cell[0][3] + 55))
+        time.sleep(1.0)
+        keys(113, 50)                              # Ctrl+V
+    ended = settle(lambda: note_by_uid("pt-end") or {}, lambda n: "paragraph" in (n.get("body") or ""))
+    check("a paragraph pasted after a note's last table goes on its own line, the table's last row kept",
+          (ended.get("body") or "") == "Costs:\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nA new paragraph.",
+          repr(ended.get("body")))
+    keyboard_down()
+    shot(folder, "72b-pasted-after-table", "A new paragraph", "fuel")
     back_to("Search notes")
 
 

@@ -17,6 +17,23 @@ class FindingTest {
 
     private fun scan(body: String, query: String, matchCase: Boolean = false) = Finding.scan(body, query, matchCase)
 
+    // ---- the checklist and the comments, after the body ----
+
+    @Test
+    fun `the checklist's rows and the comments are found after the body, as the note reads`() {
+        val found = Finding.scan("milk, bread", "milk", false,
+                                 checklist = listOf("eggs", "buy Milk", "milk and milk"), comments = "no milk left")
+        assertEquals(listOf(
+            Finding.InText(0, 0, 4),
+            Finding.InChecklist(1, 4, 8), Finding.InChecklist(2, 0, 4), Finding.InChecklist(2, 9, 13),
+            Finding.InComments(3, 7),
+        ), found)
+        assertTrue(found.drop(1).all { it.segment == Finding.OUTSIDE })
+        // Case asked: the checklist's "Milk" drops out, as the body's would.
+        assertEquals(4, Finding.scan("milk, bread", "milk", true,
+                                     checklist = listOf("buy Milk", "milk and milk"), comments = "no milk left").size)
+    }
+
     // ---- qa1's find section ----
 
     @Test

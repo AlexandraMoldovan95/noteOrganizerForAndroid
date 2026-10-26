@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -225,6 +226,14 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
             Box(Modifier.fillMaxWidth().height(3.dp).background(if (isToday) palette.accent else androidx.compose.ui.graphics.Color.Transparent))
             Text(number.toString(), color = ink, fontSize = 14.sp,
                  fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(top = 2.dp))
+            // Under the number, not in the corner over it: a phone's cell is
+            // narrow, and the corner's markers covered the day (the owner,
+            // 2026-10-25). Sized as the marks they are, so larger letters
+            // grow the number without pushing the dots out of the cell.
+            if (markers.isNotEmpty()) {
+                Text(markers.joinToString(""), fontSize = with(LocalDensity.current) { 11.dp.toSp() },
+                     lineHeight = with(LocalDensity.current) { 13.dp.toSp() }, maxLines = 1)
+            }
             if (dots.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 3.dp)) {
@@ -233,10 +242,6 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
                     if (dots.size > 3) Text("+", color = ink, fontSize = 9.sp, lineHeight = 9.sp)
                 }
             }
-        }
-        if (markers.isNotEmpty()) {
-            Text(markers.joinToString(""), fontSize = 9.sp, maxLines = 1,
-                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 3.dp))
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.cal_add_note)) },

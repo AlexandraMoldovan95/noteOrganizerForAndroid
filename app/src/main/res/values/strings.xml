@@ -199,6 +199,9 @@
     <string name="checklist_new">A new item…</string>
     <string name="add_comments">💬 Add comments</string>
     <string name="comments_label">Comments</string>
+    <string name="note_text_label">Text</string>
+    <string name="section_folded">Folded</string>
+    <string name="section_open">Open</string>
     <string name="files_label">Attached files · %1$d</string>
     <!-- Attaching and removing files: the desktop's words -->
     <string name="attach_files">📎 Attach files</string>
@@ -248,6 +251,8 @@
     <string name="tb_right">Right</string>
     <string name="tb_merge_left">With the cell on the left</string>
     <string name="tb_merge_up">With the cell above</string>
+    <string name="tb_merge_right">With the cell on the right</string>
+    <string name="tb_merge_down">With the cell below</string>
     <string name="tb_split">Split</string>
     <string name="tb_delete_row">This row</string>
     <string name="tb_delete_column">This column</string>
