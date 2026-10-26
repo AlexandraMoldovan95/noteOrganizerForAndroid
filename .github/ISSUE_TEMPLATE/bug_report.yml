@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in Note Organizer for Android did not do what it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for writing this down. Exact steps are what find the cause fastest:
+        what you did, what you expected, and what happened instead.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How bad is it?
+      options:
+        - Something I wrote was lost or changed
+        - The app stopped, froze or would not start
+        - A feature does the wrong thing
+        - It is slow or freezes for a moment
+        - Something looks wrong or reads badly
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: What you did, one step per line, starting from opening the app. Say how you did it where there is more than one way -- a long press or a tap, the menu's Paste or the keyboard's clipboard.
+      placeholder: |
+        1. Open a note with a checklist
+        2. Hold the ⠿ handle of the second row and drag it up
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Settings, then About, shows it ("Note Organizer for Android, version ...").
+      placeholder: "0.11.1"
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Phone, Android version and theme
+      description: The phone's Settings, then About phone, shows the Android version.
+      placeholder: Samsung Galaxy A54, Android 15, Midnight Purple
+  - type: input
+    id: notes
+    attributes:
+      label: How many notes do you have?
+      description: Settings, then Statistics, shows it as "Total notes". It tells us whether a slow moment comes from a large notebook.
+      placeholder: "350"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot
+      description: >-
+        Drag a screenshot here -- the phone's Power and Volume down together take one. Look at it
+        first: crop anything on it that is not the app.
