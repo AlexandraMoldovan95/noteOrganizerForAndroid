@@ -333,7 +333,7 @@ Grouped by what the app does; when each item arrived is in the
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 340
+    where the shrunk code will look); and an emulator walk of 343
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -551,7 +551,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 340 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 343 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
@@ -566,7 +566,11 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-41 parts, 340 checks. The last full run (2026-10-25), with a checklist
+41 parts, 343 checks. The last full run (2026-10-26), with a paragraph
+pasted under a note's last table, the checklist and comments found by a
+search, and a merge down photographed, began on an emulator just started
+cold: it waited 31 seconds, then passed all 343. The one before it
+(2026-10-25), with a checklist
 row dragged at once, a note's sections folded and opened, a day marked
 and cells merged right and down, began on an emulator just started
 cold: it waited 31 seconds, then passed all 340. The one before it

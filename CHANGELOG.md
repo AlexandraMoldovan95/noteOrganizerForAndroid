@@ -107,7 +107,7 @@ do before, not as releases anyone ran.
   long press; folds the checklist and the text and opens them again;
   marks a painted day and reads the marker from the file, photographing
   where it sits; and merges a cell with the one on its right and the one
-  below, reading the desktop's `<` and `^`. 41 parts, 340 checks.
+  below, reading the desktop's `<` and `^`.
 - `PastingTest` holds one cell and one column coming in as their words,
   a lone cell's colour and line breaks with them, and a page's
   non-breaking spaces as spaces; the paste fixture, rebuilt from the
@@ -119,7 +119,8 @@ do before, not as releases anyone ran.
   Mutants PA6, PA7, FI1 and FI2 watched failing. The walk pastes a
   formatted paragraph under a note's last table and reads the file; finds
   the checklist's row and the comments, the checklist folded before the
-  search; and photographs a merge down, its words in the middle.
+  search; and photographs a merge down, its words in the middle. 41
+  parts, 343 checks.
 
 ---
 
