@@ -123,6 +123,21 @@ class StartupTest {
     }
 
     @Test
+    fun `a start that cannot read the notes purges nothing, nor a file they may use`() {
+        // The list is empty at such a start, so a file only those notes use
+        // would not be spared; the desktop skips that start's purge too.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "title": "half""")
+        File(dir, "trash.json").writeText("""[{"id": 2, "deleted_at": "${deletedDaysAgo(40)}",
+            "attachments": [{"filename": "a.png", "stored_as": "shared.png"}]}]""")
+        File(dir, "attachments").mkdirs()
+        File(dir, "attachments/shared.png").writeText("A")
+        Startup.prepare(dir, older = null)
+        assertEquals(1, trashLeft(dir))
+        assertTrue(File(dir, "attachments/shared.png").exists())
+    }
+
+    @Test
     fun `a window never chosen is the default, as the desktop reads it`() {
         val dir = temp("phone")
         File(dir, "notes_data.json").writeText("[]")

@@ -265,7 +265,8 @@ private fun DuplicatesPage(state: AppState) {
     asking?.let { remove ->
         Ask(
             title = stringResource(R.string.dup_ask_title),
-            text = stringResource(R.string.dup_ask_text, remove.size, state.load.retentionDays),
+            text = state.trashWindow?.let { stringResource(R.string.dup_ask_text, remove.size, it) }
+                ?: stringResource(R.string.dup_ask_text_unknown, remove.size),
             confirm = stringResource(R.string.move_to_trash),
             onConfirm = {
                 asking = null
@@ -521,7 +522,7 @@ private fun CategoriesPage(state: AppState) {
         )
         if (asking) {
             val (filed, daysOnly) = Organizing.categoryCounts(state.load, old)
-            DeleteCategoryQuestion(old, filed, daysOnly, state.load.retentionDays,
+            DeleteCategoryQuestion(old, filed, daysOnly, state.trashWindow,
                 onAnswer = { trashNotes ->
                     asking = false
                     if (trashNotes != null && state.report(Organizing.deleteCategory(state.load, old, trashNotes))) {
@@ -582,7 +583,7 @@ private fun CategoryEditor(
  * off the safe choice.
  */
 @Composable
-private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days: Int, onAnswer: (Boolean?) -> Unit) {
+private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days: Int?, onAnswer: (Boolean?) -> Unit) {
     val palette = LocalPalette.current
     val dayLine = if (daysOnly > 0) "\n\n" + stringResource(R.string.category_days_move, daysOnly, name) else ""
     androidx.compose.material3.AlertDialog(
@@ -601,7 +602,8 @@ private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days
                         Text(stringResource(R.string.move_them_general), color = palette.accentText)
                     }
                     TextButton(onClick = { onAnswer(true) }) {
-                        Text(stringResource(R.string.delete_notes_too, days), color = palette.dangerText)
+                        Text(days?.let { stringResource(R.string.delete_notes_too, it) }
+                                 ?: stringResource(R.string.delete_notes_too_unknown), color = palette.dangerText)
                     }
                 } else {
                     TextButton(onClick = { onAnswer(false) }) {
@@ -663,13 +665,22 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     var askForever by remember { mutableStateOf<List<Organizing.TrashKey>?>(null) }
     var askWindow by remember { mutableStateOf<Int?>(null) }
     val entries = load.trash.sortedByDescending { it.deletedAt }
+    val rows = entries.zip(Organizing.rowKeys(entries))
+    val all = entries.map { Organizing.keyOf(it) }.toSet()
+    // What is picked AND still in the Trash: the counts and the buttons
+    // never name an entry that has left it.
+    val chosen = picked intersect all
     // Null when the window could not be read: nothing is purged then, and
     // the page says so rather than show the default as if it were chosen.
-    val known = load.settings?.let { Settings.purgeWindow(it) }
+    val known = state.trashWindow
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 20.dp)) {
             Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
                  color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
+            // The numbers alone did not say what they set; the desktop's
+            // dropdown carries the same words (2026-10-26).
+            Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
             Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (days in listOf(7, 14, 30, 60, 90)) {
                     val on = days == known
@@ -699,14 +710,22 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Text(stringResource(R.string.trash_backup), color = palette.text)
                 }
+                // Keeping a few of a long Trash and deleting the rest, or
+                // restoring it all, was a tap per row (the owner, 2026-10-26).
+                val everything = chosen.size == all.size
+                TextButton(onClick = { picked = if (everything) emptySet() else all },
+                           modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(if (everything) R.string.unselect_all else R.string.select_all),
+                         color = palette.accentText)
+                }
             }
         }
         if (entries.isEmpty()) {
             Text(stringResource(R.string.trash_empty), color = palette.subtext, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-            items(entries, key = { "${it.id}|${it.deletedAt}" }) { note ->
-                val key = Organizing.TrashKey(note.id, note.deletedAt)
+            items(rows, key = { it.second }) { (note, _) ->
+                val key = Organizing.keyOf(note)
                 val left = known?.let { Notebook.daysLeftInTrash(note.deletedAt, it) }
                 val on = key in picked
                 Row(
@@ -737,12 +756,12 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (picked.isNotEmpty()) {
+            if (chosen.isNotEmpty()) {
                 Button(
-                    onClick = { state.restoreFromTrash(picked); picked = emptySet() },
+                    onClick = { state.restoreFromTrash(chosen); picked = emptySet() },
                     colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(pluralStringResource(R.plurals.restore_n, picked.size, picked.size)) }
-                TextButton(onClick = { askForever = picked.toList() }) {
+                ) { Text(pluralStringResource(R.plurals.restore_n, chosen.size, chosen.size)) }
+                TextButton(onClick = { askForever = chosen.toList() }) {
                     Text(stringResource(R.string.delete_forever), color = palette.dangerText)
                 }
             } else if (entries.isNotEmpty()) {

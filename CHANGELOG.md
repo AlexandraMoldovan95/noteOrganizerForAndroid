@@ -54,6 +54,10 @@ do before, not as releases anyone ran.
   the search is open, and the match in it is painted and brought into
   sight as in the text. The desktop's bar looks through the text alone.
   Asked for by the owner on case 176.
+- **The Trash page picks every entry at once**: Select all, and Unselect
+  all once everything is picked, so a long Trash is restored, or a few of
+  it kept while the rest go for good, without a tap per row. The desktop
+  gets the same. Asked for by the owner on 2026-10-26.
 
 ### Fixed
 
@@ -93,6 +97,24 @@ do before, not as releases anyone ran.
 - **A cell merged down shows its words in the middle of the rows it
   covers**, as the desktop draws it, where they sat in the first row and
   the rest of the cell stayed empty. The owner's case 179.
+- **The Trash page says what its numbers set**: "Keep deleted notes for"
+  above 7, 14, 30, 60 and 90, the desktop's words for its dropdown. The
+  numbers stood alone. Found checking the Trash for the owner,
+  2026-10-26.
+- **Two Trash entries with the same id, deleted in the same second, are
+  two rows.** An id is handed out again once its note is deleted, and a
+  row was known by its id and that moment alone: picking one picked both,
+  and the page — whose list must never hold one key twice — closed the
+  app every time it opened, until the window took them. A row is known by
+  its uid too now, as on the desktop, and the list's keys can never repeat.
+- **A start that cannot read the notes empties nothing from the Trash.**
+  Such a start shows an empty list, so a file only those notes used was
+  not spared, and went with an expired entry that shared it. The desktop
+  skips that start's purge too.
+- **No question promises "within 30 days" when the Trash's window could
+  not be read** — moving duplicates, deleting a category with its notes,
+  sending a day off the schedule to the Trash. Nothing leaves the Trash by
+  itself then, and 30 was only the default the reading fell back to.
 
 ### Testing
 
@@ -121,6 +143,13 @@ do before, not as releases anyone ran.
   the checklist's row and the comments, the checklist folded before the
   search; and photographs a merge down, its words in the middle. 41
   parts, 343 checks.
+- `OrganizingTest` restores one of two entries alike in id and moment and
+  keeps the other, and gives every row of a Trash with twins in all three
+  a key of its own; `StartupTest` starts over notes it cannot read and
+  finds an expired entry and its file both kept. Mutants TK1, TK2 and ST1
+  watched failing. The walk opens a Trash holding two such entries, picks
+  one, Selects all and Unselects all, keeps one while the rest go for
+  good, and moves duplicates with the window not known.
 
 ---
 

@@ -204,6 +204,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         return emptyList()
     }
 
+    /**
+     * The Trash's window, or null when it could not be read: nothing leaves
+     * the Trash by itself then, so no question may promise a number of days
+     * (the desktop's trash_window_words, 2026-10-26).
+     */
+    val trashWindow: Int? get() = load.settings?.let { Settings.purgeWindow(it) }
+
     /** After a write: the screen from the arrays the write left. */
     fun refresh() {
         load = Notebook.refreshed(load)
@@ -475,7 +482,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val result = outside(ids, writes = false) { Organizing.trashNotes(load, ids) }
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
-        val keys = load.trash.takeLast(count).map { Organizing.TrashKey(it.id, it.deletedAt) }
+        val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
         if (openId != null && openId in ids) closeNote()
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             report(Organizing.restore(load, keys)) { ok ->
@@ -543,7 +550,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val result = outside(remove, writes = false) { Organizing.cleanUpDuplicates(load, groups, remove, attachments) }
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
-        val keys = load.trash.takeLast(count).map { Organizing.TrashKey(it.id, it.deletedAt) }
+        val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
         if (openId != null && openId in remove) closeNote()
         offerUndo(if (count == 1) "Moved 1 duplicate to the Trash" else "Moved $count duplicates to the Trash") {
             report(Organizing.restore(load, keys))

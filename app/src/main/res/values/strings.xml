@@ -67,7 +67,9 @@
         <item quantity="other">✎ %d days\' own edits are off the schedule — Show them</item>
     </plurals>
     <string name="off_schedule_title">Day %1$d of %2$d off the schedule</string>
-    <string name="off_schedule_text">%1$s — “%2$s”%3$s\n\nThis day keeps its own edits, but the repeat (%4$s) no longer lands on it, so the calendar does not show it.\n\nA note of its own puts it back on the calendar, on its day. The Trash keeps it %5$d days.</string>
+    <string name="off_schedule_text">%1$s — “%2$s”%3$s\n\nThis day keeps its own edits, but the repeat (%4$s) no longer lands on it, so the calendar does not show it.\n\nA note of its own puts it back on the calendar, on its day. %5$s</string>
+    <string name="off_schedule_trash_days">The Trash keeps it %1$d days.</string>
+    <string name="off_schedule_trash_kept">The Trash keeps it until you delete it there.</string>
     <string name="off_schedule_note">Make it a note</string>
     <string name="off_schedule_trash">Move to the Trash</string>
     <string name="off_schedule_leave">Leave it</string>
@@ -433,6 +435,7 @@
     <string name="dup_nothing">Tick the duplicates you want to remove first.</string>
     <string name="dup_ask_title">Move duplicates to Trash</string>
     <string name="dup_ask_text">Move %1$d selected note(s) to the Trash? You can restore them within %2$d days.</string>
+    <string name="dup_ask_text_unknown">Move %1$d selected note(s) to the Trash? You can restore them from there.</string>
     <string name="settings_stats">Statistics</string>
     <string name="settings_stats_sub">A quick snapshot of your notes</string>
     <string name="stats_explain">A quick snapshot of your notes.</string>
@@ -488,6 +491,7 @@
     <string name="category_days_move">%1$d repeating notes have a day filed under “%2$s”; those days move to “General” either way.</string>
     <string name="move_them_general">Move them to “General” (keep the notes)</string>
     <string name="delete_notes_too">Delete the notes too (restorable for %1$d days)</string>
+    <string name="delete_notes_too_unknown">Delete the notes too (restorable from the Trash)</string>
     <string name="delete_the_category">Delete the category</string>
     <plurals name="note_count">
         <item quantity="one">%d note</item>
@@ -509,6 +513,7 @@
     <string name="import_notes_title">Import notes</string>
     <string name="import_notes_text">This will ADD the notes from that backup to your current list. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>
     <string name="trash_window">Kept for %1$d days, then removed automatically.</string>
+    <string name="trash_keep_for">Keep deleted notes for</string>
     <string name="trash_window_unknown">How long the Trash keeps notes could not be read, so nothing is removed from it. Choose the number of days again.</string>
     <string name="trash_kept">kept until the days are chosen</string>
     <string name="trash_empty">The Trash is empty.</string>
