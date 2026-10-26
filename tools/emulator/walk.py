@@ -414,6 +414,7 @@ def main():
     reminders(folder)
     wide(folder)
     screen_sizes(folder)
+    trash_select(folder)
     changes(folder)
 
     print()
@@ -1268,6 +1269,69 @@ def large_letters_table(folder):
         back_to("Search notes")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     time.sleep(1.5)
+
+
+def trash_select(folder):
+    """The Trash page: what its numbers set, said above them; two entries
+    alike in id and moment, which closed the page; Select all and Unselect
+    all; and one kept while the rest go for good (the owner, 2026-10-26)."""
+    print("\n-- the Trash: Select all --")
+    if not seed_inside([{"id": 1, "uid": "t-living", "title": "Living", "category": "General",
+                         "updated": "2026-10-01 09:00:00"}],
+                       {"welcome_offered": True, "trash_retention_days": 30}, "Living"):
+        return
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    put_inside("trash.json", [
+        {"id": 2, "uid": "t-a", "title": "Twin A", "category": "General", "deleted_at": now},
+        {"id": 2, "uid": "t-b", "title": "Twin B", "category": "General", "deleted_at": now},
+        {"id": 3, "uid": "t-c", "title": "Keep me", "category": "General", "deleted_at": now}])
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    tap("Settings", exact=True, wait=1.2)
+    tap("Trash", exact=True, wait=1.5)
+    check("two entries alike in id and moment: the Trash page opens and lists both",
+          foreground() == PACKAGE and find("Twin A", exact=True) is not None
+          and find("Twin B", exact=True) is not None, foreground())
+    shot(folder, "73-trash-select-all", "Keep deleted notes for", "Select all")
+    tap("Twin A", exact=True, wait=1.0)
+    check("picking one of the two picks only it",
+          count("☑") == 1 and find("↩ Restore 1 selected", exact=True) is not None, str(count("☑")))
+    tap("Select all", exact=True, wait=1.0)
+    check("Select all picks every entry, and offers Unselect all",
+          count("☑") == 3 and find("↩ Restore 3 selected", exact=True) is not None
+          and find("Unselect all", exact=True) is not None)
+    tap("Unselect all", exact=True, wait=1.0)
+    check("Unselect all picks none, and the buttons that act on them go",
+          count("☑") == 0 and find("Restore") is None and find("Delete for good", exact=True) is None
+          and find("Select all", exact=True) is not None)
+    # One kept, the rest gone for good.
+    tap("Select all", exact=True, wait=1.0)
+    tap("Keep me", exact=True, wait=1.0)
+    tap("Delete for good", exact=True, wait=1.2)
+    tap_last("Delete for good", wait=1.5)
+    left = [e.get("title") for e in read_file("trash.json") or []]
+    check("Select all, one unpicked, Delete for good: only that one is left", left == ["Keep me"], repr(left))
+    back(wait=1.0)
+    back(wait=1.0)
+    # A window that could not be read removes nothing, so no question may
+    # promise "within 30 days" -- the default it fell back to.
+    if not seed_inside([
+        {"id": 1, "uid": "u-1", "title": "Twice", "body": "same", "created": "2026-10-01 09:00:00",
+         "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "u-2", "title": "Twice", "body": "same", "created": "2026-10-02 09:00:00",
+         "updated": "2026-10-02 09:00:00"},
+    ], {"welcome_offered": True, "trash_retention_days": 30, "phone_trash_window_unknown": True}, "Twice"):
+        return
+    tap("Settings", exact=True, wait=1.2)
+    tap("Duplicates", exact=True, wait=1.5)
+    tap("Tick all but first", wait=0.8)
+    tap("Move ticked duplicates", wait=1.2)
+    check("with the window not known, moving duplicates promises no number of days",
+          not screen_says("You can restore them from there.") and find("within 30 days") is None,
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    back(wait=1.0)
+    back_to("Your name")
+    back()
 
 
 def changes(folder):

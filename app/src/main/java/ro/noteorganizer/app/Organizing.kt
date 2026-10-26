@@ -625,11 +625,35 @@ object Organizing {
 
     // ---- the Trash, for good ----
 
-    /** One Trash entry: its id and the moment it went in. */
-    data class TrashKey(val id: Int, val deletedAt: String)
+    /**
+     * One Trash entry: its id, the moment it went in, and its uid. An id is
+     * handed out again once its note is deleted, so two entries deleted in
+     * one second could share the first two: picking one picked both, and
+     * the Trash page, keyed by them, closed the app (the desktop's
+     * _trash_tick_key, 2026-10-26).
+     */
+    data class TrashKey(val id: Int, val deletedAt: String, val uid: String = "")
+
+    /** The key of a Trash entry as the screen holds it. */
+    fun keyOf(note: Note) = TrashKey(note.id, note.deletedAt, note.uid)
+
+    /**
+     * A key per Trash row that no two rows share, as a list must have or the
+     * page closes the app: two entries alike in all three -- a hand-edited
+     * file -- are told apart by a mark per twin.
+     */
+    fun rowKeys(notes: List<Note>): List<String> {
+        val used = HashSet<String>()
+        return notes.map { note ->
+            var key = "${note.id}|${note.deletedAt}|${note.uid}"
+            while (!used.add(key)) key += "#"
+            key
+        }
+    }
 
     private fun keyOf(entry: JSONObject) =
-        TrashKey((entry.opt("id") as? Number)?.toInt() ?: 0, entry.opt("deleted_at") as? String ?: "")
+        TrashKey((entry.opt("id") as? Number)?.toInt() ?: 0, entry.opt("deleted_at") as? String ?: "",
+                 entry.opt("uid") as? String ?: "")
 
     private fun storedNames(entries: List<JSONObject>): Set<String> {
         val out = HashSet<String>()

@@ -59,14 +59,17 @@ object Startup {
         // The Trash emptied by the window the person chose -- and only when
         // that window is known: a note kept too long can still be deleted,
         // one deleted too soon cannot come back.
+        // Nor on a start that could not read the notes: the list is empty
+        // then, so a file only those notes use would not be spared -- the
+        // desktop skips that start's purge too (2026-10-26).
         val window = load.settings?.let { Settings.purgeWindow(it) }
-        if (window != null) {
+        if (window != null && load.problem == null) {
             val purged = Organizing.purgeExpired(load, File(dir, Backup.ATTACHMENTS), days = window)
             if (purged > 0) {
                 lines.add(if (purged == 1) "1 note older than $window days was removed from the Trash."
                           else "$purged notes older than $window days were removed from the Trash.")
             }
-        } else if (Organizing.pastWindow(load, Settings.TRASH_RETENTION_DAYS) > 0) {
+        } else if (window == null && Organizing.pastWindow(load, Settings.TRASH_RETENTION_DAYS) > 0) {
             lines.add("Nothing was removed from the Trash: how long it keeps notes could not be read. " +
                       "Choose it again in Settings → Trash.")
         }

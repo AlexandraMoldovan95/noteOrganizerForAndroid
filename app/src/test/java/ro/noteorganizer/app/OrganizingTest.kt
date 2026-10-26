@@ -97,12 +97,40 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1, "uid": "x", "title": "came by code"}]""",
             trash = """[{"id": 1, "uid": "x", "title": "old", "deleted_at": "2026-10-01 10:00:00"},
                         {"id": 2, "uid": "y", "title": "other", "deleted_at": "2026-10-01 10:00:00"}]""")
-        Organizing.restore(load, listOf(Organizing.TrashKey(1, "2026-10-01 10:00:00"),
-                                        Organizing.TrashKey(2, "2026-10-01 10:00:00")))
+        Organizing.restore(load, listOf(Organizing.TrashKey(1, "2026-10-01 10:00:00", "x"),
+                                        Organizing.TrashKey(2, "2026-10-01 10:00:00", "y")))
         val uids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getString("uid") }
         assertEquals("x", uids[0])
         assertNotEquals("the restored twin gets an identity of its own", "x", uids[1])
         assertEquals("a uid nobody else has is kept, so an older code still finds it", "y", uids[2])
+    }
+
+    @Test
+    fun `two Trash entries sharing an id and a moment are told apart by their uid`() {
+        // An id is handed out again after a delete: two entries deleted in
+        // one second can share both, as the desktop's _trash_tick_key learnt.
+        val load = notebook("[]", trash = """
+            [{"id": 2, "uid": "a", "title": "first", "deleted_at": "2026-10-01 10:00:00"},
+             {"id": 2, "uid": "b", "title": "second", "deleted_at": "2026-10-01 10:00:00"}]
+        """.trimIndent())
+        val second = load.trash.first { it.title == "second" }
+        Organizing.restore(load, listOf(Organizing.keyOf(second)))
+        assertEquals(listOf("second"), titles(notesOnDisk(load)))
+        assertEquals(listOf("first"), titles(trashOnDisk(load)))
+    }
+
+    @Test
+    fun `every Trash row has a key of its own, twins in all three included`() {
+        // A list keyed twice closes the app; only a hand-edited file holds such twins.
+        val load = notebook("[]", trash = """
+            [{"id": 2, "uid": "a", "deleted_at": "2026-10-01 10:00:00"},
+             {"id": 2, "uid": "a", "deleted_at": "2026-10-01 10:00:00"},
+             {"id": 2, "uid": "a#", "deleted_at": "2026-10-01 10:00:00"},
+             {"id": 3, "uid": "c", "deleted_at": "2026-10-01 10:00:00"}]
+        """.trimIndent())
+        val keys = Organizing.rowKeys(load.trash)
+        assertEquals(4, keys.size)
+        assertEquals(4, keys.toSet().size)
     }
 
     @Test
