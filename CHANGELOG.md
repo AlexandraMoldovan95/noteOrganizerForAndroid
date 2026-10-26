@@ -149,7 +149,8 @@ do before, not as releases anyone ran.
   finds an expired entry and its file both kept. Mutants TK1, TK2 and ST1
   watched failing. The walk opens a Trash holding two such entries, picks
   one, Selects all and Unselects all, keeps one while the rest go for
-  good, and moves duplicates with the window not known.
+  good, and moves duplicates with the window not known. 42 parts, 351
+  checks.
 
 ---
 
