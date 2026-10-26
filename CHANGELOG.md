@@ -39,6 +39,10 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.12.0] — 2026-10-27 — Sections fold, and the Trash picks all
+
 ### Added
 
 - **A note's text, checklist and comments fold away**, each under its
