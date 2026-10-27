@@ -100,6 +100,10 @@ do before, not as releases anyone ran.
   once. A table of more than 2,000 cells is shown as its lines of text
   now, and nothing in the note changes. Found by the final audit's
   break-it round.
+- **A share code followed by a full stop, a quote or a bracket imports**,
+  as on the desktop, which drops what is not part of a code where the
+  phone called the code damaged — as it is when it ends a sentence in a
+  mail. Found by the final audit's break-it round.
 
 ---
 

@@ -144,6 +144,20 @@ class SharingTest {
     }
 
     @Test
+    fun `what the desktop's base64 reading drops is dropped here too`() {
+        // A code ending a sentence, or followed by a closing quote or
+        // bracket, imported on the computer and was called damaged on the
+        // phone. (Before the code, either device reads it as no code.)
+        val code = Sharing.encode(listOf(note("""{"title": "Lista de cumpărături"}""")))
+        val middle = Sharing.PREFIX.length + 8
+        for (pasted in listOf("$code.", "$code\"", "$code)", "$code>", code.take(middle) + "*" + code.drop(middle))) {
+            val result = Sharing.decode(pasted)
+            assertTrue(pasted.takeLast(3), result is Sharing.Decoded.Notes)
+            assertEquals("Lista de cumpărături", (result as Sharing.Decoded.Notes).notes.single().getString("title"))
+        }
+    }
+
+    @Test
     fun `something that is not a code says so, by name`() {
         val result = Sharing.decode("good afternoon")
         assertTrue(result is Sharing.Decoded.Failed)

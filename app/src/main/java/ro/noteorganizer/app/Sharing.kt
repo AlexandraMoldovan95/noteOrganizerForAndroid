@@ -108,6 +108,24 @@ object Sharing {
         return code
     }
 
+    /**
+     * A code's letters as the desktop's `base64.urlsafe_b64decode` reads
+     * them: its alphabet kept -- `+` and `/` being `-` and `_` in the other
+     * spelling -- and every other character dropped. A code that ended a
+     * sentence in a mail ("…AbC.") or was wrapped in quotes or brackets
+     * imported on the computer and was called damaged here. A code missing
+     * its `=` padding the phone already reads, and goes on reading.
+     */
+    private fun base64Letters(body: String): String = buildString(body.length) {
+        for (c in body) {
+            when {
+                c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c == '-' || c == '_' || c == '=' -> append(c)
+                c == '+' -> append('-')
+                c == '/' -> append('_')
+            }
+        }
+    }
+
     fun decode(code: String): Decoded {
         // Chat apps wrap long codes; whitespace anywhere is not damage.
         val cleaned = code.filterNot { it.isWhitespace() }
@@ -125,7 +143,7 @@ object Sharing {
                 "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
         }
         val compressed = try {
-            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length))
+            Base64.getUrlDecoder().decode(base64Letters(cleaned.substring(PREFIX.length)))
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +
