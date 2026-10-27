@@ -426,6 +426,7 @@ def main():
     google_backup(folder)
     arrange_without_drag(folder)
     states_said(folder)
+    calendar_large_letters(folder)
 
     print()
     if failures:
@@ -2623,6 +2624,50 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+
+
+def calendar_large_letters(folder):
+    """Today's cell, holding a note and a marker, at the phone's largest
+    letters: the cell grows, where at a fixed 56 dp the marker was cut in
+    half and the note's dot pushed out of sight. Read from the cell's box in
+    the UI tree; the photograph shows the dot."""
+    print("\n-- the calendar at the largest letters --")
+    import datetime
+    today = datetime.date.today()
+    if not seed_inside([{"id": 1, "uid": "cl-1", "title": "Dentist", "date": today.isoformat(),
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "day_emoji": {today.isoformat(): ["⭐"]}}, "Dentist"):
+        return
+    try:
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(2.5)
+        tap("Calendar", exact=True, wait=2.0)
+        box = bounds_of_desc(said(today))
+        density = int((re.findall(r"\d+", adb("shell", "wm", "density")) or ["420"])[-1]) / 160.0
+        check("at the largest letters a day's cell grows past 56 dp to hold its marker and dot",
+              box is not None and (box[3] - box[1]) > 56 * density + 4, "%s at %.2f px a dp" % (box, density))
+        shot(folder, "90-calendar-large-letters", "Calendar")
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        time.sleep(1.5)
+    back_to("Search notes")
+
+
+def bounds_of_desc(start):
+    """The box of the first node whose description starts with [start]."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return None
+    for node in root.iter("node"):
+        if node.get("content-desc", "").startswith(start):
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return box
+    return None
 
 
 def node_attrs(label):

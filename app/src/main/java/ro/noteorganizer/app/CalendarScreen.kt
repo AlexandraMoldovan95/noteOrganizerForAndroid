@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -180,9 +181,11 @@ private fun MonthGrid(state: AppState, byDate: Map<String, List<JSONObject>>) {
             }
         }
         for (week in Days.weeks(month.year, month.monthValue)) {
-            Row(Modifier.fillMaxWidth()) {
+            // As tall as its tallest day, every day of it: a cell grows with
+            // larger letters, and its neighbours with it.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 for (number in week) {
-                    Box(Modifier.weight(1f).padding(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().padding(2.dp)) {
                         if (number > 0) {
                             val date = dayKey(month, number)
                             DayCell(state, date, number, byDate[date].orEmpty(), date == today,
@@ -210,11 +213,16 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
     val count = if (notes.isNotEmpty()) pluralStringResource(R.plurals.note_count, notes.size, notes.size) else ""
     val label = listOf(Recurrence.showDay(LocalDate.parse(date), year = false), count, markers.joinToString(" "))
         .filter { it.isNotEmpty() }.joinToString(", ")
-    Box {
+    Box(Modifier.fillMaxHeight()) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                // At least 56, and more as the letters grow: held at 56, the
+                // number at the phone's largest letters pushed a day's
+                // markers half out of the cell and its dots out of sight
+                // (seen on the emulator, 2026-10-27).
+                .heightIn(min = 56.dp)
+                .fillMaxHeight()
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (paint != null) hexColor(paint) else if (notes.isNotEmpty()) palette.calendarHasNotes else palette.card)
                 .then(if (selected) Modifier.border(2.dp, palette.accent, RoundedCornerShape(8.dp)) else Modifier)
@@ -243,6 +251,8 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
                     if (dots.size > 3) Text("+", color = ink, fontSize = 9.sp, lineHeight = 9.sp)
                 }
             }
+            // Room under the dots when the cell grows to hold them.
+            Spacer(Modifier.height(4.dp))
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.cal_add_note)) },

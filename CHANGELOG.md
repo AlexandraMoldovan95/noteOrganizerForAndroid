@@ -146,6 +146,10 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **At the phone's largest letters a calendar day keeps its marks.** Its
+  cell was held at one height, and a day with a marker lost half of it
+  and its note's dot below the edge; a week's cells now grow together to
+  hold them. Found by the final audit, seen on the emulator.
 - **A switch that is off, and a field's border, can be seen.** Both were
   drawn in the theme's hairline, 1.2 to 1 from what lies around them; they
   are drawn in its secondary text colour now, three to one at least in
