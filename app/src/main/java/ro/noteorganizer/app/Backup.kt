@@ -166,6 +166,7 @@ object Backup {
             categories = settings?.opt(Settings.CATEGORIES) as? JSONObject,
             dayColors = settings?.opt("day_colors") as? JSONObject,
             dayEmoji = settings?.opt("day_emoji") as? JSONObject,
+            trashWindow = settings?.let { Settings.chosenWindow(it) },
             templates = templates,
             trash = trash,
             attachments = attachments,

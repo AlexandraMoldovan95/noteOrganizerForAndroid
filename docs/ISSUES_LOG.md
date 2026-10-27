@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty are about
+**the code**, or in **the design**. Eighteen of the sixty-one are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-trash-restored-without-its-window) | design | A backup restored onto a new phone brought its Trash, every entry with the day it was deleted, and not the 90 days it was kept for: the next start emptied what was older than the default 30 | Data that carries a date to be judged by a rule must travel with the rule |
 | [2026-10-27](#words-a-field-kept-until-it-was-left) | code | A checklist row renamed, then Home and the app swiped away: the new words were gone, as were words left in "A new item…"; the keyboard's ✓ had only put the keyboard down | What the save on leaving covers is what the editor holds; words a field keeps for itself are outside it |
 | [2026-10-27](#a-way-out-that-never-asked-whether-the-note-was-saved) | code | With the phone unable to write, Back closed a new note whose save had just failed, and its words, kept nowhere else, went with it; a pin from the list read an unsaved note back over its words | A save whose answer nobody reads is a save that cannot fail -- in the code's eyes |
 | [2026-10-27](#a-save-that-failed-then-said-it-had-saved) | code | With the phone unable to write, a note's new words stayed on the screen after its save failed; the next save found nothing to write, said "Auto-saved", and a restart lost them | A sweep for a mistake in a shape must also find the places that skip the shape |
@@ -75,6 +76,33 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A Trash restored without its window
+
+**2026-10-27.** Found by the final audit: a backup from a notebook that
+kept its Trash for 90 days, imported onto a phone just installed. The
+import said "Also restored 3 trashed notes", the Trash page said "Kept
+for 30 days", and the next start would have removed two of the three for
+good, with their files.
+
+The import brings the backup's Trash with each entry's `deleted_at`, as
+it should; from the backup's settings it took the categories and the
+painted days, and not `trash_retention_days`. The new phone had never
+chosen a window, so it read the default, 30 — the class of
+[a Trash emptied by a window nobody chose](#a-trash-emptied-by-a-window-nobody-chose),
+reached by another road. The desktop's import did the same, and takes
+the same rule, agreed for both apps.
+
+**The fix:** a notebook that has never chosen a window takes the
+backup's, when it is a whole number of days from 1 to 365. A window
+chosen here is kept, and so is one lost with an unreadable settings file:
+it was chosen, only not known. Two tests in `ImportingTest`.
+
+**The lesson:** data that carries a date to be judged by a rule must
+travel with the rule. Moved alone, it is judged by whatever rule the new
+place assumes.
 
 ---
 

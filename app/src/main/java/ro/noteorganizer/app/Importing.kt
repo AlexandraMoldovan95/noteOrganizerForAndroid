@@ -66,6 +66,8 @@ object Importing {
         val categories: JSONObject? = null,
         val dayColors: JSONObject? = null,
         val dayEmoji: JSONObject? = null,
+        /** How many days the backup's notebook kept its Trash, when it chose a usable window. */
+        val trashWindow: Int? = null,
         val templates: JSONArray? = null,
         val trash: JSONArray? = null,
         /** Where the backup's attached files were unpacked. */
@@ -399,9 +401,17 @@ object Importing {
             }
         }
 
+        // 7. The backup's Trash window, for a notebook that never chose one:
+        //    its entries came with the days they were deleted, and the
+        //    default 30 emptied, at the next start, what the person had
+        //    kept for 60 or 90 days. A window chosen here is kept.
+        val window = extras.trashWindow
+        val adoptsWindow = window != null && settings != null && Settings.windowNeverChosen(settings)
+        if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
+
         // The writes, in the desktop's order: settings, templates, Trash,
         // and the notes last.
-        if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0)) {
+        if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0 || adoptsWindow)) {
             Files.writeAtomic(settings.file, settingsCandidate.toString(2))?.let {
                 return Result.Failed("settings.json could not be written: $it")
             }

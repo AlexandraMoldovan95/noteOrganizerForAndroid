@@ -197,10 +197,26 @@ object Settings {
     fun purgeWindow(load: Load): Int? {
         if (load.problem != null || load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) == true) return null
         if (!load.raw.has(RETENTION_DAYS)) return TRASH_RETENTION_DAYS
-        val days = load.raw.opt(RETENTION_DAYS)
+        return chosenWindow(load.raw)
+    }
+
+    /**
+     * The window [raw] holds as a person chooses one -- a whole number of
+     * days from 1 to 365 -- or null: absent, "forever", 7.5, 0.
+     */
+    fun chosenWindow(raw: JSONObject): Int? {
+        val days = raw.opt(RETENTION_DAYS)
         if (days !is Number || days is Double || days is Float || days is java.math.BigDecimal) return null
         return days.toLong().takeIf { it in 1..365 }?.toInt()
     }
+
+    /**
+     * Whether [load] has never had a window chosen: no value, and none lost
+     * with a file that could not be read -- that one was chosen, only not
+     * known.
+     */
+    fun windowNeverChosen(load: Load): Boolean =
+        load.problem == null && !load.raw.has(RETENTION_DAYS) && load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) != true
 
     /**
      * The category map, as the desktop's `load_categories` builds it: the

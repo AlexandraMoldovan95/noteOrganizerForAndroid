@@ -59,6 +59,13 @@ do before, not as releases anyone ran.
   or ended by Android, the app came back with the old words. The
   keyboard's ✓ writes a renamed row now too, where it only put the
   keyboard down. Found by the final audit's break-it round.
+- **A backup restored onto a new phone keeps its Trash as long as it
+  was kept before.** The Trash came with the days its notes were
+  deleted, but not the window: the phone, never told otherwise, read 30
+  days, and the next start emptied what had been kept for 60 or 90. A
+  notebook that never chose a window now takes the backup's; one chosen
+  here is kept. The desktop takes the same rule. Found by the final
+  audit's break-it round.
 
 ---
 

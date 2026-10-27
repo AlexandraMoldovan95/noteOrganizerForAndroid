@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -350,6 +351,36 @@ class ImportingTest {
         val trash = JSONArray(File(dir(load), "trash.json").readText())
         assertEquals(2, trash.length())
         assertEquals("2026-10-02 10:00:00", trash.getJSONObject(1).getString("deleted_at"))
+    }
+
+    @Test
+    fun `a backup's Trash window comes with its Trash where none was ever chosen, and only there`() {
+        // Restored onto a new phone, entries kept for 90 days were emptied
+        // at the next start by the default 30 nobody had chosen.
+        val window = { load: Notebook.Load ->
+            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null, Importing.Extras(trashWindow = 90))
+            File(dir(load), "settings.json").takeIf { it.isFile }
+                ?.let { JSONObject(it.readText()).opt(Settings.RETENTION_DAYS) }
+        }
+        val fresh = notebook("[]")
+        assertEquals(90, window(fresh))
+        assertEquals("the next start purges by it", 90, fresh.settings?.let { Settings.purgeWindow(it) })
+        assertEquals("a window chosen here is kept", 14, window(notebook("[]", settings = """{"trash_retention_days": 14}""")))
+        // Lost with a file that could not be read: chosen once, only not known.
+        assertNull(window(notebook("[]", settings = """{"phone_trash_window_unknown": true}""")))
+    }
+
+    @Test
+    fun `only a whole number of days from 1 to 365 is taken from a backup's settings`() {
+        val taken = { settings: String ->
+            Backup.Contents(emptyList(), null, null, JSONObject(settings), null).extras().trashWindow
+        }
+        assertEquals(90, taken("""{"trash_retention_days": 90}"""))
+        assertEquals(365, taken("""{"trash_retention_days": 365}"""))
+        for (bad in listOf("0", "366", "7.5", "\"90\"", "-3", "null", "true")) {
+            assertNull(bad, taken("""{"trash_retention_days": $bad}"""))
+        }
+        assertNull(taken("{}"))
     }
 
     @Test
