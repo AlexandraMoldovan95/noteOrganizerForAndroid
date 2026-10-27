@@ -223,7 +223,11 @@ object Backup {
         val notes = try {
             Files.parseOutside(text(NOTES)) { JSONArray(it) }
         } catch (e: Exception) {
-            return Read.Failed("Couldn't read the notes in that backup:\n${e.message ?: e}")
+            // Never the parser's own words: Android's org.json puts the whole
+            // text it was reading into them -- every note in the backup, on
+            // the screen, and tens of megabytes of it from a hostile file.
+            return Read.Failed("Couldn't read the notes in that backup. " +
+                ((e as? Files.Unreadable)?.message ?: "The file is damaged."))
         }
         // Templates, the Trash and the settings ride along when the backup
         // has them; older backups do not, and a bad one is skipped quietly

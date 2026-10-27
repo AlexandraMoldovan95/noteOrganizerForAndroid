@@ -71,6 +71,11 @@ do before, not as releases anyone ran.
   a million brackets one inside another, and the reader went one step
   deeper for each until it ran out of room. Found by the final audit's
   break-it round.
+- **A backup whose notes cannot be read says so in a sentence**, where it
+  showed the reader's own message — which on Android holds the whole
+  file it was reading: every note in the backup, PINs and all, in the
+  bar at the foot of the screen, and from a hostile file, tens of
+  megabytes of text. Found by the final audit's break-it round.
 
 ---
 

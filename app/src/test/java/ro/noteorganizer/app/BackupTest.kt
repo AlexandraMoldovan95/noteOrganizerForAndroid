@@ -169,6 +169,22 @@ class BackupTest {
             .reason.contains("Couldn't read the notes"))
     }
 
+    @Test
+    fun `notes that do not parse are said in words of our own, never the parser's`() {
+        // Android's org.json puts the whole text it read into its message,
+        // and the message reached the screen: a notebook missing its last
+        // bracket put every note in it into the bar at the foot. The
+        // computer's parser does not, so the sentence is held whole.
+        val zip = File(temp("in"), "cut.zip")
+        zipOf(zip, "notes_data.json" to """[{"id": 1, "title": "Bank", "body": "Card PIN 4821"}""")
+        val reason = (Backup.read(zip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason
+        assertEquals("Couldn't read the notes in that backup. The file is damaged.", reason)
+        val deep = File(temp("in"), "deep.zip")
+        zipOf(deep, "notes_data.json" to "[".repeat(150) + "]".repeat(150))
+        assertEquals("Couldn't read the notes in that backup. It is nested deeper than any note.",
+            (Backup.read(deep, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
+    }
+
     // Nested 150 deep: the computer's parser takes that (it stops at 512 by
     // itself), Android's went one call deeper per bracket until the app
     // stopped, and only the guard refuses it here.
