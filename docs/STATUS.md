@@ -187,6 +187,8 @@ Grouped by what the app does; when each item arrived is in the
     numbered run counts 1, 2, 3 again.
 19. **Tables** drawn as grids — merged cells, checkbox cells, `<br>`
     breaks, each cell's own alignment and highlight, sideways scrolling.
+    A table of more than 2,000 cells is shown, and written, as its lines
+    of text, so the note opens at once; nothing in it changes.
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added

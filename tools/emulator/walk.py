@@ -419,6 +419,7 @@ def main():
     failed_save(folder)
     checklist_words_kept(folder)
     backup_too_large(folder)
+    big_table(folder)
 
     print()
     if failures:
@@ -1530,6 +1531,41 @@ def backup_too_large(folder):
         check("... and the app goes on", foreground() == PACKAGE, foreground())
     adb("shell", "rm", "-f", "/sdcard/Download/" + name)
     os.remove(local)
+    back_to("Search notes")
+
+
+def big_table(folder):
+    """A note holding a table of 300 by 300 -- 90,000 cells, which a share
+    code of 2.9 KB can carry -- opens at once, the table shown as its lines
+    of text, and nothing in the file changes; one of twenty by twenty is
+    still a grid. Past Editing.MAX_DRAWN_CELLS (2,000) a table is text:
+    EditingTest holds the line, this times the opening on the phone, which
+    is where the 2,000 was never measured."""
+    print("\n-- a table too large to draw --")
+
+    def grid(rows, columns):
+        return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
+                         for r in range(rows))
+    big = "Opening words\n" + grid(300, 300)
+    small = grid(20, 20)
+    if not seed_inside([{"id": 1, "uid": "walk-t1", "title": "Big table", "body": big,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
+                        {"id": 2, "uid": "walk-t2", "title": "Small table", "body": small,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Big table"):
+        return
+    started = time.time()
+    opened = open_note("Big table", limit=20.0)
+    took = time.time() - started
+    check("a note with a 300 by 300 table opens within five seconds", opened and took < 5.0, "%.1f s" % took)
+    check("... its table shown as its lines of text", not screen_says("Opening words", "| r0c0 | r0c1 |"),
+          str(screen_says("Opening words", "| r0c0 | r0c1 |")))
+    shot(folder, "86-big-table-as-text", "Opening words")
+    back_to("Search notes")
+    check("... and the file holds the note as it was",
+          (note_by_uid("walk-t1") or {}).get("body") == big)
+    if open_note("Small table"):
+        check("a table of twenty by twenty is still a grid", find("r0c0", exact=True) is not None)
     back_to("Search notes")
 
 

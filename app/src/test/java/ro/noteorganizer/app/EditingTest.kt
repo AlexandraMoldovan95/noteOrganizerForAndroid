@@ -32,6 +32,29 @@ class EditingTest {
         assertEquals("", parts[2].text)
     }
 
+    /** A table of [rows] rows of [columns] cells, its separator one of them. */
+    private fun grid(rows: Int, columns: Int): String =
+        (0 until rows).joinToString("\n") { r ->
+            (0 until columns).joinToString(" | ", "| ", " |") { c -> if (r == 1) "---" else "r${r}c$c" }
+        }
+
+    @Test
+    fun `a table too large to draw as a grid is shown as its lines, the note unchanged`() {
+        // 300 by 300 came in a 2.9 KB share code: 90,000 cells laid out at
+        // once, and the note would not open.
+        val big = grid(300, 300)
+        val body = "before\n$big\nafter\n$table"
+        val parts = Editing.segments(body)
+        assertEquals("the big table is text, the small one still a grid",
+            listOf(false, true, false), parts.map { it.table })
+        assertEquals("before\n$big\nafter", parts[0].text)
+        assertEquals(body, parts.filter { !it.isVirtual }.joinToString("\n") { it.text })
+        // At the line, and one cell past it.
+        val at = Editing.MAX_DRAWN_CELLS / 20
+        assertEquals(listOf(true, false), Editing.segments(grid(at, 20)).map { it.table })
+        assertEquals(listOf(false), Editing.segments(grid(at, 20) + " x |").map { it.table })
+    }
+
     @Test
     fun `editing prose rewrites only its own lines`() {
         val body = "before\n$table\nafter one\nafter two"

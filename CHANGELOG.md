@@ -95,6 +95,11 @@ do before, not as releases anyone ran.
   a restore could put fifty thousand checklist rows into the note, where
   a checklist holds a thousand. It is shaped as it comes in, and again
   when it is restored. Found by the final audit's break-it round.
+- **A note with a huge table opens.** A share code of 2.9 KB could carry
+  a table of 300 by 300, and the editor laid out its 90,000 cells at
+  once. A table of more than 2,000 cells is shown as its lines of text
+  now, and nothing in the note changes. Found by the final audit's
+  break-it round.
 
 ---
 

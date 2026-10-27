@@ -34,6 +34,18 @@ object Editing {
         val isVirtual: Boolean get() = lastLine < firstLine
     }
 
+    /**
+     * The most cells a table may have to be drawn as a grid. Every cell is
+     * a piece of the screen of its own, laid out and measured when the note
+     * opens, all of them at once: a table of 300 by 300, 90,000 cells, came
+     * in a share code of 2.9 KB, and the note it was in would not open.
+     * Past this a table is shown, and written, as its lines of text, and
+     * nothing in the note changes. 2,000 is a hundred rows of twenty
+     * columns, past any table written by hand -- chosen from the count,
+     * not timed on a phone (the walk's big_table times one).
+     */
+    const val MAX_DRAWN_CELLS = 2_000
+
     fun segments(body: String): List<Segment> {
         val lines = body.split("\n")
         // Where each line starts, in code points; one past the end for the
@@ -51,6 +63,8 @@ object Editing {
         val out = ArrayList<Segment>()
         var line = 0
         for (block in tableBlocks(body)) {
+            // Too large to draw as a grid: its lines stay in the text around it.
+            if (block.sumOf { splitRow(lines[it]).size } > MAX_DRAWN_CELLS) continue
             if (block.first > line) out.add(prose(line, block.first - 1))
             out.add(Segment(true, block.first, block.last,
                 lines.subList(block.first, block.last + 1).joinToString("\n"), starts[block.first]))
