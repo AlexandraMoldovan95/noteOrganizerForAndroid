@@ -116,6 +116,24 @@ class SharingTest {
             .encodeToString(out.toByteArray())
     }
 
+    // ---- nesting deeper than any note ----
+
+    @Test
+    fun `a code nested deeper than any note is damage, refused before it is parsed`() {
+        // Android's org.json goes one call deeper per bracket, and a million
+        // of them ended the app with StackOverflowError. The computer's
+        // parser stops at 512 by itself, so this nests 150 deep: that
+        // parser takes it, and only the guard refuses it.
+        val nested = { depth: Int -> "[".repeat(depth) + "]".repeat(depth) }
+        val code = codeOf(JSONObject("""{"v": 1, "notes": [{"title": "x", "deep": ${nested(150)}}]}"""))
+        val result = Sharing.decode(code)
+        assertTrue(result is Sharing.Decoded.Failed)
+        assertTrue((result as Sharing.Decoded.Failed).reason.startsWith("This share code is damaged"))
+        // A note's own depth is far inside the line.
+        val fine = codeOf(JSONObject("""{"v": 1, "notes": [{"title": "x", "deep": ${nested(20)}}]}"""))
+        assertTrue(Sharing.decode(fine) is Sharing.Decoded.Notes)
+    }
+
     // ---- what a pasted code can be ----
 
     @Test

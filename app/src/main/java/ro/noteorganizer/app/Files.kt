@@ -91,4 +91,58 @@ object Files {
 
     /** "YYYY-MM-DD HH:MM:SS", the stamp every note and setting carries. */
     fun now(): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+
+    /**
+     * How deep JSON from outside may nest. A note's deepest place -- a day's
+     * own edit inside a backup's rescue copy -- is under ten brackets down;
+     * a hundred leaves room for anything an app writes, and stays far
+     * inside the stack of every thread that parses.
+     */
+    const val MAX_JSON_DEPTH = 100
+
+    /** JSON from outside that cannot be read, said in words of our own: never the parser's. */
+    class Unreadable(message: String) : Exception(message)
+
+    /**
+     * JSON that came from outside -- a share code, the files a backup
+     * brings -- parsed by [parse], or [Unreadable]. The nesting is measured
+     * first, before any parsing: Android's org.json goes one call deeper per
+     * bracket, and a million of them ended the app with StackOverflowError,
+     * an Error that no `catch (e: Exception)` sees. A parser that runs out of
+     * stack all the same -- through a comment or a quote the measure reads
+     * differently -- is damage too, as the desktop's JSON_UNREADABLE counts
+     * RecursionError (ISSUES_LOG, "A million brackets past a catch for
+     * exceptions").
+     */
+    fun <T> parseOutside(text: String, parse: (String) -> T): T {
+        if (nestedPast(text, MAX_JSON_DEPTH)) throw Unreadable(TOO_DEEP)
+        return try {
+            parse(text)
+        } catch (e: StackOverflowError) {
+            throw Unreadable(TOO_DEEP)
+        }
+    }
+
+    private const val TOO_DEEP = "It is nested deeper than any note."
+
+    /** Whether [text]'s brackets, outside its strings, nest past [limit]: one pass, nothing parsed. */
+    fun nestedPast(text: String, limit: Int): Boolean {
+        var depth = 0
+        var quote = 0.toChar()
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (quote != 0.toChar()) {
+                if (c == '\\') i++ else if (c == quote) quote = 0.toChar()
+            } else if (c == '"' || c == '\'') {
+                quote = c
+            } else if (c == '[' || c == '{') {
+                if (++depth > limit) return true
+            } else if (c == ']' || c == '}') {
+                depth--
+            }
+            i++
+        }
+        return false
+    }
 }

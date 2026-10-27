@@ -217,8 +217,11 @@ object Backup {
                 return Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
             }
         }
+        // Every file read as JSON from outside: measured for nesting before
+        // it is parsed (Files.parseOutside).
+        fun text(name: String) = File(into, name).readText(Charsets.UTF_8)
         val notes = try {
-            JSONArray(File(into, NOTES).readText(Charsets.UTF_8))
+            Files.parseOutside(text(NOTES)) { JSONArray(it) }
         } catch (e: Exception) {
             return Read.Failed("Couldn't read the notes in that backup:\n${e.message ?: e}")
         }
@@ -226,12 +229,12 @@ object Backup {
         // has them; older backups do not, and a bad one is skipped quietly
         // -- the notes are the payload.
         fun optionalArray(name: String): JSONArray? = try {
-            File(into, name).takeIf { it.isFile }?.let { JSONArray(it.readText(Charsets.UTF_8)) }
+            File(into, name).takeIf { it.isFile }?.let { Files.parseOutside(text(name)) { s -> JSONArray(s) } }
         } catch (e: Exception) {
             null
         }
         val settings = try {
-            File(into, SETTINGS).takeIf { it.isFile }?.let { JSONObject(it.readText(Charsets.UTF_8)) }
+            File(into, SETTINGS).takeIf { it.isFile }?.let { Files.parseOutside(text(SETTINGS)) { s -> JSONObject(s) } }
         } catch (e: Exception) {
             null
         }

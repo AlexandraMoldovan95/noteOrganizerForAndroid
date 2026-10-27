@@ -3,8 +3,10 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -165,6 +167,44 @@ class BackupTest {
         zipOf(badNotes, "notes_data.json" to "{ broken")
         assertTrue((Backup.read(badNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
             .reason.contains("Couldn't read the notes"))
+    }
+
+    // Nested 150 deep: the computer's parser takes that (it stops at 512 by
+    // itself), Android's went one call deeper per bracket until the app
+    // stopped, and only the guard refuses it here.
+    private fun nested(depth: Int) = "[".repeat(depth) + "]".repeat(depth)
+
+    @Test
+    fun `a backup whose files nest deeper than any note is read as damaged, never parsed`() {
+        val deepNotes = File(temp("in"), "deep.zip")
+        zipOf(deepNotes, "notes_data.json" to """[{"title": "x", "deep": ${nested(150)}}]""")
+        assertTrue((Backup.read(deepNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
+            .reason.contains("Couldn't read the notes"))
+        // The files that ride along are skipped, as any bad one is.
+        val deepRest = File(temp("in"), "rest.zip")
+        zipOf(deepRest, "notes_data.json" to """[{"title": "x"}]""",
+              "trash.json" to nested(150), "templates.json" to nested(150),
+              "settings.json" to """{"deep": ${nested(150)}}""")
+        val contents = (Backup.read(deepRest, temp("u"), Long.MAX_VALUE) as Backup.Read.Ok).contents
+        assertEquals(1, contents.notes.size)
+        assertNull(contents.trash)
+        assertNull(contents.templates)
+        assertNull(contents.settings)
+    }
+
+    @Test
+    fun `nesting is measured outside strings, and a parser out of stack is damage`() {
+        assertTrue(Files.nestedPast(nested(101), 100))
+        assertFalse(Files.nestedPast(nested(100), 100))
+        // An escaped quote, then brackets, inside a string: words, not nesting.
+        val words = "[\"\\\"" + "[".repeat(500) + "\"]"
+        assertEquals(1, Files.parseOutside(words) { JSONArray(it) }.length())
+        try {
+            Files.parseOutside("[1]") { throw StackOverflowError() }
+            fail("a parser that ran out of stack got past")
+        } catch (e: Files.Unreadable) {
+            assertEquals("It is nested deeper than any note.", e.message)
+        }
     }
 
     @Test

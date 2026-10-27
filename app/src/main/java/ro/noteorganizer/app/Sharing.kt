@@ -138,7 +138,7 @@ object Sharing {
                     "Backup → Export).")
 
         val payload = try {
-            JSONObject(String(raw, Charsets.UTF_8))
+            Files.parseOutside(String(raw, Charsets.UTF_8)) { JSONObject(it) }
         } catch (e: Exception) {
             return Decoded.Failed(DAMAGED)
         }

@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-one are about
+**the code**, or in **the design**. Eighteen of the sixty-two are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-million-brackets-past-a-catch-for-exceptions) | code | A share code of 1,354 characters, or a backup of 1 KB, held a million nested brackets; Android's parser went one call deeper for each, and the StackOverflowError it ended in was no Exception, so no guard caught it and the app stopped | A catch names what it expects; what comes from outside is measured before a recursive reader is handed it |
 | [2026-10-27](#a-trash-restored-without-its-window) | design | A backup restored onto a new phone brought its Trash, every entry with the day it was deleted, and not the 90 days it was kept for: the next start emptied what was older than the default 30 | Data that carries a date to be judged by a rule must travel with the rule |
 | [2026-10-27](#words-a-field-kept-until-it-was-left) | code | A checklist row renamed, then Home and the app swiped away: the new words were gone, as were words left in "A new item…"; the keyboard's ✓ had only put the keyboard down | What the save on leaving covers is what the editor holds; words a field keeps for itself are outside it |
 | [2026-10-27](#a-way-out-that-never-asked-whether-the-note-was-saved) | code | With the phone unable to write, Back closed a new note whose save had just failed, and its words, kept nowhere else, went with it; a pin from the list read an unsaved note back over its words | A save whose answer nobody reads is a save that cannot fail -- in the code's eyes |
@@ -76,6 +77,39 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A million brackets past a catch for exceptions
+
+**2026-10-27.** Found by the final audit, from the platform's own
+source: a share code of 1,354 characters inflates to `{"v":1,"notes":`
+and a million `[`. Every guard before the parser passes it — the code is
+short, the text under the 20 MB ceiling — and Android's `org.json` reads
+an array by calling itself for each one nested inside, a million calls
+deep. The stack runs out, and `StackOverflowError` is an `Error`, not an
+`Exception`: every parse of outside input here caught `Exception`, so
+nothing caught it, and the app stopped. A 1 KB backup whose notes,
+Trash, templates or settings file did the same stopped it too.
+
+The desktop had met this one: its `JSON_UNREADABLE` counts Python's
+`RecursionError` as damage, with a comment saying why. The port carried
+the reading, not the catch. And the unit tests could not have seen it:
+the computer's `org.json` refuses nesting past 512 levels with an
+ordinary exception, so a test of a million brackets passes there either
+way.
+
+**The fix:** `Files.parseOutside` measures the nesting first — one pass
+over the text, brackets inside strings not counted — and refuses past
+100 levels, ten times as deep as any note goes, before the parser is
+called; and a parser that runs out of stack anyway is damage too. Share
+codes and every file a backup brings are read through it. The tests nest
+150 deep, which the computer's parser takes and the guard refuses, so
+they fail without it.
+
+**The lesson:** a catch names what it expects. What comes from outside
+is measured before a reader that recurses is handed it, and the test is
+built for the parser the phone runs, not the one the computer has.
 
 ---
 

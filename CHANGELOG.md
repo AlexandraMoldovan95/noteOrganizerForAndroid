@@ -66,6 +66,11 @@ do before, not as releases anyone ran.
   notebook that never chose a window now takes the backup's; one chosen
   here is kept. The desktop takes the same rule. Found by the final
   audit's break-it round.
+- **A share code or a backup nested deeper than any note is called
+  damaged, where it stopped the app.** A code of a few lines could hold
+  a million brackets one inside another, and the reader went one step
+  deeper for each until it ran out of room. Found by the final audit's
+  break-it round.
 
 ---
 
