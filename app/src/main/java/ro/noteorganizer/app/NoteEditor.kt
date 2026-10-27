@@ -104,8 +104,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -2402,6 +2404,10 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
     val tickedSaid = stringResource(R.string.checklist_ticked)
     val notTickedSaid = stringResource(R.string.checklist_not_ticked)
+    val upSaid = stringResource(R.string.move_up)
+    val downSaid = stringResource(R.string.move_down)
+    // The row whose handle was tapped: its Move up and Move down.
+    var rowMenu by remember { mutableIntStateOf(-1) }
     items.forEachIndexed { index, item ->
         val moveLabel = stringResource(R.string.drag_to_move, item.text)
         val rowSaid = stringResource(R.string.checklist_row_said, item.text)
@@ -2422,7 +2428,16 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
             // the box: it waited for a long press nobody could guess, and sat
             // close enough to the box to tick it by mistake (the owner,
             // 2026-10-25). A drag that starts anywhere else scrolls the note.
-            Text(
+            // One place up or down without a drag -- a tap on the handle, or
+            // a screen reader's or Switch Access's actions on it: a drag was
+            // the only way, and those could not move a row at all.
+            fun step(by: Int) {
+                val to = index + by
+                if (to in items.indices && renameWritten()) {
+                    state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
+                }
+            }
+            Box { Text(
                 "⠿",
                 color = palette.subtext,
                 fontSize = 20.sp,
@@ -2431,7 +2446,14 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .padding(end = 12.dp)
                     .size(width = 40.dp, height = 44.dp)
                     .wrapContentHeight()
-                    .semantics { contentDescription = moveLabel }
+                    .semantics {
+                        contentDescription = moveLabel
+                        customActions = listOfNotNull(
+                            CustomAccessibilityAction(upSaid) { step(-1); true }.takeIf { index > 0 },
+                            CustomAccessibilityAction(downSaid) { step(1); true }.takeIf { index < items.size - 1 },
+                        )
+                    }
+                    .clickable { rowMenu = index }
                     .pointerInput(index, items.size) {
                         detectDragGestures(
                             onDragStart = { dragging = index; offset = 0f },
@@ -2448,6 +2470,12 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                         )
                     },
             )
+            DropdownMenu(expanded = rowMenu == index, onDismissRequest = { rowMenu = -1 }) {
+                if (index > 0) DropdownMenuItem(text = { Text(upSaid) }, onClick = { rowMenu = -1; step(-1) })
+                if (index < items.size - 1) {
+                    DropdownMenuItem(text = { Text(downSaid) }, onClick = { rowMenu = -1; step(1) })
+                }
+            } }
             Text(
                 if (item.done) "☑" else "☐",
                 color = if (item.done) palette.successText else palette.text,

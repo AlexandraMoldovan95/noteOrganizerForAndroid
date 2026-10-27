@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -602,5 +603,18 @@ class OrganizingTest {
         // As Title A-Z showed them: the pinned note first, the untitled last.
         assertEquals(mapOf(4 to 0, 2 to 1, 1 to 2, 3 to 3), orders(load))
         assertEquals(listOf(4, 2, 1, 3), sortNotes(Notebook.load(dir(load)).notes, SortOrder.CUSTOM).map { it.id })
+    }
+
+    @Test
+    fun `Move up and Move down find the neighbour a drag would drop next to, and stop at the block's edge`() {
+        // Arranging by hand without a drag: a screen reader, Switch Access
+        // or a hand that cannot drag had no way at all.
+        val shown = listOf(Note(id = 1, pinned = true), Note(id = 2), Note(id = 3, category = "Work"), Note(id = 4))
+        assertEquals(2 to true, Organizing.stepPlace(shown, 3, -1, grouped = false))
+        assertEquals(4 to false, Organizing.stepPlace(shown, 3, 1, grouped = false))
+        assertNull("the last goes no lower", Organizing.stepPlace(shown, 4, 1, grouped = false))
+        assertNull("a pinned note stands above the rest", Organizing.stepPlace(shown, 2, -1, grouped = false))
+        assertNull("a group is its category", Organizing.stepPlace(shown, 3, -1, grouped = true))
+        assertNull(Organizing.stepPlace(shown, 9, -1, grouped = false))
     }
 }

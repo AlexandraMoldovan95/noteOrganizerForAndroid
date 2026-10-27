@@ -137,6 +137,11 @@ do before, not as releases anyone ran.
   the start line's ✕. A checklist row's box is a checkbox named by the
   row, and its ✕ says "Remove … from the checklist". TalkBack read the
   symbols' names, or nothing. Found by the final audit's break-it round.
+- **Notes in Custom order and checklist rows move without a drag.** A
+  tap on the ⠿ handle offers Move up and Move down, and a screen reader
+  or Switch Access finds the same two among the card's or the handle's
+  actions; dragging was the only way, and those could not arrange at
+  all. Found by the final audit's break-it round.
 
 ---
 

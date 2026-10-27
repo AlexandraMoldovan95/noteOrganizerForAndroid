@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.zIndex
@@ -147,6 +148,19 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             previous != null -> state.moveNote(id, previous.id, before = false, grouped = grouped)
         }
     }
+
+    /**
+     * One place up ([step] -1) or down (+1), without a drag: a screen
+     * reader's actions on the card, Switch Access, or a tap on its handle.
+     * Dragging was the only way, and those could not arrange at all.
+     */
+    fun stepNote(id: Int, step: Int) {
+        val (anchor, before) = Organizing.stepPlace(laidOut.mapNotNull { noteOf(it) }, id, step, grouped) ?: return
+        state.moveNote(id, anchor, before = before, grouped = grouped)
+    }
+    var stepMenu by remember { mutableStateOf<Int?>(null) }
+    val upSaid = stringResource(R.string.move_up)
+    val downSaid = stringResource(R.string.move_down)
 
     /** The dragged card followed by the finger, trading places as it passes a neighbour's middle. */
     fun follow(amount: Float) {
@@ -411,7 +425,16 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                         // Seen only where the list stays beside the
                                         // note: on a phone the note covers it.
                                         open = note.id == state.openId,
-                                        handle = if (!arranging) null else { {
+                                        // Arranging without a drag, for a screen
+                                        // reader and Switch Access: the card's
+                                        // own actions, each where it has a place.
+                                        actions = if (!arranging) emptyList() else listOfNotNull(
+                                            upSaid.takeIf { Organizing.stepPlace(laidOut.mapNotNull { noteOf(it) }, note.id, -1, grouped) != null }
+                                                ?.let { CustomAccessibilityAction(it) { stepNote(note.id, -1); true } },
+                                            downSaid.takeIf { Organizing.stepPlace(laidOut.mapNotNull { noteOf(it) }, note.id, 1, grouped) != null }
+                                                ?.let { CustomAccessibilityAction(it) { stepNote(note.id, 1); true } },
+                                        ),
+                                        handle = if (!arranging) null else { { Box {
                                             Text(
                                                 "⠿",
                                                 color = palette.subtext,
@@ -430,6 +453,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             dragged = note.id
                                                             dragBy = 0f
                                                             dragOrder = laidOut
+                                                            var travelled = false
                                                             try {
                                                                 while (true) {
                                                                     val change = awaitPointerEvent().changes
@@ -438,10 +462,14 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                     val moved = change.positionChange()
                                                                     if (moved.y != 0f) {
                                                                         change.consume()
+                                                                        travelled = true
                                                                         follow(moved.y)
                                                                     }
                                                                 }
                                                                 drop()
+                                                                // Tapped, not dragged: up and down,
+                                                                // for a hand that cannot drag.
+                                                                if (!travelled) stepMenu = note.id
                                                             } catch (e: kotlinx.coroutines.CancellationException) {
                                                                 // Interrupted, nothing moves.
                                                                 dragged = null
@@ -453,7 +481,16 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                     }
                                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                             )
-                                        } },
+                                            DropdownMenu(expanded = stepMenu == note.id, onDismissRequest = { stepMenu = null }) {
+                                                // Only the ways it can go, in its block.
+                                                val shownNotes = laidOut.mapNotNull { noteOf(it) }
+                                                for ((step, said) in listOf(-1 to upSaid, 1 to downSaid)) {
+                                                    if (Organizing.stepPlace(shownNotes, note.id, step, grouped) == null) continue
+                                                    DropdownMenuItem(text = { Text(said) },
+                                                                     onClick = { stepMenu = null; stepNote(note.id, step) })
+                                                }
+                                            }
+                                        } } },
                                     )
                                 }
                             }

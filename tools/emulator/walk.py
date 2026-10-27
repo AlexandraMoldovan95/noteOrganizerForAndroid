@@ -424,6 +424,7 @@ def main():
     code_started_once(folder)
     symbol_labels(folder)
     google_backup(folder)
+    arrange_without_drag(folder)
 
     print()
     if failures:
@@ -2619,6 +2620,41 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+
+
+def arrange_without_drag(folder):
+    """Custom order's cards and a checklist's rows moved one place without
+    a drag: a tap on the handle offers Move up and Move down, the same moves
+    a screen reader and Switch Access find among the card's or the
+    handle's actions (which no adb command can press, so those are named
+    here and not pressed). Read back from the file."""
+    print("\n-- arranging without a drag --")
+    if not seed_inside([
+        {"id": 1, "uid": "nd-a", "title": "Alpha", "order": 0, "checklist": [
+            {"text": "flour", "done": False}, {"text": "yeast", "done": False}],
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "nd-b", "title": "Bravo", "order": 1,
+         "created": "2026-10-02 09:00:00", "updated": "2026-10-02 09:00:00"},
+    ], {"welcome_offered": True, "note_sort": "Custom order"}, "Alpha"):
+        return
+
+    def placed():
+        notes = read_file("notes_data.json") or []
+        return [n.get("title") for n in sorted(notes, key=lambda n: n.get("order", 99))]
+
+    tap("Drag to move Alpha", wait=1.0)
+    shot(folder, "89-move-menu", "Move down")
+    check("a tap on a card's handle offers to move it, with no way up from the top",
+          find("Move down", exact=True) is not None and find("Move up", exact=True) is None)
+    tap("Move down", exact=True, wait=1.5)
+    check_settled("Move down puts the card below its neighbour", placed, lambda p: p == ["Bravo", "Alpha"])
+    if open_note("Alpha"):
+        tap("Drag to move flour", wait=1.0)
+        tap("Move down", exact=True, wait=1.5)
+        check_settled("a checklist row's handle moves it down a place",
+                      lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
+                      lambda rows: rows == ["yeast", "flour"])
+    back_to("Search notes")
 
 
 def attaching(folder):

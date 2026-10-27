@@ -221,6 +221,8 @@
     <string name="checklist_ticked">Ticked</string>
     <string name="checklist_not_ticked">Not ticked</string>
     <string name="checklist_remove_said">Remove %1$s from the checklist</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
     <string name="table_too_large">A table of %1$,d cells in %2$,d lines, too large to draw here. The note keeps it whole; its first lines are below.</string>
     <string name="table_more_lines">… and %1$,d more lines</string>
     <!-- Attaching and removing files: the desktop's words -->

@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the sixty-eight are about
+**the code**, or in **the design**. Nineteen of the sixty-nine are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#arranging-only-a-finger-could-do) | design | Notes in Custom order and a checklist's rows moved only by dragging their handle; TalkBack read "Drag to move", and neither it nor Switch Access could drag | Every gesture needs a door that is not a gesture |
 | [2026-10-27](#a-backup-promised-without-its-conditions) | design | Settings → Backup promised that Android keeps a copy of the notes, and the Data safety reasoning that the copy was end-to-end encrypted; Android stops at 25 MB, encrypts with the phone's lock only where there is one, and the person had no way to say no | A promise about another program's behaviour carries that program's conditions, and the person gets a say in it |
 | [2026-10-27](#two-checks-that-read-the-screen-at-the-wrong-moment) | checking | A message read, then photographed after its four seconds were up; a selection the walk thought it had left, because the words it waited for never went away | A check reads what it acts on at the moment it acts, and waits for the change it caused, not for words that were there all along |
 | [2026-10-27](#a-table-moved-out-of-its-grid-and-into-one-field) | code | A table too large for a grid, moved into the text around it, opened in nine seconds: one field of 362,000 letters, laid out whole and drawn whole, every line copying all its text again | Measure where the time goes before choosing where to move the work: moved whole, it costs the same in another place |
@@ -83,6 +84,29 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Arranging only a finger could do
+
+**2026-10-27.** Found by the final audit's accessibility reading: the ⠿
+handle on a card in Custom order, and on each checklist row, moved it by
+a drag and by nothing else. A screen reader's double tap is a click, not
+a drag; Switch Access selects, it does not drag; and nowhere in the app
+was there an accessibility action. TalkBack said "Drag to move …", to
+people who could not. The template editor's checklist had ↑ buttons all
+along — the other way existed, one screen away.
+
+**The fix:** a tap on a handle opens Move up and Move down, only the ways
+it can go — for a hand that cannot drag too — and the same two are the
+card's and the handle's actions, which TalkBack and Switch Access list.
+They move by the drag's own rules (`Organizing.stepPlace`, held by a
+test; a pinned note and a group keep their blocks). The walk's
+`arrange_without_drag` taps the handles and reads the file; the actions
+themselves, which no adb command can press, wait for a person with
+TalkBack on.
+
+**The lesson:** every gesture needs a door that is not a gesture.
 
 ---
 

@@ -46,6 +46,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -257,6 +258,9 @@ fun NoteCard(
     // Custom order's drag handle, at the card's right edge, when the list
     // is arranged by hand.
     handle: (@Composable () -> Unit)? = null,
+    // What a screen reader or Switch Access may do to the card besides
+    // open and select it: Move up, Move down.
+    actions: List<androidx.compose.ui.semantics.CustomAccessibilityAction> = emptyList(),
 ) {
     val palette = LocalPalette.current
     val stripe = hexColor(colour)
@@ -272,6 +276,9 @@ fun NoteCard(
             // (IntrinsicSize.Min), every line of its text laid out twice, on
             // every card that scrolled into sight.
             .drawBehind { drawRect(stripe, size = Size(5.dp.toPx(), size.height)) }
+            .then(if (actions.isEmpty()) Modifier else Modifier.semantics {
+                customActions = actions
+            })
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(start = 5.dp),
     ) {

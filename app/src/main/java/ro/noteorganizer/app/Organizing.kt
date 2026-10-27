@@ -334,6 +334,22 @@ object Organizing {
         a.pinned == b.pinned && (!grouped || a.category == b.category)
 
     /**
+     * Where "Move up" ([step] -1) or "Move down" (+1) takes note [id] among
+     * [shown], the notes in the order the list shows them: the neighbour it
+     * goes before (up) or after (down), as a drag's drop names it for
+     * [moveNote] -- or null when there is no place that way in its block.
+     * Arranging by hand without a drag, which a screen reader, Switch Access
+     * or a hand that cannot drag could not do at all (the final audit).
+     */
+    fun stepPlace(shown: List<Note>, id: Int, step: Int, grouped: Boolean): Pair<Int, Boolean>? {
+        val at = shown.indexOfFirst { it.id == id }
+        if (at < 0) return null
+        val other = shown.getOrNull(at + step) ?: return null
+        if (!sameBlock(shown[at], other, grouped)) return null
+        return other.id to (step < 0)
+    }
+
+    /**
      * Every note given its place in Custom order from the way [order]
      * sorts them -- all of them, not only those a search or Show lets
      * through, so what is hidden keeps its place among the rest. The
