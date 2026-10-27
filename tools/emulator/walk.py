@@ -428,6 +428,7 @@ def main():
     states_said(folder)
     calendar_large_letters(folder)
     import_questions_quick(folder)
+    reminder_new_zone(folder)
 
     print()
     if failures:
@@ -2638,6 +2639,46 @@ def frames_since_reset():
     at = {h: k for k, h in enumerate(lines[1].split(","))}
     rows = [line.split(",") for line in lines[2:] if line and line[0].isdigit()]
     return [(int(r[at["FrameCompleted"]]) - int(r[at["IntendedVsync"]])) / 1e9 for r in rows]
+
+
+def reminder_new_zone(folder):
+    """The day's reminder, set for 09:00, after the phone moves to another
+    time zone with the app closed: set again for 09:00 there, where it kept
+    the old instant and rang at 03:00 New York time. Read from the alarm
+    Android holds (dumpsys, which prints it in the zone in force). The
+    emulator's zone is put back after."""
+    print("\n-- the reminder across a time zone --")
+
+    def alarm_at():
+        out = adb("shell", "dumpsys", "alarm")
+        for m in re.finditer(r"ro\.noteorganizer\.app", out):
+            chunk = out[max(0, m.start() - 300):m.start() + 300]
+            when = re.search(r"origWhen=(\S+ \S+)", chunk)
+            if when and "RTC_WAKEUP" in chunk:
+                return when.group(1)
+        return None
+
+    was = adb("shell", "getprop", "persist.sys.timezone").strip() or "Europe/Bucharest"
+    adb("shell", "pm", "grant", PACKAGE, "android.permission.POST_NOTIFICATIONS")
+    if not seed_inside([{"id": 1, "uid": "tz-1", "title": "Today", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "phone_reminder_notify": True, "phone_reminder_hour": 9}, "Today"):
+        return
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(2.0)
+    before = alarm_at()
+    try:
+        adb("shell", "service", "call", "alarm", "3", "s16", "America/New_York")
+        time.sleep(4.0)
+        after = alarm_at()
+        check("set for 09:00, the reminder is at 09:00 in the new zone too",
+              bool(before) and bool(after) and before.endswith("09:00:00.000") and after.endswith("09:00:00.000"),
+              "before %s, after %s" % (before, after))
+    finally:
+        adb("shell", "service", "call", "alarm", "3", "s16", was)
+        time.sleep(2.0)
+    start_app()
+    back_to("Search notes")
 
 
 def import_questions_quick(folder):

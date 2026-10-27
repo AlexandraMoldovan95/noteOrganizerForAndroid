@@ -11,6 +11,17 @@ import java.time.LocalDateTime
 /** The day's reminder: what it counts, when the bar shows, when the notification is next due. */
 class RemindersTest {
 
+    @Test
+    fun `a new time zone or clock sets the next reminder again, as a restart does, and does not ring it`() {
+        // Kept as an instant, a 09:00 reminder carried from Bucharest to New
+        // York rang at 03:00 until the app was next opened.
+        for (action in listOf("android.intent.action.BOOT_COMPLETED", "android.intent.action.MY_PACKAGE_REPLACED",
+                              "android.intent.action.TIMEZONE_CHANGED", "android.intent.action.TIME_SET")) {
+            assertTrue(action, action in Reminders.RESCHEDULE_ON)
+        }
+        assertFalse("the alarm itself rings", "ro.noteorganizer.app.REMIND" in Reminders.RESCHEDULE_ON)
+    }
+
     // A Monday series from 5 October, a note on Friday 23 October, one undated.
     private val notes = """[
         {"id": 1, "uid": "s", "title": "Stand-up", "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]}},

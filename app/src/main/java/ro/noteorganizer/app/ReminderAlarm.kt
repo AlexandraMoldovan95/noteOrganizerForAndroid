@@ -107,12 +107,12 @@ object ReminderAlarm {
     }
 }
 
-/** The alarm, the phone's restart and the app's update: each reaches [ReminderAlarm]. */
+/**
+ * The alarm, and the news that sets it again ([Reminders.RESCHEDULE_ON]: a
+ * restart, an update, a new time zone or clock): each reaches [ReminderAlarm].
+ */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> ReminderAlarm.schedule(context)
-            else -> ReminderAlarm.fire(context)
-        }
+        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.schedule(context) else ReminderAlarm.fire(context)
     }
 }

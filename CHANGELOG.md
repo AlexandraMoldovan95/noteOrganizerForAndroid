@@ -146,6 +146,10 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **The day's reminder keeps its hour across a time zone.** Set for
+  09:00 and carried from Bucharest to New York with the app closed, it
+  rang at 03:00 until the app was opened; a new zone or clock now sets
+  it again. Found by the final audit, checked on the emulator.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or

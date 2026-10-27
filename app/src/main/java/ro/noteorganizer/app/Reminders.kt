@@ -26,6 +26,22 @@ object Reminders {
     const val PHONE_HOUR = "phone_reminder_hour"
     const val DEFAULT_HOUR = 9
 
+    /**
+     * The phone's news after which the next reminder is set again, rather
+     * than shown: a restart and an update, which clear an app's alarms, and
+     * a new time zone or clock. The alarm is an instant, worked out for the
+     * hour in the zone of the day it was set; carried to another zone it
+     * rang at the old zone's hour -- 03:00 for a 09:00 reminder taken from
+     * Bucharest to New York -- until the app was next opened (the final
+     * audit).
+     */
+    val RESCHEDULE_ON = setOf(
+        "android.intent.action.BOOT_COMPLETED",
+        "android.intent.action.MY_PACKAGE_REPLACED",
+        "android.intent.action.TIMEZONE_CHANGED",
+        "android.intent.action.TIME_SET",
+    )
+
     /** How many notes fall on [day], each day of a repeat included -- what the calendar draws on it. */
     fun dueOn(notes: List<JSONObject>, day: String): Int = Days.notesOn(notes, day).size
 
