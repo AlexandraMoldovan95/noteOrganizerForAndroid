@@ -1377,6 +1377,25 @@ object Notebook {
     }
 
     /**
+     * A row taken off, put back at [index] -- or at the end, when the list
+     * has grown shorter since: the Undo the desktop's toast offers after a
+     * row's ✕, "the one thing that could be taken off a note with no way
+     * back at all". [row] is the row object as it was, every field kept.
+     */
+    fun restoreChecklistItem(load: Load, id: Int, index: Int, row: JSONObject): SaveResult {
+        return editChecklist(load, id) { checklist ->
+            if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
+                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+            }
+            val rows = (0 until checklist.length()).map { checklist.get(it) }.toMutableList()
+            rows.add(index.coerceIn(0, rows.size), JSONObject(row.toString()))
+            while (checklist.length() > 0) checklist.remove(checklist.length() - 1)
+            rows.forEach { checklist.put(it) }
+            null
+        }
+    }
+
+    /**
      * The shared middle of every checklist change: find the note, work on
      * a COPY of the list, write it, and only then let the change reach the
      * array the screen is reading. A failed write leaves the screen and

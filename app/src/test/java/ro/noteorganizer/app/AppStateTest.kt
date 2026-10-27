@@ -457,6 +457,18 @@ class AppStateTest {
     }
 
     @Test
+    fun `a row taken off by its cross is said, and Undo puts it back where it was, whole`() {
+        // Gone at once, unsaid, with no way back: the editor's Undo holds no checklist.
+        val (s, _) = checklist("flour", "yeast", "salt")
+        s.removeChecklistRow(1, 1)
+        assertEquals(listOf("flour", "salt"), s.rowsOnDisk())
+        val offer = s.snackbar.currentSnackbarData!!
+        assertEquals("Removed “yeast” from the checklist", offer.visuals.message)
+        offer.performAction()
+        assertEquals(listOf("flour", "yeast", "salt"), s.rowsOnDisk())
+    }
+
+    @Test
     fun `the autosave leaves the checklist's half-typed words where they are`() {
         val (s, editor) = checklist("flour")
         editor.adding = "bre"

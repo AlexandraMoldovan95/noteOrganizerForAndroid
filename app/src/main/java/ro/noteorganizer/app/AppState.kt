@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
@@ -598,6 +599,20 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     fun setPinned(ids: Collection<Int>, pinned: Boolean) {
         report(outside(ids) { Organizing.setPinned(load, ids, pinned) } ?: return)
+    }
+
+    /**
+     * A checklist row taken off by its ✕, said, with the Undo the desktop's
+     * toast offers: the row was gone at once, unsaid, with no way back, and
+     * the editor's own Undo does not hold a checklist.
+     */
+    fun removeChecklistRow(id: Int, index: Int) {
+        val row = (rawNote(id)?.opt("checklist") as? JSONArray)?.opt(index) as? JSONObject ?: return
+        val kept = JSONObject(row.toString())
+        if (!report(Notebook.removeChecklistItem(load, id, index))) return
+        offerUndo("Removed “${kept.optString("text")}” from the checklist") {
+            report(Notebook.restoreChecklistItem(load, id, index, kept))
+        }
     }
 
     fun moveToCategory(ids: Collection<Int>, category: String) {

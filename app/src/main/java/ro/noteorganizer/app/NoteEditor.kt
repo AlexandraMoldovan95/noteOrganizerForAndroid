@@ -2542,7 +2542,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 fontSize = 14.sp,
                 modifier = Modifier
                     .semantics { contentDescription = removeSaid }
-                    .clickable { if (renameWritten()) state.report(Notebook.removeChecklistItem(state.load, model.id, index)) }
+                    .clickable { if (renameWritten()) state.removeChecklistRow(model.id, index) }
                     .padding(8.dp),
             )
         }

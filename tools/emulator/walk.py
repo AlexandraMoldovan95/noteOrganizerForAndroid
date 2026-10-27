@@ -2722,6 +2722,12 @@ def arrange_without_drag(folder):
         check_settled("a checklist row's handle moves it down a place",
                       lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
                       lambda rows: rows == ["yeast", "flour"])
+        # A row's ✕ says what it took, and Undo puts it back where it was.
+        tap("Remove yeast from the checklist", wait=0.5)
+        tap_last("Undo", wait=1.5)       # the bar's, not the editor's ↶, also called Undo
+        check_settled("a row taken off by its ✕ comes back with Undo, in its place",
+                      lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
+                      lambda rows: rows == ["yeast", "flour"])
     back_to("Search notes")
 
 

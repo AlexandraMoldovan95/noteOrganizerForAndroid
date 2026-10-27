@@ -146,6 +146,10 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **A checklist row taken off by its ✕ can be brought back.** It was
+  gone at once, unsaid, and the editor's Undo holds no checklist; now the
+  bar at the foot says what was taken, with Undo for eight seconds, as
+  the desktop's toast offers. Found by the final audit's break-it round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's
