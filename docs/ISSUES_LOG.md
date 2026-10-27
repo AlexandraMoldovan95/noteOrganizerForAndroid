@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-six are about
+**the code**, or in **the design**. Nineteen of the sixty-seven are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#two-checks-that-read-the-screen-at-the-wrong-moment) | checking | A message read, then photographed after its four seconds were up; a selection the walk thought it had left, because the words it waited for never went away | A check reads what it acts on at the moment it acts, and waits for the change it caused, not for words that were there all along |
 | [2026-10-27](#a-table-moved-out-of-its-grid-and-into-one-field) | code | A table too large for a grid, moved into the text around it, opened in nine seconds: one field of 362,000 letters, laid out whole and drawn whole, every line copying all its text again | Measure where the time goes before choosing where to move the work: moved whole, it costs the same in another place |
 | [2026-10-27](#a-rows-second-letter-judged-by-the-last-drawing) | code | The walk renamed "flour" to "flour 500g" and pressed Home; the file read "flour ". The row's second letter was judged by a drawing that had not caught up with its first | A callback decides from the state as it is when it runs, not from what the last drawing captured |
 | [2026-10-27](#a-rescue-copy-let-in-whole) | code | A backup's rescue copy came in exactly as written, and "↩ Restore previous" put it into the note: fifty thousand checklist rows past the cap of a thousand, two thousand styles on one line past the cap of five hundred | A ceiling holds only if every road into the note passes it, the one through a copy included |
@@ -81,6 +82,28 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Two checks that read the screen at the wrong moment
+
+**2026-10-27.** The first full walk of the audit's new parts failed two
+of them on the walk's own account, the app right both times.
+
+A backup too large for the phone was refused with a sentence in the bar
+at the foot, and the check found it; the photograph, a separate look a
+second or two later, did not — the bar stays four seconds, and looks at
+the screen take one or two each. And the labels' part selected a card,
+then went "back to the list" with `back_to("Search notes")`: the search
+box stays on screen while a card is selected, so it stopped at once, and
+the next tap on the card selected it again instead of opening it.
+
+**The fix:** the photograph is the check — taken the moment the words
+show, and its answer is the verdict — and the selection is cleared by
+its own ✕, with a check that the bar is gone.
+
+**The lesson:** a check reads what it acts on at the moment it acts, and
+waits for the change it caused, not for words that were there all along.
 
 ---
 

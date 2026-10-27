@@ -282,12 +282,13 @@ def shot(folder, name, *must_say, patience=6.0):
         missing = screen_says(*must_say)
     if missing:
         fail("photo %s: the screen does not say %s" % (name, missing))
-        return
+        return False
     adb("shell", "screencap", "-p", "/sdcard/shot.png")
     data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
     with open(os.path.join(folder, name + ".png"), "wb") as f:
         f.write(data)
     print("     photo %s.png" % name)
+    return True
 
 
 def shades_while_tapping(label, frames=10):
@@ -1532,11 +1533,12 @@ def backup_too_large(folder):
     tap("Import a backup", wait=3.0)
     if find(name, exact=True) is None:
         tap("Downloads", wait=2.0) if find("Downloads") else None
-    if tap(name, exact=True, wait=3.0):
+    if tap(name, exact=True, wait=0.5):
+        # Photographed the moment it shows: the bar at the foot stays four
+        # seconds, and a check that read it, then a photograph that looked
+        # again, found it gone (the full walk, 2026-10-27).
         check("a backup too large for the phone is refused with a sentence",
-              not says_soon("more than this phone can read", within=15.0),
-              str(screen_says("more than this phone can read")))
-        shot(folder, "85-backup-too-large", "more than this phone can read")
+              shot(folder, "85-backup-too-large", "more than this phone can read", patience=15.0))
         check("... and the app goes on", foreground() == PACKAGE, foreground())
     adb("shell", "rm", "-f", "/sdcard/Download/" + name)
     os.remove(local)
@@ -1647,7 +1649,11 @@ def symbol_labels(folder):
     if long_press("Bread"):
         missing = screen_says("Clear selection", "Pin", "Move to category", "Move to Trash", "More options")
         check("the selection bar's symbols are named", not missing, str(missing))
-        back_to("Search notes")
+        # By its own ✕: the search box stays on screen while selecting, so
+        # back_to("Search notes") stopped at once, and the next tap on the
+        # card selected it instead of opening it (the full walk, 2026-10-27).
+        tap("Clear selection", wait=1.0)
+        check("... and the selection is cleared by its ✕", find("Clear selection") is None)
     if open_note("Bread"):
         missing = screen_says("Back", "Note details", "More options", "Checklist: flour",
                               "Remove flour from the checklist")
