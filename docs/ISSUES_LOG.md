@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the fifty-nine are about
+**the code**, or in **the design**. Eighteen of the sixty are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#words-a-field-kept-until-it-was-left) | code | A checklist row renamed, then Home and the app swiped away: the new words were gone, as were words left in "A new item…"; the keyboard's ✓ had only put the keyboard down | What the save on leaving covers is what the editor holds; words a field keeps for itself are outside it |
 | [2026-10-27](#a-way-out-that-never-asked-whether-the-note-was-saved) | code | With the phone unable to write, Back closed a new note whose save had just failed, and its words, kept nowhere else, went with it; a pin from the list read an unsaved note back over its words | A save whose answer nobody reads is a save that cannot fail -- in the code's eyes |
 | [2026-10-27](#a-save-that-failed-then-said-it-had-saved) | code | With the phone unable to write, a note's new words stayed on the screen after its save failed; the next save found nothing to write, said "Auto-saved", and a restart lost them | A sweep for a mistake in a shape must also find the places that skip the shape |
 | [2026-10-24](#a-rescue-copy-measured-by-how-much-shorter) | code | On the desktop, a short note replaced by a new line before it saved kept no rescue copy, its words gone; the phone, holding the desktop's thresholds by design, did the same | A guard has to measure the harm itself, not something that usually moves with it |
@@ -74,6 +75,41 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Words a field kept until it was left
+
+**2026-10-27.** Found by the final audit reading the code, twice over:
+a checklist row's words changed — "yeast" to "yeast 7g" — then the
+keyboard's ✓, then Home. The row read "yeast 7g"; the file read "yeast".
+Swiped away from Recents, or ended by Android in the background, the app
+came back with "yeast". Words typed in "A new item…" and never added went
+the same way.
+
+On a phone most notes are left by Home, not by Back, so the editor saves
+when the app leaves the screen
+([turning the phone closed the note](#turning-the-phone-closed-the-note)
+is the same family). That save wrote what the editor model held — the
+title, the text, the comments, a cell's words, all written into it as they
+are typed. A row's new words were not: the row's field kept them, to
+write them once it was left, one write per edit. Home leaves no field,
+and ✓, with nothing told to happen, only put the keyboard down. A rename
+was also kept by its place: removing a row above moved another row under
+the waiting words.
+
+**The fix:** the waiting words live in the editor model, and the save
+made on leaving the note or the app writes them. ✓ writes a rename; a
+row removed or dragged writes the waiting rename first; and a rename goes
+only onto a row that still reads what it read, so a list changed from
+elsewhere drops it rather than renaming another row. The autosave leaves
+them alone, since it runs while they are being typed. Three tests in
+`AppStateTest`; the walk's `checklist_words_kept` holds Home and a
+process ended in the background.
+
+**The lesson:** what the save on leaving covers is what the editor
+holds. Words a field keeps for itself are outside it, however safe they
+look on the screen.
 
 ---
 

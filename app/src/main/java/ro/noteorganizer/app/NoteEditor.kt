@@ -525,17 +525,67 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     fun save(force: Boolean = false, auto: Boolean = false): Boolean {
         val first = problem == null
-        val why = write(force) ?: return true
+        // The checklist's waiting words go with a save a tap asks for, never
+        // with the autosave: it runs while a row or "A new item…" is being
+        // typed in, and would add the half-typed words as a row.
+        val why = (if (auto) writeNote(force) else write(force)) ?: return true
         if (!auto || first) state.say("Not saved: $why")
         return false
     }
 
     /**
-     * Writes what is on screen, saying nothing: null when the file now holds
-     * it, or why it does not. What the app asks before the note is left or
-     * changed from outside (AppState.flush), which says it in its own words.
+     * Writes what is on screen, the checklist's waiting words too, saying
+     * nothing: null when the file now holds it, or why it does not. What the
+     * app asks before the note is left or changed from outside
+     * (AppState.flush), which says it in its own words.
      */
-    fun write(force: Boolean = false): String? {
+    fun write(force: Boolean = false): String? = writeNote(force) ?: writeChecklist()
+
+    /** A checklist row being renamed: the row at [index] read [was] when the change began. */
+    data class Renaming(val index: Int, val was: String, val now: String)
+
+    /**
+     * The checklist's words not written yet: a row being renamed -- written
+     * when its field is left, or by the keyboard's ✓ -- and the words in "A
+     * new item…", added by Add or ✓. Held here, not in the fields, so the
+     * flush writes them too: going to the background moves no focus, and a
+     * row renamed, then the app swiped away from Recents, lost its new words
+     * (ISSUES_LOG, "Words a field kept until it was left").
+     */
+    var renaming by mutableStateOf<Renaming?>(null)
+    var adding by mutableStateOf("")
+
+    /** The row being renamed, written: null, or why it could not be. */
+    fun writeRename(): String? {
+        val r = renaming ?: return null
+        // Only onto the row that still reads what it read. Every change to
+        // the list from here writes this first, so a list changed under it
+        // came from elsewhere, and the words are dropped, never put on
+        // another row.
+        val row = state.note(id)?.checklist?.getOrNull(r.index)
+        if (row != null && row.text == r.was && r.now != r.was) {
+            val result = Notebook.renameChecklistItem(state.load, id, r.index, r.now)
+            state.refresh()
+            if (result is SaveResult.Failed) return result.reason
+        }
+        renaming = null
+        return null
+    }
+
+    /** The row being renamed, then the words in "A new item…" added: null, or why not. */
+    fun writeChecklist(): String? {
+        writeRename()?.let { return it }
+        if (adding.isBlank()) return null
+        // Only a saved note holds a checklist.
+        if (id == 0) writeNote(force = true)?.let { return it }
+        val result = Notebook.addChecklistItem(state.load, id, adding.trim())
+        state.refresh()
+        if (result is SaveResult.Failed) return result.reason
+        adding = ""
+        return null
+    }
+
+    private fun writeNote(force: Boolean): String? {
         if (!force && edits == saved) return null
         val target = edits
         val load = state.load
@@ -2273,7 +2323,6 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
-    var adding by remember { mutableStateOf("") }
     // The new row's box whole above the keyboard: the field brings only its
     // line of words into view, and in a long note the box's lower half and
     // Add stayed under the keys.
@@ -2297,10 +2346,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     }
     val addFocus = remember { FocusRequester() }
 
-    fun ensureSaved(): Int? {
-        if (model.id == 0 && !model.save(force = true)) return null
-        return model.id
-    }
+    // A row being renamed is written before the rows move under it: kept by
+    // its place, it would land on another row, or be dropped.
+    fun renameWritten(): Boolean = model.writeRename()?.let { state.say(it); false } ?: true
 
     // The last ask from ⋮ the box was given: kept while the section is folded,
     // so a section opened again does not raise the keyboard for an old ask.
@@ -2356,7 +2404,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                                 val to = (index + Math.round(offset / rowHeight)).coerceIn(0, items.size - 1)
                                 dragging = -1
                                 offset = 0f
-                                if (to != index) state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
+                                if (to != index && renameWritten()) {
+                                    state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
+                                }
                             },
                             onDragCancel = { dragging = -1; offset = 0f },
                             onDrag = { change, amount -> change.consume(); offset += amount.y },
@@ -2371,17 +2421,22 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
-            ChecklistText(item.text, item.done,
+            val renaming = model.renaming?.takeIf { it.index == index && it.was == item.text }
+            ChecklistText(renaming?.now ?: item.text, item.done,
                           found = found.filter { it.item == index }.map { it.start to it.end },
-                          current = here?.let { it.start to it.end }) { text ->
-                state.report(Notebook.renameChecklistItem(state.load, model.id, index, text))
-            }
+                          current = here?.let { it.start to it.end },
+                          onValue = { now ->
+                              // Another row's words still waiting are written first.
+                              if (model.renaming != null && renaming == null && !renameWritten()) return@ChecklistText
+                              model.renaming = EditorModel.Renaming(index, item.text, now)
+                          },
+                          onLeave = { if (model.renaming?.index == index) renameWritten() })
             Text(
                 "✕",
                 color = palette.subtext,
                 fontSize = 14.sp,
                 modifier = Modifier
-                    .clickable { state.report(Notebook.removeChecklistItem(state.load, model.id, index)) }
+                    .clickable { if (renameWritten()) state.report(Notebook.removeChecklistItem(state.load, model.id, index)) }
                     .padding(8.dp),
             )
         }
@@ -2390,18 +2445,15 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // next -- the desktop's Enter in its entry. It only closed the keyboard,
     // the words left in the box and the list still empty.
     fun add() {
-        if (adding.isBlank()) return
-        val id = ensureSaved() ?: return
-        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) {
-            adding = ""
-            added += 1
-        }
+        if (model.adding.isBlank()) return
+        model.writeChecklist()?.let { state.say(it); return }
+        added += 1
     }
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
         BasicTextField(
-            value = adding,
-            onValueChange = { adding = it },
+            value = model.adding,
+            onValueChange = { model.adding = it },
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),
@@ -2416,16 +2468,16 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 .background(palette.card)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             decorationBox = { field ->
-                if (adding.isEmpty()) Text(stringResource(R.string.checklist_new), color = palette.subtext, fontSize = 15.sp)
+                if (model.adding.isEmpty()) Text(stringResource(R.string.checklist_new), color = palette.subtext, fontSize = 15.sp)
                 field()
             },
         )
         Text(
             stringResource(R.string.add),
-            color = if (adding.isBlank()) palette.subtext else palette.accentText,
+            color = if (model.adding.isBlank()) palette.subtext else palette.accentText,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .clickable(enabled = adding.isNotBlank()) { add() }
+                .clickable(enabled = model.adding.isNotBlank()) { add() }
                 .padding(12.dp),
         )
     }
@@ -2438,18 +2490,29 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     }
 }
 
-/** A row's words, renamed when the field is left -- one write per edit, not per letter. */
+/**
+ * A row's words. What is typed waits in the editor ([EditorModel.renaming])
+ * and is written when the field is left or by the keyboard's ✓ -- one write
+ * per edit, not per letter -- and by the save made on leaving the note or
+ * the app.
+ */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null,
-    onRename: (String) -> Unit,
+    onValue: (String) -> Unit, onLeave: () -> Unit,
 ) {
     val palette = LocalPalette.current
-    var draft by remember(text) { mutableStateOf(text) }
     BasicTextField(
-        value = draft,
-        onValueChange = { draft = it },
+        value = text,
+        onValueChange = onValue,
         singleLine = true,
+        // ✓ writes the words and puts the keyboard down. It only put the
+        // keyboard down: the words stayed in the field, looking kept.
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = {
+            onLeave()
+            defaultKeyboardAction(ImeAction.Done)
+        }),
         // A search's matches painted on the words, as the note's own are.
         visualTransformation = { words -> TransformedText(paintRanges(words, found, current, palette), OffsetMapping.Identity) },
         textStyle = TextStyle(
@@ -2460,7 +2523,7 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
         cursorBrush = SolidColor(palette.accent),
         modifier = Modifier
             .weight(1f)
-            .onFocusChanged { if (!it.isFocused && draft != text) onRename(draft) },
+            .onFocusChanged { if (!it.isFocused) onLeave() },
     )
 }
 

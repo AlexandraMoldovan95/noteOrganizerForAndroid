@@ -417,6 +417,7 @@ def main():
     trash_select(folder)
     changes(folder)
     failed_save(folder)
+    checklist_words_kept(folder)
 
     print()
     if failures:
@@ -1457,6 +1458,46 @@ def failed_save(folder):
         writes_fail(False)
     check("... and nothing was written for it",
           not any("dentist" in n.get("body", "") for n in read_file("notes_data.json") or []))
+
+
+def checklist_words_kept(folder):
+    """A checklist row renamed, and words in "A new item…", kept when the
+    app goes to the background -- its field never left, as Home leaves it
+    -- and after Android ends the process there; the keyboard's ✓ writes a
+    rename too. They waited in the fields, and a swipe from Recents lost
+    them (ISSUES_LOG, "Words a field kept until it was left"). The rules
+    are AppStateTest's; this is the screen's half."""
+    print("\n-- the checklist's words, kept without leaving the field --")
+    if not seed_inside([{"id": 1, "uid": "walk-c1", "title": "Bread", "body": "Knead",
+                         "category": "General", "created": "2026-10-20 09:00",
+                         "updated": "2026-10-20 09:00",
+                         "checklist": [{"text": "flour", "done": False}, {"text": "yeast", "done": False}]}],
+                       {"welcome_offered": True}, "Bread"):
+        return
+    rows = lambda: [r.get("text") for r in (note_by_uid("walk-c1") or {}).get("checklist", [])]
+    open_note("Bread")
+    tap("yeast", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" 7g")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    check_settled("the keyboard's ✓ writes a renamed row", rows, lambda r: r == ["flour", "yeast 7g"])
+    # Words left in A new item, Add not pressed; then a row renamed, its
+    # field never left: Home, as a phone is put away.
+    tap("A new item…", wait=0.8)
+    type_text("salt")
+    tap("flour", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" 500g")
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    check_settled("Home writes the renamed row and the words waiting in A new item", rows,
+                  lambda r: r == ["flour 500g", "yeast 7g", "salt"])
+    adb("shell", "am", "kill", PACKAGE)
+    start_app()
+    if open_note("Bread"):
+        check("... and they are there after Android ended the process",
+              not screen_says("flour 500g", "yeast 7g", "salt"), str(screen_says("flour 500g", "yeast 7g", "salt")))
+        shot(folder, "84-checklist-words-kept", "flour 500g", "salt")
+    back_to("Search notes")
 
 
 def statistics(folder):

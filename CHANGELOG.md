@@ -53,6 +53,12 @@ do before, not as releases anyone ran.
   says why with **Leave anyway**, and a change from outside waits. A
   failed save is said aloud as well, where it was only drawn in red, out
   of a screen reader's hearing. Found by the final audit's break-it round.
+- **A checklist row's new words, and words left in "A new item…", are
+  kept when the app goes to the background.** They waited in their field
+  until it was left, and Home leaves no field: swiped away from Recents,
+  or ended by Android, the app came back with the old words. The
+  keyboard's ✓ writes a renamed row now too, where it only put the
+  keyboard down. Found by the final audit's break-it round.
 
 ---
 

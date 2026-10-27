@@ -396,4 +396,60 @@ class AppStateTest {
         assertFalse(editor.save())
         assertTrue(s.said()!!.message.startsWith("Not saved: "))
     }
+
+    /** A note whose checklist reads [rows], open in an editor registered as NoteEditor registers it. */
+    private fun checklist(vararg rows: String): Pair<AppState, EditorModel> {
+        val dir = NioFiles.createTempDirectory("appstate").toFile()
+        val items = rows.joinToString(", ") { """{"text": "$it", "done": false}""" }
+        File(dir, "notes_data.json").writeText(
+            """[{"id": 1, "uid": "a", "title": "Bread", "body": "Knead", "category": "General", "checklist": [$items]}]""")
+        File(dir, "attachments").mkdirs()
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        s.openNote(1)
+        val editor = EditorModel(s, s.note(1))
+        s.flush = { editor.write() }
+        return s to editor
+    }
+
+    private fun AppState.rowsOnDisk(): List<String> {
+        val note = org.json.JSONArray(File(dir, "notes_data.json").readText()).getJSONObject(0)
+        val rows = note.getJSONArray("checklist")
+        return (0 until rows.length()).map { rows.getJSONObject(it).getString("text") }
+    }
+
+    @Test
+    fun `a row being renamed and the words in A new item are written by the flush, no field left`() {
+        // Home, or Recents: the activity's onStop runs the flush, and nothing
+        // moves the focus. The words waited in the fields, and a process
+        // killed in the background took them.
+        val (s, editor) = checklist("flour", "yeast")
+        editor.renaming = EditorModel.Renaming(1, "yeast", "yeast 7g")
+        editor.adding = "salt"
+        assertNull(s.flush!!.invoke())
+        assertEquals(listOf("flour", "yeast 7g", "salt"), s.rowsOnDisk())
+        assertNull(editor.renaming)
+        assertEquals("", editor.adding)
+    }
+
+    @Test
+    fun `a rename waiting for a row the list moved under it is dropped, never put on another row`() {
+        val (s, editor) = checklist("flour", "yeast", "salt")
+        editor.renaming = EditorModel.Renaming(1, "yeast", "yeast 7g")
+        // From elsewhere: the rows move up one under the waiting words.
+        Notebook.removeChecklistItem(s.load, 1, 0)
+        s.refresh()
+        assertNull(editor.write())
+        assertEquals(listOf("yeast", "salt"), s.rowsOnDisk())
+    }
+
+    @Test
+    fun `the autosave leaves the checklist's half-typed words where they are`() {
+        val (s, editor) = checklist("flour")
+        editor.adding = "bre"
+        editor.body = "Knead ten minutes"
+        editor.changed()
+        assertTrue(editor.save(auto = true))
+        assertEquals(listOf("flour"), s.rowsOnDisk())
+        assertEquals("bre", editor.adding)
+    }
 }
