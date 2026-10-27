@@ -9,8 +9,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Android's own backup: on, as the owner chose, and the person's to
+         turn off at Settings -> Backup. NotesBackupAgent hands Android the
+         app's files by the rules files while that is on, and nothing when
+         it is off; fullBackupOnly keeps it Android's full backup, the one
+         the rules describe, on every version. -->
     <application
         android:allowBackup="true"
+        android:backupAgent=".NotesBackupAgent"
+        android:fullBackupOnly="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"

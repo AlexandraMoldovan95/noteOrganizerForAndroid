@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the sixty-seven are about
+**the code**, or in **the design**. Nineteen of the sixty-eight are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-backup-promised-without-its-conditions) | design | Settings → Backup promised that Android keeps a copy of the notes, and the Data safety reasoning that the copy was end-to-end encrypted; Android stops at 25 MB, encrypts with the phone's lock only where there is one, and the person had no way to say no | A promise about another program's behaviour carries that program's conditions, and the person gets a say in it |
 | [2026-10-27](#two-checks-that-read-the-screen-at-the-wrong-moment) | checking | A message read, then photographed after its four seconds were up; a selection the walk thought it had left, because the words it waited for never went away | A check reads what it acts on at the moment it acts, and waits for the change it caused, not for words that were there all along |
 | [2026-10-27](#a-table-moved-out-of-its-grid-and-into-one-field) | code | A table too large for a grid, moved into the text around it, opened in nine seconds: one field of 362,000 letters, laid out whole and drawn whole, every line copying all its text again | Measure where the time goes before choosing where to move the work: moved whole, it costs the same in another place |
 | [2026-10-27](#a-rows-second-letter-judged-by-the-last-drawing) | code | The walk renamed "flour" to "flour 500g" and pressed Home; the file read "flour ". The row's second letter was judged by a drawing that had not caught up with its first | A callback decides from the state as it is when it runs, not from what the last drawing captured |
@@ -82,6 +83,39 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A backup promised without its conditions
+
+**2026-10-27.** Three findings of the final audit, one page and one
+paragraph. Settings → Backup said that, with backup on in the phone's
+settings, "Android also keeps a copy of the app's notes in your Google
+account" — while Android's own backup copies an app's data only up to
+25 MB, and attached files count: one phone video and the notes stop
+being copied too. Two lines above, the same page said a notebook with no
+`.zip` yet was "the only copy of your notes outside this phone". And
+STATUS.md's reasoning for Play's Data safety form called the copy "end
+to end encrypted with the phone's lock", which holds only on a phone
+with a lock: the rules do not require it.
+
+None of it was a fault in the code; each was a sentence that took
+another program's behaviour at its best. **What changed:** the page says
+what Android does, when — about once a day, while the phone charges on
+Wi-Fi — and the 25 MB, in the words of the privacy policy; the `.zip`
+line no longer claims to be the only copy; the reasoning no longer rests
+on encryption. And the owner made it the person's to refuse: a switch on
+the page, on by default so nobody's backup stops unannounced, and
+`NotesBackupAgent`, which hands Android nothing of the app's while it is
+off. The walk's `google_backup` proves it on the emulator's local
+transport: on, the app's files go; off, Android is handed nothing and
+the package is refused; on again, they go. What an earlier backup left
+in the account stays there; the app cannot reach it, and the page
+promises only "from now on".
+
+**The lesson:** a promise about another program's behaviour carries that
+program's conditions — and when the program copies the person's notes,
+the person gets a say in it.
 
 ---
 

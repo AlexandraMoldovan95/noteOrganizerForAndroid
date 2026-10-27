@@ -128,6 +128,12 @@ the start purges nothing; choosing a window in Settings → Trash removes
 it. The desktop ignores it, and still purges by its own reading
 ([the story](ISSUES_LOG.md#a-trash-emptied-by-a-window-nobody-chose)).
 
+And one for Android's own backup: `phone_google_backup`, `false` when the
+person turned the app's part in it off at Settings → Backup; missing or
+`true`, it takes part, as it always did. A `settings.json` that cannot be
+read counts as off until it can be. The desktop ignores it
+([why it exists](STATUS.md#androids-own-backup-of-the-apps-data--decided)).
+
 The day's reminder (since 2026-10-23) uses the desktop's own key for its
 bar, and two of the phone's for its notification:
 

@@ -485,6 +485,14 @@ comments. Two limits worth knowing: an app's copy there is at most
 and the desktop cannot read it, so it is no bridge between the two —
 the `.zip` through Google Drive is.
 
+**Since 2026-10-27 the person can turn it off** (the owner's call):
+Settings → Backup has a switch, on by default so nobody's backup stops
+without them knowing, and `NotesBackupAgent` (`GoogleBackup.kt`) hands
+Android nothing of the app's while it is off — the cloud backup and the
+transfer to a new phone alike. The page says what Android does, when,
+and the 25 MB limit, in the words of the privacy policy; the welcome
+note says where the switch is. The setting is `phone_google_backup`.
+
 ### Before the first upload to Google Play
 
 Checked already, on the built release APK: the target SDK (37), not
@@ -523,12 +531,19 @@ do, each a decision or an account step for the owner:
     form with the app's version, its theme and the notebook's size in the
     address; 0.10.0 took it out, and the form is gone.)
   * Android's own backup (`allowBackup`, on by the owner's choice) is
-    the system's, not the app's code, end to end encrypted with the
-    phone's lock, kept in the person's own Google account. Google's
-    Data safety help does not name it either way; reading "collect" as
-    what the app's code sends, it is not collected, and the privacy
-    policy says plainly that it happens. This is the one judgement in
-    the answer.
+    the system's, not the app's code, kept in the person's own Google
+    account, and the person's to turn off for this app at Settings →
+    Backup (since 2026-10-27). It is **not** always encrypted end to
+    end: Android encrypts it with the phone's screen lock where the phone
+    has one, and the app's rules do not require that
+    (`disableIfNoEncryptionCapabilities` is not set), so on a phone with
+    no lock the copy is stored as Google's backup service keeps it. This
+    reasoning used to say "end to end encrypted with the phone's lock",
+    which held only for a phone with a lock (the final audit's finding).
+    Google's Data safety help does not name Android's backup either
+    way; reading "collect" as what the app's code sends, it is not
+    collected, and the privacy policy says plainly that it happens and
+    how to turn it off. This is the one judgement in the answer.
   * The system's WebView, which prints a note to PDF, may send Google
     usage statistics when the person has allowed them for the phone; the
     app opts its WebView out in the manifest (`MetricsOptOut`, since

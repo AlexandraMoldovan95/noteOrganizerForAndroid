@@ -30,6 +30,22 @@ class SettingsTest {
     }
 
     @Test
+    fun `Android's backup takes the app's data unless the person turned it off, or their answer cannot be read`() {
+        // On by default, as it always was: nobody's backup stops silently.
+        assertTrue(Settings.googleBackupOn(Settings.load(dir())))
+        assertTrue(Settings.googleBackupOn(Settings.load(dir("""{"theme": "dark"}"""))))
+        assertTrue(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": true}"""))))
+        assertFalse(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": false}"""))))
+        // A file that cannot be read may hold an "off": nothing is taken.
+        assertFalse(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": fal"""))))
+    }
+
+    @Test
+    fun `the welcome note says where Android's backup is turned off`() {
+        assertTrue(Welcome.build().getString("body").contains("Settings → Backup turns that off for this app"))
+    }
+
+    @Test
     fun `a hand-edited retention window is clamped, not obeyed`() {
         // The desktop's CODE is the specification -- `max(1, min(days,
         // 365))` -- not its docstring, which says 0 and -3 fall back to the

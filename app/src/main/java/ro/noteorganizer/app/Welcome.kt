@@ -55,6 +55,8 @@ object Welcome {
         "# 🛡 Your privacy",
         "- The app collects nothing and cannot use the internet. A note leaves this phone only when " +
             "you share it, save a backup, or your phone backs itself up to your Google account.",
+        "- When backup is on in your phone's settings, your notes go into Android's backup to your " +
+            "Google account; **Settings → Backup** turns that off for this app.",
         "- **Settings → About → Privacy policy** has the whole of it.",
         "",
         "# 🎨 Make it yours",

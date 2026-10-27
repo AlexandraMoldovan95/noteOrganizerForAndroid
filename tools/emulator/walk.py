@@ -423,6 +423,7 @@ def main():
     big_table(folder)
     code_started_once(folder)
     symbol_labels(folder)
+    google_backup(folder)
 
     print()
     if failures:
@@ -1658,6 +1659,49 @@ def symbol_labels(folder):
         missing = screen_says("Back", "Note details", "More options", "Checklist: flour",
                               "Remove flour from the checklist")
         check("the editor's symbols and a checklist row's box and ✕ are named", not missing, str(missing))
+    back_to("Search notes")
+
+
+def google_backup(folder):
+    """Settings -> Backup's switch for Android's own backup: on by default,
+    written to the file when turned off, and then Android's backup takes
+    nothing of the app -- read from what the emulator's local transport is
+    handed, with the app's switch on and off (NotesBackupAgent). Points the
+    emulator's backup at its local transport; a phone never runs this."""
+    print("\n-- Android's backup, and the app's switch for it --")
+    if not seed_inside([{"id": 1, "uid": "walk-g1", "title": "Backed up", "body": "a line", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Backed up"):
+        return
+    adb("shell", "bmgr", "enable", "true")
+    adb("shell", "bmgr", "transport", "com.android.localtransport/.LocalTransport")
+
+    def backed_up():
+        # Home first: a stopped app is not backed up at all, whatever it says.
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(1.5)
+        out = adb("shell", "bmgr", "backupnow", PACKAGE)
+        start_app()
+        return "%s with result: Success" % PACKAGE in out, out
+
+    ok, out = backed_up()
+    check("with the switch on by default, Android's backup takes the app", ok, out[-200:])
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup", exact=True, wait=1.2)
+    adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
+    time.sleep(1.0)
+    check("the page says the switch is on", not screen_says("Android's backup to your Google account",
+                                                             "On: Android may copy", "25 MB"))
+    tap("Android's backup to your Google account", wait=1.2)
+    check_settled("turned off, the file says so", lambda: (read_file("settings.json") or {}).get("phone_google_backup"),
+                  lambda value: value is False)
+    shot(folder, "88-google-backup-off", "Off: from now on")
+    ok, out = backed_up()
+    check("... and Android's backup then takes nothing of the app", not ok and PACKAGE in out, out[-200:])
+    back_to("Search notes")
+    put_inside("settings.json", {"welcome_offered": True, "phone_google_backup": True})
+    ok, out = backed_up()
+    check("turned on again, it takes the app again", ok, out[-200:])
     back_to("Search notes")
 
 

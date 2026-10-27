@@ -56,6 +56,22 @@ object Settings {
      */
     const val PHONE_TRASH_WINDOW_UNKNOWN = "phone_trash_window_unknown"
 
+    /**
+     * `false` when the person turned off, at Settings → Backup, the app's
+     * part in Android's own backup to their Google account; on while it is
+     * missing, as it always was (the owner's call, 2026-10-27).
+     */
+    const val PHONE_GOOGLE_BACKUP = "phone_google_backup"
+
+    /**
+     * Whether Android's backup may take the app's data. Not when the person
+     * turned it off -- nor when settings.json cannot be read, as then their
+     * answer is not known: a copy not made can be made at the next backup,
+     * one made against their word cannot be taken back.
+     */
+    fun googleBackupOn(load: Load): Boolean =
+        load.problem == null && load.raw.opt(PHONE_GOOGLE_BACKUP) != false
+
     /** The desktop's ceilings on what a category map may hold. */
     const val MAX_CATEGORIES = 200
     const val MAX_CATEGORY_NAME = 80

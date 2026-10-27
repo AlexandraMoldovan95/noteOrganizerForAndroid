@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -653,9 +654,35 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         }
         Text(stringResource(R.string.backup_import_explain), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         busy?.let { Text(it, color = palette.accentText, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp)) }
-        // Android's own backup, left on by the owner's choice (2026-10-20)
-        // and said here, so a person knows where else a copy may be.
-        Text(stringResource(R.string.backup_google), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
+        // Android's own backup: on, as it always was (the owner's call,
+        // 2026-10-27), said here so a person knows where else a copy may
+        // be, and theirs to turn off -- NotesBackupAgent then hands Android
+        // nothing of the app's.
+        val google = state.load.settings?.let { Settings.googleBackupOn(it) } ?: true
+        // The whole row is the switch: its words are what a finger, and a
+        // screen reader, find.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp)
+                .toggleable(value = google, role = androidx.compose.ui.semantics.Role.Switch) {
+                    state.putSetting(Settings.PHONE_GOOGLE_BACKUP, it)
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(stringResource(R.string.backup_google_title), color = palette.text, fontSize = 16.sp)
+                Text(stringResource(if (google) R.string.backup_google_on else R.string.backup_google_off),
+                     color = palette.subtext, fontSize = 13.sp)
+            }
+            androidx.compose.material3.Switch(
+                checked = google,
+                onCheckedChange = null,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = palette.onAccent, checkedTrackColor = palette.accent),
+            )
+        }
+        Text(stringResource(R.string.backup_google), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
 

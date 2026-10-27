@@ -39,6 +39,17 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → Backup turns off the app's part in Android's own
+  backup** to the person's Google account, which stays on by default, as
+  it always was. Off, Android's backup — and its transfer to a new phone
+  — takes nothing of the app from then on. The page says what Android
+  does, about once a day while the phone charges on Wi-Fi, and that it
+  copies nothing more once the app's data passes 25 MB, where it used to
+  promise a copy with no condition; the welcome note says where the
+  switch is. Asked for by the owner after the final audit, 2026-10-27.
+
 ### Fixed
 
 - **A note's words typed while the phone could not write stay "Not
