@@ -517,9 +517,26 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     val unsaved: Boolean get() = edits != saved
 
-    /** Writes what is on screen. True when the file now holds it. */
-    fun save(force: Boolean = false): Boolean {
-        if (!force && edits == saved) return true
+    /**
+     * Writes what is on screen. True when the file now holds it. A failure
+     * is said as well as drawn in red, which a screen reader never reads
+     * out: every time when a tap asked for the save -- it is why the tap did
+     * nothing -- and by the [auto]save once, when saving starts to fail.
+     */
+    fun save(force: Boolean = false, auto: Boolean = false): Boolean {
+        val first = problem == null
+        val why = write(force) ?: return true
+        if (!auto || first) state.say("Not saved: $why")
+        return false
+    }
+
+    /**
+     * Writes what is on screen, saying nothing: null when the file now holds
+     * it, or why it does not. What the app asks before the note is left or
+     * changed from outside (AppState.flush), which says it in its own words.
+     */
+    fun write(force: Boolean = false): String? {
+        if (!force && edits == saved) return null
         val target = edits
         val load = state.load
         var follows = false
@@ -529,7 +546,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         } else if (id == 0) {
             if (!force && title.isBlank() && body.isBlank() && comments.isBlank()) {
                 saved = target
-                return true
+                return null
             }
             Notebook.createNote(load, title, body, category, color, date, pinned, spans,
                                 paragraphs = Paragraphs.extract(body, props), comments = comments)
@@ -551,11 +568,11 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 if (result.lostStyles > 0) {
                     state.say("${result.lostStyles} styles could not be kept: their text was deleted.")
                 }
-                true
+                null
             }
             is SaveResult.Failed -> {
                 problem = result.reason
-                false
+                result.reason
             }
         }
     }
@@ -993,10 +1010,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     var moving by remember { mutableStateOf(false) }
     var walkingOff by remember { mutableStateOf<List<String>?>(null) }
 
-    fun leave() {
-        model.save()
-        state.closeNote()
-    }
+    // Closed once its words are saved; kept open, and asked, when they
+    // cannot be (AppState.leaving).
+    fun leave() = state.saveAndCloseNote()
 
     BackHandler { leave() }
     // Back closes the find bar first, then the calculator, then a cell being
@@ -1013,11 +1029,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     LaunchedEffect(model.edits) {
         if (model.unsaved) {
             delay(800)
-            model.save()
+            model.save(auto = true)
         }
     }
     DisposableEffect(model) {
-        state.flush = { model.save() }
+        state.flush = { model.write() }
         onDispose { state.flush = null }
     }
     // Written from outside while open -- pinned from the list beside it,
@@ -1159,8 +1175,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             } else {
                                 // What is here is saved first: the template
                                 // starts a new note, it replaces nothing.
-                                model.save()
-                                pickTemplate = templates
+                                if (model.save()) pickTemplate = templates
                             }
                         },
                     )
@@ -1208,11 +1223,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         // is: the desktop's two answers, as two entries.
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_day_delete), color = palette.dangerText) },
-                            onClick = { menu = false; model.save(); asking = "day" },
+                            onClick = { menu = false; if (model.save()) asking = "day" },
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_series_delete), color = palette.dangerText) },
-                            onClick = { menu = false; model.save(); asking = "series" },
+                            onClick = { menu = false; if (model.save()) asking = "series" },
                         )
                     } else {
                         DropdownMenuItem(
@@ -1287,12 +1302,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium,
-                             modifier = Modifier.clickable { model.save(); state.openWholeSeries() })
+                             modifier = Modifier.clickable { if (model.save()) state.openWholeSeries() })
                         Text(stringResource(R.string.day_move), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
                         if (ownEdit || cameFrom != null) {
                             Text(stringResource(R.string.day_reset), color = palette.accentText, fontSize = 13.sp,
-                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { model.save(); asking = "reset" })
+                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { if (model.save()) asking = "reset" })
                         }
                     }
                 }
@@ -1323,7 +1338,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(palette.card)
-                        .clickable { model.save(); walkingOff = offDays }
+                        .clickable { if (model.save()) walkingOff = offDays }
                         .padding(12.dp),
                 )
             }
@@ -1339,7 +1354,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         // Saved only on yes, it promised the checklist and the
                         // repeat of an older copy, and brought back the words
                         // just deleted instead.
-                        .clickable { model.save(); askRestore = true }
+                        .clickable { if (model.save()) askRestore = true }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1581,9 +1596,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             onConfirm = {
                 askRestore = false
                 // Whatever waits for its autosave is saved first, so the
-                // version being replaced is the one on screen.
-                model.save()
-                if (state.report(Notebook.restorePrevious(state.load, model.id))) {
+                // version being replaced is the one on screen -- and when it
+                // cannot be, nothing is replaced: read back, the restored
+                // note would take the place of words no file holds.
+                if (model.save() && state.report(Notebook.restorePrevious(state.load, model.id))) {
                     state.note(model.id)?.let { model.reloadFrom(it) }
                     state.say("Restored the previous version")
                 }

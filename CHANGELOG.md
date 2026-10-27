@@ -46,6 +46,13 @@ do before, not as releases anyone ran.
   the new words stayed in the note the screen reads, so the next save
   found nothing to write and said "Auto-saved", and a restart lost them.
   Found by the final audit's break-it round.
+- **A note that cannot be saved stays open.** Back, another note, + and
+  the rail closed it anyway — a new note's words with it, kept nowhere
+  else — and a pin, a category or the Trash from the list beside it read
+  it back over the unsaved words. Now the note stays, the bar at the foot
+  says why with **Leave anyway**, and a change from outside waits. A
+  failed save is said aloud as well, where it was only drawn in red, out
+  of a screen reader's hearing. Found by the final audit's break-it round.
 
 ---
 

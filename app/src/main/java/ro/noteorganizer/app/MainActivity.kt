@@ -327,14 +327,16 @@ fun AppRoot(state: AppState, version: String) {
             }
         }
         val goTo = { tab: Tab ->
+            val show = {
+                state.tab = tab
+                state.settingsPage = null
+                // A tab asked for is a tab shown, beside the note again.
+                state.listAside = false
+            }
             // On two panes the note stays open beside the notes and the
             // calendar; anywhere else the rail leaves it, saved -- as Back
-            // would.
-            if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote()
-            state.tab = tab
-            state.settingsPage = null
-            // A tab asked for is a tab shown, beside the note again.
-            state.listAside = false
+            // would, and staying, as Back does, when it cannot be saved.
+            if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote(show) else show()
         }
         // Today asked for -- the reminder's bar or its notification: the
         // calendar on the day, the way the rail would go there.

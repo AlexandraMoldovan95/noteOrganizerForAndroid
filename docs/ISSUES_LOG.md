@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the fifty-eight are about
+**the code**, or in **the design**. Eighteen of the fifty-nine are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-way-out-that-never-asked-whether-the-note-was-saved) | code | With the phone unable to write, Back closed a new note whose save had just failed, and its words, kept nowhere else, went with it; a pin from the list read an unsaved note back over its words | A save whose answer nobody reads is a save that cannot fail -- in the code's eyes |
 | [2026-10-27](#a-save-that-failed-then-said-it-had-saved) | code | With the phone unable to write, a note's new words stayed on the screen after its save failed; the next save found nothing to write, said "Auto-saved", and a restart lost them | A sweep for a mistake in a shape must also find the places that skip the shape |
 | [2026-10-24](#a-rescue-copy-measured-by-how-much-shorter) | code | On the desktop, a short note replaced by a new line before it saved kept no rescue copy, its words gone; the phone, holding the desktop's thresholds by design, did the same | A guard has to measure the harm itself, not something that usually moves with it |
 | [2026-10-24](#226-errors-that-a-whole-compile-did-not-have) | checking | The release's compile failed with 226 unresolved names, all in NoteEditor.kt, and passed run again; the day before the debug compile had done the same. Each time an incremental compile, each time the whole compile after it clean | A tool that recompiles only what changed is a tool whose answer can be stale: what ships is built whole |
@@ -73,6 +74,39 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A way out that never asked whether the note was saved
+
+**2026-10-27.** The same round of the final audit, the same full disk:
+a new note typed, "Not saved" in red, then Back. The note closed, no
+message followed, and the list had no such note. A new note lives only
+in the editor until its first save; closed, its words went with it.
+
+`leave()` was two lines, save and close, and the save's answer was never
+read. Nor was it on the other ways out — another card, +, the rail —
+which all went through the editor's flush, typed to return nothing.
+"Move to Trash" alone asked. The flush had a second family of callers:
+a pin, a category, the Trash, a day changed from the calendar beside the
+note, an import. Each saved the editor first and went on, and those that
+write the note then read it back into the editor — over the words that
+had just failed to save. And the red line was all there was: drawn, not
+said, so a screen reader never told anyone.
+
+**The fix:** the flush says why it could not save. The ways out keep the
+editor open and say so in the bar at the foot, which a screen reader
+reads out, with **Leave anyway** — without it, a notebook that cannot be
+written would hold the person in the note. A change from outside waits,
+and says why; the editor's own links (the whole series, Restore
+previous, a template) go on only after a save. The autosave says the
+first failure aloud, and a save a tap asked for says each one.
+`AppStateTest` holds the rules with the full disk the audit used; the
+walk's `failed_save` holds Back.
+
+**The lesson:** a save whose answer nobody reads is a save that cannot
+fail — in the code's eyes. Typing a function to return nothing decided,
+for every caller at once, that failure was not their business.
 
 ---
 

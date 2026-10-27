@@ -157,7 +157,9 @@ Grouped by what the app does; when each item arrived is in the
 16. **One screen for reading and writing.** A note opens ready to edit
     and saves itself 0.8 seconds after the last change, when the app
     goes to the background, and on Back — "Auto-saved" says so, and a
-    save that fails says why. Turning the phone, its dark mode coming on
+    save that fails says why, aloud too. A note that cannot be saved is
+    not closed under its words: Back, another note, + and the rail keep
+    it open and offer to leave anyway. Turning the phone, its dark mode coming on
     or its letters growing leave the note open where it was. **↶ Undo and
     ↷ Redo** (Ctrl+Z, Ctrl+Y on a keyboard) take back the note's words and
     their styling, a burst of typing at a time, as the desktop's do.

@@ -275,7 +275,7 @@ fun finishImport(
     // A code shared to the app can arrive over an open note -- the very
     // note it may update. A new note saved here lands at the end of the
     // file, so the places the plan counted stay where they were.
-    state.beforeImport()
+    if (!state.beforeImport()) return
     when (val result = Importing.apply(state.load, plan, answers, attachmentsDir, extras)) {
         is Importing.Result.Failed -> state.say(result.reason)
         is Importing.Result.Done -> {

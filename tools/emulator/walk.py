@@ -416,6 +416,7 @@ def main():
     screen_sizes(folder)
     trash_select(folder)
     changes(folder)
+    failed_save(folder)
 
     print()
     if failures:
@@ -1392,6 +1393,70 @@ def changes(folder):
     shot(folder, "23-landscape", "Search notes")
     adb("shell", "settings", "put", "system", "user_rotation", "0")
     time.sleep(1.5)
+
+
+def writes_fail(on):
+    """Every write of the notebook failing, as on a full disk -- or written
+    again: a folder where the write puts its .tmp, which it cannot remove
+    while a file is in it (the final audit's way in, 2026-10-27)."""
+    tmp = "%s/notes_data.json.tmp" % NOTEBOOK
+    if on:
+        adb("shell", "run-as", PACKAGE, "mkdir", "-p", tmp)
+        adb("shell", "run-as", PACKAGE, "touch", tmp + "/hold")
+    else:
+        adb("shell", "run-as", PACKAGE, "rm", "-r", tmp)
+
+
+def failed_save(folder):
+    """A note whose save fails is never closed from under its words. Back
+    keeps it open and says why in the bar at the foot, which a screen
+    reader reads out, offering to leave anyway; once the notebook can be
+    written, Back saves and leaves. A new note left anyway is gone, as
+    asked (ISSUES_LOG, "A way out that never asked whether the note was
+    saved"). The rules are AppStateTest's, + and the rail included; this
+    is the screen's half: Back reaching them."""
+    print("\n-- a save that fails --")
+    if not seed_inside([{"id": 1, "uid": "walk-f1", "title": "Shopping", "body": "milk",
+                         "category": "General", "created": "2026-10-20 09:00",
+                         "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Shopping"):
+        return
+    writes_fail(True)
+    try:
+        open_note("Shopping")
+        tap("milk", exact=True, wait=0.8)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        type_text(" eggs")
+        check("a save that fails is said, not only drawn", not says_soon("Not saved: "),
+              str(screen_says("Not saved: ")))
+        keyboard_down()
+        back(wait=1.2)
+        check("Back keeps the unsaved note open, and offers to leave anyway",
+              not screen_says("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs"),
+              str(screen_says("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs")))
+        shot(folder, "83-not-saved-stays-open", "Leave anyway")
+        writes_fail(False)
+        back(wait=1.5)
+        check("once it can be written, Back saves the note and leaves it", not says_soon("Search notes"))
+        check_settled("... and the file holds the words typed while it could not be written",
+                      lambda: (note_by_uid("walk-f1") or {}).get("body"), lambda b: b == "milk eggs")
+
+        # A new note, left anyway: gone, as the person chose.
+        writes_fail(True)
+        tap("+", exact=True, wait=1.5)
+        tap("Write your note")
+        type_text("Call the dentist")
+        time.sleep(1.5)
+        keyboard_down()
+        back(wait=1.2)
+        check("a new note that cannot be saved stays open on Back",
+              not screen_says("Call the dentist", "Leave anyway"))
+        tap("Leave anyway", exact=True, wait=1.5)
+        check("Leave anyway leaves it", not says_soon("Search notes"))
+    finally:
+        writes_fail(False)
+    check("... and nothing was written for it",
+          not any("dentist" in n.get("body", "") for n in read_file("notes_data.json") or []))
 
 
 def statistics(folder):

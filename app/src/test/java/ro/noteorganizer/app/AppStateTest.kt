@@ -120,6 +120,7 @@ class AppStateTest {
             seen.add("flush")
             Notebook.updateNote(load, id, note(id)!!.title, body)
             refresh()
+            null
         }
     }
 
@@ -130,7 +131,7 @@ class AppStateTest {
         val s = state()
         s.openNote(1)
         val seen = ArrayList<String>()
-        s.flush = { seen.add("flush while ${s.openId} open") }
+        s.flush = { seen.add("flush while ${s.openId} open"); null }
         val before = s.opening
         s.openNote(2)
         assertEquals(listOf("flush while 1 open"), seen)
@@ -172,6 +173,7 @@ class AppStateTest {
             seen.add("flush, pinned on disk: ${s.pinnedOnDisk(1)}")
             Notebook.updateNote(s.load, 1, "A", "typed last")
             s.refresh()
+            null
         }
         val rewritten = s.openNoteRewritten
         s.setPinned(listOf(1), true)
@@ -186,7 +188,7 @@ class AppStateTest {
         val s = state()
         s.openNote(1)
         val seen = ArrayList<String>()
-        s.flush = { seen.add("flush") }
+        s.flush = { seen.add("flush"); null }
         val rewritten = s.openNoteRewritten
         s.setPinned(listOf(2), true)
         s.moveToCategory(listOf(2), "General")
@@ -241,7 +243,7 @@ class AppStateTest {
         val s = state()
         s.openNote(1)
         val seen = ArrayList<String>()
-        s.flush = { seen.add("flush") }
+        s.flush = { seen.add("flush"); null }
         val rewritten = s.openNoteRewritten
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         assertEquals(listOf("flush"), seen)
@@ -254,7 +256,7 @@ class AppStateTest {
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1)
         val seen = ArrayList<String>()
-        s.flush = { seen.add("flush") }
+        s.flush = { seen.add("flush"); null }
         val rewritten = s.openNoteRewritten
         s.resetDay(1, "2026-10-12")
         s.deleteDay(1, "2026-10-19")
@@ -270,7 +272,7 @@ class AppStateTest {
         assertEquals(rewritten, s.openNoteRewritten)
         s.openNote(1)
         var flushed = false
-        s.flush = { flushed = true }
+        s.flush = { flushed = true; null }
         s.beforeImport()
         assertTrue(flushed)
         s.afterImport()
@@ -299,10 +301,99 @@ class AppStateTest {
         val s = state()
         s.openNote(1)
         var flushed = false
-        s.flush = { flushed = true }
+        s.flush = { flushed = true; null }
         s.saveAndCloseNote()
         assertTrue(flushed)
         assertNull(s.openId)
         assertFalse(s.openDay != null)
+    }
+
+    /**
+     * Every write of the notes failing, as on a full disk: where the write
+     * puts its .tmp is a folder it cannot remove. Returns the way to free it.
+     */
+    private fun AppState.writesFail(): () -> Unit {
+        val blocker = File(dir, "notes_data.json.tmp")
+        File(blocker, "hold").apply { parentFile!!.mkdirs(); writeText("x") }
+        return { File(blocker, "hold").delete(); blocker.delete() }
+    }
+
+    /** The editor open on [id] (0: a new note), registered as NoteEditor registers it, holding [body] unsaved. */
+    private fun AppState.editing(id: Int, body: String): EditorModel {
+        val editor = EditorModel(this, note(id))
+        flush = { editor.write() }
+        editor.body = body
+        editor.changed()
+        return editor
+    }
+
+    /** What the bar at the foot says -- the one line a screen reader reads out. */
+    private fun AppState.said() = snackbar.currentSnackbarData?.visuals
+
+    @Test
+    fun `a note whose save fails stays open on Back, another card, + and the rail, and says why`() {
+        val s = state()
+        s.openNote(1)
+        s.editing(1, "first, and the words typed since")
+        val free = s.writesFail()
+        val opening = s.opening
+        s.saveAndCloseNote()
+        s.openNote(2)
+        s.newNote()
+        assertEquals(1, s.openId)
+        assertEquals(opening, s.opening)
+        val said = s.said()!!
+        assertTrue(said.message, said.message.startsWith("Not saved, so the note stays open: "))
+        assertEquals("Leave anyway", said.actionLabel)
+        // Saved once it can be, and left only then.
+        free()
+        s.saveAndCloseNote()
+        assertNull(s.openId)
+        assertEquals("first, and the words typed since", s.rawNote(1)?.optString("body"))
+    }
+
+    @Test
+    fun `a new note that cannot be saved is closed only when the person says to leave anyway`() {
+        val s = state()
+        s.newNote()
+        s.editing(0, "Call the dentist Tuesday 10:30")
+        s.writesFail()
+        s.saveAndCloseNote()
+        assertEquals("the editor, the words' only copy, stays", 0, s.openId)
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertNull(s.openId)
+        assertTrue(s.load.notes.none { it.body.startsWith("Call") })
+    }
+
+    @Test
+    fun `a pin, the Trash or an import waits for an open note that cannot be saved`() {
+        val s = state()
+        s.openNote(1)
+        s.editing(1, "typed, not saved")
+        s.writesFail()
+        val rewritten = s.openNoteRewritten
+        s.setPinned(listOf(1), true)
+        s.trash(listOf(1))
+        assertEquals("the editor is not read back over its words", rewritten, s.openNoteRewritten)
+        assertEquals(1, s.openId)
+        assertTrue(s.said()!!.message.startsWith("Not saved, so the open note was left as it is: "))
+        assertFalse(s.beforeImport())
+    }
+
+    @Test
+    fun `a failed autosave is said once, and a save a tap asked for every time`() {
+        // Drawn in red only, it reached nobody using a screen reader.
+        val s = state()
+        val editor = s.editing(1, "typed")
+        s.writesFail()
+        assertFalse(editor.save(auto = true))
+        assertTrue(s.said()!!.message.startsWith("Not saved: "))
+        s.snackbar.currentSnackbarData!!.dismiss()
+        editor.body = "typed more"
+        editor.changed()
+        assertFalse(editor.save(auto = true))
+        assertNull("the autosave does not say it again", s.said())
+        assertFalse(editor.save())
+        assertTrue(s.said()!!.message.startsWith("Not saved: "))
     }
 }
