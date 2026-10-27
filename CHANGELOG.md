@@ -39,6 +39,10 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+---
+
+## [0.13.0] — 2026-10-27 — Open-source licenses
+
 ### Added
 
 - **Settings → About → Open-source licenses**: the app's own MIT
