@@ -90,6 +90,11 @@ do before, not as releases anyone ran.
   copy of millions of letters, took seconds; it is worked out now when
   the question is asked, for that note, by a search as quick as the
   desktop's. Found by the final audit's break-it round.
+- **"↩ Restore previous" holds a backup's rescue copy to a note's
+  limits**, as the desktop does: the copy came in exactly as written, and
+  a restore could put fifty thousand checklist rows into the note, where
+  a checklist holds a thousand. It is shaped as it comes in, and again
+  when it is restored. Found by the final audit's break-it round.
 
 ---
 

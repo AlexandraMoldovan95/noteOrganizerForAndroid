@@ -93,8 +93,39 @@ object Normalize {
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
         // The rescue copy is carried through, as the desktop carries it:
         // dropped here, "Restore previous" would promise what the file no
-        // longer holds.
-        (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", JSONObject(it.toString())) }
+        // longer holds. Shaped as the desktop shapes it, not copied whole:
+        // a restore puts it straight back into the note.
+        (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
+        return out
+    }
+
+    /**
+     * A rescue copy as `normalize_note` shapes `_prev`: its words as text,
+     * its styles held to the line ceilings against its own text, its line
+     * entries sound, and of anything else only what an update from a backup
+     * replaces, each shaped by the note's own rules -- the checklist's
+     * thousand rows, a repeat rule, the days' edits. An absent key stays
+     * absent: that tells an update's copy from a shrink's. Copied whole, a
+     * backup's copy brought fifty thousand checklist rows past every
+     * ceiling, and a restore wrote them into the note (ISSUES_LOG, "A
+     * rescue copy let in whole").
+     */
+    fun shapePrevious(prev: JSONObject): JSONObject {
+        val body = prev.opt("body") as? String ?: ""
+        val out = JSONObject()
+        out.put("title", prev.opt("title") as? String ?: "")
+        out.put("body", body)
+        out.put("comments", prev.opt("comments") as? String ?: "")
+        out.put("formatting", Notebook.spansToJson(clampSpansPerLine(body, Exporting.normalizeFormatting(prev.opt("formatting")))))
+        out.put("paragraphs", Templates.paragraphsJson(Exporting.normalizeParagraphs(prev.opt("paragraphs"), null)))
+        val extra = JSONObject()
+        for (key in Notebook.UPDATABLE_FROM_BACKUP) {
+            if (key !in Notebook.PREV_TEXT_FIELDS && prev.has(key)) extra.put(key, prev.opt(key))
+        }
+        if (extra.length() > 0) {
+            val shaped = normalizeNote(extra)
+            for (key in extra.keys()) out.put(key, shaped.opt(key))
+        }
         return out
     }
 

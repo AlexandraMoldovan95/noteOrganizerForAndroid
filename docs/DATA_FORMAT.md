@@ -188,10 +188,15 @@ stop agreeing:
 }
 ```
 
-Two more keys travel beside these and are kept whole, though they are not
-defaults: `_prev`, the one-step rescue copy
+Two more keys travel beside these, though they are not defaults: `_prev`,
+the one-step rescue copy
 ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
-and `order`, the desktop's custom order.
+and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
+shaped as the desktop's `normalize_note` shapes it — its words as text,
+its styles held to the line ceilings, and beside them only the fields an
+update from a backup replaces, each by the note's own rules — since a
+restore puts it straight back into the note
+([why](ISSUES_LOG.md#a-rescue-copy-let-in-whole)).
 
 Since Phase 3 the phone writes `order` too, as the desktop's arranging
 does: every note numbered by its place — the hidden ones too, so a

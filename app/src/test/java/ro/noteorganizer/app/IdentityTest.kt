@@ -451,6 +451,46 @@ class IdentityTest {
         assertTrue(Notebook.previousKeeps(load, 7))
     }
 
+    /** A rescue copy as a crafted backup brings it: past every ceiling, with what no copy holds. */
+    private fun hostileCopy(): JSONObject {
+        val body = "x".repeat(1300)
+        return JSONObject().put("title", 5).put("body", body).put("comments", JSONArray())
+            .put("checklist", JSONArray((0 until 1500).map { JSONObject().put("text", "row $it").put("done", false) }))
+            .put("formatting", JSONArray((0 until 600).map { JSONObject().put("start", 2 * it).put("end", 2 * it + 1).put("style", "bold") }))
+            .put("recurrence", JSONObject().put("freq", "weekly").put("interval", -7))
+            .put("attachments", JSONArray().put(JSONObject().put("filename", "x").put("stored_as", "../../evil")))
+            .put("mystery", "not a field")
+    }
+
+    @Test
+    fun `a backup's rescue copy comes in shaped as the desktop shapes it, held to the note's ceilings`() {
+        val prev = Normalize.normalizeNote(JSONObject().put("title", "Groceries").put("body", "milk")
+            .put("date", "2026-10-05").put("_prev", hostileCopy())).getJSONObject("_prev")
+        assertEquals("", prev.getString("title"))
+        assertEquals("", prev.getString("comments"))
+        assertEquals(Normalize.MAX_CHECKLIST_ITEMS, prev.getJSONArray("checklist").length())
+        assertEquals(Normalize.MAX_SPANS_PER_LINE, prev.getJSONArray("formatting").length())
+        assertFalse("what an update never replaces is not carried", prev.has("attachments"))
+        assertFalse(prev.has("mystery"))
+        // A shrink's copy, the text alone, stays the text alone.
+        val shrink = Normalize.normalizeNote(JSONObject().put("_prev", JSONObject().put("body", "x")))
+            .getJSONObject("_prev")
+        assertFalse(shrink.has("checklist"))
+        assertFalse(shrink.has("recurrence"))
+    }
+
+    @Test
+    fun `a restore holds a copy written before it was shaped to the note's ceilings`() {
+        val note = JSONObject().put("id", 7).put("uid", "a").put("title", "Groceries").put("body", "milk")
+            .put("_prev", hostileCopy())
+        val load = scratch(JSONArray().put(note).toString())
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val restored = onDisk(load).getJSONObject(0)
+        assertEquals(Normalize.MAX_CHECKLIST_ITEMS, restored.getJSONArray("checklist").length())
+        assertEquals(Normalize.MAX_SPANS_PER_LINE, restored.getJSONArray("formatting").length())
+        assertFalse("nothing an update never replaces comes back", restored.toString().contains("evil"))
+    }
+
     @Test
     fun `whether a restore keeps the note's words is answered in time that grows with the words, not their square`() {
         // A backup's rescue copy of four million letters, and a note of

@@ -1720,7 +1720,9 @@ object Notebook {
         val index = indexById(array, id)
         if (index < 0) return SaveResult.Failed(GONE)
         val live = array.get(index) as JSONObject
-        val previous = live.opt("_prev") as? JSONObject
+        // Shaped again, held to the note's ceilings: a file written before
+        // the import shaped it can hold a copy as it came.
+        val previous = (live.opt("_prev") as? JSONObject)?.let { Normalize.shapePrevious(it) }
             ?: return SaveResult.Failed("This note has no earlier version to bring back.")
         val replaced = replacedByRestore(live, previous)
         val note = JSONObject(live.toString())

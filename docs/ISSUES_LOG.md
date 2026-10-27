@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-three are about
+**the code**, or in **the design**. Eighteen of the sixty-four are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-rescue-copy-let-in-whole) | code | A backup's rescue copy came in exactly as written, and "↩ Restore previous" put it into the note: fifty thousand checklist rows past the cap of a thousand, two thousand styles on one line past the cap of five hundred | A ceiling holds only if every road into the note passes it, the one through a copy included |
 | [2026-10-27](#a-question-asked-of-every-note-to-answer-one) | code | A 4.5 KB backup held a rescue copy of four million letters and a note that nearly matched it; every load asked of every note whether a restore would keep its words, by a search that took fourteen seconds, at each start and after each save | Work out an answer where it is asked, for what it is asked about; and when porting Python's `in`, port its cost too |
 | [2026-10-27](#a-million-brackets-past-a-catch-for-exceptions) | code | A share code of 1,354 characters, or a backup of 1 KB, held a million nested brackets; Android's parser went one call deeper for each, and the StackOverflowError it ended in was no Exception, so no guard caught it and the app stopped | A catch names what it expects; what comes from outside is measured before a recursive reader is handed it |
 | [2026-10-27](#a-trash-restored-without-its-window) | design | A backup restored onto a new phone brought its Trash, every entry with the day it was deleted, and not the 90 days it was kept for: the next start emptied what was older than the default 30 | Data that carries a date to be judged by a rule must travel with the rule |
@@ -78,6 +79,34 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A rescue copy let in whole
+
+**2026-10-27.** Found by the final audit, reading the two
+`normalize_note`s side by side: a backup's note "Groceries", one row on
+its checklist, whose `_prev` held fifty thousand rows and two thousand
+highlights on one line. Imported, its banner offered "↩ Restore
+previous"; pressed, the note took all of it, and the editor, which draws
+a checklist row by row, would compose fifty thousand rows.
+
+Both apps cap a checklist at a thousand rows and a line at five hundred
+styles, at every way into a note — but the phone's port of
+`normalize_note` copied `_prev` whole, where the desktop's shapes it:
+the words as text, the styles clamped against the copy's own text, and
+of anything else only the fields an update from a backup replaces, each
+through `normalize_note` itself. A restore then wrote the copy straight
+into the note, past every ceiling.
+
+**The fix:** `Normalize.shapePrevious` shapes it as the desktop does,
+when it comes in; and a restore shapes it again before writing, for a
+notebook written before. Two tests in `IdentityTest`, one at each door.
+The same copy's text was behind [the freeze below](#a-question-asked-of-every-note-to-answer-one).
+
+**The lesson:** a ceiling holds only if every road into the note passes
+it. The rescue copy is a second note riding inside the first, and its
+road in is the restore.
 
 ---
 
