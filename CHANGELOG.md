@@ -104,6 +104,11 @@ do before, not as releases anyone ran.
   as on the desktop, which drops what is not part of a code where the
   phone called the code damaged — as it is when it ends a sentence in a
   mail. Found by the final audit's break-it round.
+- **A share code that started the app is offered once.** Sent to Note
+  Organizer from a chat while the app was closed, the code was offered
+  again each time Android brought the app back after ending it in the
+  background — with "Update this note" ready to put the older words back
+  over the newer. Found by the final audit's break-it round.
 
 ---
 

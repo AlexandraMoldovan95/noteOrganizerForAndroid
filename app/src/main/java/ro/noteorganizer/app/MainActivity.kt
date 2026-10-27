@@ -111,8 +111,18 @@ class MainActivity : ComponentActivity() {
         val dir = File(filesDir, "notebook")
         // Where the development tools pushed a notebook before this one.
         val notice = Startup.prepare(dir, getExternalFilesDir(null))
-        incoming.value = codeIn(intent)
-        if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
+        // What the app was started with is acted on once. Restored -- after
+        // Android ended the process in the background, or a change the app
+        // does not take itself -- or reopened from Recents, the activity is
+        // handed the same intent again: a share code that started the app
+        // was offered again, its "Update this note" ready to put the older
+        // words back over the newer.
+        val fresh = savedInstanceState == null &&
+            ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
+        if (fresh) {
+            incoming.value = codeIn(intent)
+            if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
+        }
         setContent {
             val scope = rememberCoroutineScope()
             val state = remember { AppState(dir, scope).also { it.notice = notice } }

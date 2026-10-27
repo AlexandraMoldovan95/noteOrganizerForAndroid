@@ -420,6 +420,7 @@ def main():
     checklist_words_kept(folder)
     backup_too_large(folder)
     big_table(folder)
+    code_started_once(folder)
 
     print()
     if failures:
@@ -1566,6 +1567,40 @@ def big_table(folder):
           (note_by_uid("walk-t1") or {}).get("body") == big)
     if open_note("Small table"):
         check("a table of twenty by twenty is still a grid", find("r0c0", exact=True) is not None)
+    back_to("Search notes")
+
+
+def code_started_once(folder):
+    """The app started by a share code -- cold, as "Share -> Note
+    Organizer" from a chat starts it -- offers the code once. Ended by
+    Android in the background and opened again, the activity is handed the
+    same intent: it offered the code again, its "Update this note" ready to
+    put the older words back over the newer. MainActivity's own; no unit
+    test reaches an Activity's intent."""
+    print("\n-- a share code that started the app, offered once --")
+    code = desktop_code({"uid": "walk-once", "title": "Shared once", "body": "from a chat",
+                         "category": "General"})
+    if not code:
+        fail("a code that started the app: the desktop's encoder could not be used, so nothing was tried")
+        return
+    if not seed_inside([{"id": 1, "uid": "walk-o1", "title": "Already here", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Already here"):
+        return
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+    time.sleep(3.0)
+    tap("Import", exact=True, wait=2.0)
+    check("a code that started the app is imported", note_by_uid("walk-once") is not None)
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(1.0)
+    adb("shell", "am", "kill", PACKAGE)
+    start_app()
+    check("ended in the background and opened again, the app does not offer the code again",
+          bool(screen_says("Import a code")) and not screen_says("Already here", "Shared once"),
+          " | ".join(t for t, d, _ in nodes() if t)[:160])
+    shot(folder, "87-code-offered-once", "Already here", "Shared once")
     back_to("Search notes")
 
 
