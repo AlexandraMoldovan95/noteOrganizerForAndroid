@@ -120,6 +120,12 @@ do before, not as releases anyone ran.
   backup was built; a cache too full to build it then left the old
   backup empty and deleted it. It is opened only once the new one is
   built and checked. Found by the final audit's break-it round.
+- **The buttons drawn as a symbol say what they do to a screen reader**:
+  + is "New note", ⋮ "More options", ← "Back", ⓘ "Note details", and the
+  selection bar's ✕, 📌, 🗂 and 🗑 their actions, as are the search's and
+  the start line's ✕. A checklist row's box is a checkbox named by the
+  row, and its ✕ says "Remove … from the checklist". TalkBack read the
+  symbols' names, or nothing. Found by the final audit's break-it round.
 
 ---
 

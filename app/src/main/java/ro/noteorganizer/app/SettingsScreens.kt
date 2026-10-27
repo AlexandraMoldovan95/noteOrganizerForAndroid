@@ -82,7 +82,9 @@ fun SettingsScreen(
         TopAppBar(
             title = { Text(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
             navigationIcon = {
-                if (page != null) IconButton(onClick = { state.settingsPage = up }) { Text("←", fontSize = 22.sp) }
+                if (page != null) IconButton(onClick = { state.settingsPage = up }, modifier = Modifier.said(R.string.back_said)) {
+                    Text("←", fontSize = 22.sp)
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
         )

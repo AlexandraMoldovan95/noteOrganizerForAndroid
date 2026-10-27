@@ -421,6 +421,7 @@ def main():
     backup_too_large(folder)
     big_table(folder)
     code_started_once(folder)
+    symbol_labels(folder)
 
     print()
     if failures:
@@ -1608,6 +1609,31 @@ def code_started_once(folder):
           bool(screen_says("Import a code")) and not screen_says("Already here", "Shared once"),
           " | ".join(t for t, d, _ in nodes() if t)[:160])
     shot(folder, "87-code-offered-once", "Already here", "Shared once")
+    back_to("Search notes")
+
+
+def symbol_labels(folder):
+    """The buttons drawn as a symbol say what they do to a screen reader --
+    "+" is New note, "⋮" More options, "🗑" Move to Trash, a checklist row's
+    "✕" Remove ... from the checklist -- where it read the symbol's name or
+    nothing. Read from the UI tree's descriptions, which is what TalkBack
+    reads; how TalkBack speaks them needs a person with it on."""
+    print("\n-- what a screen reader is told about the symbol buttons --")
+    if not seed_inside([{"id": 1, "uid": "walk-l1", "title": "Bread", "body": "Knead",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00",
+                         "checklist": [{"text": "flour", "done": False}]}],
+                       {"welcome_offered": True}, "Bread"):
+        return
+    missing = screen_says("New note", "More options")
+    check("the list's + and ⋮ are named", not missing, str(missing))
+    if long_press("Bread"):
+        missing = screen_says("Clear selection", "Pin", "Move to category", "Move to Trash", "More options")
+        check("the selection bar's symbols are named", not missing, str(missing))
+        back_to("Search notes")
+    if open_note("Bread"):
+        missing = screen_says("Back", "Note details", "More options", "Checklist: flour",
+                              "Remove flour from the checklist")
+        check("the editor's symbols and a checklist row's box and ✕ are named", not missing, str(missing))
     back_to("Search notes")
 
 

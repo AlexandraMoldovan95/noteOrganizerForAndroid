@@ -56,6 +56,18 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
 import ro.noteorganizer.app.ui.theme.hexColor
 
 /**
+ * What a screen reader says for a button drawn as a symbol -- "+", "⋮",
+ * "🗑" -- which it otherwise read by the symbol's name, or not at all. The
+ * symbol stays the button's text, so a sighted reader and the walk see it
+ * as before.
+ */
+@Composable
+fun Modifier.said(id: Int): Modifier {
+    val words = stringResource(id)
+    return semantics { contentDescription = words }
+}
+
+/**
  * A sheet from the bottom, as every one in the app is drawn. The sheet is
  * a window of its own, and Android drew its bars for the phone's light or
  * dark, not the app's: on a light phone with the app dark, a white bar of

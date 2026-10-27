@@ -205,6 +205,22 @@
     <string name="section_folded">Folded</string>
     <string name="section_open">Open</string>
     <string name="files_label">Attached files · %1$d</string>
+    <!-- What a screen reader says for a button drawn as a symbol: without
+         these, it read the symbol's name ("plus", "wastebasket") or
+         nothing at all (the final audit, 2026-10-27). -->
+    <string name="new_note_said">New note</string>
+    <string name="more_options_said">More options</string>
+    <string name="back_said">Back</string>
+    <string name="note_details_said">Note details</string>
+    <string name="clear_selection_said">Clear selection</string>
+    <string name="move_to_category_said">Move to category</string>
+    <string name="clear_search_said">Clear search</string>
+    <string name="dismiss_said">Dismiss</string>
+    <string name="close_said">Close</string>
+    <string name="checklist_row_said">Checklist: %1$s</string>
+    <string name="checklist_ticked">Ticked</string>
+    <string name="checklist_not_ticked">Not ticked</string>
+    <string name="checklist_remove_said">Remove %1$s from the checklist</string>
     <!-- Attaching and removing files: the desktop's words -->
     <string name="attach_files">📎 Attach files</string>
     <string name="attach_remove_said">Remove %1$s</string>

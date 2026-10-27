@@ -104,8 +104,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -1119,7 +1122,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         // the note's lines stay above the keys. With the bar, none did.
         val compact = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP && WindowInsets.isImeVisible
         if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
+            IconButton(onClick = { leave() }, modifier = Modifier.said(R.string.back_said)) {
+                Text("←", fontSize = 22.sp, color = palette.text)
+            }
             // Beside the list or the calendar: « puts it aside for a wider
             // note, » brings it back (asked for on the owner's phone).
             if (beside) {
@@ -1168,9 +1173,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 if (empty) state.say(nothingYet)
                 else if (model.save(force = model.id == 0)) shareAsk = true
             }, modifier = Modifier.semantics { contentDescription = shareSaid }) { ShareMark(palette.text) }
-            IconButton(onClick = { details = true }) { Text("ⓘ", fontSize = 20.sp, color = palette.text) }
+            IconButton(onClick = { details = true }, modifier = Modifier.said(R.string.note_details_said)) {
+                Text("ⓘ", fontSize = 20.sp, color = palette.text)
+            }
             Box {
-                IconButton(onClick = { menu = true }) { Text("⋮", fontSize = 20.sp, color = palette.text) }
+                IconButton(onClick = { menu = true }, modifier = Modifier.said(R.string.more_options_said)) {
+                    Text("⋮", fontSize = 20.sp, color = palette.text)
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.find_in_note)) },
@@ -2371,8 +2380,12 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     var dragging by remember { mutableIntStateOf(-1) }
     var offset by remember { mutableFloatStateOf(0f) }
     val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
+    val tickedSaid = stringResource(R.string.checklist_ticked)
+    val notTickedSaid = stringResource(R.string.checklist_not_ticked)
     items.forEachIndexed { index, item ->
         val moveLabel = stringResource(R.string.drag_to_move, item.text)
+        val rowSaid = stringResource(R.string.checklist_row_said, item.text)
+        val removeSaid = stringResource(R.string.checklist_remove_said, item.text)
         // The row the current match is in, brought into sight as the bar steps.
         val sight = remember { BringIntoViewRequester() }
         val here = current?.takeIf { it.item == index }
@@ -2420,6 +2433,13 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 color = if (item.done) palette.successText else palette.text,
                 fontSize = 20.sp,
                 modifier = Modifier
+                    // A box a screen reader can name: the row's words, ticked
+                    // or not, a checkbox -- not the symbol's name alone.
+                    .semantics {
+                        contentDescription = rowSaid
+                        stateDescription = if (item.done) tickedSaid else notTickedSaid
+                        role = Role.Checkbox
+                    }
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
@@ -2438,6 +2458,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 color = palette.subtext,
                 fontSize = 14.sp,
                 modifier = Modifier
+                    .semantics { contentDescription = removeSaid }
                     .clickable { if (renameWritten()) state.report(Notebook.removeChecklistItem(state.load, model.id, index)) }
                     .padding(8.dp),
             )

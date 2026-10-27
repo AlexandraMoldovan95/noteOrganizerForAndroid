@@ -195,17 +195,25 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 TopAppBar(
                     title = { Text(pluralStringResource(R.plurals.selected_count, selected.size, selected.size)) },
                     navigationIcon = {
-                        IconButton(onClick = { selected = emptySet() }) { Text("✕", fontSize = 18.sp) }
+                        IconButton(onClick = { selected = emptySet() }, modifier = Modifier.said(R.string.clear_selection_said)) {
+                            Text("✕", fontSize = 18.sp)
+                        }
                     },
                     actions = {
-                        IconButton(onClick = { state.setPinned(selected, !allPinned); selected = emptySet() }) {
+                        IconButton(onClick = { state.setPinned(selected, !allPinned); selected = emptySet() },
+                                   modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
                             Text("📌", fontSize = 18.sp)
                         }
-                        IconButton(onClick = { choosingCategory = true }) { Text("🗂", fontSize = 18.sp) }
-                        IconButton(onClick = { state.trash(selected); selected = emptySet() }) {
+                        IconButton(onClick = { choosingCategory = true }, modifier = Modifier.said(R.string.move_to_category_said)) {
+                            Text("🗂", fontSize = 18.sp)
+                        }
+                        IconButton(onClick = { state.trash(selected); selected = emptySet() },
+                                   modifier = Modifier.said(R.string.move_to_trash)) {
                             Text("🗑", fontSize = 18.sp)
                         }
-                        IconButton(onClick = { moreMenu = true }) { Text("⋮", fontSize = 20.sp) }
+                        IconButton(onClick = { moreMenu = true }, modifier = Modifier.said(R.string.more_options_said)) {
+                            Text("⋮", fontSize = 20.sp)
+                        }
                         DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (allPinned) R.string.unpin else R.string.pin)) },
@@ -245,7 +253,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         Text(if (name.isNotEmpty()) stringResource(R.string.greeting, name) else stringResource(R.string.app_name))
                     },
                     actions = {
-                        IconButton(onClick = { moreMenu = true }) { Text("⋮", fontSize = 20.sp) }
+                        IconButton(onClick = { moreMenu = true }, modifier = Modifier.said(R.string.more_options_said)) {
+                            Text("⋮", fontSize = 20.sp)
+                        }
                         DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.import_code)) },
@@ -343,7 +353,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 ) {
                     Text(line, color = palette.text, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     Text("✕", color = palette.subtext, fontSize = 14.sp,
-                         modifier = Modifier.clickable { state.notice = null }.padding(horizontal = 14.dp))
+                         modifier = Modifier.said(R.string.dismiss_said).clickable { state.notice = null }.padding(horizontal = 14.dp))
                 }
             }
 
@@ -461,7 +471,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 containerColor = palette.accent,
                 contentColor = palette.onAccent,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-            ) { Text("+", fontSize = 28.sp) }
+            ) { Text("+", fontSize = 28.sp, modifier = Modifier.said(R.string.new_note_said)) }
         }
     }
 
@@ -542,7 +552,8 @@ fun SearchBox(query: String, onChange: (String) -> Unit) {
             },
         )
         if (query.isNotEmpty()) {
-            Text("✕", color = palette.subtext, fontSize = 16.sp, modifier = Modifier.clickable { onChange("") }.padding(start = 10.dp))
+            Text("✕", color = palette.subtext, fontSize = 16.sp,
+                 modifier = Modifier.said(R.string.clear_search_said).clickable { onChange("") }.padding(start = 10.dp))
         }
     }
 }

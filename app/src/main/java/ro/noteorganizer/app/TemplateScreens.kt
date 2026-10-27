@@ -379,7 +379,9 @@ private fun TemplateEditor(
         }
         Column(Modifier.fillMaxSize().background(palette.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { close() }) { Text("✕", fontSize = 18.sp, color = palette.text) }
+                IconButton(onClick = { close() }, modifier = Modifier.said(R.string.close_said)) {
+                    Text("✕", fontSize = 18.sp, color = palette.text)
+                }
                 Text(stringResource(if (original == null) R.string.template_new_title else R.string.template_edit_title),
                      color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 TextButton(onClick = { save() }) {
