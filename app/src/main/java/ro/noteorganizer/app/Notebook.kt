@@ -384,17 +384,13 @@ sealed class SaveResult {
     data class Failed(val reason: String) : SaveResult()
 }
 
-/** The note's own text split into code points, which is how Python counts. */
-internal fun codePointsOf(text: String): IntArray {
-    val out = ArrayList<Int>(text.length)
-    var i = 0
-    while (i < text.length) {
-        val cp = text.codePointAt(i)
-        out.add(cp)
-        i += Character.charCount(cp)
-    }
-    return out.toIntArray()
-}
+/**
+ * The note's own text split into code points, which is how Python counts.
+ * Straight into an array: gathered in a list first, each code point was an
+ * object of its own, and a 25-million-letter note asked for some 600 MB on
+ * its way in from a backup, more than a phone gives an app.
+ */
+internal fun codePointsOf(text: String): IntArray = text.codePoints().toArray()
 
 /** Spans that survived an edit, and how many did not. */
 data class Remapped(val spans: List<FormatSpan>, val lost: Int)

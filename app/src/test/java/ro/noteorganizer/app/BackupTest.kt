@@ -185,6 +185,33 @@ class BackupTest {
             (Backup.read(deep, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
     }
 
+    @Test
+    fun `a backup's JSON file larger than the phone can read is refused before it is unpacked`() {
+        // 50 MB of JSON packed into 48 KB passed the bomb guard's 50 MB
+        // floor -- a computer's number -- and ran the phone out of memory.
+        // Here the phone is given 16,000 bytes: a ceiling of 1,000.
+        val heap = 16_000L
+        val big = File(temp("in"), "big.zip")
+        zipOf(big, "notes_data.json" to """[{"title": "${"é".repeat(3000)}"}]""")
+        val failed = Backup.read(big, temp("u"), Long.MAX_VALUE, heap = heap) as Backup.Read.Failed
+        assertTrue(failed.reason, failed.reason.contains("more than this phone can read"))
+        // An attached file is copied, never read whole into memory: only
+        // the JSON is held to the ceiling.
+        val photo = File(temp("in"), "photo.zip")
+        zipOf(photo, "notes_data.json" to "[]", "attachments/photo.jpg" to "x".repeat(5000))
+        assertTrue(Backup.read(photo, temp("u"), Long.MAX_VALUE, heap = heap) is Backup.Read.Ok)
+    }
+
+    @Test
+    fun `a parser out of memory reads as too large, and the app goes on`() {
+        try {
+            Files.parseOutside("[1]") { throw OutOfMemoryError() }
+            fail("a parser out of memory got past")
+        } catch (e: Files.Unreadable) {
+            assertEquals(Files.TOO_LARGE, e.message)
+        }
+    }
+
     // Nested 150 deep: the computer's parser takes that (it stops at 512 by
     // itself), Android's went one call deeper per bracket until the app
     // stopped, and only the guard refuses it here.

@@ -529,6 +529,12 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
     } catch (e: Exception) {
         work.deleteRecursively()
         Backup.Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
+    } catch (e: OutOfMemoryError) {
+        // An Error, which the catch above lets through: a backup too big for
+        // the phone ended the app. Its guard (Backup.memoryProblem) should
+        // stop one first; this is the boundary for whatever gets past.
+        work.deleteRecursively()
+        Backup.Read.Failed("That file couldn't be read as a backup:\n${Files.TOO_LARGE}")
     } finally {
         zip.delete()
     }

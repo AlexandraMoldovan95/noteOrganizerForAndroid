@@ -368,6 +368,18 @@ the phone keeps the two under keys of its own (`phone_theme_light`,
 could also follow the phone's dark mode; 0.9.1 replaced it with the one
 switch, at the owner's ask.
 
+**A backup's JSON files are held to what the phone can read.** The
+notes, Trash, templates and settings a backup brings may each hold at
+most a sixteenth of the memory Android gives the app — 16 MB where it
+gives 256 — and a larger one is refused before anything is unpacked. The
+desktop holds them only to its bomb guard's 50 MB floor, sized for a
+computer: under it a 48 KB archive unpacked to a 50 MB note, and the phone
+ran out of memory reading it. Attached files are copied, never read
+whole, and are not held to it. And JSON from outside nested past 100
+levels is damage here, where the desktop's parser refuses near 1,000; no
+note comes near either, its deepest place being under ten levels down
+([the story](ISSUES_LOG.md#a-million-brackets-past-a-catch-for-exceptions)).
+
 **The Trash's automatic emptying spares files still in use.** When a
 note leaves the Trash for good, its attached files are deleted — except
 any file a living note, or another note still in the Trash, also uses.

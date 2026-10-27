@@ -418,6 +418,7 @@ def main():
     changes(folder)
     failed_save(folder)
     checklist_words_kept(folder)
+    backup_too_large(folder)
 
     print()
     if failures:
@@ -1497,6 +1498,38 @@ def checklist_words_kept(folder):
         check("... and they are there after Android ended the process",
               not screen_says("flour 500g", "yeast 7g", "salt"), str(screen_says("flour 500g", "yeast 7g", "salt")))
         shot(folder, "84-checklist-words-kept", "flour 500g", "salt")
+    back_to("Search notes")
+
+
+def backup_too_large(folder):
+    """A backup of 48 KB whose notes unpack to 50 MB -- under the desktop's
+    50 MB bomb floor, more than a phone app is given to read -- refused
+    with a sentence, and the app goes on. The ceiling is a sixteenth of the
+    heap the phone gives the app, which only the phone can say: BackupTest
+    holds the rule with a heap it chooses, this holds it with the real one."""
+    print("\n-- a backup too large for the phone --")
+    import zipfile
+    local = os.path.join(folder, "walk_too_large.zip")
+    body = "é" * 24_900_000
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        z.writestr("notes_data.json", '[{"id": 1, "title": "Big", "body": "%s"}]' % body)
+    name = "walk_too_large.zip"
+    adb("push", local, "/sdcard/Download/" + name)
+    adb("shell", "pm", "clear", PACKAGE)
+    start_app()
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup")
+    tap("Import a backup", wait=3.0)
+    if find(name, exact=True) is None:
+        tap("Downloads", wait=2.0) if find("Downloads") else None
+    if tap(name, exact=True, wait=3.0):
+        check("a backup too large for the phone is refused with a sentence",
+              not says_soon("more than this phone can read", within=15.0),
+              str(screen_says("more than this phone can read")))
+        shot(folder, "85-backup-too-large", "more than this phone can read")
+        check("... and the app goes on", foreground() == PACKAGE, foreground())
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    os.remove(local)
     back_to("Search notes")
 
 

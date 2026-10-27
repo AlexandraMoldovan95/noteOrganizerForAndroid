@@ -178,12 +178,37 @@ object Backup {
         data class Failed(val reason: String) : Read()
     }
 
+    /** The files of a backup read whole as JSON, which the phone's memory must hold at once. */
+    private val JSON_FILES = setOf(NOTES, TRASH, TEMPLATES, SETTINGS)
+
+    /**
+     * The most one of a backup's JSON files may hold on a phone that lets
+     * the app use [heap] bytes: a sixteenth of it -- 16 MB where an app is
+     * given 256. Read, the text takes two bytes a letter, the objects parsed
+     * from it several times that, and the notes are copied again on their
+     * way in. The bomb guard's floor is the desktop's, 50 MB, sized for a
+     * computer: under it, a 48 KB archive unpacked to a 50 MB note, and the
+     * phone ran out of memory reading it.
+     */
+    fun jsonCeiling(heap: Long): Long = heap / 16
+
+    /** Why one of [entries]' JSON files is more than a phone with [heap] can read at once, or null. */
+    fun memoryProblem(entries: List<Entry>, heap: Long): String? {
+        val ceiling = jsonCeiling(heap)
+        val big = entries.firstOrNull { it.name.replace('\\', '/') in JSON_FILES && it.size > ceiling }
+            ?: return null
+        return "${big.name} holds ${sizeText(big.size)}, more than this phone can read at once " +
+            "(${sizeText(ceiling)})."
+    }
+
     /**
      * Reads the backup [zip] into the empty folder [into]: guarded, then
      * unpacked, then its files parsed. [free] is the space left on the disk
-     * it unpacks to. A failure says what is wrong in words for a person.
+     * it unpacks to, [heap] the memory the app may use. A failure says what
+     * is wrong in words for a person.
      */
-    fun read(zip: File, into: File, free: Long, stop: () -> Boolean = { false }): Read {
+    fun read(zip: File, into: File, free: Long, stop: () -> Boolean = { false },
+             heap: Long = Runtime.getRuntime().maxMemory()): Read {
         val file = try {
             ZipFile(zip)
         } catch (e: Exception) {
@@ -191,7 +216,7 @@ object Backup {
         }
         file.use { archive ->
             val entries = entriesOf(archive)
-            (entriesProblem(entries) ?: spaceProblem(entries, free))?.let {
+            (entriesProblem(entries) ?: spaceProblem(entries, free) ?: memoryProblem(entries, heap))?.let {
                 return Read.Failed("That file couldn't be read as a backup:\n$it")
             }
             if (archive.getEntry(NOTES) == null) {
@@ -206,7 +231,10 @@ object Backup {
                     // The sizes the guards read are the archive's own claim.
                     // Counted here too, so an entry that unpacks to more
                     // than it declared is stopped at what it declared.
-                    val limit = if (entry.size >= 0) entry.size else BOMB_MIN_BYTES
+                    // A JSON file that never said its size, no more than the
+                    // phone can read.
+                    val claimed = if (entry.size >= 0) entry.size else BOMB_MIN_BYTES
+                    val limit = if (place in JSON_FILES) minOf(claimed, jsonCeiling(heap)) else claimed
                     archive.getInputStream(entry).use { input ->
                         FileOutputStream(target).use { copyStopping(input, it, stop, limit) }
                     }

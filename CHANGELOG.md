@@ -76,6 +76,14 @@ do before, not as releases anyone ran.
   file it was reading: every note in the backup, PINs and all, in the
   bar at the foot of the screen, and from a hostile file, tens of
   megabytes of text. Found by the final audit's break-it round.
+- **A backup too large for the phone to read is refused with a sentence**,
+  where it could stop the app. A 48 KB backup could unpack to a 50 MB
+  note — under the desktop's bomb guard, sized for a computer — and the
+  phone ran out of memory reading it. Each JSON file a backup brings is
+  now held to a sixteenth of the memory Android gives the app, running
+  out of memory anyway reads as "too large", and a note's letters are
+  counted without an object for each. Found by the final audit's
+  break-it round.
 
 ---
 

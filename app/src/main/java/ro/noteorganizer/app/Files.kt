@@ -120,10 +120,15 @@ object Files {
             parse(text)
         } catch (e: StackOverflowError) {
             throw Unreadable(TOO_DEEP)
+        } catch (e: OutOfMemoryError) {
+            // What it built is let go with the call: a backup too big for
+            // the phone is refused, and the app goes on.
+            throw Unreadable(TOO_LARGE)
         }
     }
 
     private const val TOO_DEEP = "It is nested deeper than any note."
+    const val TOO_LARGE = "It is too large for this phone to read."
 
     /** Whether [text]'s brackets, outside its strings, nest past [limit]: one pass, nothing parsed. */
     fun nestedPast(text: String, limit: Int): Boolean {
