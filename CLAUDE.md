@@ -149,6 +149,7 @@ people run, shrunk and renamed by R8, which the debug build never is:
 
     gradlew.bat assembleRelease
     py tools/check_release_lookups.py  # every file the code looks up is where the renamed code looks
+    py tools/make_licenses.py --check  # the licenses page names every library the APK carries
 
 A phone is never given a test-only build that needs an uninstall to
 replace: an uninstall deletes the notebook. The release build is signed

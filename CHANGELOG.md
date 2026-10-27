@@ -39,6 +39,14 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → About → Open-source licenses**: the app's own MIT
+  license, and the libraries it is built with — Android Jetpack, Compose,
+  Kotlin — with the Apache License they come under. The list is the
+  release build's own, written by `tools/make_licenses.py`, and the
+  repository now carries the `LICENSE` the app has always named.
+
 ---
 
 ## [0.12.0] — 2026-10-27 — Sections fold, and the Trash picks all

@@ -9,6 +9,7 @@ lands where it can actually fail.
 | **Unit tests on the JVM** | `app/src/test/` | A rule ported from Python that does not match the Python — held, where the rule can be run on its own, to answers the desktop's own Python wrote |
 | **The cross-program gates** | `tools/check_note_shape.py`, `tools/check_palettes.py` | The two programs quietly disagreeing about what a note *is*, or what a theme looks like |
 | **The release gate** | `tools/check_release_lookups.py`, on the built release APK | Code the shrinker renamed, still looking a file up by its old place |
+| **The licenses gate** | `tools/make_licenses.py --check`, on the built release APK | A library the app carries that its Open-source licenses page does not name |
 | **The emulator walk and tools** | `tools/emulator/` | A rule that is right and a screen that is wrong |
 | **The test plan** | `NoteOrganizer_Android_TestPlan.xlsx` | Whether a tap lands, whether the keyboard covers what you are typing, whether the thing reads well at arm's length |
 

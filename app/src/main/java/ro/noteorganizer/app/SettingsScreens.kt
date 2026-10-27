@@ -76,12 +76,13 @@ fun SettingsScreen(
     val palette = LocalPalette.current
     val page = state.settingsPage
     val listKept = rememberSaveableStateHolder()
-    BackHandler(enabled = page != null) { state.settingsPage = null }
+    val up = if (page == SettingsPage.LICENSES) SettingsPage.ABOUT else null
+    BackHandler(enabled = page != null) { state.settingsPage = up }
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = { Text(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
             navigationIcon = {
-                if (page != null) IconButton(onClick = { state.settingsPage = null }) { Text("←", fontSize = 22.sp) }
+                if (page != null) IconButton(onClick = { state.settingsPage = up }) { Text("←", fontSize = 22.sp) }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
         )
@@ -99,6 +100,7 @@ fun SettingsScreen(
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
             SettingsPage.ABOUT -> AboutPage(state, appVersion, openPrivacy, openReview)
+            SettingsPage.LICENSES -> LicensesPage()
         }
     }
 }
@@ -114,6 +116,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.DUPLICATES -> R.string.settings_duplicates
     SettingsPage.STATS -> R.string.settings_stats
     SettingsPage.ABOUT -> R.string.settings_about
+    SettingsPage.LICENSES -> R.string.licenses
 }
 
 @Composable
@@ -826,6 +829,11 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
         OutlinedButton(onClick = openPrivacy, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.read_policy))
         }
+        SectionLabel(stringResource(R.string.licenses))
+        Text(stringResource(R.string.licenses_sub), color = palette.subtext, fontSize = 14.sp)
+        OutlinedButton(onClick = { state.settingsPage = SettingsPage.LICENSES }, modifier = Modifier.padding(top = 8.dp)) {
+            Text(stringResource(R.string.view_licenses))
+        }
         // Feedback is a review on Google Play, so before the app is there
         // (Links.STORE is null) there is no Feedback section at all.
         if (openReview != null) {
@@ -837,6 +845,24 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
                 colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
             ) { Text(stringResource(R.string.write_review)) }
         }
+    }
+}
+
+/**
+ * The licenses of the libraries the app is built with, and its own: the text
+ * tools/make_licenses.py writes from the release build's own dependencies.
+ */
+@Composable
+private fun LicensesPage() {
+    val palette = LocalPalette.current
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
+    // Without \r: a checkout on Windows may write the file's line ends as \r\n.
+    val text = remember {
+        resources.openRawResource(R.raw.open_source_licenses).bufferedReader().use { it.readText() }
+            .replace("\r", "")
+    }
+    PageColumn {
+        Text(text, color = palette.text, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

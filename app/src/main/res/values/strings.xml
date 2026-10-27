@@ -472,7 +472,7 @@
     <string name="reminder_blocked">Notifications are turned off for Note Organizer on this phone.</string>
     <string name="reminder_open_settings">Open the phone\'s settings</string>
     <string name="settings_about">About</string>
-    <string name="settings_about_sub">Version, the welcome note, and the privacy policy</string>
+    <string name="settings_about_sub">Version, the welcome note, the privacy policy and the licenses</string>
     <string name="name_saved">✓ Saved</string>
     <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
     <string name="themes_dark">Dark</string>
@@ -558,5 +558,8 @@
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_policy_sub">Your notes stay on this phone. The policy says what leaves it, and when.</string>
     <string name="read_policy">Read</string>
+    <string name="licenses">Open-source licenses</string>
+    <string name="view_licenses">View</string>
+    <string name="licenses_sub">Note Organizer is built with Android Jetpack, Compose and Kotlin. Their licenses, and its own.</string>
     <string name="no_browser">There is no browser on this phone to open the page in.</string>
 </resources>

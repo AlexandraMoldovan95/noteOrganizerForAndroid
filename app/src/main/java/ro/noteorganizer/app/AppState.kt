@@ -17,8 +17,8 @@ import java.io.File
 /** Where the app is: the desktop's two tabs, and its Settings. */
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
-/** One page of Settings, or the list of them. */
-enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, REMINDERS, BACKUP, TRASH, DUPLICATES, STATS, ABOUT }
+/** One page of Settings, or the list of them. LICENSES opens from About, and goes back there. */
+enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, REMINDERS, BACKUP, TRASH, DUPLICATES, STATS, ABOUT, LICENSES }
 
 /**
  * The app's state, and every action a screen can take on the notebook.

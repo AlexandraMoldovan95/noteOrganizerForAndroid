@@ -148,6 +148,7 @@ at 47% of the canvas is in the
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
 | The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
+| The licenses gate | `py tools/make_licenses.py --check`, after `gradlew.bat assembleRelease` | A library in the APK that Settings → About → Open-source licenses does not name |
 | The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 351 checks, each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
@@ -172,3 +173,9 @@ whether the keyboard covers what you are typing, whether it reads well at
 arm's length — and whether the words say what they mean. A script cannot
 answer one of those. The full map, and what runs in CI on every push:
 [qa/README.md](qa/README.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Alexandra Moldovan. The libraries the app is built
+with come under the Apache License 2.0; Settings → About → Open-source
+licenses lists them, with its text.

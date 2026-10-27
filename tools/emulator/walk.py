@@ -927,6 +927,23 @@ def outward(folder):
     check("before the app is on Google Play, About has no Feedback section",
           find("Write a review", True) is None and find("FEEDBACK", True) is None)
     shot(folder, "69-about-privacy-policy", "PRIVACY POLICY", "Read")
+    # The licenses: the app's own MIT license and those of the libraries it
+    # is built with, on a page of their own -- and Back goes to About.
+    if find("View", True) is None:
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
+        time.sleep(0.8)
+    tap("View", exact=True, wait=1.5)
+    missing = screen_says("Open-source licenses", "MIT License", "Android Jetpack",
+                          "org.jetbrains.kotlin:kotlin-stdlib", "Apache License")
+    check("About → Open-source licenses → View shows the app's license and its libraries'",
+          not missing, ", ".join(missing))
+    shot(folder, "69b-open-source-licenses", "MIT License")
+    back(1.2)
+    missing = screen_says("Free software under the MIT license, provided as is.")
+    check("Back from the licenses returns to About", not missing, ", ".join(missing))
+    if find("Read", True) is None:
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
+        time.sleep(0.8)
     tap("Read", exact=True, wait=4.0)
     opened = foreground()
     check("Privacy policy → Read opens a browser, not the app", opened not in ("", PACKAGE), opened)
