@@ -35,6 +35,10 @@ object Backup {
     const val TRASH = "trash.json"
     const val ATTACHMENTS = "attachments"
 
+    /** Where a backup carries the files kept aside because they could not be read. */
+    const val UNREADABLE = "unreadable"
+    private val KEPT_ASIDE = Regex("(notes_data|settings|trash|templates)_corrupt_\\d{8}_\\d{6}\\.json")
+
     /** The desktop's limits: what a HOSTILE archive could do, not a size cap. */
     const val MAX_BACKUP_FILES = 100_000
     const val BOMB_RATIO = 100L
@@ -135,6 +139,14 @@ object Backup {
         }
         File(dir, ATTACHMENTS).listFiles()?.filter { it.isFile }?.sortedBy { it.name }?.forEach {
             entries.add(it to "$ATTACHMENTS/${it.name}")
+        }
+        // A file the app could not read, kept aside (Files.preserveCorrupt):
+        // in the app's own storage no person can reach it, and a notebook
+        // gone unreadable had nowhere else to be. It travels in the backup,
+        // under a folder of its own that an import, here or on the desktop,
+        // leaves where it is.
+        dir.listFiles()?.filter { it.isFile && KEPT_ASIDE.matches(it.name) }?.sortedBy { it.name }?.forEach {
+            entries.add(it to "$UNREADABLE/${it.name}")
         }
         val tmp = File(scratch, "backup_export.zip.tmp")
         try {

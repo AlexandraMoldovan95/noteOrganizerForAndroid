@@ -276,6 +276,28 @@ class BackupTest {
     }
 
     @Test
+    fun `a file kept aside as unreadable travels in the backup, and an import leaves it be`() {
+        // Kept in the app's own storage, where no person can reach it: the
+        // notice said "beside the notes", and the backup left it out.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "notes_data_corrupt_20261015_143000.json").writeText("[{broken")
+        File(dir, "notes_data_backup_x.json").writeText("not ours to carry")
+        val bytes = ByteArrayOutputStream()
+        Backup.export(dir, temp("scratch"), bytes)
+        val zip = File(temp("out"), "b.zip").apply { writeBytes(bytes.toByteArray()) }
+        ZipFile(zip).use { archive ->
+            assertEquals(setOf("notes_data.json", "unreadable/notes_data_corrupt_20261015_143000.json"),
+                         archive.entries().toList().map { it.name }.toSet())
+            assertEquals("[{broken", archive.getInputStream(archive.getEntry(
+                "unreadable/notes_data_corrupt_20261015_143000.json")).readBytes().toString(Charsets.UTF_8))
+        }
+        val into = temp("u")
+        assertTrue(Backup.read(zip, into, Long.MAX_VALUE) is Backup.Read.Ok)
+        assertFalse("an import does not unpack it", File(into, "unreadable").exists())
+    }
+
+    @Test
     fun `an export opens where it goes only once the backup is built`() {
         // Opened first, for writing, a backup chosen to be written over was
         // emptied before a full cache stopped the new one, then deleted as

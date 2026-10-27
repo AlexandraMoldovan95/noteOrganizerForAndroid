@@ -146,6 +146,11 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **A notebook file the app could not read can be reached.** It was kept
+  aside in the app's own storage, which no person can open, and the
+  notice said "beside the notes"; a backup saved at Settings → Backup
+  now carries it, in a folder of its own that an import leaves alone.
+  Found by the final audit's break-it round.
 - **At the phone's largest letters a calendar day keeps its marks.** Its
   cell was held at one height, and a day with a marker lost half of it
   and its note's dot below the edge; a week's cells now grow together to

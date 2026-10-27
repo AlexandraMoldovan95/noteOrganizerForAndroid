@@ -81,7 +81,9 @@ Grouped by what the app does; when each item arrived is in the
    unreadable bytes are copied beside it as
    `notes_data_corrupt_<stamp>.json` and the app opens on an empty list
    and says where the copy is — the desktop's answer, ported. The same
-   for `trash.json` and `settings.json`.
+   for `trash.json` and `settings.json`. The app's folder is closed to
+   the person, so the copy travels in the next backup `.zip`, under
+   `unreadable/`.
 4. A real 77-note `notes_data.json` reads without loss: Romanian
    diacritics, emoji, CJK, a 107,000-character note.
 

@@ -910,7 +910,8 @@ object Notebook {
             return null
         }
         problems.add("$what could not be read, so the app started without it. Nothing " +
-            "was deleted: the file was kept as ${kept.name}, beside the notes.")
+            "was deleted: the file was kept as ${kept.name}, and a backup saved at " +
+            "Settings → Backup carries it, in its folder \"${Backup.UNREADABLE}\".")
         return JSONArray()
     }
 

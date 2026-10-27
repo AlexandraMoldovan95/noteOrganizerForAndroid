@@ -80,7 +80,10 @@ A file that exists and will not parse is **kept aside, not refused**: its
 bytes are copied beside it as `<name>_corrupt_<yyyyMMdd_HHmmss>.json`
 (once per distinct content), and the app opens without it and says where
 the copy is — the desktop's answer, so that a broken file costs a
-message, not a phone that cannot take a single note.
+message, not a phone that cannot take a single note. The phone's folder
+is its own, where no person can open it, so a backup `.zip` carries such
+a copy under `unreadable/`, which an import on either device leaves
+unpacked or ignores (since 2026-10-27).
 
 ### Settings the two apps share
 
