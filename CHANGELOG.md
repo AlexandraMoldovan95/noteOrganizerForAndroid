@@ -146,6 +146,11 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **A large backup's questions no longer hold the screen still.** With a
+  thousand notes on each side, working out which arriving notes look
+  like ones already here held it 1.3 seconds on the emulator, two or
+  three times over; it is worked out once now, away from the screen. Found
+  by the final audit, measured on the emulator.
 - **A notebook file the app could not read can be reached.** It was kept
   aside in the app's own storage, which no person can open, and the
   notice said "beside the notes"; a backup saved at Settings → Backup

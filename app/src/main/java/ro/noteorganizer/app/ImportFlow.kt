@@ -100,23 +100,27 @@ private enum class Step { KNOWN, UNCHANGED, LOOKALIKES }
 fun ImportQuestions(
     state: AppState,
     plan: Importing.Plan,
+    // Worked out before, away from the screen, for a backup's thousands;
+    // a code's few are counted here, once each.
+    alikes: Importing.LookAlikes? = null,
     onCancel: () -> Unit,
     onAnswered: (Importing.Answers) -> Unit,
 ) {
     var answers by remember { mutableStateOf(Importing.Answers()) }
     var step by remember { mutableStateOf(firstStep(plan)) }
     val source = plan.source.word
+    val counts = alikes ?: remember(plan) { Importing.LookAlikes(state.load.raw ?: org.json.JSONArray(), plan) }
 
     fun next(from: Step, now: Importing.Answers) {
         answers = now
         val following = Step.entries.filter { it.ordinal > from.ordinal }
-            .firstOrNull { asks(it, plan, state, now) }
+            .firstOrNull { asks(it, plan, counts, now) }
         if (following == null) onAnswered(now) else step = following
     }
 
-    LaunchedSkipIfNothing(plan, state) { onAnswered(Importing.Answers()) }
-    if (!asks(Step.KNOWN, plan, state, answers) && !asks(Step.UNCHANGED, plan, state, answers) &&
-        !asks(Step.LOOKALIKES, plan, state, answers)) return
+    LaunchedSkipIfNothing(plan, counts) { onAnswered(Importing.Answers()) }
+    if (!asks(Step.KNOWN, plan, counts, answers) && !asks(Step.UNCHANGED, plan, counts, answers) &&
+        !asks(Step.LOOKALIKES, plan, counts, answers)) return
 
     when (step) {
         Step.KNOWN -> {
@@ -179,8 +183,7 @@ fun ImportQuestions(
             )
         }
         Step.LOOKALIKES -> {
-            val raw = state.load.raw ?: org.json.JSONArray()
-            val count = Importing.lookAlikes(raw, plan, answers.update)
+            val count = counts.of(answers.update)
             val remaining = plan.fresh.size + if (answers.update) 0 else plan.differing.size
             if (count == remaining) {
                 Choice(
@@ -215,18 +218,18 @@ private fun firstStep(plan: Importing.Plan): Step = when {
     else -> Step.LOOKALIKES
 }
 
-private fun asks(step: Step, plan: Importing.Plan, state: AppState, answers: Importing.Answers): Boolean = when (step) {
-    Step.KNOWN -> plan.differing.isNotEmpty()
-    Step.UNCHANGED -> plan.unchanged.isNotEmpty()
-    Step.LOOKALIKES -> Importing.lookAlikes(state.load.raw ?: org.json.JSONArray(), plan, answers.update) > 0
-}
+private fun asks(step: Step, plan: Importing.Plan, counts: Importing.LookAlikes, answers: Importing.Answers): Boolean =
+    when (step) {
+        Step.KNOWN -> plan.differing.isNotEmpty()
+        Step.UNCHANGED -> plan.unchanged.isNotEmpty()
+        Step.LOOKALIKES -> counts.of(answers.update) > 0
+    }
 
 /** When an import raises no question at all, it simply goes ahead. */
 @Composable
-private fun LaunchedSkipIfNothing(plan: Importing.Plan, state: AppState, go: () -> Unit) {
+private fun LaunchedSkipIfNothing(plan: Importing.Plan, counts: Importing.LookAlikes, go: () -> Unit) {
     val nothing = remember(plan) {
-        plan.differing.isEmpty() && plan.unchanged.isEmpty() &&
-            Importing.lookAlikes(state.load.raw ?: org.json.JSONArray(), plan, false) == 0
+        plan.differing.isEmpty() && plan.unchanged.isEmpty() && counts.of(false) == 0
     }
     androidx.compose.runtime.LaunchedEffect(plan) { if (nothing) go() }
 }

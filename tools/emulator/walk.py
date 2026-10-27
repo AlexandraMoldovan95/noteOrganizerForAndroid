@@ -427,6 +427,7 @@ def main():
     arrange_without_drag(folder)
     states_said(folder)
     calendar_large_letters(folder)
+    import_questions_quick(folder)
 
     print()
     if failures:
@@ -2624,6 +2625,55 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+
+
+def frames_since_reset():
+    """The app's frames since `gfxinfo reset`, each from its intended start
+    to its end, in seconds -- what held the screen, as the app drew it,
+    which the walk's own looks (a second or more each) cannot time."""
+    out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
+    lines = out[out.find("---PROFILEDATA---"):].splitlines()
+    if len(lines) < 3:
+        return []
+    at = {h: k for k, h in enumerate(lines[1].split(","))}
+    rows = [line.split(",") for line in lines[2:] if line and line[0].isdigit()]
+    return [(int(r[at["FrameCompleted"]]) - int(r[at["IntendedVsync"]])) / 1e9 for r in rows]
+
+
+def import_questions_quick(folder):
+    """A backup of 1,000 notes into a notebook of 1,000 others: the plan and
+    the look-alikes, which normalize every note of both, are worked out away
+    from the screen. Worked out while the questions were drawn, the screen
+    held still 1.3 s on the emulator; after, 0.5 s, the import itself."""
+    print("\n-- an import's questions, a thousand notes each side --")
+    import zipfile
+
+    def note(i, prefix):
+        body = "\n".join("%s line %d of note %d, with a few words to read" % (prefix, j, i) for j in range(12))
+        return {"id": i, "uid": "%s-%d" % (prefix, i), "title": "%s %d" % (prefix, i), "body": body,
+                "category": "General", "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00",
+                "formatting": [{"start": 0, "end": 5, "style": "bold"}]}
+    local = os.path.join(folder, "walk_thousand.zip")
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("notes_data.json", json.dumps([note(i, "Theirs") for i in range(1, 1001)]))
+    name = "walk_thousand.zip"
+    adb("push", local, "/sdcard/Download/" + name)
+    if seed_inside([note(i, "Mine") for i in range(1, 1001)], {"welcome_offered": True}, "Mine 1"):
+        tap("Settings", exact=True, wait=1.2)
+        tap("Backup", exact=True, wait=1.2)
+        tap("Import a backup", wait=3.0)
+        if find(name, exact=True) is None:
+            tap("Downloads", wait=2.0) if find("Downloads") else None
+        tap(name, exact=True, wait=4.0)
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        tap("Continue", exact=True, wait=0.2)
+        check("the thousand notes come in", not says_soon("Added 1000 notes", within=60.0))
+        longest = max(frames_since_reset() or [0.0])
+        check("... and no frame holds the screen a second (1.3 s before, 2026-10-27)", longest < 1.0,
+              "%.2f s" % longest)
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    os.remove(local)
+    back_to("Search notes")
 
 
 def calendar_large_letters(folder):

@@ -205,6 +205,29 @@ object Importing {
     }
 
     /**
+     * [lookAlikes] for each answer to the first question, each worked out
+     * once. The questions asked it from their drawing, two or three times
+     * and again at every redraw, every note of both notebooks normalized
+     * each time: with a thousand here and a thousand coming, the screen
+     * held still 1.3 seconds on the emulator. A backup's are worked out
+     * before the questions open, away from the screen ([warm]).
+     */
+    class LookAlikes(private val count: (Boolean) -> Int) {
+        constructor(notebook: JSONArray, plan: Plan) : this({ update -> lookAlikes(notebook, plan, update) })
+
+        private val counted = HashMap<Boolean, Int>()
+
+        fun of(update: Boolean): Int = synchronized(counted) { counted.getOrPut(update) { count(update) } }
+
+        /** Both answers' counts, worked out now: called away from the screen. */
+        fun warm(plan: Plan): LookAlikes {
+            of(false)
+            if (plan.differing.isNotEmpty()) of(true)
+            return this
+        }
+    }
+
+    /**
      * Compared by the desktop's duplicate key, never by object: the copies
      * [remaining] makes are new objects every time it is asked.
      */

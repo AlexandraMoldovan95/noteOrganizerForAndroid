@@ -260,7 +260,7 @@ fun AppRoot(state: AppState, version: String) {
     val scope = rememberCoroutineScope()
     var importing by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
-    var backupPlan by remember { mutableStateOf<Pair<Importing.Plan, Backup.Contents>?>(null) }
+    var backupPlan by remember { mutableStateOf<Triple<Importing.Plan, Backup.Contents, Importing.LookAlikes>?>(null) }
     var askBackup by remember { mutableStateOf<Backup.Contents?>(null) }
 
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -488,8 +488,25 @@ fun AppRoot(state: AppState, version: String) {
             onConfirm = {
                 askBackup = null
                 val theirs = contents.extras().categories?.keys()?.asSequence()?.toSet() ?: emptySet()
-                backupPlan = Importing.plan(state.load.raw ?: org.json.JSONArray(), contents.notes,
-                    Importing.Source.BACKUP, state.load.categories.keys + theirs) to contents
+                // The list as it is now, taken here: a save made meanwhile
+                // puts a new object in the live list rather than change one.
+                val notebook = org.json.JSONArray().also { copy ->
+                    state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
+                }
+                val categories = state.load.categories.keys + theirs
+                // Worked out away from the screen: the plan, and how many
+                // look like notes already here, which normalizes every note
+                // of both notebooks -- 1.3 s with the screen held still, a
+                // thousand notes each side (the emulator, 2026-10-27).
+                busy = context.getString(R.string.importing)
+                scope.launch {
+                    val ready = withContext(Dispatchers.Default) {
+                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories)
+                        Triple(plan, contents, Importing.LookAlikes(notebook, plan).warm(plan))
+                    }
+                    busy = null
+                    backupPlan = ready
+                }
             },
             onDismiss = {
                 askBackup = null
@@ -497,10 +514,10 @@ fun AppRoot(state: AppState, version: String) {
             },
         )
     }
-    backupPlan?.let { (plan, contents) ->
+    backupPlan?.let { (plan, contents, alikes) ->
         // The unpacked backup leaves the cache however the questions end:
         // nothing of an import that was not taken is kept.
-        ImportQuestions(state, plan, onCancel = {
+        ImportQuestions(state, plan, alikes, onCancel = {
             backupPlan = null
             contents.folder?.deleteRecursively()
         }) { answers ->

@@ -354,6 +354,25 @@ class ImportingTest {
     }
 
     @Test
+    fun `look-alikes are counted once for each answer, however often the questions ask`() {
+        // Asked from the questions' drawing, two or three times and at every
+        // redraw, each time normalizing every note of both notebooks.
+        var counted = 0
+        val alikes = Importing.LookAlikes { update -> counted += 1; if (update) 2 else 3 }
+        repeat(5) {
+            assertEquals(3, alikes.of(false))
+            assertEquals(2, alikes.of(true))
+        }
+        assertEquals(2, counted)
+        // And the real count is the one lookAlikes gives.
+        val load = notebook("""[{"uid": "a", "title": "Milk", "body": "two"}]""")
+        val plan = backupPlan(load, """[{"uid": "b", "title": "Milk", "body": "two"}]""")
+        assertEquals(Importing.lookAlikes(load.raw!!, plan, false),
+                     Importing.LookAlikes(load.raw!!, plan).warm(plan).of(false))
+        assertEquals(1, Importing.LookAlikes(load.raw!!, plan).of(false))
+    }
+
+    @Test
     fun `a backup's Trash window comes with its Trash where none was ever chosen, and only there`() {
         // Restored onto a new phone, entries kept for 90 days were emptied
         // at the next start by the default 30 nobody had chosen.
