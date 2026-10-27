@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the sixty-nine are about
+**the code**, or in **the design**. Nineteen of the seventy are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#on-and-off-told-by-a-tint) | design | Whether B, a list, an alignment, a marker or a repeat day was on was a fill differing from off by 1.04 to 1.33 to 1, and nothing at all to a screen reader | A state needs a second sign for the eye and a word for the ear; a colour is neither alone |
 | [2026-10-27](#arranging-only-a-finger-could-do) | design | Notes in Custom order and a checklist's rows moved only by dragging their handle; TalkBack read "Drag to move", and neither it nor Switch Access could drag | Every gesture needs a door that is not a gesture |
 | [2026-10-27](#a-backup-promised-without-its-conditions) | design | Settings → Backup promised that Android keeps a copy of the notes, and the Data safety reasoning that the copy was end-to-end encrypted; Android stops at 25 MB, encrypts with the phone's lock only where there is one, and the person had no way to say no | A promise about another program's behaviour carries that program's conditions, and the person gets a say in it |
 | [2026-10-27](#two-checks-that-read-the-screen-at-the-wrong-moment) | checking | A message read, then photographed after its four seconds were up; a selection the walk thought it had left, because the words it waited for never went away | A check reads what it acts on at the moment it acts, and waits for the change it caused, not for words that were there all along |
@@ -84,6 +85,33 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## On and off, told by a tint
+
+**2026-10-27.** Found by the final audit's accessibility reading, with
+the contrast worked out from `Themes.kt`: a key that is on — B over bold
+words, the bullet key in a list line, the chosen alignment — differed
+from an off key only by its fill, 1.04 to 1.33 to 1 against it in the
+eight themes, where 3 to 1 is what a boundary needs to be seen. And to a
+screen reader there was no state at all: B read as "B", a marker as its
+emoji, a repeat day as its number. The pattern was everywhere a choice
+was drawn; stateDescription and toggleable stood in two places of the
+app.
+
+**The fix:** each of them is now said as what it is — a checkbox ticked
+or not (B, I, U, S, the list keys, a day's markers), one choice of
+several (the alignments, the swatches, the repeat sheet's chips, the
+sort and Show in force) — and a key that is on wears a bar in the accent
+under its fill. The rest of the audit's list went with it: swatches by
+place and value, a group's fold, the size grid's squares, the Sort
+button without its arrow's name, the find counter read out. The walk's
+`states_said` reads checked and selected from the tree a screen reader
+reads; how TalkBack words them waits for a person with it on.
+
+**The lesson:** a state needs a second sign for the eye and a word for
+the ear; a colour is neither alone.
 
 ---
 

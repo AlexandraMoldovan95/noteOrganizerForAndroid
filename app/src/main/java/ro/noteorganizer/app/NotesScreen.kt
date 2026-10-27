@@ -28,8 +28,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -295,6 +300,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                             DropdownMenuItem(
                                 text = { Text(option.label, fontWeight = if (option == order) FontWeight.Bold else FontWeight.Normal) },
                                 onClick = { sortMenu = false; state.chooseSort(option, from = order) },
+                                trailingIcon = { Current(option == order) },
+                                modifier = Modifier.semantics { this.selected = option == order },
                             )
                         }
                     }
@@ -311,6 +318,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                 text = { Text(if (option == Showing.ALL) stringResource(R.string.show_all) else option,
                                               fontWeight = if (option == show) FontWeight.Bold else FontWeight.Normal) },
                                 onClick = { showMenu = false; state.putSetting(Settings.NOTE_FILTER, option) },
+                                trailingIcon = { Current(option == show) },
+                                modifier = Modifier.semantics { this.selected = option == show },
                             )
                         }
                         HorizontalDivider()
@@ -319,6 +328,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                 leadingIcon = { Dot(colour) },
                                 text = { Text(name, fontWeight = if (name == show) FontWeight.Bold else FontWeight.Normal) },
                                 onClick = { showMenu = false; state.putSetting(Settings.NOTE_FILTER, name) },
+                                trailingIcon = { Current(name == show) },
+                                modifier = Modifier.semantics { this.selected = name == show },
                             )
                         }
                     }
@@ -532,11 +543,15 @@ private fun Set<Int>.toggle(id: Int): Set<Int> = if (id in this) this - id else 
 @Composable
 private fun GroupHeader(row: Showing.Row.Header, colour: String?, onToggle: () -> Unit) {
     val palette = LocalPalette.current
+    // Folded or open, said as FoldLabel says it; the arrow was all there was.
+    val said = stringResource(if (row.collapsed) R.string.section_folded else R.string.section_open)
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 4.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onToggle).semantics { stateDescription = said }
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (row.collapsed) "▸" else "▾", color = palette.subtext, fontSize = 13.sp)
+        Text(if (row.collapsed) "▸" else "▾", color = palette.subtext, fontSize = 13.sp,
+             modifier = Modifier.clearAndSetSemantics { })
         Spacer(Modifier.width(8.dp))
         Dot(colour ?: palette.hex.getValue("accent"), 10)
         Text("  ${row.category}  ·  ${row.count}", color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -559,8 +574,18 @@ fun Pill(label: String, onClick: () -> Unit) {
             .clip(RoundedCornerShape(8.dp))
             .background(palette.card)
             .clickable(onClick = onClick)
+            // Its words, without the arrow's name: "down-pointing small
+            // triangle" was read after every choice.
+            .semantics { contentDescription = label; role = Role.DropdownList }
             .padding(horizontal = 12.dp, vertical = 8.dp),
     )
+}
+
+/** The choice in force, in a menu of choices: a mark beside the bold, which the eye alone could miss. */
+@Composable
+private fun Current(on: Boolean) {
+    if (on) Text("✓", color = LocalPalette.current.accentText, fontSize = 15.sp,
+                 modifier = Modifier.clearAndSetSemantics { })
 }
 
 @Composable

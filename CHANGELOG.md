@@ -137,6 +137,15 @@ do before, not as releases anyone ran.
   the start line's ✕. A checklist row's box is a checkbox named by the
   row, and its ✕ says "Remove … from the checklist". TalkBack read the
   symbols' names, or nothing. Found by the final audit's break-it round.
+- **What is on is said, and shown twice.** B, I, U, S and the list keys
+  are said as ticked or not, the alignment keys as chosen or not, a
+  day's markers and the repeat sheet's choices too; a key that is on
+  wears a bar in the accent under its fill, which alone differed from an
+  off key's by too little to see. The sort and Show in force carry a ✓,
+  colour swatches say their place and value, a group of notes says it is
+  folded, the size grid's squares say the table they make, the Sort and
+  Show buttons no longer read their arrow's name, and the find counter
+  is read out as it changes. Found by the final audit's break-it round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's

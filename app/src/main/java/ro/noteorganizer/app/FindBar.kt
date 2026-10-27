@@ -29,8 +29,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -146,8 +148,11 @@ fun FindBar(
                 field()
             },
         )
+        // Read out as it changes -- "0/0" on a search that finds nothing --
+        // where it was only drawn, with the box's warning tint.
         Text(counter, color = palette.subtext, fontSize = 12.sp,
-             modifier = Modifier.width(56.dp).padding(start = 8.dp))
+             modifier = Modifier.width(56.dp).padding(start = 8.dp)
+                 .semantics { liveRegion = LiveRegionMode.Polite })
         BarKey("▴", stringResource(R.string.find_prev)) { onStep(-1) }
         BarKey("▾", stringResource(R.string.find_next)) { onStep(1) }
         val caseSaid = stringResource(R.string.find_case)

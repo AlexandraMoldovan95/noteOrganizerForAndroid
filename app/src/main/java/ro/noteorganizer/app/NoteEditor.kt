@@ -103,6 +103,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -2148,10 +2152,10 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
         fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
         @Composable
         fun lineButtons() {
-            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
+            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet), toggle = true) {
                 lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
             }
-            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
+            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number), toggle = true) {
                 lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
             }
             FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
@@ -2178,17 +2182,23 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                 FormatKey("↶", false, model.canUndo, said = stringResource(R.string.undo)) { model.undo() }
                 FormatKey("↷", false, model.canRedo, said = stringResource(R.string.redo)) { model.redo() }
             }
-            FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold) { apply("bold") }
-            FormatKey("I", on("italic"), hasSelection || waits, italic = true) { apply("italic") }
-            FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline) { apply("underline") }
-            FormatKey("S", on("strike"), hasSelection || waits, decoration = TextDecoration.LineThrough) { apply("strike") }
-            FormatKey("A", "text_color" in active, hasSelection, weight = FontWeight.Bold) {
+            FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold,
+                      said = stringResource(R.string.key_bold), toggle = true) { apply("bold") }
+            FormatKey("I", on("italic"), hasSelection || waits, italic = true,
+                      said = stringResource(R.string.key_italic), toggle = true) { apply("italic") }
+            FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline,
+                      said = stringResource(R.string.key_underline), toggle = true) { apply("underline") }
+            FormatKey("S", on("strike"), hasSelection || waits, decoration = TextDecoration.LineThrough,
+                      said = stringResource(R.string.key_strike), toggle = true) { apply("strike") }
+            FormatKey("A", "text_color" in active, hasSelection, weight = FontWeight.Bold,
+                      said = stringResource(R.string.key_text_colour)) {
                 palettePicker = if (palettePicker == "text") "" else "text"
             }
-            FormatKey("🖍", "highlight" in active, hasSelection) {
+            FormatKey("🖍", "highlight" in active, hasSelection, said = stringResource(R.string.key_highlight)) {
                 palettePicker = if (palettePicker == "mark") "" else "mark"
             }
-            FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium) {
+            FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium,
+                      said = stringResource(R.string.key_face)) {
                 palettePicker = if (palettePicker == "face") "" else "face"
             }
             // The size box says the size of what is selected, as the
@@ -2240,11 +2250,15 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
                         for (c in 1..Editing.TABLE_COLUMNS) {
                             val inside = r <= rows && c <= columns
                             val wide = maxOf(2, c)
+                            // Each square says the shape it makes: they were
+                            // buttons with no words at all.
+                            val shapeSaid = stringResource(R.string.table_size, r, wide)
                             Box(
                                 Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(if (inside) palette.accent else palette.inset)
+                                    .semantics { contentDescription = shapeSaid }
                                     .clickable {
                                         // A first tap shows the shape; tapping the
                                         // shape already shown makes it.
@@ -2269,6 +2283,18 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
     )
 }
 
+/**
+ * A key's second sign that it is on, beside its fill: a bar in the accent
+ * along its foot. The fill alone differed from an off key's by 1.04 to 1.33
+ * to 1, under any theme -- not a difference most eyes can rely on (the
+ * final audit).
+ */
+private fun Modifier.onBar(colour: Color): Modifier = drawBehind {
+    val bar = 3.dp.toPx()
+    drawRect(colour, topLeft = Offset(size.width * 0.2f, size.height - bar - 2.dp.toPx()),
+             size = Size(size.width * 0.6f, bar))
+}
+
 /** An alignment key: four lines, drawn as the text would sit. */
 @Composable
 private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String, onClick: () -> Unit) {
@@ -2279,7 +2305,9 @@ private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String,
             .size(42.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
-            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (on) Modifier.onBar(palette.accent) else Modifier)
+            // One of three, as a radio button is: said selected or not.
+            .selectable(selected = on, enabled = enabled, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = said },
         contentAlignment = Alignment.Center,
     ) {
@@ -2317,15 +2345,26 @@ private fun FormatKey(
     said: String? = null,
     // A word rather than a mark ("Default"): a wider key, smaller letters.
     wide: Boolean = false,
+    // On and off, as B is: said as a checkbox is, ticked or not. A key that
+    // opens a choice (A, 🖍, Aa, the size) says, when on, that the selection
+    // uses it.
+    toggle: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
+    val usedSaid = stringResource(R.string.key_used)
     Box(
         Modifier
             .then(if (wide) Modifier.height(42.dp).widthIn(min = 64.dp) else Modifier.size(42.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
-            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (on) Modifier.onBar(palette.accent) else Modifier)
+            .then(if (toggle) {
+                Modifier.toggleable(value = on, enabled = enabled, role = Role.Checkbox) { onClick() }
+            } else {
+                Modifier.clickable(enabled = enabled, onClick = onClick)
+                    .then(if (on) Modifier.semantics { stateDescription = usedSaid } else Modifier)
+            })
             .then(if (said != null) Modifier.semantics { contentDescription = said } else Modifier),
         contentAlignment = Alignment.Center,
     ) {

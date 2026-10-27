@@ -425,6 +425,7 @@ def main():
     symbol_labels(folder)
     google_backup(folder)
     arrange_without_drag(folder)
+    states_said(folder)
 
     print()
     if failures:
@@ -1098,7 +1099,9 @@ def calendar(folder):
     # A day painted.
     long_press(said(other))
     tap("Colour this day", wait=1.2)
-    tap("#43aa8b", exact=True, wait=1.2)
+    # By its value within its words: a swatch says its place and its value
+    # ("Colour 5 of 12, #43aa8b") since the final audit, not the hex alone.
+    tap(", #43aa8b", wait=1.2)
     settings = read_file("settings.json") or {}
     check("a painted day is kept under the desktop's key",
           (settings.get("day_colors") or {}).get(other.isoformat()) == "#43aa8b", json.dumps(settings)[:200])
@@ -2620,6 +2623,71 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+
+
+def node_attrs(label):
+    """The state of the control whose text or description is exactly
+    [label] -- checkable, checked, selected: what a screen reader is told,
+    which nodes() leaves out. The words sit on a child of the control in the
+    tree uiautomator dumps (a screen reader hears them merged), so the
+    nearest clickable node holding them is the one read."""
+    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return {}
+
+    def search(node, clickable):
+        here = node if node.get("clickable") == "true" else clickable
+        if label in (node.get("text", ""), node.get("content-desc", "")):
+            return dict((here if here is not None else node).attrib)
+        for child in node:
+            found = search(child, here)
+            if found:
+                return found
+        return {}
+    return search(root, None)
+
+
+def states_said(folder):
+    """What is on, said and not only tinted: a list key on in a list line,
+    the sort in force in its menu, a swatch by its place and value. Read from
+    the UI tree's own checked and selected, what a screen reader reads; the
+    tint's own contrast is the palette's, not checked here."""
+    print("\n-- what is on, said --")
+    if not seed_inside([{"id": 1, "uid": "st-1", "title": "Shopping", "body": "Today\n• milk",
+                         "paragraphs": [{"line": 1, "kind": "bullet"}],
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "note_sort": "Title A–Z"}, "Shopping"):
+        return
+    attrs = node_attrs("Sort: Title A–Z")
+    check("the sort pill says its words, not the arrow's", bool(attrs), str(attrs)[:120])
+    tap("Sort: Title A–Z", wait=1.0)
+    attrs = node_attrs("Title A–Z")
+    # Compose tells Android "selected" as checked, outside a tab.
+    check("the sort in force is said selected in its menu",
+          "true" in (attrs.get("selected"), attrs.get("checked")), str(attrs)[:200])
+    attrs = node_attrs("Custom order")
+    check("... and another is not", attrs.get("checked") == "false" and attrs.get("selected") == "false",
+          str(attrs)[:200])
+    back(wait=0.8)
+    if open_note("Shopping"):
+        tap("milk", wait=1.0)
+        attrs = node_attrs("Bullet list")
+        check("in a list line the bullet key is said ticked",
+              attrs.get("checkable") == "true" and attrs.get("checked") == "true", str(attrs)[:200])
+        attrs = node_attrs("Bold")
+        check("B is said as a checkbox, not ticked", attrs.get("checkable") == "true"
+              and attrs.get("checked") == "false", str(attrs)[:200])
+        keyboard_down()
+        tap("ⓘ", exact=True, wait=1.2)
+        said = [d for t, d, _ in nodes() if d.startswith("Colour ") and " of " in d]
+        check("a colour swatch says its place and its value", bool(said),
+              " | ".join(d for t, d, _ in nodes() if d)[:200])
+        back(wait=0.8)
+    back_to("Search notes")
 
 
 def arrange_without_drag(folder):

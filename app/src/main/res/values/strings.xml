@@ -166,6 +166,15 @@
     <string name="menu_day_delete">🗑 Delete this day</string>
     <string name="menu_series_delete">🗑 Delete the whole series</string>
     <string name="size_key_said">Size: %1$s</string>
+    <string name="key_bold">Bold</string>
+    <string name="key_italic">Italic</string>
+    <string name="key_underline">Underline</string>
+    <string name="key_strike">Strikethrough</string>
+    <string name="key_text_colour">Text colour</string>
+    <string name="key_highlight">Highlight</string>
+    <string name="key_face">Typeface</string>
+    <string name="key_used">Used in the selection</string>
+    <string name="swatch_said">Colour %1$d of %2$d, %3$s</string>
     <string name="share_code">Share as a code</string>
     <string name="move_to_trash">Move to Trash</string>
     <string name="select_all">Select all</string>

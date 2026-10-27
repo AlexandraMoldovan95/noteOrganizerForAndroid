@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -301,7 +302,11 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (on) palette.calendarHasNotes else palette.inset)
                             .then(if (on) Modifier.border(2.dp, palette.accent, RoundedCornerShape(10.dp)) else Modifier)
-                            .clickable(enabled = open) { if (on) pending.remove(marker) else pending.add(marker) },
+                            // Picked or not, said as a checkbox is: the fill
+                            // and ring were all there was.
+                            .toggleable(value = on, enabled = open, role = androidx.compose.ui.semantics.Role.Checkbox) {
+                                if (on) pending.remove(marker) else pending.add(marker)
+                            },
                         contentAlignment = Alignment.Center,
                     ) { Text(marker, fontSize = 20.sp, color = if (open) palette.text else palette.subtext) }
                 }

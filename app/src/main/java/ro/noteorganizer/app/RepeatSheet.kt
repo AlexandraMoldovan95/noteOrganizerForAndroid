@@ -3,6 +3,7 @@ package ro.noteorganizer.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -214,9 +215,11 @@ private fun ints(array: JSONArray): List<Int> = (0 until array.length()).map { a
 @Composable
 private fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
     val palette = LocalPalette.current
+    // Chosen or not, said as a screen reader says a choice: the fill was
+    // all there was.
     Text(label, color = if (on) palette.onAccent else palette.text, fontSize = 14.sp,
          modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) palette.accent else palette.inset)
-             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp))
+             .selectable(selected = on, onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp))
 }
 
 @Composable
@@ -226,7 +229,7 @@ private fun DayChip(day: Int, on: Boolean, onClick: () -> Unit) {
         Modifier.size(38.dp).clip(RoundedCornerShape(19.dp))
             .background(if (on) palette.accent else palette.inset)
             .then(if (on) Modifier else Modifier.border(1.dp, palette.hairline, RoundedCornerShape(19.dp)))
-            .clickable(onClick = onClick),
+            .selectable(selected = on, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(day.toString(), color = if (on) palette.onAccent else palette.text, fontSize = 13.sp) }
 }

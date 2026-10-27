@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -175,7 +177,9 @@ fun FoldLabel(text: String, folded: Boolean, onToggle: () -> Unit) {
     ) {
         Text(text.uppercase(), color = palette.subtext, fontSize = 12.sp, fontWeight = FontWeight.Medium,
              letterSpacing = 0.8.sp)
-        Text(if (folded) "  ▸" else "  ▾", color = palette.subtext, fontSize = 12.sp)
+        // The arrow is drawn, not said: the state says it.
+        Text(if (folded) "  ▸" else "  ▾", color = palette.subtext, fontSize = 12.sp,
+             modifier = Modifier.clearAndSetSemantics { })
     }
 }
 
@@ -209,8 +213,12 @@ fun Swatches(
     val none = stringResource(R.string.colour_none)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val all = (if (allowNone) listOf("") else emptyList()) + colours
-        for (colour in all) {
+        for ((position, colour) in all.withIndex()) {
             val picked = colour.equals(chosen, ignoreCase = true)
+            // Said by its place and its value, and picked or not, as a radio
+            // button is: the hex alone was all a screen reader had, and the
+            // ring all an eye had.
+            val said = if (colour.isEmpty()) none else stringResource(R.string.swatch_said, position + 1, all.size, colour)
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -220,8 +228,8 @@ fun Swatches(
                     .clip(CircleShape)
                     .background(if (colour.isEmpty()) palette.inset else hexColor(colour))
                     .border(1.dp, palette.hairline, CircleShape)
-                    .clickable { onPick(colour) }
-                    .semantics { contentDescription = if (colour.isEmpty()) none else colour },
+                    .selectable(selected = picked, role = androidx.compose.ui.semantics.Role.RadioButton) { onPick(colour) }
+                    .semantics { contentDescription = said },
                 contentAlignment = Alignment.Center,
             ) {
                 if (colour.isEmpty()) Text("✕", color = palette.subtext, fontSize = 14.sp)
