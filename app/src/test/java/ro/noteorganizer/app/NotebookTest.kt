@@ -489,6 +489,23 @@ class NotebookTest {
         JSONArray(load.file!!.readText())
 
     @Test
+    fun `a failed save leaves the note as it was, and the same words are written once it can`() {
+        // A full disk, as the write sees one: the .tmp it writes is a folder
+        // that cannot be removed. Changed in place, the note kept the new
+        // words in memory, so the retry found nothing to write and said Ok.
+        val load = scratch("""[{"id": 1, "title": "Shopping", "body": "milk"}]""")
+        val blocker = File(load.file!!.parentFile, "notes_data.json.tmp")
+        File(blocker, "hold").apply { parentFile!!.mkdirs(); writeText("x") }
+        assertTrue(Notebook.updateNote(load, 1, "Shopping", "milk, eggs") is SaveResult.Failed)
+        assertEquals("milk", load.raw!!.getJSONObject(0).getString("body"))
+        assertEquals("milk", onDisk(load).getJSONObject(0).getString("body"))
+        File(blocker, "hold").delete()
+        blocker.delete()
+        assertTrue(Notebook.updateNote(load, 1, "Shopping", "milk, eggs") is SaveResult.Ok)
+        assertEquals("milk, eggs", onDisk(load).getJSONObject(0).getString("body"))
+    }
+
+    @Test
     fun `a font size the desktop set is read, and written back as the desktop's number`() {
         // The desktop stores a size as a number; read as text alone it came
         // in empty, and the next save on the phone wrote it back with no

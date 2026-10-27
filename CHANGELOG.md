@@ -39,6 +39,14 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A note's words typed while the phone could not write stay "Not
+  saved" until they are written.** When a save failed — a full disk —
+  the new words stayed in the note the screen reads, so the next save
+  found nothing to write and said "Auto-saved", and a restart lost them.
+  Found by the final audit's break-it round.
+
 ---
 
 ## [0.13.0] — 2026-10-27 — Open-source licenses

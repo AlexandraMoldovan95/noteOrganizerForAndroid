@@ -1057,8 +1057,13 @@ object Notebook {
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
 
-        val note = findById(array, id)
-            ?: return SaveResult.Failed(GONE)
+        val index = indexById(array, id)
+        if (index < 0) return SaveResult.Failed(GONE)
+        // Edited as a copy, put in place only once written. Changed in
+        // place, a failed write left the new words in memory: the next save
+        // found nothing to write and said "Auto-saved", and a restart lost
+        // them (ISSUES_LOG, "A save that failed, then said it had saved").
+        val note = JSONObject((array.get(index) as JSONObject).toString())
 
         val oldTitle = (note.opt("title") as? String) ?: ""
         val oldBody = (note.opt("body") as? String) ?: ""
@@ -1133,8 +1138,11 @@ object Notebook {
         // `created` is deliberately untouched: an edit is not a birth.
         dropSpentCopy(note)
 
-        val problem = writeAtomic(file, array)
+        val candidate = copyOf(array)
+        candidate.put(index, note)
+        val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
+        array.put(index, note)
         return SaveResult.Ok(id, moved.lost)
     }
 

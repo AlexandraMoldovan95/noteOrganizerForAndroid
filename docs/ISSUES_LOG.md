@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the fifty-seven are about
+**the code**, or in **the design**. Eighteen of the fifty-eight are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-save-that-failed-then-said-it-had-saved) | code | With the phone unable to write, a note's new words stayed on the screen after its save failed; the next save found nothing to write, said "Auto-saved", and a restart lost them | A sweep for a mistake in a shape must also find the places that skip the shape |
 | [2026-10-24](#a-rescue-copy-measured-by-how-much-shorter) | code | On the desktop, a short note replaced by a new line before it saved kept no rescue copy, its words gone; the phone, holding the desktop's thresholds by design, did the same | A guard has to measure the harm itself, not something that usually moves with it |
 | [2026-10-24](#226-errors-that-a-whole-compile-did-not-have) | checking | The release's compile failed with 226 unresolved names, all in NoteEditor.kt, and passed run again; the day before the debug compile had done the same. Each time an incremental compile, each time the whole compile after it clean | A tool that recompiles only what changed is a tool whose answer can be stale: what ships is built whole |
 | [2026-10-24](#thirty-two-copies-and-a-save-that-did-nothing) | checking | A full walk lost six checks in the export part: Save in Android's picker did nothing, because earlier walks had left 32 copies of the file's name in the emulator's Downloads, the most Android numbers | A check that leaves its work behind changes the ground the next run stands on |
@@ -72,6 +73,36 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A save that failed, then said it had saved
+
+**2026-10-27.** The final audit's break-it round made every write of the
+notebook fail, as a full disk does — a folder where the write puts its
+temporary file — and typed into an open note. The editor said "Not
+saved", as it should. Then Home, and back: the editor said "Auto-saved"
+and the red line was gone. A restart showed the note without the words.
+
+`Notebook.updateNote` changed the note in the live array, the one the
+list and the editor read, and then wrote the file; when the write failed
+it put nothing back. The next save compared the editor's words with that
+note, found them equal, wrote nothing and answered Ok. Every other
+writer in `Notebook.kt` builds a candidate and lets the screen catch up
+after the write — the rule since
+[an update reached the screen before the file](#an-update-that-reached-the-screen-before-it-reached-the-file),
+on 2026-09-13, when every place that built a candidate was walked for
+the same mistake. `updateNote` built none, so the walk never met it: the
+editor's own save, the busiest writer of all.
+
+**The fix:** the note is edited as a copy, written in a copy of the
+array, and put in place only once the file has it. A test makes the
+write fail with that folder, finds the old words in memory and on disk,
+then frees the folder and finds the retry writes the new ones.
+
+**The lesson:** a sweep for a mistake in a shape must also find the
+places that skip the shape. Walking every writer that made a candidate
+could not find the one that made none.
 
 ---
 
