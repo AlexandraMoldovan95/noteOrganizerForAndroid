@@ -18,6 +18,23 @@ class StartupTest {
     private fun temp(name: String) = NioFiles.createTempDirectory(name).toFile()
 
     @Test
+    fun `an import's unpacked backup and a file being attached, left by an app that went, are cleared`() {
+        // Rebuilt while an import's question was up, the app left the whole
+        // unpacked notebook in its cache for good.
+        val cache = temp("cache")
+        File(cache, "import_1700000000000/attachments").mkdirs()
+        File(cache, "import_1700000000000/notes_data.json").writeText("[]")
+        File(cache, "import_1700000000001.zip").writeText("zip")
+        File(cache, "attach_123456").writeText("photo")
+        File(cache, "share").mkdirs()
+        File(cache, "share/Note.pdf").writeText("pdf")
+        Startup.clearLeftovers(cache)
+        assertEquals("only what an import or an attaching leaves goes", listOf("share"),
+            cache.listFiles()!!.map { it.name }.sorted())
+        assertTrue(File(cache, "share/Note.pdf").isFile)
+    }
+
+    @Test
     fun `a brand-new notebook opens on the welcome note, once`() {
         val dir = File(temp("phone"), "notebook")
         assertNull(Startup.prepare(dir, older = null))

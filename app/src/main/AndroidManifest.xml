@@ -19,11 +19,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NoteOrganizer">
         <!-- configChanges: the phone turning, going dark, growing its
-             letters or splitting its screen is drawn again by Compose,
-             not answered by destroying the Activity. All of the app's
-             state lives in that Activity, so rebuilding it dropped the
-             person out of the note they were writing and back onto the
-             list - found on the emulator, with a note open. -->
+             letters or making them bold, changing its language or
+             splitting its screen is drawn again by Compose, not answered
+             by destroying the Activity. All of the app's state lives in
+             that Activity, so rebuilding it dropped the person out of the
+             note they were writing and back onto the list - found on the
+             emulator, with a note open; bold letters and the language
+             were missing from the list until the final audit. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,7 +33,7 @@
             android:theme="@style/Theme.NoteOrganizer"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|keyboard|keyboardHidden|navigation">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

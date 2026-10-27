@@ -1383,6 +1383,13 @@ def changes(folder):
     check("larger letters leave the note open", still_in_note())
     shot(folder, "21-large-letters", "Welcome to Note Organizer")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    # Bold text (Android 12's, Samsung's "Bold font"): missing from the
+    # changes the app takes itself until the final audit, it closed the note.
+    adb("shell", "settings", "put", "secure", "font_weight_adjustment", "300")
+    time.sleep(2.0)
+    check("bold letters leave the note open", still_in_note())
+    adb("shell", "settings", "put", "secure", "font_weight_adjustment", "0")
+    time.sleep(1.0)
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
     adb("shell", "settings", "put", "system", "user_rotation", "1")
     time.sleep(2.5)

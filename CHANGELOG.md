@@ -109,6 +109,12 @@ do before, not as releases anyone ran.
   again each time Android brought the app back after ending it in the
   background — with "Update this note" ready to put the older words back
   over the newer. Found by the final audit's break-it round.
+- **Bold text, or a new language, leaves the open note open**, as
+  turning the phone does: both still rebuilt the screen and closed the
+  note, and an import's question with it, whose unpacked backup then
+  stayed in the app's cache. What an import or an attaching leaves there
+  is cleared at the next start. Found by the final audit's break-it
+  round.
 
 ---
 

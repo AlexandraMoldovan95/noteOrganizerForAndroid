@@ -90,6 +90,11 @@ class MainActivity : ComponentActivity() {
     /** A share code handed over by another app, for the import panel. */
     private val incoming = mutableStateOf<String?>(null)
 
+    companion object {
+        /** Whether this process has cleared the cache's leftovers yet ([Startup.clearLeftovers]). */
+        private var leftoversCleared = false
+    }
+
     /** Counts the times the reminder's notification was tapped: today, on the calendar. */
     private val todayTapped = mutableIntStateOf(0)
 
@@ -111,6 +116,11 @@ class MainActivity : ComponentActivity() {
         val dir = File(filesDir, "notebook")
         // Where the development tools pushed a notebook before this one.
         val notice = Startup.prepare(dir, getExternalFilesDir(null))
+        // Once a process, before anything of its own can be there.
+        if (!leftoversCleared) {
+            leftoversCleared = true
+            Startup.clearLeftovers(cacheDir)
+        }
         // What the app was started with is acted on once. Restored -- after
         // Android ended the process in the background, or a change the app
         // does not take itself -- or reopened from Recents, the activity is

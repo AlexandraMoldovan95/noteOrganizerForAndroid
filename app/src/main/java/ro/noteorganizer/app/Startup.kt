@@ -76,6 +76,20 @@ object Startup {
         return lines.joinToString("\n").ifEmpty { null }
     }
 
+    /**
+     * A backup unpacked for an import (`import_…`) or a file copied in to be
+     * attached (`attach_…`), left in [cache] by an app that went before it
+     * was done -- ended in the background, or rebuilt while an import's
+     * question was up. Each is deleted once the import or the attaching is
+     * over, so a process just started holds none of its own: whatever is
+     * there is a leftover, a whole notebook's copy among them, and it
+     * stayed for good.
+     */
+    fun clearLeftovers(cache: File) {
+        cache.listFiles()?.filter { it.name.startsWith("import_") || it.name.startsWith("attach_") }
+            ?.forEach { it.deleteRecursively() }
+    }
+
     private fun copyIn(from: File, to: File) {
         for (name in FILES) {
             val source = File(from, name)
