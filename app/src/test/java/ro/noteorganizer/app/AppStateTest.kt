@@ -443,6 +443,20 @@ class AppStateTest {
     }
 
     @Test
+    fun `letters typed into a row wait together, and go whole when another row is typed in`() {
+        // The walk typed " 500g" after "flour" and pressed Home: the file
+        // read "flour " -- the second letter, judged by a drawing that had
+        // not caught up, wrote the first alone and lost the rest.
+        val (s, editor) = checklist("flour", "yeast")
+        for (now in listOf("flour ", "flour 5", "flour 50", "flour 500g")) assertNull(editor.typeInRow(0, now))
+        assertEquals("nothing is written while one row is typed in", listOf("flour", "yeast"), s.rowsOnDisk())
+        assertNull(editor.typeInRow(1, "yeast 7g"))
+        assertEquals(listOf("flour 500g", "yeast"), s.rowsOnDisk())
+        assertNull(s.flush!!.invoke())
+        assertEquals(listOf("flour 500g", "yeast 7g"), s.rowsOnDisk())
+    }
+
+    @Test
     fun `the autosave leaves the checklist's half-typed words where they are`() {
         val (s, editor) = checklist("flour")
         editor.adding = "bre"

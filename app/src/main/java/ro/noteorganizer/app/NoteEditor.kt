@@ -558,6 +558,24 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var renaming by mutableStateOf<Renaming?>(null)
     var adding by mutableStateOf("")
 
+    /**
+     * [now] typed into row [index]'s words: they wait, to be written when
+     * the field is left. Another row's waiting words are written first.
+     * Read from the editor as it is, not from the screen as it was last
+     * drawn: letters come faster than the screen, and a row's second
+     * letter, judged by a drawing that had not caught up with its first,
+     * was taken for another row's -- its words were written half-typed, and
+     * the rest, waiting on words the file no longer held, were dropped
+     * (the walk, 2026-10-27: "flour 500g" saved as "flour ").
+     */
+    fun typeInRow(index: Int, now: String): String? {
+        val pending = renaming
+        if (pending != null && pending.index != index) writeRename()?.let { return it }
+        val was = renaming?.was ?: state.note(id)?.checklist?.getOrNull(index)?.text ?: return null
+        renaming = Renaming(index, was, now)
+        return null
+    }
+
     /** The row being renamed, written: null, or why it could not be. */
     fun writeRename(): String? {
         val r = renaming ?: return null
@@ -2447,11 +2465,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
             ChecklistText(renaming?.now ?: item.text, item.done,
                           found = found.filter { it.item == index }.map { it.start to it.end },
                           current = here?.let { it.start to it.end },
-                          onValue = { now ->
-                              // Another row's words still waiting are written first.
-                              if (model.renaming != null && renaming == null && !renameWritten()) return@ChecklistText
-                              model.renaming = EditorModel.Renaming(index, item.text, now)
-                          },
+                          onValue = { now -> model.typeInRow(index, now)?.let { state.say(it) } },
                           onLeave = { if (model.renaming?.index == index) renameWritten() })
             Text(
                 "✕",

@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-four are about
+**the code**, or in **the design**. Eighteen of the sixty-five are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-rows-second-letter-judged-by-the-last-drawing) | code | The walk renamed "flour" to "flour 500g" and pressed Home; the file read "flour ". The row's second letter was judged by a drawing that had not caught up with its first | A callback decides from the state as it is when it runs, not from what the last drawing captured |
 | [2026-10-27](#a-rescue-copy-let-in-whole) | code | A backup's rescue copy came in exactly as written, and "↩ Restore previous" put it into the note: fifty thousand checklist rows past the cap of a thousand, two thousand styles on one line past the cap of five hundred | A ceiling holds only if every road into the note passes it, the one through a copy included |
 | [2026-10-27](#a-question-asked-of-every-note-to-answer-one) | code | A 4.5 KB backup held a rescue copy of four million letters and a note that nearly matched it; every load asked of every note whether a restore would keep its words, by a search that took fourteen seconds, at each start and after each save | Work out an answer where it is asked, for what it is asked about; and when porting Python's `in`, port its cost too |
 | [2026-10-27](#a-million-brackets-past-a-catch-for-exceptions) | code | A share code of 1,354 characters, or a backup of 1 KB, held a million nested brackets; Android's parser went one call deeper for each, and the StackOverflowError it ended in was no Exception, so no guard caught it and the app stopped | A catch names what it expects; what comes from outside is measured before a recursive reader is handed it |
@@ -79,6 +80,36 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A row's second letter, judged by the last drawing
+
+**2026-10-27.** The first full walk of the fix in
+[words a field kept until it was left](#words-a-field-kept-until-it-was-left)
+typed " 500g" after a checklist row's "flour" and pressed Home. The file
+read "flour " — a space, and nothing after it; the photograph after a
+restart showed the same.
+
+The row's field asked, at each letter, whether another row's words were
+still waiting, and judged it by two values the drawing had captured: no
+rename waiting for this row, and the row reading "flour". The adb tool
+types faster than the screen is drawn again — so did a person's keyboard,
+now and then. At the second letter the drawing still said "nothing
+waiting here", the waiting " " was taken for another row's and written,
+and the new rename began from "flour", which the file no longer held; the
+save on Home found the row changed under it and, as it should, dropped
+the words rather than put them on another row.
+
+**The fix:** `EditorModel.typeInRow` decides from the editor as it is
+when the letter arrives, and the field only hands it the letters. A test
+types four times into one row and finds nothing written until another
+row is typed in; the walk's `checklist_words_kept` passes on the
+emulator.
+
+**The lesson:** a callback decides from the state as it is when it runs,
+not from what the last drawing captured. Between two drawings, many
+letters can arrive.
 
 ---
 
