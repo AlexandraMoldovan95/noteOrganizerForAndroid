@@ -1545,36 +1545,54 @@ def backup_too_large(folder):
 
 def big_table(folder):
     """A note holding a table of 300 by 300 -- 90,000 cells, which a share
-    code of 2.9 KB can carry -- opens at once, the table shown as its lines
-    of text, and nothing in the file changes; one of twenty by twenty is
-    still a grid. Past Editing.MAX_DRAWN_CELLS (2,000) a table is text:
-    EditingTest holds the line, this times the opening on the phone, which
-    is where the 2,000 was never measured."""
+    code of 2.9 KB can carry -- opens at once, the table said too large to
+    draw and its first lines shown, and nothing in the file changes; one at
+    the line, 50 by 20, is still a grid and opens in time too. Past
+    Editing.MAX_DRAWN_CELLS (1,000) a table is not drawn: EditingTest holds
+    the line, this times the opening on the phone -- by the app's own frames,
+    from the tap to the last one drawn. Timed by the walk's looks at the
+    screen it read 9.8 s, then 5.0 s for a note drawn in half a second: a
+    look waits for the app to be idle, and takes seconds of its own."""
     print("\n-- a table too large to draw --")
+
+    def drawn_in(title):
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not open_note(title, limit=20.0):
+            return None
+        time.sleep(1.5)
+        out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
+        lines = out[out.find("---PROFILEDATA---"):].splitlines()
+        if len(lines) < 3:
+            return None
+        at = {h: k for k, h in enumerate(lines[1].split(","))}
+        rows = [line.split(",") for line in lines[2:] if line and line[0].isdigit()]
+        return (int(rows[-1][at["FrameCompleted"]]) - int(rows[0][at["IntendedVsync"]])) / 1e9 if rows else None
 
     def grid(rows, columns):
         return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
                          for r in range(rows))
     big = "Opening words\n" + grid(300, 300)
-    small = grid(20, 20)
+    at_line = grid(50, 20)
     if not seed_inside([{"id": 1, "uid": "walk-t1", "title": "Big table", "body": big,
                          "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
-                        {"id": 2, "uid": "walk-t2", "title": "Small table", "body": small,
+                        {"id": 2, "uid": "walk-t2", "title": "Table at the line", "body": at_line,
                          "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
                        {"welcome_offered": True}, "Big table"):
         return
-    started = time.time()
-    opened = open_note("Big table", limit=20.0)
-    took = time.time() - started
-    check("a note with a 300 by 300 table opens within five seconds", opened and took < 5.0, "%.1f s" % took)
-    check("... its table shown as its lines of text", not screen_says("Opening words", "| r0c0 | r0c1 |"),
-          str(screen_says("Opening words", "| r0c0 | r0c1 |")))
-    shot(folder, "86-big-table-as-text", "Opening words")
+    took = drawn_in("Big table")
+    check("a note with a 300 by 300 table is drawn within two seconds (0.5 s on 2026-10-27)",
+          took is not None and took < 2.0, str(took))
+    check("... the table said too large to draw, its first lines shown",
+          not screen_says("Opening words", "too large to draw here", "| r0c0 | r0c1 |"),
+          str(screen_says("Opening words", "too large to draw here", "| r0c0 | r0c1 |")))
+    shot(folder, "86-big-table-as-text", "too large to draw here")
     back_to("Search notes")
     check("... and the file holds the note as it was",
           (note_by_uid("walk-t1") or {}).get("body") == big)
-    if open_note("Small table"):
-        check("a table of twenty by twenty is still a grid", find("r0c0", exact=True) is not None)
+    took = drawn_in("Table at the line")
+    check("a table of 1,000 cells, at the line, is drawn within five seconds (2.2 s on 2026-10-27)",
+          took is not None and took < 5.0, str(took))
+    check("... and is still a grid", find("r0c0", exact=True) is not None)
     back_to("Search notes")
 
 

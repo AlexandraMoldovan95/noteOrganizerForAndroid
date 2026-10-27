@@ -39,20 +39,22 @@ class EditingTest {
         }
 
     @Test
-    fun `a table too large to draw as a grid is shown as its lines, the note unchanged`() {
+    fun `a table too large to draw as a grid is not drawn as one, the note unchanged`() {
         // 300 by 300 came in a 2.9 KB share code: 90,000 cells laid out at
-        // once, and the note would not open.
+        // once, and the note would not open. Written into the text around
+        // it instead, it took nine seconds: a field of 362,000 letters.
         val big = grid(300, 300)
         val body = "before\n$big\nafter\n$table"
         val parts = Editing.segments(body)
-        assertEquals("the big table is text, the small one still a grid",
-            listOf(false, true, false), parts.map { it.table })
-        assertEquals("before\n$big\nafter", parts[0].text)
+        assertEquals(listOf(false, true, false, true, false), parts.map { it.table })
+        assertEquals("the big table is not drawn as a grid, the small one is",
+            listOf(true, true, true, true, true).mapIndexed { i, _ -> i != 1 }, parts.map { it.drawn })
+        assertEquals(big, parts[1].text)
         assertEquals(body, parts.filter { !it.isVirtual }.joinToString("\n") { it.text })
         // At the line, and one cell past it.
         val at = Editing.MAX_DRAWN_CELLS / 20
-        assertEquals(listOf(true, false), Editing.segments(grid(at, 20)).map { it.table })
-        assertEquals(listOf(false), Editing.segments(grid(at, 20) + " x |").map { it.table })
+        assertEquals(listOf(true, true), Editing.segments(grid(at, 20)).map { it.drawn })
+        assertEquals(listOf(false, true), Editing.segments(grid(at, 20) + " x |").map { it.drawn })
     }
 
     @Test

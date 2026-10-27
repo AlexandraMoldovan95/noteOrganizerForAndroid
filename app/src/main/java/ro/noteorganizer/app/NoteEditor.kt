@@ -1505,7 +1505,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
             if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
-                if (segment.table) {
+                if (segment.table && !segment.drawn) {
+                    LargeTable(segment)
+                } else if (segment.table) {
                     val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
                     // A cell's highlight as the export colours it, the
                     // file's line turned into the grid's row.
@@ -2523,6 +2525,37 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         if (focusAsk > answered) {
             answered = focusAsk
             addFocus.requestFocus()
+        }
+    }
+}
+
+/** How much of a table too large to draw is shown: its first lines, each cut to a phone's worth. */
+private const val LARGE_TABLE_LINES = 40
+private const val LARGE_TABLE_CHARS = 300
+
+/**
+ * A table too large to draw as a grid ([Editing.MAX_DRAWN_CELLS]): what it
+ * is, and its first lines as written, read-only, each on one line the
+ * person can slide sideways. The note keeps the table whole; only the
+ * drawing is short, so the note opens at once.
+ */
+@Composable
+private fun LargeTable(segment: Editing.Segment) {
+    val palette = LocalPalette.current
+    val lines = remember(segment.text) { segment.text.split("\n") }
+    val cells = remember(segment.text) { lines.sumOf { splitRow(it).size } }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(stringResource(R.string.table_too_large, cells, lines.size),
+             color = palette.subtext, fontSize = 13.sp)
+        Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
+            for (line in lines.take(LARGE_TABLE_LINES)) {
+                Text(line.take(LARGE_TABLE_CHARS), color = palette.text, fontSize = 13.sp,
+                     maxLines = 1, softWrap = false)
+            }
+        }
+        if (lines.size > LARGE_TABLE_LINES) {
+            Text(stringResource(R.string.table_more_lines, lines.size - LARGE_TABLE_LINES),
+                 color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }

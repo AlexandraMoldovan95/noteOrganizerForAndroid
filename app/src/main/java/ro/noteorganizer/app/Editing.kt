@@ -22,7 +22,8 @@ object Editing {
      * One piece of the body. Lines are the body's own line numbers,
      * [lastLine] inclusive; a segment past the end of the body has
      * `lastLine == firstLine - 1` and holds nothing yet. [cpStart] is
-     * where it begins, counted in code points as the file counts.
+     * where it begins, counted in code points as the file counts. A table
+     * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid.
      */
     data class Segment(
         val table: Boolean,
@@ -30,6 +31,7 @@ object Editing {
         val lastLine: Int,
         val text: String,
         val cpStart: Int,
+        val drawn: Boolean = true,
     ) {
         val isVirtual: Boolean get() = lastLine < firstLine
     }
@@ -39,12 +41,19 @@ object Editing {
      * a piece of the screen of its own, laid out and measured when the note
      * opens, all of them at once: a table of 300 by 300, 90,000 cells, came
      * in a share code of 2.9 KB, and the note it was in would not open.
-     * Past this a table is shown, and written, as its lines of text, and
-     * nothing in the note changes. 2,000 is a hundred rows of twenty
-     * columns, past any table written by hand -- chosen from the count,
-     * not timed on a phone (the walk's big_table times one).
+     * Past this a table is shown as a few of its lines, read-only, and
+     * nothing in the note changes. Written into the text around it, as
+     * first done, it opened in nine seconds on the emulator: a field of
+     * 362,000 letters is laid out whole and drawn whole, each of its
+     * thousands of lines copying all of its text again (measured,
+     * 2026-10-27). And a grid costs one to two milliseconds a cell on the
+     * emulator, measured from the tap to the last frame drawn: 100 cells
+     * 0.4 s, 400 cells 1.0 s, 1,000 cells 2.0 s, 2,000 cells 2.7 s. 1,000 --
+     * fifty rows of twenty columns, past any table written by hand -- keeps
+     * the slowest grid near two seconds on that slow machine; the walk's
+     * big_table times one at the line.
      */
-    const val MAX_DRAWN_CELLS = 2_000
+    const val MAX_DRAWN_CELLS = 1_000
 
     fun segments(body: String): List<Segment> {
         val lines = body.split("\n")
@@ -63,11 +72,10 @@ object Editing {
         val out = ArrayList<Segment>()
         var line = 0
         for (block in tableBlocks(body)) {
-            // Too large to draw as a grid: its lines stay in the text around it.
-            if (block.sumOf { splitRow(lines[it]).size } > MAX_DRAWN_CELLS) continue
             if (block.first > line) out.add(prose(line, block.first - 1))
             out.add(Segment(true, block.first, block.last,
-                lines.subList(block.first, block.last + 1).joinToString("\n"), starts[block.first]))
+                lines.subList(block.first, block.last + 1).joinToString("\n"), starts[block.first],
+                drawn = block.sumOf { splitRow(lines[it]).size } <= MAX_DRAWN_CELLS))
             line = block.last + 1
         }
         if (line < lines.size) {

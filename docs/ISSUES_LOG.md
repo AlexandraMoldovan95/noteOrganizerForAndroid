@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-five are about
+**the code**, or in **the design**. Eighteen of the sixty-six are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-table-moved-out-of-its-grid-and-into-one-field) | code | A table too large for a grid, moved into the text around it, opened in nine seconds: one field of 362,000 letters, laid out whole and drawn whole, every line copying all its text again | Measure where the time goes before choosing where to move the work: moved whole, it costs the same in another place |
 | [2026-10-27](#a-rows-second-letter-judged-by-the-last-drawing) | code | The walk renamed "flour" to "flour 500g" and pressed Home; the file read "flour ". The row's second letter was judged by a drawing that had not caught up with its first | A callback decides from the state as it is when it runs, not from what the last drawing captured |
 | [2026-10-27](#a-rescue-copy-let-in-whole) | code | A backup's rescue copy came in exactly as written, and "↩ Restore previous" put it into the note: fifty thousand checklist rows past the cap of a thousand, two thousand styles on one line past the cap of five hundred | A ceiling holds only if every road into the note passes it, the one through a copy included |
 | [2026-10-27](#a-question-asked-of-every-note-to-answer-one) | code | A 4.5 KB backup held a rescue copy of four million letters and a note that nearly matched it; every load asked of every note whether a restore would keep its words, by a search that took fourteen seconds, at each start and after each save | Work out an answer where it is asked, for what it is asked about; and when porting Python's `in`, port its cost too |
@@ -80,6 +81,36 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A table moved out of its grid and into one field
+
+**2026-10-27.** The first fix for a table of 300 by 300 — a grid of
+90,000 cells drawn at once — left a table past 2,000 cells in the text
+around it, as its lines. The full walk timed the note opening at 9.8
+seconds.
+
+Measured on the emulator (`simpleperf` on the opening, and the frames'
+own timings): two frames of 2.8 and 1.8 seconds, half of the work
+drawing the text field and a quarter laying it out. The field held
+362,000 letters; Compose lays a field out whole, and draws it whole when
+it sits in a scrolling column, and each of its thousands of wrapped lines
+was drawn by a call that copied the field's entire text again. The table
+had been taken out of the grid and put, whole, somewhere just as costly.
+The walk's own clock was off too: it timed the opening by looking at the
+screen, and a look waits for the app to be idle, taking seconds of its
+own — 5.0 seconds for a note later drawn in half a second.
+
+**The fix:** a table past the line is said too large to draw, its first
+forty lines shown read-only and cut to a phone's width; the note keeps
+it whole. The grid's cost was measured too — 0.4 s for 100 cells, 1.0 s
+for 400, 2.0 s for 1,000, 2.7 s for 2,000 — and the line came down to
+1,000. The walk now times by the app's frames: 0.5 s for the large
+table, 2.2 s for one at the line.
+
+**The lesson:** measure where the time goes before choosing where to move
+the work. Moved whole, it costs the same in another place.
 
 ---
 

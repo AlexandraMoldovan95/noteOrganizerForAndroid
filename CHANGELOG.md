@@ -97,9 +97,9 @@ do before, not as releases anyone ran.
   when it is restored. Found by the final audit's break-it round.
 - **A note with a huge table opens.** A share code of 2.9 KB could carry
   a table of 300 by 300, and the editor laid out its 90,000 cells at
-  once. A table of more than 2,000 cells is shown as its lines of text
-  now, and nothing in the note changes. Found by the final audit's
-  break-it round.
+  once. A table of more than 1,000 cells now says it is too large to draw
+  and shows its first lines, read-only; the note keeps it whole. Found by
+  the final audit's break-it round.
 - **A share code followed by a full stop, a quote or a bracket imports**,
   as on the desktop, which drops what is not part of a code where the
   phone called the code damaged — as it is when it ends a sentence in a
