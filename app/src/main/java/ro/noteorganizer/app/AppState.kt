@@ -119,6 +119,27 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var todayAsked by mutableIntStateOf(0)
 
     /**
+     * Today as the screens show it -- the calendar's ring, "Calendar:
+     * soonest", the bar's day. Read once, it stayed on the day the app was
+     * opened for as long as it stayed open; [dayIs] moves it.
+     */
+    var today by mutableStateOf(Recurrence.formatDate(java.time.LocalDate.now()))
+        private set
+
+    /**
+     * The date now, at a return and at midnight with the app open: when it
+     * has turned, a bar for the earlier day goes and the new day's is asked
+     * for, as the desktop's `_watch_the_day` does it once a minute.
+     */
+    fun dayIs(now: String) {
+        if (now != today) {
+            today = now
+            reminderDue = null
+        }
+        checkReminder(today)
+    }
+
+    /**
      * The bar, once a day: shown when notes fall on [today] and it was not
      * shown yet that day -- marked as shown when it shows, as the desktop
      * marks it, so a second start that day says nothing. A mark that could

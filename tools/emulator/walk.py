@@ -429,6 +429,7 @@ def main():
     calendar_large_letters(folder)
     import_questions_quick(folder)
     reminder_new_zone(folder)
+    day_turns_open(folder)
 
     print()
     if failures:
@@ -2678,6 +2679,51 @@ def reminder_new_zone(folder):
         adb("shell", "service", "call", "alarm", "3", "s16", was)
         time.sleep(2.0)
     start_app()
+    back_to("Search notes")
+
+
+def day_turns_open(folder):
+    """The app left open across midnight, never left: the day turns on the
+    screen too. Read once, today stayed on the day the app was opened --
+    "Calendar: soonest" kept yesterday's note first and the new day's bar
+    never came, until the person left and returned. The emulator's clock is
+    set to half a minute before midnight, and put back after by the
+    computer's own clock."""
+    print("\n-- the day turning with the app open --")
+    import datetime
+    offset = int(adb("shell", "date", "+%s").strip() or 0) - time.time()
+    auto_was = adb("shell", "settings", "get", "global", "auto_time").strip()
+    day = datetime.date.fromisoformat(adb("shell", "date", "+%Y-%m-%d").strip())
+    nxt = day + datetime.timedelta(days=1)
+    stamp = "%s 09:00" % (day - datetime.timedelta(days=7)).isoformat()
+    notes = [{"id": 1, "uid": "turn-1", "title": "Due today", "category": "General", "date": day.isoformat(),
+              "created": stamp, "updated": stamp},
+             {"id": 2, "uid": "turn-2", "title": "Due tomorrow", "category": "General", "date": nxt.isoformat(),
+              "created": stamp, "updated": stamp}]
+
+    def order():
+        ys = {t: c[1] for t, d, c in nodes() if t in ("Due today", "Due tomorrow")}
+        return sorted(ys, key=ys.get) if len(ys) == 2 else list(ys)
+
+    try:
+        adb("shell", "settings", "put", "global", "auto_time", "0")
+        adb("shell", "su", "0", "date", day.strftime("%m%d2359%Y.10"))
+        if not seed_inside(notes, {"welcome_offered": True, "note_sort": "Calendar: soonest"}, "Due tomorrow"):
+            return
+        check("before midnight, today's note comes first", order() == ["Due today", "Due tomorrow"], repr(order()))
+        # Today's bar, closed: the one that comes after midnight is the new day's.
+        check("today's bar, closed", tap("Close the reminder") and find("You have 1 note") is None)
+        while adb("shell", "date", "+%Y-%m-%d").strip() == day.isoformat():
+            time.sleep(1.0)
+        # Looked at once a minute while in front, at midnight itself here.
+        check_settled("past midnight, without leaving, the new day's note comes first",
+                      order, lambda o: o == ["Due tomorrow", "Due today"], within=70.0, first=2.0)
+        check("and the new day's bar comes", not says_soon("You have 1 note for today", within=10.0))
+        shot(folder, "91-day-turned-open", "Due tomorrow")
+    finally:
+        adb("shell", "su", "0", "date", "@%d" % int(time.time() + offset))
+        adb("shell", "settings", "put", "global", "auto_time", auto_was or "1")
+        print("     clock back: %s" % adb("shell", "date").strip())
     back_to("Search notes")
 
 

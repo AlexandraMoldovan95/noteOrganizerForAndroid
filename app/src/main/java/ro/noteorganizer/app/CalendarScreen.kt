@@ -155,7 +155,7 @@ private fun Month(state: AppState) {
 private fun MonthGrid(state: AppState, byDate: Map<String, List<JSONObject>>) {
     val palette = LocalPalette.current
     val month = state.calendarMonth
-    val today = Recurrence.formatDate(LocalDate.now())
+    val today = state.today
     val colours = state.dayColours
     val markers = state.dayMarkers
     var swipe by remember { mutableStateOf(0f) }

@@ -92,8 +92,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     var choosingCategory by remember { mutableStateOf(false) }
     val selecting = selected.isNotEmpty()
 
-    val shown = remember(state.revision, query, show, order) {
-        val today = Recurrence.formatDate(java.time.LocalDate.now())
+    val today = state.today
+    val shown = remember(state.revision, query, show, order, today) {
         sortNotes(load.notes.filter { it.matches(query) && Showing.passes(it, show) }, order, today) { note ->
             state.rawNote(note.id)?.let { Recurrence.nextOnOrAfter(it, today) }
         }
@@ -339,8 +339,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             // The day's reminder, the desktop's bar in its accent: once a
             // day, when notes fall on it. A tap opens the day on the calendar.
             state.reminderDue?.let { due ->
-                val today = Recurrence.formatDate(java.time.LocalDate.now())
-                val day = Recurrence.parseDate(today)?.let { Recurrence.showDay(it, year = false) } ?: today
+                val day = Recurrence.parseDate(state.today)?.let { Recurrence.showDay(it, year = false) } ?: state.today
                 val closeSaid = stringResource(R.string.reminder_close)
                 Row(
                     Modifier

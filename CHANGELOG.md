@@ -150,6 +150,12 @@ do before, not as releases anyone ran.
   09:00 and carried from Bucharest to New York with the app closed, it
   rang at 03:00 until the app was opened; a new zone or clock now sets
   it again. Found by the final audit, checked on the emulator.
+- **Today moves at midnight with the app open.** Left open across
+  midnight, the app kept the day it was opened on: "Calendar: soonest"
+  still put yesterday's note first, the calendar's ring stayed on
+  yesterday, and the new day's reminder bar never came until the app was
+  left and opened again. It now looks once a minute while in front, as
+  the desktop does. Found by the final audit, checked on the emulator.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or

@@ -33,6 +33,17 @@ object Days {
 
     private const val VARIATION_SELECTOR = "️"
 
+    // ---- the day turning ----
+
+    /**
+     * Milliseconds from [now] to the first moment of the next date where
+     * [now] is -- midnight, or the hour a clock change starts that day at
+     * where midnight is skipped. Never 0: a day that has just begun waits
+     * for the next one.
+     */
+    fun untilNextDay(now: java.time.ZonedDateTime): Long =
+        java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis()
+
     // ---- the month ----
 
     /**

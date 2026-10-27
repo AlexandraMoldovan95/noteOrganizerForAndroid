@@ -65,7 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ro.noteorganizer.app.ui.theme.AppTheme
@@ -155,8 +158,21 @@ class MainActivity : ComponentActivity() {
             // update, and the setting may have changed on another device.
             val resumed by resumes
             LaunchedEffect(resumed) {
-                state.checkReminder(Recurrence.formatDate(LocalDate.now()))
+                state.dayIs(Recurrence.formatDate(LocalDate.now()))
                 ReminderAlarm.schedule(this@MainActivity, state.settings)
+            }
+            // And while the app is in front, the day turns at midnight too --
+            // looked at once a minute, as the desktop's `_watch_the_day`, so a
+            // clock or zone changed meanwhile is caught as well; and only in
+            // front, so a phone with the app behind is never woken for it.
+            LaunchedEffect(Unit) {
+                lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    while (true) {
+                        delay(minOf(60_000L, Days.untilNextDay(java.time.ZonedDateTime.now()) + 1_000))
+                        val now = Recurrence.formatDate(LocalDate.now())
+                        if (now != state.today) state.dayIs(now)
+                    }
+                }
             }
             val phoneDark = isSystemInDarkTheme()
             val palette = paletteOf(state.themeName(phoneDark))

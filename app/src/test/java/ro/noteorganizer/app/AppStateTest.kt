@@ -35,6 +35,23 @@ class AppStateTest {
     }
 
     @Test
+    fun `the day turning with the app open moves today, drops the earlier day's bar and asks for the new one's`() {
+        // Read once, today stayed on the day the app opened: past midnight the
+        // calendar's ring, "Calendar: soonest" and the bar kept to yesterday.
+        val state = state()
+        state.dayIs("2026-10-04")
+        assertEquals("2026-10-04", state.today)
+        assertNull("no note on the 4th", state.reminderDue)
+        state.dayIs("2026-10-05")
+        assertEquals("2026-10-05", state.today)
+        assertEquals("the new day's bar", 1, state.reminderDue)
+        assertEquals("2026-10-05", state.settings.opt(Reminders.LAST_SHOWN))
+        state.dayIs("2026-10-06")
+        assertEquals("2026-10-06", state.today)
+        assertNull("the 5th's bar goes with the 5th", state.reminderDue)
+    }
+
+    @Test
     fun `a Trash window chosen ends one lost with an unreadable file`() {
         val state = state()
         state.putSetting(Settings.PHONE_TRASH_WINDOW_UNKNOWN, true)

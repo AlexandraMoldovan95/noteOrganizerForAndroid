@@ -23,6 +23,22 @@ class DaysTest {
     private fun onDisk(load: Notebook.Load): JSONObject =
         JSONArray(load.file!!.readText()).getJSONObject(0)
 
+    @Test
+    fun `the wait for the day to turn ends at the next date's first moment, where midnight is skipped too`() {
+        val bucharest = java.time.ZoneId.of("Europe/Bucharest")
+        val late = java.time.ZonedDateTime.of(2026, 10, 27, 23, 58, 0, 0, bucharest)
+        assertEquals(120_000L, Days.untilNextDay(late))
+        // The night the clocks go back is 25 hours from midnight to midnight.
+        val autumn = java.time.ZonedDateTime.of(2026, 10, 25, 0, 0, 0, 0, bucharest)
+        assertEquals(25 * 3_600_000L, Days.untilNextDay(autumn))
+        // Just begun, a day waits for the next one, never 0.
+        assertEquals(24 * 3_600_000L, Days.untilNextDay(java.time.ZonedDateTime.of(2026, 10, 28, 0, 0, 0, 0, bucharest)))
+        // Santiago skipped its midnight on 7 September 2025: that day began at 01:00.
+        val santiago = java.time.ZoneId.of("America/Santiago")
+        val eve = java.time.ZonedDateTime.of(2025, 9, 6, 23, 30, 0, 0, santiago)
+        assertEquals(30 * 60_000L, Days.untilNextDay(eve))
+    }
+
     private val series = """[{"id": 1, "uid": "s", "title": "Stand-up", "body": "agenda", "comments": "",
         "category": "Work", "color": "", "date": "2026-10-05",
         "recurrence": {"freq": "weekly", "weekdays": [0]}, "checklist": [{"text": "x", "done": false}]}]"""
