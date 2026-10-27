@@ -43,7 +43,10 @@ fun AppTheme(palette: Palette, content: @Composable () -> Unit) {
         inversePrimary = palette.accent,
         error = palette.danger,
         onError = palette.onDanger,
-        outline = palette.hairline,
+        // A control's edge at rest (Themes.controlEdge), where Material draws
+        // a switch that is off and a field's border; dividers keep the
+        // hairline.
+        outline = hexColor(ro.noteorganizer.app.Themes.controlEdge(palette.hex)),
         outlineVariant = palette.hairline,
     )
     MaterialTheme(colorScheme = scheme, typography = Typography) {

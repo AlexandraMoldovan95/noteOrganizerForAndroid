@@ -146,6 +146,10 @@ do before, not as releases anyone ran.
   folded, the size grid's squares say the table they make, the Sort and
   Show buttons no longer read their arrow's name, and the find counter
   is read out as it changes. Found by the final audit's break-it round.
+- **A switch that is off, and a field's border, can be seen.** Both were
+  drawn in the theme's hairline, 1.2 to 1 from what lies around them; they
+  are drawn in its secondary text colour now, three to one at least in
+  every theme. Found by the final audit's break-it round.
 - **A checklist row taken off by its ✕ can be brought back.** It was
   gone at once, unsaid, and the editor's Undo holds no checklist; now the
   bar at the foot says what was taken, with Undo for eight seconds, as

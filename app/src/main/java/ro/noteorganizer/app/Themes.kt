@@ -259,6 +259,15 @@ object Themes {
         return "#%02x%02x%02x".format(mixed[0], mixed[1], mixed[2])
     }
 
+    /**
+     * The edge of a control at rest -- a switch that is off, its knob and
+     * rim; a text field's border; an outlined button's: the theme's
+     * subtext. The hairline it was drawn in stood 1.2 to 1 from what lies
+     * around it, and a switch that was off all but vanished (the final
+     * audit); a boundary asks 3 to 1, which ThemesTest holds every theme to.
+     */
+    fun controlEdge(theme: Map<String, String>): String = theme.getValue("subtext")
+
     /** WCAG 2.1 relative luminance. */
     fun relativeLuminance(hex: String): Double? {
         val c = channels(hex) ?: return null

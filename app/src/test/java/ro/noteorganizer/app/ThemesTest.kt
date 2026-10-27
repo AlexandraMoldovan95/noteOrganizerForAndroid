@@ -15,6 +15,21 @@ import org.junit.Test
 class ThemesTest {
 
     @Test
+    fun `a control's edge at rest stands three to one from what lies around it, in every theme`() {
+        // Drawn in the hairline, a switch that was off stood 1.2 to 1 from
+        // its track and a field's border from the page; 3 to 1 is what a
+        // boundary asks (WCAG 1.4.11).
+        for ((name, theme) in Themes.THEMES) {
+            val edge = Themes.controlEdge(theme)
+            val inset = Themes.blend(theme.getValue("card"), theme.getValue("text"), 0.07)
+            for ((ground, hex) in listOf("bg" to theme.getValue("bg"), "card" to theme.getValue("card"), "inset" to inset)) {
+                val ratio = Themes.contrastRatio(edge, hex)!!
+                assertTrue("$name: edge on $ground is $ratio to 1", ratio >= 3.0)
+            }
+        }
+    }
+
+    @Test
     fun blendMatchesTheDesktop() {
         assertEquals("#8e8e97", Themes.blend("#1e1e2f", "#ffffff", 0.5))
         assertEquals("#3c3c54", Themes.blend("#2e2e48", "#f2f2f7", 0.07))
