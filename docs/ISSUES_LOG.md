@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Eighteen of the sixty-two are about
+**the code**, or in **the design**. Eighteen of the sixty-three are about
 the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-27](#a-question-asked-of-every-note-to-answer-one) | code | A 4.5 KB backup held a rescue copy of four million letters and a note that nearly matched it; every load asked of every note whether a restore would keep its words, by a search that took fourteen seconds, at each start and after each save | Work out an answer where it is asked, for what it is asked about; and when porting Python's `in`, port its cost too |
 | [2026-10-27](#a-million-brackets-past-a-catch-for-exceptions) | code | A share code of 1,354 characters, or a backup of 1 KB, held a million nested brackets; Android's parser went one call deeper for each, and the StackOverflowError it ended in was no Exception, so no guard caught it and the app stopped | A catch names what it expects; what comes from outside is measured before a recursive reader is handed it |
 | [2026-10-27](#a-trash-restored-without-its-window) | design | A backup restored onto a new phone brought its Trash, every entry with the day it was deleted, and not the 90 days it was kept for: the next start emptied what was older than the default 30 | Data that carries a date to be judged by a rule must travel with the rule |
 | [2026-10-27](#words-a-field-kept-until-it-was-left) | code | A checklist row renamed, then Home and the app swiped away: the new words were gone, as were words left in "A new item…"; the keyboard's ✓ had only put the keyboard down | What the save on leaving covers is what the editor holds; words a field keeps for itself are outside it |
@@ -77,6 +78,35 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A question asked of every note, to answer one
+
+**2026-10-27.** Found by the final audit: a backup of 4,505 bytes whose
+one note held twenty thousand `a` and a `b`, and a rescue copy of four
+million `a`. Imported, it would hold the app still at every start, and
+after every save.
+
+The restore question promises "what the note holds now is kept" only
+when it is, and that is worked out by asking whether the copy's text
+contains the note's — the desktop's `in`. The phone worked it out while
+reading the file, for every note and every Trash entry with a copy, at
+every load: each start, and the refresh after each save. And it asked
+with the JVM's `contains`, which starts the comparison again from each
+place: millions of places times twenty thousand letters. Measured on the
+computer, fourteen seconds a call; Python's `in` took twelve
+milliseconds on the same strings.
+
+**The fix:** the answer is worked out when the question is shown, for
+that one note, and by a search whose time grows with the two texts
+added, not multiplied (`PyText.contains`). `IdentityTest` loads that
+note and asks, within a margin no machine's speed crosses either way,
+and holds the search to the JVM's answers over three thousand cases.
+
+**The lesson:** work out an answer where it is asked, for what it is
+asked about. And a port of Python's `in` is a port of its cost too: the
+same answer from a slower search is a different program.
 
 ---
 

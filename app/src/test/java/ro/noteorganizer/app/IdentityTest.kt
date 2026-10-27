@@ -435,7 +435,7 @@ class IdentityTest {
             [{"id": 7, "title": "t", "body": "",
               "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
         """.trimIndent())
-        assertFalse("the question does not promise to keep it", load.notes.single().previousKeeps)
+        assertFalse("the question does not promise to keep it", Notebook.previousKeeps(load, 7))
         assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("a long text that was deleted by accident", note.getString("body"))
@@ -448,7 +448,40 @@ class IdentityTest {
             [{"id": 7, "title": "t", "body": "written since",
               "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
         """.trimIndent())
-        assertTrue(load.notes.single().previousKeeps)
+        assertTrue(Notebook.previousKeeps(load, 7))
+    }
+
+    @Test
+    fun `whether a restore keeps the note's words is answered in time that grows with the words, not their square`() {
+        // A backup's rescue copy of four million letters, and a note of
+        // twenty thousand that nearly matches it: the JVM's contains took
+        // fourteen seconds a call, and was asked of every note at every
+        // load -- each start, each save. Linear, it takes milliseconds;
+        // two seconds is a margin no machine speed crosses either way.
+        val dir = Files.createTempDirectory("notebook").toFile()
+        val note = JSONObject().put("id", 7).put("title", "t").put("body", "a".repeat(20_000) + "b")
+            .put("_prev", JSONObject().put("title", "t").put("body", "a".repeat(4_000_000)))
+        File(dir, "notes_data.json").writeText(JSONArray().put(note).toString())
+        val started = System.nanoTime()
+        val load = Notebook.load(listOf(dir))
+        assertTrue("restoring it would replace words the copy lacks", Notebook.previousKeeps(load, 7))
+        val ms = (System.nanoTime() - started) / 1_000_000
+        assertTrue("took $ms ms", ms < 2_000)
+    }
+
+    @Test
+    fun `the linear search finds what the JVM's contains finds`() {
+        val random = java.util.Random(7)
+        val cases = mutableListOf("" to "", "abc" to "", "" to "a", "aaab" to "aab", "abababc" to "ababc",
+                                  "aabaabaaa" to "aabaaa", "abc" to "abcd", "xyz" to "xyz")
+        repeat(3000) {
+            val hay = (0 until random.nextInt(12)).map { "ab"[random.nextInt(2)] }.joinToString("")
+            val needle = (0 until random.nextInt(5)).map { "ab"[random.nextInt(2)] }.joinToString("")
+            cases.add(hay to needle)
+        }
+        for ((hay, needle) in cases) {
+            assertEquals("$needle in $hay", hay.contains(needle), PyText.contains(hay, needle))
+        }
     }
 
     @Test

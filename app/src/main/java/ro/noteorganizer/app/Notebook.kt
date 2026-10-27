@@ -66,8 +66,6 @@ data class Note(
      * drastic shrink's copy, which is the text alone.
      */
     val previousAlso: List<String> = emptyList(),
-    /** Whether restoring that copy would keep what the note holds now ([Notebook.replacedByRestore]). */
-    val previousKeeps: Boolean = false,
 ) {
     /**
      * A note repeats when its rule names a frequency -- NOT when its
@@ -1679,7 +1677,7 @@ object Notebook {
      */
     internal fun replacedByRestore(live: JSONObject, previous: JSONObject): JSONObject? {
         val wasTitle = (live.opt("title") as? String).orEmpty()
-        val nothingLost = (previous.opt("body") as? String).orEmpty().contains((live.opt("body") as? String).orEmpty().trim()) &&
+        val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), (live.opt("body") as? String).orEmpty().trim()) &&
             (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
             PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) }
         if (nothingLost) return null
@@ -1689,6 +1687,23 @@ object Notebook {
             if (previous.has(field)) replaced.put(field, deepCopy(shaped(live, field)))
         }
         return replaced
+    }
+
+    /**
+     * Whether restoring note [id]'s rescue copy would keep what it holds
+     * now, for the restore question to promise it -- asked when the
+     * question is, of that one note. Worked out for every note at every
+     * load, a backup's rescue copy of millions of letters held the app
+     * still at each start and after each save (ISSUES_LOG, "A question
+     * asked of every note, to answer one").
+     */
+    fun previousKeeps(load: Load, id: Int): Boolean {
+        val array = load.raw ?: return false
+        val index = indexById(array, id)
+        if (index < 0) return false
+        val live = array.get(index) as JSONObject
+        val previous = live.opt("_prev") as? JSONObject ?: return false
+        return replacedByRestore(live, previous) != null
     }
 
     /**
@@ -1939,7 +1954,6 @@ object Notebook {
             previousAlso = (o.opt("_prev") as? JSONObject)?.let { prev ->
                 PREV_EXTRA_LABELS.filter { (key, _) -> prev.has(key) }.map { it.second }
             } ?: emptyList(),
-            previousKeeps = (o.opt("_prev") as? JSONObject)?.let { replacedByRestore(o, it) != null } ?: false,
         )
     }
 

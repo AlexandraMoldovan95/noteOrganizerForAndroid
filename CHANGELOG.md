@@ -84,6 +84,12 @@ do before, not as releases anyone ran.
   out of memory anyway reads as "too large", and a note's letters are
   counted without an object for each. Found by the final audit's
   break-it round.
+- **A backup holding a long rescue copy no longer holds the app still at
+  every start.** Whether "↩ Restore previous" would keep a note's words
+  was worked out for every note at every load, by a search that, on a
+  copy of millions of letters, took seconds; it is worked out now when
+  the question is asked, for that note, by a search as quick as the
+  desktop's. Found by the final audit's break-it round.
 
 ---
 

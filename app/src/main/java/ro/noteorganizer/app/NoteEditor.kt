@@ -1636,12 +1636,14 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     if (askRestore && note != null) {
         val also = note.previousAlso
+        // Worked out for this note, once, when the question is asked.
+        val keeps = remember(note) { Notebook.previousKeeps(state.load, note.id) }
         Ask(
             title = stringResource(R.string.restore_title),
             // ...and kept, said only when it is: an emptied note is not.
             text = (if (also.isEmpty()) stringResource(R.string.restore_text_only)
                     else stringResource(R.string.restore_text_with, joinWithAnd(also))) +
-                   (if (note.previousKeeps) " " + stringResource(R.string.restore_kept) else ""),
+                   (if (keeps) " " + stringResource(R.string.restore_kept) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
                 askRestore = false

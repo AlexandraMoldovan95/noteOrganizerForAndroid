@@ -37,6 +37,34 @@ object PyText {
         return words
     }
 
+    /**
+     * `needle in haystack`, in time that grows with the two lengths added,
+     * not multiplied (Knuth-Morris-Pratt). Python's `in` is about linear;
+     * the JVM's `contains` compares again from each place, and four million
+     * letters searched for a near-miss of twenty thousand took fourteen
+     * seconds a call where the desktop took twelve milliseconds.
+     */
+    fun contains(haystack: String, needle: String): Boolean {
+        if (needle.isEmpty()) return true
+        if (needle.length > haystack.length) return false
+        // For each place in the needle, how much of its start is also the
+        // end of what came before it: where a mismatch can go on from.
+        val back = IntArray(needle.length)
+        var k = 0
+        for (i in 1 until needle.length) {
+            while (k > 0 && needle[i] != needle[k]) k = back[k - 1]
+            if (needle[i] == needle[k]) k++
+            back[i] = k
+        }
+        k = 0
+        for (c in haystack) {
+            while (k > 0 && c != needle[k]) k = back[k - 1]
+            if (c == needle[k]) k++
+            if (k == needle.length) return true
+        }
+        return false
+    }
+
     /** `str.strip()`. */
     fun strip(text: String): String {
         var from = 0
