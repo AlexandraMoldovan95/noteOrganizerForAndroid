@@ -24,7 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -320,8 +320,13 @@ private fun TemplateEditor(
     var body by remember { mutableStateOf(start.optString("body")) }
     // Held by the field itself: a field over a TextFieldState keeps its
     // cursor in sight as it is typed into, where one over a String does not
-    // and has no layout to ask with ([Following]).
-    val comments = rememberTextFieldState(start.optString("comments"))
+    // and has no layout to ask with ([Following]). Remembered as the fields
+    // beside it are, never saved for the system to hold while the app is
+    // away: 600,000 letters of comments were more than that handover
+    // carries, and the app stopped as Home was pressed (seen on the
+    // emulator, TransactionTooLargeException). Saved, they bought nothing --
+    // an app started again opens on its list, not on this editor.
+    val comments = remember { TextFieldState(start.optString("comments")) }
     val categories = state.load.categories.keys.toList()
     var category by remember { mutableStateOf(start.optString("category").takeIf { it in categories } ?: "General") }
     val checklist = remember {
@@ -395,7 +400,11 @@ private fun TemplateEditor(
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 TemplateBody(body, state.ownCopy) { body = it }
-                OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2),
+                // At most ten lines tall, scrolling inside past them: grown
+                // to fit very long comments, the field outgrew the tallest
+                // size Compose can measure and the app stopped as the
+                // template opened (600,000 letters, on the emulator).
+                OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 10),
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
 

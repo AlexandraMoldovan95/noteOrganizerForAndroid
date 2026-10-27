@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy are about
-the checking.
+**the code**, or in **the design**. Nineteen of the seventy-one are
+about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-28](#a-crash-in-front-of-the-crash-foretold) | code | The audit foretold that a template with 600,000 letters of comments would stop the app as Home was pressed; on the emulator it stopped sooner, as the template opened. With that fixed, Home stopped it exactly as foretold | A reproduction that fails earlier than predicted has found a second bug in front of the first: fix it and run again before calling the first disproved |
 | [2026-10-27](#on-and-off-told-by-a-tint) | design | Whether B, a list, an alignment, a marker or a repeat day was on was a fill differing from off by 1.04 to 1.33 to 1, and nothing at all to a screen reader | A state needs a second sign for the eye and a word for the ear; a colour is neither alone |
 | [2026-10-27](#arranging-only-a-finger-could-do) | design | Notes in Custom order and a checklist's rows moved only by dragging their handle; TalkBack read "Drag to move", and neither it nor Switch Access could drag | Every gesture needs a door that is not a gesture |
 | [2026-10-27](#a-backup-promised-without-its-conditions) | design | Settings → Backup promised that Android keeps a copy of the notes, and the Data safety reasoning that the copy was end-to-end encrypted; Android stops at 25 MB, encrypts with the phone's lock only where there is one, and the person had no way to say no | A promise about another program's behaviour carries that program's conditions, and the person gets a say in it |
@@ -85,6 +86,46 @@ the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A crash in front of the crash foretold
+
+**2026-10-28.** The final audit read it in the code without running it:
+the template editor kept its comments in `rememberTextFieldState`, which
+hands its whole text to the system each time the app goes behind
+another, and nothing caps a template's comments — a backup brings them as
+they are. Past about 524,000 letters that handover is more than one
+binder transaction carries, and the app stops as Home is pressed.
+
+Run on the emulator with 600,000 letters, the app stopped before Home was
+ever pressed, as the template opened: `Can't represent a width of 974
+and height of 994854 in Constraints`. The comments field grew to fit its
+text, and an outlined field measures itself in a size Compose cannot
+hold past about 262,000 pixels tall at a phone's width — some 190,000
+letters at ordinary size, far fewer at the largest. A long text in a
+note's own comments, and in a template's body, opened and survived Home:
+they are drawn by plain text fields, which never build that size.
+
+**The fix:** the comments field stops growing at ten lines and scrolls
+inside past them. Built with only that change, the walk's
+`template_long_comments` opened the template — and pressing Home stopped
+the app with `TransactionTooLargeException`, as foretold. So the
+comments are now remembered the way the editor's name, title and body
+beside them always were, and not saved for the system: saved, they
+bought nothing, since an app started again opens on its list and not on
+this editor. The walk's part passes; against the app before the fix it
+fails at the opening.
+
+The same walk also shared 120,000 characters of a code to the app
+("Share → Note Organizer"): the dialog's field holds it, bounded by the
+dialog, but laying out one unbroken word that long held the app until
+Android offered to close it. Not changed here; it is in
+[Still open](#still-open).
+
+**The lesson:** a reproduction that fails earlier than predicted has
+found a second bug in front of the first. Fix it and run again before
+calling the first disproved.
 
 ---
 
@@ -2120,6 +2161,18 @@ example notebook always has titles; that is what makes it an example.
 Findings, not failures. Most wait on a change in the desktop repository
 rather than here; the first section is what the phone still owes from
 the audit of 2026-10-19.
+
+### A very long code shared to the app holds it still
+
+Found on 2026-10-28 while reproducing
+[a crash in front of the crash foretold](#a-crash-in-front-of-the-crash-foretold):
+120,000 characters shared to the app as text land in the code dialog's
+field, which the dialog keeps to its own height, so nothing stops — but
+laying out one unbroken word that long held the screen until Android
+offered to close the app (photographed on the emulator). A share code is
+Base64, one unbroken word by nature; a note of a few hundred thousand
+letters makes a code that long. Not changed: what the dialog should show
+for a code too long to read is a design question for the owner.
 
 ### The phone's, from the audit of 2026-10-19
 

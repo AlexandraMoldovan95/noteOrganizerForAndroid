@@ -156,6 +156,12 @@ do before, not as releases anyone ran.
   yesterday, and the new day's reminder bar never came until the app was
   left and opened again. It now looks once a minute while in front, as
   the desktop does. Found by the final audit, checked on the emulator.
+- **A template with very long comments opens, and survives Home.** With
+  600,000 letters of comments, which a backup can bring, the app stopped
+  as the template opened, and once that was fixed, as Home was pressed.
+  The comments field now stops at ten lines and scrolls inside, and its
+  words are no longer handed to the system while the app is away. Found
+  by the final audit, checked on the emulator.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or

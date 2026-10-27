@@ -430,6 +430,7 @@ def main():
     import_questions_quick(folder)
     reminder_new_zone(folder)
     day_turns_open(folder)
+    template_long_comments(folder)
 
     print()
     if failures:
@@ -2724,6 +2725,41 @@ def day_turns_open(folder):
         adb("shell", "su", "0", "date", "@%d" % int(time.time() + offset))
         adb("shell", "settings", "put", "global", "auto_time", auto_was or "1")
         print("     clock back: %s" % adb("shell", "date").strip())
+    back_to("Search notes")
+
+
+def template_long_comments(folder):
+    """A template whose comments run to 600,000 letters -- a backup can
+    bring one -- opened, then the app left with Home. Grown to fit them,
+    the comments field outgrew the tallest size Compose can measure and the
+    app stopped as the template opened; and its words were kept for the
+    system to hold while the app is away, past what one handover carries."""
+    print("\n-- a template with very long comments --")
+    text = ("A line of comments, words and spaces. " * 16000)[:600000]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", [{"id": 1, "uid": "long-1", "title": "Living", "body": "x", "category": "General",
+                                    "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}])
+    put_inside("settings.json", {"welcome_offered": True})
+    put_inside("templates.json", [{"name": "Long comments", "title": "t", "body": "b", "comments": text,
+                                   "category": "General", "checklist": []}])
+    adb("logcat", "-b", "crash", "-c")
+    start_app()
+    says_soon("Search notes", within=10.0)
+    alive = adb("shell", "pidof", PACKAGE).strip()
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    tap("Long comments", exact=True, wait=3.0)
+    # Its words make the screen's tree slow to read: given time.
+    opened = says_soon("Comments (optional)", "Save", within=15.0)
+    check("the template opens, the app still running",
+          not opened and adb("shell", "pidof", PACKAGE).strip() == alive, "missing %s" % opened)
+    shot(folder, "92-template-long-comments", "Comments")
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(6.0)
+    crash = adb("logcat", "-b", "crash", "-d").strip()
+    check("left with Home, the app is still running and nothing stopped it",
+          adb("shell", "pidof", PACKAGE).strip() == alive and not crash, crash[:300])
+    start_app()
     back_to("Search notes")
 
 
