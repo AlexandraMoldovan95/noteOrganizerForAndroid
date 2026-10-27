@@ -268,16 +268,25 @@ fun AppRoot(state: AppState, version: String) {
         busy = context.getString(R.string.exporting)
         scope.launch {
             val problem = withContext(Dispatchers.IO) {
+                var opened = false
                 try {
-                    context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                        Backup.export(state.dir, context.cacheDir, out)
-                    } ?: return@withContext "The file could not be opened for writing."
+                    // Opened -- for writing, which empties it -- only once the
+                    // backup is built and checked (Backup.export).
+                    Backup.export(state.dir, context.cacheDir, {
+                        opened = true
+                        context.contentResolver.openOutputStream(uri, "wt")
+                    })
                     null
                 } catch (e: Exception) {
-                    // A half-written backup is worse than none: it looks like one.
-                    try {
-                        DocumentsContract.deleteDocument(context.contentResolver, uri)
-                    } catch (_: Exception) {
+                    // A half-written backup is worse than none: it looks like
+                    // one. One never opened is as it was -- a backup chosen to
+                    // be written over is kept -- unless it is the empty file
+                    // the picker made for this one.
+                    if (opened || isEmptyDocument(context, uri)) {
+                        try {
+                            DocumentsContract.deleteDocument(context.contentResolver, uri)
+                        } catch (_: Exception) {
+                        }
                     }
                     e.message ?: e.toString()
                 }
@@ -528,6 +537,14 @@ private fun NothingOpen(calendar: Boolean) {
              color = palette.subtext, fontSize = 15.sp,
              textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
+}
+
+/** Whether the document at [uri] holds nothing -- a file the picker has just made. */
+private fun isEmptyDocument(context: android.content.Context, uri: Uri): Boolean = try {
+    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)
+        ?.use { c -> c.moveToFirst() && !c.isNull(0) && c.getLong(0) == 0L } ?: false
+} catch (e: Exception) {
+    false
 }
 
 /**

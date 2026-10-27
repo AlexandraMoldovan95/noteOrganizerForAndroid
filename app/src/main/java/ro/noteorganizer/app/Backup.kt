@@ -114,9 +114,19 @@ object Backup {
      * Writes the notebook in [dir] as a backup to [out]. Built in [scratch]
      * first and checked there by the import's own rules, so a backup that
      * could not be restored is never handed over; [stop] is asked between
-     * files. Returns how many files went in.
+     * files. Returns how many files went in; [out] is closed once written.
      */
     fun export(dir: File, scratch: File, out: OutputStream, stop: () -> Boolean = { false },
+               progress: (Int, Int) -> Unit = { _, _ -> }): Int =
+        export(dir, scratch, { out }, stop, progress)
+
+    /**
+     * The same, the place it goes to [open]ed only once the backup is built
+     * and checked. Opened first -- for writing, which empties it -- a backup
+     * chosen to be written over was emptied before a full cache could stop
+     * the new one, and then deleted as half-written: no backup at all.
+     */
+    fun export(dir: File, scratch: File, open: () -> OutputStream?, stop: () -> Boolean = { false },
                progress: (Int, Int) -> Unit = { _, _ -> }): Int {
         val entries = ArrayList<Pair<File, String>>()
         for (name in listOf(NOTES, SETTINGS, TEMPLATES, TRASH)) {
@@ -143,8 +153,11 @@ object Backup {
                     throw IOException("This backup would not import back. $it")
                 }
             }
-            tmp.inputStream().use { copyStopping(it, out, stop) }
-            out.flush()
+            val out = open() ?: throw IOException("The file could not be opened for writing.")
+            out.use { stream ->
+                tmp.inputStream().use { copyStopping(it, stream, stop) }
+                stream.flush()
+            }
             return entries.size
         } finally {
             tmp.delete()

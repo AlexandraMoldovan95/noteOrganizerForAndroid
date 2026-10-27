@@ -115,6 +115,11 @@ do before, not as releases anyone ran.
   stayed in the app's cache. What an import or an attaching leaves there
   is cleared at the next start. Found by the final audit's break-it
   round.
+- **A backup saved over an older one keeps the older one when the new
+  one fails.** The file chosen was opened, and emptied, before the new
+  backup was built; a cache too full to build it then left the old
+  backup empty and deleted it. It is opened only once the new one is
+  built and checked. Found by the final audit's break-it round.
 
 ---
 

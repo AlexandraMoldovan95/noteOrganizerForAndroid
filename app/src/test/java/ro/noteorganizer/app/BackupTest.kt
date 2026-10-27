@@ -276,6 +276,29 @@ class BackupTest {
     }
 
     @Test
+    fun `an export opens where it goes only once the backup is built`() {
+        // Opened first, for writing, a backup chosen to be written over was
+        // emptied before a full cache stopped the new one, then deleted as
+        // half-written: no backup at all. Here the cache cannot hold it.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        val scratch = temp("scratch")
+        File(scratch, "backup_export.zip.tmp/hold").apply { parentFile!!.mkdirs(); writeText("x") }
+        var opened = false
+        try {
+            Backup.export(dir, scratch, { opened = true; ByteArrayOutputStream() })
+            fail("an export the cache could not hold went through")
+        } catch (e: java.io.IOException) {
+            // expected
+        }
+        assertFalse("the place it goes is never opened", opened)
+        // Built, it is opened once and written.
+        val out = ByteArrayOutputStream()
+        assertEquals(1, Backup.export(dir, temp("scratch"), { opened = true; out }))
+        assertTrue(opened && out.size() > 0)
+    }
+
+    @Test
     fun `a stopped export leaves nothing behind`() {
         val dir = temp("notebook")
         File(dir, "notes_data.json").writeText("[]")
