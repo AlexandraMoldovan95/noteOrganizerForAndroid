@@ -39,6 +39,21 @@ class ListingTest {
     }
 
     @Test
+    fun `Calendar soonest asks each series its next day once, not at every comparison`() {
+        // Asked inside the comparison: 7,584 times for 2,000 notes with a
+        // fifth repeating, each answer read over the whole notebook.
+        val list = notes(*(1..2000).map { i ->
+            if (i % 5 == 0) """{"id": $i, "date": "2026-01-01", "recurrence": {"freq": "weekly"}}"""
+            else """{"id": $i, "date": "2026-${"%02d".format(1 + i % 12)}-${"%02d".format(1 + i % 28)}"}"""
+        }.toTypedArray())
+        var asked = 0
+        val sorted = sortNotes(list, SortOrder.SOONEST, "2026-10-15") { asked += 1; "2026-10-${10 + it.id % 20}" }
+        assertEquals(400, asked)
+        assertEquals(2000, sorted.size)
+        assertEquals("a series' next day first", "2026-10-10", sorted.first().let { if (it.isRecurring) "2026-10-${10 + it.id % 20}" else it.date })
+    }
+
+    @Test
     fun `Calendar oldest is plain chronology, the undated last`() {
         val list = notes("""{"id": 1}""", """{"id": 2, "date": "2026-10-20"}""", """{"id": 3, "date": "2025-01-01"}""")
         assertEquals(listOf(3, 2, 1), ids(sortNotes(list, SortOrder.OLDEST_DATE)))

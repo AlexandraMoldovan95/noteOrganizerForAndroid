@@ -422,7 +422,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun note(id: Int): Note? = load.notes.firstOrNull { it.id == id }
 
     /** A note as the file holds it: what the calendar and the day rules read. */
-    fun rawNote(id: Int): JSONObject? = rawNotes().firstOrNull { (it.opt("id") as? Number)?.toInt() == id }
+    fun rawNote(id: Int): JSONObject? {
+        // Looked for in place: a list of every note was built per question,
+        // and the editor asks at every drawing.
+        val raw = load.raw ?: return null
+        for (i in 0 until raw.length()) {
+            val note = raw.opt(i) as? JSONObject ?: continue
+            if ((note.opt("id") as? Number)?.toInt() == id) return note
+        }
+        return null
+    }
 
     /** How many templates the notebook keeps: the desktop's count, from templates.json. */
     fun templatesCount(): Int = try {

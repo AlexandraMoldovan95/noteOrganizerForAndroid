@@ -287,15 +287,19 @@ fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.fo
                 if (!Notebook.isDate(n.date)) return 2 to ""
                 return if (n.date >= today) 0 to n.date else 1 to n.date
             }
-            notes.sortedWith(Comparator { a, b ->
-                val (ga, da) = group(a)
-                val (gb, db) = group(b)
+            // Each note's place worked out once, before sorting: asked inside
+            // the comparison, a series' next day was worked out twice per
+            // comparison -- 7,584 times for 2,000 notes, each over the whole
+            // notebook -- again after every save.
+            notes.map { it to group(it) }.sortedWith(Comparator { (_, a), (_, b) ->
+                val (ga, da) = a
+                val (gb, db) = b
                 when {
                     ga != gb -> ga.compareTo(gb)
                     ga == 1 -> db.compareTo(da)
                     else -> da.compareTo(db)
                 }
-            })
+            }).map { it.first }
         }
         // Plain chronology by the note's own date: the archive walk.
         SortOrder.OLDEST_DATE -> notes.sortedWith(

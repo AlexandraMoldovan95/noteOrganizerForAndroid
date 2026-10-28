@@ -94,8 +94,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
 
     val today = state.today
     val shown = remember(state.revision, query, show, order, today) {
+        // The notes as the file holds them, found by id from one reading:
+        // looked up one at a time, each series read the whole notebook.
+        val byId = if (order == SortOrder.SOONEST) state.rawNotes().associateBy { (it.opt("id") as? Number)?.toInt() }
+                   else emptyMap()
         sortNotes(load.notes.filter { it.matches(query) && Showing.passes(it, show) }, order, today) { note ->
-            state.rawNote(note.id)?.let { Recurrence.nextOnOrAfter(it, today) }
+            byId[note.id]?.let { Recurrence.nextOnOrAfter(it, today) }
         }
     }
     val laidOut = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())

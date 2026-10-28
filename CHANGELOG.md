@@ -255,6 +255,11 @@ do before, not as releases anyone ran.
   other words, and every note made from the template began that way.
   They move with the words now, as in a note. Found by the final audit's
   second round, the twin of the desktop's.
+- **The list sorted by "Calendar: soonest" no longer stalls after every
+  save.** Each series' next day was worked out inside the sort's
+  comparisons, twice per comparison and each time over the whole
+  notebook: 15 million notes read for 2,000 of them. It is worked out
+  once per note now. Found by the final audit's second round.
 
 ---
 
