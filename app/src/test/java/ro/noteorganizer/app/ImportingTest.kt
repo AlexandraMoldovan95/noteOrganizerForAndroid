@@ -40,6 +40,33 @@ class ImportingTest {
     // ---- the desktop's door ----
 
     @Test
+    fun `a number that is no number comes in as nothing, and the import goes on`() {
+        // Android's org.json takes NaN inside an array unchecked, and its
+        // toString() of everything holding it then gives null: the import's
+        // copy of a backup's template with "checklist": [NaN] stopped the app.
+        // This parser refuses to hold one, so it is put there as Android's would.
+        val checklist = JSONArray().put(JSONObject().put("text", "milk"))
+        val held = JSONArray::class.java.getDeclaredField("myArrayList").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        (held.get(checklist) as MutableList<Any?>).addAll(listOf(Double.NaN, Double.POSITIVE_INFINITY))
+        val templates = Files.parseOutside("[]") {
+            JSONArray().put(JSONObject().put("name", "Hostile template").put("checklist", checklist))
+        }
+        val read = templates.getJSONObject(0).getJSONArray("checklist")
+        assertEquals(listOf(JSONObject.NULL, JSONObject.NULL), listOf(read.opt(1), read.opt(2)))
+        val load = notebook("[]")
+        File(dir(load), "templates.json").writeText("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = templates))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals(listOf("milk"), JSONArray(File(dir(load), "templates.json").readText()).getJSONObject(0)
+            .getJSONArray("checklist").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("text") } })
+        // And whatever else a reading misses is refused, never the app stopped.
+        val stale = Importing.Plan(Importing.Source.CODE, 1, listOf(Importing.Known(99, JSONObject())), emptyList(), emptyList(), 0)
+        assertTrue(Importing.apply(load, stale, Importing.Answers(update = true), null) is Importing.Result.Failed)
+    }
+
+    @Test
     fun `a day filed under a category this phone lacks comes in under General, as the note does`() {
         // The desktop's clean_override files a day under one it lacks; the
         // phone refiled the note alone, and a day kept a name no Show offers.

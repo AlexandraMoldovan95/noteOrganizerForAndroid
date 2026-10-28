@@ -1558,6 +1558,58 @@ def backup_too_large(folder):
     back_to("Search notes")
 
 
+def import_backup_file(folder, name, entries):
+    """A backup .zip of [entries] (name -> text or bytes) imported through
+    Settings -> Backup, as a person picks it from Downloads. True when the
+    picker offered it and it was tapped."""
+    import zipfile
+    local = os.path.join(folder, name)
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED) as z:
+        for entry, data in entries.items():
+            z.writestr(entry, data)
+    adb("push", local, "/sdcard/Download/" + name)
+    os.remove(local)
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup")
+    tap("Import a backup", wait=3.0)
+    if find(name, exact=True) is None:
+        tap("Downloads", wait=2.0) if find("Downloads") else None
+    if not tap(name, exact=True, wait=3.0):
+        return False
+    # The import's own first question: what a backup brings, and Continue.
+    tap("Continue", exact=True, wait=1.5)
+    return True
+
+
+def hostile_backups(folder):
+    """Backups another program could write, imported: a template whose
+    checklist holds NaN -- Android's reader takes it inside a list, and the
+    import's copy of it stopped the app -- comes in with the number left
+    out, and the app goes on."""
+    print("\n-- hostile backups --")
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("logcat", "-b", "crash", "-c")
+    put_inside("notes_data.json", [])
+    put_inside("settings.json", {"welcome_offered": True})
+    start_app()
+    name = "walk_nan_template.zip"
+    picked = import_backup_file(folder, name, {
+        "notes_data.json": '[{"id": 1, "uid": "nan-1", "title": "Plain note", "body": "words"}]',
+        "templates.json": '[{"name": "Hostile template", "body": "b", "checklist": [{"text": "milk"}, NaN]}]',
+    })
+    check("the backup with NaN in a template's checklist is offered by the picker", picked)
+    check_settled("... its note comes in", lambda: [n.get("title") for n in read_file("notes_data.json") or []],
+                  lambda titles: titles == ["Plain note"], within=15.0)
+    check("... and the app goes on, nothing in its crash log", foreground() == PACKAGE and
+          PACKAGE not in adb("logcat", "-b", "crash", "-d"), foreground())
+    templates = read_file("templates.json") or []
+    check("... the template in, the number that is no number left out",
+          [t.get("name") for t in templates] == ["Hostile template"]
+          and [c.get("text") for c in templates[0].get("checklist", [])] == ["milk"], repr(templates)[:200])
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    back_to("Search notes")
+
+
 def big_table(folder):
     """A note holding a table of 300 by 300 -- 90,000 cells, which a share
     code of 2.9 KB can carry -- opens at once, the table said too large to

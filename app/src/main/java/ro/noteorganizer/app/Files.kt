@@ -1,5 +1,7 @@
 package ro.noteorganizer.app
 
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -120,13 +122,36 @@ object Files {
     fun <T> parseOutside(text: String, parse: (String) -> T): T {
         if (nestedPast(text, MAX_JSON_DEPTH)) throw Unreadable(TOO_DEEP)
         return try {
-            parse(text)
+            parse(text).also { finiteOnly(it) }
         } catch (e: StackOverflowError) {
             throw Unreadable(TOO_DEEP)
         } catch (e: OutOfMemoryError) {
             // What it built is let go with the call: a backup too big for
             // the phone is refused, and the app goes on.
             throw Unreadable(TOO_LARGE)
+        }
+    }
+
+    /**
+     * Every number in [value] that is no number -- NaN, or infinity, which
+     * `1e999` reads as -- made null, in place, all the way down. Android's
+     * org.json takes them inside an array, unchecked, and then its
+     * toString() of that array, and of everything holding it, gives null:
+     * the import's next copy of a backup's template, `[NaN]` in its
+     * checklist, stopped the app. The desktop's json reads them too, and its
+     * normalize then drops what is not of a note's types; null is dropped
+     * the same way here.
+     */
+    fun finiteOnly(value: Any?) {
+        when (value) {
+            is JSONArray -> for (i in 0 until value.length()) {
+                val item = value.opt(i)
+                if (item is Number && !item.toDouble().isFinite()) value.put(i, JSONObject.NULL) else finiteOnly(item)
+            }
+            is JSONObject -> for (key in value.keys().asSequence().toList()) {
+                val item = value.opt(key)
+                if (item is Number && !item.toDouble().isFinite()) value.put(key, JSONObject.NULL) else finiteOnly(item)
+            }
         }
     }
 

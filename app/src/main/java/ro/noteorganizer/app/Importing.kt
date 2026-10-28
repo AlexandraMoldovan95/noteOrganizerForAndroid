@@ -261,6 +261,10 @@ object Importing {
      * carries besides its notes. Every file is written by [Files] or
      * through the notebook's own writer, and each write is whole or not
      * at all.
+     *
+     * Outside data a reading missed is refused here, not by stopping the
+     * app: every write comes after the work, so a failure before them
+     * leaves everything as it was.
      */
     fun apply(
         load: Notebook.Load,
@@ -268,6 +272,18 @@ object Importing {
         answers: Answers,
         attachmentsDir: File?,
         extras: Extras = Extras(),
+    ): Result = try {
+        applyWhole(load, plan, answers, attachmentsDir, extras)
+    } catch (e: RuntimeException) {
+        Result.Failed("The import stopped on something in it the app could not read; your notes are as they were.")
+    }
+
+    private fun applyWhole(
+        load: Notebook.Load,
+        plan: Plan,
+        answers: Answers,
+        attachmentsDir: File?,
+        extras: Extras,
     ): Result {
         val notesFile = load.file ?: return Result.Failed("There is nowhere to keep the notes.")
         val notebook = load.raw
@@ -379,7 +395,9 @@ object Importing {
                     val name = (tpl.opt("name") as? String)?.ifEmpty { null } ?: continue
                     if (name in names) continue
                     names.add(name)
-                    out.put(JSONObject(tpl.toString()))
+                    // Shaped as a template, the way every reader shapes one,
+                    // rather than copied as it came through its own text.
+                    out.put(Templates.normalize(tpl))
                     addedTemplates += 1
                 }
                 if (addedTemplates > 0) templatesCandidate = out

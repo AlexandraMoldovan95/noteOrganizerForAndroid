@@ -269,6 +269,13 @@ do before, not as releases anyone ran.
   a new day or template past that is refused with a word, never one
   already there dropped. Found by the final audit's second round, the
   twin of the desktop's.
+- **A backup or share code with "NaN" in a list no longer stops the
+  app.** Android's reader takes a number that is no number inside a
+  list, and every copy of the list then failed: a backup's template with
+  one in its checklist stopped the app at the import's tap. Such a
+  number now comes in as nothing, as the desktop's normalize drops it,
+  and anything else an import cannot read is refused with a sentence.
+  Found by the final audit's second round.
 
 ---
 
