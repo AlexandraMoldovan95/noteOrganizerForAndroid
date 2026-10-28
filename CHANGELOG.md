@@ -304,6 +304,12 @@ do before, not as releases anyone ran.
   characters as its start and its length, with Copy for the whole code:
   120,000 characters shared to the app held the screen until Android
   offered to close it. Found by the final audit's second round.
+- **Files picked for a note go to that note only.** The copy goes on
+  after the note is left; if, meanwhile, the note went to the Trash and
+  a new one took its number, the files went to the new note, unsaid. The
+  note is now known by its own identity too, and the files are not
+  attached elsewhere — the bar says the note is no longer here. Found by
+  the final audit's second round.
 
 ---
 

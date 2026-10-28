@@ -535,6 +535,19 @@ class OrganizingTest {
     }
 
     @Test
+    fun `files picked for a note go only to that note, never to another that took its id`() {
+        // The copy outlived the editor; meanwhile the note went to the Trash
+        // and a new one took its id -- and the files went to the new one.
+        val load = notebook("""[{"id": 4, "uid": "new-note", "title": "Other"}]""")
+        val refused = Organizing.attach(load, 4, attachments(load), listOf(incoming("scan.pdf", "PDF")), uid = "holder").result
+        assertTrue(refused is SaveResult.Failed && refused.reason.contains("no longer here"))
+        assertEquals(0, notesOnDisk(load).getJSONObject(0).optJSONArray("attachments")?.length() ?: 0)
+        assertTrue(attachments(load).listFiles().isNullOrEmpty())
+        // The note itself, by its uid, takes them.
+        assertTrue(Organizing.attach(load, 4, attachments(load), listOf(incoming("scan.pdf", "PDF")), uid = "new-note").result is SaveResult.Ok)
+    }
+
+    @Test
     fun `a file taken off a note is deleted, unless another note or the Trash still uses it`() {
         val load = notebook("""
             [{"id": 1, "attachments": [{"filename": "a", "stored_as": "a.png"}, {"filename": "b", "stored_as": "b.png"},

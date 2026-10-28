@@ -253,11 +253,20 @@ object Organizing {
      * files back out, so nothing is left in the folder that no note names.
      */
     fun attach(load: Notebook.Load, id: Int, attachmentsDir: File, incoming: List<Incoming>,
-               clock: () -> java.time.LocalDateTime = { java.time.LocalDateTime.now() }): Attached {
+               clock: () -> java.time.LocalDateTime = { java.time.LocalDateTime.now() },
+               uid: String? = null): Attached {
         val file = load.file ?: return Attached(SaveResult.Failed(NOWHERE), 0, emptyList())
         val array = load.raw ?: return Attached(SaveResult.Failed(UNREADABLE), 0, emptyList())
         val index = indexOfId(array, id)
-        if (index < 0) return Attached(SaveResult.Failed("This note is no longer in the notes file."), 0, emptyList())
+        // The note the files were picked for, by [uid] as well as by id: a
+        // copy that outlives the editor ends after the person may have sent
+        // that note to the Trash and made another, which takes the freed id
+        // -- and the files went to the new note, unsaid.
+        val gone = index < 0 || (uid != null && (array.opt(index) as? JSONObject)?.opt("uid") != uid)
+        if (gone) {
+            return Attached(SaveResult.Failed("The note these files were picked for is no longer here, " +
+                "so nothing was attached."), 0, emptyList())
+        }
         val room = roomFor(load, id)
         if (room == 0) {
             return Attached(SaveResult.Failed("A note can keep ${Normalize.MAX_ATTACHMENTS} attached files. " +

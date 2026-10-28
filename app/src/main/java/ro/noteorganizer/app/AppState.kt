@@ -623,8 +623,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * and said, when some could not be read or copied. The editor does not
      * hold a note's files, so its next save has nothing to put back.
      */
-    fun attach(id: Int, incoming: List<Organizing.Incoming>, unreadable: Int = 0) {
-        val done = Organizing.attach(load, id, attachments, incoming)
+    fun attach(id: Int, incoming: List<Organizing.Incoming>, unreadable: Int = 0, uid: String? = null) {
+        val done = Organizing.attach(load, id, attachments, incoming, uid = uid)
         if (!report(done.result)) return
         val missed = done.failed.size + unreadable
         if (missed > 0) say(if (missed == 1) "One file could not be attached." else "$missed files could not be attached.")

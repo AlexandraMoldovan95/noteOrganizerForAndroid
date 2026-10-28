@@ -2888,6 +2888,9 @@ private fun copyToCache(context: android.content.Context, uri: android.net.Uri):
  */
 fun attachPicked(state: AppState, context: android.content.Context, id: Int, uris: List<android.net.Uri>,
                  then: (() -> Unit)? = null) {
+    // The note they are for, by its uid too, taken now: the copy can outlive
+    // the editor, and the id be another note's by the time it ends.
+    val uid = state.rawNote(id)?.opt("uid") as? String
     state.scope.launch {
         val copied = mutableListOf<Pair<String, File>>()
         try {
@@ -2896,7 +2899,7 @@ fun attachPicked(state: AppState, context: android.content.Context, id: Int, uri
             }
             state.attach(id, copied.map { (name, temp) ->
                 Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
-            }, unreadable = uris.size - copied.size)
+            }, unreadable = uris.size - copied.size, uid = uid)
             then?.invoke()
         } finally {
             copied.forEach { (_, temp) -> temp.delete() }
