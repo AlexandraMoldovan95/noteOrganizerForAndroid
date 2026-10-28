@@ -167,11 +167,14 @@ Grouped by what the app does; when each item arrived is in the
     or its letters growing leave the note open where it was. **↶ Undo and
     ↷ Redo** (Ctrl+Z, Ctrl+Y on a keyboard) take back the note's words and
     their styling, a burst of typing at a time, as the desktop's do.
-    A line, a title, comments or a checklist row holding a run of more
-    than 10,000 letters with no space — no one types one, a share code
-    can bring one — is shown as what it is and its start, read-only, the
-    lines around it still typed in; laid out as a field it held the note
-    for seconds. The note keeps every byte, and the desktop shows it.
+    A line, a title, comments, a checklist row or a table's cell holding
+    a run of more than 10,000 letters no line can break — no one types
+    one, a share code can bring one, joined by no-break spaces or not —
+    or more such runs together than a note's fields can lay out at once,
+    is shown as what it is and its start, read-only, the lines around it
+    still typed in; laid out as a field it held the note for seconds. The
+    note keeps every byte, and the desktop shows it; a bar or a question
+    quotes a long title, row or file name by its first 80 characters.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text
@@ -260,7 +263,12 @@ Grouped by what the app does; when each item arrived is in the
     cannot be selected. The words are the title, the body, the
     checklist's boxes as ☐ and ☑ and the comments; a note with a table is
     not offered as words, which cannot draw one, and the sheet says to
-    send it as a PDF. The app sends nothing itself, reads no contacts and
+    send it as a PDF — nor one past 100,000 characters, what Android
+    delivers to its share sheet (measured), and the sheet names the web
+    page. A PDF holds at most 40 pages and breaks any line at the
+    paper's edge; when it leaves part of a note out, the bar says so
+    before the share sheet opens, and so does a line at the foot of its
+    page. The app sends nothing itself, reads no contacts and
     remembers nothing; the app picked does the sending. The note's own
     files are not sent, as an export does not carry them, and the sheet
     says so. It replaced "Send by email" and the 🔗 beside it: one door
@@ -344,7 +352,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 781 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 795 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -503,7 +511,9 @@ Android none of the notebook while it is off — the cloud backup and the
 transfer to a new phone alike — only a small file saying it is off. That
 file replaces the copy made while it was on, which a reinstall or a new
 phone would otherwise have put back, switch on, and brings the answer
-back with a restore (2026-10-28). A settings file that cannot be read
+back with a restore (2026-10-28) — the answer until the app's first
+start writes it into the settings, for Android's next backup as for the
+page, so a backup run before that start keeps it. A settings file that cannot be read
 turns it off until the person turns it on again, and the start says so.
 The page says what Android does, when,
 and the 25 MB limit, in the words of the privacy policy; the welcome
@@ -606,7 +616,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 781 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 795 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -614,7 +624,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-42 parts, 353 checks. The last full run (2026-10-27, for 0.13.0), with
+58 parts since the final audit's third round added `limits_round3` (19
+checks: text the layout cannot break, a template's long row, what a bar
+quotes, what Share hands over and what a PDF leaves out) and two to
+`google_backup` (a backup run on a restored phone before its first
+start). The final audit's rounds were walked part by part, alone; the
+last full run that passed whole, and its count, is the one below. The
+last full run (2026-10-27, for 0.13.0), with
 About's Open-source licenses read and Back from them landing on About,
 began on an emulator just started: it waited 42 seconds, then passed all
 353. The one before it (2026-10-27), with the Trash's
@@ -978,7 +994,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-781 JVM unit tests in 31 suites pin the rules ported from Python, and
+795 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

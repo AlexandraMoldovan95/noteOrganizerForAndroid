@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-three are
+**the code**, or in **the design**. Nineteen of the seventy-four are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-28](#guards-that-asked-another-question-than-the-cost) | code | The audit's third round went around the second round's guards: words joined by no-break spaces, a hundred lines each under the limit, a run inside a table's cell, a template's row, a bar quoting a row; a plan applied by place after the list moved; an "off" read from the wrong file; and a ceiling on what is handed to another app that was reasoned, and failed on the emulator at 180,000 characters without a word | A guard asks of what actually costs, everywhere it is drawn; a ceiling set by another program is measured on it, not reasoned |
 | [2026-10-28](#fixes-that-were-holes-of-their-own) | code | The audit's second round found a third of its findings in the first round's fixes: a rule ported half, a count of the wrong cells, a flag set before the act, a switch that did not survive, a timer counted from the asking; and limits that held at the door, a 150,000-letter line from a 300-character code among them | A fix is a new surface: the round after attacks the fix itself, and a twin is read the day it changes |
 | [2026-10-28](#answers-sent-to-a-screen-that-was-gone) | code | With the app's process ended behind Android's picker, Export as file left an empty file and Attach files attached nothing, without a word; and Back while a large file copied lost the file and left the copy in the cache | An answer from another app goes to what is always there; work that must finish outlives the screen that asked for it |
 | [2026-10-28](#a-crash-in-front-of-the-crash-foretold) | code | The audit foretold that a template with 600,000 letters of comments would stop the app as Home was pressed; on the emulator it stopped sooner, as the template opened. With that fixed, Home stopped it exactly as foretold | A reproduction that fails earlier than predicted has found a second bug in front of the first: fix it and run again before calling the first disproved |
@@ -88,6 +89,78 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Guards that asked another question than the cost
+
+**2026-10-28.** The final audit's third round attacked the second
+round's fixes by name and came back with twelve findings at medium or
+above, three of them duplicates of another, and three lows. Most were
+not new kinds: they were the same guard, asked a question that was not
+the one the cost answers.
+
+- **What the layout can break.** A run with no space past 10,000
+  letters is shown read-only. "No space" was Kotlin's `isWhitespace`,
+  which counts the no-break spaces the layout never breaks at: 150,000
+  letters joined by them measured as runs of four, and went into a
+  field. And each line was weighed alone, while the letter-by-letter
+  work adds up: a hundred lines of 9,999 letters passed one by one.
+- **Where it is drawn.** The guard stood in front of the body's lines,
+  the title and the comments. A table's cell, 26 characters wide, took a
+  150,000-letter run whole; the template editor drew a checklist row
+  whole; and every bar and question that quoted a row, a title or a file
+  name laid the whole of it out — the Undo bar for the very ✕ a person
+  uses to be rid of the row.
+- **A plan applied by place.** A backup's import is planned while the
+  list stays usable. It remembered each note by its position: one note
+  sent to the Trash meanwhile, and Update rewrote the note below the
+  right one.
+- **An answer read from the wrong file.** A phone restored from a backup
+  made while Android's backup was off holds only the mark that says so,
+  until the app's first start; the backup agent read settings.json,
+  which a restore does not bring, as on — and deleted the mark.
+- **Work with no line at all.** The page Share and Export make did
+  quadratic work on a table too large to draw, on the screen's thread;
+  Share → Text handed any length; the PDF stopped at forty pages, and cut
+  what ran past the margin, unsaid.
+
+**The fix:** one definition of a run, used by every guard: it ends only
+where Unicode's line-breaking rules always break — after the spaces
+between two words, between two ideographs, at a line break — so it may
+be longer than the layout's own, never shorter; and a body, a title or
+comments may give the layout at most twice one long run's work, counted
+across lines and a table's cells together. Every message quotes at most
+80 characters, a file keeping its type, and no bar or question takes more
+than 1,000. The import finds each note by its identity. The agent asks
+the page's own rule, the mark included. Each with a test and a mutant
+watched failing (AS114 to AS146), and the walk's new `limits_round3`
+part on the emulator. Against the build before this round, that part
+measured what the audit had only reasoned: the no-break-space note held
+the screen 7.6 seconds as it opened, the note with the long cell did not
+open in thirty, nor did a page of the 50,000 empty cells reach the share
+sheet; and `google_backup`, given a backup before the restored app's
+first start, watched Android run it, the mark go, and the app come up
+with the switch on. After it, all pass.
+
+Two more came out of the work itself. The first ceiling on Share → Text
+was the one share codes had, 250,000 characters, from "a buffer of
+about a megabyte". Walked, 180,000 never reached the share sheet: the
+system starts it with a one-way call held to half that buffer, about
+three bytes a character, and it failed in the system's own process
+after the app's call had returned — so the catch written for it saw
+nothing, and the person saw nothing. Measured, the line is between
+160,000 and 180,000; it is 100,000 now, for codes too. And making the
+calendar stop reading the days a turned-off repeat keeps (the desktop's
+fourth round, ported) failed a test that had passed for the wrong
+reason: a restore's copy carried a repeat without the date it hangs on,
+so the restore after it brought back no series — unseen while a day's
+words showed whether the note repeated or not.
+
+**The lesson:** a guard asks of what actually costs, and stands in front
+of every place that draws, quotes or hands the thing over; and a ceiling
+set by another program is measured on that program, not reasoned from
+its documentation — a failure in another process tells the app nothing.
 
 ---
 
@@ -2287,6 +2360,26 @@ whole of it, and no field the app draws is given a run of more than
 10,000 letters with no space — a note's lines, title, comments and rows
 holding one are shown read-only, every byte kept. The owner is to see
 whether that is what the dialog should show.
+
+### Two lows from the audit's third round, left
+
+- **A paste that makes its own line read-only leaves the cursor above
+  it.** Pasting more than 10,000 unbroken characters into the middle of
+  a field cuts that field in two around the read-only notice; the
+  keyboard stays in the field above, and the next words land at the end
+  of the line before the paste. Nothing is lost and Undo puts it right.
+  Left because the fix is in the editor's focus, where a change has been
+  proved only by a person's keyboard
+  ([the story](#what-a-persons-keyboard-found-that-the-walk-could-not)),
+  and this round had no phone to prove it on.
+- **A desktop attachment renamed to fit the phone comes back to the
+  desktop as a second attachment.** A stored name past Android's 255
+  bytes is kept under a shorter name, and the note follows it; the
+  desktop's import compares attachments by that stored name, so a
+  backup made on the phone reads as changed there, and Update adds the
+  same file again under the short name. The phone cannot keep a name it
+  cannot store; the desktop's import is where a fitted name can be
+  recognised. No data is lost, and the names involved are rare.
 
 ### The phone's, from the audit of 2026-10-19
 
