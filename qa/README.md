@@ -19,16 +19,17 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-708 checks across thirty-one suites — `NotebookTest` (126),
-`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (40), `IdentityTest` (35),
-`CalculatorTest` (34), `StylingTest` (33), `OrganizingTest` (33),
-`ParagraphsTest` (33), `DaysTest` (27), `SharingTest`
-(22), `ImportingTest` (21), `SettingsTest` (21), `EditingTest` (22),
-`AppStateTest` (18), `FindingTest` (17), `ExportingTest` (15),
-`TemplatesTest` (11), `BackupTest` (11), `ListingTest` (10), `StartupTest`
-(8), `EditorCopyTest` (8), `ThemesTest` (7), `OutgoingTest` (7), `EditorTableTest` (7),
-`EditorTypingTest` (5), `RemindersTest` (5), `StatsTest` (4),
-`LinksTest` (3), `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
+751 checks across thirty-one suites — `NotebookTest` (127),
+`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (40), `IdentityTest` (39),
+`OrganizingTest` (36), `CalculatorTest` (34), `StylingTest` (33),
+`ParagraphsTest` (33), `DaysTest` (28), `AppStateTest` (28),
+`SharingTest` (25), `ImportingTest` (24), `SettingsTest` (23),
+`EditingTest` (23), `BackupTest` (20), `FindingTest` (17),
+`ExportingTest` (15), `StartupTest` (12), `TemplatesTest` (11),
+`ListingTest` (10), `EditorCopyTest` (8), `ThemesTest` (8),
+`OutgoingTest` (7), `EditorTableTest` (7), `RemindersTest` (6),
+`EditorTypingTest` (5), `StatsTest` (4), `LinksTest` (3),
+`InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),
 which is what makes them cost seconds instead of minutes — and two

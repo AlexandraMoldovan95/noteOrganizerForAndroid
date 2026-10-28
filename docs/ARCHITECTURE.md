@@ -26,7 +26,7 @@ object, `AppState`. Below the screens sit twenty-seven files of plain
 Kotlin that know the rules — what a note is, how a table is written
 down, when a series repeats, what a sum comes to, what a backup may
 contain, which theme is which, what a pasted page becomes — and nothing
-about Android. That split is why 708 tests run on a laptop in seconds,
+about Android. That split is why 751 tests run on a laptop in seconds,
 with no emulator anywhere.
 
 There is no database, no network, no account and no background service.
