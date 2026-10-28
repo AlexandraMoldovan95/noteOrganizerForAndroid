@@ -143,6 +143,20 @@ object Templates {
         return String(cps, 0, minOf(30, cps.size))
     }
 
+    /**
+     * The template editor's checklist as its Save writes it: its rows, and
+     * the words waiting in "A new item…" last, as Add puts them -- as the
+     * note editor's save takes the words in its own box. Left out, Save
+     * dropped them unsaid, and ✕ closed with no question when they were the
+     * only change (the final audit's fifth round).
+     */
+    fun checklistWith(rows: List<Pair<String, Boolean>>, waiting: String): JSONArray {
+        val out = JSONArray(rows.map { JSONObject().put("text", it.first).put("done", it.second) })
+        val added = PyText.strip(waiting)
+        if (added.isNotEmpty()) out.put(JSONObject().put("text", added).put("done", false))
+        return out
+    }
+
     /** Whether another template than the one at [except] already has [name]. */
     fun nameTaken(templates: List<JSONObject>, name: String, except: Int? = null): Boolean =
         templates.withIndex().any { (i, t) -> i != except && t.optString("name") == name }

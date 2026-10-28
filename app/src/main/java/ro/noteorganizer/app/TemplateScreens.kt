@@ -379,7 +379,7 @@ private fun TemplateEditor(
 
     fun collect(): JSONObject = Templates.normalize(JSONObject()
         .put("name", name).put("title", title).put("body", body).put("comments", comments.text.toString()).put("category", category)
-        .put("checklist", JSONArray(checklist.map { JSONObject().put("text", it.first).put("done", it.second) }))
+        .put("checklist", Templates.checklistWith(checklist, newItem))
         .put("formatting", formatting)
         .put("paragraphs", paragraphs))
 

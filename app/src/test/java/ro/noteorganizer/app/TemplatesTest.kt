@@ -72,6 +72,19 @@ class TemplatesTest {
     }
 
     @Test
+    fun `the words waiting in the template editor's A new item box are saved as its last row`() {
+        // Left out of what Save writes, "passport" typed and not added was
+        // dropped unsaid -- and, the only change, ✕ closed with no question.
+        val rows = listOf("towel" to true)
+        val saved = Templates.checklistWith(rows, "  passport ")
+        assertEquals(2, saved.length())
+        assertEquals("passport", saved.getJSONObject(1).getString("text"))
+        assertFalse(saved.getJSONObject(1).getBoolean("done"))
+        assertTrue(saved.getJSONObject(0).getBoolean("done"))
+        assertEquals("a blank box adds nothing", 1, Templates.checklistWith(rows, "   ").length())
+    }
+
+    @Test
     fun `a name is taken only by another template`() {
         val list = listOf(named("A"), named("B"))
         assertTrue(Templates.nameTaken(list, "B"))
