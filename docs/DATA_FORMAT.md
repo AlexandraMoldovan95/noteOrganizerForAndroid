@@ -291,7 +291,16 @@ writes them:
   edit and its move with it.
 - **A repeat turned off** when some day holds its own text puts the whole
   note — the rule, the deleted days, the edits — into `_prev` first, so
-  "↩ Restore previous" brings the series back whole.
+  "↩ Restore previous" brings the series back whole. A note that already
+  does not repeat keeps whatever days it holds: a share code's update or
+  a restore that ended its repeat left them there, out of sight, and they
+  show again when a repeat comes back.
+- **A repeat ended by a share code's update or by a restore** leaves the
+  series' days in the note and puts a copy of them in `_prev`, beside the
+  repeat they hang on (the desktop's `days_to_rescue`). And whenever a new
+  `_prev` replaces one holding days the note no longer has, those days
+  are carried into the new one: the copy is a single slot, and the days
+  must not live only in the copy it erases (2026-10-28).
 
 Phase 3 writes the other two the day mode has:
 

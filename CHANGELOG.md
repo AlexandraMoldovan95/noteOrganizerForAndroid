@@ -223,6 +223,15 @@ do before, not as releases anyone ran.
   or Switch Access finds the same two among the card's or the handle's
   actions; dragging was the only way, and those could not arrange at
   all. Found by the final audit's break-it round.
+- **A repeat ended by a share code keeps every day's own text.** An
+  Update whose copy no longer repeated left the series' days in the
+  note, out of sight, and kept no copy of them; a Save in the Repeat
+  sheet then cleared them for good, and "↩ Restore previous" brought the
+  repeat back without them. The days now stay in the note, a copy goes
+  beside the repeat in the rescue copy, a note that does not repeat
+  keeps its days, and a new rescue copy carries the days the one it
+  replaces held. The desktop takes the same rule. Found by the final
+  audit's second round.
 
 ---
 

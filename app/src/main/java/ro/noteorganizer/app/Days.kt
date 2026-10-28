@@ -455,7 +455,8 @@ object Days {
      * the repeat takes the days' own edits, skipped days and moves with it
      * -- and when a day held text of its own, the note as it was goes into
      * the rescue copy first, repeat and days included, so "↩ Restore
-     * previous" brings the series back whole.
+     * previous" brings the series back whole. A note that already does not
+     * repeat keeps its days.
      */
     /**
      * [startWas] is the series' start before the sheet's Save wrote a new
@@ -470,9 +471,20 @@ object Days {
         if (repeats && Recurrence.parseDate(note.opt("date")) == null) {
             return@edit "A repeating note needs a start date. Pick a date first."
         }
-        if (!repeats) {
+        // Only a repeat being turned off takes its days. A note that does
+        // not repeat keeps whatever days it holds: they came with no copy
+        // of their own -- a share code ended the repeat and left them -- and
+        // a Save in this sheet with "Never" cleared them for good, the copy
+        // "↩ Restore previous" then brought back the repeat without them.
+        // They show again if a repeat comes back.
+        if (!repeats && Recurrence.isRecurring(note)) {
             val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
-            if (repeatOffLosesDays(was)) note.put("_prev", wholeNoteCopy(was))
+            if (repeatOffLosesDays(was)) {
+                // Days the copy it replaces held, and the note does not: kept.
+                val copy = wholeNoteCopy(was)
+                Notebook.carryDays(copy, note.opt("_prev"), note)
+                note.put("_prev", copy)
+            }
             note.put("exceptions", JSONArray())
             note.put("overrides", JSONObject())
             note.put("moved", JSONObject())
