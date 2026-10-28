@@ -685,7 +685,10 @@ fun tableBlocks(body: String): List<IntRange> {
  * Resolves merge markers into spans, the way `merge_map` does.
  *
  * A marker with nothing to attach to — `<` in the first column, `^` in
- * the first row — stays ordinary content rather than being guessed at.
+ * the first row, or under a row too short to have its column — stays
+ * ordinary content rather than being guessed at. The last was read as a
+ * cell nobody has: the page and the PDF left the `^` out, and the grid
+ * drew a merge into nothing, where the desktop shows it (its f8818dd).
  *
  * Returns the anchor each covered position belongs to.
  */
@@ -698,7 +701,7 @@ fun mergeAnchors(rows: List<List<String>>): Map<Pair<Int, Int>, Pair<Int, Int>> 
                 val left = anchorOf[r to (c - 1)] ?: (r to (c - 1))
                 val at = rows.getOrNull(left.first)?.getOrNull(left.second)
                 if (at != MERGE_LEFT_MARK && at != MERGE_UP_MARK) anchorOf[r to c] = left
-            } else if (value == MERGE_UP_MARK && r > 0) {
+            } else if (value == MERGE_UP_MARK && r > 0 && c < rows[r - 1].size) {
                 val above = anchorOf[(r - 1) to c] ?: ((r - 1) to c)
                 val at = rows.getOrNull(above.first)?.getOrNull(above.second)
                 if (at != MERGE_LEFT_MARK && at != MERGE_UP_MARK) anchorOf[r to c] = above
@@ -927,9 +930,11 @@ fun parseTable(lines: List<String>): TableBlock {
 
     // Merges are read over the data rows alone, as the desktop's `merge_map`
     // reads them: over the whole grid, a "^" under the header joined the
-    // separator's dashes rather than the header's cell.
+    // separator's dashes rather than the header's cell. And over the rows
+    // as written, as the desktop's grid reads them: padded first, a "^"
+    // under a row too short for it merged into a cell the padding made.
     val dataLines = grid.indices.filter { it != separatorAt }
-    val anchors = mergeAnchors(dataLines.map { grid[it] })
+    val anchors = mergeAnchors(dataLines.map { raw[it] })
     // Anchor -> how many columns it swallows to its right.
     val colSpans = HashMap<Pair<Int, Int>, Int>()
     for ((covered, anchor) in anchors) {

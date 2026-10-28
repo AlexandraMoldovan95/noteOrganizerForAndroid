@@ -175,6 +175,22 @@ class TablesTest {
         assertEquals(mapOf((1 to 0) to (0 to 0)), mergeAnchors(rows))
     }
 
+    @Test
+    fun `a merge upwards under a row too short to have its column is content, as the desktop has it`() {
+        // Read through getOrNull, the missing cell above was "no marker", and
+        // the "^" was merged into it: the page and the PDF left it out, the
+        // grid drew an empty merge. The desktop's test, as its f8818dd has it.
+        assertEquals(mapOf((1 to 0) to (0 to 0), (1 to 1) to (0 to 1)),
+            mergeAnchors(listOf(listOf("a", "b"), listOf("^", "^", "^"))))
+        val t = table("| a | b |", "| ^ | ^ | ^ |")
+        assertEquals("^", t.rows[1][2]!!.lines.single())
+        assertNull(t.rows[1][0])
+        val html = Exporting.noteToHtml("| a | b |\n| ^ | ^ | ^ |")
+        val rowsHtml = html.substringAfter("<table").split("<tr").drop(1)
+        assertEquals(html, 2, rowsHtml.size)
+        assertTrue("the second row keeps its third cell: $html", rowsHtml[1].contains("^"))
+    }
+
     // ---- column widths ----
 
     @Test
