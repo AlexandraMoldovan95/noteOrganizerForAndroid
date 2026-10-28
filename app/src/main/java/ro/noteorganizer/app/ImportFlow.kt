@@ -13,7 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -36,12 +40,15 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     var draft by remember { mutableStateOf(initial) }
     var problem by remember { mutableStateOf<String?>(null) }
-    var plan by remember { mutableStateOf<Importing.Plan?>(null) }
+    var read by remember { mutableStateOf<CodeRead?>(null) }
+    var reading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val unreadable = stringResource(R.string.code_unreadable)
 
-    val ready = plan
+    val ready = read
     if (ready != null) {
-        ImportQuestions(state, ready, onCancel = onClose) { answers ->
-            finishImport(state, ready, answers, attachmentsDir = null, extras = Importing.Extras())
+        ImportQuestions(state, ready.plan, ready.alikes, onCancel = onClose) { answers ->
+            finishImport(state, ready.plan, answers, attachmentsDir = null, extras = Importing.Extras())
             onClose()
         }
         return
@@ -64,22 +71,58 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
                     placeholder = { Text(stringResource(R.string.import_code_hint, Sharing.PREFIX)) },
                 )
                 problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+                if (reading) {
+                    Text(stringResource(R.string.code_reading), color = palette.accentText, fontSize = 13.sp,
+                         modifier = Modifier.padding(top = 8.dp))
+                }
                 TextButton(onClick = { clipboard.getText()?.text?.let { draft = it; problem = null } }) {
                     Text(stringResource(R.string.paste))
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = draft.isNotBlank(), onClick = {
-                when (val found = Notebook.inspectShareCode(state.load, draft)) {
-                    is Notebook.Inspection.Failed -> problem = found.reason
-                    is Notebook.Inspection.Ready -> plan = found.plan
+            TextButton(enabled = draft.isNotBlank() && !reading, onClick = {
+                // Read away from the screen, as a backup is: a code of a few
+                // thousand letters can unpack to 20 MB and 200 notes, each
+                // weighed against the whole notebook, and done in the tap the
+                // screen held still meanwhile. The list as it is now, taken
+                // here: a save made meanwhile puts a new object in it.
+                val notebook = org.json.JSONArray().also { copy ->
+                    state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
+                }
+                val categories = state.load.categories.keys.toSet()
+                val code = draft
+                reading = true
+                scope.launch {
+                    val found: Any = withContext(Dispatchers.Default) { readCode(notebook, categories, code) ?: unreadable }
+                    reading = false
+                    when (found) {
+                        is CodeRead -> read = found
+                        is String -> problem = found
+                    }
                 }
             }) { Text(stringResource(R.string.import_action), fontWeight = FontWeight.Medium) }
         },
         dismissButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) } },
         containerColor = palette.card,
     )
+}
+
+/** A code read: its plan, and how many of its notes look like ones here. */
+private class CodeRead(val plan: Importing.Plan, val alikes: Importing.LookAlikes)
+
+/**
+ * A code decoded and planned against [notebook], with its look-alikes
+ * counted -- the work a backup does on a thread of its own -- or why not;
+ * null when what it holds stopped the reading (the caller says so).
+ */
+private fun readCode(notebook: org.json.JSONArray, categories: Set<String>, code: String): Any? = try {
+    when (val found = Notebook.inspectShareCode(notebook, categories, code)) {
+        is Notebook.Inspection.Failed -> found.reason
+        is Notebook.Inspection.Ready -> CodeRead(found.plan, Importing.LookAlikes(notebook, found.plan).warm(found.plan))
+    }
+} catch (e: RuntimeException) {
+    null
 }
 
 /** Where the three questions have got to. */

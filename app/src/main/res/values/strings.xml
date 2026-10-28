@@ -408,6 +408,8 @@
     <string name="paste">Paste</string>
     <string name="paste_plain">Paste as plain text</string>
     <string name="import_action">Import</string>
+    <string name="code_reading">Reading the code…</string>
+    <string name="code_unreadable">That code holds something this app could not read, so nothing was imported.</string>
 
     <!-- The import's questions: the desktop's own words -->
     <string name="q_same_note_title">Same note, a different version</string>

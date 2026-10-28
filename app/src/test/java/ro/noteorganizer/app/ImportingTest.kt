@@ -198,6 +198,27 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's attached files are moved into place, never copied a second time`() {
+        // Copied on the screen's thread, a notebook of photos held it still
+        // for seconds; moved, a file costs nothing however large.
+        val load = notebook("[]")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]},
+             {"uid": "p2", "title": "Two", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        assertTrue(Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"),
+            Importing.Extras(attachments = unpacked)) is Importing.Result.Done)
+        assertFalse("moved out of the unpacked backup", File(unpacked, "photo.jpg").exists())
+        assertEquals("PHOTO", File(dir(load), "attachments/photo.jpg").readText())
+        // The second note naming it still gets a file of its own.
+        val second = onDisk(load).getJSONObject(1).getJSONArray("attachments").getJSONObject(0).getString("stored_as")
+        assertNotEquals("photo.jpg", second)
+        assertEquals("PHOTO", File(dir(load), "attachments/$second").readText())
+    }
+
+    @Test
     fun `a backup's new notes keep their rescue copies, a code's never take one`() {
         // A notebook moved to a new phone by a backup lost every "Restore previous".
         val load = notebook("""[]""")

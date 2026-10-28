@@ -565,7 +565,15 @@ object Importing {
         val here = File(attachmentsDir, name)
         if (!here.exists() && unpacked != null) {
             val from = File(unpacked, name)
-            if (from.isFile) copyWhole(from, here)
+            // Moved, not copied: the unpacked backup and the notebook share
+            // the app's own disk, and a move costs nothing however large the
+            // file. Copied, a notebook of photos was written a second time on
+            // the screen's thread, the screen still for seconds. Copied only
+            // where a move cannot be made; the unpacked folder goes after.
+            if (from.isFile) {
+                here.parentFile?.mkdirs()
+                if (!from.renameTo(here)) copyWhole(from, here)
+            }
         }
         if (name !in claimed) {
             claimed.add(name)

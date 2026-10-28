@@ -284,6 +284,14 @@ do before, not as releases anyone ran.
   keeps its start and its type, and the note follows it; a file attached
   on the phone with a long name fits the same way. Found by the final
   audit's second round.
+- **A large import no longer holds the screen still.** A backup's
+  attached files were copied a second time, on the screen's own thread,
+  from the unpacked backup into the notebook — seconds for a notebook of
+  photos, with Android offering to close the app; they are moved now,
+  which costs nothing. And a share code is read, planned and weighed for
+  look-alikes away from the screen, as a backup is, with "Reading the
+  code…" while it is: a code of a few kilobytes can unpack to 20 MB.
+  Found by the final audit's second round.
 
 ---
 

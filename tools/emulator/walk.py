@@ -2762,12 +2762,19 @@ def frames_since_reset():
     to its end, in seconds -- what held the screen, as the app drew it,
     which the walk's own looks (a second or more each) cannot time."""
     out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
-    lines = out[out.find("---PROFILEDATA---"):].splitlines()
-    if len(lines) < 3:
-        return []
-    at = {h: k for k, h in enumerate(lines[1].split(","))}
-    rows = [line.split(",") for line in lines[2:] if line and line[0].isdigit()]
-    return [(int(r[at["FrameCompleted"]]) - int(r[at["IntendedVsync"]])) / 1e9 for r in rows]
+    # One block per window -- a dialog is a window of its own -- each between
+    # two "---PROFILEDATA---" lines, with its own header.
+    frames = []
+    for block in out.split("---PROFILEDATA---")[1::2]:
+        lines = [line for line in block.splitlines() if line.strip()]
+        if len(lines) < 2:
+            continue
+        at = {h: k for k, h in enumerate(lines[0].split(","))}
+        for line in lines[1:]:
+            r = line.split(",")
+            if line[0].isdigit() and len(r) > max(at["FrameCompleted"], at["IntendedVsync"]):
+                frames.append((int(r[at["FrameCompleted"]]) - int(r[at["IntendedVsync"]])) / 1e9)
+    return frames
 
 
 def reminder_new_zone(folder):
@@ -3014,6 +3021,46 @@ def import_questions_quick(folder):
               "%.2f s" % longest)
     adb("shell", "rm", "-f", "/sdcard/Download/" + name)
     os.remove(local)
+    back_to("Search notes")
+
+
+def code_read_away(folder):
+    """A share code of a few kilobytes that unpacks to 14 MB and 200 notes,
+    shared to the app: read, planned and weighed for look-alikes away from
+    the screen. Done in the tap on Import, the screen held still while a
+    code that size was inflated, parsed and set against the notebook."""
+    print("\n-- a large share code, read away from the screen --")
+    import base64
+    import zlib
+    body = "A line of words, read and read again.\n" * 1800
+    notes = [{"uid": "read-1", "title": "Known", "body": "changed\n" + body, "category": "General"}] + \
+            [{"uid": "read-%d" % i, "title": "Read %d" % i, "body": body, "category": "General"} for i in range(2, 201)]
+    payload = json.dumps({"v": 1, "notes": notes}).encode("utf-8")
+    code = "NOTE1:" + base64.urlsafe_b64encode(zlib.compress(payload, 9)).decode("ascii")
+    print("     %d characters of code, %d bytes unpacked" % (len(code), len(payload)))
+    if not seed_inside([{"id": 1, "uid": "read-1", "title": "Known", "body": "x", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Known"):
+        return
+    # Too long for a Windows command line: handed over in a file, and read
+    # into the intent by the emulator's own shell.
+    local = os.path.join(folder, "walk_code.txt")
+    with io.open(local, "w", encoding="ascii") as f:
+        f.write(code)
+    adb("push", local, "/data/local/tmp/walk_code.txt")
+    os.remove(local)
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"$(cat /data/local/tmp/walk_code.txt)\" -n %s/.MainActivity" % PACKAGE)
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_code.txt")
+    says_soon("Import a code", within=10.0)
+    time.sleep(2.0)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("Import", exact=True, wait=0.2)
+    asked = not says_soon("1 note you already have", within=30.0)
+    longest = max(frames_since_reset() or [0.0])
+    check("the code's question comes", asked)
+    check("... and no frame holds the screen a second while it is read", longest < 1.0, "%.2f s" % longest)
+    tap("Cancel", exact=True, wait=1.0)
     back_to("Search notes")
 
 

@@ -1524,11 +1524,18 @@ object Notebook {
      * exactly when a note has been edited, which is the only time anyone
      * sends one back.
      */
-    fun inspectShareCode(load: Load, code: String): Inspection {
+    fun inspectShareCode(load: Load, code: String): Inspection =
+        inspectShareCode(load.raw ?: JSONArray(), load.categories.keys, code)
+
+    /**
+     * The same, against [notebook] and [categories] taken from the notebook
+     * beforehand: what the code dialog reads on a thread of its own.
+     */
+    fun inspectShareCode(notebook: JSONArray, categories: Set<String>, code: String): Inspection {
         val decoded = Sharing.decode(code)
         if (decoded is Sharing.Decoded.Failed) return Inspection.Failed(decoded.reason)
         val notes = (decoded as Sharing.Decoded.Notes).notes
-        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE, load.categories.keys)
+        val plan = Importing.plan(notebook, notes, Importing.Source.CODE, categories)
         return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
     }
 
