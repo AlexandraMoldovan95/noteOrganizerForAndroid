@@ -364,6 +364,52 @@ class BackupTest {
     }
 
     @Test
+    fun `a backup chosen to be replaced is kept when its place refuses to open`() {
+        // The flag said "opened" before the open was tried: a place refusing
+        // "wt" deleted the older backup the person chose, with nothing new.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        var discarded = 0
+        val export = { open: () -> java.io.OutputStream?, empty: Boolean ->
+            Backup.exportTo(dir, temp("scratch"), open, emptyPlace = { empty }, discard = { discarded += 1 })
+        }
+        assertTrue(export({ throw java.io.FileNotFoundException("Unsupported mode: wt") }, false) is Backup.Export.Failed)
+        assertTrue(export({ null }, false) is Backup.Export.Failed)
+        assertEquals("a refusal deletes nothing", 0, discarded)
+        // The picker's own empty file goes, as before; so does a half-written one.
+        export({ null }, true)
+        assertEquals(1, discarded)
+        val failing = object : java.io.OutputStream() {
+            override fun write(b: Int) = throw java.io.IOException("disk full")
+        }
+        assertTrue(export({ failing }, false) is Backup.Export.Failed)
+        assertEquals("a backup half-written over the older one goes", 2, discarded)
+        val out = ByteArrayOutputStream()
+        assertEquals(Backup.Export.Saved(1, null), export({ out }, false))
+        assertEquals(2, discarded)
+    }
+
+    @Test
+    fun `a backup this phone could not read back is still saved, and says so`() {
+        // "Backup saved." -- then the import refused it: the notes were past
+        // what the import reads at once on a phone with this memory.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[" + "{\"body\": \"${"x".repeat(1000)}\"},".repeat(200) + "{}]")
+        val heap = File(dir, "notes_data.json").length() * 16 - 16
+        val out = ByteArrayOutputStream()
+        val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}, heap = heap) as Backup.Export.Saved
+        assertTrue("written all the same", out.size() > 0)
+        assertTrue(saved.tooLarge, saved.tooLarge!!.startsWith("notes_data.json holds"))
+        // And the import, on that phone, refuses it for the same reason.
+        val zip = File(temp("zip"), "b.zip").apply { writeBytes(out.toByteArray()) }
+        val read = Backup.read(zip, temp("into"), free = Long.MAX_VALUE, heap = heap)
+        assertTrue(read is Backup.Read.Failed && read.reason.contains(saved.tooLarge!!))
+        // A phone with room for it is told nothing.
+        assertNull((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {},
+            heap = heap + 16) as Backup.Export.Saved).tooLarge)
+    }
+
+    @Test
     fun `a stopped export leaves nothing behind`() {
         val dir = temp("notebook")
         File(dir, "notes_data.json").writeText("[]")

@@ -286,37 +286,27 @@ fun AppRoot(state: AppState, version: String) {
         if (uri == null) return@rememberLauncherForActivityResult
         busy = context.getString(R.string.exporting)
         scope.launch {
-            val problem = withContext(Dispatchers.IO) {
-                var opened = false
-                try {
-                    // Opened -- for writing, which empties it -- only once the
-                    // backup is built and checked (Backup.export).
-                    Backup.export(state.dir, context.cacheDir, {
-                        opened = true
-                        context.contentResolver.openOutputStream(uri, "wt")
-                    })
-                    null
-                } catch (e: Exception) {
-                    // A half-written backup is worse than none: it looks like
-                    // one. One never opened is as it was -- a backup chosen to
-                    // be written over is kept -- unless it is the empty file
-                    // the picker made for this one.
-                    if (opened || isEmptyDocument(context, uri)) {
-                        try {
-                            DocumentsContract.deleteDocument(context.contentResolver, uri)
-                        } catch (_: Exception) {
-                        }
-                    }
-                    e.message ?: e.toString()
-                }
+            val result = withContext(Dispatchers.IO) {
+                // Opened -- for writing, which empties it -- only once the
+                // backup is built and checked; a half-written backup is
+                // deleted, one that never opened is kept (Backup.exportTo).
+                // "wt" only, never the single-note export's fallback to "w":
+                // written over a longer backup without emptying it, a zip
+                // keeps the old one's tail, and its index, at its end.
+                Backup.exportTo(state.dir, context.cacheDir,
+                    open = { context.contentResolver.openOutputStream(uri, "wt") },
+                    emptyPlace = { isEmptyDocument(context, uri) },
+                    discard = { DocumentsContract.deleteDocument(context.contentResolver, uri) })
             }
             busy = null
-            if (problem == null) {
-                state.putSetting(Settings.LAST_EXPORT_AT,
-                    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
-                state.say(context.getString(R.string.export_done))
-            } else {
-                state.say(context.getString(R.string.export_failed, problem))
+            when (result) {
+                is Backup.Export.Saved -> {
+                    state.putSetting(Settings.LAST_EXPORT_AT,
+                        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
+                    result.tooLarge?.let { state.say(context.getString(R.string.export_done_too_large, it), long = true) }
+                        ?: state.say(context.getString(R.string.export_done))
+                }
+                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, result.reason))
             }
         }
     }

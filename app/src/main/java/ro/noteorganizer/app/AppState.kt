@@ -279,8 +279,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         }
     }
 
-    fun say(message: String) {
-        scope.launch { snackbar.showSnackbar(message, withDismissAction = true) }
+    /** A message, [long] for one with more to read than a glance takes. */
+    fun say(message: String, long: Boolean = false) {
+        scope.launch {
+            snackbar.showSnackbar(message, withDismissAction = true,
+                duration = if (long) SnackbarDuration.Long else SnackbarDuration.Short)
+        }
     }
 
     /** A message with one thing to do about it: "Exported to…", Open. */

@@ -19,7 +19,10 @@ import java.util.zip.ZipOutputStream
  * Inside: `notes_data.json`, `settings.json`, `templates.json`,
  * `trash.json`, and every attached file under `attachments/`. A backup
  * the app wrote must be one it agrees to read back, so an export is
- * checked by the import's own rules before it is handed over.
+ * checked by the import's own rules before it is handed over -- all but
+ * the memory one, which depends on the phone: a notebook grown past what
+ * this phone's import reads at once is still saved, the person told so
+ * ([exportTo]), since the desktop restores it.
  *
  * A backup arrives from anywhere, so reading one is guarded the way the
  * desktop's `_safe_extract_zip` guards it -- and one step stricter: only
@@ -173,6 +176,51 @@ object Backup {
             return entries.size
         } finally {
             tmp.delete()
+        }
+    }
+
+    /** How an export to a place the person chose ended. */
+    sealed class Export {
+        /**
+         * Written. [tooLarge] says why this phone could not read it back at
+         * once ([memoryProblem]) -- a notebook that grew past what the import
+         * reads, which the desktop can still restore -- or is null.
+         */
+        data class Saved(val files: Int, val tooLarge: String?) : Export()
+        data class Failed(val reason: String) : Export()
+    }
+
+    /**
+     * [export] to a place the person chose, which may be an older backup
+     * to be written over. On failure the place is [discard]ed only when
+     * what it holds is a half-written backup -- [open] gave a stream and the
+     * writing then failed -- or the empty file the picker made for this one
+     * ([emptyPlace]). A place that refused to open, or gave no stream, is
+     * as it was: a backup chosen to be replaced was deleted for a refusal,
+     * with nothing in its place.
+     *
+     * A backup this phone could not read back is still written -- the
+     * person's only copy is never withheld -- and [Export.Saved.tooLarge]
+     * says so, where "Backup saved." was followed, at the import, by a
+     * refusal.
+     */
+    fun exportTo(dir: File, scratch: File, open: () -> OutputStream?, emptyPlace: () -> Boolean,
+                 discard: () -> Unit, heap: Long = Runtime.getRuntime().maxMemory(),
+                 stop: () -> Boolean = { false }, progress: (Int, Int) -> Unit = { _, _ -> }): Export {
+        var opened = false
+        return try {
+            val files = export(dir, scratch, { open()?.also { opened = true } }, stop, progress)
+            val sizes = listOf(NOTES, SETTINGS, TEMPLATES, TRASH).map { File(dir, it) }.filter { it.isFile }
+                .map { Entry(it.name, it.length(), it.length()) }
+            Export.Saved(files, memoryProblem(sizes, heap))
+        } catch (e: Exception) {
+            if (opened || emptyPlace()) {
+                try {
+                    discard()
+                } catch (_: Exception) {
+                }
+            }
+            Export.Failed(e.message ?: e.toString())
         }
     }
 

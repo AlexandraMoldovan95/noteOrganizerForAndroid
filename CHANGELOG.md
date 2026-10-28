@@ -99,8 +99,11 @@ do before, not as releases anyone ran.
   phone ran out of memory reading it. Each JSON file a backup brings is
   now held to a sixteenth of the memory Android gives the app, running
   out of memory anyway reads as "too large", and a note's letters are
-  counted without an object for each. Found by the final audit's
-  break-it round.
+  counted without an object for each. A notebook grown past that line is
+  still saved as a backup, and the bar says this phone cannot read it
+  back and the desktop can, where it said "Backup saved." and the import
+  then refused it. Found by the final audit's break-it round, the
+  backup's own side by the round after.
 - **A backup holding a long rescue copy no longer holds the app still at
   every start.** Whether "↩ Restore previous" would keep a note's words
   was worked out for every note at every load, by a search that, on a
@@ -136,7 +139,9 @@ do before, not as releases anyone ran.
   one fails.** The file chosen was opened, and emptied, before the new
   backup was built; a cache too full to build it then left the old
   backup empty and deleted it. It is opened only once the new one is
-  built and checked. Found by the final audit's break-it round.
+  built and checked, and a place that refuses to open leaves it as it
+  was, where the refusal still deleted it. Found by the final audit's
+  break-it round, the refusal by the round after.
 - **The buttons drawn as a symbol say what they do to a screen reader**:
   + is "New note", ⋮ "More options", ← "Back", ⓘ "Note details", and the
   selection bar's ✕, 📌, 🗂 and 🗑 their actions, as are the search's and
