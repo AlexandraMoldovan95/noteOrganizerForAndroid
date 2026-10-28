@@ -28,7 +28,9 @@ object Editing {
      * that the layout cannot break, or runs past what the body may give the
      * layout in all ([MAX_LAYOUT_COST]) -- a table's cells counted too, and
      * such a table is not [drawn] -- shown read-only; only a [field] is
-     * typed in.
+     * typed in. A [heavy] one is [long] for another reason: past what one
+     * body draws ([MAX_DRAWN_LINES], [MAX_SEGMENTS]), or one line heavier
+     * to draw than a field may be ([MAX_FIELD_WEIGHT]).
      */
     data class Segment(
         val table: Boolean,
@@ -38,6 +40,7 @@ object Editing {
         val cpStart: Int,
         val drawn: Boolean = true,
         val long: Boolean = false,
+        val heavy: Boolean = false,
     ) {
         val isVirtual: Boolean get() = lastLine < firstLine
 
@@ -153,8 +156,74 @@ object Editing {
      * runs that add up past [MAX_LAYOUT_COST]: shown read-only, never as a
      * field. Text no longer than one run's limit never is.
      */
-    fun tooLongToLayOut(text: String): Boolean =
+    fun tooLongToLayOut(text: String): Boolean = runsTooLong(text) || tooHeavyToDraw(text)
+
+    /** The first half of [tooLongToLayOut]: runs the layout breaks letter by letter, past its limits. */
+    fun runsTooLong(text: String): Boolean =
         text.length > MAX_UNBROKEN && (layoutCost(text) ?: Long.MAX_VALUE) > MAX_LAYOUT_COST
+
+    /**
+     * The fewest letters a line of the editor holds on a phone: at the
+     * body's size a narrow phone's line holds about forty. A field's lines
+     * are counted as if each held this many ([drawnLines]): more lines than
+     * the screen draws, never fewer.
+     */
+    const val WRAP = 32
+
+    /** The lines a line of [length] UTF-16 units is drawn as, at [WRAP] letters a line; an empty one is one. */
+    private fun drawnLines(length: Int): Int = maxOf(1, (length + WRAP - 1) / WRAP)
+
+    /** The lines [text] is drawn as, at [WRAP] letters a line ([drawnLines]). */
+    fun drawnLines(text: CharSequence): Long {
+        var lines = 0L
+        var run = 0
+        for (i in 0 until text.length) {
+            if (text[i] == '\n') {
+                lines += drawnLines(run)
+                run = 0
+            } else {
+                run++
+            }
+        }
+        return lines + drawnLines(run)
+    }
+
+    /**
+     * What drawing one field costs, beside laying it out: Compose draws a
+     * field in a scrolling column whole, and each of its lines is drawn by a
+     * call that copies the field's ENTIRE text again (simpleperf, 2026-10-27:
+     * a field of 362,000 letters took nine seconds) -- so the work is its
+     * length times its lines. The most one field may take, as that product:
+     * a line of 150,000 letters with spaces, which opened in 0.17 s on the
+     * emulator (measured 2026-10-28). A note of 200,000 empty lines, from a
+     * share code of 666 characters, came to 4e10 -- some fifty times this.
+     */
+    const val MAX_FIELD_WEIGHT = 150_000L * ((150_000 + WRAP - 1) / WRAP)
+
+    /** Whether [text], as one field, is heavier to draw than a field may be ([MAX_FIELD_WEIGHT]). */
+    fun tooHeavyToDraw(text: CharSequence): Boolean =
+        // No text shorter than the root can reach it: its lines are never more than its letters.
+        text.length > 26_000 && text.length.toLong() * drawnLines(text) > MAX_FIELD_WEIGHT
+
+    /**
+     * The most lines one field of a body draws ([drawnLines]): past it, the
+     * prose goes on in the next field, cut between two lines. A body is any
+     * number of fields, so each is kept small enough that the letter typed in
+     * it -- which draws that field again -- copies little: 1,000 lines, some
+     * 32,000 letters, a fiftieth of [MAX_FIELD_WEIGHT].
+     */
+    const val FIELD_LINES = 1_000
+
+    /**
+     * The most lines all of a body's fields draw together ([drawnLines]), and
+     * the most pieces it is drawn as: the editor draws every piece at once,
+     * in one scrolling column. Past either, the rest of the body is one
+     * piece shown read-only, its start and how many lines it holds -- the
+     * note keeps every byte. A note of 7,000 lines of prose, 308,000
+     * characters, draws 14,000 lines.
+     */
+    const val MAX_DRAWN_LINES = 20_000
+    const val MAX_SEGMENTS = 100
 
     /**
      * The most cells a table may have to be drawn as a grid. Every cell is
@@ -172,6 +241,11 @@ object Editing {
      * fifty rows of twenty columns, past any table written by hand -- keeps
      * the slowest grid near two seconds on that slow machine; the walk's
      * big_table times one at the line.
+     *
+     * It is what a whole body draws, all its tables together: asked of each
+     * table alone, ten tables of 1,000 cells, from a share code of 350
+     * characters, were drawn as 10,000. A table past what is left is shown
+     * as one too large is.
      */
     const val MAX_DRAWN_CELLS = 1_000
 
@@ -236,44 +310,106 @@ object Editing {
             spent += cost
             return false
         }
+        // What the body may still draw ([MAX_DRAWN_CELLS], [MAX_DRAWN_LINES]),
+        // and the line from which the rest of it is one read-only piece,
+        // once that or the number of pieces ([MAX_SEGMENTS]) runs out.
+        var cellsLeft = MAX_DRAWN_CELLS.toLong()
+        var linesLeft = MAX_DRAWN_LINES.toLong()
+        var rest = -1
+        // One place is kept for the rest itself.
+        fun room(at: Int): Boolean {
+            if (out.size < MAX_SEGMENTS - 1) return true
+            rest = at
+            return false
+        }
         // A run of prose lines, each run of lines too much to lay out cut
         // out of it as a segment of its own, shown read-only: the lines
         // around it stay fields, and the note keeps every byte.
         fun prose(first: Int, last: Int) {
-            var from = first
-            var i = first
-            while (i <= last) {
-                if (!tooMuch(i)) {
-                    i++
+            // Asked once of each line, in order ([tooMuch] counts what it
+            // lets in); a line heavier to draw than a field may be is not
+            // let in, and so not counted.
+            val shown = BooleanArray(last - first + 1) { k ->
+                val i = first + k
+                !(weighed && tooHeavyToDraw(lines[i])) && !tooMuch(i)
+            }
+            fun readOnly(i: Int) = !shown[i - first]
+            // Empty lines between two read-only ones are read-only too: an
+            // empty line costs the layout nothing and was let in, so once
+            // the limit was reached "x", "", "x", "" ... came out as ten
+            // thousand pieces, every other one a field.
+            var k = 0
+            while (k < shown.size) {
+                if (!shown[k] || lines[first + k].isNotEmpty()) {
+                    k++
                     continue
                 }
-                var end = i
-                while (end + 1 <= last && tooMuch(end + 1)) end++
-                if (i > from) out.add(Segment(false, from, i - 1, text(from, i - 1), starts[from]))
-                out.add(Segment(false, i, end, text(i, end), starts[i], long = true))
-                from = end + 1
-                // The line after [end] was asked, and let in.
-                i = end + 2
+                var end = k
+                while (end + 1 < shown.size && shown[end + 1] && lines[first + end + 1].isEmpty()) end++
+                if (k > 0 && !shown[k - 1] && end + 1 < shown.size && !shown[end + 1]) {
+                    for (j in k..end) shown[j] = false
+                }
+                k = end + 1
             }
-            if (from <= last) out.add(Segment(false, from, last, text(from, last), starts[from]))
+            var i = first
+            while (i <= last) {
+                if (!room(i)) return
+                if (readOnly(i)) {
+                    var end = i
+                    while (end + 1 <= last && readOnly(end + 1)) end++
+                    val heavy = (i..end).any { tooHeavyToDraw(lines[it]) }
+                    out.add(Segment(false, i, end, text(i, end), starts[i], long = true, heavy = heavy))
+                    i = end + 1
+                    continue
+                }
+                // A field: lines while it draws no more than its own share
+                // ([FIELD_LINES]) and the body has lines left -- at least one
+                // line, which is never cut.
+                var end = i - 1
+                var drawn = 0L
+                while (end + 1 <= last && !readOnly(end + 1)) {
+                    val more = drawnLines(lines[end + 1].length).toLong()
+                    if (end >= i && drawn + more > FIELD_LINES) break
+                    if (more > linesLeft) {
+                        rest = end + 1
+                        break
+                    }
+                    drawn += more
+                    linesLeft -= more
+                    end++
+                }
+                if (end >= i) out.add(Segment(false, i, end, text(i, end), starts[i]))
+                if (rest >= 0) return
+                i = end + 1
+            }
         }
 
         var line = 0
         for (block in tableBlocks(body)) {
             if (block.first > line) prose(line, block.first - 1)
+            if (rest >= 0 || !room(block.first)) break
             val rows = lines.subList(block.first, block.last + 1)
-            val gridded = gridCells(rows) <= MAX_DRAWN_CELLS
+            val cells = gridCells(rows)
+            val gridded = cells <= cellsLeft
             // A grid's cells are text laid out like any other, each in a
             // column a few words wide: a row of two cells, one of them
             // 150,000 letters long, passed the count of cells, was drawn,
             // and froze the note as the line alone would have. Weighed as
             // lines are, it is shown as one -- read-only, its start below.
             val tooMuch = gridded && cellsTooMuch(rows)
+            if (gridded && !tooMuch) cellsLeft -= cells
             out.add(Segment(true, block.first, block.last, text(block.first, block.last), starts[block.first],
                 drawn = gridded && !tooMuch, long = tooMuch))
             line = block.last + 1
         }
-        if (line < lines.size) prose(line, lines.size - 1)
+        if (rest < 0 && line < lines.size) prose(line, lines.size - 1)
+        if (rest >= 0) {
+            // Past what the body draws: the rest, read-only, its start and
+            // its count shown. No room to write is offered after it -- a line
+            // written there would be part of it, and read-only at once.
+            out.add(Segment(false, rest, lines.size - 1, text(rest, lines.size - 1), starts[rest], long = true, heavy = true))
+            return out
+        }
         if (out.isEmpty() || !out.last().field) {
             // The body ends with a table, or a line too long to edit: room
             // to write after it.

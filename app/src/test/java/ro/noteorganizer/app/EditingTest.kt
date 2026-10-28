@@ -65,10 +65,11 @@ class EditingTest {
         val spaced = "word ".repeat(30_000)
         val body = "before\n$unbroken\n${unbroken}x\nafter\n$spaced"
         val parts = Editing.segments(body)
-        assertEquals(listOf(true, false, true), parts.map { it.field })
-        assertEquals(listOf(false, true, false), parts.map { it.long })
+        // The line of words, past one field's share of lines, is a field of its own.
+        assertEquals(listOf(true, false, true, true), parts.map { it.field })
+        assertEquals(listOf(false, true, false, false), parts.map { it.long })
         assertEquals("both long lines, one segment", "$unbroken\n${unbroken}x", parts[1].text)
-        assertEquals("after\n$spaced", parts[2].text)
+        assertEquals(listOf("after", spaced), parts.drop(2).map { it.text })
         assertEquals(body, parts.joinToString("\n") { it.text })
         // Typing around it leaves it whole.
         assertEquals("BEFORE\n$unbroken\n${unbroken}x\nafter\n$spaced", Editing.replaceProse(body, parts[0], "BEFORE"))
@@ -109,7 +110,7 @@ class EditingTest {
         // Words, and what ends a sentence or a list item, break as ever.
         for (spaced in listOf("word ".repeat(30_000), "a, ".repeat(50_000), "1. ".repeat(50_000), "Yes! No? ".repeat(20_000))) {
             assertTrue(spaced.take(12), Editing.longestUnbroken(spaced) < 10)
-            assertFalse(Editing.tooLongToLayOut(spaced))
+            assertFalse(Editing.runsTooLong(spaced))
         }
         // Ideographs break between any two; joined by a no-break space, not.
         assertFalse(Editing.tooLongToLayOut("中文字".repeat(4_000)))
@@ -147,11 +148,87 @@ class EditingTest {
         // when it was asked, is not asked -- and counted -- again.
         val around = listOf(heavy, "b".repeat(Editing.MAX_UNBROKEN + 1), heavy).joinToString("\n")
         assertEquals(listOf(true, false, true), Editing.segments(around).map { it.field })
-        // Prose, however long, is far from the limit.
+        // Prose, however long, is far from the limit; a line of it is a field
+        // up to what one field may draw ([Editing.MAX_FIELD_WEIGHT]).
         val prose = "She said, \"Let's go (now) to the market -- it's late.\" Then we walked; it was 5:30. "
         val long = prose.repeat(300_000 / prose.length)
         assertTrue(Editing.layoutCost(long)!! < Editing.MAX_LAYOUT_COST / 20)
-        assertTrue(Editing.segments(long).single().field)
+        assertTrue(Editing.segments(prose.repeat(150_000 / prose.length)).single().field)
+    }
+
+    /** What a body's fields and grids draw together: lines, cells, pieces. */
+    private fun drawn(parts: List<Editing.Segment>): Triple<Long, Long, Int> = Triple(
+        parts.filter { it.field }.sumOf { Editing.drawnLines(it.text) },
+        parts.filter { it.table && it.drawn }.sumOf { Editing.gridCells(it.text.split("\n")) },
+        parts.size)
+
+    @Test
+    fun `what a body draws is counted for the whole body, cells, lines and pieces`() {
+        // Ten tables of 1,000 cells, from a code of 350 characters: each at
+        // the line, all ten drawn -- 10,000 cells at once.
+        val ten = List(10) { grid(50, 20) }.joinToString("\n\n")
+        val tables = Editing.segments(ten)
+        assertEquals(listOf(true) + List(9) { false }, tables.filter { it.table }.map { it.drawn })
+        assertTrue(drawn(tables).second <= Editing.MAX_DRAWN_CELLS)
+        assertEquals(ten, tables.filterNot { it.isVirtual }.joinToString("\n") { it.text })
+        // Smaller tables share the line: five of 300 cells, three drawn.
+        val five = List(5) { grid(30, 10) }.joinToString("\n\n")
+        assertEquals(listOf(true, true, true, false, false), Editing.segments(five).filter { it.table }.map { it.drawn })
+        // 3,000 tables of two cells, a blank line between: 6,000 pieces, each
+        // composed at once. At most [MAX_SEGMENTS], the rest one read-only piece.
+        val tiny = List(3_000) { "| a | b |" }.joinToString("\n\n")
+        val pieces = Editing.segments(tiny)
+        assertTrue(pieces.size.toString(), pieces.size <= Editing.MAX_SEGMENTS)
+        assertTrue(pieces.last().long && pieces.last().heavy && !pieces.last().field)
+        assertEquals(tiny, pieces.joinToString("\n") { it.text })
+        // Two lines of 10,000 letters spend what the layout may be given;
+        // then "x" and "" five thousand times came out as 10,001 pieces.
+        val spent = List(2) { "a".repeat(Editing.MAX_UNBROKEN) } + List(5_000) { listOf("x", "") }.flatten()
+        val alternating = Editing.segments(spent.joinToString("\n"))
+        assertTrue(alternating.size.toString(), alternating.size <= 4)
+        assertEquals(1, alternating.count { it.long })
+        assertEquals(spent.joinToString("\n"), alternating.filterNot { it.isVirtual }.joinToString("\n") { it.text })
+        // An empty line between two fields stays in one.
+        assertTrue(Editing.segments("a\n\nb").single().field)
+    }
+
+    @Test
+    fun `a note of many short lines is drawn as fields of a share each, the rest read-only`() {
+        // A code of 666 characters: 200,000 empty lines, one field -- each of
+        // its lines drawn by a call copying the whole field again.
+        for (body in listOf("\n".repeat(200_000), "a\n".repeat(200_000))) {
+            val parts = Editing.segments(body)
+            val (lines, _, count) = drawn(parts)
+            assertTrue(count <= Editing.MAX_SEGMENTS)
+            assertTrue(lines <= Editing.MAX_DRAWN_LINES)
+            assertTrue(parts.filter { it.field }.all { Editing.drawnLines(it.text) <= Editing.FIELD_LINES })
+            assertTrue("the rest, read-only", parts.last().long && parts.last().heavy)
+            assertEquals(body, parts.joinToString("\n") { it.text })
+        }
+        // A long journal is all fields, each its share: every line can be typed in.
+        val journal = "Today I walked to the river and back again.\n".repeat(7_000)
+        val parts = Editing.segments(journal)
+        assertTrue(parts.all { it.field })
+        assertTrue(parts.size > 1)
+        assertTrue(parts.all { Editing.drawnLines(it.text) <= Editing.FIELD_LINES })
+        assertEquals(journal, parts.joinToString("\n") { it.text })
+        // Typing in one field leaves the fields before it as they were.
+        val typed = Editing.replaceProse(journal, parts[1], "Hello\n" + parts[1].text)
+        assertEquals(journal.length + 6, typed.length)
+        assertEquals(parts[0].text, Editing.segments(typed)[0].text)
+        // One line heavier to draw than a field may be is read-only; the
+        // title and comments are asked the same, and Find skips them.
+        val wide = "word ".repeat(60_000)
+        val cut = Editing.segments("intro\n$wide\noutro")
+        assertEquals(listOf(true, false, true), cut.map { it.field })
+        assertTrue(cut[1].heavy)
+        val empties = "\n".repeat(200_000)
+        assertTrue(Editing.tooLongToLayOut(empties))
+        assertTrue(Editing.tooLongToLayOut(wide))
+        assertFalse(Editing.tooLongToLayOut("\n".repeat(20_000)))
+        assertFalse(Editing.tooLongToLayOut("word ".repeat(30_000)))
+        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "word", matchCase = false,
+            checklist = listOf(wide), comments = "word" + empties))
     }
 
     @Test

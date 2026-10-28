@@ -83,6 +83,36 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a line given to the next field as it is typed takes the cursor with it`() {
+        // A field draws at most its share of lines (Editing.FIELD_LINES);
+        // a line typed into a full one moves its last line to the next. The
+        // cursor stayed in the first, at its end, and the next letter went there.
+        val model = editor(List(Editing.FIELD_LINES) { "x" }.joinToString("\\n"))
+        assertEquals(1, Editing.segments(model.body).size)
+        // Enter at the end of line 500: the cursor stays in the first field.
+        val field = Editing.segments(model.body).first()
+        val at = 500 * 2 - 1
+        val typed = field.text.substring(0, at) + "\n" + field.text.substring(at)
+        model.typeInto(field, TextFieldValue(typed, TextRange(at + 1)), 0)
+        model.caret = at + 1
+        model.keepCaret(0, TextFieldValue(typed, TextRange(at + 1)))
+        val after = Editing.segments(model.body)
+        assertEquals(2, after.size)
+        assertEquals(0, model.focus)
+        assertEquals(after[0].text, model.focused!!.text)
+        assertEquals(TextRange(at + 1), model.focused!!.selection)
+        // A letter typed on a new last line: it went to the second field, and the cursor with it.
+        val more = after[0].text + "\nY"
+        model.typeInto(after[0], TextFieldValue(more, TextRange(more.length)), 0)
+        model.caret = more.length
+        model.keepCaret(0, TextFieldValue(more, TextRange(more.length)))
+        val last = Editing.segments(model.body)
+        assertEquals(1, model.focus)
+        assertEquals(last[1].text, model.focused!!.text)
+        assertEquals(TextRange(last[1].text.indexOf("Y") + 1), model.focused!!.selection)
+    }
+
+    @Test
     fun `glued on a styled word, and before one, as the desktop types`() {
         val model = editor("quick fox", """[{"start": 0, "end": 5, "style": "highlight", "value": "#fff3b0"}]""")
         model.type("quickly fox", 7)

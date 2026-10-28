@@ -295,7 +295,7 @@ private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (Str
             key(index, segment.table, segment.long) {
                 if (segment.long) {
                     // Too long to lay out: as the note editor shows it.
-                    LongText(segment.text)
+                    LongText(segment.text, segment.heavy)
                 } else if (segment.table && !segment.drawn) {
                     // Too large to draw as a grid: as the note editor shows it.
                     LargeTable(segment)

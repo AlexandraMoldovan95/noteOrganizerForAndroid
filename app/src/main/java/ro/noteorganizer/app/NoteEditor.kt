@@ -428,6 +428,23 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /**
+     * After a letter typed into the field at [index], shown as [shown]: when
+     * the body is now cut otherwise -- a field past its share of lines
+     * ([Editing.FIELD_LINES]) gives its last line to the next -- the cursor
+     * goes to the field its line went to. Left where it was, the field
+     * showed its new text with the cursor at its end, and the next letter
+     * went there.
+     */
+    fun keepCaret(index: Int, shown: TextFieldValue) {
+        val at = caret ?: return
+        val segments = Editing.segments(body)
+        fun holds(s: Editing.Segment) = s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+        if (segments.getOrNull(index)?.let { it.text == shown.text && holds(it) } == true) return
+        val within = segments.indexOfFirst { holds(it) }
+        if (within >= 0) ask(within, fieldValue(within, at))
+    }
+
+    /**
      * The desktop's "Add caption below…": a numbered label line and a source
      * line under the table, placed as the table is, no style carried onto
      * them from its edge -- and "description" selected, so what is typed
@@ -1518,7 +1535,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
                 if (segment.long) {
-                    LongText(segment.text)
+                    LongText(segment.text, segment.heavy)
                 } else if (segment.table && !segment.drawn) {
                     LargeTable(segment)
                 } else if (segment.table) {
@@ -1810,6 +1827,7 @@ private fun ProseField(
             model.focused = shown
             model.caret = caretIn(segment, shown)
             model.pick(segment, shown)
+            if (next.text != segment.text) model.keepCaret(index, shown)
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
@@ -2625,15 +2643,19 @@ private const val LONG_TEXT_LINES = 3
  * of a body, a title, comments or a checklist row -- shown as what it is
  * and its start, read-only, each line on one line the person can slide
  * sideways: never wrapped, so never broken letter by letter. The note
- * keeps it whole, byte for byte, and the desktop shows it.
+ * keeps it whole, byte for byte, and the desktop shows it. A [heavy] one is
+ * shown so for another reason ([Editing.Segment.heavy]): more than is drawn
+ * here at once, and it says that instead. Either way, how many lines it
+ * holds past those shown.
  */
 @Composable
-internal fun LongText(text: String) {
+internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.runsTooLong(text) }) {
     val palette = LocalPalette.current
     val lines = remember(text) { text.split("\n") }
     val length = remember(text) { text.codePointCount(0, text.length) }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(stringResource(R.string.text_too_long, length), color = palette.subtext, fontSize = 13.sp)
+        Text(if (heavy) stringResource(R.string.text_too_much, length, lines.size)
+             else stringResource(R.string.text_too_long, length), color = palette.subtext, fontSize = 13.sp)
         Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
             for (line in lines.take(LONG_TEXT_LINES)) {
                 // Cut where a pair of halves would not be split.
@@ -2642,6 +2664,11 @@ internal fun LongText(text: String) {
                 Text(line.substring(0, end) + if (end < line.length) "…" else "", color = palette.text,
                      fontSize = 13.sp, maxLines = 1, softWrap = false)
             }
+        }
+        // Three lines shown of five hundred said nothing of the rest.
+        if (lines.size > LONG_TEXT_LINES) {
+            Text(stringResource(R.string.table_more_lines, lines.size - LONG_TEXT_LINES),
+                 color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -2658,10 +2685,12 @@ internal fun LongText(text: String) {
 internal fun LargeTable(segment: Editing.Segment) {
     val palette = LocalPalette.current
     val lines = remember(segment.text) { segment.text.split("\n") }
-    // As the grid would be drawn, which is what made it too large.
+    // As the grid would be drawn, which is what made it too large -- or,
+    // under the line, the tables above it, which drew what a note may.
     val cells = remember(segment.text) { Editing.gridCells(lines) }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(stringResource(R.string.table_too_large, cells, lines.size),
+        Text(if (cells > Editing.MAX_DRAWN_CELLS) stringResource(R.string.table_too_large, cells, lines.size)
+             else stringResource(R.string.table_past_others, cells, lines.size, Editing.MAX_DRAWN_CELLS),
              color = palette.subtext, fontSize = 13.sp)
         Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
             for (line in lines.take(LARGE_TABLE_LINES)) {
