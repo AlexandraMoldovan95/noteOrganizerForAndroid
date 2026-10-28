@@ -449,6 +449,56 @@ do before, not as releases anyone ran.
   the files, still copying, were refused as for a note "no longer here"
   with the note in the list; the note is found by its own identity first
   now. Found by the final audit's third round.
+- **A note of many tables, or of many short lines, opens at once.** Each
+  table was held to 1,000 cells on its own, so ten such tables, from a
+  share code of 350 characters, were drawn at once; 3,000 small tables
+  were 6,000 pieces of the screen; and 200,000 empty lines were one field,
+  each line drawn by copying the whole field again. A note now draws at
+  most 1,000 cells as grids, 20,000 lines in its text and 100 pieces in
+  all; past that, the rest is shown as its start, read-only, with how
+  many lines it holds. Long text is drawn as several fields of at most
+  1,000 lines each, every one typed in as before, so a letter typed draws
+  a little again rather than the whole note. Found by the final audit's
+  fourth round.
+- **"↩ Restore previous" keeps a deleted paragraph through a column
+  added, a repeat turned off and an import's update.** A column added
+  pads every row again, and read as the whole table lost: the copy of a
+  paragraph deleted just before was replaced by one of the table. A
+  repeat turned off after a big delete kept only the note as it stood.
+  An update replaced the copy in silence. Now a column added loses
+  nothing, a turn-off keeps the deleted words beside the series, and the
+  update's question says it replaces an earlier version — as the
+  desktop does since its fourth round; and, as since its fifth, five
+  rows of a table's eight deleted at once keep a copy, where the table's
+  padding made them read as under a third of the note. Found by the
+  final audit's fourth round.
+- **Two notes with one identity no longer turn an update, a file or a
+  day's Undo onto the wrong one.** A code or a backup holding two notes
+  with one identity updated one note twice, its own words then in no
+  copy; files picked for the second of two went to the first. The second
+  comes in as a note of its own now, and so does a note restored from the
+  Trash while a backup was being read. Found by the final audit's fourth
+  round.
+- **Share says before the tap what is too long, by what Android
+  carries.** A share code too long to hand over is shown greyed with the
+  reason, as Text is, where it was refused only after the tap. The
+  ceiling is weighed in what Android carries rather than in letters: a
+  Chinese, Japanese or Korean letter takes as much room as five bytes, a
+  Latin one three, so Text says "about 60,000 of them" for a note in
+  Chinese and 100,000 for one in English — and the number it quotes is
+  the one it compares. Asked for by the owner after the final audit's
+  fourth round.
+- **A PDF that would leave part of a note out asks first, and nothing is
+  written into it.** The bar that said a PDF held only its first 40
+  pages, or cut what was wider than the page, opened under the share
+  sheet, and the small line written at the foot of the PDF is gone. A
+  question comes before anything is handed over: the web page, which
+  carries all of it, the PDF as it is, or Cancel. Asked for by the owner
+  after the final audit's fourth round.
+- **"↩ Restore previous" on one day of a series that no longer repeats
+  opens the whole note.** Restoring a copy without the repeat left the
+  editor on that day, and every save was refused: "This note no longer
+  repeats". Found by the final audit's fourth round.
 
 ---
 

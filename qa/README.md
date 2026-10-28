@@ -19,16 +19,16 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-795 checks across thirty-one suites — `NotebookTest` (128),
-`TablesTest` (76), `RecurrenceTest` (49), `PastingTest` (41), `IdentityTest` (39),
-`OrganizingTest` (39), `DaysTest` (35), `CalculatorTest` (34),
-`StylingTest` (33), `ParagraphsTest` (33), `AppStateTest` (31),
-`ImportingTest` (29), `EditingTest` (29), `SharingTest` (25),
+810 checks across thirty-one suites — `NotebookTest` (130),
+`TablesTest` (76), `RecurrenceTest` (49), `PastingTest` (41), `OrganizingTest` (40),
+`IdentityTest` (39), `DaysTest` (37), `CalculatorTest` (34),
+`StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (32),
+`AppStateTest` (31), `EditingTest` (31), `SharingTest` (25),
 `SettingsTest` (24), `BackupTest` (23), `FindingTest` (17),
 `ExportingTest` (16), `StartupTest` (14), `TemplatesTest` (14),
-`ListingTest` (11), `OutgoingTest` (9), `ThemesTest` (9), `EditorCopyTest` (8),
-`EditorTableTest` (7), `RemindersTest` (6),
-`EditorTypingTest` (5), `StatsTest` (4), `LinksTest` (3),
+`OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
+`EditorTableTest` (7), `EditorTypingTest` (7), `RemindersTest` (6),
+`StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),

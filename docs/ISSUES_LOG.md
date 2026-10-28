@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-four are
+**the code**, or in **the design**. Nineteen of the seventy-five are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-28](#what-one-note-draws-and-what-is-said-before-it-goes) | code | The audit's fourth round: what a note draws was held piece by piece -- ten tables of 1,000 cells drawn at once, 3,000 tiny tables, 200,000 short lines as one field; a rescue copy replaced unsaid three more ways the desktop had settled; one identity worn by two notes; and warnings given under the share sheet, after the tap, or in letters where Android counts bytes | A limit set for one piece limits nothing when the pieces can be many; a warning the person cannot read before choosing is an error they meet later |
 | [2026-10-28](#guards-that-asked-another-question-than-the-cost) | code | The audit's third round went around the second round's guards: words joined by no-break spaces, a hundred lines each under the limit, a run inside a table's cell, a template's row, a bar quoting a row; a plan applied by place after the list moved; an "off" read from the wrong file; and a ceiling on what is handed to another app that was reasoned, and failed on the emulator at 180,000 characters without a word | A guard asks of what actually costs, everywhere it is drawn; a ceiling set by another program is measured on it, not reasoned |
 | [2026-10-28](#fixes-that-were-holes-of-their-own) | code | The audit's second round found a third of its findings in the first round's fixes: a rule ported half, a count of the wrong cells, a flag set before the act, a switch that did not survive, a timer counted from the asking; and limits that held at the door, a 150,000-letter line from a 300-character code among them | A fix is a new surface: the round after attacks the fix itself, and a twin is read the day it changes |
 | [2026-10-28](#answers-sent-to-a-screen-that-was-gone) | code | With the app's process ended behind Android's picker, Export as file left an empty file and Attach files attached nothing, without a word; and Back while a large file copied lost the file and left the copy in the cache | An answer from another app goes to what is always there; work that must finish outlives the screen that asked for it |
@@ -89,6 +90,75 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## What one note draws, and what is said before it goes
+
+**2026-10-28.** The final audit's fourth round came back with two highs,
+three mediums and five lows on the phone, and one duplicate. The highs
+were round three's guard asked once more of the wrong thing: it weighed
+what a body gives the layout, and nothing weighed what the editor draws.
+
+- **A limit for each piece, none for the note.** A table was held to
+  1,000 cells on its own: ten of them, from a share code of 350
+  characters, were drawn as 10,000 cells at once. 3,000 tables of two
+  cells were 6,000 pieces, every one composed at once in the scrolling
+  column. And once a body's layout limit was reached, an empty line,
+  which costs the layout nothing, was let in between lines that were
+  not: "x", "", "x", "" ... came out as ten thousand pieces.
+- **A field of many short lines.** The layout limit counts runs between
+  the places a line can break, and a line break ends one at no cost.
+  200,000 empty lines, from a code of 666 characters, were one field --
+  the very field the project had measured, each of its lines drawn by a
+  call that copies the whole field again
+  ([the story](#a-table-moved-out-of-its-grid-and-into-one-field)).
+- **One copy, replaced unsaid.** The desktop's third and fourth rounds
+  had settled three more ways a note's one rescue copy was replaced while
+  the note still needed it: a column added, which pads every row again
+  and read as the whole table lost; a repeat turned off after a big
+  delete; an import's update. The phone had ported only the days.
+- **One identity, worn twice.** A code or a backup holding two notes
+  with one identity updated one note twice, its own words then in no
+  copy; two arriving new were both added wearing it, and so was a note
+  restored from the Trash while a backup was planned; and files picked
+  for the second of two went to the first.
+- **Said where it could not be read.** The PDF's warning was a bar the
+  share sheet opened over; a code too long was refused only after the
+  tap; and the words' ceiling counted letters where Android carries
+  bytes -- three for a Latin letter, five for a Chinese one. One low
+  more: "↩ Restore previous" on a day of a series whose copy has no
+  repeat left the editor on the day, refusing every save.
+
+**The fix:** what a body draws is counted for the whole body -- 1,000
+grid cells, 20,000 lines in its fields, 100 pieces, the rest one
+read-only piece that says how many lines it holds; a field holds at most
+1,000 lines and the prose goes on in the next, the cursor following its
+line when a letter moves one; empty lines between read-only ones join
+them; and one line, a title or comments heavier to draw than the
+150,000 letters measured at 0.17 s is read-only. The rescue copy follows
+the desktop's rule as it stands: a save loses the smaller of the span it
+changed and the words it took away, and its shares are of the old text
+measured the same way, each word with one space (the desktop's fifth
+round: half a table of short cells read as a quarter); a turn-off keeps
+a big delete's words; an update's question says when it replaces an
+earlier version.
+Each identity is claimed by the first note arriving with it, and a note
+is found by its id while that note still wears its uid. On the owner's
+word, a code too long is greyed on its card with the reason, as the
+words are; the ceiling is weighed in what Android carries, its sentence
+saying "about N of them", true for Chinese as for English; and a PDF
+that would leave part of a note out asks before anything is handed over
+-- the web page, the PDF as it is, or Cancel -- with nothing written
+into the PDF any more. A restore that ends the repeat leaves the day for
+the whole note. Each with a test and a mutant watched failing (AS147 to
+AS171), and the walk's new `limits_round4` part.
+
+**The lesson:** a limit set for one piece limits nothing when the pieces
+can be many: count what is drawn for the whole of what is drawn, the
+many small with the few large. And a warning the person cannot read
+before choosing -- under a sheet, after a tap, in a unit that is not the
+one that runs out -- is an error they meet later.
 
 ---
 
@@ -2380,6 +2450,24 @@ whether that is what the dialog should show.
   same file again under the short name. The phone cannot keep a name it
   cannot store; the desktop's import is where a fitted name can be
   recognised. No data is lost, and the names involved are rare.
+
+### What the audit's fourth round left
+
+- **Backspace at the start of a field does not join it to the line
+  above, where long text is cut into fields.** A note's text past 1,000
+  drawn lines (some 32,000 letters) is several fields
+  ([the story](#what-one-note-draws-and-what-is-said-before-it-goes));
+  between two of them, Backspace at the start of the lower one does
+  nothing, and a selection cannot run across both. A table or a
+  read-only line between fields always had the same edge. Left because a
+  soft keyboard's Backspace at a field's start reaches the app only as
+  some keyboards choose to send it, which only a person's keyboard can
+  prove.
+- **Find does not search the read-only rest of a note past what it
+  draws**, as it never searched a line too long to lay out.
+- **The list's "Share as a code" for several notes is still refused
+  after the tap** when the code is too long; the Share sheet of one note
+  says so on its card before.
 
 ### The phone's, from the audit of 2026-10-19
 

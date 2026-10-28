@@ -175,6 +175,11 @@ Grouped by what the app does; when each item arrived is in the
     still typed in; laid out as a field it held the note for seconds. The
     note keeps every byte, and the desktop shows it; a bar or a question
     quotes a long title, row or file name by its first 80 characters.
+    What a note draws is counted for the whole note: long text is drawn
+    as fields of at most 1,000 lines, each typed in; past 20,000 lines in
+    all, 100 pieces, or one line, title or comments heavier to draw than
+    150,000 letters with spaces, the rest is shown read-only with how
+    many lines it holds.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text
@@ -203,7 +208,8 @@ Grouped by what the app does; when each item arrived is in the
     as the widest — says it is too large to draw and shows its first
     lines, read-only, so the note opens at once, in the note and in the
     template editor alike; the note keeps it whole, and the desktop draws
-    it. Find does not search it.
+    it. Find does not search it. The 1,000 are the whole note's: a table
+    past what the tables above it drew is shown so too, and says why.
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added
@@ -263,12 +269,15 @@ Grouped by what the app does; when each item arrived is in the
     cannot be selected. The words are the title, the body, the
     checklist's boxes as ☐ and ☑ and the comments; a note with a table is
     not offered as words, which cannot draw one, and the sheet says to
-    send it as a PDF — nor one past 100,000 characters, what Android
-    delivers to its share sheet (measured), and the sheet names the web
-    page. A PDF holds at most 40 pages and breaks any line at the
-    paper's edge; when it leaves part of a note out, the bar says so
-    before the share sheet opens, and so does a line at the foot of its
-    page. The app sends nothing itself, reads no contacts and
+    send it as a PDF — nor one past what Android delivers to its share
+    sheet (measured): 100,000 Latin letters, about 60,000 Chinese ones,
+    weighed in the bytes Android carries; the sheet names the web page.
+    A share code past the same ceiling is greyed on its card with the
+    reason, before the tap. A PDF holds at most 40 pages and breaks any
+    line at the paper's edge; when it would leave part of a note out, a
+    question comes before anything is handed over — the web page, the
+    PDF as it is, or Cancel — and nothing is written into the PDF
+    itself. The app sends nothing itself, reads no contacts and
     remembers nothing; the app picked does the sending. The note's own
     files are not sent, as an export does not carry them, and the sheet
     says so. It replaced "Send by email" and the 🔗 beside it: one door
@@ -325,7 +334,9 @@ Grouped by what the app does; when each item arrived is in the
     words: update the copy here or add a new one; skip copies that hold
     nothing new; skip look-alikes. Nothing is written until they are
     answered, and an update leaves the `_prev` that "↩ Restore previous"
-    undoes.
+    undoes — the question saying so when that replaces an earlier version
+    the note still holds. Two arriving notes with one identity claim it
+    once: the second comes in as a note of its own.
 
 ### Looks and settings
 
@@ -352,7 +363,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 795 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 810 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -616,7 +627,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 795 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 810 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -994,7 +1005,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-795 JVM unit tests in 31 suites pin the rules ported from Python, and
+810 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
