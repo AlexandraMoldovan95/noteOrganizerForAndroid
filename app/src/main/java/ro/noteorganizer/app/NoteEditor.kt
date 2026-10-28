@@ -580,6 +580,22 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var adding by mutableStateOf("")
 
     /**
+     * Rows renamed whose words could not be written when another row was
+     * typed in -- the phone refusing the file: held, in the order typed, and
+     * written first by the next write. Dropped, the second row's letters
+     * vanished one by one as they were typed.
+     */
+    val unwritten = androidx.compose.runtime.mutableStateListOf<Renaming>()
+
+    /** The words row [index] shows while they wait: being typed, or held by a failed write. */
+    fun waitingIn(index: Int, text: String): String? =
+        (renaming?.takeIf { it.index == index } ?: unwritten.lastOrNull { it.index == index })
+            ?.takeIf { it.was == text }?.now
+
+    /** The failure a row's write last met, said once until a write succeeds. */
+    private var renameFailure: String? = null
+
+    /**
      * [now] typed into row [index]'s words: they wait, to be written when
      * the field is left. Another row's waiting words are written first.
      * Read from the editor as it is, not from the screen as it was last
@@ -587,30 +603,48 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * letter, judged by a drawing that had not caught up with its first,
      * was taken for another row's -- its words were written half-typed, and
      * the rest, waiting on words the file no longer held, were dropped
-     * (the walk, 2026-10-27: "flour 500g" saved as "flour ").
+     * (the walk, 2026-10-27: "flour 500g" saved as "flour "). Null, or why
+     * the other row's words could not be written: said once, as the
+     * autosave says its failure once -- tried at every letter, each queued a
+     * bar of its own, and an Undo offered after them waited behind them all.
      */
     fun typeInRow(index: Int, now: String): String? {
         val pending = renaming
-        if (pending != null && pending.index != index) writeRename()?.let { return it }
-        val was = renaming?.was ?: state.note(id)?.checklist?.getOrNull(index)?.text ?: return null
+        var why: String? = null
+        if (pending != null && pending.index != index) {
+            why = writeRename()
+            if (why != null) {
+                // Held for the next write; the words typed here wait beside them.
+                renaming?.let { unwritten.add(it) }
+                renaming = null
+                if (why == renameFailure) why = null else renameFailure = why
+            }
+        }
+        val held = unwritten.indexOfLast { it.index == index }
+        val was = if (renaming?.index == index) renaming!!.was
+                  else if (held >= 0) unwritten.removeAt(held).was
+                  else state.note(id)?.checklist?.getOrNull(index)?.text ?: return why
         renaming = Renaming(index, was, now)
-        return null
+        return why
     }
 
-    /** The row being renamed, written: null, or why it could not be. */
+    /** The rows being renamed, written -- those held first: null, or why one could not be. */
     fun writeRename(): String? {
-        val r = renaming ?: return null
-        // Only onto the row that still reads what it read. Every change to
-        // the list from here writes this first, so a list changed under it
-        // came from elsewhere, and the words are dropped, never put on
-        // another row.
-        val row = state.note(id)?.checklist?.getOrNull(r.index)
-        if (row != null && row.text == r.was && r.now != r.was) {
-            val result = Notebook.renameChecklistItem(state.load, id, r.index, r.now)
-            state.refresh()
-            if (result is SaveResult.Failed) return result.reason
+        while (true) {
+            val r = unwritten.firstOrNull() ?: renaming ?: break
+            // Only onto the row that still reads what it read. Every change to
+            // the list from here writes this first, so a list changed under it
+            // came from elsewhere, and the words are dropped, never put on
+            // another row.
+            val row = state.note(id)?.checklist?.getOrNull(r.index)
+            if (row != null && row.text == r.was && r.now != r.was) {
+                val result = Notebook.renameChecklistItem(state.load, id, r.index, r.now)
+                state.refresh()
+                if (result is SaveResult.Failed) return result.reason
+            }
+            if (unwritten.isNotEmpty()) unwritten.removeAt(0) else renaming = null
         }
-        renaming = null
+        renameFailure = null
         return null
     }
 
@@ -2566,10 +2600,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
-            val renaming = model.renaming?.takeIf { it.index == index && it.was == item.text }
             // A row too long to lay out is shown, not edited, as the body's lines are.
             if (Editing.tooLongToLayOut(item.text)) Box(Modifier.weight(1f)) { LongText(item.text) } else
-            ChecklistText(renaming?.now ?: item.text, item.done,
+            ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
                           found = found.filter { it.item == index }.map { it.start to it.end },
                           current = here?.let { it.start to it.end },
                           onValue = { now -> model.typeInRow(index, now)?.let { state.say(it) } },

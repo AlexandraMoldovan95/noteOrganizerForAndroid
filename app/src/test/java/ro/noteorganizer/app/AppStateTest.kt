@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -471,6 +472,29 @@ class AppStateTest {
         assertEquals(listOf("flour 500g", "yeast"), s.rowsOnDisk())
         assertNull(s.flush!!.invoke())
         assertEquals(listOf("flour 500g", "yeast 7g"), s.rowsOnDisk())
+    }
+
+    @Test
+    fun `a row's words the phone cannot write are said once, and the next row's letters are kept`() {
+        // Each letter typed into another row tried the first row's write
+        // again and queued another bar; the letters themselves vanished, the
+        // row showing its old words while the first row's waited.
+        val (s, editor) = checklist("flour", "yeast")
+        assertNull(editor.typeInRow(0, "flour 500g"))
+        val free = s.writesFail()
+        assertNotNull("the first failure is said", editor.typeInRow(1, "yeast 7"))
+        assertNull("and not again at every letter", editor.typeInRow(1, "yeast 7g"))
+        assertEquals("flour 500g", editor.waitingIn(0, "flour"))
+        assertEquals("yeast 7g", editor.waitingIn(1, "yeast"))
+        // Back to the first row: its words go on from where they were held.
+        assertNull(editor.typeInRow(0, "flour 500g!"))
+        assertEquals("flour 500g!", editor.waitingIn(0, "flour"))
+        assertEquals(listOf("flour", "yeast"), s.rowsOnDisk())
+        free()
+        assertNull(s.flush!!.invoke())
+        assertEquals(listOf("flour 500g!", "yeast 7g"), s.rowsOnDisk())
+        assertNull(editor.renaming)
+        assertTrue(editor.unwritten.isEmpty())
     }
 
     @Test
