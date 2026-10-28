@@ -1706,9 +1706,26 @@ def google_backup(folder):
     check_settled("turned off, the file says so", lambda: (read_file("settings.json") or {}).get("phone_google_backup"),
                   lambda value: value is False)
     shot(folder, "88-google-backup-off", "Off: from now on")
+    # Handed nothing, Android kept the copy made while on, and a restore
+    # put it back -- notes and all, switch on. Off, the backup now holds
+    # only the mark saying so; restored, it brings back the answer alone.
     ok, out = backed_up()
-    check("... and Android's backup then takes nothing of the app", not ok and PACKAGE in out, out[-200:])
-    back_to("Search notes")
+    check("... and Android's backup then takes only the mark that it is off", ok, out[-200:])
+    sets = adb("shell", "bmgr", "list", "sets")
+    token = next((line.split(":")[0].strip() for line in sets.splitlines() if ":" in line), None)
+    # Emptied first, as a reinstall or a new phone is: a restore lays the
+    # backup's files over whatever is there and removes nothing.
+    adb("shell", "pm", "clear", PACKAGE)
+    restored = adb("shell", "bmgr", "restore", token or "1", PACKAGE) if token else ""
+    time.sleep(3.0)
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("a restore of it brings back no note, only the mark",
+          "phone_google_backup_off.json" in held and "notes_data.json" not in held,
+          "sets: %r, restore: %r, notebook: %r" % (sets[-120:], restored[-200:], held[-200:]))
+    start_app()
+    check_settled("... and the app restored starts with the switch off",
+                  lambda: (read_file("settings.json") or {}).get("phone_google_backup"), lambda value: value is False)
+    check("... without the note the earlier backup held", bool(screen_says("Backed up")))
     put_inside("settings.json", {"welcome_offered": True, "phone_google_backup": True})
     ok, out = backed_up()
     check("turned on again, it takes the app again", ok, out[-200:])

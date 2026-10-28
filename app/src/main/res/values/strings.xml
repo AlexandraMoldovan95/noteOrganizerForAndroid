@@ -538,7 +538,7 @@
     <string name="backup_where">Your phone asks where to keep it: Google Drive, the phone\'s own files, or any other place it offers.</string>
     <string name="backup_google_title">Android\'s backup to your Google account</string>
     <string name="backup_google_on">On: Android may copy this app\'s data there.</string>
-    <string name="backup_google_off">Off: from now on, Android\'s backup takes nothing of this app.</string>
+    <string name="backup_google_off">Off: from now on, Android\'s backup keeps none of your notes, only that it is off.</string>
     <string name="backup_google">If backup is turned on in your phone\'s settings, Android copies the app\'s data, notes and attached files included, to your Google account, about once a day while the phone charges on Wi-Fi. It puts it back when the app is installed again, or copies it straight to a new phone when you move to one. Google keeps that copy under its own privacy policy. Android copies nothing more once the app\'s data passes 25 MB. The file saved above is the one you can open, keep and move.</string>
     <string name="trash_backup">💾 Save a backup — the Trash too</string>
     <string name="backup_never">No backup file made yet.</string>

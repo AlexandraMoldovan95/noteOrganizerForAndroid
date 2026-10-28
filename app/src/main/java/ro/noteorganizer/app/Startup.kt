@@ -62,7 +62,18 @@ object Startup {
         // marked as lost before anything writes a fresh file -- or the next
         // start would read "never chosen" and purge at 30 days what the
         // person had kept for 90. The file's bytes were kept aside already.
-        load.settings?.let { if (it.problem != null) Settings.put(it, Settings.PHONE_TRASH_WINDOW_UNKNOWN, true) }
+        // So did the answer to Android's backup, which a fresh file without
+        // it reads as on: Android then copied the notes to the account of a
+        // person who had turned it off. Unknown, it is off until they say.
+        load.settings?.let {
+            if (it.problem != null) {
+                Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true, Settings.PHONE_GOOGLE_BACKUP to false))
+                lines.add("Android's backup of the app is off until you turn it on again in Settings → Backup.")
+            }
+        }
+        // Restored from Android's backup made while the switch was off: that
+        // backup held only the mark saying so, and the answer comes back.
+        Settings.takeOffMark(dir, load.settings)
         // The day this install was first used, stamped once and never again,
         // as the desktop's get_first_launch_date stamps it: Statistics says it.
         load.settings?.let { settings ->

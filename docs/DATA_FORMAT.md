@@ -134,7 +134,13 @@ it. The desktop ignores it, and still purges by its own reading
 And one for Android's own backup: `phone_google_backup`, `false` when the
 person turned the app's part in it off at Settings → Backup; missing or
 `true`, it takes part, as it always did. A `settings.json` that cannot be
-read counts as off until it can be. The desktop ignores it
+read counts as off, and the start that finds it so writes `false` with
+`phone_trash_window_unknown`: the fresh file would otherwise read as on.
+While it is off, Android's backup is handed only
+`phone_google_backup_off.json`, beside the notebook, holding
+`{"phone_google_backup": false}`; restored onto a phone, the start writes
+that answer into the settings, unless they hold one, and deletes the
+file. The desktop ignores both
 ([why it exists](STATUS.md#androids-own-backup-of-the-apps-data--decided)).
 
 The day's reminder (since 2026-10-23) uses the desktop's own key for its

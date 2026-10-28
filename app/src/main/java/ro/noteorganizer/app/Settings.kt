@@ -72,6 +72,33 @@ object Settings {
     fun googleBackupOn(load: Load): Boolean =
         load.problem == null && load.raw.opt(PHONE_GOOGLE_BACKUP) != false
 
+    /**
+     * The one file Android's backup is handed while the switch is off
+     * (`NotesBackupAgent`), beside the notebook: it says so, and nothing
+     * else. Handed nothing, Android kept the copy made while the switch was
+     * on -- with a settings.json that could not say off, since no backup is
+     * made once it does -- and a reinstall or a new phone put that back and
+     * turned backups on again. This copy replaces it, and a restore brings
+     * the answer back ([takeOffMark]).
+     */
+    const val GOOGLE_BACKUP_OFF_MARK = "phone_google_backup_off.json"
+
+    /** What [GOOGLE_BACKUP_OFF_MARK] holds. */
+    fun offMark(): String = JSONObject().put(PHONE_GOOGLE_BACKUP, false).toString()
+
+    /**
+     * After a restore from a backup made while the switch was off, the
+     * answer it carried: off, unless this notebook's settings already hold
+     * one. The mark is then deleted; the next backup made while off writes
+     * it again.
+     */
+    fun takeOffMark(dir: File, load: Load?) {
+        val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
+        if (load == null || !mark.isFile) return
+        if (!load.raw.has(PHONE_GOOGLE_BACKUP) && put(load, PHONE_GOOGLE_BACKUP, false) !is SaveResult.Ok) return
+        mark.delete()
+    }
+
     /** The desktop's ceilings on what a category map may hold. */
     const val MAX_CATEGORIES = 200
     const val MAX_CATEGORY_NAME = 80

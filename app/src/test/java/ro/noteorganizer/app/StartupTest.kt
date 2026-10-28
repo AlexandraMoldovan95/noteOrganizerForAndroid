@@ -157,6 +157,41 @@ class StartupTest {
     }
 
     @Test
+    fun `Android's backup turned off stays off after settings that cannot be read, and says so`() {
+        // The answer was in the file. The fresh one written at the same start
+        // read as on, and Android's next backup took the notes to the account.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "settings.json").writeText("""{"phone_google_backup": fal""")
+        val notice = Startup.prepare(dir, older = null)
+        assertTrue(notice, notice!!.contains("Android's backup of the app is off until you turn it on again"))
+        assertEquals(false, Settings.googleBackupOn(Settings.load(dir)))
+        Startup.prepare(dir, older = null)
+        assertEquals("the start after it, the fresh file readable, still off", false, Settings.googleBackupOn(Settings.load(dir)))
+    }
+
+    @Test
+    fun `a restore from a backup made while off brings the answer back with it`() {
+        // Handed nothing while off, Android kept the copy made while on, and
+        // a reinstall put it back with backups on. The backup made while off
+        // now holds only the mark, and the restored phone starts on it.
+        val restored = File(temp("phone"), "notebook").apply { mkdirs() }
+        File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.googleBackupOn(Settings.load(restored)))
+        assertTrue("the mark goes once read", !File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // A notebook whose settings already answer keeps its answer.
+        val answered = temp("phone")
+        File(answered, "notes_data.json").writeText("[]")
+        File(answered, "settings.json").writeText("""{"phone_google_backup": true}""")
+        File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        Startup.prepare(answered, older = null)
+        assertEquals(true, Settings.googleBackupOn(Settings.load(answered)))
+        assertTrue(!File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        assertEquals(false, JSONObject(Settings.offMark()).get(Settings.PHONE_GOOGLE_BACKUP))
+    }
+
+    @Test
     fun `a window no app writes purges nothing`() {
         for (value in listOf("0", "-3", "400", "\"forever\"", "7.5", "true", "null")) {
             val dir = temp("phone")

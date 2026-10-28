@@ -44,7 +44,11 @@ do before, not as releases anyone ran.
 - **Settings → Backup turns off the app's part in Android's own
   backup** to the person's Google account, which stays on by default, as
   it always was. Off, Android's backup — and its transfer to a new phone
-  — takes nothing of the app from then on. The page says what Android
+  — keeps none of the notes from then on, only that it is off: the copy
+  made while it was on is replaced, so a reinstall or a new phone no
+  longer brings it back with the switch on. A settings file that cannot
+  be read turns it off until the person turns it on again, and the start
+  says so; it read as on, and copied the notes. The page says what Android
   does, about once a day while the phone charges on Wi-Fi, and that it
   copies nothing more once the app's data passes 25 MB, where it used to
   promise a copy with no condition; the welcome note says where the

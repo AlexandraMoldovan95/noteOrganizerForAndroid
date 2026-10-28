@@ -16,9 +16,14 @@ import java.io.File
  * `backup_rules.xml`.
  *
  * Settings → Backup can turn the app's part off ([Settings.googleBackupOn]).
- * Off, this hands Android nothing: no file of the app's is read into the
- * backup, so the copy Android keeps holds none of the notes. On -- the
- * default, as it always was -- Android's own rules apply unchanged.
+ * Off, Android is handed one small file saying so
+ * ([Settings.GOOGLE_BACKUP_OFF_MARK]) and nothing of the notebook. Handed
+ * nothing at all, as it first was, Android kept the copy made while the
+ * switch was on -- notes and all, with a settings file that could not say
+ * off -- and a reinstall or a new phone brought it back, switch on. The
+ * mark replaces that copy at the next backup, and a restore brings back
+ * the answer, not the notes. On -- the default, as it always was --
+ * Android's own rules apply unchanged.
  *
  * The key-value half of Android's backup is not used: the two methods it
  * needs do nothing.
@@ -26,7 +31,16 @@ import java.io.File
 class NotesBackupAgent : BackupAgent() {
 
     override fun onFullBackup(data: FullBackupDataOutput) {
-        if (Settings.googleBackupOn(Settings.load(File(filesDir, "notebook")))) super.onFullBackup(data)
+        val dir = File(filesDir, "notebook")
+        val mark = File(dir, Settings.GOOGLE_BACKUP_OFF_MARK)
+        if (Settings.googleBackupOn(Settings.load(dir))) {
+            // Not carried in a backup made while on: restored, it would turn
+            // off what the person had turned on.
+            mark.delete()
+            super.onFullBackup(data)
+        } else if (Files.writeAtomic(mark, Settings.offMark()) == null) {
+            fullBackupFile(mark, data)
+        }
     }
 
     override fun onBackup(oldState: ParcelFileDescriptor?, data: BackupDataOutput?, newState: ParcelFileDescriptor?) {

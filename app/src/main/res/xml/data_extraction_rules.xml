@@ -2,7 +2,8 @@
    Android's own backup of the app's data, on Android 12 and later: on by
    the owner's choice (2026-10-20), said on Settings > Backup, and the
    person's to turn off there (2026-10-27): NotesBackupAgent then hands
-   Android nothing, these rules unused. With nothing included or
+   Android only a mark saying so, which replaces the copy made while on,
+   and these rules are unused. With nothing included or
    excluded, all of the app's files go, the notebook among them, to the
    person's Google account when backup is on in the phone's settings,
    and to a new phone in a transfer; they come back when the app is

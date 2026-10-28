@@ -490,8 +490,13 @@ the `.zip` through Google Drive is.
 **Since 2026-10-27 the person can turn it off** (the owner's call):
 Settings → Backup has a switch, on by default so nobody's backup stops
 without them knowing, and `NotesBackupAgent` (`GoogleBackup.kt`) hands
-Android nothing of the app's while it is off — the cloud backup and the
-transfer to a new phone alike. The page says what Android does, when,
+Android none of the notebook while it is off — the cloud backup and the
+transfer to a new phone alike — only a small file saying it is off. That
+file replaces the copy made while it was on, which a reinstall or a new
+phone would otherwise have put back, switch on, and brings the answer
+back with a restore (2026-10-28). A settings file that cannot be read
+turns it off until the person turns it on again, and the start says so.
+The page says what Android does, when,
 and the 25 MB limit, in the words of the privacy policy; the welcome
 note says where the switch is. The setting is `phone_google_backup`.
 
