@@ -177,17 +177,28 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
         // Off the screen's thread: a note can hold a table of tens of
         // thousands of cells. The PDF's drawing stays on it, as a WebView must.
         val page = withContext(Dispatchers.Default) { Exporting.content(note, Exporting.HTML, title) }
+        var printed: PdfPrint.Printed? = null
         val written = try {
             folder.deleteRecursively()
             folder.mkdirs()
-            if (format == Outgoing.PDF) PdfPrint.print(context, page, file) && file.length() > 0
-            else { file.writeText(page, Charsets.UTF_8); true }
+            if (format == Outgoing.PDF) {
+                printed = PdfPrint.print(context, Outgoing.forPrint(page), file)
+                printed.written && file.length() > 0
+            } else { file.writeText(page, Charsets.UTF_8); true }
         } catch (e: IOException) {
             false
         }
         if (!written) {
             state.say(context.getString(R.string.share_failed))
             return
+        }
+        // Said before the share sheet covers the app: what the PDF leaves out,
+        // and what carries it. The PDF says it on its own page too.
+        printed?.let { p ->
+            val left = listOfNotNull(
+                context.getString(R.string.pdf_first_pages, PdfPrint.MAX_PAGES).takeIf { p.firstPagesOnly },
+                context.getString(R.string.pdf_cut_at_edge).takeIf { p.cutAtEdge })
+            if (left.isNotEmpty()) state.say(left.joinToString(" ") + " " + context.getString(R.string.pdf_page_carries_all), long = true)
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         send.type = if (format == Outgoing.PDF) "application/pdf" else "text/html"

@@ -104,6 +104,19 @@ object Outgoing {
     fun tooLongForWords(words: String, subject: String): Boolean =
         words.length + subject.length > Sharing.MAX_HANDED_CHARS
 
+    /**
+     * The note's page as the PDF prints it: any line may break anywhere at
+     * the paper's edge. The page itself lets only a table's cells do so --
+     * a browser scrolls -- and the PDF, drawn at the paper's width, cut a
+     * link's unbreakable tail at the margin and left it out, unsaid. Printed
+     * only: the page shared or exported stays as the desktop writes it.
+     */
+    fun forPrint(html: String): String {
+        val style = "<style>\nbody, body * { overflow-wrap: anywhere; }\n</style>\n"
+        val at = html.indexOf("</head>")
+        return if (at < 0) style + html else html.substring(0, at) + style + html.substring(at)
+    }
+
     /** [tooLongForWords] for [note] as it is now, and the words it would send. */
     fun tooLongForWords(note: JSONObject): Boolean {
         val title = Exporting.titleOf(note)

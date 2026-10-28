@@ -382,6 +382,11 @@
     <string name="share_text_table">Not for a note with a table: a message can\'t draw one. Send it as a PDF.</string>
     <string name="share_text_too_long">Too long for a message: %1$,d characters, and another app can be handed %2$,d at most. Send it as a web page, which carries all of it.</string>
     <string name="share_handed_failed">Android couldn\'t hand it to another app: it may be too long. Send it as a web page, or a backup.</string>
+    <string name="pdf_first_pages">The PDF holds this note\'s first %1$d pages, not the rest.</string>
+    <string name="pdf_cut_at_edge">Something in this note is wider than the PDF\'s page and is cut at its edge.</string>
+    <string name="pdf_page_carries_all">The web page carries all of it.</string>
+    <string name="pdf_notice_pages">This PDF holds the note\'s first %1$d pages; the rest is not in it.</string>
+    <string name="pdf_notice_edge">Part of this note is wider than the page and is cut at its right edge.</string>
     <string name="share_code_title">Share code</string>
     <string name="share_code_sub">For Note Organizer on another phone or computer.</string>
     <string name="share_no_files">The note\'s own attached files aren\'t sent.</string>

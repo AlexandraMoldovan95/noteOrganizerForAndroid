@@ -414,6 +414,14 @@ do before, not as releases anyone ran.
   that carries everything, the web page; a mail's subject is a long
   title's start; and whatever Android still refuses to hand over is
   said, never the app stopped. Found by the final audit's third round.
+- **A shared PDF says what it leaves out.** It stopped at 40 pages, and
+  cut anything wider than the paper at the margin — a long link's tail,
+  a table of many columns — and neither the person sending nor the one
+  reading was told. Any line now breaks at the paper's edge; what still
+  does not fit, or does not fit in 40 pages, is said in the bar before
+  the share sheet opens, with the web page named as carrying all of it,
+  and in a small line at the foot of the PDF's page. Found by the final
+  audit's third round.
 
 ---
 

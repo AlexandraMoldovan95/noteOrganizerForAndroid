@@ -105,6 +105,21 @@ class OutgoingTest {
     }
 
     @Test
+    fun `the page printed to a PDF breaks any line at the paper's edge, and the page shared stays the desktop's`() {
+        // Only a table's cells could break anywhere; a link's unbreakable
+        // tail ran past the margin of a PDF drawn at the paper's width, and
+        // was cut away with nothing said.
+        val link = "https://www.example-shop.ro/produs/espressor?utm_source=newsletter&utm_medium=email&utm_campaign=octombrie"
+        val note = JSONObject().put("title", "Shop").put("body", link)
+        val page = Exporting.content(note, Exporting.HTML, "Shop")
+        val printed = Outgoing.forPrint(page)
+        assertTrue(printed.contains("body, body * { overflow-wrap: anywhere; }"))
+        assertTrue("in the page's own head, after its style", printed.indexOf("overflow-wrap: anywhere; }\n</style>\n</head>") > printed.indexOf("th { text-align: left; }"))
+        assertEquals("nothing else changes", page, printed.replace("<style>\nbody, body * { overflow-wrap: anywhere; }\n</style>\n", ""))
+        assertFalse("the page shared or exported is the desktop's", page.contains("body * {"))
+    }
+
+    @Test
     fun `a note's own files are said, since nothing shared carries them`() {
         assertTrue(Outgoing.hasFiles(trip))
         assertFalse(Outgoing.hasFiles(JSONObject("""{"title": "x"}""")))
