@@ -377,7 +377,8 @@ class ImportingTest {
         // Restored onto a new phone, entries kept for 90 days were emptied
         // at the next start by the default 30 nobody had chosen.
         val window = { load: Notebook.Load ->
-            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null, Importing.Extras(trashWindow = 90))
+            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
             File(dir(load), "settings.json").takeIf { it.isFile }
                 ?.let { JSONObject(it.readText()).opt(Settings.RETENTION_DAYS) }
         }
@@ -387,6 +388,32 @@ class ImportingTest {
         assertEquals("a window chosen here is kept", 14, window(notebook("[]", settings = """{"trash_retention_days": 14}""")))
         // Lost with a file that could not be read: chosen once, only not known.
         assertNull(window(notebook("[]", settings = """{"phone_trash_window_unknown": true}""")))
+    }
+
+    @Test
+    fun `a backup never shortens the Trash window, nor sets one with no Trash to keep by it`() {
+        // A backup from a 7-day notebook, with no Trash at all, set this
+        // phone's window to 7, and the next start emptied the phone's own
+        // Trash -- kept under the 30 days promised -- for good, files and all.
+        val mine = """[{"uid": "t1", "title": "Mine", "body": "kept", "deleted_at": "%s"}]"""
+            .format(java.time.LocalDateTime.now().minusDays(12).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
+        val window = { days: Int, trash: String? ->
+            val load = notebook("[]", trash = mine)
+            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = days, trash = trash?.let { JSONArray(it) }))
+            Settings.purgeWindow(Settings.load(dir(load)))
+        }
+        for (days in listOf(7, 14, 29, 30)) {
+            // The phone's own entry, deleted 12 days ago, stays past the next start.
+            assertEquals("a backup's $days days leave the default", 30, window(days, TRASHED_LONG_AGO))
+        }
+        assertEquals("a longer window with no Trash in the backup is not taken", 30, window(90, null))
+        assertEquals("... nor with an empty one", 30, window(90, "[]"))
+        assertEquals("a longer one with its Trash is", 31, window(31, TRASHED_LONG_AGO))
+    }
+
+    private companion object {
+        const val TRASHED_LONG_AGO = """[{"uid": "old-t", "title": "Theirs", "body": "x", "deleted_at": "2026-01-02 10:00"}]"""
     }
 
     @Test

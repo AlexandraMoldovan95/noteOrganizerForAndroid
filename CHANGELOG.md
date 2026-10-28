@@ -74,9 +74,11 @@ do before, not as releases anyone ran.
   was kept before.** The Trash came with the days its notes were
   deleted, but not the window: the phone, never told otherwise, read 30
   days, and the next start emptied what had been kept for 60 or 90. A
-  notebook that never chose a window now takes the backup's; one chosen
-  here is kept. The desktop takes the same rule. Found by the final
-  audit's break-it round.
+  notebook that never chose a window now takes the backup's when it is
+  longer and comes with Trash to keep by it; one chosen here is kept,
+  and a shorter one is never taken, so the phone's own Trash keeps the
+  30 days it was promised. The desktop takes the same rule. Found by the
+  final audit's break-it round, the shorter window by the round after.
 - **A share code or a backup nested deeper than any note is called
   damaged, where it stopped the app.** A code of a few lines could hold
   a million brackets one inside another, and the reader went one step

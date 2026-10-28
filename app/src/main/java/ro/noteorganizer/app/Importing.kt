@@ -427,9 +427,15 @@ object Importing {
         // 7. The backup's Trash window, for a notebook that never chose one:
         //    its entries came with the days they were deleted, and the
         //    default 30 emptied, at the next start, what the person had
-        //    kept for 60 or 90 days. A window chosen here is kept.
+        //    kept for 60 or 90 days. A window chosen here is kept -- and so
+        //    is the default against a shorter one, which this notebook's
+        //    own Trash was promised: a backup from a 7-day notebook, with no
+        //    Trash in it at all, emptied it at the next start, files and
+        //    all. Only a longer window, and only with Trash to keep by it,
+        //    as the desktop's import takes it (e69721e).
         val window = extras.trashWindow
-        val adoptsWindow = window != null && settings != null && Settings.windowNeverChosen(settings)
+        val adoptsWindow = window != null && window > Settings.TRASH_RETENTION_DAYS &&
+            (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
         if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
 
         // The writes, in the desktop's order: settings, templates, Trash,

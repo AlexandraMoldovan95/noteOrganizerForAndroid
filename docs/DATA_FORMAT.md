@@ -819,7 +819,9 @@ than `trash_retention_days` (1 to 365; 30 when never chosen — a value
 that is anything else, or a window lost with an unreadable file, purges
 nothing, [above](#settings-the-two-apps-share)). A backup imported into a
 notebook that never chose a window brings its own with its Trash, when it
-is a whole number from 1 to 365; a window chosen here is kept
+is a whole number from 31 to 365 and the backup holds Trash entries; a
+window chosen here is kept, and a shorter one is never taken — the
+phone's own Trash was promised the default
 ([the story](ISSUES_LOG.md#a-trash-restored-without-its-window)). A note whose `deleted_at` cannot be read
 is never removed: better kept too long than gone too soon. Until
 2026-10-15 the phone never purged, because it read a folder it shared
