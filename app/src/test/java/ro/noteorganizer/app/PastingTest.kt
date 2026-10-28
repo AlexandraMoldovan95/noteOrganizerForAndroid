@@ -64,6 +64,37 @@ class PastingTest {
     }
 
     @Test
+    fun `a pasted table is weighed with its padding, and never lands past the paste ceiling`() {
+        // One 60,000-character cell over 2,000 rows: padded after the ceiling,
+        // every row came to 60,000 characters -- 120 million, out of memory.
+        val hostile = "<table><tr><td>" + "x".repeat(60_000) + "</td><td>b</td></tr>" +
+            "<tr><td>a</td><td>b</td></tr>".repeat(2_000) + "</table>"
+        val p = Pasting.htmlToNote(hostile)
+        assertTrue("${p.text.length} characters", p.text.codePointCount(0, p.text.length) <= Pasting.MAX_PASTE_CHARS)
+        // Left ragged, each cell as its alignment needs; the grid reads the same cells.
+        val lines = p.text.split("\n")
+        assertEquals("| a | b |", lines[1])
+        assertEquals("x".repeat(60_000), parseTable(lines).rows[0][0]!!.lines[0])
+        // A spreadsheet's 1,000 rows with one long comment: 3 million characters once.
+        val sheet = "<table>" + (0 until 1_000).joinToString("") { r ->
+            "<tr><td>row $r</td><td>${if (r == 7) "note ".repeat(600) else "ok"}</td><td>$r</td></tr>"
+        } + "</table>"
+        val s = Pasting.htmlToNote(sheet)
+        assertTrue("${s.text.length} characters", s.text.length < 40_000)
+        assertTrue(!s.textCut)
+        // Left ragged, a row of centred cells still gains the spaces each
+        // needs: what lands is held to the ceiling, whole lines, and said.
+        val centred = "<table>" + "<tr><td style=\"text-align:center\">a</td><td style=\"text-align:center\">b</td></tr>".repeat(20_000) + "</table>"
+        val c = Pasting.htmlToNote(centred)
+        assertTrue("${c.text.length} characters", c.text.codePointCount(0, c.text.length) <= Pasting.MAX_PASTE_CHARS)
+        assertTrue(c.textCut)
+        assertTrue(c.text.split("\n").all { it.endsWith("|") })
+        // A table whose padding fits is lined up, as before.
+        assertEquals(listOf("| a        | bbbbbbbbbbb |", "| cccccccc | d           |"),
+            Pasting.htmlToNote("<table><tr><td>a</td><td>bbbbbbbbbbb</td></tr><tr><td>cccccccc</td><td>d</td></tr></table>").text.split("\n"))
+    }
+
+    @Test
     fun `bold, italic and a real colour come in - a page's grey and its dark background do not`() {
         val p = Pasting.htmlToNote("""<b>Bold</b> <i>it</i> <span style="color:#d32f2f">red</span>""" +
             """ <span style="color:#777777">grey</span> <span style="background:#222244">dark</span>""")

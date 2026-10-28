@@ -335,6 +335,17 @@ object Pasting {
             out = aligned
             spans = shiftSpans(spans, shifts)
         }
+        // The ceiling holds for what lands, padding and all: the cells' own
+        // spaces a ragged table keeps can still take a paste past it, so
+        // whole lines are kept up to it, and the paste says it was cut.
+        var cut = reader.textCut
+        if (out.codePointCount(0, out.length) > MAX_PASTE_CHARS) {
+            val limit = out.offsetByCodePoints(0, MAX_PASTE_CHARS)
+            out = out.substring(0, out.lastIndexOf('\n', limit).let { if (it < 0) limit else it })
+            val kept = out.codePointCount(0, out.length)
+            spans = spans.filter { it.start < kept }.map { it.copy(end = minOf(it.end, kept)) }
+            cut = true
+        }
         val json = JSONArray()
         for (s in spans) {
             val o = JSONObject().put("start", s.start).put("end", s.end).put("style", s.style)
@@ -345,7 +356,7 @@ object Pasting {
             out,
             Exporting.normalizeFormatting(json),
             Exporting.normalizeParagraphs(reader.paragraphs, out.split("\n").size),
-            reader.textCut,
+            cut,
             reader.stylesCut,
         )
     }
@@ -1525,6 +1536,8 @@ object Pasting {
         val lines = text.split("\n").map(::cps).toMutableList()
         val asCame = lines.map { it.size }
         val shifts = ArrayList<Pair<Int, Int>>()
+        var counted = 0
+        var prefix = 0
         for ((first, last) in findBlocks(lines)) {
             val block = lines.subList(first, last + 1).toList()
             val sepAt = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) }
@@ -1542,17 +1555,40 @@ object Pasting {
             } else {
                 layoutWidths(rows, aligns)
             }
-            var pos = asCame.subList(0, first).sumOf { it + 1 }
+            // Weighed before it is built: past MAX_TABLE_PADDING the table is
+            // left ragged, each cell padded only as its alignment needs. Padded
+            // after the paste ceiling, one 60,000-character cell over 2,000 rows
+            // became 120 million characters, and the app ran out of memory.
+            val perRow = rowWidths(rows, widths) { r, i -> need(aligns[r].getOrNull(i) ?: Align.LEFT) }
+            // The lines before this block, as they came, summed once and kept
+            // running: summed afresh per block, many small tables walked the
+            // text once each.
+            while (counted < first) prefix += asCame[counted++] + 1
+            var pos = prefix
             for (offset in 0..last - first) {
                 val old = lines[first + offset]
-                var new = old
-                for ((at, delta) in padOps(old, widths, aligns[offset])) {
-                    new = if (delta > 0) {
-                        new.copyOfRange(0, at) + IntArray(delta) { ' '.code } + new.copyOfRange(at, new.size)
+                // The edits come right to left, each at its place in the line
+                // as it was: the line is put together once from its pieces.
+                // Rebuilt at every edit, a row of thousands of cells was
+                // copied thousands of times.
+                val pieces = ArrayList<IntArray>()
+                var end = old.size
+                for ((at, delta) in padOps(old, perRow[offset], aligns[offset])) {
+                    if (delta > 0) {
+                        pieces.add(old.copyOfRange(at, end))
+                        pieces.add(IntArray(delta) { ' '.code })
                     } else {
-                        new.copyOfRange(0, at) + new.copyOfRange(at - delta, new.size)
+                        pieces.add(old.copyOfRange(at - delta, end))
                     }
+                    end = at
                     shifts.add(pos + at to delta)
+                }
+                pieces.add(old.copyOfRange(0, end))
+                val new = IntArray(pieces.sumOf { it.size })
+                var k = 0
+                for (piece in pieces.asReversed()) {
+                    piece.copyInto(new, k)
+                    k += piece.size
                 }
                 pos += old.size + 1
                 lines[first + offset] = new

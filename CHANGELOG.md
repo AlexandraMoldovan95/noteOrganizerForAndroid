@@ -239,6 +239,16 @@ do before, not as releases anyone ran.
   as it opened and at every letter typed. The moved days are read once
   for all the questions now, with the same answers. Found by the final
   audit's second round, the twin of the desktop's.
+- **A pasted table can no longer grow past the paste ceiling once its
+  columns are lined up.** Every cell was padded to its column's widest
+  after the 100,000-character ceiling was checked: a page with one long
+  cell over 2,000 rows became 120 million characters and the app ran out
+  of memory, and a spreadsheet with one long comment made a note of three
+  million. A table whose padding would pass 100,000 spaces is left
+  ragged — each cell keeps the spaces its alignment needs, and the grid
+  looks the same — the same rule holds when a table is edited, and what
+  lands is held to the ceiling, said as before. Found by the final
+  audit's second round, the twin of the desktop's.
 
 ---
 

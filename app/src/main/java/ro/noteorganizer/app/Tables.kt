@@ -240,10 +240,44 @@ fun formatRow(cells: List<String>, widths: List<Int>, aligns: List<CellAlign>): 
     return "|" + parts.joinToString("|") + "|"
 }
 
+/**
+ * The most spaces lining a table up may add: the desktop's
+ * MAX_TABLE_PADDING, the paste ceiling's number. Lining up pads every cell
+ * to its column's widest, so the padding is the widest cell times the rows:
+ * one 60,000-character cell over 2,000 rows made 120 million characters of
+ * a 118 KB paste. Past it a table is left ragged -- each cell keeps only
+ * the spaces its alignment needs, which is all the padding says -- and the
+ * grid, which sizes its columns from the cells, looks the same.
+ */
+const val MAX_TABLE_PADDING = 100_000
+
+/**
+ * Whether padding rows whose cells are [lengths] long (in characters) to
+ * [widths] adds at most [MAX_TABLE_PADDING] spaces, counted as every row
+ * given every column: the desktop's `_padding_fits`, from sums.
+ */
+internal fun paddingFits(lengths: List<List<Int>>, widths: List<Int>): Boolean {
+    var kept = 0L
+    for (row in lengths) for (i in 0 until minOf(row.size, widths.size)) kept += minOf(row[i], widths[i])
+    return lengths.size.toLong() * widths.sumOf { it.toLong() } - kept <= MAX_TABLE_PADDING
+}
+
+/**
+ * The widths each row is padded to: the columns' [widths] for every row
+ * while that fits [MAX_TABLE_PADDING], else each row its own -- every cell
+ * as wide as its text and the spaces its alignment [needs]. The desktop's
+ * `row_widths`.
+ */
+internal fun rowWidths(lengths: List<List<Int>>, widths: List<Int>, needs: (Int, Int) -> Int): List<List<Int>> =
+    if (paddingFits(lengths, widths)) List(lengths.size) { widths }
+    else lengths.mapIndexed { r, row -> row.mapIndexed { i, length -> length + needs(r, i) } }
+
 fun formatTable(rows: List<List<String>>, aligns: List<List<CellAlign>>): List<String> {
-    val widths = layoutWidths(rows, aligns)
+    val widths = rowWidths(rows.map { row -> row.map { it.codePointCount(0, it.length) } }, layoutWidths(rows, aligns)) { r, i ->
+        paddingNeed(aligns.getOrNull(r)?.getOrNull(i) ?: CellAlign.LEFT)
+    }
     return rows.mapIndexed { r, row ->
-        formatRow(row, widths, aligns.getOrElse(r) { emptyList() })
+        formatRow(row, widths[r], aligns.getOrElse(r) { emptyList() })
     }
 }
 

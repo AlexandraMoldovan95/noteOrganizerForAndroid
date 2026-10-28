@@ -620,6 +620,21 @@ class TablesTest {
     }
 
     @Test
+    fun `a table whose padding would pass the ceiling is left ragged, its cells and alignment kept`() {
+        // A cell of 5,000 characters over 50 rows: lined up, 250,000 spaces.
+        val rows = listOf(listOf("x".repeat(5_000), "right")) + List(49) { listOf("a", "b") }
+        val aligns = List(50) { listOf(CellAlign.LEFT, CellAlign.RIGHT) }
+        val out = formatTable(rows, aligns)
+        assertTrue("${out.sumOf { it.length }} characters", out.sumOf { it.length } < 6_000)
+        assertEquals("| a |  b |", out[1])
+        assertEquals(CellAlign.RIGHT, cellAlignments(out[1])[1])
+        assertEquals(rows.map { r -> r }, out.map { splitRow(it) })
+        // Under the ceiling, every row as wide as the widest, as before.
+        val small = formatTable(List(3) { listOf("abc", "d") }, List(3) { listOf(CellAlign.LEFT, CellAlign.LEFT) })
+        assertEquals(1, small.map { it.length }.toSet().size)
+    }
+
+    @Test
     fun `a merge down from under the header joins the header's cell, not the separator's dashes`() {
         // Read over the whole grid, the "^" took the dashes for the cell above it.
         val t = table("| Day | Task |", "| --- | --- |", "| ^ | gym |")
