@@ -31,15 +31,13 @@ import java.io.File
 class NotesBackupAgent : BackupAgent() {
 
     override fun onFullBackup(data: FullBackupDataOutput) {
-        val dir = File(filesDir, "notebook")
-        val mark = File(dir, Settings.GOOGLE_BACKUP_OFF_MARK)
-        if (Settings.googleBackupOn(Settings.load(dir))) {
-            // Not carried in a backup made while on: restored, it would turn
-            // off what the person had turned on.
-            mark.delete()
-            super.onFullBackup(data)
-        } else if (Files.writeAtomic(mark, Settings.offMark()) == null) {
-            fullBackupFile(mark, data)
+        // Decided by the rule Settings → Backup shows, the mark of a restore
+        // not yet opened included: read from settings.json alone, that phone
+        // read as on, and this deleted the only record of the person's off.
+        when (val take = Settings.forFullBackup(File(filesDir, "notebook"))) {
+            Settings.FullBackup.Everything -> super.onFullBackup(data)
+            is Settings.FullBackup.OnlyMark -> fullBackupFile(take.mark, data)
+            Settings.FullBackup.Nothing -> {}
         }
     }
 

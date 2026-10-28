@@ -68,9 +68,46 @@ object Settings {
      * turned it off -- nor when settings.json cannot be read, as then their
      * answer is not known: a copy not made can be made at the next backup,
      * one made against their word cannot be taken back.
+     *
+     * Nor when settings.json holds no answer and the mark of a restore made
+     * while off ([GOOGLE_BACKUP_OFF_MARK]) lies beside it: that mark IS the
+     * answer until the app's first start writes it into the file
+     * ([takeOffMark]). Read from the file alone, a phone restored and not
+     * yet opened read as on -- a restore brings no settings.json, only the
+     * mark -- and Android's next backup deleted the mark and kept nothing:
+     * the app came up on, and the backup after it took the notes.
      */
-    fun googleBackupOn(load: Load): Boolean =
-        load.problem == null && load.raw.opt(PHONE_GOOGLE_BACKUP) != false
+    fun googleBackupOn(load: Load): Boolean {
+        if (load.problem != null) return false
+        if (load.raw.has(PHONE_GOOGLE_BACKUP)) return load.raw.opt(PHONE_GOOGLE_BACKUP) != false
+        return load.file.parentFile?.let { File(it, GOOGLE_BACKUP_OFF_MARK).isFile } != true
+    }
+
+    /**
+     * What Android's full backup of the notebook in [dir] may take, decided
+     * here for `NotesBackupAgent`, so that the agent and Settings → Backup
+     * answer by one rule ([googleBackupOn]). On: everything Android's own
+     * rules take, and a mark left by a restore is deleted -- carried in a
+     * backup made while on and restored, it would turn off what the person
+     * had turned on. Off: only the mark, written again, so that Android's
+     * copy says off and holds nothing else; when it cannot be written,
+     * nothing at all.
+     */
+    fun forFullBackup(dir: File): FullBackup {
+        val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
+        if (googleBackupOn(load(dir))) {
+            mark.delete()
+            return FullBackup.Everything
+        }
+        return if (Files.writeAtomic(mark, offMark()) == null) FullBackup.OnlyMark(mark) else FullBackup.Nothing
+    }
+
+    /** [forFullBackup]'s answer. */
+    sealed class FullBackup {
+        object Everything : FullBackup()
+        data class OnlyMark(val mark: File) : FullBackup()
+        object Nothing : FullBackup()
+    }
 
     /**
      * The one file Android's backup is handed while the switch is off

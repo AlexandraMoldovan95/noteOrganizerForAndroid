@@ -345,6 +345,14 @@ do before, not as releases anyone ran.
   note is now known by its own identity too, and the files are not
   attached elsewhere — the bar says the note is no longer here. Found by
   the final audit's second round.
+- **Android's backup turned off stays off on a phone restored and not
+  yet opened.** Restored from a backup made while it was off, the phone
+  holds only the mark that says so, until the app's first start reads
+  it; Android's backup, run before that start, read the missing
+  settings as on, deleted the mark and kept nothing, and the app came up
+  on. The mark is now the answer until the start writes it into the
+  settings, for Android's backup and for Settings → Backup alike. Found
+  by the final audit's third round.
 
 ---
 

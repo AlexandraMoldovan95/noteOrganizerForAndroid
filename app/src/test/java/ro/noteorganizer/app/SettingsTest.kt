@@ -41,6 +41,46 @@ class SettingsTest {
     }
 
     @Test
+    fun `a phone restored from a backup made while off reads off before its first start, and Android's backup keeps the mark`() {
+        // Restored, the notebook holds the mark and no settings.json: read
+        // from the file alone that was "on", and Android's next backup,
+        // before the app was ever opened, deleted the mark and kept nothing.
+        val restored = dir()
+        val mark = File(restored, Settings.GOOGLE_BACKUP_OFF_MARK)
+        mark.writeText(Settings.offMark())
+        assertFalse("Settings → Backup's answer", Settings.googleBackupOn(Settings.load(restored)))
+        repeat(2) {
+            assertEquals(Settings.FullBackup.OnlyMark(mark), Settings.forFullBackup(restored))
+            assertTrue("the mark is still there to restore again", mark.isFile)
+            assertEquals(false, JSONObject(mark.readText()).get(Settings.PHONE_GOOGLE_BACKUP))
+        }
+        assertFalse("nothing else is written", File(restored, "settings.json").exists())
+        // Settings without an answer of their own are the same.
+        val unanswered = dir("""{"theme": "dark"}""")
+        File(unanswered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        assertFalse(Settings.googleBackupOn(Settings.load(unanswered)))
+        assertTrue(Settings.forFullBackup(unanswered) is Settings.FullBackup.OnlyMark)
+        // An answer in the file is the answer: on, the mark goes.
+        val answered = dir("""{"phone_google_backup": true}""")
+        File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        assertTrue(Settings.googleBackupOn(Settings.load(answered)))
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(answered))
+        assertFalse(File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // Off in the file: only the mark, written for Android to keep.
+        val off = dir("""{"phone_google_backup": false}""")
+        assertTrue(Settings.forFullBackup(off) is Settings.FullBackup.OnlyMark)
+        assertTrue(File(off, Settings.GOOGLE_BACKUP_OFF_MARK).isFile)
+        // Nothing said anywhere: on, as it always was.
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(dir()))
+        // And the first start then writes the answer into the file.
+        File(restored, "notes_data.json").writeText("[]")
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.load(restored).raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertFalse(Settings.googleBackupOn(Settings.load(restored)))
+        assertFalse("read once, the mark goes", mark.exists())
+    }
+
+    @Test
     fun `the welcome note says where Android's backup is turned off`() {
         assertTrue(Welcome.build().getString("body").contains("Settings → Backup turns that off for this app"))
     }
