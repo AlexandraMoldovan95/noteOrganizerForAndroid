@@ -113,6 +113,76 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a table row typed by hand takes the cursor to the line under its grid, and the next row follows it`() {
+        // At its closing pipe the line became a table: no field held the
+        // cursor, the field above kept the keyboard with it at its end, and
+        // the next row was written above the first -- the grid upside down.
+        val model = editor("Shopping")
+        val typed = "Shopping\n| a | b |"
+        model.typeInto(Editing.segments(model.body).first(), TextFieldValue(typed, TextRange(typed.length)), 0)
+        model.caret = typed.length
+        model.keepCaret(0, TextFieldValue(typed, TextRange(typed.length)))
+        val segments = Editing.segments(model.body)
+        assertEquals(listOf(false, true, false), segments.map { it.table })
+        assertEquals(2, model.focus)
+        assertEquals(TextFieldValue("", TextRange(0)), model.focused)
+        model.typeInto(segments[2], TextFieldValue("| c | d |", TextRange(9)), 2)
+        assertEquals("Shopping\n| a | b |\n| c | d |", model.body)
+    }
+
+    @Test
+    fun `a line typed past what the note draws lets the keyboard go, said once, never onto the line above`() {
+        // Enter at the end of a note whose fields draw all the lines a body
+        // may: the new line went into the read-only rest, the field kept the
+        // keyboard with its cursor at its end, and the next words were glued
+        // onto the line above.
+        val model = editor(List(Editing.MAX_DRAWN_LINES) { "x" }.joinToString("\\n"))
+        val segments = Editing.segments(model.body)
+        val last = segments.lastIndex
+        assertTrue(segments[last].field)
+        val typed = segments[last].text + "\n"
+        model.typeInto(segments[last], TextFieldValue(typed, TextRange(typed.length)), last)
+        model.caret = model.body.length
+        model.keepCaret(last, TextFieldValue(typed, TextRange(typed.length)))
+        assertTrue("the new line is in the read-only rest", Editing.segments(model.body).last().long)
+        assertEquals(null, model.focus)
+        assertEquals(1, model.letGo)
+        assertTrue(state.snackbar.currentSnackbarData!!.visuals.message.startsWith("The end of this note is more than"))
+        state.snackbar.currentSnackbarData!!.dismiss()
+        model.keepCaret(last, TextFieldValue(typed, TextRange(typed.length)))
+        assertEquals(2, model.letGo)
+        assertEquals("said once", null, state.snackbar.currentSnackbarData)
+    }
+
+    @Test
+    fun `the calculator writes nothing where no field would show it, and says where to tap`() {
+        // The cursor never in the note, its answer went to the end -- past
+        // what the note draws, out of sight -- and every tap added another.
+        val model = editor((List(Editing.MAX_DRAWN_LINES) { "x" } + "past").joinToString("\\n"))
+        assertTrue(Editing.segments(model.body).last().long)
+        val before = model.body
+        model.insertCalculation("5+3=8")
+        assertEquals(before, model.body)
+        assertTrue(state.snackbar.currentSnackbarData!!.visuals.message.startsWith("The end of this note is more than"))
+        // A note ending with a table: the answer goes on the line under it, as ever.
+        val table = editor("Costs\\n| a | 1 |")
+        table.insertCalculation("5+3=8")
+        assertEquals("Costs\n| a | 1 |\n5+3=8", table.body)
+    }
+
+    @Test
+    fun `words pasted too long to lay out take the cursor to the line after them, not the end of the line above`() {
+        val model = editor("abc\\ndef")
+        val field = Editing.segments(model.body).single()
+        model.pastePlain(field, TextFieldValue(field.text, TextRange(3)), "x".repeat(Editing.MAX_UNBROKEN + 1))
+        val segments = Editing.segments(model.body)
+        assertTrue(segments[0].long)
+        assertEquals("def", segments[1].text)
+        assertEquals(1, model.focus)
+        assertEquals(TextFieldValue("def", TextRange(0)), model.focused)
+    }
+
+    @Test
     fun `Undo keeps what a phone can hold of a long note's steps, and every step of a short one`() {
         // Each step is the whole body: a note of two million letters, from
         // a share code of 8 KB, kept 200 of them -- some 760 MB.

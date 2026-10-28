@@ -444,10 +444,57 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun keepCaret(index: Int, shown: TextFieldValue) {
         val at = caret ?: return
         val segments = Editing.segments(body)
-        fun holds(s: Editing.Segment) = s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
-        if (segments.getOrNull(index)?.let { it.text == shown.text && holds(it) } == true) return
-        val within = segments.indexOfFirst { holds(it) }
-        if (within >= 0) ask(within, fieldValue(within, at))
+        if (segments.getOrNull(index)?.let { it.text == shown.text && holds(it, at) } == true) return
+        placeCaret(at)
+    }
+
+    private fun holds(s: Editing.Segment, at: Int) =
+        s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+
+    /**
+     * Counts the times the keyboard was let go of because the line being
+     * written is in no field ([placeCaret]): the screen takes it away.
+     */
+    var letGo by mutableIntStateOf(0)
+        private set
+
+    /** Whether the reason the keyboard went was said: once a visit. */
+    private var letGoSaid = false
+
+    /**
+     * The cursor put at [at], in code points, after a change that may have
+     * cut the body otherwise: in the field that holds it -- or, its line now
+     * a table at its closing pipe or a piece shown read-only, at the start
+     * of the first field after that piece (the one under a table ending the
+     * note is there for it). Left in the field it was in, the cursor stood
+     * at that field's end and the next letters went onto the line above,
+     * the rows of a table typed by hand came out in reverse, and Enter at
+     * the end of the longest notes made lines nobody could see (the final
+     * audit's fifth round). With no field after it, the keyboard goes, and
+     * the note says why once.
+     */
+    private fun placeCaret(at: Int) {
+        val segments = Editing.segments(body)
+        val within = segments.indexOfFirst { holds(it, at) }
+        if (within >= 0) {
+            ask(within, fieldValue(within, at))
+            return
+        }
+        val piece = segments.indexOfLast { at >= it.cpStart }
+        val next = (piece + 1 until segments.size).firstOrNull { segments[it].field }
+        if (next != null) {
+            caret = segments[next].cpStart
+            ask(next, fieldValue(next, segments[next].cpStart))
+            return
+        }
+        focused = null
+        focus = null
+        letGo += 1
+        if (!letGoSaid) {
+            letGoSaid = true
+            state.say("The end of this note is more than the phone shows at once. It is kept whole, shown " +
+                "read-only here; write there on the computer.")
+        }
     }
 
     /**
@@ -944,6 +991,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             return
         }
         val placed = Calculator.place(body, formula, calcMark, caret)
+        // Written where no field shows it -- the end of a note past what the
+        // phone draws, the cursor never in it -- the sum was out of sight,
+        // and every tap added another (the final audit's fifth round).
+        if (Editing.segments(placed.body).none { holds(it, placed.mark) }) {
+            state.say("The end of this note is more than the phone shows at once. Tap in its text where the " +
+                "answer should go, then insert it.")
+            return
+        }
         spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
         props = Paragraphs.follow(body, placed.body, props)
         body = placed.body
@@ -1064,11 +1119,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         body = done.body
         caret = done.caret
         changed()
-        val chars = done.body.codePoints().toArray()
-        val line = (0 until done.caret.coerceAtMost(chars.size)).count { chars[it] == '\n'.code }
-        // Rows pasted become a table, and the field the cursor is in may be another one now.
-        val index = Editing.segments(body).indexOfFirst { it.field && line in it.firstLine..it.lastLine }
-        if (index >= 0) ask(index, fieldValue(index, done.caret)) else focused = null
+        // Rows pasted become a table, and words too long to lay out a piece
+        // shown read-only: the field the cursor is in may be another one now.
+        placeCaret(done.caret)
     }
 }
 
@@ -1170,6 +1223,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         state.flush = { model.write() }
         onDispose { state.flush = null }
     }
+    // The line being written went where no field is: the keyboard goes
+    // with it, rather than writing on the line above (EditorModel.placeCaret).
+    LaunchedEffect(model.letGo) { if (model.letGo > 0) focusManager.clearFocus() }
     // Written from outside while open -- pinned from the list beside it,
     // updated by an import -- and saved first by whatever wrote it: read
     // back, so the next save cannot put the old fields back.
