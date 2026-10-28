@@ -218,4 +218,26 @@ class TemplatesTest {
         assertEquals("General", note.getString("category"))
         assertEquals(0, note.getJSONArray("paragraphs").length())
     }
+
+    @Test
+    fun `a template's checklist rows are kept whole and drawn short`() {
+        // Saved from a note, a 150,000-letter row went whole into the
+        // template editor's wrapping Text and froze it as it opened.
+        val long = "a".repeat(150_000)
+        val tpl = Templates.fromNote("Long row", "", "", null, null, "", "General",
+            JSONArray().put(JSONObject().put("text", long).put("done", false)).put(JSONObject().put("text", "milk")))
+        val rows = tpl.getJSONArray("checklist")
+        assertEquals("kept whole", long, rows.getJSONObject(0).getString("text"))
+        assertTrue(Editing.tooLongToLayOut(long))
+        val drawn = drawnRow(long)
+        assertTrue(drawn.length <= 301)
+        assertTrue(drawn.endsWith("…"))
+        assertEquals("a row anyone writes is drawn as it is", "milk", drawnRow("milk"))
+        // A thousand rows of 9,999 letters, each under the line's own limit:
+        // drawn, together they stay far below what a body may give a layout.
+        val heavy = "b".repeat(Editing.MAX_UNBROKEN - 1)
+        assertFalse(Editing.tooLongToLayOut(heavy))
+        val drawnAll = List(1_000) { drawnRow(heavy) }
+        assertTrue(drawnAll.sumOf { Editing.layoutCost(it)!! } < Editing.MAX_LAYOUT_COST)
+    }
 }

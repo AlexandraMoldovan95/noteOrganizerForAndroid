@@ -391,6 +391,13 @@ do before, not as releases anyone ran.
   glimpses too, and no bar or question is given more than 1,000
   characters whatever a reason carries. The note keeps every byte, and
   Undo puts it all back. Found by the final audit's third round.
+- **A template saved from a note with a very long checklist row opens
+  at once.** The template editor drew each row whole, wrapping: a row of
+  150,000 letters, kept by "Save as template", froze it as it opened,
+  where the note itself showed the row read-only. A row too long to lay
+  out is shown there as in the note, and any other row past 300
+  characters as its start with "…"; the template keeps every row whole.
+  Found by the final audit's third round.
 
 ---
 

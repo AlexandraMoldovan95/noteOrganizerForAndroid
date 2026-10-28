@@ -655,6 +655,16 @@ internal fun glimpse(text: String): String {
 }
 
 /**
+ * A checklist row as a list of rows draws it where it is not typed into --
+ * the template editor: a [glimpse], with "…" where it was cut. Drawn
+ * whole, wrapping, a 150,000-letter row saved from a note froze the
+ * template editor as it opened, and a thousand rows of 9,999 letters, each
+ * under every other limit, a thousand times over. Kept whole, drawn short,
+ * as the desktop draws a checklist item longer than its limit.
+ */
+internal fun drawnRow(text: String): String = glimpse(text).let { if (it.length < text.length) "$it…" else text }
+
+/**
  * How much of a stored title, checklist row, template name or file name a
  * message, a question or a screen reader quotes: enough to tell which, and
  * a category's longest name whole.

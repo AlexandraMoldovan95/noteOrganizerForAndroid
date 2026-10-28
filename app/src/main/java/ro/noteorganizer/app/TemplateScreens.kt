@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -463,7 +464,11 @@ private fun TemplateEditor(
                         Checkbox(item.second, { checklist[k] = item.first to it },
                                  colors = CheckboxDefaults.colors(checkedColor = palette.accent),
                                  modifier = Modifier.semantics { contentDescription = rowName })
-                        Text(item.first, fontSize = 15.sp,
+                        // Kept whole, drawn short: a row too long to lay out as
+                        // the note editor shows it, what it is and its start;
+                        // any other as a glimpse ([drawnRow]).
+                        if (Editing.tooLongToLayOut(item.first)) Box(Modifier.weight(1f)) { LongText(item.first) }
+                        else Text(drawnRow(item.first), fontSize = 15.sp,
                              color = if (item.second) palette.subtext else palette.text,
                              textDecoration = if (item.second) TextDecoration.LineThrough else null,
                              modifier = Modifier.weight(1f))
