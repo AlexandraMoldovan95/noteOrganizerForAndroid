@@ -360,13 +360,16 @@ class DaysTest {
         // Turned off by hand, the days went into the copy alone; a big
         // rewrite then made a copy of its own over that one slot.
         val load = scratch(series)
+        val long = "The agenda for the whole team, item by item, ".repeat(6).trim()
+        assertTrue(Notebook.updateNote(load, 1, "Stand-up", long) is SaveResult.Ok)
         Days.saveDay(load, 1, "2026-10-12", "Leg day: squats", "agenda", "", "Work", "")
         assertTrue(Days.setRepeat(load, 1, null) is SaveResult.Ok)
         assertEquals(0, onDisk(load).getJSONObject("overrides").length())
         val again = Notebook.load(load.file!!.parentFile!!)
         assertTrue(Notebook.updateNote(again, 1, "Stand-up", "") is SaveResult.Ok)
         val prev = onDisk(again).getJSONObject("_prev")
-        assertEquals("agenda", prev.getString("body"))
+        assertFalse("the rewrite's own copy, not the turn-off's", prev.has("recurrence"))
+        assertEquals(long, prev.getString("body"))
         assertEquals("the days carried into the new copy", "Leg day: squats", dayTitle(prev, "2026-10-12"))
         // ... and a share code's update made over it carries them too.
         fromSender(Notebook.load(load.file!!.parentFile!!), "theirs", """{"freq": ""}""")
