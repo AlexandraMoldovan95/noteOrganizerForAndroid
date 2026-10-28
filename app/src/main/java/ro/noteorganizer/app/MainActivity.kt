@@ -236,7 +236,10 @@ class MainActivity : ComponentActivity() {
 
     private fun codeIn(intent: Intent?): String? =
         if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
-            intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+            // As any text: a sender sharing styled text puts a CharSequence
+            // with spans, and getStringExtra gave null for it -- the code
+            // never arrived, and nothing was said.
+            intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
         } else {
             null
         }
@@ -246,11 +249,15 @@ class MainActivity : ComponentActivity() {
         startActivity(Intent.createChooser(send, getString(R.string.share_code)))
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun open(file: File, name: String) {
         if (!file.isFile) return
         val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        // The type of the file handed over, never of its label: a backup can
+        // label any file, and "Holiday photo.jpg" over a page went out as a
+        // picture, a name hiding ".apk" behind a bidi mark as a package.
         val type = MimeTypeMap.getSingleton()
-            .getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase()) ?: "*/*"
+            .getMimeTypeFromExtension(Normalize.fileTypeOf(file.name).removePrefix(".")) ?: "*/*"
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, type)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         try {

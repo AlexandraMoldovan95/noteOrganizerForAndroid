@@ -187,7 +187,14 @@ stop agreeing:
                             //   written back as "#rrggbb", as the desktop's
                             //   sanitize_color expands it -- in a day's colour,
                             //   a category's and a text colour too
-  "attachments": [],        // [{"filename": str, "stored_as": str}, ...]
+  "attachments": [],        // [{"filename": str, "stored_as": str}, ...];
+                            //   filename is a label: normalized to end in
+                            //   stored_as's type, hidden and bidi characters
+                            //   out (the desktop's attachment_display_name);
+                            //   the file handed to another app is typed by
+                            //   stored_as, never by the label; a stored_as
+                            //   longer than 250 UTF-8 bytes comes in under a
+                            //   shorter one the phone's storage holds
   "updated": "",            // "YYYY-MM-DD HH:MM:SS" -- seconds included
   "created": "",            // same shape; backfilled from updated if absent
   "recurrence": {},         // the repeat rule; "" freq = one-off. See below

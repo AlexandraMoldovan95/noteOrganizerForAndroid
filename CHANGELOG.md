@@ -234,6 +234,18 @@ do before, not as releases anyone ran.
   and a focused field's label and the date picker's day, are drawn in a
   shade of the accent held to 4.5 to 1 now. Found by the final audit's
   second round.
+- **An attached file is opened as the kind of file it is, and its name
+  hides nothing.** The name shown — which a backup chooses freely —
+  decided what kind of file another app was handed: "Holiday photo.jpg"
+  over a web page went out as a picture, and a bidi mark could hide
+  ".apk" behind ".jpg". The stored file decides now, and the shown name
+  ends in its type and loses the characters that reorder or hide text,
+  as on the desktop. Found by the final audit's second round, the twin
+  of the desktop's.
+- **A share code sent as styled text arrives.** An app sharing
+  formatted text hands it over in a form the app did not read, and the
+  code was dropped without a word. Found by the final audit's second
+  round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's

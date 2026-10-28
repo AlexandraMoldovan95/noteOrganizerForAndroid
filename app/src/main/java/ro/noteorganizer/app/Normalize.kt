@@ -266,10 +266,63 @@ object Normalize {
             if (stored.isEmpty() && display.isEmpty()) continue
             if (stored.isEmpty()) stored = bareFileName(display)
             if (stored.isEmpty()) continue
-            out.put(JSONObject().put("filename", display).put("stored_as", stored))
+            // The label agrees with the file that opens, and hides nothing.
+            out.put(JSONObject().put("filename", attachmentDisplayName(display, stored)).put("stored_as", stored))
             if (out.length() >= MAX_ATTACHMENTS) break
         }
         return out
+    }
+
+    /**
+     * What changes how a name reads without being seen -- controls, bidi
+     * marks and overrides ("Invoice<U+202E>fdp.exe" shows as
+     * "Invoiceexe.pdf"), line separators, the BOM: the desktop's
+     * HIDDEN_IN_NAMES, out of every name shown.
+     */
+    private val HIDDEN_IN_NAMES = Regex(
+        "[\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069\\u2028\\u2029\\ufeff]")
+
+    /** The last dot and what follows it, as typed; "" when there is none. */
+    private fun typeSuffix(name: String): String {
+        val trimmed = name.trimEnd('.', ' ')
+        val dot = trimmed.lastIndexOf('.')
+        return if (dot >= 0) trimmed.substring(dot) else ""
+    }
+
+    /**
+     * The kind of file [name] is as Windows opens it -- what follows the
+     * last dot, lower-case, once trailing dots and spaces are gone -- or "":
+     * the desktop's `file_type_of`. ".rdp" is an .rdp file.
+     */
+    fun fileTypeOf(name: String): String =
+        typeSuffix(name.replace('\\', '/').substringAfterLast('/')).lowercase(java.util.Locale.ROOT)
+
+    /**
+     * The name a person is shown for an attachment: [filename], a label a
+     * backup can write over any file, cleaned of [HIDDEN_IN_NAMES] and made
+     * to end in the type of [storedAs], the file that opens -- "Holiday
+     * photo.jpg" over an .html shows "Holiday photo.html". The app's own
+     * records already agree and show as they were. The desktop's
+     * `attachment_display_name` (a7495d5).
+     */
+    fun attachmentDisplayName(filename: String?, storedAs: String?): String {
+        val stored = storedAs.orEmpty()
+        val storedName = HIDDEN_IN_NAMES.replace(stored.replace('\\', '/').substringAfterLast('/'), "")
+        var name = HIDDEN_IN_NAMES.replace(filename.orEmpty(), "")
+        if (name.trim('.', ' ').isEmpty()) name = storedName
+        if (stored.isEmpty()) return name
+        // Cleaned too: a type that held a hidden character is no type.
+        val real = HIDDEN_IN_NAMES.replace(fileTypeOf(stored), "")
+        if (fileTypeOf(name) == real) return name
+        var stem = name.trimEnd('.', ' ')
+        if (real.isNotEmpty()) {
+            stem = stem.substring(0, stem.length - typeSuffix(stem).length)
+        } else {
+            // A file with no type shows none: "photo.tar.jpg" over one that
+            // has none would still read as a .tar.
+            while (typeSuffix(stem).isNotEmpty()) stem = stem.substring(0, stem.length - typeSuffix(stem).length).trimEnd('.', ' ')
+        }
+        return (stem + real).ifEmpty { storedName }
     }
 
     /**

@@ -490,6 +490,33 @@ class OrganizingTest {
     private fun incoming(name: String, text: String) = Organizing.Incoming(name) { it.writeText(text) }
 
     @Test
+    fun `an attachment's label ends in the type of the file that opens, and hides nothing`() {
+        // The desktop's own cases (a7495d5): a backup can write any label
+        // over any file, and a bidi mark can hide ".apk" behind ".jpg".
+        fun labels(json: String) = Normalize.cleanAttachments(JSONArray(json)).let { a ->
+            (0 until a.length()).map { a.getJSONObject(it).getString("filename") } }
+        assertEquals(listOf("Holiday photo.rdp", "photo", "x.rdp"), labels("""[
+            {"filename": "Holiday photo.jpg", "stored_as": "20261001120000000001_trip.rdp"},
+            {"filename": "photo.tar.jpg", "stored_as": "20261001_photo"},
+            {"filename": "x", "stored_as": ".rdp"}]"""))
+        val hidden = "\u0000\u0007\u001b\u007f\u0085\u009f؜‎‏‪‫‬‭‮" +
+            "⁦⁧⁨⁩  ﻿"
+        val bidi = JSONArray().put(JSONObject().put("filename", "Invoice‮fdp.exe").put("stored_as", "20261001_inv.exe"))
+            .put(JSONObject().put("filename", "a${hidden}b.txt").put("stored_as", "20261001_ab.txt"))
+        assertEquals(listOf("Invoicefdp.exe", "ab.txt"), labels(bidi.toString()))
+        // A name the app stored itself shows as it was, every time.
+        for (n in listOf("report.pdf", "Photo.JPG", "README", ".bashrc", "Ünïcödé €.docx", "a b.tar.gz", "שלום.txt",
+                         "family 👨‍👩‍👧.png")) {
+            val once = Normalize.attachmentDisplayName(n, "20261028120000000000_$n")
+            assertEquals(n, once)
+            assertEquals(n, Normalize.attachmentDisplayName(once, "20261028120000000000_$n"))
+        }
+        // The type handed to another app is the stored file's.
+        assertEquals(".html", Normalize.fileTypeOf("20261018_trip.html"))
+        assertEquals("", Normalize.fileTypeOf("20261018_payload"))
+    }
+
+    @Test
     fun `a stored name is the moment and the file's own name, and one Windows takes`() {
         val at = java.time.LocalDateTime.of(2026, 10, 16, 9, 30, 5, 123456000)
         assertEquals("20261016093005123456_map.png", Organizing.storedName("map.png", at))
