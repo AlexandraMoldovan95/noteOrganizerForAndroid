@@ -216,6 +216,32 @@ class NotebookTest {
         assertFalse(Character.isHighSurrogate(emoji.snippet.last()))
     }
 
+    @Test
+    fun `a message quotes a title, a row or a file's name short, on one line, and says where it cut`() {
+        assertEquals("Shopping", quoted("Shopping"))
+        assertEquals("a b", quoted("a\nb"))
+        val long = quoted("a".repeat(150_000))
+        assertEquals(QUOTED, long.length)
+        assertTrue(long.endsWith("…"))
+        assertEquals("a category's longest name whole", "c".repeat(80), quoted("c".repeat(80)))
+        // Never through the middle of an emoji.
+        val emoji = quoted("a".repeat(QUOTED - 2) + "😀" + "tail")
+        assertFalse(Character.isHighSurrogate(emoji[emoji.length - 2]))
+        assertTrue(emoji.endsWith("…"))
+        // A file keeps its type: it says what will open.
+        val file = quotedFile("x".repeat(150_000) + ".pdf")
+        assertTrue(file, file.endsWith("….pdf"))
+        assertTrue(file.length <= QUOTED)
+        assertEquals("Holiday photo.jpg", quotedFile("Holiday photo.jpg"))
+        assertEquals("a type too long to be one is cut with the rest", QUOTED, quotedFile("a." + "b".repeat(150_000)).length)
+        // A backup's entry name, quoted in the reason it is refused.
+        val bomb = Backup.entriesProblem(listOf(Backup.Entry("attachments/" + "n".repeat(60_000), 60_000_000, 1_000)))!!
+        assertTrue(bomb.length.toString(), bomb.length < 300)
+        // And the bar's own last guard.
+        assertEquals("short", forTheScreen("short"))
+        assertEquals(MAX_SAID, forTheScreen("y".repeat(200_000)).length)
+    }
+
     // ---- code points vs UTF-16, the offset trap ----
 
     @Test

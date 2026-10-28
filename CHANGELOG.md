@@ -379,6 +379,18 @@ do before, not as releases anyone ran.
   alone had before. A table's cells are weighed as lines are now, and
   such a table is shown as its start, read-only, in the note and in the
   template editor. Found by the final audit's third round.
+- **A message or a question quotes a long title, row or file name
+  short.** Only the lists were given a glimpse: the Undo bar for a
+  checklist row taken off, Duplicate's bar, the attached-files bar, the
+  question about a day off the schedule, a template's save, replace and
+  delete, and an attached file's row and its Remove question took the
+  whole of what they named — and froze the app on a row or a title of
+  150,000 letters, by the very ✕ a person uses to be rid of the row. They
+  quote 80 characters now, with "…" where they cut, a file keeping its
+  type at the end; a screen reader's names for a row's controls are
+  glimpses too, and no bar or question is given more than 1,000
+  characters whatever a reason carries. The note keeps every byte, and
+  Undo puts it all back. Found by the final audit's third round.
 
 ---
 

@@ -486,6 +486,34 @@ class AppStateTest {
     }
 
     @Test
+    fun `a bar quotes a long row or title short, and Undo still puts back every letter`() {
+        // The bar laid out the whole of a 150,000-letter row -- taken off by
+        // its ✕, the only thing a read-only row offers -- and froze the app.
+        val long = "a".repeat(150_000)
+        val (s, _) = checklist("flour", long)
+        s.removeChecklistRow(1, 1)
+        val offer = s.snackbar.currentSnackbarData!!
+        val message = offer.visuals.message
+        assertTrue(message.length.toString(), message.length < QUOTED + 40)
+        assertEquals("Removed “${"a".repeat(QUOTED - 1)}…” from the checklist", message)
+        offer.performAction()
+        assertEquals(listOf("flour", long), s.rowsOnDisk())
+        // Duplicate's bar quotes the copy's title the same way.
+        val dir = NioFiles.createTempDirectory("appstate").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "a", "title": "${"T".repeat(150_000)}", "category": "General"}]""")
+        File(dir, "attachments").mkdirs()
+        val d = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        d.duplicate(1)
+        val said = d.snackbar.currentSnackbarData!!.visuals.message
+        assertEquals("Duplicated as “${"T".repeat(QUOTED - 1)}…”", said)
+        assertEquals("the copy keeps its whole title", 150_000 + " (copy)".length, d.note(2)!!.title.length)
+        d.snackbar.currentSnackbarData!!.dismiss()
+        // And whatever a reason carries, the bar is given at most MAX_SAID.
+        d.say("x".repeat(200_000))
+        assertEquals(MAX_SAID, d.snackbar.currentSnackbarData!!.visuals.message.length)
+    }
+
+    @Test
     fun `a row's Undo writes the words being typed into another row before it puts the row back`() {
         // Put back under them, the row moved the one being typed in, and its
         // words -- waiting to be written -- were dropped.

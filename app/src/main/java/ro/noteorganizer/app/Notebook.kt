@@ -655,6 +655,66 @@ internal fun glimpse(text: String): String {
 }
 
 /**
+ * How much of a stored title, checklist row, template name or file name a
+ * message, a question or a screen reader quotes: enough to tell which, and
+ * a category's longest name whole.
+ */
+internal const val QUOTED = 80
+
+/**
+ * [text] as a message, a question or a screen reader's label quotes it: on
+ * one line, cut to [QUOTED] characters -- never through the middle of an
+ * emoji -- with "…" where it was cut. What is quoted is laid out like any
+ * text: a bar at the foot, a dialog and a label each took the whole of a
+ * 150,000-letter row or title, and froze the app as the note had before
+ * its own guard -- by the very ✕ a person uses to be rid of the row. The
+ * note keeps every byte; only the quote is short.
+ */
+internal fun quoted(text: String): String {
+    val cut = text.length > QUOTED
+    // The "…" takes the last place; a pair of halves is kept whole or left out.
+    val end = when {
+        !cut -> text.length
+        Character.isLowSurrogate(text[QUOTED - 1]) -> QUOTED - 2
+        else -> QUOTED - 1
+    }
+    val head = text.substring(0, end).replace('\n', ' ').replace('\r', ' ')
+    return if (cut) "$head…" else head
+}
+
+/** The longest message the bar at the foot, or a question, is given whole. */
+internal const val MAX_SAID = 1_000
+
+/**
+ * [message] as the bar at the foot or a question draws it: whole, unless it
+ * is longer than [MAX_SAID], then cut there with "…". A last guard behind
+ * [quoted]: a reason can still carry what came from outside -- a backup's
+ * entry name, a reader's error -- and the bar lays out what it is given.
+ */
+internal fun forTheScreen(message: String): String {
+    if (message.length <= MAX_SAID) return message
+    val end = if (Character.isLowSurrogate(message[MAX_SAID - 1])) MAX_SAID - 2 else MAX_SAID - 1
+    return message.substring(0, end) + "…"
+}
+
+/**
+ * A file's name as [quoted] quotes it, its type kept at the end -- "A very
+ * long name….pdf" -- in the row that opens it and in the question that
+ * removes it: the type says what will open, and the desktop's row gives way
+ * before it the same way (7aa5a85). A type too long to be one is cut with
+ * the rest.
+ */
+internal fun quotedFile(name: String): String {
+    if (name.length <= QUOTED) return quoted(name)
+    val kind = Normalize.fileTypeOf(name)
+    val at = if (kind.length in 2..16) name.lastIndexOf(kind, ignoreCase = true) else -1
+    if (at <= 0 || name.length - at > 20) return quoted(name)
+    var keep = QUOTED - 1 - (name.length - at)
+    if (Character.isHighSurrogate(name[keep - 1])) keep -= 1
+    return (name.substring(0, keep) + "…" + name.substring(at)).replace('\n', ' ').replace('\r', ' ')
+}
+
+/**
  * `_reads_as_plumbing`: whether a PERSON would see this line as part of a
  * table -- deliberately looser than [isTableRow]. That one decides what
  * the editor treats as a row, so it is strict: both ends a pipe. A row

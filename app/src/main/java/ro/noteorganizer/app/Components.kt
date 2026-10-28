@@ -358,7 +358,9 @@ fun Ask(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { Text(text) },
+        // Whatever a question quotes is quoted short already; this is the
+        // last guard, for a reason that carries text from outside.
+        text = { Text(forTheScreen(text)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(confirm, color = if (destructive) palette.dangerText else palette.accentText)

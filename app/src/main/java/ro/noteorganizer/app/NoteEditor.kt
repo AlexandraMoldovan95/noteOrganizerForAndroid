@@ -2457,9 +2457,13 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // The row whose handle was tapped: its Move up and Move down.
     var rowMenu by remember { mutableIntStateOf(-1) }
     items.forEachIndexed { index, item ->
-        val moveLabel = stringResource(R.string.drag_to_move, item.text)
-        val rowSaid = stringResource(R.string.checklist_row_said, item.text)
-        val removeSaid = stringResource(R.string.checklist_remove_said, item.text)
+        // The row's spoken name, as the template editor's: a glimpse, never
+        // the whole of a row a backup can bring at 150,000 letters, three
+        // times over for each row.
+        val rowName = glimpse(item.text)
+        val moveLabel = stringResource(R.string.drag_to_move, rowName)
+        val rowSaid = stringResource(R.string.checklist_row_said, rowName)
+        val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
         // The row the current match is in, brought into sight as the bar steps.
         val sight = remember { BringIntoViewRequester() }
         val here = current?.takeIf { it.item == index }
@@ -2811,9 +2815,12 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
 
     if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
+        // Drawn short, its type kept: a backup can label a file with
+        // 150,000 letters, and the row laid them all out at every opening.
+        val shown = quotedFile(name)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "📎  $name",
+                "📎  $shown",
                 color = palette.accentText,
                 fontSize = 15.sp,
                 modifier = Modifier
@@ -2822,7 +2829,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
                     .padding(vertical = 8.dp),
             )
             if (model.day == null) {
-                val removeLabel = stringResource(R.string.attach_remove_said, name)
+                val removeLabel = stringResource(R.string.attach_remove_said, shown)
                 Text("✕", color = palette.subtext, fontSize = 14.sp,
                      modifier = Modifier
                          .semantics { contentDescription = removeLabel }
@@ -2834,7 +2841,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
     removing?.let { (name, stored) ->
         Ask(
             title = stringResource(R.string.attach_remove_title),
-            text = stringResource(R.string.attach_remove_text, name),
+            text = stringResource(R.string.attach_remove_text, quotedFile(name)),
             confirm = stringResource(R.string.attach_remove_confirm),
             onConfirm = {
                 removing = null
@@ -2934,7 +2941,7 @@ fun attachAfterReturn(state: AppState, context: android.content.Context, id: Int
         when {
             uris.size > room -> state.say(context.getString(R.string.attach_cut, room, Normalize.MAX_ATTACHMENTS))
             added > 0 -> state.say(context.resources.getQuantityString(
-                R.plurals.attached_after_return, added, added, Exporting.titleOf(note)))
+                R.plurals.attached_after_return, added, added, quoted(Exporting.titleOf(note))))
         }
     }
 }
@@ -3066,7 +3073,7 @@ private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, o
     if (next == null || raw == null) return
     val day = days[next]
     val shown = Recurrence.effectiveNote(raw, day)
-    val title = (shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled"
+    val title = quoted((shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled")
     val text = contentText(shown.opt("body") as? String ?: "").split(Regex("\\s+")).filter { it.isNotEmpty() }
         .joinToString(" ").let { if (it.length > 160) it.take(160).trimEnd() + "…" else it }
     val whenDay = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day

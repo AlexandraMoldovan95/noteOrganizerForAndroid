@@ -68,7 +68,8 @@ object Backup {
             Triple("The backup", entries.sumOf { maxOf(it.size, 0) }, entries.sumOf { maxOf(it.packed, 0) })
         for ((name, size, packed) in all) {
             if (size > BOMB_MIN_BYTES && size > BOMB_RATIO * maxOf(packed, 1)) {
-                return "$name would expand to ${sizeText(size)} from ${sizeText(packed)} packed, " +
+                // An entry's name is the backup's to write, up to 65,535 bytes.
+                return "${quoted(name)} would expand to ${sizeText(size)} from ${sizeText(packed)} packed, " +
                     "which is how a damaged or hostile backup looks."
             }
         }

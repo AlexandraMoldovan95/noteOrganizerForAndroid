@@ -75,7 +75,7 @@ fun rememberExporter(state: AppState): Exporter {
             return
         }
         val name = displayName(context, uri) ?: Exporting.fileName(title, format)
-        var message = context.getString(R.string.note_exported_to, name)
+        var message = context.getString(R.string.note_exported_to, quotedFile(name))
         // The desktop says so too: a single note's file never carries its files.
         if (((note.opt("attachments") as? JSONArray)?.length() ?: 0) > 0) {
             message += " " + context.getString(R.string.note_export_no_files)

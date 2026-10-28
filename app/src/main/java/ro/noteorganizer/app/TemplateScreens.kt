@@ -122,7 +122,9 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
             return
         }
         val problem = Templates.save(state.dir, Templates.saveAs(list, tpl))
-        state.say(if (problem != null) failedSaid.format(problem) else savedSaid.format(chosen))
+        // The name offered is the note's title, which a share code can make
+        // 150,000 letters long: the bar quotes it, never lays out all of it.
+        state.say(if (problem != null) failedSaid.format(problem) else savedSaid.format(quoted(chosen)))
         onDone()
     }
 
@@ -158,7 +160,7 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
 private fun NameTakenQuestion(name: String, onReplace: () -> Unit, onAnother: () -> Unit) {
     Ask(
         title = stringResource(R.string.template_taken_title),
-        text = stringResource(R.string.template_taken_text, name),
+        text = stringResource(R.string.template_taken_text, quoted(name)),
         confirm = stringResource(R.string.template_replace),
         onConfirm = onReplace,
         onDismiss = onAnother,
@@ -233,7 +235,7 @@ fun TemplatesPage(state: AppState) {
         // Honest about the stakes: notes come back from the Trash, templates do not.
         Ask(
             title = stringResource(R.string.template_delete_title),
-            text = stringResource(R.string.template_delete_text, name),
+            text = stringResource(R.string.template_delete_text, quoted(name)),
             confirm = stringResource(R.string.delete),
             onConfirm = {
                 deleting = null

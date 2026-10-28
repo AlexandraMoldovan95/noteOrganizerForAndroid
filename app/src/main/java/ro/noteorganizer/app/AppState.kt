@@ -284,7 +284,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** A message, [long] for one with more to read than a glance takes. */
     fun say(message: String, long: Boolean = false) {
         scope.launch {
-            snackbar.showSnackbar(message, withDismissAction = true,
+            snackbar.showSnackbar(forTheScreen(message), withDismissAction = true,
                 duration = if (long) SnackbarDuration.Long else SnackbarDuration.Short)
         }
     }
@@ -292,7 +292,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** A message with one thing to do about it: "Exported to…", Open. */
     fun offer(message: String, action: String, onAction: () -> Unit) {
         scope.launch {
-            val answer = snackbar.showSnackbar(message, actionLabel = action,
+            val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = action,
                 duration = SnackbarDuration.Long, withDismissAction = true)
             if (answer == SnackbarResult.ActionPerformed) onAction()
         }
@@ -560,7 +560,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     private fun offerUndo(message: String, undo: () -> Unit) {
         scope.launch {
-            val answer = snackbar.showSnackbar(message, actionLabel = "Undo",
+            val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = "Undo",
                 duration = SnackbarDuration.Long, withDismissAction = false)
             if (answer == SnackbarResult.ActionPerformed) undo()
         }
@@ -599,7 +599,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     fun duplicate(id: Int) {
         report(outside(listOf(id), writes = false) { Organizing.duplicate(load, id, attachments) } ?: return) { ok ->
-            say("Duplicated as “${note(ok.id)?.title ?: "(copy)"}”")
+            say("Duplicated as “${quoted(note(ok.id)?.title ?: "(copy)")}”")
         }
     }
 
@@ -669,7 +669,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val row = (rawNote(id)?.opt("checklist") as? JSONArray)?.opt(index) as? JSONObject ?: return
         val kept = JSONObject(row.toString())
         if (!report(Notebook.removeChecklistItem(load, id, index))) return
-        offerUndo("Removed “${kept.optString("text")}” from the checklist") {
+        offerUndo("Removed “${quoted(kept.optString("text"))}” from the checklist") {
             // Words being typed into another row are written first, as every
             // change to the list writes them: put back under them, the row
             // moved the rows below it, and the waiting words were dropped.
@@ -683,7 +683,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     fun moveToCategory(ids: Collection<Int>, category: String) {
         report(outside(ids) { Organizing.moveToCategory(load, ids, category) } ?: return) {
-            say(if (ids.size == 1) "Moved to “$category”" else "Moved ${ids.size} notes to “$category”")
+            say(if (ids.size == 1) "Moved to “${quoted(category)}”" else "Moved ${ids.size} notes to “${quoted(category)}”")
         }
     }
 
