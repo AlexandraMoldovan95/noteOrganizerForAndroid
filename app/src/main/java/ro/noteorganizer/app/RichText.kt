@@ -60,17 +60,33 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
  * styles each naming a decoration do not add up -- the later wins -- so
  * letters both underlined and struck through showed one line while the S
  * key said both. The desktop draws both, its two being independent.
+ *
+ * One sweep over the edges, counting the lines open at each: asked of
+ * every span for each pair of neighbouring edges, the merge took 200
+ * million tests for a field of the 10,000 spans a note keeps, at every
+ * drawing of it -- each letter typed, each autosave (the final audit's
+ * fifth round).
  */
-private fun decorations(lines: List<Triple<Int, Int, TextDecoration>>): List<Triple<Int, Int, TextDecoration>> {
+internal fun decorations(lines: List<Triple<Int, Int, TextDecoration>>): List<Triple<Int, Int, TextDecoration>> {
     if (lines.isEmpty()) return emptyList()
-    val edges = lines.flatMap { listOf(it.first, it.second) }.toSortedSet().toList()
+    val kinds = lines.map { it.third }.distinct()
+    // At each edge, how many lines of each kind begin there, less those that end.
+    val change = java.util.TreeMap<Int, IntArray>()
+    for ((start, end, decoration) in lines) {
+        val kind = kinds.indexOf(decoration)
+        change.getOrPut(start) { IntArray(kinds.size) }[kind] += 1
+        change.getOrPut(end) { IntArray(kinds.size) }[kind] -= 1
+    }
+    val open = IntArray(kinds.size)
     val out = ArrayList<Triple<Int, Int, TextDecoration>>()
-    for (i in 0 until edges.size - 1) {
-        val from = edges[i]
-        val to = edges[i + 1]
-        val here = lines.filter { it.first <= from && it.second >= to }.map { it.third }.distinct()
-        if (here.isEmpty()) continue
-        out.add(Triple(from, to, if (here.size == 1) here[0] else TextDecoration.combine(here)))
+    var from = -1
+    for ((edge, delta) in change) {
+        if (from >= 0) {
+            val here = kinds.filterIndexed { kind, _ -> open[kind] > 0 }
+            if (here.isNotEmpty()) out.add(Triple(from, edge, if (here.size == 1) here[0] else TextDecoration.combine(here)))
+        }
+        for (kind in delta.indices) open[kind] += delta[kind]
+        from = edge
     }
     return out
 }

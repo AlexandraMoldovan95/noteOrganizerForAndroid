@@ -379,6 +379,26 @@ class NotebookTest {
     }
 
     @Test
+    fun `underline and strike over many spans are merged in one sweep`() {
+        // Every other letter struck through under one underline: merged by
+        // asking every span at each pair of edges, 60,000 spans took some
+        // seven billion tests, at every drawing of the field. One sweep takes
+        // milliseconds; two seconds is a margin no machine speed crosses.
+        val under = androidx.compose.ui.text.style.TextDecoration.Underline
+        val strike = androidx.compose.ui.text.style.TextDecoration.LineThrough
+        val n = 60_000
+        val lines = listOf(Triple(0, 2 * n, under)) + List(n) { Triple(2 * it, 2 * it + 1, strike) }
+        val started = System.nanoTime()
+        val merged = decorations(lines)
+        val ms = (System.nanoTime() - started) / 1_000_000
+        assertTrue("$ms ms", ms < 2_000)
+        assertEquals(2 * n, merged.size)
+        assertEquals(Triple(0, 1, androidx.compose.ui.text.style.TextDecoration.combine(listOf(under, strike))), merged[0])
+        assertEquals(Triple(1, 2, under), merged[1])
+        assertEquals(Triple(2 * n - 1, 2 * n, under), merged.last())
+    }
+
+    @Test
     fun `a span running past the end of the body collapses instead of throwing`() {
         val json = """
             [{"id": 1, "body": "abc", "formatting":
