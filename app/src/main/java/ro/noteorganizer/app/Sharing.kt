@@ -160,13 +160,16 @@ object Sharing {
         // desktop hit exactly this: an emoji typed but not yet saved took
         // the crash path on sharing, because mending only ran on save.
         val raw = mendSurrogates(payload.toString()).toByteArray(Charsets.UTF_8)
+        // Weighed before the deflate, the dearest step: a note past what a
+        // code may hold was deflated whole at level 9, then refused.
+        if (raw.size > MAX_DECOMPRESSED_BYTES) throw tooMuchForOneCode()
         val code = PREFIX + Base64.getUrlEncoder().encodeToString(deflate(raw))
-        if (raw.size > MAX_DECOMPRESSED_BYTES || code.length > MAX_CODE_CHARS) {
-            throw TooLarge("That is too much for one code. Share fewer notes at a time, " +
-                           "or send a backup instead: Settings → Backup.")
-        }
+        if (code.length > MAX_CODE_CHARS) throw tooMuchForOneCode()
         return code
     }
+
+    private fun tooMuchForOneCode() = TooLarge("That is too much for one code. Share fewer notes at a time, " +
+                                               "or send a backup instead: Settings → Backup.")
 
     /**
      * A code's letters as the desktop's `base64.urlsafe_b64decode` reads

@@ -233,7 +233,7 @@ class AppStateTest {
         val seen = ArrayList<String>()
         s.editorHolds(1, "typed last", seen)
         val rewritten = s.openNoteRewritten
-        val code = s.shareCode(listOf(1))!!
+        val code = kotlinx.coroutines.runBlocking { s.shareCode(listOf(1)) }!!
         val shared = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals("typed last", shared.optString("body"))
         s.editorHolds(1, "typed later", seen)

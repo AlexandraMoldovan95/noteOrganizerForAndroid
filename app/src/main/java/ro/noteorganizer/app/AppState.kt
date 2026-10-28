@@ -738,27 +738,36 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         }
     }
 
-    fun shareCode(ids: Collection<Int>): String? = outside(ids, writes = false) { load.raw }?.let { raw ->
+    /**
+     * The notes [ids] as one share code, or null when it cannot be one,
+     * said. Made away from the screen's thread: it is the notes' whole text
+     * deflated, and the screen stood still for it at the tap (the final
+     * audit's fifth round). From copies, taken here, which a tick in the
+     * list cannot change under it meanwhile.
+     */
+    suspend fun shareCode(ids: Collection<Int>): String? {
+        val raw = outside(ids, writes = false) { load.raw } ?: return null
         val wanted = ids.toSet()
         val notes = (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
             .filter { (it.opt("id") as? Number)?.toInt() in wanted }
-        if (notes.isEmpty()) return@let null
+            .map { JSONObject(it.toString()) }
+        if (notes.isEmpty()) return null
         val code = try {
-            Sharing.encode(notes)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { Sharing.encode(notes) }
         } catch (e: Sharing.TooLarge) {
             say(e.message ?: "")
-            return@let null
+            return null
         }
         if (Sharing.tooLongToHand(code)) {
             say("That is too much to hand to another app as one code. Share fewer notes at a time, " +
                 "or send a backup instead: Settings → Backup.")
-            return@let null
+            return null
         }
         // The desktop's warning: a code carries the words, never the files.
         if (notes.any { ((it.opt("attachments") as? org.json.JSONArray)?.length() ?: 0) > 0 }) {
             say("Sent without its files: a code carries the words only. A backup carries files too.")
         }
-        code
+        return code
     }
 
     // ---- the Trash ----

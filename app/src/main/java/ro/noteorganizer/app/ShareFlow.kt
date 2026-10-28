@@ -22,6 +22,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,13 +62,20 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
     val note = state.rawNote(noteId)
     val table = note != null && Outgoing.hasTable(note)
     // Said before the tap, as a table is: past what may be handed over as
-    // words, the note goes as a page.
-    val words = remember(note) { if (note == null || table) null else Outgoing.text(note, Exporting.titleOf(note)) }
+    // words, the note goes as a page. And the code, said before the tap as
+    // the words are: refused only after it, the person learnt of the
+    // ceiling when it was too late to choose. Both weighed away from the
+    // screen's thread -- the code is the note's whole text deflated, and
+    // the sheet of a note of some megabytes opened only once that was done
+    // (the final audit's fifth round). Until then the cards read as for a
+    // note that fits; a tap meanwhile is refused after it, as it always was.
     val subject = remember(note) { note?.let { Outgoing.subject(Exporting.titleOf(it)) } ?: "" }
-    val tooLong = words != null && Outgoing.tooLongForWords(words, subject)
-    // The code, said before the tap as the words are: refused only after
-    // it, the person learnt of the ceiling when it was too late to choose.
-    val code = remember(note) { note?.let { Outgoing.codeFor(it) } }
+    val weighed by produceState<Weighed?>(null, note) {
+        value = note?.let { withContext(Dispatchers.Default) { Weighed.of(it, table, subject) } }
+    }
+    val words = weighed?.words
+    val tooLong = weighed?.tooLong == true
+    val code = weighed?.code
     fun go(format: String) {
         onDismiss()
         // On the app's own scope: the sheet is gone before the PDF is.
@@ -101,6 +110,16 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
                 Text(stringResource(R.string.share_no_files), color = palette.subtext, fontSize = 13.sp)
             }
             Text(stringResource(R.string.share_how), color = palette.subtext, fontSize = 13.sp)
+        }
+    }
+}
+
+/** What the Share sheet says of a note's words and its code, before the tap. */
+internal class Weighed(val words: String?, val tooLong: Boolean, val code: Outgoing.Code) {
+    companion object {
+        fun of(note: JSONObject, table: Boolean, subject: String): Weighed {
+            val words = if (table) null else Outgoing.text(note, Exporting.titleOf(note))
+            return Weighed(words, words != null && Outgoing.tooLongForWords(words, subject), Outgoing.codeFor(note))
         }
     }
 }

@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DropdownMenu
@@ -253,7 +254,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                 text = { Text(stringResource(R.string.share_code)) },
                                 onClick = {
                                     moreMenu = false
-                                    state.shareCode(selected)?.let { sendText(state, it) }
+                                    val chosen = selected
+                                    state.scope.launch { state.shareCode(chosen)?.let { sendText(state, it) } }
                                 },
                             )
                             val everything = Showing.visibleIds(laidOut)

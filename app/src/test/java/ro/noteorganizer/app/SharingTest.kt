@@ -65,6 +65,29 @@ class SharingTest {
     }
 
     @Test
+    fun `a note past what a code may hold is refused before it is deflated`() {
+        // Weighed only after the deflate at level 9, the dearest step, such a
+        // note cost the whole of it to be refused -- on the screen's thread,
+        // as the Share sheet opened. Timed against writing its text out once,
+        // the work the refusal still does, so no machine's speed moves the margin.
+        val words = listOf("milk", "bread", "a long day", "walked to the river", "Tuesday", "7:30")
+        val random = java.util.Random(11)
+        val body = StringBuilder()
+        while (body.length <= Sharing.MAX_DECOMPRESSED_BYTES) body.append(words[random.nextInt(words.size)]).append(' ').append(random.nextInt(1000)).append('\n')
+        val big = note("{}").put("body", body.toString())
+        fun ms(work: () -> Unit): Long {
+            val started = System.nanoTime()
+            work()
+            return (System.nanoTime() - started) / 1_000_000
+        }
+        fun refused() = try { Sharing.encode(listOf(big)); false } catch (e: Sharing.TooLarge) { true }
+        assertTrue(refused())
+        val written = (1..2).minOf { ms { big.toString().toByteArray(Charsets.UTF_8) } }
+        val weighed = (1..2).minOf { ms { assertTrue(refused()) } }
+        assertTrue("refused in $weighed ms, the text written out in $written ms", weighed <= 4 * written + 150)
+    }
+
+    @Test
     fun `diacritics and emoji come back exactly`() {
         val original = note("""{"title": "Mașină", "body": "Ștefan 👣 și"}""")
         val back = (Sharing.decode(Sharing.encode(listOf(original)))
