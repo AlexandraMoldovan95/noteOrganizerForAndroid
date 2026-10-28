@@ -361,6 +361,31 @@ class DaysTest {
         assertEquals("agenda", onDisk(reread).getJSONObject("_prev").getString("body"))
     }
 
+    @Test
+    fun `a big delete's copy that carried an earlier turn-off's days still gives its words to the next turn-off`() {
+        // Turned off, the series' days live in its copy alone; turned on
+        // again, a day given its own text, a big delete: its copy is the
+        // words and, carried, the first time's days. The second turn-off
+        // took only a copy of words alone, and dropped the deleted ones.
+        val paragraph = "A paragraph of three hundred letters, written once and deleted. ".repeat(5)
+        val load = scratch(series.replace("\"body\": \"agenda\"", "\"body\": \"agenda\\n$paragraph\""))
+        Days.saveDay(load, 1, "2026-10-12", "Moved to room 4", "agenda\n$paragraph", "", "Work", "")
+        assertTrue(Days.setRepeat(load, 1, null) is SaveResult.Ok)
+        assertTrue(Days.setRepeat(load, 1, JSONObject("""{"freq": "weekly", "weekdays": [0]}""")) is SaveResult.Ok)
+        Days.saveDay(load, 1, "2026-10-26", "Cancelled, see email", "agenda\n$paragraph", "", "Work", "")
+        assertTrue(Notebook.updateNote(load, 1, "Stand-up", "agenda") is SaveResult.Ok)
+        val delete = onDisk(load).getJSONObject("_prev")
+        assertEquals("agenda\n$paragraph", delete.getString("body"))
+        assertEquals("the first time's day, carried", "Moved to room 4", dayTitle(delete, "2026-10-12"))
+        assertTrue(Days.setRepeat(load, 1, null) is SaveResult.Ok)
+        val prev = onDisk(load).getJSONObject("_prev")
+        assertEquals("the deleted words", "agenda\n$paragraph", prev.getString("body"))
+        assertEquals("weekly", prev.getJSONObject("recurrence").getString("freq"))
+        assertEquals("Cancelled, see email", dayTitle(prev, "2026-10-26"))
+        assertEquals("Moved to room 4", dayTitle(prev, "2026-10-12"))
+        assertEquals("the note keeps its newest words", "agenda", onDisk(load).getString("body"))
+    }
+
     // ---- a repeat ended by a share code ----
 
     /** The sender's copy of the series: same uid, the words changed, the repeat as [rule]. */

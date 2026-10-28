@@ -1863,10 +1863,18 @@ object Notebook {
      * the note as it stood, replaced the delete's, and the deleted words
      * were in no copy (the desktop's `_turn_off_rescue_copy`). The note
      * keeps its newest words itself: a turn-off changes none of them.
+     *
+     * A copy of words may also hold days: an earlier turn-off moved the
+     * series' days out of the note into its copy, and the copy made over
+     * that one carries them ([carryDays]) -- where the desktop keeps them in
+     * the note, and its later copies stay words alone. Refused for them,
+     * a big delete's words were dropped at the next turn-off (the final
+     * audit's fifth round). Its words are taken here, its days by the
+     * [carryDays] that follows.
      */
     internal fun takeUnspentWords(copy: JSONObject, note: JSONObject) {
         val existing = note.opt("_prev") as? JSONObject ?: return
-        if (existing.keys().asSequence().any { it !in PREV_TEXT_FIELDS } || spent(note, existing)) return
+        if (existing.keys().asSequence().any { it !in PREV_TEXT_FIELDS && it !in DAY_FIELDS } || spent(note, existing)) return
         for (field in PREV_TEXT_FIELDS) if (existing.has(field)) copy.put(field, deepCopy(existing.get(field)))
     }
 
