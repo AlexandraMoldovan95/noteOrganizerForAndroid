@@ -403,6 +403,59 @@ class ImportingTest {
         assertEquals("the arriving copy keeps its identity", "u-diary", titles[1].getString("uid"))
     }
 
+    @Test
+    fun `two arriving notes with one identity update one note once, the second coming in as its own`() {
+        // Both claimed the note here: the question counted two, Update ran
+        // twice on it, and the second's rescue copy was the first arrival --
+        // the phone's own words in no copy.
+        val load = notebook("""[{"id": 1, "uid": "dup", "title": "Groceries", "body": "MY OWN WORDS typed on the phone"}]""",
+            trash = "[]")
+        val plan = Importing.plan(load.raw!!, notes("""
+            [{"uid": "dup", "title": "Groceries", "body": "version A from the code"},
+             {"uid": "dup", "title": "Groceries", "body": "version B from the code"}]
+        """.trimIndent()), Importing.Source.CODE)
+        assertEquals("one note here, one question", 1, plan.differing.size)
+        assertEquals(1, plan.fresh.size)
+        assertFalse(plan.fresh.single().has("uid"))
+        val result = Importing.apply(load, plan, Importing.Answers(update = true),
+            File(dir(load), "attachments")) as Importing.Result.Done
+        assertEquals(1, result.outcome.updated)
+        assertEquals(1, result.outcome.added)
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals("version A from the code", after[0].getString("body"))
+        assertEquals("the phone's words in the copy", "MY OWN WORDS typed on the phone",
+            after[0].getJSONObject("_prev").getString("body"))
+        assertEquals("version B from the code", after[1].getString("body"))
+        assertTrue(after[1].getString("uid") != "dup")
+        // Two new notes with one identity: both added, each its own.
+        val fresh = notebook("[]", trash = "[]")
+        val pair = Importing.plan(fresh.raw!!, notes("""
+            [{"uid": "dup2", "title": "First", "body": "1"}, {"uid": "dup2", "title": "Second", "body": "2"}]
+        """.trimIndent()), Importing.Source.CODE)
+        Importing.apply(fresh, pair, Importing.Answers(), File(dir(fresh), "attachments"))
+        val uids = onDisk(fresh).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("uid") } }
+        assertEquals(2, uids.toSet().size)
+        assertEquals("dup2", uids[0])
+    }
+
+    @Test
+    fun `a note restored from the Trash while a backup is planned does not come in a second time wearing its identity`() {
+        // Planned as new -- it was in the Trash at Continue -- and back by
+        // the time of apply: added wearing the same uid, nobody asked.
+        val load = notebook("""[{"id": 1, "uid": "other", "title": "Other", "body": "o"}]""",
+            trash = """[{"id": 2, "uid": "trip", "title": "Trip", "body": "the phone's", "deleted_at": "2026-10-28 10:00:00"}]""")
+        val plan = Importing.plan(JSONArray(load.raw!!.toString()), notes("""
+            [{"uid": "trip", "title": "Trip", "body": "the backup's"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertEquals(1, plan.fresh.size)
+        assertTrue(Organizing.restore(load, listOf(Organizing.TrashKey(2, "2026-10-28 10:00:00", "trip"))) is SaveResult.Ok)
+        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments")) as Importing.Result.Done
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Other", "Trip", "Trip"), after.map { it.getString("title") })
+        assertEquals(3, after.map { it.getString("uid") }.toSet().size)
+        assertEquals("trip", after.single { it.getString("body") == "the phone's" }.getString("uid"))
+    }
+
     // ---- files ----
 
     @Test

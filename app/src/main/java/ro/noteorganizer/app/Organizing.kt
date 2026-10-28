@@ -41,6 +41,22 @@ object Organizing {
         return -1
     }
 
+    /**
+     * Where the note an action was taken on stands now, taken on [id] and
+     * known by [uid] when it has one: the note at [id] while it still wears
+     * that uid; else the first note wearing it -- Undo brought it back from
+     * the Trash under a new id; else -1, its id freed and perhaps another
+     * note's now. Never the first wearing the uid while the note at [id]
+     * wears it too: two notes can wear one, from a code or a backup that
+     * held them so, and files picked for the second went to the first.
+     */
+    internal fun indexOfNote(array: JSONArray, id: Int, uid: String?): Int {
+        val byId = indexOfId(array, id)
+        if (uid.isNullOrEmpty()) return byId
+        if (byId >= 0 && ((array.opt(byId) as? JSONObject)?.opt("uid") as? String) == uid) return byId
+        return indexOfUid(array, uid)
+    }
+
     internal fun maxId(array: JSONArray): Int {
         var max = 0
         for (i in 0 until array.length()) {
@@ -269,10 +285,10 @@ object Organizing {
         // one: a copy that outlives the editor ends after the person may have
         // sent that note to the Trash and made another, which takes the freed
         // id -- and the files went to the new note, unsaid. And by the uid
-        // FIRST, not the id checked against it: Undo brings a note back from
-        // the Trash under a new id, and its files were refused as "no longer
-        // here" with the note in the list.
-        val index = if (!uid.isNullOrEmpty()) indexOfUid(array, uid) else indexOfId(array, id)
+        // when the id no longer holds it: Undo brings a note back from the
+        // Trash under a new id, and its files were refused as "no longer
+        // here" with the note in the list ([indexOfNote]).
+        val index = indexOfNote(array, id, uid)
         if (index < 0) {
             return Attached(SaveResult.Failed("The note these files were picked for is no longer here, " +
                 "so nothing was attached."), 0, emptyList())

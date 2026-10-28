@@ -169,6 +169,14 @@ object Importing {
             else fileUnder(JSONObject(note.toString()), categories)
         }
         val byUid = positions(notebook)
+        // Each identity is claimed by the first note arriving with it. A code
+        // or a backup holding two with one identity updated one note twice --
+        // the question counted two, and the second update's rescue copy was
+        // the first arrival, the person's own words in no copy -- or, both
+        // new, added two notes wearing it, and files picked for the second
+        // went to the first. A second comes in as a note of its own.
+        val claimed = HashSet<String>()
+
         val differing = ArrayList<Known>()
         val unchanged = ArrayList<Known>()
         val fresh = ArrayList<JSONObject>()
@@ -176,6 +184,10 @@ object Importing {
         var rescued = 0
         for (theirs in incoming) {
             val uid = uidOf(theirs)
+            if (uid != null && !claimed.add(uid)) {
+                fresh.add(withoutIdentity(theirs))
+                continue
+            }
             val at = uid?.let { byUid[it] }
             if (uid == null || at == null) {
                 fresh.add(theirs)
@@ -280,14 +292,20 @@ object Importing {
      * Trash while the plan was made away from the screen -- arrives as a
      * new note, as the plan would have sorted it a moment later. Nothing
      * here wears its identity any more, so nothing here is replaced by it.
+     *
+     * And the other way: a note planned as new whose identity a note here
+     * wears now -- restored from the Trash while the plan was made -- comes
+     * in as a note of its own. Added wearing it, the notebook held two notes
+     * with one identity, and nobody had been asked.
      */
     private fun stillMatched(plan: Plan, at: Map<String, Int>): Plan {
         val gone = (plan.differing + plan.unchanged).filter { it.uid !in at }.toSet()
-        if (gone.isEmpty()) return plan
+        val back = plan.fresh.filter { note -> uidOf(note)?.let { it in at } == true }.toSet()
+        if (gone.isEmpty() && back.isEmpty()) return plan
         return plan.copy(
             differing = plan.differing.filter { it !in gone },
             unchanged = plan.unchanged.filter { it !in gone },
-            fresh = plan.fresh + gone.map { it.theirs },
+            fresh = plan.fresh.map { if (it in back) withoutIdentity(it) else it } + gone.map { it.theirs },
         )
     }
 

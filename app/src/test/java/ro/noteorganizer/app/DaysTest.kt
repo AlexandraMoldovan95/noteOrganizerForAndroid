@@ -238,6 +238,20 @@ class DaysTest {
     }
 
     @Test
+    fun `a day's Undo goes to the note it was taken on, of two wearing one identity`() {
+        val two = """[{"id": 1, "uid": "s", "title": "First", "body": "", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}},
+            {"id": 2, "uid": "s", "title": "Second", "body": "", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}}]"""
+        val load = scratch(two)
+        val (_, gone) = Days.deleteDay(load, 2, "2026-10-12")
+        assertTrue(Days.undoDeleteDay(load, gone!!) is SaveResult.Ok)
+        val after = JSONArray(load.file!!.readText())
+        assertEquals(0, after.getJSONObject(1).getJSONArray("exceptions").length())
+        assertEquals(0, after.getJSONObject(0).optJSONArray("exceptions")?.length() ?: 0)
+    }
+
+    @Test
     fun `resetting a day drops its own edit, and a moved day goes home`() {
         val load = scratch(series)
         Days.saveDay(load, 1, "2026-10-12", "Own", "agenda", "", "Work", "")

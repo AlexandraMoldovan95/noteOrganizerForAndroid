@@ -595,6 +595,20 @@ class OrganizingTest {
     }
 
     @Test
+    fun `files picked for one of two notes wearing one identity go to that one, not the first`() {
+        // A code or a backup holding two notes with one uid; looked up by
+        // the first note wearing it, files picked in the second went to the
+        // first, unsaid. A day's Undo looked its note up the same way.
+        val load = notebook("""[{"id": 2, "uid": "dup", "title": "First"}, {"id": 3, "uid": "dup", "title": "Second"}]""")
+        assertEquals(SaveResult.Ok(3), Organizing.attach(load, 3, attachments(load), listOf(incoming("pic.png", "PNG")), uid = "dup").result)
+        val after = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf(0, 1), after.map { it.optJSONArray("attachments")?.length() ?: 0 })
+        assertEquals(1, Organizing.indexOfNote(load.raw!!, 3, "dup"))
+        assertEquals("its id gone, the first wearing it", 0, Organizing.indexOfNote(load.raw!!, 9, "dup"))
+        assertEquals("its id another note's, nothing", -1, Organizing.indexOfNote(load.raw!!, 2, "elsewhere"))
+    }
+
+    @Test
     fun `a file taken off a note is deleted, unless another note or the Trash still uses it`() {
         val load = notebook("""
             [{"id": 1, "attachments": [{"filename": "a", "stored_as": "a.png"}, {"filename": "b", "stored_as": "b.png"},

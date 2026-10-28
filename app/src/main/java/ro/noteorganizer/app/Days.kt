@@ -258,16 +258,22 @@ object Days {
     }
 
     /**
+     * The id of the note a day's action was taken on, as it stands now
+     * ([Organizing.indexOfNote]): by the first note wearing its identity,
+     * an Undo went to the other of two notes wearing one.
+     */
+    private fun idOf(array: JSONArray, id: Int, uid: String): Int? =
+        Organizing.indexOfNote(array, id, uid).takeIf { it >= 0 }
+            ?.let { ((array.opt(it) as? JSONObject)?.opt("id") as? Number)?.toInt() }
+
+    /**
      * The Undo of [deleteDay]: the day back, its own edit and its move with
      * it -- on the note with the same identity, which an id freed since may
      * no longer name.
      */
     fun undoDeleteDay(load: Notebook.Load, gone: DayGone): SaveResult {
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val id = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-            .firstOrNull { gone.uid.isNotEmpty() && it.opt("uid") == gone.uid || gone.uid.isEmpty() && it.opt("id") == gone.id }
-            ?.let { (it.opt("id") as? Number)?.toInt() }
-            ?: return SaveResult.Failed("That note is no longer here.")
+        val id = idOf(array, gone.id, gone.uid) ?: return SaveResult.Failed("That note is no longer here.")
         return edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "That note no longer repeats, so the day can't come back."
             val skipped = gone.cameFrom ?: gone.day
@@ -382,10 +388,7 @@ object Days {
      */
     fun undoMoveDay(load: Notebook.Load, move: DayMove): SaveResult {
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val id = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-            .firstOrNull { move.uid.isNotEmpty() && it.opt("uid") == move.uid || move.uid.isEmpty() && it.opt("id") == move.id }
-            ?.let { (it.opt("id") as? Number)?.toInt() }
-            ?: return SaveResult.Failed("That note is no longer here.")
+        val id = idOf(array, move.id, move.uid) ?: return SaveResult.Failed("That note is no longer here.")
         return edit(load, id) { note ->
             val on = Recurrence.parseDate(move.to)
             if (!Recurrence.isRecurring(note) || on == null ||
