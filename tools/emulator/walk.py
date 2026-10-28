@@ -432,6 +432,7 @@ def main():
     day_turns_open(folder)
     template_long_comments(folder)
     answers_after_restart(folder)
+    limits_round3(folder)
 
     print()
     if failures:
@@ -1823,6 +1824,23 @@ def google_backup(folder):
     check("a restore of it brings back no note, only the mark",
           "phone_google_backup_off.json" in held and "notes_data.json" not in held,
           "sets: %r, restore: %r, notebook: %r" % (sets[-120:], restored[-200:], held[-200:]))
+    # Android's backup can run on the restored app before it is first opened
+    # -- a new phone charging overnight. Read from settings.json alone, which
+    # a restore does not bring, that was "on": the mark, the only record of
+    # the person's off, was deleted and nothing kept, and the app came up on.
+    early = adb("shell", "bmgr", "backupnow", PACKAGE)
+    ran = "%s with result: Success" % PACKAGE in early
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("a backup of the restored app before its first start keeps the mark, and takes nothing else",
+          ran and "phone_google_backup_off.json" in held and "notes_data.json" not in held,
+          "backup ran: %s (%r), notebook: %r" % (ran, early[-160:], held[-200:]))
+    adb("shell", "pm", "clear", PACKAGE)
+    if token:
+        adb("shell", "bmgr", "restore", token, PACKAGE)
+    time.sleep(3.0)
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("... and restored from that backup, the mark comes back", "phone_google_backup_off.json" in held,
+          "notebook: %r" % held[-200:])
     start_app()
     check_settled("... and the app restored starts with the switch off",
                   lambda: (read_file("settings.json") or {}).get("phone_google_backup"), lambda value: value is False)
@@ -3147,6 +3165,215 @@ def long_lines(folder):
           shown and find("Copy", exact=True) is not None and max(skipped or [0]) < 60, "skipped %s" % skipped)
     shot(folder, "93-code-too-long", "A code of")
     tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def limits_round3(folder):
+    """The final audit's third round, walked: text the layout cannot break
+    that the first rule let through -- joined by no-break spaces, a hundred
+    lines just under the limit, a run inside a table's cell -- each opens at
+    once, shown read-only; a template saved from a note with a 150,000-letter
+    row opens at once; the bar quotes that row short when its ✕ takes it off,
+    and Undo puts it back whole; Duplicate quotes a 150,000-letter title
+    short; a note too long for a message says so on the Share sheet; a page
+    shared of a table too large to draw is made without holding the app; and
+    a PDF that stops at forty pages says so."""
+    print("\n-- round three's limits: what the layout cannot break, and what is quoted --")
+    w = "W" * 150_000
+    heavy = "a" * 9_999
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r3-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+    notes = [note(1, "NBSP body", body="Above\n" + "word\u00a0" * 30_000 + "\nBelow"),
+             note(2, "Cell run", body="Words before\n| " + w + " | x |\nwords after"),
+             # In the comments, a field of their own near the top: in the body
+             # the two lines let in fill a screen a hundred times over, and the
+             # read-only rest is out of sight. The body's rule is the same
+             # function, held by EditingTest.
+             note(3, "Many heavy", comments="\n".join([heavy] * 100)),
+             note(4, "Row for template", checklist=[{"text": w, "done": False}, {"text": "milk", "done": False}]),
+             note(5, "T" * 150_000)]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", notes)
+    put_inside("settings.json", {"welcome_offered": True})
+    start_app()
+    says_soon("NBSP body", within=20.0)
+
+    def opens_read_only(title, label):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        opened = open_note(title, limit=30.0)
+        time.sleep(1.5)
+        if screen_says("too long to show here") and screen_says("Comments") == []:
+            tap("Comments", wait=1.5)       # folded away under its label
+        took = max(frames_since_reset() or [99.0])
+        check("%s opens within a second, read-only, and says so" % label,
+              opened and took < 1.0 and not screen_says("too long to show here"),
+              "%.2f s, %s" % (took, screen_says("too long to show here")))
+        return opened
+
+    if opens_read_only("NBSP body", "a line of 150,000 letters joined by no-break spaces"):
+        shot(folder, "94-nbsp-line-read-only", "too long to show here")
+    opens_read_only("Cell run", "a table whose cell holds 150,000 letters")
+    if opens_read_only("Many heavy", "a hundred lines of 9,999 letters"):
+        shot(folder, "95-heavy-lines-read-only", "too long to show here")
+
+    # The ✕ of a row too long to lay out: the bar quotes it short, and Undo
+    # puts back every letter.
+    back_to("Search notes")
+    open_note("Row for template", limit=30.0)
+    time.sleep(1.0)
+    if screen_says("milk"):
+        tap("Checklist", wait=1.5)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tapped = tap("Remove WWWWWWWWWW", wait=0.3)
+    message = settle(lambda: next((t for t, d, _ in nodes() if t.startswith("Removed “")), ""), bool, within=6.0, first=0)
+    took = max(frames_since_reset() or [99.0])
+    check("the ✕ of a 150,000-letter row is said in a bar of a short quote, the screen not held",
+          tapped and message.startswith("Removed “WWWW") and message.endswith("” from the checklist")
+          and len(message) < 130 and took < 1.0, "%r (%d), %.2f s" % (message[:140], len(message), took))
+    shot(folder, "96-row-removed-quoted", "Removed")
+    tap_last("Undo", wait=1.5)       # the bar's, not the editor's ↶, also called Undo
+    rows = settle(lambda: (note_by_uid("r3-4") or {}).get("checklist") or [], lambda r: len(r) == 2, first=0.5)
+    check("... and Undo puts the row back whole", [r.get("text") for r in rows] == [w, "milk"],
+          repr([len(r.get("text", "")) for r in rows]))
+
+    # Saved as a template, the row goes whole into it; the template editor
+    # opens at once and shows the row as the note does.
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    check("the template keeps the row whole", bool(saved) and (saved[0].get("checklist") or [{}])[0].get("text") == w)
+    back_to("Search notes")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("Row for template", exact=True, wait=2.0)
+    took = max(frames_since_reset() or [99.0])
+    check("the template editor opens within a second, the long row read-only",
+          took < 1.0 and not screen_says("Edit template", "too long to show here"),
+          "%.2f s, %s" % (took, screen_says("Edit template", "too long to show here")))
+    shot(folder, "97-template-long-row", "too long to show here")
+    back_to("Search notes", tries=6)
+
+    # Duplicate's bar quotes a 150,000-letter title short.
+    open_note("TTTTTTTTTT", limit=30.0)
+    tap("⋮", exact=True)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("📄 Duplicate", wait=0.3)
+    message = settle(lambda: next((t for t, d, _ in nodes() if t.startswith("Duplicated as")), ""), bool, within=6.0, first=0)
+    took = max(frames_since_reset() or [99.0])
+    check("Duplicate of a 150,000-letter title says so in a short quote, the screen not held",
+          message.startswith("Duplicated as “TTTT") and len(message) < 110 and took < 1.0,
+          "%r (%d), %.2f s" % (message[:120], len(message), took))
+    copies = [n for n in read_file("notes_data.json") or [] if (n.get("title") or "").startswith("TTTT")]
+    check("... and the copy keeps the whole title", len(copies) == 2 and all(len(n["title"]) >= 150_000 for n in copies),
+          repr([len(n.get("title", "")) for n in copies]))
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("the file holds every note as it was",
+          [n.get("body") for n in kept[:5]] == [n["body"] for n in notes]
+          and [n.get("comments") for n in kept[:5]] == [n.get("comments") for n in notes])
+
+    # What goes out: a notebook of its own, so each note is on the screen.
+    shared = [note(9, "Two hundred thousand", body="Today I walked to the river and back again.\n" * 4_545),
+              note(10, "Under the line", body="Today I walked to the river and back again.\n" * 2_250),
+              note(6, "Journal", body="Today I walked to the river and back again.\n" * 7_000),
+              note(7, "Empty cells", body="|" * 50_001),
+              note(8, "Forty pages", body="\n".join(
+                  "Line %d of a note that goes on far past forty pages." % i for i in range(1, 3001)))]
+    if not seed_inside(shared, {"welcome_offered": True}, "Two hundred thousand"):
+        return
+
+    def focused():
+        """The package of the window with the focus: the share sheet is a
+        window over the app (the sharing part's own reading)."""
+        out = adb("shell", "dumpsys", "window")
+        match = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", out)
+        return match.group(1) if match else foreground()
+
+    def handed(seconds):
+        deadline = time.time() + seconds
+        while focused() == PACKAGE and time.time() < deadline:
+            time.sleep(0.5)
+        return focused()
+
+    def back_in():
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.2)
+        if focused() != PACKAGE:
+            adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+            time.sleep(2.0)
+
+    # Words too long for a message: the Share sheet says so before the tap.
+    open_note("Journal", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("a note of 308,000 characters offers no words alone, and says why",
+          find("Too long for a message") is not None)
+    shot(folder, "98-share-too-long-for-words", "Too long for a message")
+    tap("Text", exact=True, wait=1.2)
+    check("... and Text does nothing", find("Share this note as") is not None and focused() == PACKAGE, focused())
+    back()
+    back_to("Search notes")
+    # The line where Android delivers the share sheet: 200,000 characters
+    # never reached it, unsaid; refused here, with the reason. And words
+    # under the line still go.
+    open_note("Two hundred thousand", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("200,000 characters, past what Android delivers to the share sheet, are refused with the reason",
+          find("Too long for a message") is not None, " | ".join(t for t, d, _ in nodes() if t)[:200])
+    back()
+    back_to("Search notes")
+    open_note("Under the line", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    adb("logcat", "-c")
+    tap("Text", exact=True, wait=0.3)
+    sheet = handed(15.0)
+    check("99,000 characters of words reach the share sheet",
+          sheet != PACKAGE and "TransactionTooLarge" not in adb("logcat", "-d"), sheet)
+    back_in()
+    back_to("Search notes")
+
+    # A page of a table of 50,000 empty cells: made away from the screen,
+    # in a moment, where it took billions of steps on the screen's thread.
+    open_note("Empty cells", limit=30.0)
+    tap("Share", exact=True, wait=1.0)
+    adb("logcat", "-c")
+    started = time.time()
+    tapped = tap("Web page", exact=True, wait=0.2)
+    sheet = handed(30.0)
+    took = time.time() - started
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    anr = "ANR in " + PACKAGE in adb("logcat", "-d", "-b", "events,main,system")
+    check("a page of a table of 50,000 empty cells reaches the share sheet without holding the app",
+          tapped and sheet != PACKAGE and not anr and bool(pid), "%s after %.1f s, ANR %s" % (sheet, took, anr))
+    back_in()
+    back_to("Search notes")
+
+    # A PDF that stops at forty pages says so, before the share sheet.
+    open_note("Forty pages", limit=30.0)
+    tap("Share", exact=True, wait=1.0)
+    tap("PDF", exact=True, wait=0.3)
+    sheet = handed(30.0)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Forty pages.pdf", binary=True)
+    with open(os.path.join(folder, "99-forty-pages.pdf"), "wb") as f:
+        f.write(pdf)
+    # The line at the foot of its last page is drawn as glyphs, which this
+    # cannot read back; its pages it can, and the walk keeps the file.
+    check("a PDF of a note longer than forty pages is the forty pages", sheet != PACKAGE and page_count(pdf) == 40,
+          "%s, %d pages" % (sheet, page_count(pdf)))
+    # Said just before the share sheet covered the app, and still there,
+    # for ten seconds, when the person comes back from it.
+    back_in()
+    said_pages = settle(lambda: next((t for t, d, _ in nodes() if "first 40 pages" in t), ""), bool, within=6.0, first=0)
+    check("... and the app says it holds only the first forty, and what carries all of it",
+          "The PDF holds this note's first 40 pages" in said_pages and "web page carries all of it" in said_pages,
+          repr(said_pages))
+    shot(folder, "99-pdf-first-pages", "first 40 pages")
     back_to("Search notes")
 
 
