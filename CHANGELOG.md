@@ -353,6 +353,14 @@ do before, not as releases anyone ran.
   on. The mark is now the answer until the start writes it into the
   settings, for Android's backup and for Settings → Backup alike. Found
   by the final audit's third round.
+- **A note sent to the Trash while a backup is read can no longer turn
+  its Update onto another note.** The import's plan is made while the
+  list stays usable, and it remembered each note by its place in the
+  list: one note trashed meanwhile moved the rest up, and "Update" wrote
+  the backup's copy over the note below the right one. Each is found by
+  its own identity now; one that has gone in the meantime comes in as a
+  new note, as it would have had it gone first. Found by the final
+  audit's third round.
 
 ---
 

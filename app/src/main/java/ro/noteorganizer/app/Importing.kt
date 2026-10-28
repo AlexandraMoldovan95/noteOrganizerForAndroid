@@ -36,8 +36,31 @@ object Importing {
 
     enum class Source(val word: String) { CODE("code"), BACKUP("backup") }
 
-    /** A note this device has, and the copy that arrived for it. */
-    data class Known(val mineIndex: Int, val theirs: JSONObject)
+    /**
+     * A note this device has, known by the identity both copies wear
+     * ([uid], trimmed), and the copy that arrived for it. Never by its
+     * place in the list: a plan is made away from the screen while the list
+     * can still change, and a note sent to the Trash meanwhile moved every
+     * note after it up one -- Update then rewrote a different note with the
+     * arriving copy, and left the one it was for as it was.
+     */
+    data class Known(val uid: String, val theirs: JSONObject)
+
+    /**
+     * Where each identity first stands in [notebook]: how the plan matched
+     * an arriving note, and how [apply] finds it again in the list as it is
+     * when the answers are written.
+     */
+    private fun positions(notebook: JSONArray): Map<String, Int> {
+        val byUid = HashMap<String, Int>()
+        for (i in 0 until notebook.length()) {
+            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.trim()
+            if (!uid.isNullOrEmpty()) byUid.putIfAbsent(uid, i)
+        }
+        return byUid
+    }
+
+    private fun uidOf(note: JSONObject): String? = (note.opt("uid") as? String)?.trim()?.ifEmpty { null }
 
     data class Plan(
         val source: Source,
@@ -139,23 +162,20 @@ object Importing {
             if (categories == null || !needsFiling(note, categories)) note
             else fileUnder(JSONObject(note.toString()), categories)
         }
-        val byUid = HashMap<String, Int>()
-        for (i in 0 until notebook.length()) {
-            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.trim()
-            if (!uid.isNullOrEmpty()) byUid.putIfAbsent(uid, i)
-        }
+        val byUid = positions(notebook)
         val differing = ArrayList<Known>()
         val unchanged = ArrayList<Known>()
         val fresh = ArrayList<JSONObject>()
         var older = 0
         for (theirs in incoming) {
-            val at = (theirs.opt("uid") as? String)?.trim()?.ifEmpty { null }?.let { byUid[it] }
-            if (at == null) {
+            val uid = uidOf(theirs)
+            val at = uid?.let { byUid[it] }
+            if (uid == null || at == null) {
                 fresh.add(theirs)
                 continue
             }
             val mine = notebook.getJSONObject(at)
-            val known = Known(at, theirs)
+            val known = Known(uid, theirs)
             if (differs(asHere(mine), asHere(theirs), source)) {
                 differing.add(known)
                 if (source == Source.BACKUP &&
@@ -232,7 +252,9 @@ object Importing {
      * [remaining] makes are new objects every time it is asked.
      */
     private fun notebookKeys(notebook: JSONArray, plan: Plan, update: Boolean): Set<String> {
-        val replaced = if (update) plan.differing.map { it.mineIndex }.toSet() else emptySet()
+        // The notes the updates replace, found by identity in THIS list.
+        val replaced = if (update) positions(notebook).let { at -> plan.differing.mapNotNull { at[it.uid] }.toSet() }
+                       else emptySet()
         val keys = HashSet<String>()
         for (i in 0 until notebook.length()) {
             if (i in replaced) continue
@@ -243,6 +265,23 @@ object Importing {
     }
 
     private fun keyOf(note: JSONObject): String = Normalize.dupKey(Normalize.normalizeNote(note))
+
+    /**
+     * [plan] as it stands against the list as it is now ([at], from
+     * [positions]): a note it matched that has gone since -- sent to the
+     * Trash while the plan was made away from the screen -- arrives as a
+     * new note, as the plan would have sorted it a moment later. Nothing
+     * here wears its identity any more, so nothing here is replaced by it.
+     */
+    private fun stillMatched(plan: Plan, at: Map<String, Int>): Plan {
+        val gone = (plan.differing + plan.unchanged).filter { it.uid !in at }.toSet()
+        if (gone.isEmpty()) return plan
+        return plan.copy(
+            differing = plan.differing.filter { it !in gone },
+            unchanged = plan.unchanged.filter { it !in gone },
+            fresh = plan.fresh + gone.map { it.theirs },
+        )
+    }
 
     /** What would be added as new notes before the look-alike question. */
     private fun remaining(plan: Plan, update: Boolean): List<JSONObject> =
@@ -280,7 +319,7 @@ object Importing {
 
     private fun applyWhole(
         load: Notebook.Load,
-        plan: Plan,
+        planned: Plan,
         answers: Answers,
         attachmentsDir: File?,
         extras: Extras,
@@ -322,13 +361,18 @@ object Importing {
         for (i in 0 until trash.length()) (trash.opt(i) as? JSONObject)?.let { claimed += storedNames(it) }
 
         val candidate = JSONArray(notebook.toString())
+        // Each note the plan matched, found again by its identity in the
+        // list as it is now: the plan was made away from the screen, against
+        // the list as it was then.
+        val at = positions(candidate)
+        val plan = stillMatched(planned, at)
 
         // 2. The updates agreed to.
         var updated = 0
         var firstId = 0
         if (answers.update) {
             for (known in plan.differing) {
-                val mine = candidate.getJSONObject(known.mineIndex)
+                val mine = candidate.getJSONObject(at.getValue(known.uid))
                 val theirs = Normalize.normalizeNote(known.theirs)
                 // A category this device does not have files the note under
                 // General, as normalize_note files it on the desktop.

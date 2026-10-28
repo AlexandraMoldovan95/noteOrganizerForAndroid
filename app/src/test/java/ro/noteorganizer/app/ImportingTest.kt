@@ -62,7 +62,10 @@ class ImportingTest {
         assertEquals(listOf("milk"), JSONArray(File(dir(load), "templates.json").readText()).getJSONObject(0)
             .getJSONArray("checklist").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("text") } })
         // And whatever else a reading misses is refused, never the app stopped.
-        val stale = Importing.Plan(Importing.Source.CODE, 1, listOf(Importing.Known(99, JSONObject())), emptyList(), emptyList(), 0)
+        val unreadable = object : JSONObject() {
+            override fun opt(key: String?): Any? = throw IllegalStateException("a reading missed this")
+        }
+        val stale = Importing.Plan(Importing.Source.CODE, 1, emptyList(), emptyList(), listOf(unreadable), 0)
         assertTrue(Importing.apply(load, stale, Importing.Answers(update = true), null) is Importing.Result.Failed)
     }
 
@@ -117,8 +120,8 @@ class ImportingTest {
              {"title": "No identity"}]
         """.trimIndent())
         assertEquals(5, plan.total)
-        assertEquals(listOf(0, 2), plan.differing.map { it.mineIndex })
-        assertEquals(listOf(1), plan.unchanged.map { it.mineIndex })
+        assertEquals(listOf("a", "c"), plan.differing.map { it.uid })
+        assertEquals(listOf("b"), plan.unchanged.map { it.uid })
         assertEquals(listOf("Fresh", "No identity"), plan.fresh.map { it.getString("title") })
         assertEquals("the backup's copy of c is older", 1, plan.older)
         assertEquals(before, load.file!!.readText())
@@ -314,6 +317,70 @@ class ImportingTest {
         assertEquals(listOf("B", "A"),
             (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getString("title") })
         assertEquals(1, result.outcome.duplicatesSkipped)
+    }
+
+    @Test
+    fun `a note sent to the Trash while a backup is planned does not turn Update onto another note`() {
+        // The plan is made away from the screen, against the list as it was
+        // at Continue; the list stays usable meanwhile. Applied by place,
+        // the Trash in between moved Diary's place onto the PIN note, and
+        // Update rewrote that one with Diary's words.
+        val load = notebook("""
+            [{"id": 1, "uid": "u-shopping", "title": "Shopping", "body": "milk", "updated": "2026-10-01 09:00:00"},
+             {"id": 2, "uid": "u-diary", "title": "Diary", "body": "old diary entry", "updated": "2026-10-01 09:00:00"},
+             {"id": 3, "uid": "u-pin", "title": "Bank PIN hint", "body": "the old street", "updated": "2026-10-01 09:00:00"}]
+        """.trimIndent(), trash = "[]")
+        val atContinue = JSONArray().also { copy -> load.raw!!.let { for (i in 0 until it.length()) copy.put(it.opt(i)) } }
+        val plan = Importing.plan(atContinue, notes("""
+            [{"uid": "u-diary", "title": "Diary", "body": "old diary entry and a page written on the computer",
+              "updated": "2026-10-02 09:00:00"},
+             {"title": "Bank PIN hint", "body": "the old street"},
+             {"title": "Diary", "body": "old diary entry"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertTrue(Organizing.trashNotes(load, listOf(1)) is SaveResult.Ok)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true, skipDuplicates = true),
+            File(dir(load), "attachments")) as Importing.Result.Done
+        fun byUid(uid: String) = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+            .single { it.optString("uid") == uid }
+        assertEquals("Bank PIN hint", byUid("u-pin").getString("title"))
+        assertEquals("the old street", byUid("u-pin").getString("body"))
+        assertFalse("nothing of it was replaced", byUid("u-pin").has("_prev"))
+        assertEquals("old diary entry and a page written on the computer", byUid("u-diary").getString("body"))
+        assertEquals(1, result.outcome.updated)
+        // Look-alikes weighed against the list as it is: the PIN note is
+        // still here, so its twin is skipped; the old Diary is being
+        // replaced, so its twin is not a duplicate of anything.
+        assertEquals(1, result.outcome.duplicatesSkipped)
+        assertEquals(1, result.outcome.added)
+        assertEquals(listOf("Diary", "Bank PIN hint", "Diary"),
+            onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("title") } })
+    }
+
+    @Test
+    fun `the note an update was for, sent to the Trash while it was planned, comes back as a new note`() {
+        // As the plan would have sorted it a moment later: nothing here
+        // wears its identity any more, so nothing here is replaced by it.
+        val load = notebook("""
+            [{"id": 1, "uid": "u-diary", "title": "Diary", "body": "old"},
+             {"id": 2, "uid": "u-pin", "title": "Bank PIN hint", "body": "the old street"},
+             {"id": 3, "uid": "u-same", "title": "Same", "body": "same"}]
+        """.trimIndent(), trash = "[]")
+        val atContinue = JSONArray(load.raw!!.toString())
+        val plan = Importing.plan(atContinue, notes("""
+            [{"uid": "u-diary", "title": "Diary", "body": "new"}, {"uid": "u-same", "title": "Same", "body": "same"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertEquals(1, plan.differing.size)
+        assertEquals(1, plan.unchanged.size)
+        assertTrue(Organizing.trashNotes(load, listOf(1, 3)) is SaveResult.Ok)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true),
+            File(dir(load), "attachments")) as Importing.Result.Done
+        assertEquals(0, result.outcome.updated)
+        assertEquals(2, result.outcome.added)
+        assertEquals(0, result.outcome.unchangedSkipped)
+        val titles = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Bank PIN hint" to "the old street", "Diary" to "new", "Same" to "same"),
+            titles.map { it.getString("title") to it.getString("body") })
+        assertEquals("the arriving copy keeps its identity", "u-diary", titles[1].getString("uid"))
     }
 
     // ---- files ----
