@@ -322,6 +322,7 @@
     <string name="template_save_title">Save as template</string>
     <string name="template_saved">Saved template “%1$s”</string>
     <string name="templates_not_saved">The templates couldn\'t be saved: %1$s</string>
+    <string name="templates_full">Templates stop at %1$,d. Delete one, or save over one of the same name.</string>
     <string name="template_taken_title">Template name taken</string>
     <string name="template_taken_text">You already have a template named “%1$s”.\n\nReplace the old template with this one, or give this one another name?</string>
     <string name="template_replace">Replace</string>

@@ -111,10 +111,42 @@ class DaysTest {
     fun `painted days keep real colours only, and painting replaces or removes`() {
         val settings = JSONObject("""{"day_colors": {"2026-10-05": "#ff0000", "2026-10-06": "not a colour"}}""")
         assertEquals(mapOf("2026-10-05" to "#ff0000"), Days.dayColours(settings))
-        val repainted = Days.withColour(settings, "2026-10-07", "#00ff00")
+        val repainted = Days.withColour(settings, "2026-10-07", "#00ff00")!!
         assertEquals("#00ff00", repainted.getString("2026-10-07"))
         assertEquals("#ff0000", repainted.getString("2026-10-05"))
-        assertFalse(Days.withColour(settings, "2026-10-05", "").has("2026-10-05"))
+        assertFalse(Days.withColour(settings, "2026-10-05", "")!!.has("2026-10-05"))
+    }
+
+    @Test
+    fun `a calendar keeps real days only, 20,000 at most of each, markers an emoji long`() {
+        // 700,000 "day colours" under keys that were no dates came in whole
+        // from a backup, and markers of 200,000 letters, read at every month.
+        val colours = JSONObject()
+        for (i in 0 until 30_000) colours.put(java.time.LocalDate.of(1990, 1, 1).plusDays(i.toLong()).toString(), "#ff0000")
+        colours.put("12345", "#00ff00").put("2026-02-30", "#00ff00").put("2026-1-5", "#00ff00")
+        val settings = JSONObject().put("day_colors", colours).put("day_emoji", JSONObject()
+            .put("2026-10-05", JSONArray(listOf("⭐", "x".repeat(17), "🎂")))
+            .put("not a day", "⭐"))
+        val kept = Days.dayColours(settings)
+        assertEquals(Days.MAX_DAY_DECORATIONS, kept.size)
+        assertTrue(kept.keys.all { Days.isCalendarDay(it) })
+        assertEquals(mapOf("2026-10-05" to listOf("⭐", "🎂")), Days.dayMarkers(settings))
+        // A 20,001st painted day is refused, never one already there dropped.
+        assertNull(Days.withColour(settings, "2100-01-01", "#00ff00"))
+        val one = kept.keys.first()
+        assertEquals("#00ff00", Days.withColour(settings, one, "#00ff00")!!.getString(one))
+        // The import takes only real days, and stops at the ceiling.
+        val load = scratch("[]")
+        val plan = Importing.plan(load.raw!!, emptyList(), Importing.Source.BACKUP)
+        File(load.file!!.parentFile, "settings.json").writeText("{}")
+        val again = Notebook.load(load.file!!.parentFile!!)
+        Importing.apply(again, plan, Importing.Answers(), null, Importing.Extras(dayColors = colours,
+            dayEmoji = settings.getJSONObject("day_emoji")))
+        val saved = JSONObject(File(load.file!!.parentFile, "settings.json").readText())
+        assertEquals(Days.MAX_DAY_DECORATIONS, saved.getJSONObject("day_colors").length())
+        assertTrue(saved.getJSONObject("day_colors").keys().asSequence().all { Days.isCalendarDay(it) })
+        assertEquals(listOf("⭐", "🎂"), saved.getJSONObject("day_emoji").getJSONArray("2026-10-05").let { a -> (0 until a.length()).map { a.getString(it) } })
+        assertFalse(saved.getJSONObject("day_emoji").has("not a day"))
     }
 
     @Test
@@ -127,8 +159,8 @@ class DaysTest {
         assertEquals(listOf("⭐", "❤", "🎉"), markers["2026-10-05"])
         assertEquals(listOf("🎂"), markers["2026-10-06"])
         assertFalse(markers.containsKey("2026-10-07"))
-        assertFalse(Days.withMarkers(settings, "2026-10-06", emptyList()).has("2026-10-06"))
-        assertEquals(1, Days.withMarkers(settings, "2026-10-08", listOf("💡")).getJSONArray("2026-10-08").length())
+        assertFalse(Days.withMarkers(settings, "2026-10-06", emptyList())!!.has("2026-10-06"))
+        assertEquals(1, Days.withMarkers(settings, "2026-10-08", listOf("💡"))!!.getJSONArray("2026-10-08").length())
     }
 
     // ---- one day of a series ----

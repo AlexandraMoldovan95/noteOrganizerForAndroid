@@ -27,6 +27,20 @@ object Days {
     const val DAY_EMOJI = "day_emoji"
     const val MAX_MARKERS = 3
 
+    /**
+     * The desktop's ceilings on a calendar's decorations: at most 20,000
+     * painted days and as many marked -- every day of 54 years -- and a
+     * marker an emoji's length. A backup's settings came in whole: 700,000
+     * "day colours" under keys that were no dates, markers of 200,000
+     * letters, all read again at every month drawn and rewritten at every
+     * setting changed.
+     */
+    const val MAX_DAY_DECORATIONS = 20_000
+    const val MAX_DAY_MARKER_CHARS = 16
+
+    /** A day as the calendar writes one, YYYY-MM-DD and real: the desktop's `is_calendar_day`. */
+    fun isCalendarDay(day: String): Boolean = Recurrence.parseDate(day)?.let { Recurrence.formatDate(it) == day } == true
+
     /** The desktop's small set for flagging a day -- not the whole emoji picker. */
     val MARKERS = listOf("⭐", "❤", "❗", "🎉", "✅", "🔴", "🟡", "🟢", "💡", "🎂", "✈", "📌",
                          "🔔", "🎁", "💰", "🩺", "🍽", "🚗")
@@ -90,53 +104,71 @@ object Days {
 
     // ---- painted days and their markers ----
 
-    /** The painted days, as kept: real colours only. */
+    /** The painted days, as kept: real days and real colours only, [MAX_DAY_DECORATIONS] at most. */
     fun dayColours(settings: JSONObject?): Map<String, String> {
         val saved = settings?.opt(DAY_COLORS) as? JSONObject ?: return emptyMap()
         val out = LinkedHashMap<String, String>()
         for (day in saved.keys()) {
+            if (out.size >= MAX_DAY_DECORATIONS) break
+            if (!isCalendarDay(day)) continue
             val colour = Notebook.sanitizeColor(saved.opt(day) as? String ?: "")
             if (colour.isNotEmpty()) out[day] = colour
         }
         return out
     }
 
-    /** A day's markers as kept: up to three, each without the variation
-     *  selector older pickers wrote. One marker alone is the older format. */
+    /** A day's markers as kept: up to three, each an emoji's length and without
+     *  the variation selector older pickers wrote. One marker alone is the
+     *  older format. */
     fun cleanMarkers(value: Any?): List<String> {
         val list = when (value) {
             is String -> listOf(value)
             is JSONArray -> (0 until value.length()).mapNotNull { value.opt(it) as? String }
             else -> return emptyList()
         }
-        return list.map { it.replace(VARIATION_SELECTOR, "") }.filter { it.isNotEmpty() }.take(MAX_MARKERS)
+        return list.map { it.replace(VARIATION_SELECTOR, "") }
+            .filter { it.isNotEmpty() && it.codePointCount(0, it.length) <= MAX_DAY_MARKER_CHARS }.take(MAX_MARKERS)
     }
 
     fun dayMarkers(settings: JSONObject?): Map<String, List<String>> {
         val saved = settings?.opt(DAY_EMOJI) as? JSONObject ?: return emptyMap()
         val out = LinkedHashMap<String, List<String>>()
         for (day in saved.keys()) {
+            if (out.size >= MAX_DAY_DECORATIONS) break
+            if (!isCalendarDay(day)) continue
             val kept = cleanMarkers(saved.opt(day))
             if (kept.isNotEmpty()) out[day] = kept
         }
         return out
     }
 
-    /** The painted days with [day] painted [colour] -- or unpainted, for "". */
-    fun withColour(settings: JSONObject?, day: String, colour: String): JSONObject {
+    /**
+     * The painted days with [day] painted [colour] -- or unpainted, for "".
+     * Null when [day] is new and the calendar holds [MAX_DAY_DECORATIONS]
+     * already: refused, so a start never drops one a person made.
+     */
+    fun withColour(settings: JSONObject?, day: String, colour: String): JSONObject? {
         val out = JSONObject()
-        for ((d, c) in dayColours(settings)) if (d != day) out.put(d, c)
+        val kept = dayColours(settings)
+        for ((d, c) in kept) if (d != day) out.put(d, c)
         val clean = Notebook.sanitizeColor(colour)
-        if (clean.isNotEmpty()) out.put(day, clean)
+        if (clean.isNotEmpty()) {
+            if (day !in kept && kept.size >= MAX_DAY_DECORATIONS) return null
+            out.put(day, clean)
+        }
         return out
     }
 
-    /** The markers with [day] holding [markers] -- none removes the day. */
-    fun withMarkers(settings: JSONObject?, day: String, markers: List<String>): JSONObject {
+    /** The markers with [day] holding [markers] -- none removes the day; null, as [withColour]. */
+    fun withMarkers(settings: JSONObject?, day: String, markers: List<String>): JSONObject? {
         val out = JSONObject()
-        for ((d, m) in dayMarkers(settings)) if (d != day) out.put(d, JSONArray(m))
+        val kept = dayMarkers(settings)
+        for ((d, m) in kept) if (d != day) out.put(d, JSONArray(m))
         val clean = cleanMarkers(JSONArray(markers))
-        if (clean.isNotEmpty()) out.put(day, JSONArray(clean))
+        if (clean.isNotEmpty()) {
+            if (day !in kept && kept.size >= MAX_DAY_DECORATIONS) return null
+            out.put(day, JSONArray(clean))
+        }
         return out
     }
 

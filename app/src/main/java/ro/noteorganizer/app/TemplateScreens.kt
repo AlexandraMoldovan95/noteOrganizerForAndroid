@@ -110,11 +110,18 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
     var askReplace by remember { mutableStateOf(false) }
     val savedSaid = stringResource(R.string.template_saved)
     val failedSaid = stringResource(R.string.templates_not_saved)
+    val fullSaid = stringResource(R.string.templates_full, Templates.MAX_TEMPLATES)
 
     fun write() {
         val chosen = PyText.strip(name)
         val tpl = Templates.normalize(JSONObject(template.toString()).put("name", chosen))
-        val problem = Templates.save(state.dir, Templates.saveAs(Templates.load(state.dir), tpl))
+        val list = Templates.load(state.dir)
+        if (Templates.full(list, chosen)) {
+            state.say(fullSaid)
+            onDone()
+            return
+        }
+        val problem = Templates.save(state.dir, Templates.saveAs(list, tpl))
         state.say(if (problem != null) failedSaid.format(problem) else savedSaid.format(chosen))
         onDone()
     }
@@ -238,11 +245,20 @@ fun TemplatesPage(state: AppState) {
     }
     if (creating || editing != null) {
         val index = editing
+        val fullSaid = stringResource(R.string.templates_full, Templates.MAX_TEMPLATES)
         TemplateEditor(
             state = state,
             original = index?.let { templates.getOrNull(it) },
             others = templates.filterIndexed { j, _ -> j != index },
-            onSave = { tpl -> store(Templates.saveEdited(templates, index, tpl)) },
+            onSave = { tpl ->
+                // A new one past the ceiling is refused, the editor left open.
+                if (Templates.full(templates, tpl.optString("name"), index)) {
+                    state.say(fullSaid)
+                    false
+                } else {
+                    store(Templates.saveEdited(templates, index, tpl))
+                }
+            },
             onClose = { creating = false; editing = null },
         )
     }

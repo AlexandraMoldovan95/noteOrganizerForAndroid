@@ -15,6 +15,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+/** Said when a day would be the calendar's 20,001st painted or marked one (Days.MAX_DAY_DECORATIONS). */
+private const val FULL_CALENDAR = "The calendar keeps 20,000 painted days, and as many marked, at most. Clear one first."
+
 /** Where the app is: the desktop's two tabs, and its Settings. */
 enum class Tab { NOTES, CALENDAR, SETTINGS }
 
@@ -454,7 +457,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** Paints a day, or clears its paint with "" -- which offers its Undo. */
     fun paintDay(day: String, colour: String) {
         val old = dayColours[day]
-        if (!putSetting(Days.DAY_COLORS, Days.withColour(settings, day, colour))) return
+        val painted = Days.withColour(settings, day, colour) ?: return say(FULL_CALENDAR)
+        if (!putSetting(Days.DAY_COLORS, painted)) return
         if (colour.isEmpty() && old != null) {
             offerUndo("Day colour cleared") { undoDayClear(day, colour = old) }
         }
@@ -463,7 +467,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** A day's markers, three at most; none clears them, with an Undo. */
     fun markDay(day: String, markers: List<String>) {
         val old = dayMarkers[day]
-        if (!putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, markers))) return
+        val marked = Days.withMarkers(settings, day, markers) ?: return say(FULL_CALENDAR)
+        if (!putSetting(Days.DAY_EMOJI, marked)) return
         if (markers.isEmpty() && old != null) {
             offerUndo("Day markers cleared") { undoDayClear(day, markers = old) }
         }
@@ -481,14 +486,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 say("That day has a colour again")
                 return false
             }
-            return putSetting(Days.DAY_COLORS, Days.withColour(settings, day, colour))
+            val painted = Days.withColour(settings, day, colour) ?: return false.also { say(FULL_CALENDAR) }
+            return putSetting(Days.DAY_COLORS, painted)
         }
         if (markers != null) {
             if (!dayMarkers[day].isNullOrEmpty()) {
                 say("That day has markers again")
                 return false
             }
-            return putSetting(Days.DAY_EMOJI, Days.withMarkers(settings, day, markers))
+            val marked = Days.withMarkers(settings, day, markers) ?: return false.also { say(FULL_CALENDAR) }
+            return putSetting(Days.DAY_EMOJI, marked)
         }
         return false
     }

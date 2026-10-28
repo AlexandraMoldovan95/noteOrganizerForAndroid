@@ -101,8 +101,8 @@ the desktop gives them, each as the desktop keeps it:
 | `note_sort`, `note_filter` | not new, but now every value the desktop stores: the sort's own words (`"Calendar: soonest"`, `"Custom order"`), and Show as a category's name or a type's label (`"🔁 Repeating"`, `"📅 Dated"`, `"📎 With files"`). A filter naming a category since deleted reads as All. |
 | `group_by_category` | `true` when the list is grouped |
 | `collapsed_groups` | the folded groups' category names |
-| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real colours are read |
-| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most; the older one-marker string is read too |
+| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real days and real colours are read, 20,000 at most (the desktop's `MAX_DAY_DECORATIONS`), and a 20,001st is refused |
+| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most, each 16 characters at most; the older one-marker string is read too; real days only, 20,000 at most |
 | `first_launch_date` | the day this install was first used, stamped once and never again |
 
 A rename of a category carries its name along in `note_filter` and
@@ -630,8 +630,10 @@ go — or the whole table comes back re-padded, every style in it at risk
 
 ## Templates
 
-`templates.json` is a list of templates, each shaped as the desktop's
-`normalize_template` leaves it:
+`templates.json` is a list of templates — a thousand at most, the
+desktop's `MAX_TEMPLATES`: a load keeps the first thousand, an import
+stops there, and a new one past it is refused with a word — each shaped
+as the desktop's `normalize_template` leaves it:
 
 ```jsonc
 {

@@ -260,6 +260,15 @@ do before, not as releases anyone ran.
   comparisons, twice per comparison and each time over the whole
   notebook: 15 million notes read for 2,000 of them. It is worked out
   once per note now. Found by the final audit's second round.
+- **A backup's settings and templates come in within the desktop's
+  limits.** 700,000 "painted days" under keys that were no dates,
+  markers of 200,000 letters and 140,000 templates came in whole, and
+  left the calendar, every setting changed and the template picker slow
+  for good. The calendar now keeps real days only, 20,000 painted and as
+  many marked, each marker an emoji long, and templates stop at 1,000 —
+  a new day or template past that is refused with a word, never one
+  already there dropped. Found by the final audit's second round, the
+  twin of the desktop's.
 
 ---
 

@@ -373,6 +373,8 @@ object Importing {
                 val names = (0 until mine.length()).mapNotNull { (mine.opt(it) as? JSONObject)?.opt("name") as? String }.toMutableSet()
                 val out = JSONArray(mine.toString())
                 for (i in 0 until extras.templates.length()) {
+                    // No more than a notebook keeps (Templates.MAX_TEMPLATES).
+                    if (out.length() >= Templates.MAX_TEMPLATES) break
                     val tpl = extras.templates.opt(i) as? JSONObject ?: continue
                     val name = (tpl.opt("name") as? String)?.ifEmpty { null } ?: continue
                     if (name in names) continue
@@ -594,7 +596,11 @@ object Importing {
         val mine = settings.opt(key) as? JSONObject ?: JSONObject()
         var added = 0
         for (day in theirs.keys()) {
-            if (mine.has(day)) continue
+            // Real days only, and no more than the calendar keeps: the
+            // desktop's _take_day_decorations. 700,000 keys that were no
+            // dates came in whole, read again at every month drawn.
+            if (mine.length() >= Days.MAX_DAY_DECORATIONS) break
+            if (mine.has(day) || !Days.isCalendarDay(day)) continue
             val value = clean(theirs.opt(day)) ?: continue
             mine.put(day, value)
             added += 1
@@ -607,13 +613,7 @@ object Importing {
      * A day's markers as kept: up to three non-empty strings, without the
      * emoji variation selector. One string on its own is the older format.
      */
-    fun cleanDayMarkers(value: Any?): JSONArray? {
-        val items = when (value) {
-            is String -> listOf(value)
-            is JSONArray -> (0 until value.length()).mapNotNull { value.opt(it) as? String }
-            else -> return null
-        }
-        val kept = items.map { it.replace("️", "") }.filter { it.isNotEmpty() }.take(3)
-        return JSONArray(kept)
-    }
+    fun cleanDayMarkers(value: Any?): JSONArray? =
+        // Each an emoji's length, as the calendar keeps them (Days.cleanMarkers).
+        if (value is String || value is JSONArray) JSONArray(Days.cleanMarkers(value)) else null
 }

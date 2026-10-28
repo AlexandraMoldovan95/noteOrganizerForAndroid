@@ -34,6 +34,23 @@ object Templates {
     const val DEFAULT_NAME = "My template"
     private const val MAX_CHECKLIST_ITEMS = 1000
 
+    /**
+     * The desktop's MAX_TEMPLATES, far past anyone's use: a load keeps the
+     * first thousand, an import stops there, and a new one past it is
+     * refused with a word, so a start never drops one a person made. A
+     * 394 KB backup brought 140,000, appended on the screen's thread and
+     * read again at every opening of Templates and "Use template".
+     */
+    const val MAX_TEMPLATES = 1000
+
+    /**
+     * Whether [templates] has no room for one named [name]: a new name past
+     * [MAX_TEMPLATES]. Replacing one by name, or editing one in place
+     * ([edited]), always has room.
+     */
+    fun full(templates: List<JSONObject>, name: String, edited: Int? = null): Boolean =
+        edited == null && templates.size >= MAX_TEMPLATES && templates.none { it.optString("name") == name }
+
     private fun truthy(value: Any?): Boolean = when (value) {
         null, JSONObject.NULL -> false
         is Boolean -> value
@@ -103,7 +120,7 @@ object Templates {
             Files.preserveCorrupt(file)
             return emptyList()
         }
-        val kept = (0 until data.length()).mapNotNull { data.opt(it) as? JSONObject }.map { normalize(it) }
+        val kept = (0 until data.length()).mapNotNull { data.opt(it) as? JSONObject }.take(MAX_TEMPLATES).map { normalize(it) }
         // A list, but all of it junk: kept aside like an unreadable file.
         if (data.length() > 0 && kept.isEmpty()) Files.preserveCorrupt(file)
         return kept

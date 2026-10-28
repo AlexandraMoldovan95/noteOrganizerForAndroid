@@ -122,6 +122,28 @@ class TemplatesTest {
     }
 
     @Test
+    fun `templates stop at 1,000 - at a load, an import, and a new one saved`() {
+        // A 394 KB backup brought 140,000, appended at once and read again at
+        // every opening of Templates and Use template.
+        val many = JSONArray((1..1500).map { JSONObject().put("name", "T$it").put("body", "b") })
+        val d = dir()
+        File(d, "templates.json").writeText(many.toString())
+        assertEquals(Templates.MAX_TEMPLATES, Templates.load(d).size)
+        // The import stops at the ceiling.
+        val notes = dir().also { File(it, "notes_data.json").writeText("[]"); File(it, "templates.json").writeText("[]") }
+        val load = Notebook.load(notes)
+        val plan = Importing.plan(load.raw!!, emptyList(), Importing.Source.BACKUP)
+        Importing.apply(load, plan, Importing.Answers(), null, Importing.Extras(templates = many))
+        assertEquals(Templates.MAX_TEMPLATES, JSONArray(File(notes, "templates.json").readText()).length())
+        // Full: a new name is refused, a replace or an edit is not.
+        val full = Templates.load(d)
+        assertTrue(Templates.full(full, "New one"))
+        assertFalse(Templates.full(full, "T5"))
+        assertFalse(Templates.full(full, "Renamed", edited = 3))
+        assertFalse(Templates.full(full.drop(1), "New one"))
+    }
+
+    @Test
     fun `a template's styles and lines move with its words through every edit`() {
         // Kept at their offsets, a line typed above them put the bold on
         // ", Bo\nMeet", the red on "re final", the bullet on the wrong line.
