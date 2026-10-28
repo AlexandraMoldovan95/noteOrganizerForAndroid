@@ -166,6 +166,12 @@ class ExportingTest {
         }
         assertEquals(20_000, Regex("<th>").findAll(Exporting.content(empty, Exporting.HTML, "E")).count())
         assertTrue(Exporting.content(merged, Exporting.HTML, "M").contains("rowspan=\"30001\""))
+        // A merge narrows by the hidden columns inside it, and only those:
+        // one hidden just past its end leaves it as wide as it was.
+        fun page(body: String) = Exporting.content(JSONObject().put("title", "H").put("body", body), Exporting.HTML, "H")
+        assertTrue(page("| a | < | c |\n|---|---|~|\n| d | e | f |").contains("<th colspan=\"2\">a</th>"))
+        assertTrue(page("| a | < | < |\n|---|~|---|\n| d | e | f |").contains("<th colspan=\"2\">a</th>"))
+        assertTrue(page("| a | < | c |\n|~|---|---|\n| d | e | f |").let { !it.contains("colspan") })
     }
 
     @Test
