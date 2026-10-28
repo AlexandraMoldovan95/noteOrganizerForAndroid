@@ -33,6 +33,14 @@ object Organizing {
         return -1
     }
 
+    /** Where the first note wearing [uid] stands in [array], or -1. */
+    internal fun indexOfUid(array: JSONArray, uid: String): Int {
+        for (i in 0 until array.length()) {
+            if (((array.opt(i) as? JSONObject)?.opt("uid") as? String) == uid) return i
+        }
+        return -1
+    }
+
     internal fun maxId(array: JSONArray): Int {
         var max = 0
         for (i in 0 until array.length()) {
@@ -257,17 +265,20 @@ object Organizing {
                uid: String? = null): Attached {
         val file = load.file ?: return Attached(SaveResult.Failed(NOWHERE), 0, emptyList())
         val array = load.raw ?: return Attached(SaveResult.Failed(UNREADABLE), 0, emptyList())
-        val index = indexOfId(array, id)
-        // The note the files were picked for, by [uid] as well as by id: a
-        // copy that outlives the editor ends after the person may have sent
-        // that note to the Trash and made another, which takes the freed id
-        // -- and the files went to the new note, unsaid.
-        val gone = index < 0 || (uid != null && (array.opt(index) as? JSONObject)?.opt("uid") != uid)
-        if (gone) {
+        // The note the files were picked for, found by its [uid] when it has
+        // one: a copy that outlives the editor ends after the person may have
+        // sent that note to the Trash and made another, which takes the freed
+        // id -- and the files went to the new note, unsaid. And by the uid
+        // FIRST, not the id checked against it: Undo brings a note back from
+        // the Trash under a new id, and its files were refused as "no longer
+        // here" with the note in the list.
+        val index = if (!uid.isNullOrEmpty()) indexOfUid(array, uid) else indexOfId(array, id)
+        if (index < 0) {
             return Attached(SaveResult.Failed("The note these files were picked for is no longer here, " +
                 "so nothing was attached."), 0, emptyList())
         }
-        val room = roomFor(load, id)
+        val noteId = ((array.opt(index) as? JSONObject)?.opt("id") as? Number)?.toInt() ?: id
+        val room = roomFor(load, noteId)
         if (room == 0) {
             return Attached(SaveResult.Failed("A note can keep ${Normalize.MAX_ATTACHMENTS} attached files. " +
                 "Remove one to add another, or split this into two notes."), 0, emptyList())
@@ -303,7 +314,7 @@ object Organizing {
             return Attached(SaveResult.Failed(problem), 0, failed)
         }
         replace(array, candidate)
-        return Attached(SaveResult.Ok(id), copied.size, failed)
+        return Attached(SaveResult.Ok(noteId), copied.size, failed)
     }
 
     /**

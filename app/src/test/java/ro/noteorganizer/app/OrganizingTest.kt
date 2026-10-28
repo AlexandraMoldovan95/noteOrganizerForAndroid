@@ -575,6 +575,26 @@ class OrganizingTest {
     }
 
     @Test
+    fun `files picked for a note sent to the Trash and brought back by Undo go to it, under its new id`() {
+        // Undo restores a note under a new id and its own uid; looked up by
+        // the id taken at the pick, it read as gone, and the copies were
+        // thrown away with "no longer here" -- the note in the list.
+        val load = notebook("""[{"id": 1, "uid": "recipes", "title": "Recipes"},
+            {"id": 2, "uid": "house", "title": "House papers"}, {"id": 3, "uid": "todo", "title": "To do"}]""",
+            trash = "[]")
+        assertTrue(Organizing.trashNotes(load, listOf(2)) is SaveResult.Ok)
+        val entry = JSONArray(File(dir(load), "trash.json").readText()).getJSONObject(0)
+        assertTrue(Organizing.restore(load, listOf(Organizing.TrashKey(2, entry.getString("deleted_at"), "house"))) is SaveResult.Ok)
+        val back = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.single { it.optString("uid") == "house" }
+        assertEquals("a new id", 4, back.getInt("id"))
+        val done = Organizing.attach(load, 2, attachments(load), listOf(incoming("deed.pdf", "PDF")), uid = "house")
+        assertEquals(SaveResult.Ok(4), done.result)
+        val after = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals("deed.pdf", after.single { it.optString("uid") == "house" }.getJSONArray("attachments").getJSONObject(0).getString("filename"))
+        assertTrue("no other note took them", after.filter { it.optString("uid") != "house" }.all { (it.optJSONArray("attachments")?.length() ?: 0) == 0 })
+    }
+
+    @Test
     fun `a file taken off a note is deleted, unless another note or the Trash still uses it`() {
         val load = notebook("""
             [{"id": 1, "attachments": [{"filename": "a", "stored_as": "a.png"}, {"filename": "b", "stored_as": "b.png"},

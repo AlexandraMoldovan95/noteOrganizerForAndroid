@@ -444,6 +444,11 @@ do before, not as releases anyone ran.
   nothing was said. The ceiling is 100,000 now, under the 160,000 that
   went through; past it a code says to share fewer notes or a backup, as
   before, and Text says to send the web page.
+- **Files picked for a note that went to the Trash and came back by Undo
+  are attached to it.** Undo brings a note back under a new number, and
+  the files, still copying, were refused as for a note "no longer here"
+  with the note in the list; the note is found by its own identity first
+  now. Found by the final audit's third round.
 
 ---
 
