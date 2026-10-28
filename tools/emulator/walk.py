@@ -431,6 +431,7 @@ def main():
     reminder_new_zone(folder)
     day_turns_open(folder)
     template_long_comments(folder)
+    answers_after_restart(folder)
 
     print()
     if failures:
@@ -2761,6 +2762,97 @@ def template_long_comments(folder):
           adb("shell", "pidof", PACKAGE).strip() == alive and not crash, crash[:300])
     start_app()
     back_to("Search notes")
+
+
+def answers_after_restart(folder):
+    """Export as file and Attach files, each with the app's process ended
+    behind Android's picker -- as Android ends a backgrounded app it needs
+    the memory of -- before the picker answers. The app starts again on its
+    list, where no editor was to take the answer: the exported file stayed
+    empty, the files were not attached, and nothing was said. Then a large
+    file attached and the note left at once with Back: the copy ended with
+    the editor, the file was never attached, and the copy stayed behind."""
+    print("\n-- answers that arrive after Android ended the app --")
+    exported = r"Bread( \(\d+\))?\.html"
+    clear_from_downloads(exported)
+
+    def put_in_downloads(name, *dd):
+        """A file in Downloads, and in Android's index of it, which the
+        picker lists from: one pushed and not indexed was not listed, and
+        files deleted since were. The newest, so the first in the list."""
+        if dd:
+            adb("shell", "dd", "if=/dev/zero", "of=/sdcard/Download/" + name, *dd)
+        else:
+            local = os.path.join(folder, name)
+            with open(local, "w", encoding="utf-8") as f:
+                f.write("TICKET 9")
+            adb("push", local, "/sdcard/Download/" + name)
+        adb("shell", "am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+            "-d", "file:///sdcard/Download/" + name)
+        time.sleep(2.0)
+
+    def out_of_downloads(name):
+        adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+        adb("shell", "am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+            "-d", "file:///sdcard/Download/" + name)
+
+    def end_the_app():
+        pid = adb("shell", "pidof", PACKAGE).strip()
+        if pid:
+            adb("shell", "su", "0", "kill", "-9", pid)
+        time.sleep(1.5)
+        return bool(pid) and not adb("shell", "pidof", PACKAGE).strip()
+
+    try:
+        if not seed_inside([{"id": 1, "uid": "ar-bread", "title": "Bread", "body": "Knead the dough",
+                             "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                           {"welcome_offered": True}, "Bread"):
+            return
+        open_note("Bread")
+        tap("⋮", exact=True)
+        tap("💾 Export as file", wait=1.2)
+        tap("Web page (.html)", wait=1.0)
+        button = picker_save_button()
+        ended = end_the_app()
+        if button:
+            tap(button, exact=True, wait=1.0)
+        said = not says_soon("Exported to Bread.html", within=10.0)
+        size = adb("shell", "stat", "-c", "%s", "/sdcard/Download/Bread.html").strip()
+        check("ended behind the picker, the export still writes its file and says so",
+              ended and said and size.isdigit() and int(size) > 0, "ended %s, said %s, size %r" % (ended, said, size))
+        back_to("Search notes")
+
+        put_in_downloads("walk-ticket.txt")
+        open_note("Bread")
+        tap("⋮", exact=True, wait=1.0)
+        tap("📎 Attach files", exact=True, wait=3.0)
+        ended = end_the_app()
+        tap("walk-ticket.txt", exact=True, wait=1.0, patience=10.0)
+        said = not says_soon("1 file attached to “Bread”", within=8.0)
+        atts = settle(lambda: (note_by_uid("ar-bread") or {}).get("attachments") or [], lambda a: len(a) == 1)
+        check("ended behind the picker, the file is still attached to the note, and that is said",
+              ended and said and len(atts) == 1 and atts[0].get("filename") == "walk-ticket.txt",
+              "said %s, %s" % (said, json.dumps(atts)))
+        back_to("Search notes")
+
+        put_in_downloads("walk-large.bin", "bs=1048576", "count=300")
+        open_note("Bread")
+        tap("⋮", exact=True, wait=1.0)
+        tap("📎 Attach files", exact=True, wait=3.0)
+        if tap("walk-large.bin", exact=True, wait=0.3, patience=10.0):
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        atts = settle(lambda: (note_by_uid("ar-bread") or {}).get("attachments") or [], lambda a: len(a) == 2,
+                      within=40.0, first=3.0)
+        left = adb("shell", "run-as", PACKAGE, "ls", "cache").split()
+        check("left with Back while a large file copies, the file is attached all the same, no copy left over",
+              len(atts) == 2 and atts[1].get("filename") == "walk-large.bin"
+              and not any(n.startswith("attach_") for n in left), "%s; cache %s" % (json.dumps(atts), left))
+    finally:
+        clear_from_downloads(exported)
+        out_of_downloads("walk-ticket.txt")
+        out_of_downloads("walk-large.bin")
+        start_app()
+        back_to("Search notes")
 
 
 def import_questions_quick(folder):

@@ -20,8 +20,6 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1024,7 +1022,6 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
     }
     val calc = remember(model) { CalculatorState() }
-    val exporter = rememberExporter(state)
     var exportAsk by remember { mutableStateOf(false) }
     var shareAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
@@ -1637,7 +1634,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         ExportDialog(
             onPick = { format ->
                 exportAsk = false
-                exporter.export(model.id, format)
+                state.exporter?.export(model.id, format)
             },
             onDismiss = { exportAsk = false },
         )
@@ -2737,39 +2734,31 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
 private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int) {
     val palette = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = rememberCoroutineScope()
     val files = if (model.id == 0) emptyList() else state.attachmentsOf(model.id)
     var removing by remember { mutableStateOf<Pair<String, String>?>(null) }
     var tooMany by remember { mutableStateOf<Pair<List<android.net.Uri>, Int>?>(null) }
     val fullText = stringResource(R.string.attach_full, Normalize.MAX_ATTACHMENTS)
 
-    fun attach(uris: List<android.net.Uri>) {
-        val id = model.id
-        scope.launch {
-            // Copied off the picker's stream into the app's cache first,
-            // away from the screen's thread; moved into place by the write.
-            val copied = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                uris.mapNotNull { uri -> copyToCache(context, uri) }
-            }
-            state.attach(id, copied.map { (name, temp) ->
-                Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
-            }, unreadable = uris.size - copied.size)
-            copied.forEach { (_, temp) -> temp.delete() }
-        }
-    }
+    fun attach(uris: List<android.net.Uri>) = attachPicked(state, context, model.id, uris)
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isEmpty()) return@rememberLauncherForActivityResult
-        // A new note is saved first: only a saved note can hold files.
-        if (!model.save(force = model.id == 0)) return@rememberLauncherForActivityResult
-        val room = Organizing.roomFor(state.load, model.id)
-        when {
-            room == 0 -> state.say(fullText)
-            uris.size > room -> tooMany = uris to room
-            else -> attach(uris)
+    // The picker is AppRoot's (AppState.pickAttachments); while this note
+    // is open, its answer comes here.
+    DisposableEffect(model) {
+        state.attachHere = handler@{ id, uris ->
+            if (id != model.id) return@handler false
+            // A new note is saved first: only a saved note can hold files.
+            if (!model.save(force = model.id == 0)) return@handler true
+            val room = Organizing.roomFor(state.load, model.id)
+            when {
+                room == 0 -> state.say(fullText)
+                uris.size > room -> tooMany = uris to room
+                else -> attach(uris)
+            }
+            true
         }
+        onDispose { state.attachHere = null }
     }
-    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) picker.launch(arrayOf("*/*")) }
+    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) state.pickAttachments?.invoke(model.id) }
 
     if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
@@ -2841,6 +2830,60 @@ private fun copyToCache(context: android.content.Context, uri: android.net.Uri):
     } catch (e: Exception) {
         temp.delete()
         null
+    }
+}
+
+/**
+ * Picked files attached to the note [id]: copied off the picker's stream
+ * into the app's cache first, away from the screen's thread, and moved into
+ * place by the write. In the app's own scope, not the editor's: Back while
+ * a large file was copying ended the copy's scope, the files were never
+ * attached, nothing was said, and the copy stayed in the cache.
+ */
+fun attachPicked(state: AppState, context: android.content.Context, id: Int, uris: List<android.net.Uri>,
+                 then: (() -> Unit)? = null) {
+    state.scope.launch {
+        val copied = mutableListOf<Pair<String, File>>()
+        try {
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                uris.forEach { uri -> copyToCache(context, uri)?.let { copied.add(it) } }
+            }
+            state.attach(id, copied.map { (name, temp) ->
+                Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
+            }, unreadable = uris.size - copied.size)
+            then?.invoke()
+        } finally {
+            copied.forEach { (_, temp) -> temp.delete() }
+        }
+    }
+}
+
+/**
+ * Picked files with no editor open for them: Android ended the app behind
+ * the picker, and started it again on its list. Attached to the note
+ * still, as many as it has room for, and said so -- the note is not on the
+ * screen to show them; a new note never saved has nowhere to keep them,
+ * and says that instead.
+ */
+fun attachAfterReturn(state: AppState, context: android.content.Context, id: Int, uris: List<android.net.Uri>) {
+    val note = state.rawNote(id)
+    if (id == 0 || note == null) {
+        state.say(context.getString(R.string.attach_lost))
+        return
+    }
+    val room = Organizing.roomFor(state.load, id)
+    if (room == 0) {
+        state.say(context.getString(R.string.attach_full, Normalize.MAX_ATTACHMENTS))
+        return
+    }
+    val before = state.attachmentsOf(id).size
+    attachPicked(state, context, id, uris.take(room)) {
+        val added = state.attachmentsOf(id).size - before
+        when {
+            uris.size > room -> state.say(context.getString(R.string.attach_cut, room, Normalize.MAX_ATTACHMENTS))
+            added > 0 -> state.say(context.resources.getQuantityString(
+                R.plurals.attached_after_return, added, added, Exporting.titleOf(note)))
+        }
     }
 }
 

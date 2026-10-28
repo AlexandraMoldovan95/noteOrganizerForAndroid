@@ -244,6 +244,13 @@
     <string name="attach_too_many_title">More files than this note can hold</string>
     <string name="attach_too_many_text">A note can keep %1$d attached files, and there is room for %2$d more.\n\nAttach the first %2$d and leave the rest?</string>
     <string name="attach_first_n">Attach %1$d</string>
+    <!-- Said when Android ended the app behind the picker and started it again. -->
+    <string name="attach_lost">The files were not attached: the note was new and not saved yet. Please attach them again.</string>
+    <string name="attach_cut">The first %1$d files were attached; a note can keep %2$d.</string>
+    <plurals name="attached_after_return">
+        <item quantity="one">%1$d file attached to “%2$s”.</item>
+        <item quantity="other">%1$d files attached to “%2$s”.</item>
+    </plurals>
     <string name="no_app_opens">No app on this phone opens this kind of file.</string>
     <string name="note_details">Note details</string>
     <string name="no_date">No date</string>

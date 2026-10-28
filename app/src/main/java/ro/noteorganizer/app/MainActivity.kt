@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -334,6 +335,26 @@ fun AppRoot(state: AppState, version: String) {
         import = { importFrom.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
         busy = { busy },
     )
+
+    // A note's own pickers -- Export as file, Attach files -- answered here
+    // with the backup's: where the answer arrives even when Android ended
+    // the app behind the picker and started it again on its list
+    // (AppState.pickAttachments). Held by the editor, the answer found
+    // nobody: the exported file left empty, the files not attached, nothing
+    // said. (Android's "allow notifications?" stays with its page: it only
+    // pauses the app, which saves nothing then and is not ended for memory.)
+    state.exporter = rememberExporter(state)
+    var attachFor by rememberSaveable { mutableStateOf<Int?>(null) }
+    val attachPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val id = attachFor ?: return@rememberLauncherForActivityResult
+        attachFor = null
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        if (state.attachHere?.invoke(id, uris) != true) attachAfterReturn(state, context, id, uris)
+    }
+    state.pickAttachments = { id ->
+        attachFor = id
+        attachPicker.launch(arrayOf("*/*"))
+    }
 
     // Back from Settings or the Calendar goes to the notes, as Back from any
     // second place in an app does; only from the notes does it leave the

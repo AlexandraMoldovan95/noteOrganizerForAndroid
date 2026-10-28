@@ -44,12 +44,17 @@ class Exporter internal constructor(private val start: (Int, String) -> Unit) {
  * Afterwards the message offers to open the file, as the desktop asks
  * "Open it now?": the file itself is the only honest preview of how the
  * note lays out. A cancelled picker writes nothing.
+ *
+ * Remembered by AppRoot, not by the editor: Android may end the app behind
+ * the picker and start it again on its list, and an editor's exporter was
+ * not there to take the answer -- the file the picker had made stayed
+ * empty, and nothing was said.
  */
 @Composable
 fun rememberExporter(state: AppState): Exporter {
     val context = LocalContext.current
     // Which note, in which format, while the picker -- another activity --
-    // is up: kept as text, so it survives that trip.
+    // is up: kept as text, so it survives that trip, the app's end included.
     var pending by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun finish(uri: Uri?) {

@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-one are
+**the code**, or in **the design**. Nineteen of the seventy-two are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-28](#answers-sent-to-a-screen-that-was-gone) | code | With the app's process ended behind Android's picker, Export as file left an empty file and Attach files attached nothing, without a word; and Back while a large file copied lost the file and left the copy in the cache | An answer from another app goes to what is always there; work that must finish outlives the screen that asked for it |
 | [2026-10-28](#a-crash-in-front-of-the-crash-foretold) | code | The audit foretold that a template with 600,000 letters of comments would stop the app as Home was pressed; on the emulator it stopped sooner, as the template opened. With that fixed, Home stopped it exactly as foretold | A reproduction that fails earlier than predicted has found a second bug in front of the first: fix it and run again before calling the first disproved |
 | [2026-10-27](#on-and-off-told-by-a-tint) | design | Whether B, a list, an alignment, a marker or a repeat day was on was a fill differing from off by 1.04 to 1.33 to 1, and nothing at all to a screen reader | A state needs a second sign for the eye and a word for the ear; a colour is neither alone |
 | [2026-10-27](#arranging-only-a-finger-could-do) | design | Notes in Custom order and a checklist's rows moved only by dragging their handle; TalkBack read "Drag to move", and neither it nor Switch Access could drag | Every gesture needs a door that is not a gesture |
@@ -86,6 +87,45 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Answers sent to a screen that was gone
+
+**2026-10-28.** Found by the final audit in the code, reproduced on the
+emulator by ending the app's process while Android's picker was in front
+— what Android does to a backgrounded app when it needs the memory. The
+picker for Export as file, and the one for Attach files, belonged to the
+editor. The app came back on its list, with no editor to take the
+answer: the export's picker had already made `Bread.html`, which stayed
+at 0 bytes, the picked file was not attached, and nothing was said. The
+answer was not even dropped, only kept: opening the note again later,
+the editor took it then and attached the file, minutes after the person
+had given up. The backup's own pickers lived in AppRoot, always there,
+and came through.
+
+The same reading found a second way to lose the files: the copy off the
+picker ran in the editor's own scope, so Back while 300 MB copied ended
+it — the file never attached, its copy left in the cache.
+
+**The fix:** both pickers are AppRoot's now (`AppState.exporter`,
+`AppState.pickAttachments`), with the job they answer kept in saved
+state. While the editor is open it still takes the files — a new note
+saved first, a full one asked about — and when it is not, AppRoot
+attaches them itself, as many as fit, and says so; a new note never
+saved says the files were not attached. The copy runs in the app's
+scope and deletes what it copied in `finally`. The walk's
+`answers_after_restart` ends the process behind each picker and presses
+Back during a large copy: passing; against the app before the fix, all
+three fail.
+
+Android's "allow notifications?" was named too, and is unchanged: under
+it the app is only paused — the event log shows no stop — so nothing is
+saved and Android does not end a visible app for memory. Ended there by
+hand, the answer is lost, but no ordinary route gets there.
+
+**The lesson:** an answer from another app goes to what is always there,
+and work that must finish outlives the screen that asked for it.
 
 ---
 

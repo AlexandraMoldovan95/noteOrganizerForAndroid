@@ -191,6 +191,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** Opens an attached file with the phone's own apps, set by the activity. */
     var openFile: ((File, String) -> Unit)? = null
 
+    // Android's pickers for one note, set by AppRoot: there the answer
+    // arrives even when Android ended the app behind the picker and started
+    // it again. Held by the editor, it found nobody -- an exported file left
+    // empty, files not attached, and nothing said.
+
+    /** Export as file ([rememberExporter]). */
+    var exporter: Exporter? = null
+
+    /** Android's file picker, for the note [id] (0: a new note, saved when files are picked). */
+    var pickAttachments: ((id: Int) -> Unit)? = null
+
+    /**
+     * The open editor's way with picked files, while it is open: a new note
+     * saved first, a full one asked about. False when the files are not for
+     * its note -- then AppRoot attaches them itself.
+     */
+    var attachHere: ((id: Int, files: List<android.net.Uri>) -> Boolean)? = null
+
     /**
      * Saves whatever the editor holds: null when the file holds it, or why
      * it does not. Registered by the editor while it is open; the activity

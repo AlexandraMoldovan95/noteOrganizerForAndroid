@@ -162,6 +162,12 @@ do before, not as releases anyone ran.
   The comments field now stops at ten lines and scrolls inside, and its
   words are no longer handed to the system while the app is away. Found
   by the final audit, checked on the emulator.
+- **Export as file and Attach files finish when Android restarts the
+  app.** If Android ended the app behind its file picker, as it does when
+  it needs the memory, the exported file stayed empty and the picked
+  files were not attached, without a word; and Back while a large file
+  was copying lost it. Both now finish, and say so. Found by the final
+  audit, checked on the emulator.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or
