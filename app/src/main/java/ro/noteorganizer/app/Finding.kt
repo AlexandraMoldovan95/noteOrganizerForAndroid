@@ -95,21 +95,38 @@ object Finding {
             }
         }
 
+        // Read-only text: the first match on each line, its line one stop.
+        fun inLines(text: String, add: (Int, Int) -> Match) {
+            val hay = if (matchCase) text else foldEach(text)
+            var at = hay.indexOf(needle)
+            while (at >= 0 && found.size < CAP) {
+                found.add(add(at, at + needle.length))
+                val next = hay.indexOf('\n', at + needle.length - 1)
+                if (next < 0) break
+                at = hay.indexOf(needle, next + 1)
+            }
+        }
+
         for ((index, segment) in Editing.segments(body).withIndex()) {
             if (found.size >= CAP) break
             if (segment.field) {
                 inText(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
-            // A line too long to lay out is shown read-only, a few hundred
-            // letters of it: no match there can be painted or reached.
-            if (segment.long) continue
-            // A table too large to draw shows only its first lines, and no
-            // match can be painted or scrolled to: counted, its cells moved
-            // the "3/2000+" on and the screen not at all, and used up the
-            // count before the matches after it. Nor is it parsed at every
-            // letter typed in the bar.
-            if (!segment.drawn) continue
+            // A piece shown read-only -- lines too long to lay out, the rest
+            // past what the note draws, a table too large to draw -- is
+            // searched as written, each line one stop however often its words
+            // occur in it, as a cell is: the piece shows the line of the stop
+            // stepped to, cut around it (LongText). Skipped, the bar said
+            // "0/0" in the colour of a word found nowhere, while the list's
+            // search found the note by it (the final audit's fifth round); and
+            // a stop at every match, a table of 90,000 cells used up the count
+            // before the words after it. A table not drawn is never parsed at
+            // every letter typed.
+            if (segment.long || !segment.drawn) {
+                inLines(segment.text) { start, end -> InText(index, start, end) }
+                continue
+            }
             val table = parseTable(segment.text.split("\n"))
             for ((r, row) in table.rows.withIndex()) {
                 for ((c, cell) in row.withIndex()) {
@@ -125,15 +142,58 @@ object Finding {
                 }
             }
         }
+        // A row or comments shown read-only are searched too, as the body's
+        // pieces are, a line one stop: the row is brought into sight, the
+        // comments show the line of the match.
         for ((item, words) in checklist.withIndex()) {
             if (found.size >= CAP) break
-            // Shown read-only when too long to lay out, as the body's lines are.
-            if (Editing.tooLongToLayOut(words)) continue
-            inText(words) { start, end -> InChecklist(item, start, end) }
+            val add = { start: Int, end: Int -> InChecklist(item, start, end) }
+            if (Editing.tooLongToLayOut(words)) inLines(words, add)
+            else inText(words, add)
         }
-        if (found.size < CAP && !Editing.tooLongToLayOut(comments)) inText(comments) { start, end -> InComments(start, end) }
+        if (found.size < CAP) {
+            val add = { start: Int, end: Int -> InComments(start, end) }
+            if (Editing.tooLongToLayOut(comments)) inLines(comments, add) else inText(comments, add)
+        }
         return found
     }
+
+    /** Where each of [lines] starts, as one text joined by line breaks. */
+    fun lineStarts(lines: List<String>): IntArray {
+        val starts = IntArray(lines.size)
+        var at = 0
+        for (i in lines.indices) {
+            starts[i] = at
+            at += lines[i].length + 1
+        }
+        return starts
+    }
+
+    /** The line holding offset [at], by its [starts] ([lineStarts]). */
+    fun lineAt(starts: IntArray, at: Int): Int {
+        var i = java.util.Arrays.binarySearch(starts, at)
+        if (i < 0) i = -i - 2
+        return i.coerceIn(0, maxOf(0, starts.size - 1))
+    }
+
+    /** What a read-only line shows of itself: [from] to [to] in the line, cut there with "…". */
+    data class Cut(val from: Int, val to: Int)
+
+    /**
+     * Where [line] is cut to [chars] to be shown read-only: at its start, or
+     * -- the match stepped to, [at] in the line, lying past what that shows --
+     * around it, a little before. Never through the middle of an emoji.
+     */
+    fun cutAround(line: String, chars: Int, at: Int?): Cut {
+        var from = if (at != null && at > chars - BEFORE) (at - BEFORE).coerceIn(0, line.length) else 0
+        if (from in 1 until line.length && Character.isLowSurrogate(line[from])) from--
+        var to = minOf(line.length, from + chars)
+        if (to in 1 until line.length && Character.isLowSurrogate(line[to])) to--
+        return Cut(from, to)
+    }
+
+    /** How much of a read-only line is shown before the match it is cut around. */
+    private const val BEFORE = 60
 
     /** The bar's count: nothing before a word is typed, "0/0" when it is found nowhere. */
     fun counter(current: Int, total: Int, query: String): String = when {

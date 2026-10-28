@@ -239,6 +239,9 @@
     <string name="highlight_none">No highlight</string>
     <string name="table_too_large">A table of %1$,d cells in %2$,d lines, too large to draw here. The note keeps it whole; its first lines are below.</string>
     <string name="table_more_lines">… and %1$,d more lines</string>
+    <string name="read_only_lines">Lines %1$,d to %2$,d of %3$,d</string>
+    <string name="read_only_earlier">‹ Earlier lines</string>
+    <string name="read_only_later">Read on ›</string>
     <string name="table_past_others">A table of %1$,d cells in %2$,d lines. The tables above it already fill the %3$,d cells a note draws as grids here. The note keeps it whole; its first lines are below.</string>
     <string name="text_too_long">%1$,d characters holding a run no line can break, too long to show here. The note keeps them whole; their start is below.</string>
     <string name="text_too_much">%1$,d characters in %2$,d lines, more than is shown here at once. The note keeps them whole; their start is below.</string>

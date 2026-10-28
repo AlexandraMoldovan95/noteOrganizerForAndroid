@@ -219,11 +219,18 @@ object Editing {
      * the most pieces it is drawn as: the editor draws every piece at once,
      * in one scrolling column. Past either, the rest of the body is one
      * piece shown read-only, its start and how many lines it holds -- the
-     * note keeps every byte. A note of 7,000 lines of prose, 308,000
-     * characters, draws 14,000 lines.
+     * note keeps every byte, Find finds it, and it can be read on. A note of
+     * 7,000 lines of prose, 308,000 characters, draws 14,000 lines.
+     *
+     * The pieces were 100, and ordinary notes reached them: fifty weekly
+     * tables under their headings, 2,331 characters, made the fiftieth and
+     * all after it read-only, with nowhere to write at the end (the final
+     * audit's fifth round). They are a ceiling for hostile notes only -- the
+     * 3,000 tables of two cells a share code of a few hundred characters
+     * brings -- set from what the emulator measured them to cost.
      */
     const val MAX_DRAWN_LINES = 20_000
-    const val MAX_SEGMENTS = 100
+    const val MAX_SEGMENTS = 500
 
     /**
      * The most cells a table may have to be drawn as a grid. Every cell is

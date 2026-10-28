@@ -114,6 +114,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -1633,10 +1634,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
             if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
+                // A piece shown read-only is searched as written ([Finding.scan]).
+                val foundIn = { here.filterIsInstance<Finding.InText>().map { it.start to it.end } }
+                val currentIn = (currentMatch as? Finding.InText)?.takeIf { it.segment == index }?.let { it.start to it.end }
                 if (segment.long) {
-                    LongText(segment.text, segment.heavy)
+                    LongText(segment.text, segment.heavy, foundIn(), currentIn, find.reveal)
                 } else if (segment.table && !segment.drawn) {
-                    LargeTable(segment)
+                    LargeTable(segment, foundIn(), currentIn, find.reveal)
                 } else if (segment.table) {
                     val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
                     // A cell's highlight as the export colours it, the
@@ -2747,26 +2751,85 @@ private const val LONG_TEXT_LINES = 3
  * holds past those shown.
  */
 @Composable
-internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.runsTooLong(text) }) {
+internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.runsTooLong(text) },
+                      found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null, reveal: Int = 0) {
     val palette = LocalPalette.current
     val lines = remember(text) { text.split("\n") }
     val length = remember(text) { text.codePointCount(0, text.length) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    ReadOnlyBlock(lines, LONG_TEXT_LINES, found, current, reveal) {
         Text(if (heavy) stringResource(R.string.text_too_much, length, lines.size)
              else stringResource(R.string.text_too_long, length), color = palette.subtext, fontSize = 13.sp)
+    }
+}
+
+/** How many lines a read-only piece shows at a time once the person reads on. */
+private const val READ_ON_LINES = 40
+
+/**
+ * A piece shown read-only, under its [header]: its first [shown] lines,
+ * each on one line the person can slide sideways, cut to a phone's worth --
+ * and then, read on, [READ_ON_LINES] at a time. A search's matches are
+ * painted, and the one stepped to brings the piece into sight with its line
+ * shown, cut around it: the part of a note past what the phone draws could
+ * be neither read nor found here (the final audit's fifth round).
+ */
+@Composable
+private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int, Int>>, current: Pair<Int, Int>?,
+                          reveal: Int, header: @Composable () -> Unit) {
+    val palette = LocalPalette.current
+    val starts = remember(lines) { Finding.lineStarts(lines) }
+    var first by remember(lines) { mutableIntStateOf(0) }
+    var count by remember(lines) { mutableIntStateOf(shown) }
+    val sight = remember { BringIntoViewRequester() }
+    val matchLine = current?.let { Finding.lineAt(starts, it.first) }
+    LaunchedEffect(reveal, matchLine) {
+        if (matchLine == null) return@LaunchedEffect
+        if (matchLine !in first until first + count) first = maxOf(0, matchLine - 1)
+        withFrameNanos { }
+        sight.bringIntoView()
+    }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).bringIntoViewRequester(sight)) {
+        header()
         Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
-            for (line in lines.take(LONG_TEXT_LINES)) {
-                // Cut where a pair of halves would not be split.
-                val end = if (line.length > LARGE_TABLE_CHARS && Character.isLowSurrogate(line[LARGE_TABLE_CHARS]))
-                    LARGE_TABLE_CHARS - 1 else minOf(line.length, LARGE_TABLE_CHARS)
-                Text(line.substring(0, end) + if (end < line.length) "…" else "", color = palette.text,
-                     fontSize = 13.sp, maxLines = 1, softWrap = false)
+            for (i in first until minOf(lines.size, first + count)) {
+                val line = lines[i]
+                val start = starts[i]
+                val at = current?.first?.takeIf { it in start..start + line.length }?.minus(start)
+                val cut = Finding.cutAround(line, LARGE_TABLE_CHARS, at)
+                // The matches on the part shown, counted from where it is cut.
+                fun local(range: Pair<Int, Int>): Pair<Int, Int>? {
+                    val a = maxOf(range.first - start, cut.from)
+                    val b = minOf(range.second - start, cut.to)
+                    return if (b > a) (a - cut.from) to (b - cut.from) else null
+                }
+                val painted = paintRanges(AnnotatedString(line.substring(cut.from, cut.to)),
+                                          found.mapNotNull { local(it) }, current?.let { local(it) }, palette)
+                val drawn = buildAnnotatedString {
+                    if (cut.from > 0) append("…")
+                    append(painted)
+                    if (cut.to < line.length) append("…")
+                }
+                Text(drawn, color = palette.text, fontSize = 13.sp, maxLines = 1, softWrap = false)
             }
         }
         // Three lines shown of five hundred said nothing of the rest.
-        if (lines.size > LONG_TEXT_LINES) {
-            Text(stringResource(R.string.table_more_lines, lines.size - LONG_TEXT_LINES),
+        if (lines.size > first + count || first > 0) {
+            Text(if (first == 0) stringResource(R.string.table_more_lines, lines.size - count)
+                 else stringResource(R.string.read_only_lines, first + 1, minOf(lines.size, first + count), lines.size),
                  color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (first > 0) {
+                    Text(stringResource(R.string.read_only_earlier), color = palette.accentText, fontSize = 13.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { first = maxOf(0, first - READ_ON_LINES); count = READ_ON_LINES }
+                             .padding(vertical = 6.dp))
+                }
+                if (first + count < lines.size) {
+                    Text(stringResource(R.string.read_only_later), color = palette.accentText, fontSize = 13.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { first += count; count = READ_ON_LINES }.padding(vertical = 6.dp))
+                }
+            }
         }
     }
 }
@@ -2780,26 +2843,17 @@ internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.r
  * from such a note froze the app as it opened.
  */
 @Composable
-internal fun LargeTable(segment: Editing.Segment) {
+internal fun LargeTable(segment: Editing.Segment, found: List<Pair<Int, Int>> = emptyList(),
+                        current: Pair<Int, Int>? = null, reveal: Int = 0) {
     val palette = LocalPalette.current
     val lines = remember(segment.text) { segment.text.split("\n") }
     // As the grid would be drawn, which is what made it too large -- or,
     // under the line, the tables above it, which drew what a note may.
     val cells = remember(segment.text) { Editing.gridCells(lines) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    ReadOnlyBlock(lines, LARGE_TABLE_LINES, found, current, reveal) {
         Text(if (cells > Editing.MAX_DRAWN_CELLS) stringResource(R.string.table_too_large, cells, lines.size)
              else stringResource(R.string.table_past_others, cells, lines.size, Editing.MAX_DRAWN_CELLS),
              color = palette.subtext, fontSize = 13.sp)
-        Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
-            for (line in lines.take(LARGE_TABLE_LINES)) {
-                Text(line.take(LARGE_TABLE_CHARS), color = palette.text, fontSize = 13.sp,
-                     maxLines = 1, softWrap = false)
-            }
-        }
-        if (lines.size > LARGE_TABLE_LINES) {
-            Text(stringResource(R.string.table_more_lines, lines.size - LARGE_TABLE_LINES),
-                 color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        }
     }
 }
 
@@ -2873,8 +2927,11 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
             if (laid != null && current.start < laid.layoutInput.text.length) laid.getBoundingBox(current.start) else null)
     }
     val spots = found.map { it.start to it.end }
-    // Comments too long to lay out are shown, not edited, as the body's lines are.
-    if (Editing.tooLongToLayOut(model.comments)) LongText(model.comments) else BasicTextField(
+    // Comments too long to lay out are shown, not edited, as the body's lines
+    // are -- and searched as those are, the line of the match shown.
+    if (Editing.tooLongToLayOut(model.comments)) {
+        LongText(model.comments, found = spots, current = current?.let { it.start to it.end }, reveal = reveal)
+    } else BasicTextField(
         value = model.comments,
         onValueChange = { now ->
             // A table pasted here showed as rows of bars: the comments draw no table.

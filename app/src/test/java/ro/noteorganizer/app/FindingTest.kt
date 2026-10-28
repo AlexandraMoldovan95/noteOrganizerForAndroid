@@ -138,6 +138,29 @@ class FindingTest {
     }
 
     @Test
+    fun `a piece shown read-only is searched as written, each line one stop, and what follows is reached`() {
+        // Skipped, the bar said 0/0 in the colour of a word found nowhere
+        // while the list's search found the note by it.
+        val long = "W".repeat(Editing.MAX_UNBROKEN + 1)
+        val body = "intro\n$long needle needle\n$long needle\nafter needle"
+        val found = scan(body, "needle")
+        assertEquals(listOf(Finding.InText(1, long.length + 1, long.length + 7),
+                            Finding.InText(1, 2 * long.length + 16, 2 * long.length + 22),
+                            Finding.InText(2, 6, 12)), found)
+        // Where a read-only line is cut to show the match stepped to.
+        val line = "a".repeat(1_000)
+        assertEquals(Finding.Cut(0, 300), Finding.cutAround(line, 300, null))
+        assertEquals(Finding.Cut(0, 300), Finding.cutAround(line, 300, 200))
+        assertEquals(Finding.Cut(640, 940), Finding.cutAround(line, 300, 700))
+        val emoji = "👣".repeat(400)
+        val cut = Finding.cutAround(emoji, 300, 501)
+        assertTrue(!Character.isLowSurrogate(emoji[cut.from]) && !Character.isLowSurrogate(emoji[cut.to]))
+        val starts = Finding.lineStarts(listOf("ab", "", "cde"))
+        assertEquals(listOf(0, 3, 4), starts.toList())
+        assertEquals(listOf(0, 0, 1, 2, 2, 2), listOf(0, 2, 3, 4, 6, 99).map { Finding.lineAt(starts, it) })
+    }
+
+    @Test
     fun `nothing to find, nothing found`() {
         assertEquals(emptyList<Finding.Match>(), scan("anything", ""))
         assertEquals(emptyList<Finding.Match>(), scan("", "x"))

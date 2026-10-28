@@ -79,10 +79,11 @@ class EditingTest {
         assertTrue(alone[1].isVirtual && alone[1].field)
         assertTrue(Editing.segments("W".repeat(Editing.MAX_UNBROKEN)).single().field)
         assertFalse(Editing.segments("W".repeat(Editing.MAX_UNBROKEN + 1)).first().field)
-        // Find does not count what it cannot show; the calculator writes after it.
+        // Find stops at what is shown read-only once a line, where it can be
+        // shown; the calculator writes after it.
         assertEquals(listOf(Finding.InText(2, 0, 5)), Finding.scan(body, "after", matchCase = false))
-        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "W", matchCase = false,
-            checklist = listOf(unbroken), comments = unbroken))
+        assertEquals(listOf(Finding.InChecklist(0, 0, 1), Finding.InComments(0, 1)), Finding.scan("x", "W",
+            matchCase = false, checklist = listOf(unbroken), comments = unbroken))
         val short = "before\n$unbroken\nafter"
         assertEquals("before\n$unbroken\n1+1\nafter", Calculator.place(short, "1+1", null, 10).body)
         // A list's card gets a glimpse of such a title, never the whole of it.
@@ -117,8 +118,8 @@ class EditingTest {
         assertTrue(Editing.tooLongToLayOut("中\u00A0".repeat(6_000)))
         // One function answers for every place that asks.
         val title = "a\u00A0".repeat(75_000)
-        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "a", matchCase = false,
-            checklist = listOf(title), comments = title))
+        assertEquals(listOf(Finding.InChecklist(0, 0, 1), Finding.InComments(0, 1)), Finding.scan("x", "a",
+            matchCase = false, checklist = listOf(title), comments = title))
     }
 
     @Test
@@ -193,6 +194,26 @@ class EditingTest {
     }
 
     @Test
+    fun `an ordinary note of many small tables is drawn whole, to its end, with somewhere to write after it`() {
+        // 100 pieces were a note's ceiling: fifty weekly tables under their
+        // headings, 2,331 characters, made the fiftieth and everything after
+        // it read-only, with nowhere to write at the end; and a training log
+        // of sixty sessions, 5 KB, hid its last ten from Find.
+        val weeks = (1..50).joinToString("\n") { "Week $it\n| Day | Spent |\n|---|---|\n| Mon | $it |" }
+        val parts = Editing.segments(weeks)
+        assertTrue(parts.none { it.long })
+        assertEquals(50, parts.count { it.table && it.drawn })
+        assertTrue("somewhere to write after the last", parts.last().isVirtual && parts.last().field)
+        val sessions = (1..60).joinToString("\n") { "Session $it\n| Set | Reps | Kg |\n|---|---|---|\n| 1 | 8 | ${40 + it} |" }
+        assertTrue(Editing.segments(sessions).none { it.long })
+        assertEquals(listOf(Finding.InText(120, 4, 12)),
+            Finding.scan("$sessions\nThe deadlift went well.", "deadlift", matchCase = false))
+        // Two hundred weekly tables -- four years -- still end in a field.
+        val years = Editing.segments((1..200).joinToString("\n") { "Week $it\n| Day | Spent |\n|---|---|\n| Mon | $it |" })
+        assertTrue(years.none { it.long } && years.last().field)
+    }
+
+    @Test
     fun `a note of many short lines is drawn as fields of a share each, the rest read-only`() {
         // A code of 666 characters: 200,000 empty lines, one field -- each of
         // its lines drawn by a call copying the whole field again.
@@ -217,7 +238,7 @@ class EditingTest {
         assertEquals(journal.length + 6, typed.length)
         assertEquals(parts[0].text, Editing.segments(typed)[0].text)
         // One line heavier to draw than a field may be is read-only; the
-        // title and comments are asked the same, and Find skips them.
+        // title and comments are asked the same, and Find stops at each once.
         val wide = "word ".repeat(60_000)
         val cut = Editing.segments("intro\n$wide\noutro")
         assertEquals(listOf(true, false, true), cut.map { it.field })
@@ -227,8 +248,8 @@ class EditingTest {
         assertTrue(Editing.tooLongToLayOut(wide))
         assertFalse(Editing.tooLongToLayOut("\n".repeat(20_000)))
         assertFalse(Editing.tooLongToLayOut("word ".repeat(30_000)))
-        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "word", matchCase = false,
-            checklist = listOf(wide), comments = "word" + empties))
+        assertEquals(listOf(Finding.InChecklist(0, 0, 4), Finding.InComments(0, 4)), Finding.scan("x", "word",
+            matchCase = false, checklist = listOf(wide), comments = "word" + empties))
     }
 
     @Test
@@ -258,7 +279,8 @@ class EditingTest {
         assertEquals(listOf(true, false, true), parts.map { it.drawn })
         assertEquals(listOf(true, false, true), parts.map { it.field })
         assertEquals(body, parts.joinToString("\n") { it.text })
-        assertEquals("nothing in it is found", emptyList<Finding.Match>(), Finding.scan(body, "x", matchCase = false))
+        assertEquals("found once, where it is", listOf(Finding.InText(1, 150_005, 150_006)),
+            Finding.scan(body, "x", matchCase = false))
         // With a header and a separator; joined by no-break spaces; and
         // three cells just under the limit, which add up past it.
         val heavy = "a".repeat(Editing.MAX_UNBROKEN - 1)
@@ -279,12 +301,16 @@ class EditingTest {
     }
 
     @Test
-    fun `Find never steps into a table it does not draw`() {
-        // The counter moved through 2,000 cells of a table shown only as its
-        // first lines, and the one match on the screen was never reached.
+    fun `Find stops at a table it does not draw once a line, and still reaches the words after it`() {
+        // A stop at every cell, the counter moved through 2,000 cells of a
+        // table shown only as its first lines, and the one match on the
+        // screen was never reached; skipped, its words were found nowhere.
+        // Each line is one stop, and the table shows the line stepped to.
         val big = grid(300, 300).replace(Regex("r\\d+c\\d+"), "1")
         val found = Finding.scan("$big\nTotal 1", "1", matchCase = false)
-        assertEquals(listOf(Finding.InText(1, 6, 7)), found)
+        assertEquals("every line but the separator", 299, found.count { it.segment == 0 })
+        assertEquals(Finding.InText(1, 6, 7), found.last())
+        assertEquals(Finding.InText(0, 2, 3), found.first())
         // A table drawn is searched as before.
         assertEquals(2, Finding.scan("| 1 | 2 |\n|---|---|\n| 3 | 1 |", "1", matchCase = false).size)
     }
