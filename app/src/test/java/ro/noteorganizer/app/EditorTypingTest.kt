@@ -113,6 +113,34 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a restore that ends the repeat, from one of its days, leaves the day for the whole note`() {
+        // The editor stayed on the day, and every save went to the day and
+        // was refused: "This note no longer repeats."
+        val dir = NioFiles.createTempDirectory("editorrestoreday").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "r", "title": "R", "body": "now daily",
+            "category": "General", "date": "2026-10-05", "recurrence": {"freq": "daily"},
+            "_prev": {"title": "R", "body": "a one-off", "date": "2026-10-05", "recurrence": {"freq": ""}}},
+            {"id": 2, "uid": "s", "title": "S", "body": "weekly", "category": "General", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]},
+            "_prev": {"title": "S", "body": "older words"}}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-10-12")
+        assertEquals("2026-10-12", state.openDay)
+        val model = EditorModel(state, state.note(1), day = state.openDay)
+        assertTrue(Notebook.restorePrevious(state.load, 1) is SaveResult.Ok)
+        model.reloadFrom(state.note(1)!!)
+        assertEquals(null, state.openDay)
+        assertEquals(1, state.openId)
+        // A restore that keeps the repeat keeps the day.
+        state.openNote(2, "2026-10-12")
+        val still = EditorModel(state, state.note(2), day = state.openDay)
+        assertTrue(Notebook.restorePrevious(state.load, 2) is SaveResult.Ok)
+        still.reloadFrom(state.note(2)!!)
+        assertEquals("2026-10-12", state.openDay)
+    }
+
+    @Test
     fun `glued on a styled word, and before one, as the desktop types`() {
         val model = editor("quick fox", """[{"start": 0, "end": 5, "style": "highlight", "value": "#fff3b0"}]""")
         model.type("quickly fox", 7)
