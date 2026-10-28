@@ -276,6 +276,14 @@ do before, not as releases anyone ran.
   number now comes in as nothing, as the desktop's normalize drops it,
   and anything else an import cannot read is refused with a sentence.
   Found by the final audit's second round.
+- **A backup holding a file with a long name in Cyrillic, Greek or
+  Chinese comes in.** Windows counts a name's length in letters and
+  Android in bytes, so a name the desktop kept could be one the phone
+  cannot store, and the whole backup was refused with an error code and
+  an inner path. Such a file now comes in under a shorter name that
+  keeps its start and its type, and the note follows it; a file attached
+  on the phone with a long name fits the same way. Found by the final
+  audit's second round.
 
 ---
 

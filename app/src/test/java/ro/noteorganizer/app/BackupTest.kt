@@ -36,6 +36,32 @@ class BackupTest {
     }
 
     @Test
+    fun `an attached file named longer than the phone's storage holds comes in under a name it holds`() {
+        // 161 UTF-16 units, which Windows takes, and 279 UTF-8 bytes, which
+        // Android's storage refuses: the whole backup was refused for it,
+        // with an errno and an inner path for a message.
+        val long = "20261028093000123456_" + "Договор_аренды_квартиры_".repeat(5) + "подписанный.pdf"
+        assertTrue(long.toByteArray().size > 255)
+        val zip = File(temp("zip"), "b.zip")
+        val notes = """[{"id": 1, "uid": "a", "title": "Lease", "attachments": [{"filename": "Договор.pdf", "stored_as": "$long"}]},
+            {"id": 2, "uid": "b", "title": "Second"}]"""
+        zipOf(zip, "notes_data.json" to notes, "attachments/$long" to "pdf bytes",
+              "trash.json" to """[{"id": 3, "title": "Gone", "attachments": [{"filename": "x.pdf", "stored_as": "$long"}]}]""")
+        val read = Backup.read(zip, temp("into"), free = Long.MAX_VALUE) as Backup.Read.Ok
+        assertEquals(listOf("Lease", "Second"), read.contents.notes.map { it.getString("title") })
+        val stored = read.contents.notes[0].getJSONArray("attachments").getJSONObject(0).getString("stored_as")
+        assertTrue(stored, stored.toByteArray().size <= Backup.MAX_NAME_BYTES && stored.endsWith(".pdf"))
+        assertTrue(stored.startsWith("20261028093000123456_Договор"))
+        assertEquals("pdf bytes", File(read.contents.attachments, stored).readText())
+        assertEquals(stored, read.contents.trash!!.getJSONObject(0).getJSONArray("attachments").getJSONObject(0).getString("stored_as"))
+        // A file attached on the phone, its picked name long, fits once stamped too.
+        val picked = Organizing.storedName("Договор_аренды_".repeat(15) + ".pdf")
+        assertTrue(picked.toByteArray().size <= Backup.MAX_NAME_BYTES && picked.endsWith(".pdf"))
+        // A name that fits is left alone.
+        assertEquals("attachments/20261028_a.pdf", Backup.fittedPlace("attachments/20261028_a.pdf"))
+    }
+
+    @Test
     fun `an export holds the desktop's names, and reads back whole`() {
         val dir = temp("notebook")
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "a", "title": "Hello"}]""")

@@ -275,6 +275,45 @@ object Backup {
     }
 
     /**
+     * The longest name an attached file is kept under, in UTF-8 bytes:
+     * Android's storage holds 255 (NAME_MAX), less the ".part" a copy is
+     * written under before it takes its name.
+     */
+    const val MAX_NAME_BYTES = 250
+
+    /**
+     * Where [place] -- `attachments/<name>` or a data file -- is unpacked:
+     * itself, unless its name is longer than this phone's storage holds.
+     * Windows counts 255 UTF-16 units to a name, Android 255 bytes, so a
+     * desktop file named in Cyrillic or Chinese can be legal there and not
+     * here -- and one such name refused the whole backup, with an errno and
+     * an inner path for its message. Such a name keeps its type and as much
+     * of its start as fits, with a short mark of the whole name so two never
+     * meet.
+     */
+    fun fittedPlace(place: String): String {
+        val name = place.substringAfter('/', place)
+        if (name.toByteArray(Charsets.UTF_8).size <= MAX_NAME_BYTES) return place
+        val dot = name.lastIndexOf('.')
+        val type = if (dot > 0 && name.length - dot <= 16) name.substring(dot) else ""
+        val mark = "_%08x".format(name.hashCode())
+        var room = MAX_NAME_BYTES - type.toByteArray(Charsets.UTF_8).size - mark.length
+        val stem = StringBuilder()
+        var i = 0
+        val body = name.substring(0, name.length - type.length)
+        while (i < body.length) {
+            val cp = body.codePointAt(i)
+            val bytes = String(Character.toChars(cp)).toByteArray(Charsets.UTF_8).size
+            if (bytes > room) break
+            stem.appendCodePoint(cp)
+            room -= bytes
+            i += Character.charCount(cp)
+        }
+        val fitted = stem.toString() + mark + type
+        return if (place.contains('/')) place.substringBefore('/') + "/" + fitted else fitted
+    }
+
+    /**
      * Reads the backup [zip] into the empty folder [into]: guarded, then
      * unpacked, then its files parsed. [free] is the space left on the disk
      * it unpacks to, [heap] the memory the app may use. A failure says what
@@ -282,6 +321,8 @@ object Backup {
      */
     fun read(zip: File, into: File, free: Long, stop: () -> Boolean = { false },
              heap: Long = Runtime.getRuntime().maxMemory()): Read {
+        // Attached files unpacked under a shorter name: the name as stored -> the one here.
+        val renamed = HashMap<String, String>()
         val file = try {
             ZipFile(zip)
         } catch (e: Exception) {
@@ -298,7 +339,11 @@ object Backup {
             try {
                 for (entry in archive.entries()) {
                     if (entry.isDirectory) continue
-                    val place = placeOf(entry.name) ?: continue
+                    val placed = placeOf(entry.name) ?: continue
+                    // A name this phone's storage cannot hold goes in under one
+                    // it can, and the notes naming it are told below.
+                    val place = fittedPlace(placed)
+                    if (place != placed) renamed[placed.substringAfter('/')] = place.substringAfter('/')
                     val target = File(into, place)
                     target.parentFile?.mkdirs()
                     // The sizes the guards read are the archive's own claim.
@@ -345,9 +390,21 @@ object Backup {
             null
         }
         val attachments = File(into, ATTACHMENTS).takeIf { it.isDirectory }
+        val trash = optionalArray(TRASH)
+        if (renamed.isNotEmpty()) {
+            for (holder in (0 until notes.length()).map { notes.opt(it) } +
+                (0 until (trash?.length() ?: 0)).map { trash!!.opt(it) }) {
+                val records = (holder as? JSONObject)?.opt("attachments") as? JSONArray ?: continue
+                for (i in 0 until records.length()) {
+                    val record = records.opt(i) as? JSONObject ?: continue
+                    val stored = Normalize.bareFileName(record.opt("stored_as") as? String ?: continue)
+                    renamed[stored]?.let { record.put("stored_as", it) }
+                }
+            }
+        }
         return Read.Ok(Contents(
             notes = (0 until notes.length()).mapNotNull { notes.opt(it) as? JSONObject },
-            trash = optionalArray(TRASH),
+            trash = trash,
             templates = optionalArray(TEMPLATES),
             settings = settings,
             attachments = attachments,

@@ -1608,6 +1608,26 @@ def hostile_backups(folder):
           and [c.get("text") for c in templates[0].get("checklist", [])] == ["milk"], repr(templates)[:200])
     adb("shell", "rm", "-f", "/sdcard/Download/" + name)
     back_to("Search notes")
+    # A desktop file named in Cyrillic, 279 bytes long: Windows takes it,
+    # Android's storage does not, and the whole backup was refused for it.
+    long = "20261028093000123456_" + "Договор_аренды_квартиры_" * 5 + "подписанный.pdf"
+    name = "walk_long_name.zip"
+    picked = import_backup_file(folder, name, {
+        "notes_data.json": json.dumps([{"id": 1, "uid": "long-1", "title": "Lease",
+                                        "attachments": [{"filename": "Договор.pdf", "stored_as": long}]},
+                                       {"id": 2, "uid": "long-2", "title": "Second"}], ensure_ascii=False),
+        "attachments/" + long: b"%PDF-1.4 walk",
+    })
+    check_settled("a backup with a file named longer than Android holds comes in whole",
+                  lambda: sorted(n.get("title") for n in read_file("notes_data.json") or []),
+                  lambda titles: picked and titles == ["Lease", "Plain note", "Second"], within=15.0)
+    lease = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Lease"), {})
+    stored = ((lease.get("attachments") or [{}])[0]).get("stored_as", "")
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK + "/attachments")
+    check("... its file kept under a name the phone holds, the note naming it",
+          0 < len(stored.encode("utf-8")) <= 250 and stored.endswith(".pdf") and stored in held, repr(stored))
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    back_to("Search notes")
 
 
 def big_table(folder):

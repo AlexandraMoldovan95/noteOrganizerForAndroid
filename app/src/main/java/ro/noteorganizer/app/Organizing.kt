@@ -240,7 +240,9 @@ object Organizing {
         val own = Normalize.bareFileName(display)
             .map { if (it < ' ' || it in "\\/:*?\"<>|") '_' else it }
             .joinToString("").ifEmpty { "file" }
-        return STAMP.format(now) + "_" + own
+        // Within what the phone's storage holds: a long name in Cyrillic,
+        // legal where it came from, could not be copied once stamped.
+        return Backup.fittedPlace(STAMP.format(now) + "_" + own)
     }
 
     /**
@@ -270,7 +272,7 @@ object Organizing {
             var stored = base
             var n = 2
             while (File(attachmentsDir, stored).exists()) {
-                stored = base.substringBefore('_') + "-" + (n++) + "_" + base.substringAfter('_')
+                stored = Backup.fittedPlace(base.substringBefore('_') + "-" + (n++) + "_" + base.substringAfter('_'))
             }
             val target = File(attachmentsDir, stored)
             try {

@@ -585,10 +585,11 @@ object Importing {
         val source = File(attachmentsDir, base)
         if (base.isEmpty() || !source.isFile) return null
         val stamp = SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(Date()) + "000"
-        var name = "${stamp}_$base"
+        // Within what the phone's storage holds, the stamp included.
+        var name = Backup.fittedPlace("${stamp}_$base")
         var n = 1
         while (File(attachmentsDir, name).exists()) {
-            name = "${stamp}_${n}_$base"
+            name = Backup.fittedPlace("${stamp}_${n}_$base")
             n += 1
         }
         return if (copyWhole(source, File(attachmentsDir, name))) name else null
