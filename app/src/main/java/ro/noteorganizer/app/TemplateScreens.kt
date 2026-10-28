@@ -443,8 +443,14 @@ private fun TemplateEditor(
                 // Comments too long to lay out are shown, not edited, as a
                 // note's are, and kept as they were.
                 val commentsText = comments.text.toString()
-                if (Editing.tooLongToLayOut(commentsText)) LongText(commentsText)
-                else OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 10),
+                if (Editing.tooLongToLayOut(commentsText)) {
+                    // Under the name its field had: the label was the field's
+                    // own, and the block alone read as the body's (the walk,
+                    // 2026-10-29).
+                    Text(stringResource(R.string.template_field_comments), color = palette.subtext, fontSize = 12.sp,
+                         modifier = Modifier.padding(top = 12.dp))
+                    LongText(commentsText)
+                } else OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 10),
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
 
