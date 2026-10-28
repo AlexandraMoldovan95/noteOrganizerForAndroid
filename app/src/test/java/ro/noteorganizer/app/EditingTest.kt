@@ -58,6 +58,39 @@ class EditingTest {
     }
 
     @Test
+    fun `a line too long to lay out is a segment of its own, shown read-only, the note unchanged`() {
+        // 150,000 letters with no space held the screen 12.6 s as a field; the
+        // same with spaces opened in 0.17 s, and stays a field.
+        val unbroken = "W".repeat(150_000)
+        val spaced = "word ".repeat(30_000)
+        val body = "before\n$unbroken\n${unbroken}x\nafter\n$spaced"
+        val parts = Editing.segments(body)
+        assertEquals(listOf(true, false, true), parts.map { it.field })
+        assertEquals(listOf(false, true, false), parts.map { it.long })
+        assertEquals("both long lines, one segment", "$unbroken\n${unbroken}x", parts[1].text)
+        assertEquals("after\n$spaced", parts[2].text)
+        assertEquals(body, parts.joinToString("\n") { it.text })
+        // Typing around it leaves it whole.
+        assertEquals("BEFORE\n$unbroken\n${unbroken}x\nafter\n$spaced", Editing.replaceProse(body, parts[0], "BEFORE"))
+        // Ending the note, it leaves room to write after it; at the line, it is a field.
+        val alone = Editing.segments(unbroken)
+        assertEquals(listOf(true, false), alone.map { it.long })
+        assertTrue(alone[1].isVirtual && alone[1].field)
+        assertTrue(Editing.segments("W".repeat(Editing.MAX_UNBROKEN)).single().field)
+        assertFalse(Editing.segments("W".repeat(Editing.MAX_UNBROKEN + 1)).first().field)
+        // Find does not count what it cannot show; the calculator writes after it.
+        assertEquals(listOf(Finding.InText(2, 0, 5)), Finding.scan(body, "after", matchCase = false))
+        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "W", matchCase = false,
+            checklist = listOf(unbroken), comments = unbroken))
+        val short = "before\n$unbroken\nafter"
+        assertEquals("before\n$unbroken\n1+1\nafter", Calculator.place(short, "1+1", null, 10).body)
+        // A list's card gets a glimpse of such a title, never the whole of it.
+        val card = Notebook.parseNotes("""[{"id": 1, "title": "$unbroken"}]""").single()
+        assertEquals(unbroken, card.title)
+        assertTrue(card.headline.length <= 300)
+    }
+
+    @Test
     fun `a ragged table is weighed as it is drawn, every row as wide as the widest`() {
         // 1,000 cells as written -- one row of 500, then 250 of two -- drawn
         // as 251 by 500: 125,500 cells, from a share code of 174 characters.

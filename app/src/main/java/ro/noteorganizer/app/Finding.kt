@@ -97,10 +97,13 @@ object Finding {
 
         for ((index, segment) in Editing.segments(body).withIndex()) {
             if (found.size >= CAP) break
-            if (!segment.table) {
+            if (segment.field) {
                 inText(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
+            // A line too long to lay out is shown read-only, a few hundred
+            // letters of it: no match there can be painted or reached.
+            if (segment.long) continue
             // A table too large to draw shows only its first lines, and no
             // match can be painted or scrolled to: counted, its cells moved
             // the "3/2000+" on and the screen not at all, and used up the
@@ -124,9 +127,11 @@ object Finding {
         }
         for ((item, words) in checklist.withIndex()) {
             if (found.size >= CAP) break
+            // Shown read-only when too long to lay out, as the body's lines are.
+            if (Editing.tooLongToLayOut(words)) continue
             inText(words) { start, end -> InChecklist(item, start, end) }
         }
-        if (found.size < CAP) inText(comments) { start, end -> InComments(start, end) }
+        if (found.size < CAP && !Editing.tooLongToLayOut(comments)) inText(comments) { start, end -> InComments(start, end) }
         return found
     }
 

@@ -79,7 +79,7 @@ fun TemplatePicker(templates: List<JSONObject>, onPick: (JSONObject) -> Unit, on
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 for (tpl in templates) {
                     Text(
-                        "🧩  " + tpl.optString("name"), color = palette.text, fontSize = 15.sp,
+                        "🧩  " + glimpse(tpl.optString("name")), color = palette.text, fontSize = 15.sp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 3.dp)
@@ -208,7 +208,7 @@ fun TemplatesPage(state: AppState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("🧩", fontSize = 16.sp)
-                Text(tpl.optString("name"), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                Text(glimpse(tpl.optString("name")), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                      modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp))
                 val editSaid = stringResource(R.string.template_edit_title)
                 val deleteSaid = stringResource(R.string.template_delete_title)
@@ -289,8 +289,11 @@ private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (Str
     ) {
         Text(label, color = palette.subtext, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
         for ((index, segment) in Editing.segments(body).withIndex()) {
-            key(index, segment.table) {
-                if (segment.table && !segment.drawn) {
+            key(index, segment.table, segment.long) {
+                if (segment.long) {
+                    // Too long to lay out: as the note editor shows it.
+                    LongText(segment.text)
+                } else if (segment.table && !segment.drawn) {
                     // Too large to draw as a grid: as the note editor shows it.
                     LargeTable(segment)
                 } else if (segment.table) {
@@ -434,7 +437,11 @@ private fun TemplateEditor(
                 // to fit very long comments, the field outgrew the tallest
                 // size Compose can measure and the app stopped as the
                 // template opened (600,000 letters, on the emulator).
-                OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 10),
+                // Comments too long to lay out are shown, not edited, as a
+                // note's are, and kept as they were.
+                val commentsText = comments.text.toString()
+                if (Editing.tooLongToLayOut(commentsText)) LongText(commentsText)
+                else OutlinedTextField(comments, lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 10),
                     label = { Text(stringResource(R.string.template_field_comments)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
 

@@ -267,7 +267,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             changeSite(was, body)?.let { at ->
                 val segments = Editing.segments(body)
                 val within = segments.indexOfFirst { s ->
-                    !s.table && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+                    s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
                 }
                 if (within >= 0) {
                     caret = at
@@ -447,7 +447,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         body = made.body
         if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
         changed()
-        val index = Editing.segments(body).indexOfFirst { !it.table && made.line in it.firstLine..it.lastLine }
+        val index = Editing.segments(body).indexOfFirst { it.field && made.line in it.firstLine..it.lastLine }
         ask(index, fieldValue(index, made.selectStart, made.selectEnd))
     }
 
@@ -460,7 +460,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         follow(next)
         body = next
         changed()
-        val index = Editing.segments(body).indexOfFirst { !it.table && segment.firstLine in it.firstLine..it.lastLine }
+        val index = Editing.segments(body).indexOfFirst { it.field && segment.firstLine in it.firstLine..it.lastLine }
         ask(index, fieldValue(index, at))
     }
 
@@ -1007,7 +1007,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val chars = done.body.codePoints().toArray()
         val line = (0 until done.caret.coerceAtMost(chars.size)).count { chars[it] == '\n'.code }
         // Rows pasted become a table, and the field the cursor is in may be another one now.
-        val index = Editing.segments(body).indexOfFirst { !it.table && line in it.firstLine..it.lastLine }
+        val index = Editing.segments(body).indexOfFirst { it.field && line in it.firstLine..it.lastLine }
         if (index >= 0) ask(index, fieldValue(index, done.caret)) else focused = null
     }
 }
@@ -1452,7 +1452,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
-            BasicTextField(
+            // A title too long to lay out -- a share code can bring one -- is
+            // shown, not edited: as a field it froze the note at every opening.
+            if (Editing.tooLongToLayOut(model.title)) LongText(model.title) else BasicTextField(
                 value = model.title,
                 onValueChange = {
                     // One line, as the desktop's title is: Enter goes on to
@@ -1515,7 +1517,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
             if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
-                if (segment.table && !segment.drawn) {
+                if (segment.long) {
+                    LongText(segment.text)
+                } else if (segment.table && !segment.drawn) {
                     LargeTable(segment)
                 } else if (segment.table) {
                     val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
@@ -2535,6 +2539,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .padding(end = 10.dp),
             )
             val renaming = model.renaming?.takeIf { it.index == index && it.was == item.text }
+            // A row too long to lay out is shown, not edited, as the body's lines are.
+            if (Editing.tooLongToLayOut(item.text)) Box(Modifier.weight(1f)) { LongText(item.text) } else
             ChecklistText(renaming?.now ?: item.text, item.done,
                           found = found.filter { it.item == index }.map { it.start to it.end },
                           current = here?.let { it.start to it.end },
@@ -2603,6 +2609,35 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
 /** How much of a table too large to draw is shown: its first lines, each cut to a phone's worth. */
 private const val LARGE_TABLE_LINES = 40
 private const val LARGE_TABLE_CHARS = 300
+
+/** How many of a too-long text's lines are shown, each cut as a large table's are. */
+private const val LONG_TEXT_LINES = 3
+
+/**
+ * Text holding a run too long to lay out ([Editing.MAX_UNBROKEN]) -- lines
+ * of a body, a title, comments or a checklist row -- shown as what it is
+ * and its start, read-only, each line on one line the person can slide
+ * sideways: never wrapped, so never broken letter by letter. The note
+ * keeps it whole, byte for byte, and the desktop shows it.
+ */
+@Composable
+internal fun LongText(text: String) {
+    val palette = LocalPalette.current
+    val lines = remember(text) { text.split("\n") }
+    val length = remember(text) { text.codePointCount(0, text.length) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(stringResource(R.string.text_too_long, length), color = palette.subtext, fontSize = 13.sp)
+        Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
+            for (line in lines.take(LONG_TEXT_LINES)) {
+                // Cut where a pair of halves would not be split.
+                val end = if (line.length > LARGE_TABLE_CHARS && Character.isLowSurrogate(line[LARGE_TABLE_CHARS]))
+                    LARGE_TABLE_CHARS - 1 else minOf(line.length, LARGE_TABLE_CHARS)
+                Text(line.substring(0, end) + if (end < line.length) "…" else "", color = palette.text,
+                     fontSize = 13.sp, maxLines = 1, softWrap = false)
+            }
+        }
+    }
+}
 
 /**
  * A table too large to draw as a grid ([Editing.MAX_DRAWN_CELLS]): what it
@@ -2704,7 +2739,8 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
             if (laid != null && current.start < laid.layoutInput.text.length) laid.getBoundingBox(current.start) else null)
     }
     val spots = found.map { it.start to it.end }
-    BasicTextField(
+    // Comments too long to lay out are shown, not edited, as the body's lines are.
+    if (Editing.tooLongToLayOut(model.comments)) LongText(model.comments) else BasicTextField(
         value = model.comments,
         onValueChange = { now ->
             // A table pasted here showed as rows of bars: the comments draw no table.

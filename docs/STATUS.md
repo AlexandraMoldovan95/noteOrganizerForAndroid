@@ -165,6 +165,11 @@ Grouped by what the app does; when each item arrived is in the
     or its letters growing leave the note open where it was. **↶ Undo and
     ↷ Redo** (Ctrl+Z, Ctrl+Y on a keyboard) take back the note's words and
     their styling, a burst of typing at a time, as the desktop's do.
+    A line, a title, comments or a checklist row holding a run of more
+    than 10,000 letters with no space — no one types one, a share code
+    can bring one — is shown as what it is and its start, read-only, the
+    lines around it still typed in; laid out as a field it held the note
+    for seconds. The note keeps every byte, and the desktop shows it.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text

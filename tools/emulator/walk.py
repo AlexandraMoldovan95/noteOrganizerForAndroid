@@ -3075,6 +3075,75 @@ def code_read_away(folder):
     back_to("Search notes")
 
 
+def long_lines(folder):
+    """Text with a run of 150,000 letters and no space -- a share code of a
+    few hundred characters brings one -- in a body, a title, comments and a
+    checklist row: each shown read-only, its start and its length, and the
+    note opens at once, where the body held the screen 12.6 s and the title
+    the list 3.8 s; the file keeps every byte. A code of 120,000 characters
+    shared to the app shows its start and its length the same way."""
+    print("\n-- lines too long to lay out --")
+    w = "W" * 150_000
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "long-line-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+    notes = [note(1, "Long body", body="Words before\n" + w + "\nwords after"),
+             note(2, "T" * 150_000),
+             note(3, "Long comments", comments=w),
+             note(4, "Long row", checklist=[{"text": w, "done": False}])]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", notes)
+    put_inside("settings.json", {"welcome_offered": True})
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    start_app()
+    says_soon("Long body", within=20.0)
+    longest = max(frames_since_reset() or [0.0])
+    check("the list with a title of 150,000 letters is drawn within a second (3.8 s before)", longest < 1.0,
+          "%.2f s" % longest)
+    for title, label in (("Long body", "the body's line"), ("TTTTTTTTTT", "the title"),
+                         ("Long comments", "the comments"), ("Long row", "the checklist row")):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        opened = open_note(title, limit=30.0)
+        time.sleep(1.5)
+        if title in ("Long comments", "Long row") and screen_says("too long to show here"):
+            # Folded away under its label: opened.
+            tap("Comments" if title == "Long comments" else "Checklist", wait=1.5)
+        took = max(frames_since_reset() or [99.0])
+        check("%s, too long to lay out, opens within a second and says so" % label,
+              opened and took < 1.0 and not screen_says("too long to show here"),
+              "%.2f s, %s" % (took, screen_says("too long to show here")))
+        if title == "Long body":
+            shot(folder, "92-line-too-long", "too long to show here")
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file holds every note as it was",
+          [n.get("body") for n in kept] == [n["body"] for n in notes]
+          and [n.get("title") for n in kept] == [n["title"] for n in notes]
+          and kept[2].get("comments") == w and kept[3].get("checklist", [{}])[0].get("text") == w)
+    # A code that long, shared to the app: its start and its length.
+    local = os.path.join(folder, "walk_long_code.txt")
+    with io.open(local, "w", encoding="ascii") as f:
+        f.write("NOTE1:" + "QUJD" * 30_000)
+    adb("push", local, "/data/local/tmp/walk_long_code.txt")
+    os.remove(local)
+    adb("logcat", "-c")
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"$(cat /data/local/tmp/walk_long_code.txt)\" -n %s/.MainActivity" % PACKAGE)
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_long_code.txt")
+    shown = not says_soon("A code of 120,006 characters", within=15.0)
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    skipped = [int(n) for n in re.findall(r"Skipped (\d+) frames", adb("logcat", "-d", "--pid=" + pid, "-s", "Choreographer"))]
+    check("a code of 120,006 characters shared to the app shows its start and its length, the screen not held",
+          shown and find("Copy", exact=True) is not None and max(skipped or [0]) < 60, "skipped %s" % skipped)
+    shot(folder, "93-code-too-long", "A code of")
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
 def calendar_large_letters(folder):
     """Today's cell, holding a note and a marker, at the phone's largest
     letters: the cell grows, where at a fixed 56 dp the marker was cut in

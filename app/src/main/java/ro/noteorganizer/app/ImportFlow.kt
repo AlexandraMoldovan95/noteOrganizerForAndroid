@@ -59,7 +59,22 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
         text = {
             Column {
                 Text(stringResource(R.string.import_code_explain), color = palette.subtext, fontSize = 13.sp)
-                OutlinedTextField(
+                // A code is one unbroken word by nature, and a field lays it
+                // out letter by letter at its edge: 120,000 characters shared
+                // to the app held the screen until Android offered to close
+                // it. A long one is shown as its start and its length; Copy
+                // takes the whole code, Paste puts another in its place.
+                if (draft.length > CODE_SHOWN_CHARS) {
+                    Text(stringResource(R.string.code_too_long, draft.length), color = palette.text, fontSize = 13.sp,
+                         modifier = Modifier.padding(top = 10.dp))
+                    Text(draft.take(CODE_START_CHARS) + "…", color = palette.text, maxLines = 1, softWrap = false,
+                         style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                         modifier = Modifier.padding(top = 4.dp))
+                    TextButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(draft))
+                        problem = null
+                    }) { Text(stringResource(R.string.copy_code)) }
+                } else OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it; problem = null },
                     // A share code is Base64: one "corrected" letter and it
@@ -107,6 +122,14 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
         containerColor = palette.card,
     )
 }
+
+/**
+ * The longest code the dialog shows whole in its field: far past one note's
+ * code, and a run a field lays out at once (Editing.MAX_UNBROKEN). Past it
+ * the dialog shows its first [CODE_START_CHARS] characters and its length.
+ */
+private const val CODE_SHOWN_CHARS = 5_000
+private const val CODE_START_CHARS = 60
 
 /** A code read: its plan, and how many of its notes look like ones here. */
 private class CodeRead(val plan: Importing.Plan, val alikes: Importing.LookAlikes)

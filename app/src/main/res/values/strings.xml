@@ -234,6 +234,9 @@
     <string name="move_down">Move down</string>
     <string name="table_too_large">A table of %1$,d cells in %2$,d lines, too large to draw here. The note keeps it whole; its first lines are below.</string>
     <string name="table_more_lines">… and %1$,d more lines</string>
+    <string name="text_too_long">%1$,d characters holding a run with no space to break it, too long to show here. The note keeps them whole; their start is below.</string>
+    <string name="code_too_long">A code of %1$,d characters, too long to show whole:</string>
+    <string name="copy_code">Copy</string>
     <!-- Attaching and removing files: the desktop's words -->
     <string name="attach_files">📎 Attach files</string>
     <string name="attach_remove_said">Remove %1$s</string>

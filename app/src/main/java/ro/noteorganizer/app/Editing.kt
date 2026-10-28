@@ -23,7 +23,9 @@ object Editing {
      * [lastLine] inclusive; a segment past the end of the body has
      * `lastLine == firstLine - 1` and holds nothing yet. [cpStart] is
      * where it begins, counted in code points as the file counts. A table
-     * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid.
+     * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid. A
+     * [long] segment is lines holding a run longer than [MAX_UNBROKEN]
+     * with no space to break it, shown read-only; only a [field] is typed in.
      */
     data class Segment(
         val table: Boolean,
@@ -32,9 +34,38 @@ object Editing {
         val text: String,
         val cpStart: Int,
         val drawn: Boolean = true,
+        val long: Boolean = false,
     ) {
         val isVirtual: Boolean get() = lastLine < firstLine
+
+        /** A run of prose the person types into: neither a table nor a [long] line. */
+        val field: Boolean get() = !table && !long
     }
+
+    /**
+     * The longest run of letters with no space in it that a text field is
+     * given to lay out. Such a run is broken where it meets the edge, letter
+     * by letter, and the cost grows with its square: on the emulator 20,000
+     * letters opened in 0.2 s and 150,000 held the screen 12.6 s, against
+     * 0.17 s for 150,000 with spaces (measured 2026-10-28). A share code of a
+     * few hundred characters can bring one, in a body, a title, comments or
+     * a checklist row, and the note froze at every opening; the code dialog
+     * froze the same way on a code of 120,000.
+     */
+    const val MAX_UNBROKEN = 10_000
+
+    /** The longest run of [text] with no space, tab or line break in it, in UTF-16 units. */
+    fun longestUnbroken(text: String): Int {
+        var longest = 0
+        var run = 0
+        for (c in text) {
+            if (c.isWhitespace()) run = 0 else if (++run > longest) longest = run
+        }
+        return longest
+    }
+
+    /** Whether [text] holds a run too long to lay out ([MAX_UNBROKEN]): shown read-only, never as a field. */
+    fun tooLongToLayOut(text: String): Boolean = text.length > MAX_UNBROKEN && longestUnbroken(text) > MAX_UNBROKEN
 
     /**
      * The most cells a table may have to be drawn as a grid. Every cell is
@@ -78,22 +109,40 @@ object Editing {
             at += lines[i].codePointCount(0, lines[i].length) + 1
         }
         starts[lines.size] = at
-        fun prose(first: Int, last: Int) = Segment(
-            false, first, last, lines.subList(first, last + 1).joinToString("\n"), starts[first])
-
+        fun text(first: Int, last: Int) = lines.subList(first, last + 1).joinToString("\n")
         val out = ArrayList<Segment>()
+        // A run of prose lines, each run of lines too long to lay out cut
+        // out of it as a segment of its own, shown read-only: the lines
+        // around it stay fields, and the note keeps every byte.
+        fun prose(first: Int, last: Int) {
+            var from = first
+            var i = first
+            while (i <= last) {
+                if (!tooLongToLayOut(lines[i])) {
+                    i++
+                    continue
+                }
+                var end = i
+                while (end + 1 <= last && tooLongToLayOut(lines[end + 1])) end++
+                if (i > from) out.add(Segment(false, from, i - 1, text(from, i - 1), starts[from]))
+                out.add(Segment(false, i, end, text(i, end), starts[i], long = true))
+                from = end + 1
+                i = end + 1
+            }
+            if (from <= last) out.add(Segment(false, from, last, text(from, last), starts[from]))
+        }
+
         var line = 0
         for (block in tableBlocks(body)) {
-            if (block.first > line) out.add(prose(line, block.first - 1))
-            out.add(Segment(true, block.first, block.last,
-                lines.subList(block.first, block.last + 1).joinToString("\n"), starts[block.first],
+            if (block.first > line) prose(line, block.first - 1)
+            out.add(Segment(true, block.first, block.last, text(block.first, block.last), starts[block.first],
                 drawn = gridCells(lines.subList(block.first, block.last + 1)) <= MAX_DRAWN_CELLS))
             line = block.last + 1
         }
-        if (line < lines.size) {
-            out.add(prose(line, lines.size - 1))
-        } else {
-            // The body ends with a table: room to write after it.
+        if (line < lines.size) prose(line, lines.size - 1)
+        if (out.isEmpty() || !out.last().field) {
+            // The body ends with a table, or a line too long to edit: room
+            // to write after it.
             out.add(Segment(false, lines.size, lines.size - 1, "", starts[lines.size]))
         }
         return out
@@ -104,7 +153,7 @@ object Editing {
      * virtual segment appends a line only when something was typed.
      */
     fun replaceProse(body: String, segment: Segment, newText: String): String {
-        require(!segment.table) { "a table is changed through TableEdit" }
+        require(segment.field) { "a table is changed through TableEdit, and a line too long to lay out not at all" }
         val lines = body.split("\n")
         if (segment.isVirtual) {
             return if (newText.isEmpty()) body else body + "\n" + newText

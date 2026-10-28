@@ -387,7 +387,7 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(4.dp).fillMaxHeight().background(hexColor(colour)))
-            Text((if (series) "🔁 " else "") + title, color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+            Text((if (series) "🔁 " else "") + glimpse(title), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                  maxLines = 1, overflow = TextOverflow.Ellipsis,
                  modifier = Modifier.weight(1f, fill = false).padding(start = 12.dp, top = 12.dp, bottom = 12.dp))
             Text(marks, color = palette.subtext, fontSize = 13.sp, maxLines = 1, modifier = Modifier.padding(end = 12.dp))
@@ -592,7 +592,7 @@ private fun HistoryRow(lead: String, title: String, tail: String, indent: Int, o
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(lead, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(end = 10.dp))
-            Text(title, color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+            Text(glimpse(title), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1,
                  overflow = TextOverflow.Ellipsis)
         }
         if (tail.isNotEmpty()) Text(tail, color = palette.subtext, fontSize = 12.sp, maxLines = 2,

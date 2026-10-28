@@ -375,7 +375,8 @@ object Calculator {
         var at = (mark ?: caret ?: length).coerceIn(0, length)
         var text = if (mark != null) "\n" + formula else formula
         for (segment in Editing.segments(body)) {
-            if (!segment.table) continue
+            // Nor inside a line too long to lay out, shown read-only.
+            if (segment.field) continue
             val end = segment.cpStart + segment.text.codePointCount(0, segment.text.length)
             if (at in segment.cpStart..end) {
                 at = end

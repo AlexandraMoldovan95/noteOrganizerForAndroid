@@ -145,7 +145,9 @@ data class Note(
     val headline: String by lazy {
         val t = title.trim()
         when {
-            t.isNotEmpty() -> t
+            // A glimpse of a title too: one of 150,000 letters with no space,
+            // which a share code can bring, held the list 3.8 s at every start.
+            t.isNotEmpty() -> glimpse(t)
             spokenLines.isNotEmpty() -> glimpse(spokenLines.first())
             // Words only in a table: the note is not empty, it is untitled.
             body.isNotBlank() -> "(untitled)"
@@ -641,8 +643,12 @@ internal fun isTableRow(line: String): Boolean {
  */
 private const val GLIMPSE = 300
 
-/** [text] cut to [GLIMPSE] characters, never through the middle of an emoji. */
-private fun glimpse(text: String): String {
+/**
+ * [text] cut to [GLIMPSE] characters, never through the middle of an emoji:
+ * what a line of a list, a calendar day or a picker is given of a title or
+ * a name, which no one wrote that long but a share code or a backup can.
+ */
+internal fun glimpse(text: String): String {
     if (text.length <= GLIMPSE) return text
     val end = if (Character.isLowSurrogate(text[GLIMPSE])) GLIMPSE - 1 else GLIMPSE
     return text.substring(0, end)

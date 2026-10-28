@@ -292,6 +292,18 @@ do before, not as releases anyone ran.
   look-alikes away from the screen, as a backup is, with "Reading the
   code…" while it is: a code of a few kilobytes can unpack to 20 MB.
   Found by the final audit's second round.
+- **Text with a very long run of letters and no space opens at once.**
+  A share code of a few hundred characters could bring a body line, a
+  title, comments or a checklist row of 150,000 letters with no space;
+  laid out in a field, broken letter by letter at the edge, it held the
+  note 12.6 seconds at every opening, and a title such held the list 3.8
+  seconds at every start. A run past 10,000 letters is now shown as what
+  it is and its start, read-only — the note keeps every byte, and the
+  lines around it stay editable — and a list, a day or a picker shows a
+  glimpse of a title or a name. The code dialog shows a code past 5,000
+  characters as its start and its length, with Copy for the whole code:
+  120,000 characters shared to the app held the screen until Android
+  offered to close it. Found by the final audit's second round.
 
 ---
 
