@@ -3032,15 +3032,19 @@ def code_read_away(folder):
     print("\n-- a large share code, read away from the screen --")
     import base64
     import zlib
-    body = "A line of words, read and read again.\n" * 1800
+    body = "A line of words, read and read again.\n" * 2400
     notes = [{"uid": "read-1", "title": "Known", "body": "changed\n" + body, "category": "General"}] + \
             [{"uid": "read-%d" % i, "title": "Read %d" % i, "body": body, "category": "General"} for i in range(2, 201)]
     payload = json.dumps({"v": 1, "notes": notes}).encode("utf-8")
     code = "NOTE1:" + base64.urlsafe_b64encode(zlib.compress(payload, 9)).decode("ascii")
     print("     %d characters of code, %d bytes unpacked" % (len(code), len(payload)))
-    if not seed_inside([{"id": 1, "uid": "read-1", "title": "Known", "body": "x", "category": "General",
-                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
-                       {"welcome_offered": True}, "Known"):
+    # A notebook of a thousand, each of the code's notes weighed against all.
+    mine = [{"id": 1, "uid": "read-1", "title": "Known", "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}] + \
+           [{"id": i, "uid": "mine-%d" % i, "title": "Mine %d" % i, "category": "General",
+             "body": "\n".join("line %d of note %d, with a few words to read" % (j, i) for j in range(12)),
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"} for i in range(2, 1001)]
+    if not seed_inside(mine, {"welcome_offered": True}, "Mine 2"):
         return
     # Too long for a Windows command line: handed over in a file, and read
     # into the intent by the emulator's own shell.
@@ -3055,11 +3059,18 @@ def code_read_away(folder):
     says_soon("Import a code", within=10.0)
     time.sleep(2.0)
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    adb("logcat", "-c")
+    pid = adb("shell", "pidof", PACKAGE).strip()
     tap("Import", exact=True, wait=0.2)
     asked = not says_soon("1 note you already have", within=30.0)
     longest = max(frames_since_reset() or [0.0])
+    # Work done in the tap itself falls between two frames, where the
+    # frames' own timings do not look: the screen's thread held still shows
+    # as Choreographer's "Skipped N frames" when it is let go.
+    skipped = [int(n) for n in re.findall(r"Skipped (\d+) frames", adb("logcat", "-d", "--pid=" + pid, "-s", "Choreographer"))]
     check("the code's question comes", asked)
-    check("... and no frame holds the screen a second while it is read", longest < 1.0, "%.2f s" % longest)
+    check("... and the screen is never held a second while it is read",
+          longest < 1.0 and max(skipped or [0]) < 60, "longest frame %.2f s, frames skipped %s" % (longest, skipped))
     tap("Cancel", exact=True, wait=1.0)
     back_to("Search notes")
 
