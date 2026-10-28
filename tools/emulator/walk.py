@@ -433,6 +433,7 @@ def main():
     template_long_comments(folder)
     answers_after_restart(folder)
     limits_round3(folder)
+    limits_round4(folder)
 
     print()
     if failures:
@@ -3354,26 +3355,234 @@ def limits_round3(folder):
     back_in()
     back_to("Search notes")
 
-    # A PDF that stops at forty pages says so, before the share sheet.
+    # A PDF that stops at forty pages says so before anything is handed
+    # over: a question since round four (limits_round4 walks its answers),
+    # where it was a bar the share sheet covered.
     open_note("Forty pages", limit=30.0)
     tap("Share", exact=True, wait=1.0)
     tap("PDF", exact=True, wait=0.3)
+    asked = settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=30.0, first=0)
+    shot(folder, "99-pdf-first-pages", "first 40 pages")
+    tap("PDF, first 40 pages", exact=True, wait=0.3)
     sheet = handed(30.0)
     pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Forty pages.pdf", binary=True)
     with open(os.path.join(folder, "99-forty-pages.pdf"), "wb") as f:
         f.write(pdf)
-    # The line at the foot of its last page is drawn as glyphs, which this
-    # cannot read back; its pages it can, and the walk keeps the file.
-    check("a PDF of a note longer than forty pages is the forty pages", sheet != PACKAGE and page_count(pdf) == 40,
-          "%s, %d pages" % (sheet, page_count(pdf)))
-    # Said just before the share sheet covered the app, and still there,
-    # for ten seconds, when the person comes back from it.
+    check("a PDF of a note longer than forty pages is asked about, then is the forty pages",
+          asked is not None and sheet != PACKAGE and page_count(pdf) == 40, "%s, %d pages" % (sheet, page_count(pdf)))
     back_in()
-    said_pages = settle(lambda: next((t for t, d, _ in nodes() if "first 40 pages" in t), ""), bool, within=6.0, first=0)
-    check("... and the app says it holds only the first forty, and what carries all of it",
-          "The PDF holds this note's first 40 pages" in said_pages and "web page carries all of it" in said_pages,
-          repr(said_pages))
-    shot(folder, "99-pdf-first-pages", "first 40 pages")
+    back_to("Search notes")
+
+
+def limits_round4(folder):
+    """The final audit's fourth round, walked: what one note draws, counted
+    for the whole note -- ten tables of 1,000 cells, 200,000 empty lines,
+    3,000 tables of two cells, "x" and "" after a spent limit, and a journal
+    of 7,000 lines -- each opened and timed by the app's own frames, a
+    letter typed into the journal timed too; then what goes out: a note of
+    Chinese text past what Android carries says so on Share -> Text, a code
+    too long says so on its card before the tap, and a PDF that would leave
+    part of the note out asks first -- Cancel hands nothing over, Web page
+    hands the page, the PDF is forty pages with nothing written into it."""
+    print("\n-- round four's limits: what one note draws, and what is asked before it goes --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r4-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def grid(rows, columns):
+        return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
+                         for r in range(rows))
+    journal = "Today I walked to the river and back again.\n" * 7_000
+    notes = [note(1, "Ten tables", body="\n\n".join([grid(50, 20)] * 10)),
+             note(2, "Many lines", body="Above\n" + "\n" * 200_000),
+             note(3, "Tiny tables", body="\n\n".join(["| a | b |"] * 3_000)),
+             note(4, "Alternating", body="\n".join(["a" * 10_000] * 2 + ["x", ""] * 5_000)),
+             note(5, "Journal", body=journal),
+             # Where the screen shows them: a table of 1,000 cells two rows
+             # tall, a small one under it; and many lines in the comments,
+             # near the top. In a body the rest lies a screen's height times
+             # thousands below, out of the tree the walk reads. Pinned, so
+             # their cards are above the fold of the list.
+             note(6, "Wide then small", body=grid(2, 500) + "\n\n" + grid(3, 3), pinned=True),
+             note(7, "Lines in comments", comments="\n" * 200_000, pinned=True)]
+
+    def opened_in(title):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not open_note(title, limit=40.0):
+            return None
+        time.sleep(1.5)
+        longest = max(frames_since_reset() or [99.0])
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    # What one table at the line takes on this emulator, now: ten of them
+    # are drawn as one, so they take about as long -- a slow emulator's
+    # second is not the app's (big_table times the table alone, 2.2 s).
+    if not seed_inside([note(9, "One table", body=grid(50, 20))], {"welcome_offered": True}, "One table"):
+        return
+    one = opened_in("One table") or 99.0
+    if not seed_inside(notes, {"welcome_offered": True}, "Ten tables"):
+        return
+    took = opened_in("Ten tables")
+    check("ten tables of 1,000 cells open with one drawn, about as long as one table alone",
+          took is not None and took < 1.5 * one + 1.0 and find("r0c0", exact=True) is not None,
+          "%s s, one alone %.2f s" % (took, one))
+    took = opened_in("Wide then small")
+    check("a table under one that drew 1,000 cells is shown as its lines, and says why",
+          took is not None and took < 1.5 * one + 1.0 and not screen_says("already fill the 1,000 cells"), "%s s" % took)
+    shot(folder, "100-table-past-the-others", "already fill")
+    took = opened_in("Many lines")
+    check("200,000 empty lines open within two seconds", took is not None and took < 2.0 and find("Above") is not None,
+          "%s s" % took)
+    took = opened_in("Lines in comments")
+    if screen_says("more than is shown here at once") and screen_says("Comments") == []:
+        tap("Comments", wait=1.5)       # folded away under its label
+    check("... and comments of 200,000 lines are shown read-only, with how many lines they hold",
+          took is not None and took < 1.0 and not screen_says("more than is shown here at once", "more lines"),
+          "%s s, %s" % (took, screen_says("more than is shown here at once", "more lines")))
+    shot(folder, "101-many-lines-read-only", "more than is shown here at once")
+    took = opened_in("Tiny tables")
+    check("3,000 tables of two cells open within two seconds", took is not None and took < 2.0, "%s s" % took)
+    took = opened_in("Alternating")
+    check("'x' and '' five thousand times after a spent limit open within a second", took is not None and took < 1.0,
+          "%s s" % took)
+    took = opened_in("Journal")
+    check("a journal of 7,000 lines opens within two seconds, every line a field", took is not None and took < 2.0,
+          "%s s" % took)
+    shot(folder, "101b-journal-fields", "Today I walked")
+    # A letter typed into it: one field drawn again, not the whole note --
+    # read before the autosave's 800 ms, whose write of the notebook is a
+    # frame of its own.
+    tap("Today I walked to the river and back again.", wait=0.8)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    adb("shell", "input", "text", "Z")
+    time.sleep(0.5)
+    frames = frames_since_reset() or [99.0]
+    typed = max(frames)
+    print("     Journal, a letter typed: the longest frames %s s" % ["%.2f" % f for f in sorted(frames)[-3:]])
+    saved = settle(lambda: (note_by_uid("r4-5") or {}).get("body", ""), lambda b: "Z" in b, within=8.0)
+    # Measured 2026-10-28 on the emulator: a letter's frames 0.1 to 0.4 s,
+    # the autosave's write of the 308,000 characters 0.4 to 0.8 s after it;
+    # the build before this round held 8 s and more just opening the note.
+    check("... and a letter typed into it is drawn within a second, and saved",
+          typed < 1.0 and "Z" in saved and len(saved) == len(journal) + 1, "%.2f s" % typed)
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("the file holds every other note as it was",
+          [n.get("body") for n in kept[:4]] == [n["body"] for n in notes[:4]]
+          and (kept[6] if len(kept) > 6 else {}).get("comments") == notes[6]["comments"])
+
+    # What goes out, in a notebook of its own.
+    cjk = "今日は漢字の練習をしました。"
+    import random
+    rng = random.Random(7)
+    noise = "".join(chr(97 + rng.randrange(26)) for _ in range(150_000))
+    shared = [note(11, "Long Chinese", body=cjk * (99_947 // len(cjk))),
+              note(12, "Short Chinese", body=cjk * (55_000 // len(cjk))),
+              note(13, "Noise", body=noise),
+              note(14, "Forty pages", body="\n".join(
+                  "Line %d of a note that goes on far past forty pages." % i for i in range(1, 3001))),
+              note(15, "Wide table", body=grid(4, 30))]
+    if not seed_inside(shared, {"welcome_offered": True}, "Short Chinese"):
+        return
+
+    def focused():
+        out = adb("shell", "dumpsys", "window")
+        match = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", out)
+        return match.group(1) if match else foreground()
+
+    def handed(seconds):
+        deadline = time.time() + seconds
+        while focused() == PACKAGE and time.time() < deadline:
+            time.sleep(0.5)
+        return focused()
+
+    def back_in():
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.2)
+        if focused() != PACKAGE:
+            adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+            time.sleep(2.0)
+
+    open_note("Long Chinese", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    said = next((t for t, d, _ in nodes() if t.startswith("Too long for a message")), "")
+    numbers = [int(n.replace(",", "")) for n in re.findall(r"\d[\d,]*", said)]
+    print("     the Text card: %s" % said)
+    check("99,950 Chinese characters, past what Android carries, are refused on the card, its numbers agreeing",
+          len(numbers) == 2 and numbers[1] < numbers[0] and 55_000 < numbers[1] < 65_000 and "of them at most" in said,
+          repr(said))
+    shot(folder, "102-share-chinese-too-long", "Too long for a message")
+    back()
+    back_to("Search notes")
+    open_note("Short Chinese", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    adb("logcat", "-c")
+    tap("Text", exact=True, wait=0.3)
+    sheet = handed(15.0)
+    check("55,000 Chinese characters reach the share sheet, no binder failure in the log",
+          sheet != PACKAGE and "TransactionTooLarge" not in adb("logcat", "-d")
+          and "Failed to deliver" not in adb("logcat", "-d"), sheet)
+    back_in()
+    back_to("Search notes")
+
+    open_note("Noise", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("a code too long to hand over says so on its card, before the tap",
+          find("Too long for a code") is not None, " | ".join(t for t, d, _ in nodes() if t)[:300])
+    shot(folder, "103-share-code-too-long", "Too long for a code")
+    tap("Share code", exact=True, wait=1.2)
+    check("... and the card does nothing", find("Share this note as") is not None and focused() == PACKAGE, focused())
+    back()
+    back_to("Search notes")
+
+    def ask_pdf(title, button):
+        open_note(title, limit=30.0)
+        adb("shell", "run-as", PACKAGE, "rm", "-rf", "cache/share")
+        tap("Share", exact=True, wait=1.0)
+        tap("PDF", exact=True, wait=0.3)
+        return settle(lambda: find(button, exact=True), lambda at: at is not None, within=30.0, first=0)
+
+    def in_share():
+        out = adb("shell", "run-as", PACKAGE, "ls", "cache/share")
+        return [] if "No such file" in out else [f.strip() for f in out.split("\n") if f.strip()]
+
+    asked = ask_pdf("Forty pages", "PDF, first 40 pages")
+    check("a PDF of more than forty pages asks first, with the web page, the forty pages and Cancel",
+          asked is not None and not screen_says("Not all of this note fits a PDF", "only its first 40 pages",
+                                                 "Web page", "Cancel"))
+    shot(folder, "104-pdf-asks-first", "Not all of this note fits a PDF")
+    tap("Cancel", exact=True, wait=1.5)
+    check("... Cancel hands nothing over and keeps no file", focused() == PACKAGE and in_share() == [], repr(in_share()))
+    back_to("Search notes")
+    ask_pdf("Forty pages", "Web page")
+    tap("Web page", exact=True, wait=0.3)
+    sheet = handed(20.0)
+    files = in_share()
+    check("... Web page hands the page over instead", sheet != PACKAGE and files == ["Forty pages.html"], repr(files))
+    back_in()
+    back_to("Search notes")
+    ask_pdf("Forty pages", "PDF, first 40 pages")
+    tap("PDF, first 40 pages", exact=True, wait=0.3)
+    sheet = handed(30.0)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Forty pages.pdf", binary=True)
+    with open(os.path.join(folder, "104-forty-pages.pdf"), "wb") as f:
+        f.write(pdf)
+    # The foot line was text drawn on the page, a font in the file; the
+    # pages themselves are pictures.
+    check("... the PDF is the forty pages, with nothing written into it",
+          sheet != PACKAGE and page_count(pdf) == 40 and b"/Font" not in pdf, "%d pages, font %s" % (page_count(pdf), b"/Font" in pdf))
+    back_in()
+    back_to("Search notes")
+    asked = ask_pdf("Wide table", "PDF, cut at the edge")
+    check("a note wider than the page asks the same, the PDF cut at the edge",
+          asked is not None and not screen_says("cut at the page's edge"))
+    shot(folder, "105-pdf-wide-asks", "cut at the page's edge")
+    tap("Cancel", exact=True, wait=1.5)
     back_to("Search notes")
 
 
