@@ -246,6 +246,13 @@ do before, not as releases anyone ran.
   formatted text hands it over in a form the app did not read, and the
   code was dropped without a word. Found by the final audit's second
   round.
+- **The last symbol buttons say what they do, and a handle with
+  nowhere to go says so.** The template editor's checklist ↑, ✕ and box,
+  the repeat's − and +, and a table cell's "no highlight" ✕ were read by
+  their symbols' names; they are named now. The move handle of the only
+  note in its block, or of a one-row checklist, opened an empty menu; it
+  now says there is nothing to move it past. Found by the final audit's
+  second round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's

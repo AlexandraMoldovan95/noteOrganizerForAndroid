@@ -451,19 +451,30 @@ private fun TemplateEditor(
                     Text(stringResource(R.string.template_checklist_empty), color = palette.subtext, fontSize = 13.sp)
                 }
                 for ((k, item) in checklist.withIndex()) {
+                    // Each control says what it does to which row: read by their
+                    // symbols, "upwards arrow" and "multiplication x" named no row,
+                    // and the box was a checkbox with no name at all.
+                    val rowName = glimpse(item.first)
+                    val upSaid = stringResource(R.string.template_row_up, rowName)
+                    val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(item.second, { checklist[k] = item.first to it },
-                                 colors = CheckboxDefaults.colors(checkedColor = palette.accent))
+                                 colors = CheckboxDefaults.colors(checkedColor = palette.accent),
+                                 modifier = Modifier.semantics { contentDescription = rowName })
                         Text(item.first, fontSize = 15.sp,
                              color = if (item.second) palette.subtext else palette.text,
                              textDecoration = if (item.second) TextDecoration.LineThrough else null,
                              modifier = Modifier.weight(1f))
                         if (k > 0) {
-                            TextButton(onClick = { checklist.add(k - 1, checklist.removeAt(k)) }) {
+                            TextButton(onClick = { checklist.add(k - 1, checklist.removeAt(k)) },
+                                       modifier = Modifier.semantics { contentDescription = upSaid }) {
                                 Text("↑", color = palette.subtext)
                             }
                         }
-                        TextButton(onClick = { checklist.removeAt(k) }) { Text("✕", color = palette.subtext) }
+                        TextButton(onClick = { checklist.removeAt(k) },
+                                   modifier = Modifier.semantics { contentDescription = removeSaid }) {
+                            Text("✕", color = palette.subtext)
+                        }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {

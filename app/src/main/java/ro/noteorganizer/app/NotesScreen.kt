@@ -170,6 +170,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     var stepMenu by remember { mutableStateOf<Int?>(null) }
     val upSaid = stringResource(R.string.move_up)
     val downSaid = stringResource(R.string.move_down)
+    val nowhereSaid = stringResource(R.string.move_nowhere)
 
     /** The dragged card followed by the finger, trading places as it passes a neighbour's middle. */
     fun follow(amount: Float) {
@@ -482,8 +483,17 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 }
                                                                 drop()
                                                                 // Tapped, not dragged: up and down,
-                                                                // for a hand that cannot drag.
-                                                                if (!travelled) stepMenu = note.id
+                                                                // for a hand that cannot drag -- when
+                                                                // there is a way to go: the only note in
+                                                                // its block opened an empty menu.
+                                                                if (!travelled) {
+                                                                    val shown = laidOut.mapNotNull { noteOf(it) }
+                                                                    if (listOf(-1, 1).any { Organizing.stepPlace(shown, note.id, it, grouped) != null }) {
+                                                                        stepMenu = note.id
+                                                                    } else {
+                                                                        state.say(nowhereSaid)
+                                                                    }
+                                                                }
                                                             } catch (e: kotlinx.coroutines.CancellationException) {
                                                                 // Interrupted, nothing moves.
                                                                 dragged = null

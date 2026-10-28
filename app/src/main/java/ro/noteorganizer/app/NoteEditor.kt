@@ -2453,6 +2453,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val notTickedSaid = stringResource(R.string.checklist_not_ticked)
     val upSaid = stringResource(R.string.move_up)
     val downSaid = stringResource(R.string.move_down)
+    val nowhereSaid = stringResource(R.string.move_nowhere)
     // The row whose handle was tapped: its Move up and Move down.
     var rowMenu by remember { mutableIntStateOf(-1) }
     items.forEachIndexed { index, item ->
@@ -2500,7 +2501,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                             CustomAccessibilityAction(downSaid) { step(1); true }.takeIf { index < items.size - 1 },
                         )
                     }
-                    .clickable { rowMenu = index }
+                    // A menu only when the row can go somewhere: the only
+                    // row opened an empty one, a dead end for a screen reader.
+                    .clickable { if (items.size > 1) rowMenu = index else state.say(nowhereSaid) }
                     .pointerInput(index, items.size) {
                         detectDragGestures(
                             onDragStart = { dragging = index; offset = 0f },
@@ -3281,7 +3284,8 @@ private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
             }
             "color" -> ChoiceRow {
                 Text("✕", color = palette.subtext, fontSize = 14.sp, textAlign = TextAlign.Center,
-                     modifier = Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(palette.inset)
+                     modifier = Modifier.said(R.string.highlight_none)
+                         .size(34.dp).clip(RoundedCornerShape(17.dp)).background(palette.inset)
                          .clickable { model.highlightCell(segment, row, at.column, ""); open = null }.padding(top = 7.dp))
                 for ((i, colour) in Themes.HIGHLIGHT_COLOR_PALETTE.withIndex()) {
                     val said = stringResource(R.string.highlight_colour, i + 1)

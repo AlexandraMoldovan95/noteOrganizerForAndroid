@@ -232,6 +232,11 @@
     <string name="checklist_remove_said">Remove %1$s from the checklist</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
+    <string name="move_nowhere">Nothing to move it past here.</string>
+    <string name="template_row_up">Move %1$s up</string>
+    <string name="stepper_fewer">Fewer</string>
+    <string name="stepper_more">More</string>
+    <string name="highlight_none">No highlight</string>
     <string name="table_too_large">A table of %1$,d cells in %2$,d lines, too large to draw here. The note keeps it whole; its first lines are below.</string>
     <string name="table_more_lines">… and %1$,d more lines</string>
     <string name="text_too_long">%1$,d characters holding a run with no space to break it, too long to show here. The note keeps them whole; their start is below.</string>

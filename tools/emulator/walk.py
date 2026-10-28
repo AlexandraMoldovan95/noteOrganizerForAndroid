@@ -1764,6 +1764,12 @@ def symbol_labels(folder):
         missing = screen_says("Back", "Note details", "More options", "Checklist: flour",
                               "Remove flour from the checklist")
         check("the editor's symbols and a checklist row's box and ✕ are named", not missing, str(missing))
+        # The only row has nowhere to go: no empty menu, a word instead --
+        # the empty popup was a dead end for a screen reader.
+        tap("Drag to move flour", exact=True, wait=0.3)
+        check("the only row's move handle opens no empty menu, and says why",
+              not says_soon("Nothing to move it past here.", within=4.0)
+              and find("Move up", exact=True) is None and find("Move down", exact=True) is None)
     back_to("Search notes")
 
 

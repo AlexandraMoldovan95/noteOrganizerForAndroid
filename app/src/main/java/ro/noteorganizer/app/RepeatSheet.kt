@@ -245,10 +245,13 @@ private fun Hint(text: String) {
 private fun Stepper(value: Int, range: IntRange, unit: String, onChange: (Int) -> Unit) {
     val palette = LocalPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
+        // Said as what they do, where a screen reader read "minus" and "plus".
         Text("−", color = if (value > range.first) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
+             modifier = Modifier.said(R.string.stepper_fewer)
+                 .clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
         Text("$value $unit", color = palette.text, fontSize = 15.sp)
         Text("+", color = if (value < range.last) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
+             modifier = Modifier.said(R.string.stepper_more)
+                 .clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
     }
 }
