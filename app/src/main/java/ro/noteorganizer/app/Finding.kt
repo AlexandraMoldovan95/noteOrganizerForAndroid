@@ -101,6 +101,12 @@ object Finding {
                 inText(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
+            // A table too large to draw shows only its first lines, and no
+            // match can be painted or scrolled to: counted, its cells moved
+            // the "3/2000+" on and the screen not at all, and used up the
+            // count before the matches after it. Nor is it parsed at every
+            // letter typed in the bar.
+            if (!segment.drawn) continue
             val table = parseTable(segment.text.split("\n"))
             for ((r, row) in table.rows.withIndex()) {
                 for ((c, cell) in row.withIndex()) {

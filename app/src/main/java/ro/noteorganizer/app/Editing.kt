@@ -55,6 +55,18 @@ object Editing {
      */
     const val MAX_DRAWN_CELLS = 1_000
 
+    /**
+     * How many cells a table's [lines] are drawn as: every row padded to
+     * the widest, as [parseTable] pads it. Counted as written, a first row
+     * of 500 cells over 250 rows of two came to 1,000 -- under the line --
+     * and was drawn as 125,500, from a share code of 174 characters.
+     */
+    fun gridCells(lines: List<String>): Long {
+        var widest = 0
+        for (line in lines) widest = maxOf(widest, splitRow(line).size)
+        return lines.size.toLong() * widest
+    }
+
     fun segments(body: String): List<Segment> {
         val lines = body.split("\n")
         // Where each line starts, in code points; one past the end for the
@@ -75,7 +87,7 @@ object Editing {
             if (block.first > line) out.add(prose(line, block.first - 1))
             out.add(Segment(true, block.first, block.last,
                 lines.subList(block.first, block.last + 1).joinToString("\n"), starts[block.first],
-                drawn = block.sumOf { splitRow(lines[it]).size } <= MAX_DRAWN_CELLS))
+                drawn = gridCells(lines.subList(block.first, block.last + 1)) <= MAX_DRAWN_CELLS))
             line = block.last + 1
         }
         if (line < lines.size) {

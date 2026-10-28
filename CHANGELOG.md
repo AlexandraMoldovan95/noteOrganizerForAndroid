@@ -118,8 +118,13 @@ do before, not as releases anyone ran.
 - **A note with a huge table opens.** A share code of 2.9 KB could carry
   a table of 300 by 300, and the editor laid out its 90,000 cells at
   once. A table of more than 1,000 cells now says it is too large to draw
-  and shows its first lines, read-only; the note keeps it whole. Found by
-  the final audit's break-it round.
+  and shows its first lines, read-only; the note keeps it whole. Its cells
+  are counted as the grid draws them, so a ragged table — one row of 500
+  over rows of two — no longer slips under the line; the template editor
+  shows such a table the same way, where it drew the grid; and Find
+  leaves it out, where its counter stepped through cells nobody could
+  see. Found by the final audit's break-it round, the three holes by the
+  round after.
 - **A share code followed by a full stop, a quote or a bracket imports**,
   as on the desktop, which drops what is not part of a code where the
   phone called the code damaged — as it is when it ends a sentence in a

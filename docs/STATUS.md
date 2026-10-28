@@ -189,9 +189,11 @@ Grouped by what the app does; when each item arrived is in the
     numbered run counts 1, 2, 3 again.
 19. **Tables** drawn as grids — merged cells, checkbox cells, `<br>`
     breaks, each cell's own alignment and highlight, sideways scrolling.
-    A table of more than 1,000 cells says it is too large to draw and
-    shows its first lines, read-only, so the note opens at once; the note
-    keeps it whole, and the desktop draws it.
+    A table of more than 1,000 cells — counted as drawn, every row as wide
+    as the widest — says it is too large to draw and shows its first
+    lines, read-only, so the note opens at once, in the note and in the
+    template editor alike; the note keeps it whole, and the desktop draws
+    it. Find does not search it.
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added

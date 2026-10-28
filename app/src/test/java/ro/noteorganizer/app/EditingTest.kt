@@ -58,6 +58,32 @@ class EditingTest {
     }
 
     @Test
+    fun `a ragged table is weighed as it is drawn, every row as wide as the widest`() {
+        // 1,000 cells as written -- one row of 500, then 250 of two -- drawn
+        // as 251 by 500: 125,500 cells, from a share code of 174 characters.
+        val ragged = (listOf((1..500).joinToString("|", "|", "|") { "x" }) + List(250) { "| a | b |" })
+            .joinToString("\n")
+        val lines = ragged.split("\n")
+        assertEquals(1000, lines.sumOf { splitRow(it).size })
+        assertEquals(125_500L, Editing.gridCells(lines))
+        assertEquals("the grid parseTable builds", 125_500, parseTable(lines).let { t -> t.rows.size * t.columns.size })
+        assertEquals(listOf(true, false, true), Editing.segments("Ragged\n$ragged\nafter").map { it.drawn })
+        // A table written whole is weighed as before.
+        assertEquals(Editing.MAX_DRAWN_CELLS.toLong(), Editing.gridCells(grid(50, 20).split("\n")))
+    }
+
+    @Test
+    fun `Find never steps into a table it does not draw`() {
+        // The counter moved through 2,000 cells of a table shown only as its
+        // first lines, and the one match on the screen was never reached.
+        val big = grid(300, 300).replace(Regex("r\\d+c\\d+"), "1")
+        val found = Finding.scan("$big\nTotal 1", "1", matchCase = false)
+        assertEquals(listOf(Finding.InText(1, 6, 7)), found)
+        // A table drawn is searched as before.
+        assertEquals(2, Finding.scan("| 1 | 2 |\n|---|---|\n| 3 | 1 |", "1", matchCase = false).size)
+    }
+
+    @Test
     fun `editing prose rewrites only its own lines`() {
         val body = "before\n$table\nafter one\nafter two"
         val parts = Editing.segments(body)

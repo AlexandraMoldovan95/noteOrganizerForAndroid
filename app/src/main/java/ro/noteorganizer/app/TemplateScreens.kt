@@ -274,7 +274,10 @@ private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (Str
         Text(label, color = palette.subtext, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
         for ((index, segment) in Editing.segments(body).withIndex()) {
             key(index, segment.table) {
-                if (segment.table) {
+                if (segment.table && !segment.drawn) {
+                    // Too large to draw as a grid: as the note editor shows it.
+                    LargeTable(segment)
+                } else if (segment.table) {
                     TableView(parseTable(segment.text.split("\n")), Modifier.padding(vertical = 6.dp))
                 } else {
                     val following = rememberFollowing()

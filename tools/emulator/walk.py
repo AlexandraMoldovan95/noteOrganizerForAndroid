@@ -1008,13 +1008,15 @@ def clear_from_downloads(keep_out):
     return [name for name in downloads_list() if re.fullmatch(keep_out, name)]
 
 
-def seed_inside(notes, settings, shows):
+def seed_inside(notes, settings, shows, clear=True):
     """A notebook written for the walk, the app started on it -- and a
     failure, at once and by name, when the app does not show it. Once, of
     many runs, the first screen held a brand-new notebook's welcome note
     over a seed that was on disk; not reproduced since. Every later step
-    then failed for that one reason, ten failures for a single cause."""
-    adb("shell", "pm", "clear", PACKAGE)
+    then failed for that one reason, ten failures for a single cause.
+    [clear] False keeps what the part put inside before calling it."""
+    if clear:
+        adb("shell", "pm", "clear", PACKAGE)
     put_inside("notes_data.json", notes)
     put_inside("settings.json", settings)
     on_disk = [n.get("uid") for n in read_file("notes_data.json") or []]
@@ -1568,9 +1570,9 @@ def big_table(folder):
     look waits for the app to be idle, and takes seconds of its own."""
     print("\n-- a table too large to draw --")
 
-    def drawn_in(title):
+    def drawn_in(title, opens=None):
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
-        if not open_note(title, limit=20.0):
+        if not (opens or (lambda: open_note(title, limit=20.0)))():
             return None
         time.sleep(1.5)
         out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
@@ -1586,11 +1588,19 @@ def big_table(folder):
                          for r in range(rows))
     big = "Opening words\n" + grid(300, 300)
     at_line = grid(50, 20)
+    # 1,000 cells as written, 125,500 as drawn: every row padded to the
+    # widest. A share code of 174 characters carries it.
+    ragged = "\n".join(["|" + "x|" * 500] + ["| a | b |"] * 250)
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("templates.json", [{"name": "Big template", "title": "t", "body": big, "comments": "",
+                                   "category": "General", "checklist": []}])
     if not seed_inside([{"id": 1, "uid": "walk-t1", "title": "Big table", "body": big,
                          "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
                         {"id": 2, "uid": "walk-t2", "title": "Table at the line", "body": at_line,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
+                        {"id": 3, "uid": "walk-t3", "title": "Ragged table", "body": "Ragged\n" + ragged,
                          "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
-                       {"welcome_offered": True}, "Big table"):
+                       {"welcome_offered": True}, "Big table", clear=False):
         return
     took = drawn_in("Big table")
     check("a note with a 300 by 300 table is drawn within two seconds (0.5 s on 2026-10-27)",
@@ -1606,6 +1616,19 @@ def big_table(folder):
     check("a table of 1,000 cells, at the line, is drawn within five seconds (2.2 s on 2026-10-27)",
           took is not None and took < 5.0, str(took))
     check("... and is still a grid", find("r0c0", exact=True) is not None)
+    back_to("Search notes")
+    took = drawn_in("Ragged table")
+    check("a ragged table drawn as 125,500 cells is weighed so, and drawn within two seconds",
+          took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
+    back_to("Search notes")
+
+    # The page first, so the frames timed are the template's alone.
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    took = drawn_in("Big template", opens=lambda: tap("Big template", exact=True, wait=0.5, patience=20.0))
+    check("a template holding the 300 by 300 table opens within two seconds, the table said too large",
+          took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
+    shot(folder, "86b-big-table-in-template", "too large to draw here")
     back_to("Search notes")
 
 

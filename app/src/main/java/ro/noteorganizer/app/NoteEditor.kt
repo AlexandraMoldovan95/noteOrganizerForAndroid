@@ -2601,13 +2601,16 @@ private const val LARGE_TABLE_CHARS = 300
  * A table too large to draw as a grid ([Editing.MAX_DRAWN_CELLS]): what it
  * is, and its first lines as written, read-only, each on one line the
  * person can slide sideways. The note keeps the table whole; only the
- * drawing is short, so the note opens at once.
+ * drawing is short, so the note opens at once. The template editor shows
+ * one the same way: it drew the grid whatever its size, and a template saved
+ * from such a note froze the app as it opened.
  */
 @Composable
-private fun LargeTable(segment: Editing.Segment) {
+internal fun LargeTable(segment: Editing.Segment) {
     val palette = LocalPalette.current
     val lines = remember(segment.text) { segment.text.split("\n") }
-    val cells = remember(segment.text) { lines.sumOf { splitRow(it).size } }
+    // As the grid would be drawn, which is what made it too large.
+    val cells = remember(segment.text) { Editing.gridCells(lines) }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(stringResource(R.string.table_too_large, cells, lines.size),
              color = palette.subtext, fontSize = 13.sp)
