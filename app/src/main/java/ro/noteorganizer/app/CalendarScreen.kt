@@ -354,7 +354,9 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
     val id = (raw.opt("id") as? Number)?.toInt() ?: return
     val series = Recurrence.isRecurring(raw)
     val shown = Recurrence.effectiveNote(raw, day)
-    val own = (raw.opt("overrides") as? JSONObject)?.has(day) == true
+    // A series' mark only: a note that no longer repeats keeps its days
+    // unused, for a repeat brought back.
+    val own = series && (raw.opt("overrides") as? JSONObject)?.has(day) == true
     val cameFrom = Recurrence.movedFrom(raw, day)
     var menu by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }

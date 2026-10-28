@@ -427,6 +427,15 @@ do before, not as releases anyone ran.
   kept it in the name offered, and one holding a mark that reorders text
   could show the file as another kind; both are taken out, as the
   desktop's export takes them out since its own audit's second round.
+- **A note whose repeat was turned off is itself on its day.** A share
+  code or "↩ Restore previous" that ends a repeat keeps the series' days
+  in the note, for a repeat brought back; the calendar still read them:
+  the note's row on its date showed the first day's old title and words,
+  marked ✎, and a series whose first day had been deleted fell off the
+  calendar, and out of that day's reminder. They are read only while the
+  note repeats, as the desktop reads them since its fourth round; and a
+  restore's copy now carries the date the repeat hangs on, so the restore
+  after it brings the series back. Found by the desktop's fourth round.
 
 ---
 

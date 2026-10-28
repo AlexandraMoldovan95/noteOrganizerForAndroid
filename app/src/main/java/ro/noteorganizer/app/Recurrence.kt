@@ -490,8 +490,12 @@ object Recurrence {
         fun gone(text: String) = text in parts.exceptions || text in skip
         val freq = rule.getString("freq")
         if (freq.isEmpty()) {
+            // The note's deleted days belong to the series it was, kept for
+            // a repeat brought back: asked here, a series whose first day had
+            // been deleted fell off the calendar, and out of the day's
+            // reminder, once its repeat was turned off (the desktop's b26394c).
             val oneOff = formatDate(anchor)
-            return if (anchor in start..end && !gone(oneOff)) listOf(oneOff) else emptyList()
+            return if (anchor in start..end && oneOff !in skip) listOf(oneOff) else emptyList()
         }
         val interval = rule.getInt("interval")
         val endDate = parseDate(rule.getString("end"))
@@ -629,9 +633,23 @@ object Recurrence {
 
     /**
      * The note as it appears on one day: the series with that day's own
-     * edit on top -- a copy; the stored note is never changed.
+     * edit on top -- a copy; the stored note is never changed. A note that
+     * no longer repeats is itself on its day: the days a share code or
+     * "↩ Restore previous" left in it are kept for a repeat brought back,
+     * and read here they stood in for it -- the calendar's row of its date
+     * showed the first day's old title and words, with a ✎. The desktop's
+     * `effective_note` (b26394c). What a day HOLDS is [dayAsKept].
      */
-    fun effectiveNote(note: JSONObject, day: String): JSONObject {
+    fun effectiveNote(note: JSONObject, day: String): JSONObject =
+        if (!isRecurring(note)) note else dayAsKept(note, day)
+
+    /**
+     * The note with [day]'s own edit on top, whether or not it still
+     * repeats: what that day holds, for the questions that decide whether a
+     * day is worth keeping -- the desktop's `day_as_kept`. What a day SHOWS
+     * is [effectiveNote].
+     */
+    fun dayAsKept(note: JSONObject, day: String): JSONObject {
         val patch = (note.opt("overrides") as? JSONObject)?.opt(day) as? JSONObject ?: return note
         val merged = JSONObject()
         for (key in note.keys()) merged.put(key, note.opt(key))

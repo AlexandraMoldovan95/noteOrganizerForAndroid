@@ -1861,7 +1861,14 @@ object Notebook {
         val replaced = JSONObject()
         for (field in PREV_TEXT_FIELDS) replaced.put(field, deepCopy(shaped(live, field)))
         for ((field, _) in PREV_EXTRA_LABELS) {
-            if (previous.has(field)) replaced.put(field, deepCopy(shaped(live, field)))
+            // A repeat hangs on its start date: a copy holding the series'
+            // repeat without its date is shaped as no repeat at all
+            // (shapePrevious, as normalize_note), and the restore after this
+            // one left the note without its series -- unseen while a day's
+            // kept words showed whether the note repeated or not.
+            if (previous.has(field) || (field == "date" && previous.has("recurrence"))) {
+                replaced.put(field, deepCopy(shaped(live, field)))
+            }
         }
         return replaced
     }

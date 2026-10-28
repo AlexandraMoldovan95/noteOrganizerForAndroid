@@ -678,4 +678,28 @@ class RecurrenceTest {
         val n = note("""{"id":1,"date":"2026-07-01","recurrence":{"freq":"weekly","weekdays":[0,2],"count":3}}""")
         assertEquals(listOf("2026-07-01", "2026-07-06", "2026-07-08"), expand(n, d(2026, 6, 1), d(2026, 8, 31)))
     }
+
+    @Test
+    fun `the days a note keeps after its repeat is turned off steer nothing while it does not repeat`() {
+        // A share code or "Restore previous" that ends a repeat leaves the
+        // series' days in the note, for a repeat brought back. Read anyway,
+        // the calendar's row of its date showed the first day's old words,
+        // and a series whose first day was deleted fell off the calendar and
+        // out of the day's reminder. The desktop's test_recurrence, the same.
+        val kept = note("""{"id":1,"title":"Weekly sync","body":"SERIES TEXT","date":"2026-09-07",
+            "recurrence":{"freq":""},"exceptions":["2026-09-07"],
+            "overrides":{"2026-09-07":{"title":"Kickoff","body":"FIRST DAY"}}}""")
+        assertTrue("itself on its day, kept days or not", Recurrence.effectiveNote(kept, "2026-09-07") === kept)
+        assertEquals("on the calendar on its date though the series deleted that day",
+            listOf("2026-09-07"), expand(kept, d(2026, 9, 1), d(2026, 9, 30)))
+        assertEquals(listOf(kept), Days.notesOn(listOf(kept), "2026-09-07"))
+        assertEquals("and in the day's reminder", 1, Reminders.dueOn(listOf(kept), "2026-09-07"))
+        val series = JSONObject(kept.toString()).put("recurrence", JSONObject().put("freq", "weekly"))
+        assertEquals("a series still shows its day's own words", "FIRST DAY",
+            Recurrence.effectiveNote(series, "2026-09-07").getString("body"))
+        assertEquals("and its deleted day stays deleted", listOf("2026-09-14", "2026-09-21", "2026-09-28"),
+            expand(series, d(2026, 9, 1), d(2026, 9, 30)))
+        assertEquals("what a kept day holds is still read, for the questions that keep it", "FIRST DAY",
+            Recurrence.dayAsKept(kept, "2026-09-07").getString("body"))
+    }
 }

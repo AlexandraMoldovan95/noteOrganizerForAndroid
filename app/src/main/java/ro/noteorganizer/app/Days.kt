@@ -429,7 +429,8 @@ object Days {
         if (!Recurrence.isRecurring(note) || overrides?.has(day) != true) {
             return SaveResult.Failed("That day keeps nothing of its own any more.")
         }
-        val shown = Recurrence.effectiveNote(note, day)
+        // What the day holds: the note made of it carries the day's words.
+        val shown = Recurrence.dayAsKept(note, day)
         val sameBody = shown.opt("body") == note.opt("body")
         val stamp = Files.now()
         val freshId = Organizing.maxId(array) + 1
@@ -473,7 +474,8 @@ object Days {
         if (!Recurrence.isRecurring(note)) return false
         val overrides = note.opt("overrides") as? JSONObject ?: return false
         for (day in overrides.keys()) {
-            val shown = Recurrence.effectiveNote(note, day)
+            // What each day holds, as the desktop's save asks it (day_as_kept).
+            val shown = Recurrence.dayAsKept(note, day)
             for (key in listOf("title", "body", "comments")) {
                 if ((shown.opt(key) as? String ?: "") != (note.opt(key) as? String ?: "")) return true
             }
