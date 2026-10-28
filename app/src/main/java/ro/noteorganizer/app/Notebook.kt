@@ -1996,9 +1996,17 @@ object Notebook {
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied
         val lost = lost(oldTitle, newTitle) + lost(oldBody, newBody)
-        if (lost > 40 && (lost >= oldLen * 0.3 || lost >= 200)) return true
-        return lost >= 15 && lost >= oldLen * 0.7
+        // The shares in the unit the loss is counted in, each word with one
+        // space ([measured]): set against a length with a table's padding
+        // in it, five rows of a shopping list's eight deleted at once read
+        // as under 30% and kept no copy (the desktop's fifth round).
+        val size = (measured(oldTitle) + measured(oldBody)).takeIf { it > 0 } ?: oldLen
+        if (lost > 40 && (lost >= size * 0.3 || lost >= 200)) return true
+        return lost >= 15 && lost >= size * 0.7
     }
+
+    /** [text]'s length as [wordsLost] counts it: each word with one space -- the desktop's `_measured`. */
+    internal fun measured(text: String): Int = PyText.split(text).sumOf { it.codePointCount(0, it.length) + 1 }
 
     /**
      * What a save of [new] over [old] takes away: the smaller of two counts

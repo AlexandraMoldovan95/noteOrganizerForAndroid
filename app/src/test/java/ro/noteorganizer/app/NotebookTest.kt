@@ -1022,6 +1022,23 @@ class NotebookTest {
     }
 
     @Test
+    fun `five rows of a table's eight deleted at once keep a copy, its share measured as the loss is`() {
+        // The words gone were set against a length that counts the padding:
+        // in a table of short cells it is most of each row, and half a table
+        // read as a quarter -- no copy (the desktop's fifth round, its own
+        // case: a shopping list's five rows of eight).
+        val rows = listOf(listOf("Item", "Qty", "Ok")) + listOf("tea 1 y", "jam 2 n", "oat 1 y", "egg 6 y",
+            "fig 3 n", "rye 1 y", "soy 2 n", "nut 4 y").map { it.split(" ") }
+        val lines = listOf("Groceries") + formatTable(rows, List(rows.size) { List(3) { CellAlign.LEFT } })
+        val old = lines.joinToString("\n")
+        val cut = (lines.take(2) + lines.drop(7)).joinToString("\n")
+        val lost = Notebook.lost(old, cut)
+        assertTrue("$lost of ${old.length}: the old measure would keep none", lost > 40 && lost < 0.3 * old.length)
+        assertTrue(Notebook.shouldKeepPrevious("t", old, "t", cut))
+        assertEquals(16, Notebook.measured("| tea | 1 | y |"))
+    }
+
+    @Test
     fun `a short note replaced by a new line keeps its words, through updateNote`() {
         val load = scratch("""[{"id": 1, "title": "", "body": "Buy milk\nCall mom\nPay the rent"}]""")
         Notebook.updateNote(load, 1, "", "A new line")
