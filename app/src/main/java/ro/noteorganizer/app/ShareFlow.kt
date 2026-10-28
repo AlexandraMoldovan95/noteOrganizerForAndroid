@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -104,6 +106,46 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
 }
 
 /**
+ * Share -> PDF, for a note the PDF would leave part of: what it would leave
+ * out, in words, before anything is handed over -- the web page, which
+ * carries all of it, first; the PDF as it is; or nothing. Back, or a tap
+ * outside, is Cancel.
+ */
+@Composable
+fun PdfQuestionDialog(question: AppState.PdfQuestion, onAnswer: (AppState.PdfChoice) -> Unit) {
+    val palette = LocalPalette.current
+    val pages = PdfPrint.MAX_PAGES
+    val text = when {
+        question.firstPagesOnly && question.cutAtEdge -> stringResource(R.string.pdf_ask_both, pages)
+        question.firstPagesOnly -> stringResource(R.string.pdf_ask_pages, pages)
+        else -> stringResource(R.string.pdf_ask_edge)
+    }
+    val pdf = if (question.firstPagesOnly) stringResource(R.string.pdf_ask_pdf_pages, pages)
+              else stringResource(R.string.pdf_ask_pdf_edge)
+    AlertDialog(
+        onDismissRequest = { onAnswer(AppState.PdfChoice.CANCEL) },
+        title = { Text(stringResource(R.string.pdf_ask_title)) },
+        text = { Text(text) },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = { onAnswer(AppState.PdfChoice.PAGE) }) {
+                    Text(stringResource(R.string.pdf_ask_page), color = palette.accentText, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = { onAnswer(AppState.PdfChoice.PDF) }) {
+                    Text(pdf, color = palette.accentText)
+                }
+                TextButton(onClick = { onAnswer(AppState.PdfChoice.CANCEL) }) {
+                    Text(stringResource(R.string.cancel), color = palette.text)
+                }
+            }
+        },
+        containerColor = palette.card,
+        titleContentColor = palette.text,
+        textContentColor = palette.subtext,
+    )
+}
+
+/**
  * One choice, as a card: a mark, a name, a line saying what it gives. The
  * Share sheet's and Export's alike, so the two read as one set.
  */
@@ -185,7 +227,8 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
         send.putExtra(Intent.EXTRA_TEXT, words)
     } else {
         val folder = File(context.cacheDir, "share")
-        val file = File(folder, Outgoing.fileName(title, format))
+        var file = File(folder, Outgoing.fileName(title, format))
+        var kind = format
         // Off the screen's thread: a note can hold a table of tens of
         // thousands of cells. The PDF's drawing stays on it, as a WebView must.
         val page = withContext(Dispatchers.Default) { Exporting.content(note, Exporting.HTML, title) }
@@ -204,16 +247,31 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
             state.say(context.getString(R.string.share_failed))
             return
         }
-        // Said before the share sheet covers the app: what the PDF leaves out,
-        // and what carries it. The PDF says it on its own page too.
-        printed?.let { p ->
-            val left = listOfNotNull(
-                context.getString(R.string.pdf_first_pages, PdfPrint.MAX_PAGES).takeIf { p.firstPagesOnly },
-                context.getString(R.string.pdf_cut_at_edge).takeIf { p.cutAtEdge })
-            if (left.isNotEmpty()) state.say(left.joinToString(" ") + " " + context.getString(R.string.pdf_page_carries_all), long = true)
+        // A PDF that would leave part of the note out is asked about before
+        // anything is handed over: said in a bar as the share sheet opened,
+        // the sheet covered the bar, and its time ran out under it. Nothing
+        // is written into the PDF itself.
+        printed?.takeIf { it.firstPagesOnly || it.cutAtEdge }?.let { p ->
+            when (state.askPdf(p.firstPagesOnly, p.cutAtEdge)) {
+                AppState.PdfChoice.CANCEL -> {
+                    folder.deleteRecursively()
+                    return
+                }
+                AppState.PdfChoice.PAGE -> {
+                    file.delete()
+                    kind = Outgoing.PAGE
+                    file = File(folder, Outgoing.fileName(title, kind))
+                    val wrote = try { file.writeText(page, Charsets.UTF_8); true } catch (e: IOException) { false }
+                    if (!wrote) {
+                        state.say(context.getString(R.string.share_failed))
+                        return
+                    }
+                }
+                AppState.PdfChoice.PDF -> Unit
+            }
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        send.type = if (format == Outgoing.PDF) "application/pdf" else "text/html"
+        send.type = if (kind == Outgoing.PDF) "application/pdf" else "text/html"
         send.putExtra(Intent.EXTRA_STREAM, uri)
         send.clipData = ClipData.newUri(context.contentResolver, file.name, uri)
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

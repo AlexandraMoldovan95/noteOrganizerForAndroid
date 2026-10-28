@@ -524,6 +524,8 @@ fun AppRoot(state: AppState, version: String) {
     if (importing || code != null) {
         CodeImportDialog(state, code ?: "", onClose = { importing = false; state.incomingCode = null })
     }
+    // Share -> PDF, for a note the PDF would leave part of: asked before anything is handed over.
+    state.pdfQuestion?.let { PdfQuestionDialog(it, onAnswer = state::answerPdf) }
     askBackup?.let { contents ->
         Ask(
             title = stringResource(R.string.import_notes_title),

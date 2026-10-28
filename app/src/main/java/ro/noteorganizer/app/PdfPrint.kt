@@ -60,9 +60,9 @@ object PdfPrint {
      * What [print] made. Not [written]: the caller says it could not be.
      * [firstPagesOnly]: the note went on past [MAX_PAGES]; [cutAtEdge]:
      * something in it was wider than the paper. Either way the PDF leaves
-     * part of the note out, says so on its own page, and the caller tells
-     * the person -- the PDF stopped at forty pages, and cut what ran past
-     * the margin, without a word to either end.
+     * part of the note out, and the caller asks the person before it is
+     * handed over -- the PDF stopped at forty pages, and cut what ran past
+     * the margin, without a word. Nothing is written into the PDF itself.
      */
     data class Printed(val written: Boolean, val firstPagesOnly: Boolean = false, val cutAtEdge: Boolean = false)
 
@@ -175,7 +175,7 @@ object PdfPrint {
                         val pages = try {
                             // Wider than the paper by more than a CSS pixel:
                             // a table of many columns, which no line breaks.
-                            drawPages(context, web, width, height, cutAtEdge = web.pageWidth > width + density)
+                            drawPages(web, width, height, cutAtEdge = web.pageWidth > width + density)
                         } catch (e: Exception) {
                             null
                         } catch (e: OutOfMemoryError) {
@@ -204,7 +204,7 @@ object PdfPrint {
      * times. The pictures together are kept under [BUDGET]: a long note is
      * printed at fewer dots an inch, never fewer than [MIN_DPI].
      */
-    private fun drawPages(context: Context, web: WebView, width: Int, height: Int, cutAtEdge: Boolean): Pages? {
+    private fun drawPages(web: WebView, width: Int, height: Int, cutAtEdge: Boolean): Pages? {
         val scale = AREA_W.toFloat() / width
         val pageHeight = AREA_H / scale
         // Null when the page drew nothing at all: a note always has its
@@ -219,11 +219,6 @@ object PdfPrint {
         // Stopped at MAX_PAGES with the note still going on.
         pages.firstPagesOnly = starts.last() + pageHeight < height - 1
         pages.cutAtEdge = cutAtEdge
-        // What is left out is said where whoever opens the PDF reads it: at
-        // the foot of the first page for an edge, of the last for the pages.
-        val notice = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(0x55, 0x55, 0x55); textSize = 8f }
-        val edgeSaid = context.getString(R.string.pdf_notice_edge)
-        val pagesSaid = context.getString(R.string.pdf_notice_pages, MAX_PAGES)
         try {
             for ((i, top) in starts.withIndex()) {
                 val bottom = starts.getOrElse(i + 1) { height.toFloat() }
@@ -237,11 +232,6 @@ object PdfPrint {
                 }
                 val page = pages.doc.startPage(PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, i + 1).create())
                 page.canvas.drawBitmap(picture, null, Rect(MARGIN, MARGIN, PAGE_W - MARGIN, PAGE_H - MARGIN), paint)
-                val said = listOfNotNull(edgeSaid.takeIf { cutAtEdge && i == 0 },
-                                         pagesSaid.takeIf { pages.firstPagesOnly && i == starts.size - 1 })
-                for ((k, line) in said.withIndex()) {
-                    page.canvas.drawText(line, MARGIN.toFloat(), PAGE_H - MARGIN / 2f + 3f - (said.size - 1 - k) * 10f, notice)
-                }
                 pages.doc.finishPage(page)
             }
         } catch (e: Throwable) {

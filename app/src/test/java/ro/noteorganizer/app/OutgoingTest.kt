@@ -169,4 +169,21 @@ class OutgoingTest {
         assertFalse(Outgoing.hasFiles(JSONObject("""{"title": "x"}""")))
         assertFalse(Outgoing.hasFiles(JSONObject("""{"attachments": []}""")))
     }
+
+    @Test
+    fun `a PDF that would leave part of the note out is asked about, and the answer is what it becomes`() = runBlocking {
+        // Said in a bar as the share sheet opened, the sheet covered it.
+        val dir = java.nio.file.Files.createTempDirectory("pdfask").toFile()
+        java.io.File(dir, "notes_data.json").writeText("[]")
+        val state = AppState(dir, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined))
+        for (choice in AppState.PdfChoice.entries) {
+            val answer = CompletableDeferred<AppState.PdfChoice>()
+            launch(start = CoroutineStart.UNDISPATCHED) { answer.complete(state.askPdf(firstPagesOnly = true, cutAtEdge = false)) }
+            val asked = state.pdfQuestion
+            assertTrue(asked != null && asked.firstPagesOnly && !asked.cutAtEdge)
+            state.answerPdf(choice)
+            assertEquals(choice, answer.await())
+            assertEquals(null, state.pdfQuestion)
+        }
+    }
 }

@@ -185,6 +185,42 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** A line said once at the top of the list (a load problem, a purge). */
     var notice by mutableStateOf<String?>(null)
 
+    /** What a PDF that would leave part of a note out becomes, as the person answers [askPdf]. */
+    enum class PdfChoice { PAGE, PDF, CANCEL }
+
+    /** The question [askPdf] asks, waiting for its answer: what the PDF would leave out. */
+    class PdfQuestion(val firstPagesOnly: Boolean, val cutAtEdge: Boolean) {
+        internal val answer = kotlinx.coroutines.CompletableDeferred<PdfChoice>()
+    }
+
+    /** The question about a PDF on the screen now, if one is. */
+    var pdfQuestion by mutableStateOf<PdfQuestion?>(null)
+        private set
+
+    /**
+     * Asks, before a PDF is handed to another app, what to do with one that
+     * would leave part of the note out -- its first pages only, or cut at the
+     * page's edge: the web page instead, the PDF as it is, or nothing. Said
+     * in a bar as the share sheet opened, the sheet covered the bar and its
+     * time ran out under it.
+     */
+    suspend fun askPdf(firstPagesOnly: Boolean, cutAtEdge: Boolean): PdfChoice {
+        val question = PdfQuestion(firstPagesOnly, cutAtEdge)
+        pdfQuestion = question
+        return try {
+            question.answer.await()
+        } finally {
+            if (pdfQuestion === question) pdfQuestion = null
+        }
+    }
+
+    /** The answer to the question on the screen ([askPdf]). */
+    fun answerPdf(choice: PdfChoice) {
+        val question = pdfQuestion ?: return
+        pdfQuestion = null
+        question.answer.complete(choice)
+    }
+
     val snackbar = SnackbarHostState()
 
     /** Android's share sheet, set by the activity: text out to any app. */
