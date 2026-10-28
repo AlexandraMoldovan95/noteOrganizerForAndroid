@@ -438,6 +438,9 @@
     <string name="q_known_text">%1$d of the %2$d notes in this %3$s are already here, edited elsewhere.\n\nUpdating replaces this device\'s copies; each one can be undone with “↩ Restore previous”. Adding leaves both versions, so you can compare them.</string>
     <string name="q_older_one">It is OLDER than the copy on this device.</string>
     <string name="q_older_many">%1$d of them are OLDER than the copy on this device.</string>
+    <string name="q_rescued_it">It holds an earlier version that “↩ Restore previous” can bring back; updating replaces it with the version from before this update.</string>
+    <string name="q_rescued_one">One of them holds an earlier version that “↩ Restore previous” can bring back; updating replaces it with the version from before this update.</string>
+    <string name="q_rescued_many">%1$d of them hold an earlier version that “↩ Restore previous” can bring back; updating replaces it with the version from before this update.</string>
     <string name="q_update_this">Update this note</string>
     <string name="q_update_n">Update the %1$d</string>
     <string name="q_add_new">Add as a new note</string>

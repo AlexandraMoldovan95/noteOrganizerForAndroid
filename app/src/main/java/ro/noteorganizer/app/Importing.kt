@@ -72,6 +72,12 @@ object Importing {
         val fresh: List<JSONObject>,
         /** How many of [differing] are older than the copy here (backups). */
         val older: Int,
+        /**
+         * How many of [differing] are notes here holding a rescue copy they
+         * still need ([Notebook.holdsUnspentCopy]): a note has one, and an
+         * update's takes its place, so the question says so.
+         */
+        val rescued: Int = 0,
     )
 
     /** The answers, one per question the plan raised. */
@@ -167,6 +173,7 @@ object Importing {
         val unchanged = ArrayList<Known>()
         val fresh = ArrayList<JSONObject>()
         var older = 0
+        var rescued = 0
         for (theirs in incoming) {
             val uid = uidOf(theirs)
             val at = uid?.let { byUid[it] }
@@ -181,11 +188,12 @@ object Importing {
                 if (source == Source.BACKUP &&
                     (theirs.opt("updated") as? String ?: "") < (mine.opt("updated") as? String ?: "")
                 ) older += 1
+                if (Notebook.holdsUnspentCopy(mine)) rescued += 1
             } else {
                 unchanged.add(known)
             }
         }
-        return Plan(source, incoming.size, differing, unchanged, fresh, older)
+        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued)
     }
 
     /**

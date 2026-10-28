@@ -170,6 +170,26 @@ class ImportingTest {
         assertEquals(0, plan.older)
     }
 
+    @Test
+    fun `the update question knows which notes hold a rescue copy an update would replace`() {
+        // One copy a note: an update's takes the place of a big delete's,
+        // and the question said only that the update could be undone.
+        val load = notebook("""
+            [{"id": 1, "uid": "recipe", "title": "Recipe", "body": "flour", "_prev": {"title": "Recipe", "body": "flour and 370 letters"}},
+             {"id": 2, "uid": "spent", "title": "Spent", "body": "same", "_prev": {"title": "Spent", "body": "same"}},
+             {"id": 3, "uid": "plain", "title": "Plain", "body": "p"}]
+        """.trimIndent(), trash = "[]")
+        val plan = Importing.plan(load.raw!!, notes("""
+            [{"uid": "recipe", "title": "Recipe", "body": "flour, salt"}, {"uid": "spent", "title": "Spent", "body": "other"},
+             {"uid": "plain", "title": "Plain", "body": "q"}]
+        """.trimIndent()), Importing.Source.CODE)
+        assertEquals(3, plan.differing.size)
+        assertEquals(1, plan.rescued)
+        assertTrue(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(0)))
+        assertFalse(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(1)))
+        assertFalse(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(2)))
+    }
+
     // ---- question 1: update, or add as new ----
 
     @Test

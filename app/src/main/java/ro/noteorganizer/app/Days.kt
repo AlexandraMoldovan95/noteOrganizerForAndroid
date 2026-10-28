@@ -514,8 +514,10 @@ object Days {
         if (!repeats && Recurrence.isRecurring(note)) {
             val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
             if (repeatOffLosesDays(was)) {
-                // Days the copy it replaces held, and the note does not: kept.
+                // Days the copy it replaces held, and the note does not: kept;
+                // and the words of a big delete's copy the note still needs.
                 val copy = wholeNoteCopy(was)
+                Notebook.takeUnspentWords(copy, note)
                 Notebook.carryDays(copy, note.opt("_prev"), note)
                 note.put("_prev", copy)
             }

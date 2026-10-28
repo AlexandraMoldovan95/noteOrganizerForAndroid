@@ -314,6 +314,39 @@ class DaysTest {
         assertNull(onDisk(load).opt("_prev"))
     }
 
+    @Test
+    fun `a repeat turned off after a big delete keeps the deleted words in its copy, beside the series`() {
+        // The delete's copy held the paragraph; the turn-off's, taken from
+        // the note as it stood, replaced it, and the paragraph was in no
+        // copy. The desktop's _turn_off_rescue_copy, ported.
+        val paragraph = "A paragraph of three hundred letters, written once and deleted. ".repeat(5)
+        val load = scratch(series.replace("\"body\": \"agenda\"", "\"body\": \"agenda\\n$paragraph\""))
+        Days.saveDay(load, 1, "2026-10-12", "Own title", "agenda", "", "Work", "")
+        assertTrue(Notebook.updateNote(load, 1, "Stand-up", "agenda") is SaveResult.Ok)
+        assertEquals("agenda\n$paragraph", onDisk(load).getJSONObject("_prev").getString("body"))
+        assertTrue(Days.setRepeat(load, 1, null) is SaveResult.Ok)
+        val off = onDisk(load)
+        assertEquals("the note keeps its newest words", "agenda", off.getString("body"))
+        val prev = off.getJSONObject("_prev")
+        assertEquals("agenda\n$paragraph", prev.getString("body"))
+        assertEquals("weekly", prev.getJSONObject("recurrence").getString("freq"))
+        assertTrue(Notebook.restorePrevious(load, 1) is SaveResult.Ok)
+        val back = onDisk(load)
+        assertEquals("agenda\n$paragraph", back.getString("body"))
+        assertEquals("Own title", back.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
+        // A copy of more than words -- an earlier turn-off's -- gives none:
+        // the copy is the note as it stands.
+        val whole = scratch(series)
+        Days.saveDay(whole, 1, "2026-10-12", "Own title", "agenda", "", "Work", "")
+        val note = onDisk(whole).put("_prev", JSONObject().put("title", "Stand-up").put("body", "older words")
+            .put("date", "2026-09-01").put("recurrence", JSONObject().put("freq", "daily")))
+        whole.file!!.writeText(JSONArray().put(note).toString())
+        val reread = Notebook.load(whole.file!!.parentFile!!)
+        assertTrue(Days.setRepeat(reread, 1, null) is SaveResult.Ok)
+        assertEquals("weekly", onDisk(reread).getJSONObject("_prev").getJSONObject("recurrence").getString("freq"))
+        assertEquals("agenda", onDisk(reread).getJSONObject("_prev").getString("body"))
+    }
+
     // ---- a repeat ended by a share code ----
 
     /** The sender's copy of the series: same uid, the words changed, the repeat as [rule]. */

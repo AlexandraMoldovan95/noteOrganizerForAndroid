@@ -208,6 +208,16 @@ fun ImportQuestions(
                     append("\n\n")
                     append(if (one) stringResource(R.string.q_older_one) else stringResource(R.string.q_older_many, plan.older))
                 }
+                // One rescue copy a note: an update's takes the place of one
+                // the note still needs, which is said, not done in silence.
+                if (plan.rescued > 0) {
+                    append("\n\n")
+                    append(when {
+                        one -> stringResource(R.string.q_rescued_it)
+                        plan.rescued == 1 -> stringResource(R.string.q_rescued_one)
+                        else -> stringResource(R.string.q_rescued_many, plan.rescued)
+                    })
+                }
             }
             Choice(
                 title = title,

@@ -1839,9 +1839,35 @@ object Notebook {
      */
     internal fun dropSpentCopy(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
-        val same = PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+        if (spent(note, previous)) note.remove("_prev")
+    }
+
+    /** Whether [note] holds again everything [previous] kept: the desktop's `rescue_copy_spent`. */
+    private fun spent(note: JSONObject, previous: JSONObject): Boolean =
+        PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
             PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(note, field), shaped(previous, field)) }
-        if (same) note.remove("_prev")
+
+    /**
+     * Whether [note] holds a rescue copy with something the note lacks --
+     * the desktop's `_holds_unspent_rescue`. A note has one copy: an
+     * import's Update makes another over it, so its question says so.
+     */
+    internal fun holdsUnspentCopy(note: JSONObject): Boolean =
+        (note.opt("_prev") as? JSONObject)?.let { !spent(note, it) } == true
+
+    /**
+     * The copy a repeat's turn-off makes, [copy] -- the note whole, its
+     * repeat and days -- given the words of the copy [note] holds when that
+     * is a copy of words alone the note no longer has. A big delete saved
+     * first, the repeat turned off after: the turn-off's copy, taken from
+     * the note as it stood, replaced the delete's, and the deleted words
+     * were in no copy (the desktop's `_turn_off_rescue_copy`). The note
+     * keeps its newest words itself: a turn-off changes none of them.
+     */
+    internal fun takeUnspentWords(copy: JSONObject, note: JSONObject) {
+        val existing = note.opt("_prev") as? JSONObject ?: return
+        if (existing.keys().asSequence().any { it !in PREV_TEXT_FIELDS } || spent(note, existing)) return
+        for (field in PREV_TEXT_FIELDS) if (existing.has(field)) copy.put(field, deepCopy(existing.get(field)))
     }
 
     /**
@@ -1969,9 +1995,34 @@ object Notebook {
         val oldLen = oldTitle.length + oldBody.length
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied
-        val lost = textLost(oldTitle, newTitle) + textLost(oldBody, newBody)
+        val lost = lost(oldTitle, newTitle) + lost(oldBody, newBody)
         if (lost > 40 && (lost >= oldLen * 0.3 || lost >= 200)) return true
         return lost >= 15 && lost >= oldLen * 0.7
+    }
+
+    /**
+     * What a save of [new] over [old] takes away: the smaller of two counts
+     * that each never come out under it -- the desktop's `_lost`. [textLost]
+     * read a column added to a table, which pads every row again, as the
+     * whole table lost, and the autosave's copy replaced the one the note
+     * held: a deleted paragraph in no copy any more (the final audit's
+     * fourth round). [wordsLost] reads one letter changed in a paragraph
+     * with no spaces as the paragraph lost; the smaller is right for both.
+     */
+    internal fun lost(old: String, new: String): Int = minOf(textLost(old, new), wordsLost(old, new))
+
+    /**
+     * How many characters of the words in [old] are not in [new], each word
+     * counted as often as it appears, with the space it went with -- the
+     * desktop's `words_lost`: its words Python's `str.split()`, their
+     * lengths in code points. A word moved, or a cell padded wider, is not
+     * lost; a word with one letter changed is lost whole.
+     */
+    internal fun wordsLost(old: String, new: String): Int {
+        val gone = HashMap<String, Int>()
+        for (word in PyText.split(old)) gone[word] = (gone[word] ?: 0) + 1
+        for (word in PyText.split(new)) gone[word]?.let { gone[word] = it - 1 }
+        return gone.entries.sumOf { (word, count) -> if (count > 0) (word.codePointCount(0, word.length) + 1) * count else 0 }
     }
 
     /**

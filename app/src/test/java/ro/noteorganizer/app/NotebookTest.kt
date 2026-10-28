@@ -998,6 +998,30 @@ class NotebookTest {
     }
 
     @Test
+    fun `a column added to a table loses no words, and leaves the copy of a deleted paragraph in place`() {
+        // A column added pads every row again: measured as the span between
+        // the first change and the last, it read as the whole table lost,
+        // and the autosave's copy replaced the deleted paragraph's -- the
+        // desktop's `_lost`, the smaller of that span and the words gone.
+        // Padded as the table rules pad it: a column in and out again.
+        val table = TableEdit(listOf("| Name | Qty | Price |", "| --- | --- | --- |") +
+            (1..8).map { "| item $it | $it | ${it * 3}.50 |" }).insertColumnAfter(0).removeColumn(1).lines()
+        val paragraph = "A paragraph of three hundred letters, written once and deleted. ".repeat(5)
+        val load = scratch("""[{"id": 1, "title": "Shop", "body": "Intro\n$paragraph\n${table.joinToString("\\n")}"}]""")
+        assertTrue(Notebook.updateNote(load, 1, "Shop", "Intro\n${table.joinToString("\n")}") is SaveResult.Ok)
+        assertTrue(onDisk(load).getJSONObject(0).getJSONObject("_prev").getString("body").contains(paragraph))
+        val wider = TableEdit(table).insertColumnAfter(0).lines()
+        assertTrue("the rows were padded again", Notebook.textLost(table.joinToString("\n"), wider.joinToString("\n")) > 200)
+        assertEquals(0, Notebook.wordsLost(table.joinToString("\n"), wider.joinToString("\n")))
+        assertTrue(Notebook.updateNote(load, 1, "Shop", "Intro\n${wider.joinToString("\n")}") is SaveResult.Ok)
+        assertTrue("the paragraph's copy stays", onDisk(load).getJSONObject(0).getJSONObject("_prev").getString("body").contains(paragraph))
+        // A word changed is lost whole; one letter in a paragraph with no
+        // spaces, by the other count, is one letter.
+        assertEquals("three letters and a space", 4, Notebook.wordsLost("one two three", "one too three"))
+        assertEquals(1, Notebook.lost("中文字".repeat(100), "中文字".repeat(50) + "中文子" + "中文字".repeat(49)))
+    }
+
+    @Test
     fun `a short note replaced by a new line keeps its words, through updateNote`() {
         val load = scratch("""[{"id": 1, "title": "", "body": "Buy milk\nCall mom\nPay the rent"}]""")
         Notebook.updateNote(load, 1, "", "A new line")
