@@ -122,6 +122,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -1687,11 +1688,16 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
+            // The same lists while the search is the same: made anew at every
+            // pass, they made the checklist draw every row again for each
+            // letter typed in the text above it.
+            val inChecklist = remember(matches) { matches.filterIsInstance<Finding.InChecklist>() }
+            val inComments = remember(matches) { matches.filterIsInstance<Finding.InComments>() }
             ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
-                             found = matches.filterIsInstance<Finding.InChecklist>(),
+                             found = inChecklist,
                              current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
             CommentsSection(state, model, shown = commentsShown, focusAsk = commentsAsk,
-                            found = matches.filterIsInstance<Finding.InComments>(),
+                            found = inComments,
                             current = currentMatch as? Finding.InComments, finding = find.open, reveal = find.reveal)
             AttachmentsSection(state, model, pickAsk = attachAsk)
             Spacer(Modifier.height(48.dp))
@@ -2577,7 +2583,19 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val nowhereSaid = stringResource(R.string.move_nowhere)
     // The row whose handle was tapped: its Move up and Move down.
     var rowMenu by remember { mutableIntStateOf(-1) }
+    // Which rows are written in as fields, the rest shown short
+    // (Editing.checklistFields); and a search's matches, row by row, worked
+    // out once a search, not at every letter typed into a row.
+    val writable = remember(items) { Editing.checklistFields(items.map { it.text }) }
+    val firstShort = remember(writable, items) {
+        items.indices.firstOrNull { !writable[it] && items[it].text.length <= Editing.CHECKLIST_ROW_CHARS } ?: -1
+    }
+    val foundByRow = remember(found) { found.groupBy({ it.item }, { it.start to it.end }) }
     items.forEachIndexed { index, item ->
+        if (index == firstShort) {
+            Text(stringResource(R.string.checklist_shown_short, Editing.CHECKLIST_CHARS), color = palette.subtext,
+                 fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+        }
         // The row's spoken name, as the template editor's: a glimpse, never
         // the whole of a row a backup can bring at 150,000 letters, three
         // times over for each row.
@@ -2666,12 +2684,22 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
-            // A row too long to lay out is shown, not edited, as the body's lines are.
-            if (Editing.tooLongToLayOut(item.text)) Box(Modifier.weight(1f)) { LongText(item.text) } else
-            ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
-                          found = found.filter { it.item == index }.map { it.start to it.end },
-                          current = here?.let { it.start to it.end },
-                          onValue = { now -> model.typeInRow(index, now)?.let { state.say(it) } },
+            val rowFound = foundByRow[index].orEmpty()
+            val rowCurrent = here?.let { it.start to it.end }
+            // A row longer than one is written in is shown, not edited, as
+            // the body's lines too long to lay out are; past what the list
+            // draws to write in, a row is shown short (the line above says so).
+            if (item.text.length > Editing.CHECKLIST_ROW_CHARS || Editing.tooLongToLayOut(item.text)) {
+                Box(Modifier.weight(1f)) { LongText(item.text, found = rowFound, current = rowCurrent) }
+            } else if (!writable[index]) {
+                Text(paintRanges(AnnotatedString(drawnRow(item.text)), rowFound, rowCurrent, palette),
+                     color = if (item.done) palette.subtext else palette.text, fontSize = 15.sp, maxLines = 1,
+                     overflow = TextOverflow.Ellipsis,
+                     textDecoration = if (item.done) TextDecoration.LineThrough else null,
+                     modifier = Modifier.weight(1f))
+            } else ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
+                          found = rowFound, current = rowCurrent,
+                          onValue = { now -> model.typeInRow(index, now.take(Editing.CHECKLIST_ROW_CHARS))?.let { state.say(it) } },
                           onLeave = { if (model.renaming?.index == index) renameWritten() })
             Text(
                 "✕",
@@ -2696,7 +2724,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
         BasicTextField(
             value = model.adding,
-            onValueChange = { model.adding = it },
+            // At most what a row is written in at, as the desktop's box takes.
+            onValueChange = { model.adding = it.take(Editing.CHECKLIST_ROW_CHARS) },
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),

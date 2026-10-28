@@ -214,6 +214,21 @@ class EditingTest {
     }
 
     @Test
+    fun `a checklist's rows are written in up to what one list draws, each up to the desktop's row`() {
+        // Each row was weighed alone, every row drawn at once: 120 rows of
+        // 150,000 letters, from a code of 38 KB, laid out 18 million letters
+        // at every opening.
+        assertTrue("a long list written by hand, every row", Editing.checklistFields(List(1_000) { "x".repeat(100) }).all { it })
+        val wide = Editing.checklistFields(List(120) { "word ".repeat(30_000) })
+        assertTrue("a row past the desktop's 2,000 is shown, not written in", wide.none { it })
+        val full = Editing.checklistFields(List(60) { "y".repeat(Editing.CHECKLIST_ROW_CHARS) })
+        assertEquals(Editing.CHECKLIST_CHARS / Editing.CHECKLIST_ROW_CHARS, full.count { it })
+        assertTrue("from the top", full.take(full.count { it }).all { it })
+        // A short row after a long one is still a field.
+        assertEquals(listOf(false, true), Editing.checklistFields(listOf("z".repeat(2_001), "milk")).toList())
+    }
+
+    @Test
     fun `a note of many short lines is drawn as fields of a share each, the rest read-only`() {
         // A code of 666 characters: 200,000 empty lines, one field -- each of
         // its lines drawn by a call copying the whole field again.

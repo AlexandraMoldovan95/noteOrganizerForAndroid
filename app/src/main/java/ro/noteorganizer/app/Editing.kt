@@ -257,6 +257,38 @@ object Editing {
     const val MAX_DRAWN_CELLS = 1_000
 
     /**
+     * The longest checklist row written in as a field: the desktop's
+     * MAX_CHECKLIST_ITEM_CHARS, the most its box adds and the most of a row
+     * it draws. A longer row is shown read-only, its start, kept whole; the
+     * row's field and the box for a new one take no more.
+     */
+    const val CHECKLIST_ROW_CHARS = 2_000
+
+    /**
+     * The most letters a checklist's rows draw as fields together, from the
+     * top; past it a row is shown short, read-only, kept whole. Each row was
+     * weighed alone, and every row is drawn at once in the note's scrolling
+     * column: 120 rows of 150,000 letters, from a share code of 38 KB, were
+     * 18 million letters laid out at each opening (the final audit's fifth
+     * round). A thousand rows of a hundred letters -- a long list written by
+     * hand -- are drawn whole.
+     */
+    const val CHECKLIST_CHARS = 100_000
+
+    /**
+     * Which of a checklist's [rows] are written in as fields: each no
+     * longer than [CHECKLIST_ROW_CHARS], all of them together no more than
+     * [CHECKLIST_CHARS].
+     */
+    fun checklistFields(rows: List<String>): BooleanArray {
+        var left = CHECKLIST_CHARS
+        return BooleanArray(rows.size) { i ->
+            val length = rows[i].length
+            (length <= CHECKLIST_ROW_CHARS && length <= left).also { if (it) left -= length }
+        }
+    }
+
+    /**
      * How many cells a table's [lines] are drawn as: every row padded to
      * the widest, as [parseTable] pads it. Counted as written, a first row
      * of 500 cells over 250 rows of two came to 1,000 -- under the line --

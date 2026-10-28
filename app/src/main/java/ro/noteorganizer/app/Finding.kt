@@ -148,7 +148,7 @@ object Finding {
         for ((item, words) in checklist.withIndex()) {
             if (found.size >= CAP) break
             val add = { start: Int, end: Int -> InChecklist(item, start, end) }
-            if (Editing.tooLongToLayOut(words)) inLines(words, add)
+            if (words.length > Editing.CHECKLIST_ROW_CHARS || Editing.tooLongToLayOut(words)) inLines(words, add)
             else inText(words, add)
         }
         if (found.size < CAP) {
