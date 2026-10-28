@@ -95,9 +95,10 @@ object Sharing {
      * is carried twice -- as the intent's text, two bytes a UTF-16 unit, and
      * again as its clip, which Android 11 and later write in UTF-8, one byte
      * a Latin letter and three a Chinese or Korean one. The emulator measured
-     * 210,000 Latin letters at 634,252 bytes, 3.02 a letter; counted by
-     * letters alone, 100,000 Chinese ones would have been 500,000 bytes, past
-     * the 484,000 the emulator was seen to carry.
+     * 210,000 Latin letters at 634,252 bytes, 3.02 a letter; and counted by
+     * letters alone, 99,890 Chinese ones -- under the 100,000 -- were a
+     * parcel of 503,764 bytes, and the system failed to deliver it to the
+     * share sheet, unsaid; 94,990 went through (measured 2026-10-28).
      */
     fun handedBytes(vararg texts: String): Long = texts.sumOf { 2L * it.length + utf8Length(it) }
 

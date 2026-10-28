@@ -635,7 +635,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-58 parts since the final audit's third round added `limits_round3` (19
+59 parts since the final audit's fourth round added `limits_round4`
+(what one note draws — ten tables of 1,000 cells, 200,000 empty lines,
+3,000 tiny tables, a journal of 7,000 lines and a letter typed in it,
+timed by the app's frames; a Chinese note refused on Share → Text by
+what Android carries; a code too long greyed on its card; and the PDF's
+question, each answer walked) and changed `limits_round3`'s PDF step to
+the question; the third round had added `limits_round3` (19
 checks: text the layout cannot break, a template's long row, what a bar
 quotes, what Share hands over and what a PDF leaves out) and two to
 `google_backup` (a backup run on a restored phone before its first

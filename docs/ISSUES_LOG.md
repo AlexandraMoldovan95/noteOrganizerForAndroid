@@ -154,6 +154,19 @@ into the PDF any more. A restore that ends the repeat leaves the day for
 the whole note. Each with a test and a mutant watched failing (AS147 to
 AS171), and the walk's new `limits_round4` part.
 
+Against the build before this round, the emulator measured what the
+audit had reasoned: ten tables of 1,000 cells held the screen 9.4 seconds
+in one frame, 200,000 empty lines 8.1, and 3,000 tiny tables did not open
+in 90 seconds. After it, the ten tables took about what one table at the
+line takes alone on the same emulator (1.9 seconds against 1.7, and 3.2
+against 2.4 on an earlier run), the empty lines 0.9 and the tiny tables
+0.3; a journal of 7,000 lines opens in frames of under half a second, and
+a letter typed in it draws in 0.1 to 0.4 -- the autosave's write of its
+308,000 characters, a frame of 0.4 to 0.8 after it, is as it was. On the
+build before the byte ceiling, 99,890 Chinese characters -- under its
+100,000 -- were a parcel of 503,764 bytes the system failed to deliver to
+the share sheet, unsaid; 94,990 went through.
+
 **The lesson:** a limit set for one piece limits nothing when the pieces
 can be many: count what is drawn for the whole of what is drawn, the
 many small with the few large. And a warning the person cannot read
@@ -2468,6 +2481,12 @@ whether that is what the dialog should show.
 - **The list's "Share as a code" for several notes is still refused
   after the tap** when the code is too long; the Share sheet of one note
   says so on its card before.
+- **The autosave of a very long note holds the screen for a moment.**
+  Measured while walking this round: a journal of 308,000 characters
+  draws a letter typed in 0.1 to 0.4 seconds on the emulator, and the
+  save 800 ms after it is a frame of 0.4 to 0.8 seconds -- the whole
+  notebook copied and written from the screen's thread, as before this
+  round. Not a freeze, and not this round's; measured, not fixed.
 
 ### The phone's, from the audit of 2026-10-19
 
