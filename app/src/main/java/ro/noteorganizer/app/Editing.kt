@@ -125,7 +125,7 @@ object Editing {
     private const val ENDS_A_WORD = ",.;:!?"
 
     private fun isIdeograph(c: Char): Boolean =
-        c in '一'..'鿿' || c in '㐀'..'䶿' || c in '豈'..'﫿'
+        c in '\u4E00'..'\u9FFF' || c in '\u3400'..'\u4DBF' || c in '\uF900'..'\uFAFF'
 
     /** The longest run of [text] the layout cannot break ([forEachRun]), in UTF-16 units. */
     fun longestUnbroken(text: String): Int {

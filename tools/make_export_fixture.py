@@ -232,8 +232,8 @@ def main():
     # (export_file_stem, since the desktop's 1fcc189). Added after, so the
     # drawn notes stay as they were.
     named = [{"title": t, "body": "x"} for t in [
-        "bell\x07title", "esc\x1b[0m", "Invoice‮fdp.exe", "del\x7fC1\x85here",
-        "‎‏marks⁦⁩", "line sep para﻿bom", " _.edges._ ",
+        "bell\x07title", "esc\x1b[0m", "Invoice\u202efdp.exe", "del\x7fC1\x85here",
+        "\u200e\u200fmarks\u2066\u2069", "line\u2028sep\u2029para\ufeffbom", " _.edges._ ",
         "\x01\x02", "名前" * 40]]
     for i in range(CASES + len(named)):
         n = note(rng) if i < CASES else named[i - CASES]

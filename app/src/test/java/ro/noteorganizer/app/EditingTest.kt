@@ -95,7 +95,7 @@ class EditingTest {
         // Kotlin's isWhitespace counts the no-break spaces, and 150,000
         // letters joined by them measured as runs of four: given to a field,
         // which can break them nowhere.
-        for (glue in listOf(' ', ' ', ' ', '⁠', '﻿', '\u001C', '\u001F')) {
+        for (glue in listOf('\u00A0', '\u2007', '\u202F', '\u2060', '\uFEFF', '\u001C', '\u001F')) {
             val joined = "word$glue".repeat(30_000)
             assertEquals("U+%04X".format(glue.code), 150_000, Editing.longestUnbroken(joined))
             assertTrue(Editing.tooLongToLayOut(joined))
@@ -113,9 +113,9 @@ class EditingTest {
         }
         // Ideographs break between any two; joined by a no-break space, not.
         assertFalse(Editing.tooLongToLayOut("中文字".repeat(4_000)))
-        assertTrue(Editing.tooLongToLayOut("中 ".repeat(6_000)))
+        assertTrue(Editing.tooLongToLayOut("中\u00A0".repeat(6_000)))
         // One function answers for every place that asks.
-        val title = "a ".repeat(75_000)
+        val title = "a\u00A0".repeat(75_000)
         assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "a", matchCase = false,
             checklist = listOf(title), comments = title))
     }
@@ -186,7 +186,7 @@ class EditingTest {
         // three cells just under the limit, which add up past it.
         val heavy = "a".repeat(Editing.MAX_UNBROKEN - 1)
         for (table in listOf("| $unbroken | x |\n|---|---|\n| a | b |",
-                             "| ${"word ".repeat(30_000)} | x |",
+                             "| ${"word\u00A0".repeat(30_000)} | x |",
                              "| $heavy | $heavy | $heavy |")) {
             val first = Editing.segments(table).first()
             assertTrue(table.take(20), first.table && first.long && !first.drawn)
