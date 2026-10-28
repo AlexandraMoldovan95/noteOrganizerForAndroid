@@ -22,6 +22,79 @@ class RecurrenceTest {
     private fun expand(n: JSONObject, a: LocalDate, b: LocalDate, limit: Int? = null) =
         Recurrence.expand(n, a, b, limit)
 
+    // ---- many moved days, asked of all at once ----
+
+    /** A series with [moves] of its days held on the day after, and [own] days edited, some off its schedule. */
+    private fun busySeries(random: kotlin.random.Random, moves: Int, own: Int): JSONObject {
+        val freq = listOf("daily", "weekly", "monthly").random(random)
+        val rule = JSONObject().put("freq", freq).put("interval", 1 + random.nextInt(2))
+        if (freq == "weekly") rule.put("weekdays", JSONArray(listOf(0, 2, 4).shuffled(random).take(1 + random.nextInt(3))))
+        if (random.nextBoolean()) rule.put("count", 20 + random.nextInt(300))
+        val n = JSONObject().put("id", 1).put("date", "2026-01-05").put("recurrence", rule)
+        val days = Recurrence.expand(n, d(2026, 1, 1), d(2031, 12, 31))
+        val exceptions = days.shuffled(random).take(days.size / 10)
+        n.put("exceptions", JSONArray(exceptions))
+        val moved = JSONObject()
+        for (day in days.shuffled(random).take(minOf(moves, days.size))) {
+            moved.put(day, Recurrence.formatDate(Recurrence.parseDate(day)!!.plusDays(1L + random.nextInt(3))))
+        }
+        n.put("moved", moved)
+        val overrides = JSONObject()
+        for (day in (days.shuffled(random).take(own) + listOf("2026-01-06", "2027-03-03"))) {
+            overrides.put(day, JSONObject().put("title", "own $day"))
+        }
+        return n.put("overrides", overrides)
+    }
+
+    @Test
+    fun `days off the schedule and the banner's counts agree with asking one day at a time`() {
+        // The answers are the day-by-day ones exactly, on series of every kind.
+        val random = kotlin.random.Random(20261028)
+        repeat(120) {
+            val n = busySeries(random, moves = random.nextInt(40), own = random.nextInt(30))
+            val schedule = JSONObject(n.toString()).put("exceptions", JSONArray())
+            val exceptions = (0 until n.getJSONArray("exceptions").length()).map { n.getJSONArray("exceptions").getString(it) }.toSet()
+            val overrides = n.getJSONObject("overrides")
+            val off = overrides.keys().asSequence().sorted().filter { day ->
+                val on = Recurrence.parseDate(day)!!
+                day !in exceptions && Recurrence.expand(schedule, on, on) != listOf(day)
+            }.toList()
+            assertEquals(n.toString(), off, Recurrence.offScheduleDays(n))
+            val moved = n.getJSONObject("moved")
+            val held = moved.keys().asSequence().count { key ->
+                val now = moved.getString(key)
+                val on = Recurrence.parseDate(now)!!
+                Recurrence.expand(n, on, on) == listOf(now)
+            }
+            assertEquals(n.toString(), maxOf(0, overrides.length() - off.size) to held, Recurrence.seriesCounts(n))
+        }
+    }
+
+    @Test
+    fun `a series with thousands of moved days reads them once for its banner, its days off schedule and the History`() {
+        // 5,000 moved days, as a backup may bring: asked one day at a time,
+        // each question read all 5,000, and the note froze as it opened.
+        val n = note("""{"id": 1, "title": "Standup", "date": "2026-01-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}}""")
+        val moved = JSONObject()
+        val overrides = JSONObject()
+        var monday = d(2026, 1, 5)
+        repeat(5000) {
+            moved.put(Recurrence.formatDate(monday), Recurrence.formatDate(monday.plusDays(1)))
+            if (it % 2 == 0) overrides.put(Recurrence.formatDate(monday.plusDays(1)), JSONObject().put("title", "own"))
+            monday = monday.plusWeeks(1)
+        }
+        n.put("moved", moved).put("overrides", overrides)
+        Recurrence.movesRead = 0
+        assertEquals(2500 to 5000, Recurrence.seriesCounts(n))
+        assertTrue(Recurrence.offScheduleDays(n).isEmpty())
+        assertTrue("read ${Recurrence.movesRead} times", Recurrence.movesRead <= 4)
+        Recurrence.movesRead = 0
+        val history = Recurrence.history(listOf(n), today = d(2026, 10, 28))
+        assertEquals(1, history.size)
+        assertTrue("read ${Recurrence.movesRead} times", Recurrence.movesRead <= 6)
+    }
+
     // ---- the frequencies ----
 
     @Test

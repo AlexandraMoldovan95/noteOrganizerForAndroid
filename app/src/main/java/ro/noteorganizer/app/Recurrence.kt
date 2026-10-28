@@ -339,11 +339,76 @@ object Recurrence {
         return (0 until list.length()).mapNotNull { list.opt(it) as? String }.toSet()
     }
 
+    /**
+     * How many times a note's moved days have been read whole: a count the
+     * tests hold to, never a time. Asking about one day at a time read all
+     * 5,000 of a backup's moved days for each, and the note froze as it
+     * opened and at every letter typed (ISSUES_LOG, round 2 of the final
+     * audit).
+     */
+    internal var movesRead = 0L
+
     /** A repeating note's days held on other dates: the rule's date -> where it is. */
     private fun moves(note: JSONObject): List<Pair<String, Any?>> {
         if (!isRecurring(note)) return emptyList()
         val moved = note.opt("moved") as? JSONObject ?: return emptyList()
+        movesRead += 1
         return moved.keys().asSequence().map { it to moved.opt(it) }.toList()
+    }
+
+    /** A rule worked out once: its first day, its normalized rule, and its deleted days. */
+    private class RuleParts(note: JSONObject, withExceptions: Boolean = true) {
+        val anchor: LocalDate? = parseDate(note.opt("date"))
+        val rule: JSONObject = normalize(note.opt("recurrence"))
+        val exceptions: Set<String> = if (withExceptions) stringsOf(note.opt("exceptions")) else emptySet()
+    }
+
+    /**
+     * One note's days asked of many single dates: for each, what
+     * `expand(note, day, day)` says, with the rule, the deleted days and the
+     * moved days read once for them all -- the desktop's `_drawn_on_days`.
+     * A rule that stops after N times is walked once from its first day.
+     * [withExceptions] false asks of the schedule alone, deleted days drawn.
+     */
+    private class Schedule(note: JSONObject, withExceptions: Boolean = true) {
+        private val parts = RuleParts(note, withExceptions)
+        private val moved = moves(note)
+        private val origins = moved.mapTo(HashSet()) { it.first }
+        private val landing = HashMap<LocalDate, MutableList<Pair<String, String>>>().also { map ->
+            for ((orig, new) in moved) {
+                val text = new as? String ?: continue
+                val day = parseDate(text) ?: continue
+                map.getOrPut(day) { ArrayList(1) }.add(orig to text)
+            }
+        }
+        private val cameFrom = HashMap<Any?, String>().also { map -> for ((orig, new) in moved) map.putIfAbsent(new, orig) }
+        private val counted: Set<String>? = parts.anchor?.takeIf { parts.rule.getInt("count") > 0 }?.let {
+            expandRule(parts, it, LocalDate.of(9999, 12, 31), null, emptySet()).toHashSet()
+        }
+
+        /** Whether the rule itself gives [day], deleted days apart. */
+        private fun ruleGives(day: LocalDate): Boolean {
+            val text = formatDate(day)
+            return counted?.contains(text) ?: (expandRule(parts, day, day, null, emptySet()) == listOf(text))
+        }
+
+        /** `expand(note, day, day)`, answered from what was read once. */
+        fun on(day: LocalDate): List<String> {
+            val text = formatDate(day)
+            val out = ArrayList<String>(1)
+            if (text !in origins && ruleGives(day)) out.add(text)
+            for ((orig, newText) in landing[day].orEmpty()) {
+                if (newText in out || orig in parts.exceptions) continue
+                val origin = parseDate(orig) ?: continue
+                if (formatDate(origin) != orig || !ruleGives(origin)) continue
+                out.add(newText)
+            }
+            out.sort()
+            return out
+        }
+
+        /** `movedFrom(note, day)`. */
+        fun movedFrom(day: String): String? = cameFrom[day]
     }
 
     /**
@@ -357,20 +422,20 @@ object Recurrence {
      */
     fun expand(note: JSONObject, start: LocalDate, end: LocalDate, limit: Int? = null): List<String> {
         val moved = moves(note)
+        val parts = RuleParts(note)
         // The rule's own days, less the ones moved away: each still counts as
         // one of a "10 times" series' ten, wherever it is held.
-        val dates = expandRule(note, start, end, limit, moved.map { it.first }.toSet()).toMutableList()
+        val dates = expandRule(parts, start, end, limit, moved.mapTo(HashSet()) { it.first }).toMutableList()
         if (moved.isEmpty()) return dates
         // ...and each moved day on its new date, while the day it was moved
         // from is still one the rule gives and was not deleted.
         val drawn = dates.toMutableSet()
-        val exceptions = stringsOf(note.opt("exceptions"))
         for ((orig, new) in moved) {
             val newText = new as? String ?: continue
             val day = parseDate(newText) ?: continue
-            if (newText in drawn || orig in exceptions || day < start || day > end) continue
+            if (newText in drawn || orig in parts.exceptions || day < start || day > end) continue
             val origin = parseDate(orig) ?: continue
-            if (expandRule(note, origin, origin) != listOf(orig)) continue
+            if (expandRule(parts, origin, origin, null, emptySet()) != listOf(orig)) continue
             dates.add(newText)
             drawn.add(newText)
         }
@@ -416,15 +481,17 @@ object Recurrence {
      * The days the rule gives between [start] and [end], less its exceptions
      * and the dates in [skip] -- which still count towards "N times".
      */
-    private fun expandRule(note: JSONObject, start: LocalDate, end: LocalDate,
-                           limit: Int? = null, skip: Set<String> = emptySet()): List<String> {
-        val anchor = parseDate(note.opt("date")) ?: return emptyList()
-        val rule = normalize(note.opt("recurrence"))
-        val exceptions = stringsOf(note.opt("exceptions")) + skip
+    private fun expandRule(parts: RuleParts, start: LocalDate, end: LocalDate,
+                           limit: Int?, skip: Set<String>): List<String> {
+        val anchor = parts.anchor ?: return emptyList()
+        val rule = parts.rule
+        // Asked of both sets, never of their union: built at every call, the
+        // union of 5,000 deleted and 5,000 moved days was rebuilt per day.
+        fun gone(text: String) = text in parts.exceptions || text in skip
         val freq = rule.getString("freq")
         if (freq.isEmpty()) {
             val oneOff = formatDate(anchor)
-            return if (anchor in start..end && oneOff !in exceptions) listOf(oneOff) else emptyList()
+            return if (anchor in start..end && !gone(oneOff)) listOf(oneOff) else emptyList()
         }
         val interval = rule.getInt("interval")
         val endDate = parseDate(rule.getString("end"))
@@ -446,7 +513,7 @@ object Recurrence {
             produced += 1
             if (candidate in start..end) {
                 val text = formatDate(candidate)
-                if (text !in exceptions) {
+                if (!gone(text)) {
                     results.add(candidate to text)
                     if (limit != null && results.size >= limit) return false
                 }
@@ -604,14 +671,13 @@ object Recurrence {
         val overrides = note.opt("overrides") as? JSONObject ?: return emptyList()
         if (overrides.length() == 0) return emptyList()
         val exceptions = stringsOf(note.opt("exceptions"))
-        val schedule = JSONObject()
-        for (key in note.keys()) schedule.put(key, note.opt(key))
-        schedule.put("exceptions", JSONArray())
+        // The schedule alone, deleted days drawn, read once for every day.
+        val schedule = Schedule(note, withExceptions = false)
         val off = ArrayList<String>()
         for (day in overrides.keys().asSequence().sorted()) {
             val whenDay = parseDate(day) ?: continue
             if (day in exceptions) continue
-            if (expand(schedule, whenDay, whenDay) != listOf(day)) off.add(day)
+            if (schedule.on(whenDay) != listOf(day)) off.add(day)
         }
         return off
     }
@@ -629,10 +695,11 @@ object Recurrence {
         if (!isRecurring(note)) return 0 to 0
         val own = ((note.opt("overrides") as? JSONObject)?.length() ?: 0) - offScheduleDays(note).size
         val moved = note.opt("moved") as? JSONObject
+        val schedule = Schedule(note)
         val held = moved?.keys()?.asSequence()?.count { key ->
             val now = moved.opt(key) as? String
             val whenDay = now?.let { parseDate(it) }
-            whenDay != null && expand(note, whenDay, whenDay) == listOf(now)
+            whenDay != null && schedule.on(whenDay) == listOf(now)
         } ?: 0
         return maxOf(0, own) to held
     }
@@ -751,6 +818,8 @@ object Recurrence {
                     }
                 }
                 val off = offScheduleDays(note).toSet()
+                // Every day of this series asked of one reading of its moves.
+                val schedule = Schedule(note)
                 val days = ArrayList<HistoryDay>()
                 var anyChildMatch = false
                 val kind: String
@@ -766,7 +835,7 @@ object Recurrence {
                         if (!(childMatch || baseMatches)) continue
                         if (query.isNotEmpty() && childMatch) anyChildMatch = true
                         days.add(HistoryDay(day, (own.opt("title") as? String)?.ifEmpty { null } ?: title,
-                            edited, false, movedFrom(note, day)))
+                            edited, false, schedule.movedFrom(day)))
                     }
                     // A day the rule no longer gives was in no row at all: listed, marked.
                     for (day in off) {
@@ -789,7 +858,7 @@ object Recurrence {
                         if (!(childMatch || baseMatches)) continue
                         if (query.isNotEmpty() && childMatch) anyChildMatch = true
                         days.add(HistoryDay(day, (own.opt("title") as? String)?.ifEmpty { null } ?: title,
-                            true, day in off, if (day in off) null else movedFrom(note, day)))
+                            true, day in off, if (day in off) null else schedule.movedFrom(day)))
                     }
                     // A day moved to another date is listed too: where it went
                     // is worth finding -- while the calendar draws it there.
@@ -797,7 +866,7 @@ object Recurrence {
                         val newText = new as? String ?: continue
                         if (overrides.has(newText) || !isDate(newText) || !bucketOk(newText) || !baseMatches) continue
                         val day = parseDate(newText)!!
-                        if (expand(note, day, day) != listOf(newText)) continue
+                        if (schedule.on(day) != listOf(newText)) continue
                         days.add(HistoryDay(newText, title, false, false, orig))
                     }
                 }

@@ -232,6 +232,13 @@ do before, not as releases anyone ran.
   keeps its days, and a new rescue copy carries the days the one it
   replaces held. The desktop takes the same rule. Found by the final
   audit's second round.
+- **A series with thousands of moved days opens at once.** Its banner,
+  its days off the schedule and the History asked about each moved day
+  in turn, and each question read every moved day again: 5,000 of them,
+  which a backup may bring, made 25 million readings, and the note froze
+  as it opened and at every letter typed. The moved days are read once
+  for all the questions now, with the same answers. Found by the final
+  audit's second round, the twin of the desktop's.
 
 ---
 

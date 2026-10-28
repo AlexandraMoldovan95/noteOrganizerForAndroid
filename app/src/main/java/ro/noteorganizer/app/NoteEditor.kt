@@ -1397,8 +1397,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             // the way to each -- the desktop's button under its banner.
             // The series itself says that its edits reach every day but the
             // ones keeping their own: the desktop's banner, wrapped.
-            if (day == null && raw != null && Recurrence.isRecurring(raw)) {
-                val (own, held) = Recurrence.seriesCounts(raw)
+            // Worked out once per write, not at every letter typed: this
+            // column reads the body, and recomposes with it.
+            val counts = remember(raw, state.revision, day) {
+                if (day == null && raw != null && Recurrence.isRecurring(raw)) Recurrence.seriesCounts(raw) else null
+            }
+            if (day == null && raw != null && Recurrence.isRecurring(raw) && counts != null) {
+                val (own, held) = counts
                 val line = buildString {
                     append(stringResource(R.string.series_banner, Recurrence.describe(raw)))
                     if (own > 0) append(" · ").append(pluralStringResource(R.plurals.series_own_edits, own, own))
@@ -1406,7 +1411,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
                 Text(line, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
             }
-            val offDays = if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
+            val offDays = remember(raw, state.revision, day) {
+                if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
+            }
             if (offDays.isNotEmpty()) {
                 Text(
                     pluralStringResource(R.plurals.off_schedule_banner, offDays.size, offDays.size),
