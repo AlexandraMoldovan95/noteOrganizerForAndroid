@@ -195,27 +195,26 @@ object Importing {
             }
             val mine = notebook.getJSONObject(at)
             val known = Known(uid, theirs)
-            if (differs(asHere(mine), asHere(theirs), source)) {
+            val here = asHere(mine)
+            val there = asHere(theirs)
+            // Whether bringing theirs over mine would change anything: a field
+            // the route may replace, or -- from a backup, whose files are
+            // added and never swapped -- a file this device's copy lacks.
+            val fieldsChange = Notebook.sharedUpdateChanges(here, there, fields(source))
+            if (fieldsChange || (source == Source.BACKUP && filesToAdopt(here, there).isNotEmpty())) {
                 differing.add(known)
                 if (source == Source.BACKUP &&
                     (theirs.opt("updated") as? String ?: "") < (mine.opt("updated") as? String ?: "")
                 ) older += 1
-                if (Notebook.holdsUnspentCopy(mine)) rescued += 1
+                // Only an update that changes a field replaces the copy
+                // (Notebook.applyUpdate): one bringing files alone leaves it,
+                // and the question said it would be replaced.
+                if (fieldsChange && Notebook.holdsUnspentCopy(mine)) rescued += 1
             } else {
                 unchanged.add(known)
             }
         }
         return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued)
-    }
-
-    /**
-     * Whether bringing [theirs] over [mine] would change anything: a field
-     * the route may replace, or -- from a backup, whose files are added and
-     * never swapped -- a file this device's copy lacks.
-     */
-    private fun differs(mine: JSONObject, theirs: JSONObject, source: Source): Boolean {
-        if (Notebook.sharedUpdateChanges(mine, theirs, fields(source))) return true
-        return source == Source.BACKUP && filesToAdopt(mine, theirs).isNotEmpty()
     }
 
     private fun storedNames(note: JSONObject): Set<String> {

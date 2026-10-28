@@ -190,6 +190,31 @@ class ImportingTest {
         assertFalse(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(2)))
     }
 
+    @Test
+    fun `a backup that only brings a file is not said to replace the note's earlier version`() {
+        // Its words the same as here, a file this phone lacks: the update
+        // adds the file and leaves the rescue copy alone, and the question
+        // said the copy would be replaced.
+        val load = notebook("""
+            [{"id": 1, "uid": "trip", "title": "Trip", "body": "passport",
+              "_prev": {"title": "Trip", "body": "passport, tickets and 370 more letters"}}]
+        """.trimIndent())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "map.png").writeText("MAP")
+        val plan = backupPlan(load, """
+            [{"uid": "trip", "title": "Trip", "body": "passport",
+              "attachments": [{"filename": "map.png", "stored_as": "map.png"}]}]
+        """.trimIndent())
+        assertEquals("the file is a difference", 1, plan.differing.size)
+        assertEquals(0, plan.rescued)
+        assertTrue(Importing.apply(load, plan, Importing.Answers(update = true), File(dir(load), "attachments"),
+            Importing.Extras(attachments = unpacked)) is Importing.Result.Done)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("the copy left as it was", "passport, tickets and 370 more letters",
+            note.getJSONObject("_prev").getString("body"))
+        assertEquals("map.png", note.getJSONArray("attachments").getJSONObject(0).getString("stored_as"))
+    }
+
     // ---- question 1: update, or add as new ----
 
     @Test
