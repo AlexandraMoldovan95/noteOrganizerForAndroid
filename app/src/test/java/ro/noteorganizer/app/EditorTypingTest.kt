@@ -113,6 +113,27 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `Undo keeps what a phone can hold of a long note's steps, and every step of a short one`() {
+        // Each step is the whole body: a note of two million letters, from
+        // a share code of 8 KB, kept 200 of them -- some 760 MB.
+        val long = editor("x".repeat(2_000_000))
+        repeat(40) {
+            long.body = long.body + "y"
+            long.changed()
+        }
+        assertTrue("${long.undoSteps} steps", long.undoSteps in 1..(Editing.HISTORY_CHARS / 2_000_000).toInt())
+        val before = long.body.length
+        long.undo()
+        assertEquals("the last change undone", before - 1, long.body.length)
+        val short = editor("A page of words.")
+        repeat(40) {
+            short.body = short.body + " more"
+            short.changed()
+        }
+        assertEquals(40, short.undoSteps)
+    }
+
+    @Test
     fun `a restore that ends the repeat, from one of its days, leaves the day for the whole note`() {
         // The editor stayed on the day, and every save went to the day and
         // was refused: "This note no longer repeats."

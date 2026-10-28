@@ -498,6 +498,24 @@ class EditingTest {
         assertEquals(null, h.undo(2))
     }
 
+    @Test
+    fun `at most the budget is kept by weight, the oldest first, never the newest`() {
+        // Each step is the whole note: 200 of a long one were more memory
+        // than a phone gives an app.
+        val h = Editing.History<String>(budget = 10, weigh = { it.length.toLong() })
+        for (s in listOf("aaaa", "bbbb", "cccc")) h.record(s, "step", 0)
+        assertEquals(2, h.steps)
+        assertEquals("cccc", h.undo("dddd"))
+        assertEquals("bbbb", h.undo("cccc"))
+        assertEquals(null, h.undo("bbbb"))
+        // Redo, then a step heavier than the whole budget: it alone is kept.
+        assertEquals("cccc", h.redo("bbbb"))
+        h.record("x".repeat(50), "step", 10)
+        assertEquals(1, h.steps)
+        assertFalse("a new change forgets the way forward", h.canRedo)
+        assertEquals("x".repeat(50), h.undo("y"))
+    }
+
     // ---- a table's caption ----
 
     @Test

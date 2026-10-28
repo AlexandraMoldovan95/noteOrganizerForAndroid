@@ -208,10 +208,16 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * details are not words: a colour or a date set stays set.
      */
     private data class Snap(val title: String, val body: String, val spans: List<FormatSpan>,
-                            val props: Map<Int, Paragraphs.Props>, val comments: String)
+                            val props: Map<Int, Paragraphs.Props>, val comments: String) {
+        /** What it holds, in characters: its words, and each style and line's entry as a short word's worth. */
+        fun weight(): Long = title.length.toLong() + body.length + comments.length + 24L * (spans.size + props.size)
+    }
 
     private fun snap() = Snap(title, body, spans, props, comments)
-    private val history = Editing.History<Snap>()
+    private val history = Editing.History<Snap>(budget = Editing.HISTORY_CHARS, weigh = { it.weight() })
+
+    /** How many steps Undo can take now. */
+    val undoSteps: Int get() = history.steps
 
     /** The note as the last change left it: what the next change records as "before". */
     private var settled: Snap? = null

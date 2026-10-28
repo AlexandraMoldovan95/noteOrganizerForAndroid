@@ -560,6 +560,14 @@ object Editing {
     data class Inserted(val body: String, val firstLine: Int)
 
     /**
+     * The most the editor's Undo keeps, in characters ([History]): some 32
+     * megabytes at two bytes a letter, the most a phone's string takes. 200
+     * steps of a page of prose, 50 of a journal of 300,000 characters, 8 of
+     * a note of two million; a note longer than this keeps its last step.
+     */
+    const val HISTORY_CHARS = 16_000_000L
+
+    /**
      * The editor's Undo and Redo: the states a note went through, newest
      * last. Typing is one step per pause -- letters typed within [pause] of
      * each other, of the same kind, join the step before -- so one Undo
@@ -567,15 +575,31 @@ object Editing {
      * key, a table edit is a step of its own. At most [limit] steps are
      * kept. A new change after an Undo forgets what Redo would have brought
      * back, as every editor's does.
+     *
+     * And at most [budget] in all, by what [weigh] says each state holds:
+     * a step is the whole note as it was, and 200 of a note of two million
+     * letters -- from a share code of 8 KB -- were 760 MB, far past what a
+     * phone gives an app (the final audit's fifth round). The oldest go
+     * first, but never the newest, so the last change can always be undone.
      */
-    class History<T>(private val limit: Int = 200, private val pause: Long = 1000) {
+    class History<T>(
+        private val limit: Int = 200,
+        private val pause: Long = 1000,
+        private val budget: Long = Long.MAX_VALUE,
+        private val weigh: (T) -> Long = { 0L },
+    ) {
         private val past = ArrayDeque<T>()
         private val future = ArrayDeque<T>()
         private var lastKind: String? = null
         private var lastAt = Long.MIN_VALUE
+        // What [past] and [future] hold together, as [weigh] counts it.
+        private var held = 0L
 
         val canUndo: Boolean get() = past.isNotEmpty()
         val canRedo: Boolean get() = future.isNotEmpty()
+
+        /** How many steps Undo can take now. */
+        val steps: Int get() = past.size
 
         /**
          * [before] is the state just before a change of [kind] made at [now]
@@ -585,19 +609,29 @@ object Editing {
         fun record(before: T, kind: String, now: Long) {
             // Typing joins typing in the same field: "typing", "typing:title".
             val joins = kind.startsWith(TYPING) && kind == lastKind && now - lastAt in 0..pause && past.isNotEmpty()
+            for (state in future) held -= weigh(state)
+            future.clear()
             if (!joins) {
                 past.addLast(before)
-                while (past.size > limit) past.removeFirst()
+                held += weigh(before)
+                while (past.size > limit) held -= weigh(past.removeFirst())
+                trim()
             }
-            future.clear()
             lastKind = kind
             lastAt = now
+        }
+
+        /** The oldest steps forgotten while all of them hold more than the budget -- the newest kept. */
+        private fun trim() {
+            while (held > budget && past.size > 1) held -= weigh(past.removeFirst())
         }
 
         /** The state to go back to, given the one on screen now -- kept for Redo. */
         fun undo(current: T): T? {
             val back = past.removeLastOrNull() ?: return null
+            held -= weigh(back)
             future.addLast(current)
+            held += weigh(current)
             lastKind = null
             return back
         }
@@ -605,7 +639,10 @@ object Editing {
         /** The state Undo left, given the one on screen now. */
         fun redo(current: T): T? {
             val forward = future.removeLastOrNull() ?: return null
+            held -= weigh(forward)
             past.addLast(current)
+            held += weigh(current)
+            trim()
             lastKind = null
             return forward
         }
@@ -614,6 +651,7 @@ object Editing {
         fun clear() {
             past.clear()
             future.clear()
+            held = 0L
             lastKind = null
         }
 
