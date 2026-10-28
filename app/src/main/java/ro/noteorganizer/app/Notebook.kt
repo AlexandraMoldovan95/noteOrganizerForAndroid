@@ -2020,7 +2020,16 @@ object Notebook {
     }
 
     /** [text]'s length as [wordsLost] counts it: each word with one space -- the desktop's `_measured`. */
-    internal fun measured(text: String): Int = PyText.split(text).sumOf { it.codePointCount(0, it.length) + 1 }
+    internal fun measured(text: String): Int = words(text).sumOf { it.codePointCount(0, it.length) + 1 }
+
+    /**
+     * [text]'s words, each line's list marker left out -- the desktop's
+     * `_words`: a marker is no word. Counted as words, numbers turned into
+     * bullets, or bullets taken one level in, read as words lost, and the
+     * autosave's copy replaced the one holding a paragraph deleted before
+     * (the final audit's fifth round, found on the phone first).
+     */
+    private fun words(text: String): List<String> = PyText.split(Pasting.stripListMarkers(text))
 
     /**
      * What a save of [new] over [old] takes away: the smaller of two counts
@@ -2038,12 +2047,13 @@ object Notebook {
      * counted as often as it appears, with the space it went with -- the
      * desktop's `words_lost`: its words Python's `str.split()`, their
      * lengths in code points. A word moved, or a cell padded wider, is not
-     * lost; a word with one letter changed is lost whole.
+     * lost; a word with one letter changed is lost whole; a list's markers
+     * are no words ([words]).
      */
     internal fun wordsLost(old: String, new: String): Int {
         val gone = HashMap<String, Int>()
-        for (word in PyText.split(old)) gone[word] = (gone[word] ?: 0) + 1
-        for (word in PyText.split(new)) gone[word]?.let { gone[word] = it - 1 }
+        for (word in words(old)) gone[word] = (gone[word] ?: 0) + 1
+        for (word in words(new)) gone[word]?.let { gone[word] = it - 1 }
         return gone.entries.sumOf { (word, count) -> if (count > 0) (word.codePointCount(0, word.length) + 1) * count else 0 }
     }
 

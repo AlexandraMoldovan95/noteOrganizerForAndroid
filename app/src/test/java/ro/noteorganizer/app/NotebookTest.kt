@@ -1059,6 +1059,30 @@ class NotebookTest {
     }
 
     @Test
+    fun `a list's markers changed lose no words, and leave the copy of a deleted paragraph in place`() {
+        // Each "1." counted as a word: numbers turned to bullets, or bullets
+        // one level in, read as the list lost, and the autosave's copy
+        // replaced the one holding a paragraph deleted a moment before. The
+        // desktop's case, its _words.
+        val items = listOf("milk", "eggs", "bread", "butter", "flour", "sugar", "salt",
+                           "apples", "pears", "rice", "beans", "tea", "coffee", "onion")
+        val numbered = items.mapIndexed { i, w -> "${i + 1}. $w" }.joinToString("\n")
+        val bullets = items.joinToString("\n") { "• $it" }
+        val inner = items.joinToString("\n") { "◦ $it" }
+        assertTrue("the markers as words would pass the bars", Notebook.textLost(numbered, bullets) > 0.3 * numbered.length)
+        assertEquals(0, Notebook.wordsLost(numbered, bullets))
+        assertFalse(Notebook.shouldKeepPrevious("t", numbered, "t", bullets))
+        assertFalse(Notebook.shouldKeepPrevious("t", bullets, "t", inner))
+        assertTrue("a real loss still keeps one", Notebook.shouldKeepPrevious("t", numbered, "t", numbered.lines().take(3).joinToString("\n")))
+        // Through the save: the paragraph's copy stays when the list changes after.
+        val paragraph = "Remember to call the plumber about the leak under the sink before Friday, and ask him about the old pipe."
+        val load = scratch("""[{"id": 1, "title": "Shopping", "body": "$paragraph\n${numbered.replace("\n", "\\n")}"}]""")
+        assertTrue(Notebook.updateNote(load, 1, "Shopping", numbered) is SaveResult.Ok)
+        assertTrue(Notebook.updateNote(load, 1, "Shopping", bullets) is SaveResult.Ok)
+        assertTrue("the paragraph's copy stays", onDisk(load).getJSONObject(0).getJSONObject("_prev").getString("body").startsWith(paragraph))
+    }
+
+    @Test
     fun `a letter typed in a long note is weighed by the span alone, the words never split`() {
         // Every autosave asked the words as well: the whole old and new text
         // split into words three times for one letter typed. Timed against
