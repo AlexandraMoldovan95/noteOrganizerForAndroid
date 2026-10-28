@@ -236,6 +236,49 @@ class BackupTest {
     }
 
     @Test
+    fun `the app's own files nested deeper than any note are kept aside, never parsed`() {
+        // Read with a bare catch for exceptions, Android's StackOverflowError
+        // went past it and the app stopped at every start.
+        val dir = temp("own")
+        File(dir, "notes_data.json").writeText("""[{"title": "x", "deep": ${nested(150)}}]""")
+        File(dir, "settings.json").writeText("""{"deep": ${nested(150)}}""")
+        File(dir, "templates.json").writeText(nested(150))
+        val load = Notebook.load(dir)
+        assertTrue(load.problem ?: "no problem said", load.problem!!.contains("could not be read"))
+        assertTrue(Settings.load(dir).problem != null)
+        assertTrue(Templates.load(dir).isEmpty())
+        for (name in listOf("notes_data", "settings", "templates")) {
+            assertTrue("$name kept aside", dir.listFiles()!!.any { it.name.startsWith(name + "_corrupt_") })
+        }
+    }
+
+    @Test
+    fun `a file not in UTF-8 is damage, never letters turned into marks`() {
+        // A notes file saved in Windows' Romanian code page came in with its
+        // letters as replacement marks, and the next save wrote those over
+        // the person's words; the desktop counts such bytes as damage.
+        // A title holding an S with a comma below and an a with a breve,
+        // written by their numbers: one byte each in that code page, and
+        // neither byte UTF-8.
+        val title = Char(0x0218) + "tampil" + Char(0x0103)
+        val romanian = "[{\"id\": 1, \"uid\": \"r\", \"title\": \"$title\"}]".toByteArray(charset("windows-1250"))
+        val dir = temp("own")
+        File(dir, "notes_data.json").writeBytes(romanian)
+        val load = Notebook.load(dir)
+        assertTrue(load.problem ?: "no problem said", load.problem!!.contains("could not be read"))
+        val kept = dir.listFiles()!!.single { it.name.startsWith("notes_data_corrupt_") }
+        assertTrue("the bytes kept as they were", kept.readBytes().contentEquals(romanian))
+        // In a backup, too.
+        val zip = File(temp("in"), "cp1250.zip")
+        ZipOutputStream(FileOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("notes_data.json"))
+            out.write(romanian)
+            out.closeEntry()
+        }
+        assertTrue((Backup.read(zip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason.contains("UTF-8"))
+    }
+
+    @Test
     fun `nesting is measured outside strings, and a parser out of stack is damage`() {
         assertTrue(Files.nestedPast(nested(101), 100))
         assertFalse(Files.nestedPast(nested(100), 100))

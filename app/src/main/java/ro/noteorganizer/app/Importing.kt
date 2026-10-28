@@ -487,7 +487,7 @@ object Importing {
     private fun readArray(file: File): JSONArray? {
         if (!file.isFile) return JSONArray()
         return try {
-            JSONArray(file.readText(Charsets.UTF_8))
+            Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
             null
         }

@@ -98,7 +98,7 @@ object Templates {
         val file = File(dir, Backup.TEMPLATES)
         if (!file.exists()) return emptyList()
         val data = try {
-            JSONArray(file.readText(Charsets.UTF_8))
+            Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
             Files.preserveCorrupt(file)
             return emptyList()

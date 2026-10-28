@@ -36,7 +36,7 @@ object ReminderAlarm {
     private fun notebook(context: Context) = File(context.filesDir, "notebook")
 
     private fun settingsOf(context: Context): JSONObject? = try {
-        JSONObject(File(notebook(context), "settings.json").readText(Charsets.UTF_8))
+        Files.parseOwn(File(notebook(context), "settings.json")) { JSONObject(it) }
     } catch (e: Exception) {
         null
     }
@@ -69,7 +69,7 @@ object ReminderAlarm {
         if (settings != null && Reminders.notifies(settings)) {
             val today = Recurrence.formatDate(LocalDate.now())
             val due = try {
-                Reminders.dueOn(File(notebook(context), "notes_data.json").readText(Charsets.UTF_8), today)
+                Files.parseOwn(File(notebook(context), "notes_data.json")) { Reminders.dueOn(it, today) }
             } catch (e: Exception) {
                 null
             }

@@ -423,7 +423,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** How many templates the notebook keeps: the desktop's count, from templates.json. */
     fun templatesCount(): Int = try {
         val file = File(dir, Backup.TEMPLATES)
-        if (file.isFile) org.json.JSONArray(file.readText(Charsets.UTF_8)).length() else 0
+        if (file.isFile) Files.parseOwn(file) { org.json.JSONArray(it) }.length() else 0
     } catch (e: Exception) {
         0
     }

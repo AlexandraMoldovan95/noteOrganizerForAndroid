@@ -68,6 +68,9 @@ object Files {
             file.readBytes()
         } catch (e: Exception) {
             return null
+        } catch (e: OutOfMemoryError) {
+            // Too large to hold: not copied, so not written over either.
+            return null
         }
         val folder = file.parentFile ?: return null
         val root = file.name.substringBeforeLast('.', file.name)
@@ -127,8 +130,50 @@ object Files {
         }
     }
 
+    /**
+     * One of the app's own files -- the notes, the Trash, the settings, the
+     * templates -- read and parsed as [parseOutside] parses what comes from
+     * outside. They are written by this app, but not only: a backup Android
+     * put back, the desktop's files copied in. Read with a bare
+     * `catch (e: Exception)`, a file nested past the parser's stack, or too
+     * large for the phone, ended in an Error none of those catches saw, and
+     * the app stopped at every start -- the desktop's JSON_UNREADABLE, which
+     * every reader of its files catches whole, ported.
+     */
+    fun <T> parseOwn(file: File, parse: (String) -> T): T = parseOutside(readData(file), parse)
+
+    /** A data file's text, or [Unreadable] -- see [utf8]. */
+    fun readData(file: File): String {
+        val bytes = try {
+            file.readBytes()
+        } catch (e: OutOfMemoryError) {
+            throw Unreadable(TOO_LARGE)
+        }
+        return utf8(bytes)
+    }
+
+    /**
+     * Bytes as the UTF-8 every file and code here is written in, or
+     * [Unreadable]. Read leniently, a file saved in another encoding -- a
+     * notes file kept in Windows' Romanian code page, say -- came in with
+     * its letters turned into replacement marks, and the next save wrote
+     * those over the person's words; the desktop counts such bytes as
+     * damage (UnicodeDecodeError), and so does this.
+     */
+    fun utf8(bytes: ByteArray): String = try {
+        Charsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+            .decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+    } catch (e: java.nio.charset.CharacterCodingException) {
+        throw Unreadable(NOT_UTF8)
+    } catch (e: OutOfMemoryError) {
+        throw Unreadable(TOO_LARGE)
+    }
+
     private const val TOO_DEEP = "It is nested deeper than any note."
     const val TOO_LARGE = "It is too large for this phone to read."
+    private const val NOT_UTF8 = "Its letters are not written in UTF-8, the way notes are kept."
 
     /** Whether [text]'s brackets, outside its strings, nest past [limit]: one pass, nothing parsed. */
     fun nestedPast(text: String, limit: Int): Boolean {

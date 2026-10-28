@@ -898,7 +898,7 @@ object Notebook {
     private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
         if (!file.isFile) return JSONArray()
         val parsed = try {
-            JSONArray(file.readText(Charsets.UTF_8))
+            Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
             null
         }

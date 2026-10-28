@@ -586,7 +586,7 @@ object Organizing {
         val templatesFile = file.parentFile?.let { File(it, "templates.json") }
         if (templatesFile != null && templatesFile.isFile) {
             val templates = try {
-                JSONArray(templatesFile.readText(Charsets.UTF_8))
+                Files.parseOwn(templatesFile) { JSONArray(it) }
             } catch (e: Exception) {
                 null
             }

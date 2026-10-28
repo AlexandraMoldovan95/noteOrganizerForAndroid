@@ -270,9 +270,10 @@ object Backup {
                 return Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
             }
         }
-        // Every file read as JSON from outside: measured for nesting before
-        // it is parsed (Files.parseOutside).
-        fun text(name: String) = File(into, name).readText(Charsets.UTF_8)
+        // Every file read as JSON from outside: as UTF-8 or not at all
+        // (Files.readData), and measured for nesting before it is parsed
+        // (Files.parseOutside).
+        fun text(name: String) = Files.readData(File(into, name))
         val notes = try {
             Files.parseOutside(text(NOTES)) { JSONArray(it) }
         } catch (e: Exception) {

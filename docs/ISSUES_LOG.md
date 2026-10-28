@@ -418,6 +418,18 @@ codes and every file a backup brings are read through it. The tests nest
 150 deep, which the computer's parser takes and the guard refuses, so
 they fail without it.
 
+**And the app's own files, 2026-10-28.** The notes, the Trash, the
+settings and the templates were still read with the bare catch: they are
+the app's own, but not only the app writes them — Android puts a backup
+back, a development build copies the desktop's in. One nested past the
+stack, or too large for the phone, would have stopped the app at every
+start. They are read through the same guard now (`Files.parseOwn`), and
+the desktop's third kind of damage came with it: bytes that are not
+UTF-8. Read leniently, a notes file saved in Windows' Romanian code page
+came in with its letters as replacement marks, which the next save wrote
+over the person's words; a share code or a backup file did the same. All
+of them now refuse such bytes, and the notes file is kept aside whole.
+
 **The lesson:** a catch names what it expects. What comes from outside
 is measured before a reader that recurses is handed it, and the test is
 built for the parser the phone runs, not the one the computer has.

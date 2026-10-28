@@ -95,7 +95,7 @@ object Settings {
         val file = File(dir, "settings.json")
         if (!file.isFile) return Load(file, JSONObject())
         val parsed = try {
-            JSONObject(file.readText(Charsets.UTF_8))
+            Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {
             null
         }

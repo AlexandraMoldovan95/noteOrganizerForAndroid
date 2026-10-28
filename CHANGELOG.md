@@ -174,6 +174,12 @@ do before, not as releases anyone ran.
   large to read stopped it at every start. Only development builds look
   there now, and one too large is left alone. Found by the final audit,
   checked on the emulator.
+- **The app's own files are read as carefully as a backup.** A notes,
+  Trash, settings or templates file nested too deep, or too large for the
+  phone, could have stopped the app at every start; it is now kept aside
+  and the app opens. And a file, backup or share code whose letters are
+  not in UTF-8 is refused, as the desktop refuses it, instead of coming
+  in with its letters turned into marks that the next save kept.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or

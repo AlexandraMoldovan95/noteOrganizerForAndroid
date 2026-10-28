@@ -116,6 +116,23 @@ class SharingTest {
             .encodeToString(out.toByteArray())
     }
 
+    @Test
+    fun `a code whose words are not UTF-8 is damage, never letters turned into marks`() {
+        // Read leniently, its letters came in as replacement marks; the
+        // desktop's decode("utf-8") refuses such a code.
+        val title = Char(0x0218) + "tampil" + Char(0x0103)
+        val raw = "{\"v\": 1, \"notes\": [{\"title\": \"$title\"}]}".toByteArray(charset("windows-1250"))
+        val deflate = java.util.zip.Deflater(9)
+        deflate.setInput(raw)
+        deflate.finish()
+        val out = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(4096)
+        while (!deflate.finished()) out.write(buffer, 0, deflate.deflate(buffer))
+        deflate.end()
+        val code = Sharing.PREFIX + java.util.Base64.getUrlEncoder().encodeToString(out.toByteArray())
+        assertTrue(Sharing.decode(code) is Sharing.Decoded.Failed)
+    }
+
     // ---- nesting deeper than any note ----
 
     @Test
