@@ -250,6 +250,21 @@ object Exporting {
     private fun pipePositions(line: String, cps: IntArray): List<Int> =
         if (!isTableRow(line)) emptyList() else cps.indices.filter { cps[it] == '|'.code }
 
+    /** How many of [sorted] lie strictly between [low] and [high], by halving rather than by reading them all. */
+    private fun countBetween(sorted: IntArray, low: Int, high: Int): Int {
+        if (high - low <= 1) return 0
+        fun atMost(x: Int): Int {
+            var lo = 0
+            var hi = sorted.size
+            while (lo < hi) {
+                val mid = (lo + hi) ushr 1
+                if (sorted[mid] <= x) lo = mid + 1 else hi = mid
+            }
+            return lo
+        }
+        return atMost(high - 1) - atMost(low)
+    }
+
     /** `cell_alignments`: read off the padding, as the desktop stores alignment. */
     private fun cellAlignments(line: String, cps: IntArray): List<String> {
         val pipes = pipePositions(line, cps)
@@ -459,6 +474,7 @@ object Exporting {
         val mergeAt = HashMap<Int, Pair<Map<Int, Pair<Int, Int>>, Set<Int>>>()
         val separatorLines = HashSet<Int>()
         val hiddenAt = HashMap<Int, Set<Int>>()
+        val hiddenSortedAt = HashMap<Int, IntArray>()
         for (block in tableBlocks(text)) {
             val first = block.first
             val blockLines = lineTexts.subList(block.first, block.last + 1)
@@ -476,10 +492,18 @@ object Exporting {
                 val (rs, cs) = spans[anchor] ?: (1 to 1)
                 spans[anchor] = maxOf(rs, covered.first - anchor.first + 1) to maxOf(cs, covered.second - anchor.second + 1)
             }
+            // Each row's merges, sorted out once: asked of every anchor for
+            // every row, 60,000 rows of "^" came to 7 billion steps, the
+            // screen held still for the page a share makes.
+            val spansOf = HashMap<Int, HashMap<Int, Pair<Int, Int>>>()
+            for ((anchor, span) in spans) spansOf.getOrPut(anchor.first) { HashMap() }[anchor.second] = span
+            val coveredOf = HashMap<Int, HashSet<Int>>()
+            for (covered in anchors.keys) coveredOf.getOrPut(covered.first) { HashSet() }.add(covered.second)
+            val hiddenInOrder = hidden.sorted().toIntArray()
             for ((r, n) in dataLines.withIndex()) {
-                mergeAt[n] = spans.filterKeys { it.first == r }.mapKeys { it.key.second } to
-                    anchors.keys.filter { it.first == r }.map { it.second }.toSet()
+                mergeAt[n] = (spansOf[r] ?: emptyMap<Int, Pair<Int, Int>>()) to (coveredOf[r] ?: emptySet<Int>())
                 hiddenAt[n] = hidden
+                hiddenSortedAt[n] = hiddenInOrder
             }
         }
 
@@ -553,14 +577,19 @@ object Exporting {
                 }
                 val (rowSpans, rowCovered) = mergeAt[number] ?: (emptyMap<Int, Pair<Int, Int>>() to emptySet())
                 val rowHidden = hiddenAt[number] ?: emptySet()
+                val rowHiddenInOrder = hiddenSortedAt[number] ?: IntArray(0)
                 val rowAligns = cellAlignments(lineText, line)
+                // The row's pipes, found once for the row: found again for each
+                // empty cell, a row of 50,000 of them from a code of 186
+                // characters came to 7.5 billion steps.
+                val rowPipes by lazy(LazyThreadSafetyMode.NONE) { pipePositions(lineText, line) }
                 val cells = StringBuilder()
                 for ((c, bounds) in row.withIndex()) {
                     val (start, end) = bounds
                     if (c in rowCovered || c in rowHidden) continue
                     val (rs, colSpan) = rowSpans[c] ?: (1 to 1)
                     // A merge across a hidden column narrows by what the page will not show.
-                    val cs = colSpan - rowHidden.count { it > c && it < c + colSpan }
+                    val cs = colSpan - countBetween(rowHiddenInOrder, c, c + colSpan)
                     var attr = ""
                     if (cs > 1) attr += " colspan=\"$cs\""
                     if (rs > 1) attr += " rowspan=\"$rs\""
@@ -576,7 +605,7 @@ object Exporting {
                     var cellA = offset + start
                     var cellB = offset + end
                     if (cellB == cellA) {
-                        val pipes = pipePositions(lineText, line)
+                        val pipes = rowPipes
                         if (c + 1 < pipes.size) {
                             cellA = offset + pipes[c] + 1
                             cellB = offset + pipes[c + 1]

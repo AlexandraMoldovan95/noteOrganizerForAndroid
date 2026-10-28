@@ -398,6 +398,14 @@ do before, not as releases anyone ran.
   out is shown there as in the note, and any other row past 300
   characters as its start with "…"; the template keeps every row whole.
   Found by the final audit's third round.
+- **Sharing or exporting a note with a table too large to draw no
+  longer holds the app.** The page Share and Export make looked for a
+  row's pipes again for each empty cell, and asked every merge in the
+  table about every row: a row of 50,000 empty cells, from a code of 186
+  characters, came to billions of steps on the screen's own thread, until
+  Android offered to close the app. Each row is read once now, and the
+  page is made away from the screen. Found by the final audit's third
+  round.
 
 ---
 

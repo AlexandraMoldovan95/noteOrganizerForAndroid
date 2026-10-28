@@ -25,7 +25,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import java.io.IOException
 import java.io.OutputStream
@@ -63,30 +67,41 @@ fun rememberExporter(state: AppState): Exporter {
         if (uri == null) return
         val id = job.substringBefore(':').toIntOrNull() ?: return
         val format = job.substringAfter(':')
-        val note = state.rawNote(id) ?: return
+        // A copy, taken here: the page is worked out and written away from
+        // the screen, which a tick in the list may change the note under.
+        val note = state.rawNote(id)?.let { JSONObject(it.toString()) } ?: return
         val title = Exporting.titleOf(note)
-        try {
-            openForWriting(context, uri).use { it.write(Exporting.content(note, format, title).toByteArray(Charsets.UTF_8)) }
-        } catch (e: IOException) {
-            state.say(context.getString(R.string.note_export_failed))
-            return
-        } catch (e: SecurityException) {
-            state.say(context.getString(R.string.note_export_failed))
-            return
-        }
-        val name = displayName(context, uri) ?: Exporting.fileName(title, format)
-        var message = context.getString(R.string.note_exported_to, quotedFile(name))
-        // The desktop says so too: a single note's file never carries its files.
-        if (((note.opt("attachments") as? JSONArray)?.length() ?: 0) > 0) {
-            message += " " + context.getString(R.string.note_export_no_files)
-        }
-        state.offer(message, context.getString(R.string.note_export_open)) {
-            try {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, Exporting.mimeType(format))
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-            } catch (e: ActivityNotFoundException) {
-                state.say(context.getString(R.string.no_app_opens))
+        state.scope.launch {
+            // Off the screen's thread: a note can hold a table of tens of
+            // thousands of cells, and the place another app's.
+            val written = withContext(Dispatchers.IO) {
+                try {
+                    openForWriting(context, uri).use { it.write(Exporting.content(note, format, title).toByteArray(Charsets.UTF_8)) }
+                    true
+                } catch (e: IOException) {
+                    false
+                } catch (e: SecurityException) {
+                    false
+                }
+            }
+            if (!written) {
+                state.say(context.getString(R.string.note_export_failed))
+                return@launch
+            }
+            val name = withContext(Dispatchers.IO) { displayName(context, uri) } ?: Exporting.fileName(title, format)
+            var message = context.getString(R.string.note_exported_to, quotedFile(name))
+            // The desktop says so too: a single note's file never carries its files.
+            if (((note.opt("attachments") as? JSONArray)?.length() ?: 0) > 0) {
+                message += " " + context.getString(R.string.note_export_no_files)
+            }
+            state.offer(message, context.getString(R.string.note_export_open)) {
+                try {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW).setDataAndType(uri, Exporting.mimeType(format))
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (e: ActivityNotFoundException) {
+                    state.say(context.getString(R.string.no_app_opens))
+                }
             }
         }
     }

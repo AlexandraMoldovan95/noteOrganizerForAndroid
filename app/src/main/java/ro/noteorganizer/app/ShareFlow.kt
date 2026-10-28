@@ -34,7 +34,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import java.io.File
 import java.io.IOException
@@ -142,7 +145,9 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
         state.shareCode(listOf(noteId))?.let { sendText(state, it) }
         return
     }
-    val note = state.rawNote(noteId) ?: return
+    // A copy, taken here: the page is worked out away from the screen,
+    // which a tick in the list may change the note under meanwhile.
+    val note = state.rawNote(noteId)?.let { JSONObject(it.toString()) } ?: return
     val title = Exporting.titleOf(note)
     val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, title)
     if (format == Outgoing.TEXT) {
@@ -151,7 +156,9 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
     } else {
         val folder = File(context.cacheDir, "share")
         val file = File(folder, Outgoing.fileName(title, format))
-        val page = Exporting.content(note, Exporting.HTML, title)
+        // Off the screen's thread: a note can hold a table of tens of
+        // thousands of cells. The PDF's drawing stays on it, as a WebView must.
+        val page = withContext(Dispatchers.Default) { Exporting.content(note, Exporting.HTML, title) }
         val written = try {
             folder.deleteRecursively()
             folder.mkdirs()
