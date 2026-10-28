@@ -1621,7 +1621,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 // The new table's first cell, open for typing -- as the
                 // desktop opens it the moment the table is made.
                 val first = model.insertTable(rows, columns)
-                if (Editing.segments(model.body).any { it.table && it.firstLine == first }) {
+                if (Editing.segments(model.body).any { it.table && it.drawn && it.firstLine == first }) {
                     model.activeCell = ActiveCell(first, CellAt(0, 0))
                 }
             },

@@ -105,6 +105,7 @@ class EditingTest {
         }
         // Spaces after an opening bracket break nothing (UAX #14's LB14).
         assertTrue(Editing.tooLongToLayOut("( ".repeat(75_000)))
+        assertTrue(Editing.tooLongToLayOut("( a".repeat(50_000)))
         // Words, and what ends a sentence or a list item, break as ever.
         for (spaced in listOf("word ".repeat(30_000), "a, ".repeat(50_000), "1. ".repeat(50_000), "Yes! No? ".repeat(20_000))) {
             assertTrue(spaced.take(12), Editing.longestUnbroken(spaced) < 10)
@@ -142,6 +143,10 @@ class EditingTest {
         assertEquals(5 to 5, cut[1].firstLine to cut[1].lastLine)
         assertEquals("end", cut[2].text)
         assertTrue(cut.filter { it.field }.sumOf { Editing.layoutCost(it.text)!! } <= Editing.MAX_LAYOUT_COST)
+        // Each line is counted once: the one after a read-only line, let in
+        // when it was asked, is not asked -- and counted -- again.
+        val around = listOf(heavy, "b".repeat(Editing.MAX_UNBROKEN + 1), heavy).joinToString("\n")
+        assertEquals(listOf(true, false, true), Editing.segments(around).map { it.field })
         // Prose, however long, is far from the limit.
         val prose = "She said, \"Let's go (now) to the market -- it's late.\" Then we walked; it was 5:30. "
         val long = prose.repeat(300_000 / prose.length)
@@ -162,6 +167,38 @@ class EditingTest {
         assertEquals(listOf(true, false, true), Editing.segments("Ragged\n$ragged\nafter").map { it.drawn })
         // A table written whole is weighed as before.
         assertEquals(Editing.MAX_DRAWN_CELLS.toLong(), Editing.gridCells(grid(50, 20).split("\n")))
+    }
+
+    @Test
+    fun `a table holding text too much to lay out is shown read-only, never drawn as a grid`() {
+        // One row of two cells passed the count of cells, and its 150,000
+        // letters went whole into a cell 26 characters wide.
+        val unbroken = "a".repeat(150_000)
+        val body = "Words before\n| $unbroken | x |\nwords after"
+        val parts = Editing.segments(body)
+        assertEquals(listOf(false, true, false), parts.map { it.table })
+        assertEquals(listOf(false, true, false), parts.map { it.long })
+        assertEquals(listOf(true, false, true), parts.map { it.drawn })
+        assertEquals(listOf(true, false, true), parts.map { it.field })
+        assertEquals(body, parts.joinToString("\n") { it.text })
+        assertEquals("nothing in it is found", emptyList<Finding.Match>(), Finding.scan(body, "x", matchCase = false))
+        // With a header and a separator; joined by no-break spaces; and
+        // three cells just under the limit, which add up past it.
+        val heavy = "a".repeat(Editing.MAX_UNBROKEN - 1)
+        for (table in listOf("| $unbroken | x |\n|---|---|\n| a | b |",
+                             "| ${"word ".repeat(30_000)} | x |",
+                             "| $heavy | $heavy | $heavy |")) {
+            val first = Editing.segments(table).first()
+            assertTrue(table.take(20), first.table && first.long && !first.drawn)
+        }
+        // The cells share what a body may give the layout with its lines.
+        assertTrue(Editing.segments("| $heavy | $heavy |").first().drawn)
+        val shared = Editing.segments("$heavy\n$heavy\n| $heavy | x |\nend")
+        assertEquals(listOf(true, false, true), shared.map { it.field })
+        assertTrue(shared[1].table && shared[1].long)
+        // A table of ordinary words is drawn as ever, in a body of any length.
+        val words = "Some words here. ".repeat(2_000)
+        assertTrue(Editing.segments("$words\n| a | b |\n|---|---|\n| c | d |").first { it.table }.drawn)
     }
 
     @Test

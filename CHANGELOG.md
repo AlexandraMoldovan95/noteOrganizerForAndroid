@@ -372,6 +372,13 @@ do before, not as releases anyone ran.
   one by one before. Chinese and Japanese ideographs, which break between
   any two, are not counted as one run. The note keeps every byte. Found
   by the final audit's third round.
+- **A table holding a very long run of letters opens at once.** The rule
+  above looked at the lines around tables and never inside one: a row of
+  two cells, one of them 150,000 letters long, was drawn as a grid, its
+  letters in a column a few words wide, and froze the note as the line
+  alone had before. A table's cells are weighed as lines are now, and
+  such a table is shown as its start, read-only, in the note and in the
+  template editor. Found by the final audit's third round.
 
 ---
 

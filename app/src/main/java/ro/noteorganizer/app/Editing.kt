@@ -26,7 +26,8 @@ object Editing {
      * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid. A
      * [long] segment is lines holding a run longer than [MAX_UNBROKEN]
      * that the layout cannot break, or runs past what the body may give the
-     * layout in all ([MAX_LAYOUT_COST]), shown read-only; only a [field] is
+     * layout in all ([MAX_LAYOUT_COST]) -- a table's cells counted too, and
+     * such a table is not [drawn] -- shown read-only; only a [field] is
      * typed in.
      */
     data class Segment(
@@ -225,6 +226,16 @@ object Editing {
             spent += cost
             return false
         }
+        // A table's rows, asked once, as a whole: its cells, each laid out on
+        // its own, counted as lines are counted.
+        fun cellsTooMuch(rows: List<String>): Boolean {
+            if (!weighed) return false
+            var cost = 0L
+            for (row in rows) for (cell in splitRow(row)) cost += layoutCost(cell) ?: return true
+            if (spent + cost > MAX_LAYOUT_COST) return true
+            spent += cost
+            return false
+        }
         // A run of prose lines, each run of lines too much to lay out cut
         // out of it as a segment of its own, shown read-only: the lines
         // around it stay fields, and the note keeps every byte.
@@ -250,8 +261,16 @@ object Editing {
         var line = 0
         for (block in tableBlocks(body)) {
             if (block.first > line) prose(line, block.first - 1)
+            val rows = lines.subList(block.first, block.last + 1)
+            val gridded = gridCells(rows) <= MAX_DRAWN_CELLS
+            // A grid's cells are text laid out like any other, each in a
+            // column a few words wide: a row of two cells, one of them
+            // 150,000 letters long, passed the count of cells, was drawn,
+            // and froze the note as the line alone would have. Weighed as
+            // lines are, it is shown as one -- read-only, its start below.
+            val tooMuch = gridded && cellsTooMuch(rows)
             out.add(Segment(true, block.first, block.last, text(block.first, block.last), starts[block.first],
-                drawn = gridCells(lines.subList(block.first, block.last + 1)) <= MAX_DRAWN_CELLS))
+                drawn = gridded && !tooMuch, long = tooMuch))
             line = block.last + 1
         }
         if (line < lines.size) prose(line, lines.size - 1)
