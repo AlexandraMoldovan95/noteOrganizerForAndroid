@@ -406,6 +406,14 @@ do before, not as releases anyone ran.
   Android offered to close the app. Each row is read once now, and the
   page is made away from the screen. Found by the final audit's third
   round.
+- **Share → Text says when a note is too long for a message.** It handed
+  Android the whole note with no limit, and a note of more than about
+  250,000 characters — a long journal, or a desktop note brought by a
+  backup — stopped the app at the share sheet. Past the ceiling a share
+  code is held to, Text is shown greyed with the reason and the way
+  that carries everything, the web page; a mail's subject is a long
+  title's start; and whatever Android still refuses to hand over is
+  said, never the app stopped. Found by the final audit's third round.
 
 ---
 

@@ -246,7 +246,15 @@ class MainActivity : ComponentActivity() {
 
     private fun share(text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-        startActivity(Intent.createChooser(send, getString(R.string.share_code)))
+        // A code is held to the ceiling before it comes here (Sharing.MAX_HANDED_CHARS);
+        // whatever Android still refuses is said, never the app stopped.
+        try {
+            startActivity(Intent.createChooser(send, getString(R.string.share_code)))
+        } catch (e: ActivityNotFoundException) {
+            android.widget.Toast.makeText(this, R.string.share_no_app, android.widget.Toast.LENGTH_LONG).show()
+        } catch (e: RuntimeException) {
+            android.widget.Toast.makeText(this, R.string.share_handed_failed, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")

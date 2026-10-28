@@ -85,4 +85,28 @@ object Outgoing {
         if (comments.isNotEmpty()) plain += "\n\nComments:\n$comments"
         return Exporting.mend("$plain\n")
     }
+
+    /**
+     * The subject a mail app is handed with a share: the title, cut as a
+     * glimpse with "…" when a share code or a backup made it very long. The
+     * words, the page and the PDF still carry it whole.
+     */
+    fun subject(title: String): String = glimpse(title).let { if (it.length < title.length) "$it…" else title }
+
+    /**
+     * Whether [words] -- with the [subject] beside them -- are more than may
+     * be handed to another app in one go ([Sharing.MAX_HANDED_CHARS], the
+     * ceiling a share code is held to): Android passes them through a buffer
+     * of about a megabyte, and a note of 300,000 characters handed as words
+     * stopped the app at the share sheet. The page carries any length, as a
+     * file the other app reads.
+     */
+    fun tooLongForWords(words: String, subject: String): Boolean =
+        words.length + subject.length > Sharing.MAX_HANDED_CHARS
+
+    /** [tooLongForWords] for [note] as it is now, and the words it would send. */
+    fun tooLongForWords(note: JSONObject): Boolean {
+        val title = Exporting.titleOf(note)
+        return tooLongForWords(text(note, title), subject(title))
+    }
 }

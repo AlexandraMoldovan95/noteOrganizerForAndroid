@@ -80,6 +80,31 @@ class OutgoingTest {
     }
 
     @Test
+    fun `words past what may be handed over are not offered, and a very long title is a short subject`() {
+        // A journal of 304,000 characters, words and lines, no table: handed
+        // as words it stopped the app at the share sheet, a megabyte past
+        // the buffer Android passes a share through.
+        val journal = JSONObject().put("title", "Journal")
+            .put("body", "Today I walked to the river and back again.\n".repeat(304_000 / 44))
+        assertFalse(Outgoing.hasTable(journal))
+        assertTrue(Outgoing.text(journal, "Journal").length > Sharing.MAX_HANDED_CHARS)
+        assertTrue(Outgoing.tooLongForWords(journal))
+        assertFalse(Outgoing.tooLongForWords(trip))
+        // The ceiling is the code's, counted with the subject.
+        val subject = "Notes"
+        assertFalse(Outgoing.tooLongForWords("w".repeat(Sharing.MAX_HANDED_CHARS - subject.length), subject))
+        assertTrue(Outgoing.tooLongForWords("w".repeat(Sharing.MAX_HANDED_CHARS - subject.length + 1), subject))
+        // A title of 150,000 letters goes as a subject of a glimpse.
+        val long = "T".repeat(150_000)
+        val cut = Outgoing.subject(long)
+        assertTrue(cut.length <= 301)
+        assertTrue(cut.endsWith("…"))
+        assertEquals("Trip to Cluj", Outgoing.subject("Trip to Cluj"))
+        assertTrue("a long title alone is past it, with a one-line body",
+            Outgoing.tooLongForWords(JSONObject().put("title", "T".repeat(260_000)).put("body", "x")))
+    }
+
+    @Test
     fun `a note's own files are said, since nothing shared carries them`() {
         assertTrue(Outgoing.hasFiles(trip))
         assertFalse(Outgoing.hasFiles(JSONObject("""{"title": "x"}""")))

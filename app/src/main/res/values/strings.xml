@@ -380,6 +380,8 @@
     <string name="share_text">Text</string>
     <string name="share_text_sub">Just the words, in the message itself.</string>
     <string name="share_text_table">Not for a note with a table: a message can\'t draw one. Send it as a PDF.</string>
+    <string name="share_text_too_long">Too long for a message: %1$,d characters, and another app can be handed %2$,d at most. Send it as a web page, which carries all of it.</string>
+    <string name="share_handed_failed">Android couldn\'t hand it to another app: it may be too long. Send it as a web page, or a backup.</string>
     <string name="share_code_title">Share code</string>
     <string name="share_code_sub">For Note Organizer on another phone or computer.</string>
     <string name="share_no_files">The note\'s own attached files aren\'t sent.</string>

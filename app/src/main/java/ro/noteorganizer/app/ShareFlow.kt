@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +57,10 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
     // The note as saved -- the button saved it before opening this.
     val note = state.rawNote(noteId)
     val table = note != null && Outgoing.hasTable(note)
+    // Said before the tap, as a table is: past what may be handed over as
+    // words, the note goes as a page.
+    val words = remember(note) { if (note == null || table) null else Outgoing.text(note, Exporting.titleOf(note)) }
+    val tooLong = words != null && Outgoing.tooLongForWords(words, Outgoing.subject(Exporting.titleOf(note!!)))
     fun go(format: String) {
         onDismiss()
         // On the app's own scope: the sheet is gone before the PDF is.
@@ -70,8 +75,12 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
             OptionCard("📄", stringResource(R.string.share_pdf), stringResource(R.string.share_pdf_sub)) { go(Outgoing.PDF) }
             OptionCard("🌐", stringResource(R.string.share_page), stringResource(R.string.share_page_sub)) { go(Outgoing.PAGE) }
             OptionCard("Aa", stringResource(R.string.share_text),
-                       stringResource(if (table) R.string.share_text_table else R.string.share_text_sub),
-                       enabled = !table) { go(Outgoing.TEXT) }
+                       when {
+                           table -> stringResource(R.string.share_text_table)
+                           tooLong -> stringResource(R.string.share_text_too_long, words!!.length, Sharing.MAX_HANDED_CHARS)
+                           else -> stringResource(R.string.share_text_sub)
+                       },
+                       enabled = !table && !tooLong) { go(Outgoing.TEXT) }
             OptionCard("🔗", stringResource(R.string.share_code_title), stringResource(R.string.share_code_sub)) {
                 go(Outgoing.CODE)
             }
@@ -149,10 +158,19 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
     // which a tick in the list may change the note under meanwhile.
     val note = state.rawNote(noteId)?.let { JSONObject(it.toString()) } ?: return
     val title = Exporting.titleOf(note)
-    val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, title)
+    val subject = Outgoing.subject(title)
+    val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, subject)
     if (format == Outgoing.TEXT) {
+        val words = withContext(Dispatchers.Default) { Outgoing.text(note, title) }
+        // Refused here, kindly, as a code past the same ceiling is: handed
+        // over, it stopped the app in the share sheet. The sheet said so
+        // before the tap; this is the note as it is now.
+        if (Outgoing.tooLongForWords(words, subject)) {
+            state.say(context.getString(R.string.share_text_too_long, words.length, Sharing.MAX_HANDED_CHARS), long = true)
+            return
+        }
         send.type = "text/plain"
-        send.putExtra(Intent.EXTRA_TEXT, Outgoing.text(note, title))
+        send.putExtra(Intent.EXTRA_TEXT, words)
     } else {
         val folder = File(context.cacheDir, "share")
         val file = File(folder, Outgoing.fileName(title, format))
@@ -181,5 +199,9 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
         context.startActivity(Intent.createChooser(send, context.getString(R.string.share_title)))
     } catch (e: ActivityNotFoundException) {
         state.say(context.getString(R.string.share_no_app))
+    } catch (e: RuntimeException) {
+        // What Android's buffer refuses comes back as "Failure from system",
+        // a TransactionTooLargeException inside: said, never the app stopped.
+        state.say(context.getString(R.string.share_handed_failed), long = true)
     }
 }
