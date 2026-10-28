@@ -419,6 +419,52 @@ class DaysTest {
         assertEquals("Leg day: squats", Recurrence.effectiveNote(back, "2026-10-12").getString("title"))
     }
 
+    /** A series turned off by a share code: its days kept, and in its copy beside the weekly rule from [date]. */
+    private fun keptOff(date: String = "2026-09-07"): JSONObject {
+        val days = """"exceptions": ["2026-09-14"], "overrides": {"2026-09-21": {"body": "DAY 21 OWN"}}"""
+        return JSONObject("""{"id": 1, "uid": "s", "title": "Gym", "body": "x", "category": "Work", "date": "$date",
+            "recurrence": {"freq": ""}, $days,
+            "_prev": {"title": "Gym", "body": "x", "date": "2026-09-07",
+                      "recurrence": {"freq": "weekly", "weekdays": [0]}, $days}}""")
+    }
+
+    @Test
+    fun `days a turned-off series kept come back only onto the series they were kept from`() {
+        // Turned back on from another date, an old deleted day hid the new
+        // series' own first day. The owner's answer, the desktop's
+        // kept_days_fit: only with the same start and rule; a deleted day
+        // holds nothing, and the rescue copy keeps them all.
+        val weekly = JSONObject("""{"freq": "weekly", "weekdays": [0]}""")
+        assertTrue(Notebook.keptDaysFit(keptOff(), "2026-09-07", weekly))
+        assertFalse(Notebook.keptDaysFit(keptOff(), "2026-09-14", weekly))
+        assertFalse(Notebook.keptDaysFit(keptOff(), "2026-09-07", JSONObject("""{"freq": "daily"}""")))
+        assertTrue("nothing says what the series was", Notebook.keptDaysFit(keptOff().apply { remove("_prev") }, "2026-09-14", weekly))
+        assertTrue("a copy not holding them: the note is their only place",
+            Notebook.keptDaysFit(keptOff().apply { getJSONObject("_prev").put("exceptions", JSONArray()) }, "2026-09-14", weekly))
+        // A share code restarting it from another date: the deleted day goes, into the copy.
+        val load = scratch(JSONArray().put(keptOff()).toString())
+        val theirs = JSONObject("""{"uid": "s", "title": "Gym", "body": "x", "date": "2026-09-14",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}}""")
+        assertTrue(Importing.apply(load, Importing.plan(load.raw!!, listOf(theirs), Importing.Source.CODE),
+            Importing.Answers(update = true), null) is Importing.Result.Done)
+        val coded = onDisk(load)
+        assertEquals(0, coded.getJSONArray("exceptions").length())
+        assertEquals("2026-09-14", coded.getJSONObject("_prev").getJSONArray("exceptions").getString(0))
+        assertEquals("DAY 21 OWN", coded.getJSONObject("overrides").getJSONObject("2026-09-21").getString("body"))
+        assertTrue(Recurrence.expand(coded, java.time.LocalDate.of(2026, 9, 1), java.time.LocalDate.of(2026, 9, 30))
+            .contains("2026-09-14"))
+        // The Repeat sheet, its new start saved first: the same.
+        val sheet = scratch(JSONArray().put(keptOff(date = "2026-09-14")).toString())
+        assertTrue(Days.setRepeat(sheet, 1, weekly, startWas = "2026-09-07") is SaveResult.Ok)
+        val restarted = onDisk(sheet)
+        assertEquals(0, restarted.getJSONArray("exceptions").length())
+        assertEquals("DAY 21 OWN", restarted.getJSONObject("overrides").getJSONObject("2026-09-21").getString("body"))
+        // On again from the start it had: every kept day comes back.
+        val same = scratch(JSONArray().put(keptOff()).toString())
+        assertTrue(Days.setRepeat(same, 1, weekly) is SaveResult.Ok)
+        assertEquals("2026-09-14", onDisk(same).getJSONArray("exceptions").getString(0))
+    }
+
     @Test
     fun `a restore that ends the repeat keeps the days, and leaves a copy that brings the series back`() {
         val load = scratch(series)

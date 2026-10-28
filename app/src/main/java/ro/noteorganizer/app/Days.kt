@@ -528,6 +528,11 @@ object Days {
             note.put("overrides", JSONObject())
             note.put("moved", JSONObject())
         }
+        // Turned back on with another start or rule than the series had (the
+        // sheet wrote the new start first): its old deleted days, which hold
+        // nothing, no longer hide the new series' own -- its rescue copy keeps
+        // them -- and days with words of their own stay (Notebook.keptDaysFit).
+        if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
         null
     }

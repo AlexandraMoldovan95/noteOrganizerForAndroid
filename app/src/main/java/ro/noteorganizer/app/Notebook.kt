@@ -1684,6 +1684,26 @@ object Notebook {
     private fun daysIn(value: Any?): Int = (value as? JSONObject)?.length() ?: (value as? JSONArray)?.length() ?: 0
 
     /**
+     * Whether the days a turned-off [note] kept belong to it turned back on
+     * with [date] and [recurrence]: only when both are as the series had
+     * them, which its rescue copy holds -- the desktop's `kept_days_fit`.
+     * True when it kept none, or nothing says what the series was: kept,
+     * they lose nothing. Turned back on from another date, an old deleted
+     * day hid the new series' own first day (the final audit's fifth
+     * round); the owner's answer: a deleted day holds nothing and goes, the
+     * rescue copy keeping them all, and days with their own words stay.
+     */
+    internal fun keptDaysFit(note: JSONObject, date: Any?, recurrence: Any?): Boolean {
+        if (Recurrence.isRecurring(note) || !Recurrence.isRecurring(JSONObject().put("recurrence", recurrence))) return true
+        val kept = DAY_FIELDS.filter { daysIn(note.opt(it)) > 0 }
+        val previous = note.opt("_prev") as? JSONObject
+        if (kept.isEmpty() || previous == null || !Recurrence.isRecurring(previous) ||
+            kept.any { !sameJson(previous.opt(it), note.opt(it)) }) return true
+        return previous.opt("date") == date &&
+            sameJson(Recurrence.normalize(previous.opt("recurrence") as? JSONObject), Recurrence.normalize(recurrence as? JSONObject))
+    }
+
+    /**
      * A rescue copy [fresh] made over [old]: the days [old] held that
      * [note] no longer does are carried into [fresh], beside what it holds
      * of them -- the note's own entries win -- so the one copy slot never
@@ -1796,15 +1816,23 @@ object Notebook {
         for (field in fields) {
             if (!previous.has(field)) previous.put(field, deepCopy(shaped(note, field)))
         }
+        // Turned back on another way than the series was -- another start or
+        // rule ([keptDaysFit]): the old series' deleted days, which hold
+        // nothing, go with this copy instead of hiding the new series' own.
+        // The copy this replaces holds them (keptDaysFit asks it), and
+        // carryDays below brings them into this one.
+        val shared = "overrides" !in fields && "recurrence" in fields
+        val restarted = shared && !keptDaysFit(note, shaped(incoming, "date"), shaped(incoming, "recurrence"))
         // A share code's repeat turned off: this phone's days are copied
         // beside the repeat they hang on, and stay in the note too, out of
         // sight until a repeat brings them back. A backup brings its own.
-        if ("overrides" !in fields && "recurrence" in fields) {
+        if (shared) {
             for ((field, days) in daysToRescue(note, shaped(incoming, "recurrence"))) previous.put(field, days)
         }
         val old = note.opt("_prev")
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
+        if (restarted) note.put("exceptions", JSONArray())
         carryDays(previous, old, note)
         note.put("updated", now)
         return true
