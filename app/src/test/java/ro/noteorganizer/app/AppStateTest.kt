@@ -486,6 +486,30 @@ class AppStateTest {
     }
 
     @Test
+    fun `a row's Undo writes the words being typed into another row before it puts the row back`() {
+        // Put back under them, the row moved the one being typed in, and its
+        // words -- waiting to be written -- were dropped.
+        val (s, editor) = checklist("eggs", "bread", "milk", "butter")
+        s.removeChecklistRow(1, 1)
+        editor.renaming = EditorModel.Renaming(2, "butter", "butter 250g")
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals(listOf("eggs", "bread", "milk", "butter 250g"), s.rowsOnDisk())
+    }
+
+    @Test
+    fun `an Undo bar lasts from when it shows, for as long as the phone asks`() {
+        // Its own eight seconds counted from the asking: queued behind another
+        // message it flashed for a second, or stayed for good. Android's long
+        // length is counted by the bar at the foot from when it shows, and
+        // stretched by the phone's "Time to take action".
+        val (s, _) = checklist("eggs", "bread")
+        s.removeChecklistRow(1, 0)
+        val offer = s.snackbar.currentSnackbarData!!
+        assertEquals("Undo", offer.visuals.actionLabel)
+        assertEquals(androidx.compose.material3.SnackbarDuration.Long, offer.visuals.duration)
+    }
+
+    @Test
     fun `the autosave leaves the checklist's half-typed words where they are`() {
         val (s, editor) = checklist("flour")
         editor.adding = "bre"

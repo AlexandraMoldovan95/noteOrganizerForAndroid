@@ -441,7 +441,9 @@ Named here so nobody has to discover them by surprise:
 - **Undo lives in the open note.** It takes back the words and their
   styling while the note is open, as the desktop's does; it is gone when
   the note is closed, and the actions taken from outside the editor —
-  the Trash, a moved day — have their own eight-second Undo instead.
+  the Trash, a moved day — have their own Undo instead, at the foot:
+  Android's long length, ten seconds from when it shows, stretched by
+  the phone's "Time to take action".
 
 Retired from this list in Phase 2: **one column everywhere** — the rail
 and the panes are [above](#decision-one-layout-at-every-width). In

@@ -216,8 +216,17 @@ do before, not as releases anyone ran.
   every theme. Found by the final audit's break-it round.
 - **A checklist row taken off by its ✕ can be brought back.** It was
   gone at once, unsaid, and the editor's Undo holds no checklist; now the
-  bar at the foot says what was taken, with Undo for eight seconds, as
-  the desktop's toast offers. Found by the final audit's break-it round.
+  bar at the foot says what was taken, with Undo, as the desktop's toast
+  offers. Found by the final audit's break-it round.
+- **Every Undo at the foot lasts from the moment it shows, as long as
+  the phone asks.** Its eight seconds were counted from when it was
+  asked for: queued behind another message it flashed for a second, or
+  outlived its count and stayed for good, holding back every message
+  after it; and Android's "Time to take action" was never read. It now
+  lasts Android's long length, ten seconds from when it shows, longer
+  when the phone is set to give more time. A checklist row's Undo writes
+  the words being typed into another row first, where it dropped them.
+  Found by the final audit's second round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's

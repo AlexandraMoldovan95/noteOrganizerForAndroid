@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -549,19 +548,20 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * A message with an Undo. Eight seconds, as the desktop's banner: long
-     * enough to read it and decide. Android's own lengths are four and ten,
-     * and four was gone before a thumb could reach it.
+     * A message with an Undo, for Android's long length: ten seconds from
+     * the moment it shows, and longer where the person asked Android for
+     * more time to act (Accessibility, "Time to take action"), which the bar
+     * at the foot reads. The desktop's banner gives eight; Android's short
+     * four was gone before a thumb could reach it. Its own eight-second timer
+     * started when it was asked for, not shown: queued behind another
+     * message it flashed for a second, or outlived its timer and stayed for
+     * good, holding back every message after it -- and it dismissed whatever
+     * was showing, not itself.
      */
     private fun offerUndo(message: String, undo: () -> Unit) {
         scope.launch {
-            val timer = launch {
-                delay(8_000)
-                snackbar.currentSnackbarData?.dismiss()
-            }
             val answer = snackbar.showSnackbar(message, actionLabel = "Undo",
-                duration = SnackbarDuration.Indefinite, withDismissAction = false)
-            timer.cancel()
+                duration = SnackbarDuration.Long, withDismissAction = false)
             if (answer == SnackbarResult.ActionPerformed) undo()
         }
     }
@@ -670,6 +670,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val kept = JSONObject(row.toString())
         if (!report(Notebook.removeChecklistItem(load, id, index))) return
         offerUndo("Removed “${kept.optString("text")}” from the checklist") {
+            // Words being typed into another row are written first, as every
+            // change to the list writes them: put back under them, the row
+            // moved the rows below it, and the waiting words were dropped.
+            flush?.invoke()?.let { why ->
+                say(why)
+                return@offerUndo
+            }
             report(Notebook.restoreChecklistItem(load, id, index, kept))
         }
     }

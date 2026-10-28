@@ -117,7 +117,9 @@ Grouped by what the app does; when each item arrived is in the
    Settings' order, each folding with a tap, the folds remembered.
 10. **Long press selects.** With notes selected: pin, move to a category,
     duplicate, share as a code, move to the Trash. A delete offers
-    **Undo** for eight seconds.
+    **Undo** for ten seconds from the moment it shows — longer where the
+    phone is set to give more time to act — as every Undo at the foot
+    does.
 
 ### The calendar
 
