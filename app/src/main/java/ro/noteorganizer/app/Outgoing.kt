@@ -95,14 +95,48 @@ object Outgoing {
 
     /**
      * Whether [words] -- with the [subject] beside them -- are more than may
-     * be handed to another app in one go ([Sharing.MAX_HANDED_CHARS], the
+     * be handed to another app in one go ([Sharing.tooLongToHand], the
      * ceiling a share code is held to): Android passes them through a buffer
      * of about a megabyte, and a note of 300,000 characters handed as words
-     * stopped the app at the share sheet. The page carries any length, as a
-     * file the other app reads.
+     * stopped the app at the share sheet. Weighed by what they come to in
+     * that buffer, not by their letters: a Chinese letter takes as much
+     * room as five bytes, a Latin one three. The page carries any length, as
+     * a file the other app reads.
      */
-    fun tooLongForWords(words: String, subject: String): Boolean =
-        words.length + subject.length > Sharing.MAX_HANDED_CHARS
+    fun tooLongForWords(words: String, subject: String): Boolean = Sharing.tooLongToHand(words, subject)
+
+    /**
+     * What the refusal says, as numbers that agree with it: the characters
+     * handed, the subject's among them -- the rule counts them, and a note
+     * refused with 99,953 under a ceiling of 100,000 read as a contradiction
+     * -- and how many characters like these may be handed at most.
+     */
+    fun tooLongNumbers(words: String, subject: String): Pair<Long, Int> =
+        Sharing.characters(words, subject) to Sharing.handedAtMost(words, subject)
+
+    /** Whether one note's share code may be handed over, and if not, why. */
+    sealed class Code {
+        object Fits : Code()
+        /** Past what may be handed in one go: its length, and the most. */
+        data class TooLong(val characters: Long, val most: Int) : Code()
+        /** Past what a code may hold at all ([Sharing.encode] refuses it). */
+        object TooMuch : Code()
+    }
+
+    /**
+     * [note]'s share code weighed as the Share sheet's card shows it, before
+     * the tap -- the ceiling the code is refused by after it, in
+     * [AppState.shareCode]: a person learnt of it only once it was too late
+     * to choose the web page or a backup instead.
+     */
+    fun codeFor(note: JSONObject): Code {
+        val code = try {
+            Sharing.encode(listOf(note))
+        } catch (e: Sharing.TooLarge) {
+            return Code.TooMuch
+        }
+        return if (Sharing.tooLongToHand(code)) Code.TooLong(Sharing.characters(code), Sharing.handedAtMost(code)) else Code.Fits
+    }
 
     /**
      * The note's page as the PDF prints it: any line may break anywhere at

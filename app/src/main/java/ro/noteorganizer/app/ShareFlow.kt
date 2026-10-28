@@ -60,7 +60,11 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
     // Said before the tap, as a table is: past what may be handed over as
     // words, the note goes as a page.
     val words = remember(note) { if (note == null || table) null else Outgoing.text(note, Exporting.titleOf(note)) }
-    val tooLong = words != null && Outgoing.tooLongForWords(words, Outgoing.subject(Exporting.titleOf(note!!)))
+    val subject = remember(note) { note?.let { Outgoing.subject(Exporting.titleOf(it)) } ?: "" }
+    val tooLong = words != null && Outgoing.tooLongForWords(words, subject)
+    // The code, said before the tap as the words are: refused only after
+    // it, the person learnt of the ceiling when it was too late to choose.
+    val code = remember(note) { note?.let { Outgoing.codeFor(it) } }
     fun go(format: String) {
         onDismiss()
         // On the app's own scope: the sheet is gone before the PDF is.
@@ -77,13 +81,20 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
             OptionCard("Aa", stringResource(R.string.share_text),
                        when {
                            table -> stringResource(R.string.share_text_table)
-                           tooLong -> stringResource(R.string.share_text_too_long, words!!.length, Sharing.MAX_HANDED_CHARS)
+                           tooLong -> Outgoing.tooLongNumbers(words!!, subject).let { (count, most) ->
+                               stringResource(R.string.share_text_too_long, count, most)
+                           }
                            else -> stringResource(R.string.share_text_sub)
                        },
                        enabled = !table && !tooLong) { go(Outgoing.TEXT) }
-            OptionCard("🔗", stringResource(R.string.share_code_title), stringResource(R.string.share_code_sub)) {
-                go(Outgoing.CODE)
-            }
+            val codeShut = code != null && code !is Outgoing.Code.Fits
+            OptionCard("🔗", stringResource(R.string.share_code_title),
+                       when (code) {
+                           is Outgoing.Code.TooLong -> stringResource(R.string.share_code_too_long, code.characters, code.most)
+                           is Outgoing.Code.TooMuch -> stringResource(R.string.share_code_too_much)
+                           else -> stringResource(R.string.share_code_sub)
+                       },
+                       enabled = !codeShut) { go(Outgoing.CODE) }
             if (note != null && Outgoing.hasFiles(note)) {
                 Text(stringResource(R.string.share_no_files), color = palette.subtext, fontSize = 13.sp)
             }
@@ -166,7 +177,8 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, form
         // over, it stopped the app in the share sheet. The sheet said so
         // before the tap; this is the note as it is now.
         if (Outgoing.tooLongForWords(words, subject)) {
-            state.say(context.getString(R.string.share_text_too_long, words.length, Sharing.MAX_HANDED_CHARS), long = true)
+            val (count, most) = Outgoing.tooLongNumbers(words, subject)
+            state.say(context.getString(R.string.share_text_too_long, count, most), long = true)
             return
         }
         send.type = "text/plain"

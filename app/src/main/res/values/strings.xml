@@ -382,7 +382,7 @@
     <string name="share_text">Text</string>
     <string name="share_text_sub">Just the words, in the message itself.</string>
     <string name="share_text_table">Not for a note with a table: a message can\'t draw one. Send it as a PDF.</string>
-    <string name="share_text_too_long">Too long for a message: %1$,d characters, and another app can be handed %2$,d at most. Send it as a web page, which carries all of it.</string>
+    <string name="share_text_too_long">Too long for a message: %1$,d characters, and another app can be handed about %2$,d of them at most. Send it as a web page, which carries all of it.</string>
     <string name="share_handed_failed">Android couldn\'t hand it to another app: it may be too long. Send it as a web page, or a backup.</string>
     <string name="pdf_first_pages">The PDF holds this note\'s first %1$d pages, not the rest.</string>
     <string name="pdf_cut_at_edge">Something in this note is wider than the PDF\'s page and is cut at its edge.</string>
@@ -391,6 +391,8 @@
     <string name="pdf_notice_edge">Part of this note is wider than the page and is cut at its right edge.</string>
     <string name="share_code_title">Share code</string>
     <string name="share_code_sub">For Note Organizer on another phone or computer.</string>
+    <string name="share_code_too_long">Too long for a code: %1$,d characters, and another app can be handed %2$,d at most. A backup carries it: Settings → Backup.</string>
+    <string name="share_code_too_much">Too much for one code. A backup carries it: Settings → Backup.</string>
     <string name="share_no_files">The note\'s own attached files aren\'t sent.</string>
     <string name="share_how">Your phone\'s share sheet opens next: WhatsApp, mail, Teams and the rest. Nothing is sent until you send it there.</string>
     <string name="share_no_app">No app on this phone can take it.</string>

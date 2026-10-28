@@ -698,7 +698,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             say(e.message ?: "")
             return@let null
         }
-        if (code.length > Sharing.MAX_HANDED_CHARS) {
+        if (Sharing.tooLongToHand(code)) {
             say("That is too much to hand to another app as one code. Share fewer notes at a time, " +
                 "or send a backup instead: Settings → Backup.")
             return@let null

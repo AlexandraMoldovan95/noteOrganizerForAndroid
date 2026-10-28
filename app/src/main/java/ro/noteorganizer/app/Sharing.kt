@@ -84,8 +84,60 @@ object Sharing {
      * app, nothing was said, and the sheet simply never came (2026-10-28).
      * The 250,000 first set here was such a size. 100,000 leaves the buffer
      * room for whatever else is in flight.
+     *
+     * That is 100,000 characters of the Latin alphabet: the ceiling itself is
+     * [MAX_HANDED_BYTES], what they come to ([handedBytes]).
      */
     const val MAX_HANDED_CHARS = 100_000
+
+    /**
+     * What [texts] come to in Android's buffer, handed to another app: each
+     * is carried twice -- as the intent's text, two bytes a UTF-16 unit, and
+     * again as its clip, which Android 11 and later write in UTF-8, one byte
+     * a Latin letter and three a Chinese or Korean one. The emulator measured
+     * 210,000 Latin letters at 634,252 bytes, 3.02 a letter; counted by
+     * letters alone, 100,000 Chinese ones would have been 500,000 bytes, past
+     * the 484,000 the emulator was seen to carry.
+     */
+    fun handedBytes(vararg texts: String): Long = texts.sumOf { 2L * it.length + utf8Length(it) }
+
+    /** The ceiling on [handedBytes]: [MAX_HANDED_CHARS] Latin letters' worth. */
+    const val MAX_HANDED_BYTES = 3L * MAX_HANDED_CHARS
+
+    /** Whether [texts] are more than may be handed to another app in one go ([MAX_HANDED_BYTES]). */
+    fun tooLongToHand(vararg texts: String): Boolean = handedBytes(*texts) > MAX_HANDED_BYTES
+
+    /**
+     * How many characters like those of [texts] may be handed at most --
+     * the ceiling shared out at their bytes a character: 100,000 of the
+     * Latin alphabet, about 60,000 Chinese. Under [characters] of them
+     * exactly when [tooLongToHand], so a refusal never quotes a number
+     * under the one it refuses.
+     */
+    fun handedAtMost(vararg texts: String): Int {
+        val bytes = handedBytes(*texts)
+        val count = characters(*texts)
+        return if (bytes == 0L) MAX_HANDED_CHARS else (MAX_HANDED_BYTES * count / bytes).toInt()
+    }
+
+    /** How many characters [texts] hold, as a person counts them: code points. */
+    fun characters(vararg texts: String): Long = texts.sumOf { it.codePointCount(0, it.length).toLong() }
+
+    private fun utf8Length(text: String): Long {
+        var bytes = 0L
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            bytes += when {
+                c.code < 0x80 -> 1
+                c.code < 0x800 -> 2
+                Character.isHighSurrogate(c) && i + 1 < text.length && Character.isLowSurrogate(text[i + 1]) -> { i++; 4 }
+                else -> 3
+            }
+            i++
+        }
+        return bytes
+    }
 
     /**
      * The code for [notes] -- refused, as the desktop's `encode_share_code`
