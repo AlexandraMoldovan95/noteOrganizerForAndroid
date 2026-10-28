@@ -1995,6 +1995,12 @@ object Notebook {
         val oldLen = oldTitle.length + oldBody.length
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied
+        // Both bars below ask for 15 characters gone at least, and [lost] is
+        // never more than the span changed: a save changing less -- the
+        // autosave after each letter -- is answered from the span alone. It
+        // split the whole old and new text into words three times, on the
+        // screen's thread, for one letter typed (the final audit's fifth round).
+        if (textLost(oldTitle, newTitle) + textLost(oldBody, newBody) < 15) return false
         val lost = lost(oldTitle, newTitle) + lost(oldBody, newBody)
         // The shares in the unit the loss is counted in, each word with one
         // space ([measured]): set against a length with a table's padding

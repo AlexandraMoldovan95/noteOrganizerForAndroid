@@ -1059,6 +1059,25 @@ class NotebookTest {
     }
 
     @Test
+    fun `a letter typed in a long note is weighed by the span alone, the words never split`() {
+        // Every autosave asked the words as well: the whole old and new text
+        // split into words three times for one letter typed. Timed against
+        // the span's own measure on the same text, so no machine's speed
+        // moves the margin: the words cost some fifty times the span.
+        val old = "a word or two in a long journal ".repeat(150_000)
+        val typed = old.substring(0, 2_000_000) + "x" + old.substring(2_000_000)
+        fun ms(work: () -> Unit): Long {
+            val started = System.nanoTime()
+            work()
+            return (System.nanoTime() - started) / 1_000_000
+        }
+        repeat(3) { Notebook.textLost(old, typed); Notebook.shouldKeepPrevious("t", old, "t", typed) }
+        val span = (1..3).minOf { ms { Notebook.textLost(old, typed) } }
+        val save = (1..3).minOf { ms { assertFalse(Notebook.shouldKeepPrevious("t", old, "t", typed)) } }
+        assertTrue("save $save ms against the span's $span ms", save <= 5 * span + 30)
+    }
+
+    @Test
     fun `a short note replaced by a new line keeps its words, through updateNote`() {
         val load = scratch("""[{"id": 1, "title": "", "body": "Buy milk\nCall mom\nPay the rent"}]""")
         Notebook.updateNote(load, 1, "", "A new line")
