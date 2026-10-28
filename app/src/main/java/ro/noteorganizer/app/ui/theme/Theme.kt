@@ -17,9 +17,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 @Composable
 fun AppTheme(palette: Palette, content: @Composable () -> Unit) {
     val base = if (palette.isDark) darkColorScheme() else lightColorScheme()
+    // Words and marks Android draws in the primary role, and the bar's
+    // action in its inverse: shades of the accent held to text contrast
+    // (Themes.primaryRole, Themes.barAction), where the raw accent was not.
+    val primary = ro.noteorganizer.app.Themes.primaryRole(palette.hex)
     val scheme = base.copy(
-        primary = palette.accent,
-        onPrimary = palette.onAccent,
+        primary = hexColor(primary),
+        onPrimary = hexColor(ro.noteorganizer.app.Themes.lettersOn(primary)),
         primaryContainer = palette.calendarHasNotes,
         onPrimaryContainer = palette.text,
         secondary = palette.accent,
@@ -40,7 +44,7 @@ fun AppTheme(palette: Palette, content: @Composable () -> Unit) {
         surfaceContainerHighest = palette.inset,
         inverseSurface = palette.text,
         inverseOnSurface = palette.bg,
-        inversePrimary = palette.accent,
+        inversePrimary = hexColor(ro.noteorganizer.app.Themes.barAction(palette.hex)),
         error = palette.danger,
         onError = palette.onDanger,
         // A control's edge at rest (Themes.controlEdge), where Material draws

@@ -30,6 +30,22 @@ class ThemesTest {
     }
 
     @Test
+    fun `a dialog's Cancel and the bar's Undo read four and a half to one, in every theme`() {
+        // The raw accent: Undo on the bar 2.1 to 2.7 to 1 in six themes, the
+        // default Dark at 2.37; Cancel on a dialog 3.1 in Light Mint and Warm.
+        for ((name, theme) in Themes.THEMES) {
+            val primary = Themes.primaryRole(theme)
+            for (ground in listOf("card", "bg")) {
+                val ratio = Themes.contrastRatio(primary, theme.getValue(ground))!!
+                assertTrue("$name: a plain button's words on $ground are $ratio to 1", ratio >= 4.5)
+            }
+            assertTrue("$name: letters on the primary", Themes.contrastRatio(Themes.lettersOn(primary), primary)!! >= 4.5)
+            val undo = Themes.contrastRatio(Themes.barAction(theme), theme.getValue("text"))!!
+            assertTrue("$name: Undo on the bar is $undo to 1", undo >= 4.5)
+        }
+    }
+
+    @Test
     fun blendMatchesTheDesktop() {
         assertEquals("#8e8e97", Themes.blend("#1e1e2f", "#ffffff", 0.5))
         assertEquals("#3c3c54", Themes.blend("#2e2e48", "#f2f2f7", 0.07))

@@ -268,6 +268,26 @@ object Themes {
      */
     fun controlEdge(theme: Map<String, String>): String = theme.getValue("subtext")
 
+    /**
+     * Material's primary role, which Android draws words and marks in -- a
+     * dialog's Cancel and its other plain buttons, a focused field's label,
+     * the date picker's day -- on a dialog's card or the page: the accent as
+     * words read there at 4.5 to 1. The raw accent was 3.1 to 1 for Cancel,
+     * the safe answer, in Light Mint and Light Warm.
+     */
+    fun primaryRole(theme: Map<String, String>): String =
+        legibleOn(theme.getValue("accent_text"), theme.getValue("card"), theme.getValue("text"))
+
+    /**
+     * The bar at the foot's action -- Undo, Open, Leave anyway -- which
+     * Android draws in its inverse primary on its inverse surface, the
+     * theme's text colour turned into a ground: the accent, as words read
+     * there. The raw accent stood 2.1 to 2.7 to 1 in six themes, the default
+     * Dark among them, on the one control that brings a removed row back.
+     */
+    fun barAction(theme: Map<String, String>): String =
+        legibleOn(theme.getValue("accent"), theme.getValue("text"), theme.getValue("bg"))
+
     /** WCAG 2.1 relative luminance. */
     fun relativeLuminance(hex: String): Double? {
         val c = channels(hex) ?: return null

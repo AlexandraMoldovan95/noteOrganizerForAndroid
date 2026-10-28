@@ -227,6 +227,13 @@ do before, not as releases anyone ran.
   when the phone is set to give more time. A checklist row's Undo writes
   the words being typed into another row first, where it dropped them.
   Found by the final audit's second round.
+- **Undo on the bar, and a dialog's Cancel, can be read in every
+  theme.** Android drew them in the theme's raw accent: Undo stood 2.1
+  to 2.7 to 1 from the bar in six of the eight themes, the default Dark
+  among them, and Cancel 3.1 to 1 in Light Mint and Light Warm. Both,
+  and a focused field's label and the date picker's day, are drawn in a
+  shade of the accent held to 4.5 to 1 now. Found by the final audit's
+  second round.
 - **Notes in Custom order and checklist rows move without a drag.** A
   tap on the ⠿ handle offers Move up and Move down, and a screen reader
   or Switch Access finds the same two among the card's or the handle's
