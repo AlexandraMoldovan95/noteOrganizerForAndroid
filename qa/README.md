@@ -19,14 +19,14 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-751 checks across thirty-one suites — `NotebookTest` (127),
-`TablesTest` (75), `RecurrenceTest` (46), `PastingTest` (40), `IdentityTest` (39),
-`OrganizingTest` (36), `CalculatorTest` (34), `StylingTest` (33),
-`ParagraphsTest` (33), `DaysTest` (28), `AppStateTest` (28),
-`SharingTest` (25), `ImportingTest` (24), `SettingsTest` (23),
-`EditingTest` (23), `BackupTest` (20), `FindingTest` (17),
-`ExportingTest` (15), `StartupTest` (12), `TemplatesTest` (11),
-`ListingTest` (10), `EditorCopyTest` (8), `ThemesTest` (8),
+781 checks across thirty-one suites — `NotebookTest` (127),
+`TablesTest` (76), `RecurrenceTest` (48), `PastingTest` (41), `IdentityTest` (39),
+`OrganizingTest` (38), `DaysTest` (35), `CalculatorTest` (34),
+`StylingTest` (33), `ParagraphsTest` (33), `AppStateTest` (30),
+`ImportingTest` (27), `EditingTest` (26), `SharingTest` (25),
+`BackupTest` (23), `SettingsTest` (23), `FindingTest` (17),
+`ExportingTest` (15), `StartupTest` (14), `TemplatesTest` (13),
+`ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
 `OutgoingTest` (7), `EditorTableTest` (7), `RemindersTest` (6),
 `EditorTypingTest` (5), `StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:

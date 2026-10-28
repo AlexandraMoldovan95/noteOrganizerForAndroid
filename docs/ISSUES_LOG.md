@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-two are
+**the code**, or in **the design**. Nineteen of the seventy-three are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-28](#fixes-that-were-holes-of-their-own) | code | The audit's second round found a third of its findings in the first round's fixes: a rule ported half, a count of the wrong cells, a flag set before the act, a switch that did not survive, a timer counted from the asking; and limits that held at the door, a 150,000-letter line from a 300-character code among them | A fix is a new surface: the round after attacks the fix itself, and a twin is read the day it changes |
 | [2026-10-28](#answers-sent-to-a-screen-that-was-gone) | code | With the app's process ended behind Android's picker, Export as file left an empty file and Attach files attached nothing, without a word; and Back while a large file copied lost the file and left the copy in the cache | An answer from another app goes to what is always there; work that must finish outlives the screen that asked for it |
 | [2026-10-28](#a-crash-in-front-of-the-crash-foretold) | code | The audit foretold that a template with 600,000 letters of comments would stop the app as Home was pressed; on the emulator it stopped sooner, as the template opened. With that fixed, Home stopped it exactly as foretold | A reproduction that fails earlier than predicted has found a second bug in front of the first: fix it and run again before calling the first disproved |
 | [2026-10-27](#on-and-off-told-by-a-tint) | design | Whether B, a list, an alignment, a marker or a repeat day was on was a fill differing from off by 1.04 to 1.33 to 1, and nothing at all to a screen reader | A state needs a second sign for the eye and a word for the ear; a colour is neither alone |
@@ -87,6 +88,62 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Fixes that were holes of their own
+
+**2026-10-28.** The final audit's second round attacked the first
+round's fixes and set the desktop's twins beside the phone, and came
+back with twenty-three findings at medium or above, three of them
+duplicates. A third were holes in a fix made the day before:
+
+- **The rule ported half.** A backup's Trash window was adopted whenever
+  the notebook had never chosen one — a shorter one too, and with no
+  Trash in the backup at all — so a backup from a seven-day notebook
+  emptied this phone's own Trash at the next start. The desktop had
+  shipped the same hole and closed it that morning: only a longer
+  window, only with Trash to keep by it.
+- **The count that measured the wrong thing.** A table past 1,000 cells
+  is not drawn as a grid — counted as written. One row of 500 over 250
+  rows of two came to 1,000 and was drawn as 125,500, every row padded to
+  the widest. The template editor drew every table whatever its count,
+  and Find stepped through cells nobody could see.
+- **The flag set before the act.** The backup export marked its place
+  "opened" before the open was tried, and a place that refused deleted
+  the older backup the person had chosen to replace.
+- **The answer that did not survive.** A Google-backup switch turned off
+  read as on after a damaged settings file, and after a restore of the
+  copy Android had kept from while it was on.
+- **The timer counted from the asking.** An Undo's eight seconds began
+  before the bar showed: queued, it flashed for a second or stayed for
+  good.
+
+The rest were limits that held at the door and not after it, as the
+desktop found the same day: a share code of a few hundred characters
+carrying a 150,000-letter line that froze the note at every opening
+(12.6 s, measured; 0.17 s for the same length with spaces — the cost is
+a word broken letter by letter, not length); 5,000 moved days read
+5,000 times each; a pasted table padded to 120 million characters after
+the 100,000 ceiling; 700,000 "painted days" that were no dates; NaN in
+a list, which Android's parser takes and then cannot write, stopping
+the app at the import's tap; a file name legal on Windows and too long
+for Android, refusing the whole backup.
+
+**The fix:** each by its class, with a test and a mutant watched
+failing (AS58 to AS113, every one killed), and on the emulator where a
+test cannot reach — and three walk parts shown failing against the app
+before the fix. A repeat ended by a share code was ported from the
+desktop's rule and then re-ported when the desktop's own third round
+proved that rule wrong: the series' days are copied into the one rescue
+slot, never moved there, and a new copy carries the days the old one
+held. A run with no space past 10,000 letters is shown, not laid out —
+the note keeps every byte.
+
+**The lesson:** a fix is a new surface. The round after a fix attacks
+the fix — its count, its flag, its timer, the half of the rule it
+ported — and the twin on the other app is read the day it changes, or
+the port is a day behind its own specification.
 
 ---
 
@@ -2223,8 +2280,13 @@ field, which the dialog keeps to its own height, so nothing stops — but
 laying out one unbroken word that long held the screen until Android
 offered to close the app (photographed on the emulator). A share code is
 Base64, one unbroken word by nature; a note of a few hundred thousand
-letters makes a code that long. Not changed: what the dialog should show
-for a code too long to read is a design question for the owner.
+letters makes a code that long. **Closed 2026-10-28**
+([the story](#fixes-that-were-holes-of-their-own)): the dialog shows a
+code past 5,000 characters as its start and its length, Copy taking the
+whole of it, and no field the app draws is given a run of more than
+10,000 letters with no space — a note's lines, title, comments and rows
+holding one are shown read-only, every byte kept. The owner is to see
+whether that is what the dialog should show.
 
 ### The phone's, from the audit of 2026-10-19
 
