@@ -73,12 +73,19 @@ object Sharing {
     class TooLarge(message: String) : Exception(message)
 
     /**
-     * What the phone hands another app in one go, in characters. Android
-     * passes a shared text through a buffer of about a megabyte, shared by
-     * everything in flight; a code longer than this is refused here, kindly,
-     * rather than in the share sheet, where it would stop the app.
+     * What the phone hands another app in one go, in characters -- a code,
+     * or a note's words. A text longer than this is refused here, kindly.
+     *
+     * Measured on the emulator, not reasoned: the share sheet is started by
+     * the system with the text in it, about three bytes a character, in a
+     * one-way call held to half of a megabyte's buffer. 160,000 characters
+     * went through; 180,000 and 210,000 (634 KB) failed in the system's own
+     * process, after the app's call had returned -- no exception reached the
+     * app, nothing was said, and the sheet simply never came (2026-10-28).
+     * The 250,000 first set here was such a size. 100,000 leaves the buffer
+     * room for whatever else is in flight.
      */
-    const val MAX_HANDED_CHARS = 250_000
+    const val MAX_HANDED_CHARS = 100_000
 
     /**
      * The code for [notes] -- refused, as the desktop's `encode_share_code`

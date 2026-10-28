@@ -436,6 +436,14 @@ do before, not as releases anyone ran.
   note repeats, as the desktop reads them since its fourth round; and a
   restore's copy now carries the date the repeat hangs on, so the restore
   after it brings the series back. Found by the desktop's fourth round.
+- **What is handed to another app is held to what Android delivers.** A
+  share code, and now a note's words, were refused past 250,000
+  characters, a ceiling reasoned rather than measured: on the emulator,
+  180,000 characters and more never reached the share sheet — Android
+  failed in its own process, after the app's call had returned, and
+  nothing was said. The ceiling is 100,000 now, under the 160,000 that
+  went through; past it a code says to share fewer notes or a backup, as
+  before, and Text says to send the web page.
 
 ---
 
