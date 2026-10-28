@@ -422,6 +422,11 @@ do before, not as releases anyone ran.
   the share sheet opens, with the web page named as carrying all of it,
   and in a small line at the foot of the PDF's page. Found by the final
   audit's third round.
+- **Export as file names a note's file as the desktop now does.** A
+  title holding a control character other than a line break or a tab
+  kept it in the name offered, and one holding a mark that reorders text
+  could show the file as another kind; both are taken out, as the
+  desktop's export takes them out since its own audit's second round.
 
 ---
 

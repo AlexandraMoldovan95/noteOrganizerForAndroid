@@ -277,9 +277,9 @@ object Normalize {
      * What changes how a name reads without being seen -- controls, bidi
      * marks and overrides ("Invoice<U+202E>fdp.exe" shows as
      * "Invoiceexe.pdf"), line separators, the BOM: the desktop's
-     * HIDDEN_IN_NAMES, out of every name shown.
+     * HIDDEN_IN_NAMES, out of every name shown and every name written.
      */
-    private val HIDDEN_IN_NAMES = Regex(
+    internal val HIDDEN_IN_NAMES = Regex(
         "[\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069\\u2028\\u2029\\ufeff]")
 
     /** The last dot and what follows it, as typed; "" when there is none. */

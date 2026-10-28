@@ -682,11 +682,20 @@ object Exporting {
     fun titleOf(note: JSONObject): String =
         PyText.strip(note.opt("title") as? String ?: "").ifEmpty { "Untitled note" }
 
-    private val FORBIDDEN_IN_NAME = Regex("[<>:\"/\\\\|?*\\n\\r\\t]")
+    /** What Windows refuses in a file name: its reserved punctuation and every control character. */
+    private val FORBIDDEN_IN_NAME = Regex("[<>:\"/\\\\|?*\\u0000-\\u001f]")
 
-    /** The file name offered: what Windows forbids replaced, at most 60 characters, "note" for none. */
+    /**
+     * The file name offered, the desktop's `export_file_stem` and the
+     * extension: what Windows refuses becomes "_", what hides or reorders
+     * text goes ([Normalize.HIDDEN_IN_NAMES]), the ends lose their dots,
+     * spaces and "_", 60 characters are kept, "note" when none are left.
+     * The desktop's own rule replaced only \n, \r and tab of the controls
+     * until its 1fcc189; a title holding another one could not be exported
+     * there, and here a picker was offered a name with a bell in it.
+     */
     fun fileName(title: String, format: String): String {
-        val safe = FORBIDDEN_IN_NAME.replace(title, "_").trim(' ', '.', '_')
+        val safe = Normalize.HIDDEN_IN_NAMES.replace(FORBIDDEN_IN_NAME.replace(title, "_"), "").trim(' ', '.', '_')
         val cps = codePoints(safe)
         return slice(cps, 0, 60).ifEmpty { "note" } + extension(format)
     }
