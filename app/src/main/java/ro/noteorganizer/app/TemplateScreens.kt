@@ -343,12 +343,23 @@ private fun TemplateEditor(
     var askReplace by remember { mutableStateOf(false) }
     var askClose by remember { mutableStateOf(false) }
 
-    // The styles and lines it had ride along unchanged, as on the desktop.
+    // The styles and lines it had, moved with the words at every change, as
+    // the note editor moves them -- the desktop keeps them as tags. Kept at
+    // their offsets, a line typed above them put the bold on other words.
+    var formatting by remember { mutableStateOf(start.optJSONArray("formatting") ?: JSONArray()) }
+    var paragraphs by remember { mutableStateOf(start.optJSONArray("paragraphs") ?: JSONArray()) }
+    fun edited(new: String) {
+        val (styles, lines) = Notebook.throughEdit(formatting, paragraphs, body, new)
+        formatting = styles
+        paragraphs = lines
+        body = new
+    }
+
     fun collect(): JSONObject = Templates.normalize(JSONObject()
         .put("name", name).put("title", title).put("body", body).put("comments", comments.text.toString()).put("category", category)
         .put("checklist", JSONArray(checklist.map { JSONObject().put("text", it.first).put("done", it.second) }))
-        .put("formatting", start.optJSONArray("formatting") ?: JSONArray())
-        .put("paragraphs", start.optJSONArray("paragraphs") ?: JSONArray()))
+        .put("formatting", formatting)
+        .put("paragraphs", paragraphs))
 
     val opened = remember { collect().toString() }
     fun changed() = collect().toString() != opened
@@ -402,7 +413,7 @@ private fun TemplateEditor(
                 OutlinedTextField(title, { title = it.take(200) }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                TemplateBody(body, state.ownCopy) { body = it }
+                TemplateBody(body, state.ownCopy) { edited(it) }
                 // At most ten lines tall, scrolling inside past them: grown
                 // to fit very long comments, the field outgrew the tallest
                 // size Compose can measure and the app stopped as the

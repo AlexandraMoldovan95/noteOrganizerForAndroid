@@ -249,6 +249,12 @@ do before, not as releases anyone ran.
   looks the same — the same rule holds when a table is edited, and what
   lands is held to the ceiling, said as before. Found by the final
   audit's second round, the twin of the desktop's.
+- **Editing a template's text keeps its bold, colours and list lines on
+  the words they were on.** Settings → Templates kept them at their
+  places while the words moved: a line typed above put the bold on
+  other words, and every note made from the template began that way.
+  They move with the words now, as in a note. Found by the final audit's
+  second round, the twin of the desktop's.
 
 ---
 

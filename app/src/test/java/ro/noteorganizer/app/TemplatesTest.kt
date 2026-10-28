@@ -122,6 +122,32 @@ class TemplatesTest {
     }
 
     @Test
+    fun `a template's styles and lines move with its words through every edit`() {
+        // Kept at their offsets, a line typed above them put the bold on
+        // ", Bo\nMeet", the red on "re final", the bullet on the wrong line.
+        val body = "Meeting notes\nDecisions are final\nTo bring: Passport, charger\nNext steps"
+        val bold = body.indexOf("Decisions")
+        val red = body.indexOf("Passport")
+        var formatting = JSONArray("""[{"start": $bold, "end": ${bold + 9}, "style": "bold"},
+            {"start": $red, "end": ${red + 8}, "style": "text_color", "value": "#e81123"}]""")
+        var paragraphs = JSONArray("""[{"line": 2, "kind": "bullet"}]""")
+        var text = body
+        // Typed a letter at a time at the start, as a person types, then a line deleted further down.
+        for (typed in "Attendees: Ana, Bo\n".indices) {
+            val next = "Attendees: Ana, Bo\n".substring(0, typed + 1) + body
+            Notebook.throughEdit(formatting, paragraphs, text, next).let { formatting = it.first; paragraphs = it.second }
+            text = next
+        }
+        val shorter = text.replace("Next steps", "")
+        Notebook.throughEdit(formatting, paragraphs, text, shorter).let { formatting = it.first; paragraphs = it.second }
+        text = shorter
+        fun styled(i: Int) = formatting.getJSONObject(i).let { text.substring(it.getInt("start"), it.getInt("end")) }
+        assertEquals("Decisions", styled(0))
+        assertEquals("Passport", styled(1))
+        assertEquals("To bring: Passport, charger", text.split("\n")[paragraphs.getJSONObject(0).getInt("line")])
+    }
+
+    @Test
     fun `saved, read back the same`() {
         val d = dir()
         val list = listOf(Templates.fromNote("  Plan ", "Week", "• a", JSONArray(), JSONArray("""[{"line": 0, "kind": "bullet"}]"""),

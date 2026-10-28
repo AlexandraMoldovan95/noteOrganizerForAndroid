@@ -1895,6 +1895,19 @@ object Notebook {
         return old.length - start - end
     }
 
+    /**
+     * [formatting] and [paragraphs] carried through one edit of the text
+     * from [old] to [new], as a note's save carries them: the styles by
+     * [remapSpans], the lines' properties by their lines. The template
+     * editor asks it at every change, as the note editor moves its styles
+     * at every change: it kept the template's styles at their offsets
+     * while the words moved under them, and every note made from it began
+     * with its bold on the wrong words.
+     */
+    fun throughEdit(formatting: JSONArray, paragraphs: JSONArray, old: String, new: String): Pair<JSONArray, JSONArray> =
+        spansToJson(remapSpans(old, new, readSpans(formatting)).spans) to
+            movedParagraphs(JSONObject().put("paragraphs", paragraphs), old, new)
+
     internal fun spansToJson(spans: List<FormatSpan>): JSONArray {
         val array = JSONArray()
         for (span in spans) {

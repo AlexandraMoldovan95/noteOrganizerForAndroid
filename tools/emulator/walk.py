@@ -2101,6 +2101,14 @@ def templates(folder):
           not any("|" in t for t in words) and "Mon" in words and "gym" in words
           and any("call mum" in t for t in words), repr(words[:16]))
     shot(folder, "39-template-editor", "Edit template")
+    # Words typed before a styled one: the bold moves with "call". Kept at
+    # its offsets, it landed on other words, and every note made from the
+    # template began with it there.
+    tap("call mum", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("Hi ")
+    keyboard_down()
     tap("A new item", wait=0.8)
     # A capital already, as in a new note's body: the field capitalises.
     type_text("Socks")
@@ -2110,6 +2118,12 @@ def templates(folder):
     check("the edit is saved, in its place",
           len(saved) == 1 and [c.get("text") for c in saved[0].get("checklist", [])] == ["groceries", "Socks"],
           repr(saved))
+    if saved:
+        t = saved[0]
+        moved = [t.get("body", "")[s.get("start", 0):s.get("end", 0)] for s in t.get("formatting", [])]
+        check("words typed before a bold word leave the bold on it, and the bullet on its line",
+              t.get("body", "").startswith("Hi • call mum") and moved == ["call"]
+              and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}], repr(t)[:300])
     tap("Delete template", wait=1.2)
     check("deleting asks, and says it is for good", not screen_says("for good"))
     tap("Delete", exact=True, wait=1.2)
