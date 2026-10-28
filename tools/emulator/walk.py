@@ -4018,6 +4018,10 @@ def sharing(folder):
             adb("shell", "input", "tap", str(at[0]), str(at[1]))
             time.sleep(pause)
         told = any(message_shown() for _ in range(4))
+        # Longer than a PDF holds: since round four the first share asks
+        # before it hands anything over (limits_round4 walks the question).
+        if settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=20.0, first=0):
+            tap("PDF, first 40 pages", exact=True, wait=0.3)
         time.sleep(5.0)
         sheets = len(re.findall(r"wm_create_activity.*ChooserActivity", adb("logcat", "-b", "events", "-d")))
         pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Huge.pdf", binary=True)
