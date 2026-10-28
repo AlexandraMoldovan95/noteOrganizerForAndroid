@@ -25,7 +25,9 @@ object Editing {
      * where it begins, counted in code points as the file counts. A table
      * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid. A
      * [long] segment is lines holding a run longer than [MAX_UNBROKEN]
-     * with no space to break it, shown read-only; only a [field] is typed in.
+     * that the layout cannot break, or runs past what the body may give the
+     * layout in all ([MAX_LAYOUT_COST]), shown read-only; only a [field] is
+     * typed in.
      */
     data class Segment(
         val table: Boolean,
@@ -51,21 +53,107 @@ object Editing {
      * few hundred characters can bring one, in a body, a title, comments or
      * a checklist row, and the note froze at every opening; the code dialog
      * froze the same way on a code of 120,000.
+     *
+     * A run is what lies between two places where the layout can break a
+     * line ([forEachRun]) -- not between two of what Kotlin calls
+     * whitespace, which counts the no-break spaces the layout never breaks
+     * at: 150,000 letters joined by them measured as runs of four.
      */
     const val MAX_UNBROKEN = 10_000
 
-    /** The longest run of [text] with no space, tab or line break in it, in UTF-16 units. */
+    /**
+     * The most letter-by-letter work all the text of one body, one title or
+     * one comments field may give the layout, as the sum of each run's
+     * square: twice one run of [MAX_UNBROKEN], about 0.1 s on the emulator
+     * by the figures above. A run is broken letter by letter wherever it
+     * lies, so the work adds up across the lines: a hundred lines of 9,999
+     * letters passed the line's own test one by one, and come by the same
+     * figures to some 5.6 s in one field. Ordinary words add little -- a
+     * page of prose a few thousandths of this, 300,000 characters of it
+     * about a hundredth.
+     */
+    const val MAX_LAYOUT_COST = 2L * MAX_UNBROKEN * MAX_UNBROKEN
+
+    /**
+     * Every run of [text] the layout cannot break, by its length in UTF-16
+     * units. A run ends at a line break, and where a line can certainly be
+     * broken: after the spaces between two words, and between two
+     * ideographs. Everywhere else it goes on -- through a no-break space
+     * (U+00A0, U+2007, U+202F), a word joiner, a control character, a space
+     * after an opening bracket or a quotation mark (Unicode's line-breaking
+     * rules, UAX #14, keep "( (" together) -- so a run may be longer than
+     * what the layout finds, never shorter: wrong, it shows a line
+     * read-only that a field could have held, and never hands a field a line
+     * it cannot break.
+     */
+    private inline fun forEachRun(text: CharSequence, each: (Int) -> Unit) {
+        var run = 0
+        // The last character before the spaces now being read.
+        var lastSeen = '\n'
+        for (i in 0 until text.length) {
+            val c = text[i]
+            if (c == '\n') {
+                if (run > 0) each(run)
+                run = 0
+                lastSeen = '\n'
+                continue
+            }
+            if (run > 0 && breaksBefore(text[i - 1], c, lastSeen)) {
+                each(run)
+                run = 0
+            }
+            run++
+            if (c != ' ') lastSeen = c
+        }
+        if (run > 0) each(run)
+    }
+
+    /**
+     * Whether a line can certainly be broken between [before] and [c], with
+     * [lastSeen] the last character ahead of any spaces. After a space a
+     * break is allowed (UAX #14's LB18) unless the spaces follow an opening
+     * bracket, a quotation mark, a closing bracket or a dash (LB14 to LB17),
+     * or what comes next may not start a line (LB7 to LB13): so only
+     * between a letter, a digit or ,.;:!? and a letter or digit. Two
+     * ideographs may always be broken between (LB31).
+     */
+    private fun breaksBefore(before: Char, c: Char, lastSeen: Char): Boolean =
+        if (before == ' ') c.isLetterOrDigit() && (lastSeen.isLetterOrDigit() || lastSeen in ENDS_A_WORD)
+        else isIdeograph(before) && isIdeograph(c)
+
+    private const val ENDS_A_WORD = ",.;:!?"
+
+    private fun isIdeograph(c: Char): Boolean =
+        c in '一'..'鿿' || c in '㐀'..'䶿' || c in '豈'..'﫿'
+
+    /** The longest run of [text] the layout cannot break ([forEachRun]), in UTF-16 units. */
     fun longestUnbroken(text: String): Int {
         var longest = 0
-        var run = 0
-        for (c in text) {
-            if (c.isWhitespace()) run = 0 else if (++run > longest) longest = run
-        }
+        forEachRun(text) { if (it > longest) longest = it }
         return longest
     }
 
-    /** Whether [text] holds a run too long to lay out ([MAX_UNBROKEN]): shown read-only, never as a field. */
-    fun tooLongToLayOut(text: String): Boolean = text.length > MAX_UNBROKEN && longestUnbroken(text) > MAX_UNBROKEN
+    /**
+     * The letter-by-letter work laying out [text] costs ([MAX_LAYOUT_COST]),
+     * or null when one of its runs is longer than [MAX_UNBROKEN].
+     */
+    fun layoutCost(text: CharSequence): Long? {
+        var cost = 0L
+        var over = false
+        forEachRun(text) {
+            if (it > MAX_UNBROKEN) over = true
+            cost += it.toLong() * it
+        }
+        return if (over) null else cost
+    }
+
+    /**
+     * Whether [text] is too much to lay out -- a run past [MAX_UNBROKEN], or
+     * runs that add up past [MAX_LAYOUT_COST]: shown read-only, never as a
+     * field. Text no longer than one run's limit never is.
+     */
+    fun tooLongToLayOut(text: String): Boolean =
+        text.length > MAX_UNBROKEN && (layoutCost(text) ?: Long.MAX_VALUE) > MAX_LAYOUT_COST
 
     /**
      * The most cells a table may have to be drawn as a grid. Every cell is
@@ -98,7 +186,19 @@ object Editing {
         return lines.size.toLong() * widest
     }
 
+    /**
+     * The last body cut and its segments: the editor asks for the same body's
+     * segments several times for one letter typed, and a long body is now
+     * weighed run by run ([layoutCost]) at each asking.
+     */
+    @Volatile private var lastCut: Pair<String, List<Segment>>? = null
+
     fun segments(body: String): List<Segment> {
+        lastCut?.let { (cut, segments) -> if (cut == body) return segments }
+        return cut(body).also { lastCut = body to it }
+    }
+
+    private fun cut(body: String): List<Segment> {
         val lines = body.split("\n")
         // Where each line starts, in code points; one past the end for the
         // virtual segment.
@@ -111,23 +211,38 @@ object Editing {
         starts[lines.size] = at
         fun text(first: Int, last: Int) = lines.subList(first, last + 1).joinToString("\n")
         val out = ArrayList<Segment>()
-        // A run of prose lines, each run of lines too long to lay out cut
+        // What the lines given to fields so far cost to lay out, in the
+        // body's order ([MAX_LAYOUT_COST]): a line that would take it past
+        // the limit is shown read-only too. A body no longer than one run's
+        // limit cannot reach it, and is not weighed at all.
+        var spent = 0L
+        val weighed = body.length > MAX_UNBROKEN
+        // Asked once of each line, in order: it counts what it lets in.
+        fun tooMuch(i: Int): Boolean {
+            if (!weighed) return false
+            val cost = layoutCost(lines[i]) ?: return true
+            if (spent + cost > MAX_LAYOUT_COST) return true
+            spent += cost
+            return false
+        }
+        // A run of prose lines, each run of lines too much to lay out cut
         // out of it as a segment of its own, shown read-only: the lines
         // around it stay fields, and the note keeps every byte.
         fun prose(first: Int, last: Int) {
             var from = first
             var i = first
             while (i <= last) {
-                if (!tooLongToLayOut(lines[i])) {
+                if (!tooMuch(i)) {
                     i++
                     continue
                 }
                 var end = i
-                while (end + 1 <= last && tooLongToLayOut(lines[end + 1])) end++
+                while (end + 1 <= last && tooMuch(end + 1)) end++
                 if (i > from) out.add(Segment(false, from, i - 1, text(from, i - 1), starts[from]))
                 out.add(Segment(false, i, end, text(i, end), starts[i], long = true))
                 from = end + 1
-                i = end + 1
+                // The line after [end] was asked, and let in.
+                i = end + 2
             }
             if (from <= last) out.add(Segment(false, from, last, text(from, last), starts[from]))
         }

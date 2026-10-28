@@ -361,6 +361,17 @@ do before, not as releases anyone ran.
   its own identity now; one that has gone in the meantime comes in as a
   new note, as it would have had it gone first. Found by the final
   audit's third round.
+- **Text joined by no-break spaces, or many lines just under the limit,
+  opens at once too.** The rule that shows a run of more than 10,000
+  letters read-only counted a no-break space as a place to break the
+  line, which the layout never does: 150,000 letters joined by them went
+  into a field and held the note as before. A run now ends only where a
+  line can certainly break, and what a body's lines cost to lay out adds
+  up: past what one note may give its fields, the heavy lines left are
+  shown read-only as well — a hundred lines of 9,999 letters each passed
+  one by one before. Chinese and Japanese ideographs, which break between
+  any two, are not counted as one run. The note keeps every byte. Found
+  by the final audit's third round.
 
 ---
 

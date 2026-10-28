@@ -91,6 +91,65 @@ class EditingTest {
     }
 
     @Test
+    fun `a run is measured by where the layout can break, not by what Kotlin calls whitespace`() {
+        // Kotlin's isWhitespace counts the no-break spaces, and 150,000
+        // letters joined by them measured as runs of four: given to a field,
+        // which can break them nowhere.
+        for (glue in listOf(' ', ' ', ' ', '⁠', '﻿', '\u001C', '\u001F')) {
+            val joined = "word$glue".repeat(30_000)
+            assertEquals("U+%04X".format(glue.code), 150_000, Editing.longestUnbroken(joined))
+            assertTrue(Editing.tooLongToLayOut(joined))
+            val parts = Editing.segments("Above\n$joined\nBelow")
+            assertEquals(listOf(true, false, true), parts.map { it.field })
+            assertEquals(joined, parts[1].text)
+        }
+        // Spaces after an opening bracket break nothing (UAX #14's LB14).
+        assertTrue(Editing.tooLongToLayOut("( ".repeat(75_000)))
+        // Words, and what ends a sentence or a list item, break as ever.
+        for (spaced in listOf("word ".repeat(30_000), "a, ".repeat(50_000), "1. ".repeat(50_000), "Yes! No? ".repeat(20_000))) {
+            assertTrue(spaced.take(12), Editing.longestUnbroken(spaced) < 10)
+            assertFalse(Editing.tooLongToLayOut(spaced))
+        }
+        // Ideographs break between any two; joined by a no-break space, not.
+        assertFalse(Editing.tooLongToLayOut("中文字".repeat(4_000)))
+        assertTrue(Editing.tooLongToLayOut("中 ".repeat(6_000)))
+        // One function answers for every place that asks.
+        val title = "a ".repeat(75_000)
+        assertEquals(emptyList<Finding.Match>(), Finding.scan("x", "a", matchCase = false,
+            checklist = listOf(title), comments = title))
+    }
+
+    @Test
+    fun `runs add up across a body's lines, and past what it may give the layout the rest are shown read-only`() {
+        // A hundred lines of 9,999 letters passed the line's own test one by
+        // one, and all went into one field, each broken letter by letter.
+        val heavy = "a".repeat(Editing.MAX_UNBROKEN - 1)
+        val hundred = List(100) { heavy }.joinToString("\n")
+        val parts = Editing.segments(hundred)
+        assertEquals(listOf(true, false, true), parts.map { it.field })
+        assertEquals("two fit", 0 to 1, parts[0].firstLine to parts[0].lastLine)
+        assertEquals(2 to 99, parts[1].firstLine to parts[1].lastLine)
+        assertTrue(parts[2].isVirtual)
+        assertEquals(hundred, parts.filterNot { it.isVirtual }.joinToString("\n") { it.text })
+        assertTrue(Editing.tooLongToLayOut(hundred))
+        assertFalse(Editing.tooLongToLayOut("$heavy\n$heavy"))
+        // Ordinary lines between them stay fields, and so does a light line
+        // after the limit is reached: only what is too much is read-only.
+        val mixed = listOf("x", heavy, "normal words", heavy, "more words", heavy, "end").joinToString("\n")
+        val cut = Editing.segments(mixed)
+        assertEquals(listOf(true, false, true), cut.map { it.field })
+        assertEquals(0 to 4, cut[0].firstLine to cut[0].lastLine)
+        assertEquals(5 to 5, cut[1].firstLine to cut[1].lastLine)
+        assertEquals("end", cut[2].text)
+        assertTrue(cut.filter { it.field }.sumOf { Editing.layoutCost(it.text)!! } <= Editing.MAX_LAYOUT_COST)
+        // Prose, however long, is far from the limit.
+        val prose = "She said, \"Let's go (now) to the market -- it's late.\" Then we walked; it was 5:30. "
+        val long = prose.repeat(300_000 / prose.length)
+        assertTrue(Editing.layoutCost(long)!! < Editing.MAX_LAYOUT_COST / 20)
+        assertTrue(Editing.segments(long).single().field)
+    }
+
+    @Test
     fun `a ragged table is weighed as it is drawn, every row as wide as the widest`() {
         // 1,000 cells as written -- one row of 500, then 250 of two -- drawn
         // as 251 by 500: 125,500 cells, from a share code of 174 characters.
