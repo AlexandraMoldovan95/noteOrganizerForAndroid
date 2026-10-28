@@ -11,8 +11,9 @@ import java.io.File
  *
  * - A notebook left in the older folder -- where the development tools
  *   put one with `adb push` before this app had a notebook of its own --
- *   is copied in, once, the first time there is none here. Copied, not
- *   moved: nothing is deleted on the way.
+ *   is copied in, once, the first time there is none here, on a
+ *   development build ([olderFolder]). Copied, not moved: nothing is
+ *   deleted on the way.
  * - A notebook that did not exist until this start opens on the welcome
  *   note, once, as the desktop's does. One that was copied in, or emptied
  *   by hand, never gets one.
@@ -24,16 +25,29 @@ object Startup {
 
     private val FILES = listOf(Backup.NOTES, Backup.SETTINGS, Backup.TRASH, Backup.TEMPLATES)
 
+    /**
+     * The older folder to copy a notebook in from: on a development build
+     * only. The development tools put notebooks there; a release build
+     * never kept one there, and took in whatever it found -- written there
+     * by another app, on Android 8 to 10 where others could, or a file of
+     * 2 GB that stopped the app at every start (seen on the emulator).
+     */
+    fun olderFolder(debuggable: Boolean, external: File?): File? = if (debuggable) external else null
+
     /** What the start did that is worth one line at the top of the list, or null. */
-    fun prepare(dir: File, older: File?): String? {
+    fun prepare(dir: File, older: File?, read: (File) -> ByteArray = File::readBytes): String? {
         dir.mkdirs()
         val notes = File(dir, Backup.NOTES)
         val lines = ArrayList<String>()
         if (!notes.exists()) {
             val old = older?.let { File(it, Backup.NOTES) }
             if (old != null && old.isFile) {
-                copyIn(older, dir)
-                lines.add("Your notebook was brought into the app's own storage.")
+                if (copyIn(older, dir, read)) {
+                    lines.add("Your notebook was brought into the app's own storage.")
+                } else {
+                    lines.add("The notebook in the older folder could not be read, so it was left there.")
+                    greet(dir)
+                }
             } else {
                 greet(dir)
             }
@@ -90,19 +104,35 @@ object Startup {
             ?.forEach { it.deleteRecursively() }
     }
 
-    private fun copyIn(from: File, to: File) {
-        for (name in FILES) {
-            val source = File(from, name)
-            if (source.isFile) Files.writeAtomic(File(to, name), source.readBytes())
-        }
-        val attachments = File(from, Backup.ATTACHMENTS)
-        if (attachments.isDirectory) {
-            val target = File(to, Backup.ATTACHMENTS).apply { mkdirs() }
-            attachments.listFiles()?.filter { it.isFile }?.forEach { file ->
-                val dest = File(target, file.name)
-                if (!dest.exists()) Files.writeAtomic(dest, file.readBytes())
+    /**
+     * The older folder's notebook copied in; false, with what was written
+     * taken back, when a file of it cannot be read. Thrown, the start
+     * stopped -- and since nothing here was written yet, the next start
+     * took the same road and stopped again: a 2 GB file is too large for
+     * readBytes, an OutOfMemoryError no `catch (e: Exception)` sees.
+     */
+    private fun copyIn(from: File, to: File, read: (File) -> ByteArray): Boolean {
+        val written = ArrayList<File>()
+        try {
+            for (name in FILES) {
+                val source = File(from, name)
+                if (source.isFile) File(to, name).let { Files.writeAtomic(it, read(source)); written.add(it) }
             }
+            val attachments = File(from, Backup.ATTACHMENTS)
+            if (attachments.isDirectory) {
+                val target = File(to, Backup.ATTACHMENTS).apply { mkdirs() }
+                attachments.listFiles()?.filter { it.isFile }?.forEach { file ->
+                    val dest = File(target, file.name)
+                    if (!dest.exists()) { Files.writeAtomic(dest, read(file)); written.add(dest) }
+                }
+            }
+            return true
+        } catch (e: Exception) {
+            written.forEach { it.delete() }
+        } catch (e: OutOfMemoryError) {
+            written.forEach { it.delete() }
         }
+        return false
     }
 
     /** A brand-new notebook: the welcome note, and the settings that remember it. */

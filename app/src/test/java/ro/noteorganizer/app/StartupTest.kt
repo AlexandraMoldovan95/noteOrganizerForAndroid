@@ -75,6 +75,35 @@ class StartupTest {
     }
 
     @Test
+    fun `only a development build looks in the older folder`() {
+        // A release build took in whatever was there: written by another app
+        // on Android 8 to 10, or a file of 2 GB that stopped every start.
+        val older = temp("older")
+        assertEquals(older, Startup.olderFolder(debuggable = true, external = older))
+        assertNull(Startup.olderFolder(debuggable = false, external = older))
+    }
+
+    @Test
+    fun `an older notebook too large to read is left there, the start goes on, and the next one does not try again`() {
+        val older = temp("older")
+        File(older, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        File(older, "settings.json").writeText("""{"username": "Maria"}""")
+        val dir = File(temp("phone"), "notebook")
+        // The notes read, the settings too large: what was written goes back.
+        val tooLarge: (File) -> ByteArray = { f ->
+            if (f.name == "settings.json") throw OutOfMemoryError("File $f is too big to fit in memory.") else f.readBytes()
+        }
+        val notice = Startup.prepare(dir, older, read = tooLarge)
+        assertTrue(notice!!, notice.contains("could not be read"))
+        val notes = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals("a notebook that starts whole: the welcome note, not half the older one",
+            Welcome.TITLE, notes.getJSONObject(0).getString("title"))
+        assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
+        val again = Startup.prepare(dir, older, read = tooLarge)
+        assertTrue("the next start does not try again", again == null || !again.contains("could not be read"))
+    }
+
+    @Test
     fun `the start empties what outlived the window, and says so`() {
         val dir = temp("phone")
         val old = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(Date().time - 40L * 86_400_000))

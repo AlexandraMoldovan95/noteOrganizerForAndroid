@@ -262,7 +262,11 @@ which is why Settings → Backup says it is the way to keep a copy.
 `Startup.prepare` runs before the first screen:
 
 1. A notebook found in the older folder is **copied** in, once, the first
-   time there is none here — never moved.
+   time there is none here — never moved, and on a development build
+   only: a release build never kept one there, and took in whatever it
+   found, from another app on Android 8 to 10 or a file too large to read
+   that stopped every start. One that cannot be read is left there, said,
+   and the notebook starts new.
 2. A notebook that did not exist until this start gets the welcome note,
    once.
 3. The Trash is emptied of what has outlived its window, sparing files a

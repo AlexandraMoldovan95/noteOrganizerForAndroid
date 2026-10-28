@@ -118,8 +118,10 @@ class MainActivity : ComponentActivity() {
         // Private to the app: no other app can read it, and uninstalling the
         // app removes it -- which is why Settings → Backup exists.
         val dir = File(filesDir, "notebook")
-        // Where the development tools pushed a notebook before this one.
-        val notice = Startup.prepare(dir, getExternalFilesDir(null))
+        // Where the development tools pushed a notebook before this one --
+        // on a development build only (Startup.olderFolder).
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val notice = Startup.prepare(dir, Startup.olderFolder(debuggable, getExternalFilesDir(null)))
         // Once a process, before anything of its own can be there.
         if (!leftoversCleared) {
             leftoversCleared = true

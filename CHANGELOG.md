@@ -168,6 +168,12 @@ do before, not as releases anyone ran.
   files were not attached, without a word; and Back while a large file
   was copying lost it. Both now finish, and say so. Found by the final
   audit, checked on the emulator.
+- **The app no longer takes in a notebook from its shared folder.** At a
+  first start, the released app copied in any notebook found in a folder
+  that other apps could write to on Android 8 to 10, and a file there too
+  large to read stopped it at every start. Only development builds look
+  there now, and one too large is left alone. Found by the final audit,
+  checked on the emulator.
 - **A large backup's questions no longer hold the screen still.** With a
   thousand notes on each side, working out which arriving notes look
   like ones already here held it 1.3 seconds on the emulator, two or
