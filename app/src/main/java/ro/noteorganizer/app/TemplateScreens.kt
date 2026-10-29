@@ -36,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -520,6 +521,14 @@ private fun TemplateEditor(
                 Spacer(Modifier.height(48.dp))
             }
         }
+        // The app's messages, over the editor: said in the window under this
+        // one, they were drawn beneath it and never seen -- a full list's
+        // refusal, a list too full to save, the row cap's words (the walk,
+        // 2026-10-29). Shown by both, read by the one on top.
+        Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
+            contentAlignment = Alignment.BottomCenter) {
+            SnackbarHost(state.snackbar, Modifier.padding(bottom = 16.dp))
+        }
         if (askName) {
             AlertDialog(
                 onDismissRequest = { askName = false },
@@ -594,13 +603,15 @@ private fun TemplateRows(checklist: SnapshotStateList<Pair<String, Boolean>>) {
         val rowName = glimpse(item.first)
         val upSaid = stringResource(R.string.template_row_up, rowName)
         val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        val readOnly = Editing.rowTooLong(item.first) || drawnRow(item.first) != item.first
+        // A row read whole keeps its box and buttons beside its start.
+        Row(verticalAlignment = if (readOnly) Alignment.Top else Alignment.CenterVertically) {
             Checkbox(item.second, { checklist[k] = item.first to it },
                      colors = CheckboxDefaults.colors(checkedColor = palette.accent),
                      modifier = Modifier.semantics { contentDescription = rowName })
             // Kept whole: a row longer than a glimpse is shown by its start,
             // and read whole on asking, as the note editor shows one.
-            if (Editing.rowTooLong(item.first) || drawnRow(item.first) != item.first) {
+            if (readOnly) {
                 ReadOnlyRow(item.first, item.second, modifier = Modifier.weight(1f))
             } else Text(item.first, fontSize = 15.sp,
                  color = if (item.second) palette.subtext else palette.text,

@@ -2685,7 +2685,11 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         // The row the current match is in, brought into sight as the bar steps.
         val sight = remember { BringIntoViewRequester() }
         val here = current?.takeIf { it.item == index }
-        if (here != null) LaunchedEffect(reveal, here) { sight.bringIntoView() }
+        // A row shown, not written in, brings the part its word is in into
+        // sight itself (ReadOnlyRow): brought whole, a row taller than the
+        // screen showed its top.
+        val readOnly = Editing.rowTooLong(item.text) || !writable[index]
+        if (here != null && !readOnly) LaunchedEffect(reveal, here) { sight.bringIntoView() }
         val rowKey = rowKeys[index]
         Row(
             Modifier
@@ -2698,7 +2702,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 // block was cut to the start of its first line.
                 .heightIn(min = 44.dp)
                 .bringIntoViewRequester(sight),
-            verticalAlignment = Alignment.CenterVertically,
+            // A row read whole keeps its handle, box and ✕ beside its start.
+            verticalAlignment = if (readOnly) Alignment.Top else Alignment.CenterVertically,
         ) {
             // The handle drags at once, a finger's width wide and apart from
             // the box: it waited for a long press nobody could guess, and sat
@@ -2768,7 +2773,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
             // the body's lines too long to lay out are; past what the list
             // draws to write in, a row is shown short (the line above says
             // so). Either is read whole on asking, and a search opens it.
-            if (Editing.rowTooLong(item.text) || !writable[index]) {
+            if (readOnly) {
                 ReadOnlyRow(item.text, item.done, rowFound, rowCurrent, reveal, Modifier.weight(1f))
             } else ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
                           found = rowFound, current = rowCurrent,
@@ -2963,12 +2968,16 @@ private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int,
     var first by remember(lines) { mutableIntStateOf(0) }
     var count by remember(lines) { mutableIntStateOf(shown) }
     val sight = remember { BringIntoViewRequester() }
+    // The part a search stopped in, itself: a row read in parts is taller
+    // than the screen, and brought into sight whole, its top was shown and
+    // the word lay under the screen's edge (the walk, 2026-10-29).
+    val partSight = remember { BringIntoViewRequester() }
     val matchLine = current?.let { Finding.lineAt(starts, it.first) }
     LaunchedEffect(reveal, matchLine) {
         if (matchLine == null) return@LaunchedEffect
         if (matchLine !in first until first + count) first = maxOf(0, matchLine - 1)
         withFrameNanos { }
-        sight.bringIntoView()
+        if (parts != null) partSight.bringIntoView() else sight.bringIntoView()
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).bringIntoViewRequester(sight)) {
         header()
@@ -2991,7 +3000,8 @@ private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int,
                     append(painted)
                     if (cut.to < line.length) append("…")
                 }
-                if (parts != null) Text(drawn, color = palette.text, fontSize = 15.sp)
+                if (parts != null) Text(drawn, color = palette.text, fontSize = 15.sp,
+                                        modifier = if (i == matchLine) Modifier.bringIntoViewRequester(partSight) else Modifier)
                 else Text(drawn, color = palette.text, fontSize = 13.sp, maxLines = 1, softWrap = false)
             }
         }
