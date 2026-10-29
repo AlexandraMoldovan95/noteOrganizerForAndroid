@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-five are
+**the code**, or in **the design**. Nineteen of the seventy-six are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-29](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached) | code | The audit's fifth round: a checklist outside round four's whole-note budget, 18 million letters from a code of 38 KB; Undo's 200 whole copies of a long note; fifty weekly tables reaching the ceiling of 100 pieces, their end read-only and unfound; a cursor left in a field its line had gone out of; a list's markers read as words lost | A limit meant for hostile sizes is set where ordinary notes cannot reach it, and what lies past it stays found and readable; a cursor whose line leaves every field is placed, never left |
 | [2026-10-28](#what-one-note-draws-and-what-is-said-before-it-goes) | code | The audit's fourth round: what a note draws was held piece by piece -- ten tables of 1,000 cells drawn at once, 3,000 tiny tables, 200,000 short lines as one field; a rescue copy replaced unsaid three more ways the desktop had settled; one identity worn by two notes; and warnings given under the share sheet, after the tap, or in letters where Android counts bytes | A limit set for one piece limits nothing when the pieces can be many; a warning the person cannot read before choosing is an error they meet later |
 | [2026-10-28](#guards-that-asked-another-question-than-the-cost) | code | The audit's third round went around the second round's guards: words joined by no-break spaces, a hundred lines each under the limit, a run inside a table's cell, a template's row, a bar quoting a row; a plan applied by place after the list moved; an "off" read from the wrong file; and a ceiling on what is handed to another app that was reasoned, and failed on the emulator at 180,000 characters without a word | A guard asks of what actually costs, everywhere it is drawn; a ceiling set by another program is measured on it, not reasoned |
 | [2026-10-28](#fixes-that-were-holes-of-their-own) | code | The audit's second round found a third of its findings in the first round's fixes: a rule ported half, a count of the wrong cells, a flag set before the act, a switch that did not survive, a timer counted from the asking; and limits that held at the door, a 150,000-letter line from a 300-character code among them | A fix is a new surface: the round after attacks the fix itself, and a twin is read the day it changes |
@@ -90,6 +91,96 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A ceiling for hostile notes that ordinary ones reached
+
+**2026-10-29.** The final audit's fifth round attacked round four's
+fixes and their neighbourhood, and came back with two highs, five
+mediums (two of them duplicates of another) and seven lows on the phone.
+Round four had counted what a note draws for the whole note; the round
+after found where the whole was not whole, and where the count was
+reached by notes nobody would call hostile.
+
+- **A section outside the count.** The budget held the body. A
+  checklist's rows, up to 1,000, were still each weighed alone and all
+  drawn at once as fields: 120 rows of 150,000 letters, from a share code
+  of 38 KB, were 18 million letters laid out at every opening: 7.1
+  seconds in one frame on the emulator, 1,000 rows of 19,000 letters
+  11.3 -- and even 1,000 short rows, the most a list holds, 6.5, every
+  row a piece of the screen of its own.
+- **Copies nobody weighed.** Undo kept 200 steps, each the whole note:
+  a note of two million letters, from a code of 8 KB, would keep some
+  760 MB. On the emulator, whose app may use 192 MB, its heap went from
+  36 MB to 195 in fifteen bursts of typing, and at the twentieth the app
+  stopped with an OutOfMemoryError.
+- **A ceiling an ordinary note reached.** 100 pieces, every table and
+  every run of prose between two tables one: fifty weekly tables under
+  their headings, 2,331 characters, made the fiftieth and all after it
+  one read-only piece, with nowhere to write at the end; a training log
+  of sixty sessions, 5 KB, hid its last ten from Find, which skipped
+  everything read-only and said "0/0" while the list's search found the
+  note.
+- **A cursor left where its line had gone out.** Round four moved the
+  cursor with a line that went into the next field, and did nothing when
+  it went into no field: a table row typed by hand became a grid at its
+  closing pipe and the next row was written above it, the grid upside
+  down, in any note; Enter at the end of what a long note draws glued the
+  next words onto the line before. The calculator, the cursor never in
+  the note, wrote into the part nobody could see.
+- **A marker read as a word.** The rescue copy measured words as
+  whitespace splits them, a list's "1." and "•" among them: numbers
+  turned into bullets read as the list lost, and the autosave's copy
+  replaced the one holding a paragraph deleted a moment before. Found on
+  the phone first; the desktop shared it.
+
+And the lows: the Share sheet built the note's whole share code on the
+screen's thread to grey its card; every save split the whole note into
+words three times for one letter typed; underline and strike were merged
+in quadratic time at every drawing; a turn-off refused a copy that
+carried days; the Update question warned for a note that only gained a
+file; a "^" under a row too short merged into a cell nobody has; a
+row's failed write was said at every letter, the letters lost.
+
+**The fix:** the checklist is counted -- a row written in up to the
+desktop's 2,000 letters, 100,000 in all, the rest shown; Undo is held to
+16 million characters, never fewer than its last step; a note may be 500
+pieces, two hundred tables under their headings -- the hostile 3,000
+tables open in 2.6 seconds at that, 6.2 at 2,000 -- and 40,000 lines,
+twice round four's, a journal of 10,050 lines whole; a checklist draws
+its first 200 rows and its last five until asked for more; and what lies
+past any limit is found by Find, each line one stop -- a stop at every
+match let a table of 90,000 cells use up the count, the reason it had
+been skipped -- its line shown and read on. The cursor goes to the field
+holding its place, or the first after the piece its line went into; with
+none, the keyboard goes and the note says why. A list's markers are no
+words, as the desktop's _words has it since its own fix, and a series
+turned back on from another start drops its old deleted days, as its
+kept_days_fit does. Each with a test and a mutant watched failing (AS172
+to AS204), and the walk's new `limits_round5` part.
+
+Against the build before the round the emulator showed both highs: the
+120 long rows held the screen 7.1 seconds, and the two-million-letter note
+stopped the app at its twentieth burst of typing. After it the same rows
+open in 1.7 s -- the same text in a body takes 1.6 -- 1,000 short rows in
+2.0 instead of 6.5, a letter in a row draws in 0.2 instead of 1.1, the
+heap stays between 67 and 98 MB through forty bursts, and `limits_round5`
+passes its twenty checks. The letters' budget alone had left the 1,000
+short rows at 5.3 s: every row is a piece of the screen, whatever it holds,
+so the rows drawn are counted too. The Share sheet of a 5 MB note could
+not tell the two builds apart (1.3 to 1.6 s before, 0.8 to 1.4 after),
+and no check claims it did. And walking found one more in round four's
+own work: a template's comments too long to edit stood under no label of
+their own and read as the body's -- the session's full walk had failed
+`template_long_comments` on it.
+
+**The lesson:** a limit meant for hostile sizes is set where ordinary
+notes cannot reach it -- measured, not reasoned from the hostile case
+alone -- and what lies past it stays found and readable, so reaching it
+costs a moment, never a word. And a cursor whose line leaves every field
+is placed somewhere, never left in the field it came from: left, it
+writes on the line above.
 
 ---
 
@@ -2454,7 +2545,11 @@ whether that is what the dialog should show.
   Left because the fix is in the editor's focus, where a change has been
   proved only by a person's keyboard
   ([the story](#what-a-persons-keyboard-found-that-the-walk-could-not)),
-  and this round had no phone to prove it on.
+  and this round had no phone to prove it on. **Closed 2026-10-29**
+  ([the story](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached)):
+  the cursor goes to the start of the field after the pasted line, by the
+  rule that places it wherever its line leaves every field -- proved in
+  the editor's model, not yet by a person's keyboard.
 - **A desktop attachment renamed to fit the phone comes back to the
   desktop as a second attachment.** A stored name past Android's 255
   bytes is kept under a shorter name, and the note follows it; the
@@ -2477,16 +2572,45 @@ whether that is what the dialog should show.
   some keyboards choose to send it, which only a person's keyboard can
   prove.
 - **Find does not search the read-only rest of a note past what it
-  draws**, as it never searched a line too long to lay out.
+  draws**, as it never searched a line too long to lay out. **Closed
+  2026-10-29**: it searches every piece shown read-only, each line one
+  stop, and the piece shows the line
+  ([the story](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached)).
 - **The list's "Share as a code" for several notes is still refused
   after the tap** when the code is too long; the Share sheet of one note
-  says so on its card before.
+  says so on its card before. (Since 2026-10-29 the code is built away
+  from the screen's thread; the refusal still comes after the tap.)
 - **The autosave of a very long note holds the screen for a moment.**
   Measured while walking this round: a journal of 308,000 characters
   draws a letter typed in 0.1 to 0.4 seconds on the emulator, and the
   save 800 ms after it is a frame of 0.4 to 0.8 seconds -- the whole
   notebook copied and written from the screen's thread, as before this
   round. Not a freeze, and not this round's; measured, not fixed.
+
+### What the audit's fifth round left
+
+- **A template being written is lost if Android ends the app behind
+  Home.** The note editor saves on leaving; the template editor saves
+  only on Save, and the app started again opens on its list. Saving a
+  template on Home would make ✕'s "Discard" a lie about what is already
+  saved, and a draft kept aside is a file of its own; which of the two,
+  if either, is the owner's call. The words in its "A new item…" box
+  are now saved by Save and asked about by ✕.
+- **A table row of three cells or more typed by hand becomes a grid at
+  its second cell's closing pipe**, two cells being a row, and the cursor
+  goes under the grid with the rest of the row. Two-cell rows come out in
+  order; tables are made with the table bar, and rows added with it.
+- **Past 40,000 drawn lines -- some 880,000 characters of a journal --
+  the end of a note is read-only**, found and read but not written in on
+  the phone: Enter there lets the keyboard go and says so. The budget was
+  20,000 and is twice that, measured at 1.1 s against 0.8; a tail kept
+  drawn past it, so the end stays a field whatever the size, was weighed
+  and left -- the cut would move under the cursor at every new line.
+- **The 200 rows a long checklist draws at first are drawn again at each
+  letter typed into one of them** -- 0.2 s a letter on the emulator, 1.1
+  s before the round. The rows are one composition; typing in the text
+  above no longer draws them, and a row of its own that could skip was
+  not worth the change at that cost.
 
 ### The phone's, from the audit of 2026-10-19
 

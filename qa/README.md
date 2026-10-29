@@ -19,15 +19,15 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-810 checks across thirty-one suites — `NotebookTest` (130),
-`TablesTest` (76), `RecurrenceTest` (49), `PastingTest` (41), `OrganizingTest` (40),
-`IdentityTest` (39), `DaysTest` (37), `CalculatorTest` (34),
-`StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (32),
-`AppStateTest` (31), `EditingTest` (31), `SharingTest` (25),
-`SettingsTest` (24), `BackupTest` (23), `FindingTest` (17),
-`ExportingTest` (16), `StartupTest` (14), `TemplatesTest` (14),
-`OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
-`EditorTableTest` (7), `EditorTypingTest` (7), `RemindersTest` (6),
+830 checks across thirty-one suites — `NotebookTest` (133),
+`TablesTest` (77), `RecurrenceTest` (49), `PastingTest` (41), `OrganizingTest` (40),
+`IdentityTest` (39), `DaysTest` (39), `EditingTest` (35), `CalculatorTest` (34),
+`StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (33),
+`AppStateTest` (32), `SharingTest` (26),
+`SettingsTest` (24), `BackupTest` (23), `FindingTest` (18),
+`ExportingTest` (16), `TemplatesTest` (15), `StartupTest` (14),
+`EditorTypingTest` (12), `OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
+`EditorTableTest` (7), `RemindersTest` (6),
 `StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see

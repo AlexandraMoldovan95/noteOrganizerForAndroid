@@ -176,10 +176,21 @@ Grouped by what the app does; when each item arrived is in the
     note keeps every byte, and the desktop shows it; a bar or a question
     quotes a long title, row or file name by its first 80 characters.
     What a note draws is counted for the whole note: long text is drawn
-    as fields of at most 1,000 lines, each typed in; past 20,000 lines in
-    all, 100 pieces, or one line, title or comments heavier to draw than
-    150,000 letters with spaces, the rest is shown read-only with how
-    many lines it holds.
+    as fields of at most 1,000 lines, each typed in; past 40,000 lines in
+    all (a journal of some 880,000 characters), 500 pieces — two hundred
+    tables under their headings, a ceiling
+    for hostile notes, not ordinary ones — or one line, title or comments
+    heavier to draw than 150,000 letters with spaces, the rest is shown
+    read-only with how many lines it holds. What is shown read-only is
+    still found by Find, each line one stop, the line it stops at shown,
+    and can be read on, forty lines at a time. A line whose words go where
+    no field is — a table row typed by hand, Enter at the end of what is
+    drawn — takes the cursor to the next field, or lets the keyboard go
+    and says why. A checklist's rows are written in up to 2,000 letters
+    each, the desktop's limit, and 100,000 in all; past either a row is
+    shown, kept whole; a list draws its first 200 rows and its last five,
+    200 more each time the line between them is tapped. Undo keeps at most
+    16 million characters of steps, always the last.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text
@@ -208,7 +219,8 @@ Grouped by what the app does; when each item arrived is in the
     as the widest — says it is too large to draw and shows its first
     lines, read-only, so the note opens at once, in the note and in the
     template editor alike; the note keeps it whole, and the desktop draws
-    it. Find does not search it. The 1,000 are the whole note's: a table
+    it. Find searches its lines as written, each one stop, and shows the
+    line it stops at. The 1,000 are the whole note's: a table
     past what the tables above it drew is shown so too, and says why.
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
@@ -363,7 +375,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 810 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 830 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -627,7 +639,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 810 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 830 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -635,7 +647,15 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-59 parts since the final audit's fourth round added `limits_round4`
+60 parts since the final audit's fifth round added `limits_round5` (20
+checks: fifty weekly tables and sixty sessions drawn to their ends and
+found there; a word in the read-only rest of a note of 60,000 lines
+found, its line shown, read on; Enter past what is drawn letting the
+keyboard go, nothing glued above; the calculator refusing to write out of
+sight; 1,000 checklist rows and 120 rows of 150,000 letters opened and
+timed; a table typed row by row by hand; a two-million-letter note typed
+in forty times, its heap read; a template's "A new item…" saved). The
+fourth round had added `limits_round4`
 (what one note draws — ten tables of 1,000 cells, 200,000 empty lines,
 3,000 tiny tables, a journal of 7,000 lines and a letter typed in it,
 timed by the app's frames; a Chinese note refused on Share → Text by
@@ -1011,7 +1031,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-810 JVM unit tests in 31 suites pin the rules ported from Python, and
+830 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

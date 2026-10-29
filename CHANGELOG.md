@@ -499,6 +499,67 @@ do before, not as releases anyone ran.
   opens the whole note.** Restoring a copy without the repeat left the
   editor on that day, and every save was refused: "This note no longer
   repeats". Found by the final audit's fourth round.
+- **A checklist of very long rows opens at once.** Each row was weighed
+  alone and every row drawn as a field, all at once: 120 rows of 150,000
+  letters, from a share code of 38 KB, were 18 million letters laid out
+  at every opening. A row longer than 2,000 letters — the most the
+  desktop draws of one — is shown read-only, its start; the rows written
+  in hold 100,000 letters in all, and past that a row is shown short,
+  the list saying so. A row's field and "A new item…" take 2,000 letters,
+  as the desktop's box does. A list draws its first 200 rows and its last
+  five, a line between drawing 200 more when tapped: 1,000 short rows held
+  the screen 6.5 s on the emulator, and open in 2 now. Found by the final
+  audit's fifth round.
+- **Typing in a very long note no longer runs the app out of memory.**
+  Undo kept up to 200 steps, each the whole note: for a note of two
+  million letters, some 760 MB. It now keeps what a phone can hold —
+  about 50 steps of a journal of 300,000 letters, 200 of a page — and
+  always the last change. Found by the final audit's fifth round.
+- **The cursor goes where its line went.** A table row typed by hand
+  became a grid at its closing pipe and the next row was written above
+  it; Enter at the end of what a long note draws glued the next words onto
+  the line before; a paste too long to lay out left the cursor on the
+  line above it. Now the cursor goes under the grid, or past the
+  read-only line; where no field follows, the keyboard goes and the note
+  says why. The calculator no longer writes where no field shows it.
+  Found by the final audit's fifth round.
+- **A note of many small tables is drawn to its end, and what a note
+  shows read-only is found and read.** Fifty weekly tables under their
+  headings made the fiftieth and everything after it read-only, with
+  nowhere to write at the end; a note may now be 500 pieces, and 40,000
+  lines of text rather than 20,000, so a journal of 10,000 lines is
+  written in to its end. Find
+  searches what is shown read-only — a line too long to lay out, the rest
+  past what a note draws, a table too large to draw — each line one stop,
+  and shows the line it stopped at; such a part can be read on, forty
+  lines at a time. It said "0/0" there, while the list's search found
+  the note. Found by the final audit's fifth round.
+- **The template editor keeps the words left in "A new item…".** Save
+  left them out unsaid, and ✕ closed without asking when they were the
+  only change. Comments too long to edit are shown under their own label;
+  alone, they read as part of the body. Found by the final audit's fifth
+  round, and its walk.
+- **"↩ Restore previous" keeps a deleted paragraph when a list's markers
+  change after.** Numbers turned into bullets, or bullets taken one level
+  in, counted each marker as a word lost, and the copy of the paragraph
+  was replaced by the list's old markers. As the desktop does since the
+  same round, where it was found on the phone first.
+- **A series turned back on from another start no longer brings back its
+  old deleted days**, which could hide the new series' first day; days
+  with words of their own still come back. As the desktop does since the
+  same round.
+- **Smaller ones from the same round.** A note's Share sheet opens at
+  once however long the note (its code was built on the screen's thread
+  to grey its card); a letter typed in a long note saves without
+  splitting the whole note into words; underline and strike over
+  thousands of words no longer slow each letter typed; a repeat turned
+  off after a big delete keeps the deleted words when the series had been
+  turned off once before; the backup Update question no longer warns of
+  replacing an earlier version for a note that only gains a file; a "^"
+  under a row too short to have its column shows as text, as the desktop
+  shows it; a checklist row the phone cannot write is said once, and the
+  letters typed in the next row are kept. Found by the final audit's
+  fifth round.
 
 ---
 
