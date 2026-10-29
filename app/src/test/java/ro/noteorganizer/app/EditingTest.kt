@@ -194,7 +194,7 @@ class EditingTest {
     }
 
     @Test
-    fun `an ordinary note of many small tables is drawn whole, to its end, with somewhere to write after it`() {
+    fun `an ordinary note of many small tables, or a long journal, is drawn whole to its end`() {
         // 100 pieces were a note's ceiling: fifty weekly tables under their
         // headings, 2,331 characters, made the fiftieth and everything after
         // it read-only, with nowhere to write at the end; and a training log
@@ -208,6 +208,9 @@ class EditingTest {
         assertTrue(Editing.segments(sessions).none { it.long })
         assertEquals(listOf(Finding.InText(120, 4, 12)),
             Finding.scan("$sessions\nThe deadlift went well.", "deadlift", matchCase = false))
+        // A journal of 10,050 lines, 442,000 characters: its end was read-only.
+        val journal = Editing.segments("Today I walked to the river and back again.\n".repeat(10_050))
+        assertTrue(journal.all { it.field })
         // Two hundred weekly tables -- four years -- still end in a field.
         val years = Editing.segments((1..200).joinToString("\n") { "Week $it\n| Day | Spent |\n|---|---|\n| Mon | $it |" })
         assertTrue(years.none { it.long } && years.last().field)

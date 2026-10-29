@@ -227,9 +227,13 @@ object Editing {
      * all after it read-only, with nowhere to write at the end (the final
      * audit's fifth round). They are a ceiling for hostile notes only -- the
      * 3,000 tables of two cells a share code of a few hundred characters
-     * brings -- set from what the emulator measured them to cost.
+     * brings -- set from what the emulator measured them to cost: at 500,
+     * those tables open in 2.6 s, at 2,000 in 6.2; fifty weekly tables in
+     * 0.65. The lines were 20,000, and a journal of 10,050 lines, 442,000
+     * characters, had its end read-only: one of 40,000 drawn lines opens
+     * in 1.1 s, against 0.8 at 20,000 (measured 2026-10-29).
      */
-    const val MAX_DRAWN_LINES = 20_000
+    const val MAX_DRAWN_LINES = 40_000
     const val MAX_SEGMENTS = 500
 
     /**
