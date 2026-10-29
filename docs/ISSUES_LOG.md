@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty of the seventy-seven are
+**the code**, or in **the design**. Twenty of the seventy-eight are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-29](#a-cap-that-cut-what-it-was-meant-to-keep) | code | The audit's sixth round: a row's 2,000-letter cap cut the row's own end when a letter or a paste went in at its start; a row moved across the line of rows not drawn vanished among them; a row past the limit showed no word of itself, Find stopping on words nobody saw; the template editor drew 1,000 rows at once; Redo left the cursor above a table typed at the end; comments wiped kept no rescue copy | A cap is put on what comes in, never on what is already there; and a window drawn in part follows the row a person moves, as it follows the one a search steps to |
 | [2026-10-29](#a-word-in-the-log-written-by-another-program) | checking | The full walk failed "99,000 characters of words reach the share sheet" with the sheet up: the log held "TransactionTooLargeException", written by Play services about a service of its own; three more checks read every process's log the same way | A check of the log reads the lines of the processes it is about, named by their pid before the act |
 | [2026-10-29](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached) | code | The audit's fifth round: a checklist outside round four's whole-note budget, 18 million letters from a code of 38 KB; Undo's 200 whole copies of a long note; fifty weekly tables reaching the ceiling of 100 pieces, their end read-only and unfound; a cursor left in a field its line had gone out of; a list's markers read as words lost | A limit meant for hostile sizes is set where ordinary notes cannot reach it, and what lies past it stays found and readable; a cursor whose line leaves every field is placed, never left |
 | [2026-10-28](#what-one-note-draws-and-what-is-said-before-it-goes) | code | The audit's fourth round: what a note draws was held piece by piece -- ten tables of 1,000 cells drawn at once, 3,000 tiny tables, 200,000 short lines as one field; a rescue copy replaced unsaid three more ways the desktop had settled; one identity worn by two notes; and warnings given under the share sheet, after the tap, or in letters where Android counts bytes | A limit set for one piece limits nothing when the pieces can be many; a warning the person cannot read before choosing is an error they meet later |
@@ -92,6 +93,103 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A cap that cut what it was meant to keep
+
+**2026-10-29.** The final audit's sixth round attacked round five's fixes
+and came back, on the phone, with two highs, six mediums and four lows,
+and four duplicates of them; one high and one medium, about where a
+turned-off series' days live, wait on the owner's decision. The desktop's
+round found one more that the phone shared. Round five had set its limits
+where ordinary notes cannot reach them and promised that what lies past
+them stays found and readable. The round after found the limits cutting
+the very words they were there to keep, and what lay past them neither
+found nor read.
+
+- **A cap on the result, not on what came in.** A checklist row's field
+  and "A new item…" kept the first 2,000 letters of what an edit left: a
+  letter typed at the start of a row of 2,000 pushed its last letter off,
+  and 800 letters pasted at the start of a row of 1,497 its last 297 --
+  " Serve with rice." -- out of sight in a field of one line, with no Undo
+  for a row and nothing said. The desktop's box keeps the words there and
+  cuts only the paste. And the phone counted UTF-16 units where the
+  desktop counts letters: 1,200 emoji typed kept 1,000, and a desktop row
+  of 1,500 emoji was read-only on the phone. The template editor's box
+  had no cap at all.
+- **A row moved among the rows not drawn.** A list of 1,000 draws its
+  first 200 rows and its last five. Move up on the first of the five, Move
+  down on the 200th, or a drag over the "… 795 more rows" line put the row
+  among those not drawn: it vanished, a row never shown stood in its
+  place, and a screen reader, its focus left at the place, moved that row
+  next.
+- **What lay past the limit, unread.** A row longer than 2,000 letters
+  was a read-only block in a row 44 dp tall: "149,994 characters in 1
+  lines, more than is", and not a word of the row. Round five's own walk
+  had photographed it, and its check had passed on the words the screen's
+  tree held whole. A row past what a list draws to write in showed forty
+  letters, and Find stopped on a word at its 1,501st and painted nothing.
+- **The twin round five did not sweep.** The template editor still drew
+  every row of a template at once, a box and two buttons each, and drew
+  them all again at each letter typed in its name. At 1,000 rows its Add
+  drew row 1,001 and Save dropped it, as it dropped the words waiting in
+  the box, unsaid.
+- **One more copy of a rule.** Undo and Redo placed the cursor by their
+  own copy of the field rule's first half: Redo of a table row typed at
+  the end left it above the grid, and the next row went in over the first.
+  Insert table wrote at the end of a note past what it draws, out of sight.
+- **A search drawing what was drawn.** A match in one of the last five
+  rows -- the newest item, the likeliest search -- drew all 1,000 rows, at
+  each letter typed in the bar.
+- **Comments outside the copy's rule**, from the desktop's round: the
+  rescue copy holds a note's comments, but whether a save keeps one was
+  asked of the title and the body alone, so 780 letters of comments typed
+  over with "ok" went with no copy, on both programs.
+
+**The fix:** a row's field and the boxes for a new row keep the words
+already there whole and cut only what came in, to the room left, never
+through an emoji, and say the desktop's words once -- "Pasted text
+shortened: a checklist item can be up to 2,000 characters", or "A
+checklist item can be up to 2,000 characters" when nothing could come in;
+a row is weighed in letters, as Python weighs it. A move widens what is
+drawn, so every row drawn before is drawn after and the row moved with
+it; a drag lands on the drawn row nearest where it is let go; rows are
+keyed by their words, so the focus goes with the row. A row shown, not
+written in, is a line of its start and "Read all N characters ›", read
+whole in parts a phone wraps, and a search opens it on its word. The
+template editor draws its rows as the note editor does, in a composable
+of their own, refuses an Add at 1,000, and never counts words waiting with
+no room as saved. Undo and Redo place the cursor by the one rule typing
+uses, as do the three other copies the grep found; Insert table writes
+nothing out of sight and says where to tap; a search draws more only for
+a row not drawn. And the comments are weighed as a text of their own, as
+the desktop now weighs them -- added to the body's text, a long comment
+would make a whole body deleted read as a small share. Each with a test
+and a mutant watched failing (AS206 to AS225, all twenty killed), and the
+walk's new `limits_round6` part.
+
+Against the build before the round, `limits_round6` failed fourteen of its
+checks -- all but the three that guard against a loss: the file kept
+whole, nothing saved over a template, a row moved back. The template of
+1,000 rows of 2,000 letters, opened on the emulator in one session: 7.2 s,
+then 4.3, before the round; 3.0, 1.9 and 1.4 after it; a letter typed in
+its name, 0.52 s before, 0.12 after. A search for the last row of 1,000
+held the bar 2.2 s before, under a second after. And walking found two
+more in this round's own work. A row read in parts is taller than the
+screen, and a search's stop in it brought the row's top into sight, the
+word under the screen's edge: the part with the word is brought into
+sight now. And the template editor's refusals were said where no one
+could read them -- the app's messages are drawn in the window under the
+editor, a dialog of its own -- as its refusal of a template past the
+thousand had been since it was written: the editor shows them over itself
+now.
+
+**The lesson:** a cap is put on what comes in, never on what is already
+there -- cut after the edit, it takes the person's own words from wherever
+the edit was not. And a window drawn in part follows the row a person
+moves, as it follows the one a search steps to: what it leaves out is left
+out by the person's choice, never by where a row happened to go.
 
 ---
 
@@ -2645,6 +2743,42 @@ whether that is what the dialog should show.
   s before the round. The rows are one composition; typing in the text
   above no longer draws them, and a row of its own that could skip was
   not worth the change at that cost.
+
+### What the audit's sixth round left
+
+- **Where a turned-off series' days live, two findings waiting on the
+  owner.** A repeat turned off on the phone keeps the days' own text only
+  in the rescue copy, which the desktop's own turn-off would replace; and
+  "↩ Restore previous" gives a series restarted from another date its old
+  deleted days back, through the days the copy carries. Both turn on one
+  decision -- whether those days stay in the note, in the copy, or both --
+  and the turn-off, the carrying of days and the restore are left as they
+  are until it is made.
+- **A word a keyboard commits past the cap is cut as a paste is.** The
+  desktop refuses a key past a checklist row's 2,000 letters and cuts only
+  a paste; a phone's field is told the words it now holds, not whether a
+  paste or a keyboard brought them, so anything that comes in at once --
+  a swiped word, a suggestion -- is cut to the room left and "Pasted text
+  shortened" said. A single letter is refused, as on the desktop.
+- **A moved row has no Undo of its own**, as before: the opposite move
+  puts it back, and stays in sight to do it. A screen reader's focus
+  going with the row is what keying rows by their words gives; it was
+  not heard with TalkBack on, which no walk turns on.
+- **The template editor's rows are still a box and two buttons each**,
+  200 and five of them drawn, the rest on asking: a template of 1,000 rows
+  of 2,000 letters opens in 2.5 to 3.0 s the first time on the emulator,
+  7.2 before. Rows drawn as the note editor draws them, a symbol for a
+  box, would cost less and change how the editor looks; that is the
+  owner's to choose.
+- **A template being written is still lost if Android ends the app behind
+  Home** (the fifth round's, above), the owner's call.
+- **A row read in parts starts each part on a line of its own**, a short
+  line standing every 300 letters or so; the owner is to say whether the
+  reading looks right.
+- **`long_lines` timed the list with a title of 150,000 letters at 1.26
+  to 1.44 s** on the emulator on 2026-10-29, against its line of a second
+  -- on the build before this round as on the build after it: the
+  machine's that day, not the round's, left for the full walk to judge.
 
 ### The phone's, from the audit of 2026-10-19
 

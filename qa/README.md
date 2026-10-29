@@ -19,14 +19,14 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-830 checks across thirty-one suites — `NotebookTest` (133),
-`TablesTest` (77), `RecurrenceTest` (49), `PastingTest` (41), `OrganizingTest` (40),
-`IdentityTest` (39), `DaysTest` (39), `EditingTest` (35), `CalculatorTest` (34),
+843 checks across thirty-one suites — `NotebookTest` (134),
+`TablesTest` (77), `RecurrenceTest` (49), `EditingTest` (41), `PastingTest` (41),
+`OrganizingTest` (40), `IdentityTest` (39), `DaysTest` (39), `CalculatorTest` (34),
 `StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (33),
-`AppStateTest` (32), `SharingTest` (26),
-`SettingsTest` (24), `BackupTest` (23), `FindingTest` (18),
-`ExportingTest` (16), `TemplatesTest` (15), `StartupTest` (14),
-`EditorTypingTest` (12), `OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
+`AppStateTest` (33), `SharingTest` (26),
+`SettingsTest` (24), `BackupTest` (23), `FindingTest` (19),
+`TemplatesTest` (17), `ExportingTest` (16), `StartupTest` (14),
+`EditorTypingTest` (14), `OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
 `EditorTableTest` (7), `RemindersTest` (6),
 `StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
@@ -198,8 +198,8 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 42 parts and
-353 checks: a brand-new notebook, a notebook copied in, the
+notebook the app wrote is read back through `run-as`. 61 parts, and
+353 checks in the last full run that passed whole: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, screens of every size

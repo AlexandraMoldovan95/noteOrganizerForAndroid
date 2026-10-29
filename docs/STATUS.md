@@ -187,10 +187,16 @@ Grouped by what the app does; when each item arrived is in the
     no field is — a table row typed by hand, Enter at the end of what is
     drawn — takes the cursor to the next field, or lets the keyboard go
     and says why. A checklist's rows are written in up to 2,000 letters
-    each, the desktop's limit, and 100,000 in all; past either a row is
-    shown, kept whole; a list draws its first 200 rows and its last five,
-    200 more each time the line between them is tapped. Undo keeps at most
-    16 million characters of steps, always the last.
+    each, the desktop's limit counted as it counts them, and 100,000 in
+    all; a paste or a letter past the limit keeps the row's own words and
+    cuts only what came in, saying so in the desktop's words. Past either
+    limit a row is shown by its start and read whole on asking, kept
+    whole, and Find opens it on its word; a list draws its first 200 rows
+    and its last five, 200 more each time the line between them is
+    tapped, and a row moved across that line stays in sight. The template
+    editor draws a template's rows the same way. Undo keeps at most 16
+    million characters of steps, always the last; Undo and Redo put the
+    cursor where typing would.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text
@@ -260,7 +266,8 @@ Grouped by what the app does; when each item arrived is in the
 23. Note details: category, date (Android's own calendar), colour, pin,
     repeat, and the word count with the desktop's reading time.
 24. **"↩ Restore previous".** When a note carries the desktop's `_prev`
-    rescue copy — left by a big deletion or by an update that arrived
+    rescue copy — left by a big deletion, of its words or of its comments
+    weighed on their own, or by an update that arrived
     from elsewhere — the note says so and brings it back, its text and
     everything else the update changed.
 25. **Find in note**: the count, back and next, case, prose and table
@@ -375,7 +382,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 830 JVM unit tests in 31 suites, mutation-tested; six ports held to
+39. 843 JVM unit tests in 31 suites, mutation-tested; six ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -639,7 +646,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 830 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 843 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -647,7 +654,16 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-60 parts since the final audit's fifth round added `limits_round5` (20
+61 parts since the final audit's sixth round added `limits_round6` (20
+checks: a letter and a paste at the start of a checklist row at the
+desktop's 2,000 letters, the row's own words kept and the cap said; rows
+moved and dragged across the line of rows not drawn, still in sight; a
+search for one of the last rows drawing no more; a row longer than one is
+written in, and one shown short, read whole and found; a template of
+1,000 rows of 2,000 letters opened and timed, and one full at 1,000
+refusing an Add and asking before its waiting words go; Insert table
+refused out of sight; Redo of a table row typed at the end). The fifth
+round had added `limits_round5` (20
 checks: fifty weekly tables and sixty sessions drawn to their ends and
 found there; a word in the read-only rest of a note of 60,000 lines
 found, its line shown, read on; Enter past what is drawn letting the
@@ -1031,7 +1047,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-830 JVM unit tests in 31 suites pin the rules ported from Python, and
+843 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
