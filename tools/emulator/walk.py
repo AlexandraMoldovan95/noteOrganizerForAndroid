@@ -467,6 +467,7 @@ def main():
     limits_round6(folder)
     days_in_the_note(folder)
     template_draft(folder)
+    limits_round7(folder)
 
     print()
     if failures:
@@ -4325,6 +4326,157 @@ def template_draft(folder):
     check("Discard leaves no draft, and the template as it was saved",
           draft() is None and trip.get("title") == "Trip list" and not screen_says("Trip")
           and screen_says("You were writing a template"), json.dumps(trip)[:200])
+    back_to("Search notes")
+
+
+def limits_round7(folder):
+    """The final audit's seventh round, walked. A checklist row of a million
+    letters with no space is read in parts at once, its "Read all" and a
+    search's stop in it no frame of seconds; a title, and a template's name,
+    keep their own words at 200 letters, the key refused and said; a full
+    list's box says it is full as words begin there; a second long paste
+    into "A new item…" after Add is said again; a template being written
+    taken off the screen by the app itself -- the reminder's notification
+    tapped while the app is in front -- is kept as a draft and offered back;
+    and a draft taken back by hand leaves none behind."""
+    print("\n-- round seven's limits: a long unbroken row, the boxes' caps, the template the app closed --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r7-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def draft():
+        data = adb("exec-out", "run-as", PACKAGE, "cat", "no_backup/template_draft.json", binary=True)
+        try:
+            return json.loads(data.decode("utf-8"))
+        except ValueError:
+            return None
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    def unfold(first_row):
+        if screen_says(first_row) and find("CHECKLIST"):
+            tap("CHECKLIST", wait=1.5)
+
+    title_200 = "t" * 199 + "!"
+    notes = [note(1, "Unbroken row", body="Row", checklist=[{"text": "a" * 1_000_000, "done": False},
+                                                           {"text": "milk", "done": False}]),
+             note(2, title_200),
+             note(3, "Full list", body="Shop", checklist=[{"text": "item %d" % k, "done": False} for k in range(1_000)]),
+             note(4, "Paste source", body="p" * 3_000),
+             note(5, "Box note", body="Shop", checklist=[{"text": "bread", "done": False}])]
+    if not seed_inside(notes, {"welcome_offered": True}, "Unbroken row"):
+        return
+
+    # A row of a million letters and no space: each part looked back to the
+    # row's start for one, the square of the row read on the screen's thread.
+    open_note("Unbroken row", limit=30.0)
+    unfold("milk")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tapped = tap("Read all 1,000,000 characters", wait=2.5)
+    longest = max(frames_since_reset() or [99.0])
+    check("Read all on a row of a million letters with no space reads it in parts at once, no frame of seconds",
+          tapped and longest < 2.0 and screen_says("Show less") == [], "longest frame %.2f s" % longest)
+    shot(folder, "121-unbroken-row-read", "Unbroken row")
+    back_to("Search notes")
+
+    # A title at 200 letters: a letter at its start refused, said, the title whole.
+    open_note(title_200)
+    tap(title_200[:40], wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said_title = not says_soon("A note title can be up to 200 characters", within=6.0)
+    back_to("Search notes")
+    kept = (note_by_uid("r7-2") or {}).get("title")
+    check("a letter typed at the start of a title of 200 letters is refused, said, the title whole",
+          said_title and kept == title_200, "said %s, %r" % (said_title, (kept or "")[-10:]))
+
+    # A full list's box says it is full as the words begin.
+    open_note("Full list", limit=30.0)
+    unfold("item 0")
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    full_said = not says_soon("A checklist holds at most 1000 items.", within=6.0)
+    check("words typed into a full list's box are told it is full as they begin", full_said)
+    back_to("Search notes")
+
+    # Two long pastes into "A new item…", Add between them: each said.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+    open_note("Box note")
+    unfold("bread")
+    shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
+    tap("A new item", wait=0.8)
+    keys("CTRL_LEFT", "V")
+    first = not says_soon(shortened, within=6.0)
+    tap("Add", exact=True, wait=3.0)
+    tap("A new item", wait=0.8)
+    keys("CTRL_LEFT", "V")
+    second = not says_soon(shortened, within=6.0)
+    check("a second long paste into A new item after Add is said again, as the first was",
+          first and second, "first %s, second %s" % (first, second))
+    back_to("Search notes")
+
+    # A template's name at 200 letters, then the reminder's notification
+    # tapped with the editor open: the app opens the calendar, and the
+    # template is kept as a draft, offered back.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("n" * 200)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said_name = not says_soon("A template name can be up to 200 characters", within=6.0)
+    check("a letter at the start of a template's name of 200 letters is refused, said over the editor", said_name)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity", "-a", PACKAGE + ".TODAY")
+    time.sleep(3.0)
+    kept = draft() or {}
+    check("the reminder's notification tapped while a template is written keeps it as a draft",
+          (kept.get("fields") or {}).get("name") == "n" * 200 and find("Template name", exact=True) is None,
+          json.dumps(kept)[:160])
+    shot(folder, "122-template-closed-by-the-app", "Calendar")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    asked = not says_soon("You were writing a template. Continue it?", within=6.0)
+    check("... and Settings > Templates offers it back", asked)
+    tap("Discard", exact=True, wait=1.5)
+
+    # A template edited, the app sent away (a draft kept), the change taken
+    # back by hand, the app sent away again: no draft stays to be offered.
+    put_inside("templates.json", [{"name": "Trip", "title": "Trip list", "body": "", "comments": "",
+                                   "category": "General", "checklist": []}])
+    adb("shell", "am", "kill", PACKAGE)
+    start_app()
+    says_soon("Search notes", within=10.0)
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("Trip", exact=True, wait=1.5)
+    tap("Trip list", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text("x")
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(3.0)
+    written = (draft() or {}).get("fields", {}).get("title")
+    start_app()
+    time.sleep(1.5)
+    adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    time.sleep(0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(3.0)
+    check("a draft whose change was taken back by hand is gone at the next trip to the background",
+          written == "Trip listx" and draft() is None, "written %r, now %s" % (written, draft()))
+    start_app()
+    time.sleep(1.5)
     back_to("Search notes")
 
 
