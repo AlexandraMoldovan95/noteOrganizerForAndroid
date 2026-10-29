@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty of the seventy-eight are
+**the code**, or in **the design**. Twenty of the seventy-nine are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-29](#a-days-text-in-a-copy-the-other-program-erased) | design | A turned-off series' days lived in the note on the desktop and in the series' copy alone on the phone: the desktop's next copy of words erased the phone's, and the phone's way of carrying days into every copy put a restarted series' old deleted day back; and a template being written was lost when Android ended the app behind Home | A thing kept in two places is kept by neither: where a value lives is part of the format, proved by running both programs on the same note |
 | [2026-10-29](#a-cap-that-cut-what-it-was-meant-to-keep) | code | The audit's sixth round: a row's 2,000-letter cap cut the row's own end when a letter or a paste went in at its start; a row moved across the line of rows not drawn vanished among them; a row past the limit showed no word of itself, Find stopping on words nobody saw; the template editor drew 1,000 rows at once; Redo left the cursor above a table typed at the end; comments wiped kept no rescue copy | A cap is put on what comes in, never on what is already there; and a window drawn in part follows the row a person moves, as it follows the one a search steps to |
 | [2026-10-29](#a-word-in-the-log-written-by-another-program) | checking | The full walk failed "99,000 characters of words reach the share sheet" with the sheet up: the log held "TransactionTooLargeException", written by Play services about a service of its own; three more checks read every process's log the same way | A check of the log reads the lines of the processes it is about, named by their pid before the act |
 | [2026-10-29](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached) | code | The audit's fifth round: a checklist outside round four's whole-note budget, 18 million letters from a code of 38 KB; Undo's 200 whole copies of a long note; fifty weekly tables reaching the ceiling of 100 pieces, their end read-only and unfound; a cursor left in a field its line had gone out of; a list's markers read as words lost | A limit meant for hostile sizes is set where ordinary notes cannot reach it, and what lies past it stays found and readable; a cursor whose line leaves every field is placed, never left |
@@ -93,6 +94,73 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A day's text in a copy the other program erased
+
+**2026-10-29.** The audit's sixth round left two questions for the owner,
+and she answered both. The first was where a turned-off series' days
+live. The phone, up to 0.12.0, moved them out of the note into the
+series' rescue copy when its Repeat sheet turned the repeat off; the
+desktop had kept them in the note since its round four. A note made on the
+phone and opened on the desktop lost them at the desktop's next copy: a big
+delete there made a copy of words alone, over the one slot, and "Leg day
+- knee hurt" was in no file
+(a6r3-seams-and-parity-days-in-copy-lost-on-desktop). The phone's own
+answer to that slot, carryDays, carried a copy's days into every later
+copy -- and so carried a restarted series' old deleted day back over its
+new first day at the next "Restore previous"
+(a6r1-fixes-data-restart-days-come-back-on-restore). Two places for one
+thing, and each program's way of keeping them lost what the other kept.
+
+Her answer: one place, the note, as the desktop has it. The turn-off keeps
+every day in the note when one holds text of its own, inert while the note
+does not repeat, the turn-off's copy the whole series as before; days that
+hold none go, as the desktop's save clears them. No copy carries days any
+more: a copy of words is words alone. And a notebook 0.12.0 wrote -- hers
+-- takes its series' days back into the note as it is read, once, from
+the series' own copy, as the desktop's new `_days_back_from_copy` does
+(5e228c0 there), never from an update's copy of a note that did not
+repeat. Every reader of a note's days was read again; all were already
+gated since the phone's port of the desktop's b26394c, which made kept
+days steer nothing while a note does not repeat.
+
+The second was a template being written when Android ended the app
+behind Home: the template editor saves only on Save, and everything typed
+was gone. Her answer: a draft, kept aside as the app goes to the
+background with changes nobody saved -- every field, the words waiting in
+"A new item…", the template it edits -- in Android's no-backup folder,
+and offered back: "You were writing a template. Continue it?" [Continue]
+[Discard].
+
+**How the agreement was proved:** not reasoned from the two codes, but run.
+`tools/make_days_fixture.py` runs the desktop's own core -- its home
+folders pointed at empty folders, checked empty after -- and copies,
+fingerprinted, the few lines of its window class that make the editor's
+save and "Restore previous" of them; 21 notes walked through turn-offs and
+turn-ons from the same start and from another, big deletes, restores, a
+share code's update and a backup's, and 0.12.0's notes read, each step's
+stored note and the note its import makes. `DaysTest` walks the phone's
+own functions through the same steps, and every field agrees. The first
+run found one more difference the reading had not: turned back on as it
+was, the desktop drops the spent copy, which the phone's Repeat sheet kept
+(its banner offering nothing). And walking found that the Repeat sheet's
+word that a turn-off keeps its days was said under the note's details,
+still open, where no one could read it; the details sheet now shows the
+app's messages over itself, as the template editor does since this
+round's first part. On the emulator: the notebook 0.12.0 left has its
+day's text in the note at the next write; the Repeat sheet's turn-off
+keeps it there, and the big delete after it makes a copy of words alone
+with the day still in the note; a template being written survives
+`am kill` behind Home, Continue brings back every field and the waiting
+words, and Discard leaves no draft. Mutants AS226 to AS236 killed.
+
+**The lesson:** a thing kept in two places is kept by neither -- each
+program trusted the place it wrote, and the other's next copy erased it;
+when two programs share a file, the place a value lives is part of the
+format, and is proved by running both on the same note, not by reading
+either.
 
 ---
 
@@ -2727,7 +2795,10 @@ whether that is what the dialog should show.
   template on Home would make ✕'s "Discard" a lie about what is already
   saved, and a draft kept aside is a file of its own; which of the two,
   if either, is the owner's call. The words in its "A new item…" box
-  are now saved by Save and asked about by ✕.
+  are now saved by Save and asked about by ✕. **Closed 2026-10-29**
+  ([the story](#a-days-text-in-a-copy-the-other-program-erased)): a draft,
+  kept aside in Android's no-backup folder and offered back, the owner's
+  choice.
 - **A table row of three cells or more typed by hand becomes a grid at
   its second cell's closing pipe**, two cells being a row, and the cursor
   goes under the grid with the rest of the row. Two-cell rows come out in
@@ -2753,7 +2824,11 @@ whether that is what the dialog should show.
   deleted days back, through the days the copy carries. Both turn on one
   decision -- whether those days stay in the note, in the copy, or both --
   and the turn-off, the carrying of days and the restore are left as they
-  are until it is made.
+  are until it is made. **Closed 2026-10-29**
+  ([the story](#a-days-text-in-a-copy-the-other-program-erased)): the note,
+  the owner's choice, as the desktop keeps them; 0.12.0's come back into
+  it as it is read, and the two programs store the same note at every step
+  of 21 cases run on both.
 - **A word a keyboard commits past the cap is cut as a paste is.** The
   desktop refuses a key past a checklist row's 2,000 letters and cuts only
   a paste; a phone's field is told the words it now holds, not whether a
@@ -2771,7 +2846,14 @@ whether that is what the dialog should show.
   box, would cost less and change how the editor looks; that is the
   owner's to choose.
 - **A template being written is still lost if Android ends the app behind
-  Home** (the fifth round's, above), the owner's call.
+  Home** (the fifth round's, above), the owner's call. **Closed the same
+  day**: kept as a draft, and offered back.
+- **A share code's turn-off keeps even days that hold no text of their
+  own in the note**, as the desktop's apply_shared_update does, until the
+  note's next edit clears them as the desktop's save does. A Repeat sheet
+  turning such a note back on with its own start, an edit typed just
+  before and not yet saved, clears them at that edit's save first, a
+  moment the desktop folds into one save; the copy keeps them either way.
 - **A row read in parts starts each part on a line of its own**, a short
   line standing every 300 letters or so; the owner is to say whether the
   reading looks right.

@@ -19,13 +19,13 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-843 checks across thirty-one suites — `NotebookTest` (134),
-`TablesTest` (77), `RecurrenceTest` (49), `EditingTest` (41), `PastingTest` (41),
-`OrganizingTest` (40), `IdentityTest` (39), `DaysTest` (39), `CalculatorTest` (34),
+851 checks across thirty-one suites — `NotebookTest` (134),
+`TablesTest` (77), `RecurrenceTest` (49), `DaysTest` (45), `EditingTest` (41),
+`PastingTest` (41), `OrganizingTest` (40), `IdentityTest` (39), `CalculatorTest` (34),
 `StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (33),
 `AppStateTest` (33), `SharingTest` (26),
 `SettingsTest` (24), `BackupTest` (23), `FindingTest` (19),
-`TemplatesTest` (17), `ExportingTest` (16), `StartupTest` (14),
+`TemplatesTest` (19), `ExportingTest` (16), `StartupTest` (14),
 `EditorTypingTest` (14), `OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
 `EditorTableTest` (7), `RemindersTest` (6),
 `StatsTest` (4), `LinksTest` (3),
@@ -46,7 +46,7 @@ first, and never left in the system's temp folder (30,640 were, by
 
 ### Fixtures the desktop wrote
 
-Six suites are held to answers the desktop's own Python gave, over
+Seven suites are held to answers the desktop's own Python gave, over
 cases generated for them. Each fixture in `app/src/test/resources/` is
 written by a tool in `tools/` that imports the desktop's code, runs it,
 and never writes to it:
@@ -57,6 +57,7 @@ and never writes to it:
 | `calculator_cases.json` | `make_calculator_fixture.py` | 661 sums evaluated, 378 values displayed |
 | `export_cases.json` | `make_export_fixture.py` | 400 notes exported as `.html` and `.txt`, 794 files |
 | `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
+| `days_cases.json` | `make_days_fixture.py` | 21 notes of a series walked through turn-offs, turn-ons, deletes, restores and updates, each step's stored note and its import |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
 | `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
 
@@ -198,7 +199,7 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 61 parts, and
+notebook the app wrote is read back through `run-as`. 63 parts, and
 353 checks in the last full run that passed whole: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
