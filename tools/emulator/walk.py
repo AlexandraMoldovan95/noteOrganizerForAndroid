@@ -434,6 +434,7 @@ def main():
     answers_after_restart(folder)
     limits_round3(folder)
     limits_round4(folder)
+    limits_round5(folder)
 
     print()
     if failures:
@@ -3446,7 +3447,10 @@ def limits_round4(folder):
           "%s s, %s" % (took, screen_says("more than is shown here at once", "more lines")))
     shot(folder, "101-many-lines-read-only", "more than is shown here at once")
     took = opened_in("Tiny tables")
-    check("3,000 tables of two cells open within two seconds", took is not None and took < 2.0, "%s s" % took)
+    # Since the fifth round a note draws 500 pieces, not 100 -- fifty weekly
+    # tables reached 100 -- and these, the hostile case, measured 1.7 to 2.7 s
+    # there (0.3 s at 100; held still before round four, past 90 s).
+    check("3,000 tables of two cells open within three seconds", took is not None and took < 3.0, "%s s" % took)
     took = opened_in("Alternating")
     check("'x' and '' five thousand times after a spent limit open within a second", took is not None and took < 1.0,
           "%s s" % took)
@@ -3583,6 +3587,227 @@ def limits_round4(folder):
           asked is not None and not screen_says("cut at the page's edge"))
     shot(folder, "105-pdf-wide-asks", "cut at the page's edge")
     tap("Cancel", exact=True, wait=1.5)
+    back_to("Search notes")
+
+
+def limits_round5(folder):
+    """The final audit's fifth round, walked. What an ordinary note keeps:
+    fifty weekly tables and sixty sessions with tables, each a grid to the
+    end, Find reaching their ends; a checklist of 1,000 short rows opened and
+    typed into, and one of 120 rows of 150,000 letters opened within seconds,
+    its rows shown short. A note past what the phone draws: a word in its
+    rest found and its line shown, read on; Enter at the end of what is drawn
+    lets the keyboard go and says why, nothing glued on the line above; the
+    calculator refuses to write out of sight. A table typed row by row by
+    hand comes out in order; a two-million-letter note typed in forty times
+    keeps its memory; and the template editor saves the words left in its A
+    new item box. (The Share sheet of a 5 MB note was timed too, and held
+    1.3 to 1.6 s before the round, 0.8 to 1.4 after: no check, since it
+    could not tell the two builds apart.)"""
+    print("\n-- round five's limits: what an ordinary note keeps, and where the cursor goes --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r5-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def opened_in(title, limit=40.0):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not open_note(title, limit=limit):
+            return None
+        time.sleep(1.5)
+        longest = max(frames_since_reset() or [99.0])
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    def find_in_note(word):
+        # The bar opens with the last search: taken out, the new one typed.
+        if not find("Close find"):
+            tap("⋮", exact=True)
+            tap("🔍 Find in note", wait=1.2)
+        adb("shell", "input", "keyevent", *["KEYCODE_DEL"] * 24)
+        type_text(word)
+        time.sleep(1.2)
+
+    def close_find():
+        for _ in range(3):
+            if not find("Close find"):
+                break
+            back(wait=1.2)
+
+    def counter():
+        return next((t for t, d, _ in nodes() if re.fullmatch(r"\d+/\d+\+?", t or "")), "")
+
+    weeks = "\n".join("Week %d\n| Day | Spent |\n|---|---|\n| Mon | %d |" % (w, w) for w in range(1, 51))
+    sessions = "\n".join("Session %d%s\n| Set | Reps | Kg |\n|---|---|---|\n| 1 | 8 | %d |"
+                         % (s, ": deadlift" if s == 57 else "", 40 + s) for s in range(1, 61))
+    # Every line drawn as one line, so the fields draw exactly what a body
+    # may (Editing.MAX_DRAWN_LINES, 40,000): "Last", a field of its own under
+    # a table, is the last of them, and the 20,000 lines after it the rest.
+    past = "\n".join(["line %d" % k for k in range(39_999)] + ["| a | b |", "Last"]
+                     + ["line %d" % k + (" needle" if k == 50_000 else "") for k in range(40_000, 60_000)])
+    short_rows = [{"text": "item %d" % k, "done": False} for k in range(1, 1001)]
+    wide_rows = [{"text": ("word " * 30_000)[:149_994], "done": False} for _ in range(120)]
+    notes = [note(1, "Fifty weeks", body=weeks), note(2, "Sixty sessions", body=sessions),
+             note(3, "Past the lines", body=past), note(4, "Thousand rows", body="Shop", checklist=short_rows)]
+    if not seed_inside(notes, {"welcome_offered": True}, "Fifty weeks"):
+        return
+
+    # Fifty weeks, 100 pieces: the 50th table was the read-only rest.
+    took = opened_in("Fifty weeks")
+    find_in_note("Spent")
+    check("fifty weekly tables: Find counts the header of every one", counter() == "1/50", counter())
+    find_in_note("Week 50")
+    # The keyboard down: the 50th grid lies under it, below its heading.
+    keyboard_down()
+    rest_said = not screen_says("more than is shown here at once")
+    check("... and the last week is a heading, its table a grid under it, nothing read-only",
+          find("Week 50") is not None and find("50", exact=True) is not None and not rest_said
+          and took is not None and took < 3.0, "%s s, %s, rest said %s" % (took, counter(), rest_said))
+    shot(folder, "106-fifty-weeks-end", "Week 50")
+    close_find()
+    back_to("Search notes")
+
+    opened_in("Sixty sessions")
+    find_in_note("deadlift")
+    check("sixty sessions with tables: a word in the 57th is found, not 0/0", counter() == "1/1", counter())
+    shot(folder, "107-sixty-sessions-found", "deadlift")
+    close_find()
+    back_to("Search notes")
+
+    # Past what the phone draws: the rest found, read on, and its end.
+    opened_in("Past the lines")
+    find_in_note("needle")
+    check("a word in a note's read-only rest is found, its line shown",
+          counter() == "1/1" and find("line 50000 needle") is not None
+          and not screen_says("Lines 10,000 to 10,002 of 20,000"),
+          "%s, %s" % (counter(), screen_says("Lines 10,000 to 10,002 of 20,000")))
+    shot(folder, "108-rest-found", "line 50000 needle")
+    tap("Read on ›", exact=True, wait=1.5)
+    # The forty lines push the footer under the keyboard: the first of them is read instead.
+    check("... and Read on shows the next forty of its lines",
+          find("line 50002", exact=True) is not None and find("line 50000 needle") is None,
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    find_in_note("Last")
+    close_find()
+    tap("Last", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.5)
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    said = not says_soon("The end of this note is more than the phone shows at once", within=6.0)
+    time.sleep(1.0)
+    type_text("glued")
+    check("Enter at the end of what is drawn lets the keyboard go and says why", said and not keyboard_shown(),
+          "said %s, keyboard %s" % (said, keyboard_shown()))
+    shot(folder, "109-end-past-drawn", "Last")
+    back_to("Search notes")
+    body = (note_by_uid("r5-3") or {}).get("body", "")
+    lines = body.split("\n")
+    check("... the line typed is kept, and nothing is glued onto the line above",
+          len(lines) == 60_002 and lines[40_000] == "Last" and lines[40_001] == "" and "glued" not in body,
+          repr(lines[39_999:40_003]))
+    # Opened again, the cursor never in it: the calculator does not write out of sight.
+    open_note("Past the lines", limit=40.0)
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+    for key in ("1", "+", "1", "="):
+        tap(key, exact=True, wait=0.3)
+    tap("⬇ Insert into note", wait=0.3)
+    said = not says_soon("Tap in its text where the answer should go", within=6.0)
+    back_to("Search notes")
+    check("the calculator writes nothing where no field shows it, and says where to tap",
+          said and (note_by_uid("r5-3") or {}).get("body", "") == body, str(said))
+
+    # The checklists: 1,000 short rows, typed into; 120 rows of 150,000 letters.
+    took = opened_in("Thousand rows")
+    if screen_says("item 1") and find("CHECKLIST"):
+        tap("CHECKLIST", wait=1.5)
+    check("a checklist of 1,000 short rows opens within three seconds", took is not None and took < 3.0, "%s s" % took)
+    tap("item 1", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    type_text("0")
+    time.sleep(0.6)
+    typed = max(frames_since_reset() or [99.0])
+    check("... and a letter typed into a row is drawn within half a second", typed < 0.5, "%.2f s" % typed)
+    back_to("Search notes")
+    check("... and saved", ((note_by_uid("r5-4") or {}).get("checklist") or [{}])[0].get("text") == "item 10")
+    # In a notebook of its own: 18 MB, and the app reads one file at a time.
+    if not seed_inside([note(5, "Wide rows", body="Rows", checklist=wide_rows)], {"welcome_offered": True}, "Wide rows"):
+        return
+    took = opened_in("Wide rows", limit=60.0)
+    # Measured 2026-10-29: 7.07 s before the round, 1.74 after; the same text in a body, 1.63.
+    check("a checklist of 120 rows of 150,000 letters opens within two and a half seconds, each row shown short",
+          took is not None and took < 2.5 and not screen_says("more than is shown here at once"), "%s s" % took)
+    shot(folder, "110-wide-rows-short", "Rows")
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file keeps every row whole",
+          len(kept) == 1 and [r.get("text") for r in kept[0].get("checklist", [])] == [r["text"] for r in wide_rows])
+
+    # A table typed by hand, row by row: in order, under its grid.
+    back_to("Search notes")
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Typed table")
+    tap("Write your note")
+    type_text("Shopping")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    # Key by key, at a fast typist's pace: sent as one burst a millisecond
+    # apart, just after the cursor moved, the keyboard's own handling
+    # mangled the second row -- input no person makes (2026-10-29: right at
+    # a key every 80 ms, mangled as a burst).
+    for first, second in (("a", "b"), ("c", "d")):
+        for key in ("\\|", "%s", first, "%s", "\\|", "%s", second, "%s", "\\|"):
+            adb("shell", "input", "text", key)
+            time.sleep(0.1)
+        time.sleep(1.5)
+    shot(folder, "111-typed-table", "Typed table")
+    back_to("Search notes")
+    typed_note = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Typed table"), {})
+    # Lower-cased: the keyboard makes the first letter of a line a capital.
+    check("a table typed row by row by hand keeps its rows in order, under the line before it",
+          (typed_note.get("body") or "").lower() == "shopping\n| a | b |\n| c | d |", repr(typed_note.get("body")))
+
+    # A two-million-letter note typed in forty times: the Undo's steps are held to what a phone can keep.
+    # One letter past ASCII, so the phone keeps every copy at two bytes a letter.
+    two = note(7, "Two million", body="Café " + "x" * 1_999_000 + "\nend")
+    if not seed_inside([two], {"welcome_offered": True}, "Two million"):
+        return
+    open_note("Two million", limit=60.0)
+    tap("end", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("logcat", "-c")
+    heaps = []
+    for k in range(1, 41):
+        type_text("w%d" % k)
+        time.sleep(1.2)
+        if k % 10 == 0:
+            m = re.search(r"Java Heap:\s+(\d+)", adb("shell", "dumpsys", "meminfo", PACKAGE))
+            heaps.append(int(m.group(1)) // 1024 if m else -1)
+    alive = adb("shell", "pidof", PACKAGE).strip()
+    print("     the Java heap after 10, 20, 30, 40 bursts: %s MB" % heaps)
+    check("a two-million-letter note typed in forty bursts keeps running, its heap no longer growing",
+          bool(alive) and len(heaps) == 4 and heaps[-1] - heaps[1] < 40 and "OutOfMemoryError" not in adb("logcat", "-d"),
+          "%s, %s" % (alive, heaps))
+    back_to("Search notes")
+
+    # The template editor: the words left in A new item are saved with it.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("Trip")
+    keyboard_down()
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    tap("Save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    check("a template saved with words in its A new item box keeps them as its last row",
+          [[c.get("text") for c in t.get("checklist", [])] for t in saved if t.get("name") == "Trip"] == [["Passport"]],
+          repr(saved)[:200])
     back_to("Search notes")
 
 
