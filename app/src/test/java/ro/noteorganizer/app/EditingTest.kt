@@ -677,7 +677,7 @@ class EditingTest {
     @Test
     fun `a row's cap is said once while the letters meet it, and again after an edit that fitted`() {
         val said = ArrayList<String>()
-        val cap = Editing.RowCap { said.add(it) }
+        val cap = Editing.BoxCap({ said.add(it) })
         val full = "f".repeat(2_000)
         cap.fit(full, full + "a")
         cap.fit(full, full + "b")
@@ -685,6 +685,57 @@ class EditingTest {
         cap.fit(full, full.dropLast(1))
         cap.fit(full, "c$full")
         assertEquals(2, said.size)
+    }
+
+    @Test
+    fun `a second cut in the same editor is said, after Add emptied the box or in another row`() {
+        // Said once an editor: the "said" was cleared only by an edit that
+        // fitted, and Add empties the box without one, so a second long
+        // paste after it, or into another row, was cut without a word.
+        val said = ArrayList<String>()
+        val cap = Editing.BoxCap({ said.add(it) })
+        val first = cap.fit("", "p".repeat(3_000), box = Editing.NEW_ROW_BOX)
+        assertEquals(1, said.size)
+        // The keys after it, at the cap: no bar for each.
+        cap.fit(first.text, first.text + "q", box = Editing.NEW_ROW_BOX)
+        assertEquals(1, said.size)
+        // Added, the box empty: the next long paste is a cut of its own.
+        cap.fit("", "r".repeat(2_500), box = Editing.NEW_ROW_BOX)
+        assertEquals(2, said.size)
+        // Another row, at the same moment.
+        val rowA = "a".repeat(1_990)
+        cap.fit(rowA, rowA + "b".repeat(50), box = 0)
+        assertEquals(3, said.size)
+        val rowB = "c".repeat(1_500)
+        cap.fit(rowB, rowB + "d".repeat(900), box = 1)
+        assertEquals(4, said.size)
+        assertTrue(said.all { it == "Pasted text shortened: a checklist item can be up to 2,000 characters" })
+    }
+
+    @Test
+    fun `a title and a template's name keep their own words at 200 letters, said in the desktop's words`() {
+        // take(200) of the whole new value: a letter at the start of a title of
+        // 200 pushed its last letter off; a title of 150 emoji, which the
+        // desktop holds, kept 100 at the first letter typed; one typed after
+        // 199 letters was cut in two, half of it saved as "?".
+        val title = "t".repeat(199) + "!"
+        val key = Editing.fitRow(title, "X$title", Editing.TITLE_CHARS, "A note title", "Pasted title shortened to 200 characters")
+        assertEquals(title, key.text)
+        assertEquals("A note title can be up to 200 characters", key.said)
+        val paste = Editing.fitRow("t".repeat(150), "p".repeat(100) + "t".repeat(150), Editing.TITLE_CHARS, "A note title",
+                                   "Pasted title shortened to 200 characters")
+        assertEquals("p".repeat(50) + "t".repeat(150), paste.text)
+        assertEquals("Pasted title shortened to 200 characters", paste.said)
+        val apples = "🍎".repeat(150)
+        assertEquals(Editing.Fit("$apples!", null, null), Editing.fitRow(apples, "$apples!", Editing.TITLE_CHARS, "A note title"))
+        val near = "a".repeat(199)
+        assertEquals("the 200th letter an emoji, whole", "$near🍎", Editing.fitRow(near, "$near🍎", Editing.TITLE_CHARS).text)
+        val name = Editing.fitRow("n".repeat(200), "n".repeat(200) + "x", Editing.TITLE_CHARS, "A template name")
+        assertEquals("A template name can be up to 200 characters", name.said)
+        assertEquals("Pasted text shortened: a template name can be up to 200 characters",
+                     Editing.fitRow("n", "n" + "x".repeat(300), Editing.TITLE_CHARS, "A template name").said)
+        assertEquals("never half an emoji", "🍎🍎", Editing.firstLetters("🍎🍎🍎", 2))
+        assertEquals("short", Editing.firstLetters("short", 36))
     }
 
     @Test
@@ -745,5 +796,29 @@ class EditingTest {
         assertTrue("never through an emoji", parts.all { (_, b) -> b == text.length || !Character.isLowSurrogate(text[b]) })
         assertTrue("words whole", parts.drop(1).take(10).all { (a, b) -> text.substring(a, b).endsWith(" ") })
         assertEquals("one line, one part", listOf(0 to 4), Editing.rowParts("milk"))
+    }
+
+    @Test
+    fun `a row with no space is cut into parts reading each letter a few times, not the row before each part`() {
+        // Each part looked back to the row's start for a space: the square of
+        // the row over 600 letters read -- 66,666,333 for these 200,000, and
+        // tens of seconds for the five million a share code of 7 KB brings.
+        class Counted(val text: String) : CharSequence {
+            var reads = 0L
+            override val length get() = text.length
+            override fun get(index: Int): Char { reads++; return text[index] }
+            override fun subSequence(startIndex: Int, endIndex: Int) = text.subSequence(startIndex, endIndex)
+            override fun toString() = text
+        }
+        for (row in listOf("a".repeat(200_000), " " + "中".repeat(200_000), "😀".repeat(100_000))) {
+            val counted = Counted(row)
+            val parts = Editing.rowParts(counted)
+            assertTrue("read ${counted.reads} letters for ${row.length}", counted.reads <= 2L * 200_000)
+            assertEquals("the same parts as the row's own", Editing.rowParts(row), parts)
+            assertEquals(row, parts.joinToString("") { (a, b) -> row.substring(a, b) })
+        }
+        // A space within the slack is still where a part ends.
+        val words = "x".repeat(250) + " " + "y".repeat(400)
+        assertEquals(251, Editing.rowParts(words).first().second)
     }
 }

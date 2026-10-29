@@ -1,5 +1,7 @@
 package ro.noteorganizer.app
 
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
@@ -605,5 +607,48 @@ class AppStateTest {
             assertEquals(key, before.opt(key).toString(), after.opt(key).toString())
         }
         assertTrue("its tick kept", after.getJSONArray("checklist").getJSONObject(1).getBoolean("done"))
+    }
+
+    @Test
+    fun `words typed into a full list's box are told it is full as they begin, not lost unsaid behind Home`() {
+        // At 1,000 rows the box took words, and only Add or Back said the
+        // list was full: Home ran the save, which failed with no one to tell,
+        // and Android ending the app there took the words unsaid.
+        val (s, editor) = checklist(*Array(Notebook.MAX_CHECKLIST_ITEMS) { "row $it" })
+        editor.typeAdding("P")
+        assertEquals(Notebook.CHECKLIST_FULL, s.said()!!.message)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        editor.typeAdding("Pa")
+        assertNull("said once as they begin, not at each letter", s.said())
+        editor.typeAdding("")
+        editor.typeAdding("x")
+        assertEquals(Notebook.CHECKLIST_FULL, s.said()!!.message)
+        // With room, nothing is said.
+        val (room, roomy) = checklist("flour")
+        roomy.typeAdding("salt")
+        assertNull(room.said())
+    }
+
+    @Test
+    fun `the title keeps its own words at 200 letters, its cursor after what came in, said in the desktop's words`() {
+        val (s, editor) = checklist("flour")
+        val title = "a".repeat(150) + " end"
+        editor.title = title
+        // A paste at the start of a long title: only what came in is cut.
+        val shown = TextFieldValue(title, TextRange(0))
+        val pasted = "p".repeat(100)
+        val kept = editor.typeTitle(shown, TextFieldValue(pasted + title, TextRange(100)))
+        assertEquals("p".repeat(46) + title, editor.title)
+        assertEquals(TextRange(46), kept.selection)
+        assertEquals("Pasted title shortened to 200 characters", s.said()!!.message)
+        // A break pasted in is a space; a letter at the cap is refused, the title whole.
+        assertEquals("one line", "x y", EditorModel(s, s.note(1)).let { e ->
+            e.title = "xy"
+            e.typeTitle(TextFieldValue("xy", TextRange(1)), TextFieldValue("x\ny", TextRange(2)))
+            e.title
+        })
+        val full = editor.title
+        editor.typeTitle(TextFieldValue(full, TextRange(0)), TextFieldValue("Z$full", TextRange(1)))
+        assertEquals(full, editor.title)
     }
 }

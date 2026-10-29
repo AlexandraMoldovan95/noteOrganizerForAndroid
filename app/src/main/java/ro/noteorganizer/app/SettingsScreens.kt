@@ -50,7 +50,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
@@ -201,7 +203,7 @@ private fun DuplicatesPage(state: AppState) {
                     .padding(12.dp),
             ) {
                 val title = notes.firstOrNull()?.optString("title")?.trim()?.ifEmpty { null } ?: "(untitled)"
-                Text(stringResource(R.string.dup_group, title.take(36), group.size), color = palette.text,
+                Text(stringResource(R.string.dup_group, Editing.firstLetters(title, 36), group.size), color = palette.text,
                      fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 val withFiles = notes.map { (it.optJSONArray("attachments")?.length() ?: 0) > 0 }
                 if (withFiles.any { it } && withFiles.toSet().size > 1) {
@@ -359,6 +361,9 @@ private fun StatsPage(state: AppState) {
 
 // ---- Your name ----
 
+/** The longest name the box takes, in letters. */
+private const val NAME_CHARS = 80
+
 @Composable
 private fun NamePage(state: AppState) {
     val palette = LocalPalette.current
@@ -366,17 +371,34 @@ private fun NamePage(state: AppState) {
     // Said under the box, in green, where the eye is: said at the foot of
     // the screen, it was under the keyboard (the owner's phone, 2026-10-23).
     var saved by remember { mutableStateOf(false) }
+    // Kept to 80 letters as the app's other boxes keep theirs ([Editing.fitRow]):
+    // `take(80)` of each new value cut the name's own end, in UTF-16 units.
+    // Said under the box too, for the same reason.
+    var nameField by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
+    var capSaid by remember { mutableStateOf<String?>(null) }
+    val cap = remember { Editing.BoxCap({ capSaid = it }, NAME_CHARS, "Your name") }
     fun save() {
         saved = state.putSetting(Settings.USERNAME, draft.trim())
     }
     PageColumn {
         Text(stringResource(R.string.name_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
-        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80); saved = false }, singleLine = true,
+        OutlinedTextField(value = nameField, onValueChange = { next ->
+                              val kept = keptBy(cap, nameField, next)
+                              if (kept.text != nameField.text) {
+                                  if (kept.text == next.text) capSaid = null
+                                  saved = false
+                              }
+                              nameField = kept
+                              draft = kept.text
+                          }, singleLine = true,
                           label = { Text(stringResource(R.string.category_name)) },
                           keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                               imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                           keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
                           modifier = Modifier.fillMaxWidth())
+        capSaid?.let {
+            Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        }
         if (saved) {
             Text(stringResource(R.string.name_saved), color = palette.successText, fontSize = 13.sp,
                  modifier = Modifier.padding(top = 6.dp))

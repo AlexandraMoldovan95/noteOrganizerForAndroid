@@ -252,6 +252,24 @@ object Templates {
     }
 
     /**
+     * The editor's draft as it is now, kept in [dir] whenever the editor goes
+     * where nobody saved it: the [draft] when something [changed], and none
+     * when nothing did -- the changes taken back by hand. Written only when
+     * something had changed, a draft from the last time the app went away
+     * stayed behind a revert and was offered back, and Continue then Save,
+     * the question's default, wrote the words the person had taken out (the
+     * final audit's seventh round). One editor is open at a time, and none
+     * opens while a draft waits unanswered, so the draft there is its own.
+     */
+    fun keepDraft(dir: File, changed: Boolean, draft: () -> Draft): String? {
+        if (!changed) {
+            deleteDraft(dir)
+            return null
+        }
+        return saveDraft(dir, draft())
+    }
+
+    /**
      * Where a draft continues: the place of the template it edits, by the
      * name a template is known by -- or null, for a new one, and for one
      * whose template is gone, which then opens as new ([draftLostItsTemplate]).

@@ -286,17 +286,25 @@ object Editing {
     data class Fit(val text: String, val caret: Int?, val said: String?)
 
     /**
-     * The desktop's `_limit_entry`, for a row's field and a box for a new
-     * row: an edit within [limit] -- or one leaving the words shorter than
-     * they were -- stands. Past it, the words already there stay whole and
-     * only what came in is cut, to the room left, never through an emoji:
-     * "Pasted text shortened: ...". With no room, nothing comes in: "... can
-     * be up to". `take` over the whole value kept the first 2,000 of the
+     * The desktop's `_limit_entry`, for every box the app keeps to a length
+     * -- a row's field and a box for a new row, a note's title, a template's
+     * name and title: an edit within [limit] -- or one leaving the words
+     * shorter than they were -- stands. Past it, the words already there
+     * stay whole and only what came in is cut, to the room left, never
+     * through an emoji: "Pasted text shortened: ...", or [shortened] where
+     * the desktop's box says it its own way. With no room, nothing comes in:
+     * "[what] can be up to". Weighed in letters, as Python weighs them
+     * ([rowChars]). `take` over the whole value kept the first 2,000 of the
      * edit's result, so a letter or a paste anywhere but at the end cut the
      * row's own last words -- out of sight in a field of one line, with no
-     * Undo and nothing said (the final audit's sixth round).
+     * Undo and nothing said (the final audit's sixth round); a title and a
+     * template's name and title kept `take(200)` a round longer, in UTF-16
+     * units, so a title of 150 emoji the desktop holds lost 50 of them at the
+     * first letter typed, and a letter typed at the cap split one in two
+     * (the seventh).
      */
-    fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS): Fit {
+    fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS,
+               what: String = "A checklist item", shortened: String? = null): Fit {
         val length = rowChars(now)
         if (length <= limit || length < rowChars(was)) return Fit(now, null, null)
         // What the edit put in: the words before it and after it read the
@@ -313,25 +321,55 @@ object Editing {
         val came = now.substring(head, now.length - tail)
         val room = limit - rowChars(before) - rowChars(after)
         val count = String.format(java.util.Locale.ENGLISH, "%,d", limit)
-        if (room <= 0) return Fit(was, null, "A checklist item can be up to $count characters")
+        if (room <= 0) return Fit(was, null, "$what can be up to $count characters")
         val cut = came.offsetByCodePoints(0, room)
         return Fit(before + came.substring(0, cut) + after, head + cut,
-                   "Pasted text shortened: a checklist item can be up to $count characters")
+                   shortened ?: "Pasted text shortened: ${what.take(1).lowercase()}${what.drop(1)} can be up to $count characters")
+    }
+
+    /** A note's title, and a template's name and title: the desktop's TITLE_MAX_LEN, in letters. */
+    const val TITLE_CHARS = 200
+
+    /** "A new item…", as a [BoxCap.fit]'s box: a row's is its place in the list, never below 0. */
+    const val NEW_ROW_BOX = -1
+
+    /** [text]'s first [letters] letters, as Python's `text[:letters]` takes them: never half an emoji. */
+    fun firstLetters(text: String, letters: Int): String {
+        if (text.length <= letters) return text
+        var at = 0
+        var taken = 0
+        while (at < text.length && taken < letters) {
+            at += Character.charCount(text.codePointAt(at))
+            taken++
+        }
+        return text.substring(0, at)
     }
 
     /**
-     * [fitRow] for one editor's boxes, what it says said once while edits go
-     * on meeting the cap -- a keyboard's letters at the cap are many, and the
-     * phone queues a bar for each -- and again after an edit that fitted.
+     * [fitRow] for boxes kept to [limit] -- one editor's rows and its box
+     * for a new row, or one title -- what it says said once while edits go on
+     * meeting the cap, as the desktop says it at every refused key: a
+     * keyboard's letters at the cap are many, and the phone queues a bar for
+     * each. Said again at the next cut that does not go on from the words the
+     * last one left in the same [fit]'s `box`: in another row, or in the box
+     * emptied by Add. Said once an editor, a second long paste after Add, or
+     * into another row, was cut without a word (the final audit's seventh
+     * round).
      */
-    class RowCap(private val say: (String) -> Unit) {
-        private var said = false
+    class BoxCap(private val say: (String) -> Unit, private val limit: Int = CHECKLIST_ROW_CHARS,
+                 private val what: String = "A checklist item", private val shortened: String? = null) {
+        // The box the words were last said for, and what the cut left in it.
+        private var saidIn: Any? = null
+        private var left: String? = null
 
-        fun fit(was: String, now: String): Fit = fitRow(was, now).also { fit ->
-            if (fit.said == null) said = false
-            else if (!said) {
-                said = true
-                say(fit.said)
+        fun fit(was: String, now: String, box: Any = Unit): Fit = fitRow(was, now, limit, what, shortened).also { fit ->
+            if (fit.said == null) {
+                saidIn = null
+                left = null
+            } else {
+                if (left == null || box != saidIn || was != left) say(fit.said)
+                saidIn = box
+                left = fit.text
             }
         }
     }
@@ -442,8 +480,16 @@ object Editing {
      * last space near the end of a part -- or, with none there, where the
      * part ends, never through an emoji. Each part is its start and end in
      * the row; a line break belongs to none.
+     *
+     * The space is looked for within the slack alone. Looked for back to the
+     * row's start, each part of a row with no space in it -- one unbroken
+     * word, Chinese, a pasted blob -- read all of the row before it: the
+     * square of the row over 600 letters read, on the screen's thread, and a
+     * row of five million letters from a share code of 7 KB held "Read all",
+     * or a search's stop in it, for tens of seconds (the final audit's
+     * seventh round).
      */
-    fun rowParts(text: String, chars: Int = ROW_PART_CHARS): List<Pair<Int, Int>> {
+    fun rowParts(text: CharSequence, chars: Int = ROW_PART_CHARS): List<Pair<Int, Int>> {
         val out = ArrayList<Pair<Int, Int>>()
         var lineStart = 0
         while (lineStart <= text.length) {
@@ -452,8 +498,8 @@ object Editing {
             do {
                 var end = minOf(lineEnd, start + chars)
                 if (end < lineEnd) {
-                    val space = text.lastIndexOf(' ', end - 1)
-                    if (space >= end - ROW_PART_SLACK && space > start) end = space + 1
+                    val space = lastSpace(text, end, maxOf(start + 1, end - ROW_PART_SLACK))
+                    if (space >= 0) end = space + 1
                     else if (Character.isLowSurrogate(text[end])) end--
                 }
                 out.add(start to end)
@@ -462,6 +508,12 @@ object Editing {
             lineStart = lineEnd + 1
         }
         return out
+    }
+
+    /** The last space of [text] before [end] and no earlier than [from], or -1. */
+    private fun lastSpace(text: CharSequence, end: Int, from: Int): Int {
+        for (at in end - 1 downTo from) if (text[at] == ' ') return at
+        return -1
     }
 
     /** How long a part of a row shown to be read is ([rowParts]), and how far back a space is looked for. */

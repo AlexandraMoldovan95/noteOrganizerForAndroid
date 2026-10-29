@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -113,6 +114,12 @@ fun TemplatePicker(templates: List<JSONObject>, onPick: (JSONObject) -> Unit, on
 fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: String, onDone: () -> Unit) {
     val palette = LocalPalette.current
     var name by remember { mutableStateOf(defaultName) }
+    // Kept to the desktop's 200 letters as its box is, the words already
+    // there whole; said under the box, as this dialog stands over the
+    // window the app's messages are drawn in.
+    var nameField by remember { mutableStateOf(TextFieldValue(name, TextRange(name.length))) }
+    var capSaid by remember { mutableStateOf<String?>(null) }
+    val nameCap = remember { Editing.BoxCap({ capSaid = it }, Editing.TITLE_CHARS, "A template name") }
     var askReplace by remember { mutableStateOf(false) }
     val savedSaid = stringResource(R.string.template_saved)
     val failedSaid = stringResource(R.string.templates_not_saved)
@@ -138,11 +145,24 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
         onDismissRequest = onDone,
         title = { Text(stringResource(R.string.template_save_title)) },
         text = {
-            OutlinedTextField(
-                value = name, onValueChange = { name = it.take(200) }, singleLine = true,
-                label = { Text(stringResource(R.string.template_field_name)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column {
+                OutlinedTextField(
+                    value = nameField,
+                    onValueChange = { next ->
+                        val kept = keptBy(nameCap, nameField, next)
+                        // An edit that fits takes the words away: they were about the last cut.
+                        if (kept.text != nameField.text && kept.text == next.text) capSaid = null
+                        nameField = kept
+                        name = kept.text
+                    },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.template_field_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                capSaid?.let {
+                    Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
         },
         confirmButton = {
             TextButton(
@@ -438,7 +458,15 @@ private fun TemplateEditor(
     // Kept to a row's length, as the note editor's box and the desktop's
     // are ([Editing.fitRow]): it took any length, and a long paste became a
     // row every note made from the template showed read-only.
-    val rowCap = remember { Editing.RowCap { state.say(it) } }
+    val rowCap = remember { Editing.BoxCap({ state.say(it) }) }
+    // The name and the title with their cursors, kept to the desktop's 200
+    // letters as its boxes are -- the words already there whole, what came
+    // in cut, said in its words. `take(200)` of each new value cut their own
+    // end, in UTF-16 units (the final audit's seventh round).
+    var nameField by remember { mutableStateOf(TextFieldValue(name, TextRange(name.length))) }
+    var titleField by remember { mutableStateOf(TextFieldValue(title, TextRange(title.length))) }
+    val nameCap = remember { Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A template name") }
+    val titleCap = remember { Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A note title") }
     var askName by remember { mutableStateOf(false) }
     var askReplace by remember { mutableStateOf(false) }
     var askClose by remember { mutableStateOf(false) }
@@ -468,6 +496,14 @@ private fun TemplateEditor(
     // Words waiting with no room for them are a change nobody saved: ✕ asks.
     fun changed() = collect().toString() != opened || Templates.waitingLeftOut(checklist.size, newItemField.text)
 
+    // Closed by the person -- saved, not saved, or nothing to keep -- the
+    // editor leaves no draft; gone any other way, it keeps one (below).
+    var closed by remember { mutableStateOf(false) }
+    fun leave() {
+        closed = true
+        onClose()
+    }
+
     fun save() {
         if (PyText.strip(name).isEmpty()) {
             askName = true
@@ -484,23 +520,30 @@ private fun TemplateEditor(
             askReplace = true
             return
         }
-        if (onSave(tpl)) onClose()
+        if (onSave(tpl)) leave()
     }
 
-    fun close() = if (changed()) askClose = true else onClose()
+    fun close() = if (changed()) askClose = true else leave()
 
-    // As the app goes to the background with changes nobody saved: kept
-    // aside, every field and the words waiting in "A new item…", to be
-    // offered back if Android ends the app there.
+    // Kept aside, every field and the words waiting in "A new item…", to be
+    // offered back, whenever the editor goes where nobody saved it: the app
+    // to the background, Android able to end it there -- and the editor off
+    // the screen by the app's own doing, with no ✕ pressed: the reminder's
+    // notification tapped while the app is in front opens the calendar, an
+    // import's Open the note, and everything typed went unsaved, unasked and
+    // undrafted (the final audit's seventh round). Nothing changed, no draft
+    // stays behind ([Templates.keepDraft]).
+    fun keep() = Templates.keepDraft(state.draftDir, changed()) {
+        Templates.Draft(original?.optString("name"),
+            Templates.draftFields(name, title, body, comments.text.toString(), category, checklist.toList(),
+                formatting, paragraphs), newItemField.text)
+    }
     DisposableEffect(Unit) {
-        state.keepTemplateDraft = {
-            if (changed()) {
-                Templates.saveDraft(state.draftDir, Templates.Draft(original?.optString("name"),
-                    Templates.draftFields(name, title, body, comments.text.toString(), category, checklist.toList(),
-                        formatting, paragraphs), newItemField.text))
-            }
+        state.keepTemplateDraft = { keep() }
+        onDispose {
+            state.keepTemplateDraft = null
+            if (!closed) keep()
         }
-        onDispose { state.keepTemplateDraft = null }
     }
 
     // Edge to edge, with the bars' and the keyboard's room kept below: left
@@ -532,9 +575,15 @@ private fun TemplateEditor(
                 }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-                OutlinedTextField(name, { name = it.take(200) }, singleLine = true,
+                OutlinedTextField(nameField, { next ->
+                        nameField = keptBy(nameCap, nameField, next)
+                        name = nameField.text
+                    }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_name)) }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(title, { title = it.take(200) }, singleLine = true,
+                OutlinedTextField(titleField, { next ->
+                        titleField = keptBy(titleCap, titleField, next)
+                        title = titleField.text
+                    }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 TemplateBody(body, state.ownCopy) { edited(it) }
@@ -563,10 +612,8 @@ private fun TemplateEditor(
                 }
                 TemplateRows(checklist)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    OutlinedTextField(newItemField, { next ->
-                            newItemField = if (next.text == newItemField.text) next
-                                           else fittedValue(newItemField, next, rowCap.fit(newItemField.text, next.text))
-                        }, singleLine = true,
+                    OutlinedTextField(newItemField, { next -> newItemField = keptBy(rowCap, newItemField, next) },
+                        singleLine = true,
                         label = { Text(stringResource(R.string.checklist_new)) }, modifier = Modifier.weight(1f))
                     OutlinedButton(
                         onClick = {
@@ -626,7 +673,7 @@ private fun TemplateEditor(
         }
         if (askReplace) {
             NameTakenQuestion(PyText.strip(name),
-                onReplace = { askReplace = false; if (onSave(collect())) onClose() },
+                onReplace = { askReplace = false; if (onSave(collect())) leave() },
                 onAnother = { askReplace = false })
         }
         if (askClose) {
@@ -643,7 +690,7 @@ private fun TemplateEditor(
                 dismissButton = {
                     Row {
                         TextButton(onClick = { askClose = false }) { Text(stringResource(R.string.cancel)) }
-                        TextButton(onClick = { askClose = false; onClose() }) {
+                        TextButton(onClick = { askClose = false; leave() }) {
                             Text(stringResource(R.string.template_dont_save), color = palette.dangerText)
                         }
                     }

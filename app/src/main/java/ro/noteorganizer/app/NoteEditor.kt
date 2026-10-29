@@ -260,10 +260,17 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // The cell being written in shows its words as they are now.
         cellEpoch += 1
         comments = to.comments
-        // Places remembered in the old text mean nothing in this one.
+        // Places remembered in the old text mean nothing in a new one. In
+        // the same text -- only its styles or its lines' look taken back --
+        // they are where they were: emptied, Insert table and the calculator,
+        // which write at the place the cursor was, wrote at the note's end, a
+        // table onto a table closing the note, refused with words about a note
+        // too large (the final audit's seventh round).
         focused = null
-        caret = null
-        calcMark = null
+        if (to.body != was) {
+            caret = null
+            calcMark = null
+        }
         settled = to
         steps()
         edits += 1
@@ -277,8 +284,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // above the grid, and the next row went in over it (the final
         // audit's sixth round).
         val (index, value) = kept
-        if (was == body && index != null && value != null) {
-            ask(index, value)
+        if (was == body) {
+            // Only styles changed: the field asked back with its own value,
+            // the place it writes at kept above.
+            if (index != null && value != null) ask(index, value)
         } else {
             changeSite(was, body)?.let { at ->
                 caret = at
@@ -660,9 +669,41 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /**
      * A row's field and "A new item…" kept to a row's length, as the
      * desktop keeps its box ([Editing.fitRow]): the row's own words whole,
-     * only what came in cut, said once.
+     * only what came in cut, said once while edits in one box meet the cap.
      */
-    val rowCap = Editing.RowCap { state.say(it) }
+    val rowCap = Editing.BoxCap({ state.say(it) })
+
+    /** The title kept to the desktop's 200 letters the same way, said in its title box's words. */
+    val titleCap = Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A note title",
+                                  "Pasted title shortened to ${Editing.TITLE_CHARS} characters")
+
+    /**
+     * [now] typed into "A new item…". A full list takes no more, and said
+     * only when Add or leaving the note tried, words waiting there were lost
+     * unsaid if Android ended the app behind Home -- the save on going to
+     * the background has no one to tell (the final audit's seventh round):
+     * the cap is said as the words begin, while the person is there to read it.
+     */
+    fun typeAdding(now: String) {
+        val began = adding.isBlank() && now.isNotBlank()
+        adding = now
+        if (began && (state.note(id)?.checklist?.size ?: 0) >= Notebook.MAX_CHECKLIST_ITEMS) state.say(Notebook.CHECKLIST_FULL)
+    }
+
+    /**
+     * [next] typed into the title, shown as [shown]: one line, as the
+     * desktop's title is -- a break pasted in becomes a space; the list cut
+     * a title at a break -- and kept to 200 letters by [titleCap], its own
+     * words whole. The value to show, its cursor after what came in.
+     */
+    fun typeTitle(shown: TextFieldValue, next: TextFieldValue): TextFieldValue {
+        val kept = keptBy(titleCap, shown, next.copy(text = next.text.replace('\n', ' ')))
+        if (kept.text != title) {
+            title = kept.text
+            changed(Editing.History.TYPING + ":title")
+        }
+        return kept
+    }
 
     /**
      * Rows renamed whose words could not be written when another row was
@@ -1600,22 +1641,20 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
+            // The title with its cursor, so a paste cut to fit leaves it after
+            // what came in ([fittedValue]); the words themselves are the model's.
+            var titleField by remember { mutableStateOf(TextFieldValue(model.title, TextRange(model.title.length))) }
+            val titleShown = if (titleField.text == model.title) titleField
+                             else TextFieldValue(model.title, TextRange(model.title.length))
             // A title too long to lay out -- a share code can bring one -- is
             // shown, not edited: as a field it froze the note at every opening.
             if (Editing.tooLongToLayOut(model.title)) LongText(model.title) else BasicTextField(
-                value = model.title,
-                onValueChange = {
-                    // One line, as the desktop's title is: Enter goes on to
-                    // the note's words, and a break pasted in becomes a space.
-                    // It put a break in the title, which the list cut at.
-                    val enter = it.length == model.title.length + 1 && it.count { c -> c == '\n' } == 1
-                    val title = if (enter) it.replace("\n", "") else it.replace('\n', ' ')
-                    if (title != model.title) {
-                        // The desktop's ceiling: far more than a title needs.
-                        model.title = title.take(200)
-                        model.changed(Editing.History.TYPING + ":title")
-                    }
+                value = titleShown,
+                onValueChange = { next ->
+                    // Enter goes on to the note's words, the title as it was.
+                    val enter = next.text.length == titleShown.text.length + 1 && next.text.count { c -> c == '\n' } == 1
                     if (enter) focusManager.moveFocus(FocusDirection.Down)
+                    else titleField = model.typeTitle(titleShown, next)
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
@@ -1634,9 +1673,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                     field()
                 },
             )
-            if (model.title.length >= 160) {
-                Text("${model.title.length}/200", fontSize = 11.sp,
-                     color = if (model.title.length >= 200) palette.dangerText else palette.subtext)
+            // In letters, as the cap and the desktop's counter count them.
+            val titleUsed = Editing.rowChars(model.title)
+            if (titleUsed >= 160) {
+                Text("$titleUsed/${Editing.TITLE_CHARS}", fontSize = 11.sp,
+                     color = if (titleUsed >= Editing.TITLE_CHARS) palette.dangerText else palette.subtext)
             }
             Text(
                 // On one day of a series, the day being written -- not the
@@ -2779,7 +2820,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                           found = rowFound, current = rowCurrent,
                           onEdit = { was, now ->
                               // Kept to a row's length, the row's own words whole.
-                              model.rowCap.fit(was, now).also { fit ->
+                              model.rowCap.fit(was, now, box = index).also { fit ->
                                   if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.say(it) }
                               }
                           },
@@ -2818,9 +2859,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 if (next.text == addShown.text) {
                     addField = next
                 } else {
-                    val fit = model.rowCap.fit(addShown.text, next.text)
+                    val fit = model.rowCap.fit(addShown.text, next.text, box = Editing.NEW_ROW_BOX)
                     addField = fittedValue(addShown, next, fit)
-                    model.adding = addField.text
+                    model.typeAdding(addField.text)
                 }
             },
             singleLine = true,
@@ -2931,7 +2972,14 @@ internal fun ReadOnlyRow(text: String, done: Boolean, found: List<Pair<Int, Int>
 }
 
 /**
- * A box's next value under the row cap ([Editing.fitRow]): [next] as typed
+ * What a box kept to a length by [cap] shows after [next]: a move of the
+ * cursor as it is, an edit as the cap keeps it ([fittedValue]).
+ */
+internal fun keptBy(cap: Editing.BoxCap, shown: TextFieldValue, next: TextFieldValue, box: Any = Unit): TextFieldValue =
+    if (next.text == shown.text) next else fittedValue(shown, next, cap.fit(shown.text, next.text, box))
+
+/**
+ * A box's next value under its cap ([Editing.fitRow]): [next] as typed
  * when it fits; what [fit] kept, the cursor after what came in, when it was
  * cut; the box as it was, [shown], when nothing could come in.
  */
@@ -3472,7 +3520,7 @@ private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, o
     val shown = Recurrence.effectiveNote(raw, day)
     val title = quoted((shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled")
     val text = contentText(shown.opt("body") as? String ?: "").split(Regex("\\s+")).filter { it.isNotEmpty() }
-        .joinToString(" ").let { if (it.length > 160) it.take(160).trimEnd() + "…" else it }
+        .joinToString(" ").let { val cut = Editing.firstLetters(it, 160); if (cut != it) cut.trimEnd() + "…" else it }
     val whenDay = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun answer(how: Days.Settle?) {

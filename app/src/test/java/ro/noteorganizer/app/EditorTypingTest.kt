@@ -277,6 +277,47 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `Undo of a style leaves the cursor where it was, so a table goes in there, not onto the one at the end`() {
+        // B, then ↶ on the same bar, then ⊞: Undo emptied the place the
+        // cursor was and only a change of the words put it back, so the
+        // table went to the note's end -- onto the table closing it, refused
+        // with words about a note too large (the final audit's seventh round).
+        val model = editor("Shopping\\nbread and milk\\n| Item | Qty |\\n| Eggs | 6 |")
+        val field = Editing.segments(model.body).first()
+        assertTrue(field.field)
+        model.focus = 0
+        model.focused = TextFieldValue(field.text, TextRange(9, 14))
+        model.caret = 14
+        model.spans = toggleStyle(model.spans, 9, 14, "bold", "")
+        model.changed()
+        model.undo()
+        assertEquals(emptyList<FormatSpan>(), model.spans)
+        assertEquals("the place written at, kept", 14, model.caret)
+        assertEquals(0, model.focus)
+        assertEquals("the selection kept", TextRange(9, 14), model.focused!!.selection)
+        assertEquals(2, model.insertTable(2, 2))
+        assertTrue(model.body.startsWith("Shopping\nbread\n|"))
+        // Redo, the same; and with the cursor out of the text -- in the title
+        // -- the place the calculator writes at stays where it was.
+        val again = editor("Plan")
+        again.focus = 0
+        again.focused = TextFieldValue("Plan", TextRange(2))
+        again.caret = 2
+        again.spans = toggleStyle(again.spans, 0, 4, "italic", "")
+        again.changed()
+        again.undo()
+        again.redo()
+        assertEquals(2, again.caret)
+        again.focus = null
+        again.focused = null
+        again.title = "Plans"
+        again.changed()
+        again.undo()
+        assertEquals("A", again.title)
+        assertEquals(2, again.caret)
+    }
+
+    @Test
     fun `Insert table writes nothing where no field would show it, and says where to tap`() {
         // The cursor never in the note, the table went to its end -- past
         // what the note draws, out of sight -- one more at every tap.

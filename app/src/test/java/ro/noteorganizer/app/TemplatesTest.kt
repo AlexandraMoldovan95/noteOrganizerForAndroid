@@ -321,6 +321,20 @@ class TemplatesTest {
     }
 
     @Test
+    fun `a draft is kept while the editor holds changes, and none stays once they are taken back`() {
+        // Written only when something had changed, a draft from the last time
+        // the app went away outlived a revert and was offered back: Continue,
+        // then Save, wrote the words the person had taken out.
+        val dir = NioFiles.createTempDirectory("draft").toFile()
+        val fields = Templates.draftFields("Trip", "Packing x", "", "", "General", emptyList(), JSONArray(), JSONArray())
+        assertNull(Templates.keepDraft(dir, changed = true) { Templates.Draft("Trip", fields, "") })
+        assertEquals("Packing x", Templates.loadDraft(dir)!!.fields.getString("title"))
+        // The "x" taken back by hand: the editor holds the template as saved.
+        assertNull(Templates.keepDraft(dir, changed = false) { error("nothing to keep is never built") })
+        assertNull("no draft offered back", Templates.loadDraft(dir))
+    }
+
+    @Test
     fun `what the template editor opened on is the template, so a draft continued over it is a change`() {
         val template = Templates.normalize(JSONObject().put("name", "Trip").put("title", "Packing")
             .put("checklist", JSONArray().put(JSONObject().put("text", "socks").put("done", false))))
