@@ -276,6 +276,30 @@ object Editing {
     const val CHECKLIST_CHARS = 100_000
 
     /**
+     * How many of a checklist's first rows are drawn, and how many more each
+     * "Show" draws: every row is a piece of the screen of its own, drawn at
+     * once in the note's column, and 1,000 short rows held the screen 5.3 s
+     * as the note opened on the emulator, whatever their letters (measured,
+     * the final audit's fifth round). The last [CHECKLIST_TAIL_ROWS] are
+     * drawn too, where a new item lands.
+     */
+    const val CHECKLIST_ROWS = 200
+    const val CHECKLIST_TAIL_ROWS = 5
+
+    /**
+     * The rows of a checklist of [size] that are drawn, in order: its first
+     * [head] and its last [CHECKLIST_TAIL_ROWS] -- all of them when that
+     * leaves out no more than a few -- and the rows up to [reach], a row a
+     * search stepped to, when it lies between.
+     */
+    fun checklistShown(size: Int, head: Int, reach: Int = -1): List<Int> {
+        val first = maxOf(head, reach + 1)
+        val tail = size - CHECKLIST_TAIL_ROWS
+        if (tail - first <= CHECKLIST_TAIL_ROWS) return (0 until size).toList()
+        return (0 until first).toList() + (tail until size).toList()
+    }
+
+    /**
      * Which of a checklist's [rows] are written in as fields: each no
      * longer than [CHECKLIST_ROW_CHARS], all of them together no more than
      * [CHECKLIST_CHARS].

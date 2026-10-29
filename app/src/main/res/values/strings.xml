@@ -209,6 +209,7 @@
     <string name="checklist_label">Checklist · %1$d/%2$d</string>
     <string name="checklist_new">A new item…</string>
     <string name="checklist_shown_short">The rows from here are shown short: a list draws %1$,d characters to write in at once. Each is kept whole; tick, move or remove it here.</string>
+    <string name="checklist_rows_hidden">… %1$,d more rows here, not drawn yet. Show %2$,d of them</string>
     <string name="add_comments">💬 Add comments</string>
     <string name="comments_label">Comments</string>
     <string name="note_text_label">Text</string>

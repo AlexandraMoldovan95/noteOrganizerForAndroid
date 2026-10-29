@@ -229,6 +229,17 @@ class EditingTest {
     }
 
     @Test
+    fun `a long checklist draws its first rows and its last, and a search's row among them`() {
+        // 1,000 short rows, every one drawn as the note opened: 5.3 s on the emulator.
+        assertEquals((0 until 100).toList(), Editing.checklistShown(100, Editing.CHECKLIST_ROWS))
+        val long = Editing.checklistShown(1_000, Editing.CHECKLIST_ROWS)
+        assertEquals((0 until 200).toList() + (995 until 1_000).toList(), long)
+        assertEquals((0..600).toList() + (995 until 1_000).toList(), Editing.checklistShown(1_000, Editing.CHECKLIST_ROWS, reach = 600))
+        assertEquals("a few left out are drawn", (0 until 210).toList(), Editing.checklistShown(210, Editing.CHECKLIST_ROWS))
+        assertEquals("Show draws more", 405, Editing.checklistShown(1_000, 400).size)
+    }
+
+    @Test
     fun `a note of many short lines is drawn as fields of a share each, the rest read-only`() {
         // A code of 666 characters: 200,000 empty lines, one field -- each of
         // its lines drawn by a call copying the whole field again.

@@ -80,6 +80,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -2591,7 +2592,22 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         items.indices.firstOrNull { !writable[it] && items[it].text.length <= Editing.CHECKLIST_ROW_CHARS } ?: -1
     }
     val foundByRow = remember(found) { found.groupBy({ it.item }, { it.start to it.end }) }
-    items.forEachIndexed { index, item ->
+    // The rows drawn: the first ones and the last few, where a new item
+    // lands, a search's row among them; "Show" draws more (Editing.checklistShown).
+    var head by remember(model.id) { mutableIntStateOf(Editing.CHECKLIST_ROWS) }
+    val shownRows = remember(items.size, head, current?.item) { Editing.checklistShown(items.size, head, current?.item ?: -1) }
+    var drawnUpTo = -1
+    for (index in shownRows) key(index) {
+        val item = items[index]
+        if (index > drawnUpTo + 1) {
+            val hidden = index - drawnUpTo - 1
+            val upTo = drawnUpTo
+            Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
+                 color = palette.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                 modifier = Modifier.fillMaxWidth().clickable { head = upTo + 1 + Editing.CHECKLIST_ROWS }
+                     .padding(vertical = 10.dp))
+        }
+        drawnUpTo = index
         if (index == firstShort) {
             Text(stringResource(R.string.checklist_shown_short, Editing.CHECKLIST_CHARS), color = palette.subtext,
                  fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
