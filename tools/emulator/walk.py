@@ -458,6 +458,8 @@ def main():
     limits_round4(folder)
     limits_round5(folder)
     limits_round6(folder)
+    days_in_the_note(folder)
+    template_draft(folder)
 
     print()
     if failures:
@@ -4152,6 +4154,171 @@ def limits_round6(folder):
     typed = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Redo table"), {})
     check("after Undo and Redo of a table row typed at the end, the next row goes under the grid",
           (typed.get("body") or "").lower() == "costs\n| a | b |\n| c | d |", repr(typed.get("body")))
+
+
+def days_in_the_note(folder):
+    """A turned-off series' days live in one place, the note (the owner's
+    choice, the final audit's sixth round). A notebook as the phone's 0.12.0
+    left one -- the days in the series' copy alone -- has them back in the
+    note at its next write; a series turned off from the Repeat sheet keeps
+    a day's own text in the note, and a big delete after it makes a copy of
+    words alone, the day still in the note: on the desktop that delete's copy
+    was where the day's text was erased. Read back from the file."""
+    print("\n-- a turned-off series' days, in the note --")
+    days = {"overrides": {"2026-11-09": {"body": "Leg day - knee hurt"}}, "exceptions": ["2026-11-16"]}
+    series = {"date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}}
+    gym = dict({"id": 1, "uid": "dn-gym", "title": "Gym", "category": "General",
+                "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+                "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:03:00"}, **series, **days)
+    shipped = {"id": 2, "uid": "dn-shipped", "title": "Swim", "body": "Lengths.", "category": "General",
+               "date": "2026-11-02", "recurrence": {"freq": ""}, "exceptions": [], "overrides": {}, "moved": {},
+               "_prev": dict({"title": "Swim", "body": "Lengths.", "comments": "", "formatting": [], "paragraphs": [],
+                              "overrides": {"2026-11-09": {"body": "Arm day - elbow"}}, "exceptions": [], "moved": {}},
+                             **series),
+               "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:02:00"}
+    other = {"id": 3, "uid": "dn-other", "title": "Other", "body": "x", "category": "General",
+             "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:01:00"}
+    if not seed_inside([gym, shipped, other], {"welcome_offered": True}, "Gym"):
+        return
+
+    def note_said(uid):
+        return note_by_uid(uid) or {}
+
+    def day_text(note, day):
+        return ((note.get("overrides") or {}).get(day) or {}).get("body")
+
+    # Any write keeps what the read brought back into 0.12.0's note.
+    open_note("Other")
+    tap_last("x", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text("y")
+    back_to("Search notes")
+    swim = settle(lambda: note_said("dn-shipped"), lambda n: day_text(n, "2026-11-09") is not None)
+    check("a series' day 0.12.0 kept only in its copy is in the note, the copy keeping it too",
+          day_text(swim, "2026-11-09") == "Arm day - elbow"
+          and day_text(swim.get("_prev") or {}, "2026-11-09") == "Arm day - elbow", json.dumps(swim)[:300])
+
+    # Turned off from the Repeat sheet: the day's own text stays in the note.
+    open_note("Gym")
+    tap("ⓘ", wait=1.2)
+    tap("Every week", wait=1.5)
+    tap("Does not repeat", exact=True, wait=0.8)
+    tap("Save", exact=True, wait=0.3)
+    said = not says_soon("The repeat is off", within=6.0)
+    shot(folder, "118-repeat-off-kept", "Note details")
+    back_to("Search notes")
+    off = settle(lambda: note_said("dn-gym"), lambda n: not (n.get("recurrence") or {}).get("freq"))
+    check("a series turned off from the Repeat sheet keeps its day's own text in the note, and the series in its copy",
+          said and not (off.get("recurrence") or {}).get("freq") and day_text(off, "2026-11-09") == "Leg day - knee hurt"
+          and off.get("exceptions") == ["2026-11-16"]
+          and ((off.get("_prev") or {}).get("recurrence") or {}).get("freq") == "weekly",
+          "said %s, %s" % (said, json.dumps(off)[:300]))
+
+    # A big delete after it: a copy of words alone, the day still in the note.
+    open_note("Gym")
+    tap("Physio said", wait=0.8)
+    adb("shell", "input", "keycombination", "KEYCODE_CTRL_LEFT", "KEYCODE_A")
+    time.sleep(0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    time.sleep(1.5)
+    back_to("Search notes")
+    cut = settle(lambda: note_said("dn-gym"), lambda n: (n.get("body") or "") == "")
+    copy = cut.get("_prev") or {}
+    check("a big delete after the turn-off keeps a copy of words alone, the day's text still in the note",
+          (cut.get("body") or "") == "" and "Physio said" in (copy.get("body") or "") and "overrides" not in copy
+          and day_text(cut, "2026-11-09") == "Leg day - knee hurt", json.dumps(cut)[:300])
+
+
+def template_draft(folder):
+    """A template being written when Android ends the app behind Home: kept
+    aside in the app's storage that Android's backup leaves out, and offered
+    back -- "You were writing a template. Continue it?" -- Continue bringing
+    every field back, the words left in A new item among them, and Save
+    keeping them; Discard leaving no draft and the template as it was."""
+    print("\n-- a template being written, kept as a draft --")
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("templates.json", [{"name": "Trip", "title": "Trip list", "body": "", "comments": "",
+                                   "category": "General", "checklist": [{"text": "tickets", "done": False}]}])
+    if not seed_inside([{"id": 1, "uid": "td-1", "title": "Living", "body": "x", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Living", clear=False):
+        return
+
+    def draft():
+        data = adb("exec-out", "run-as", PACKAGE, "cat", "no_backup/template_draft.json", binary=True)
+        try:
+            return json.loads(data.decode("utf-8"))
+        except ValueError:
+            return None
+
+    def ended_behind_home():
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(3.0)
+        adb("shell", "am", "kill", PACKAGE)
+        time.sleep(1.5)
+        return adb("shell", "pidof", PACKAGE).strip() == ""
+
+    def to_templates():
+        start_app()
+        says_soon("Search notes", within=10.0)
+        tap("Settings", exact=True, wait=1.5)
+        tap("Templates", exact=True, wait=1.5)
+
+    # A new one: a name, a title, a row added, and words left in A new item.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("Packing")
+    tap("Note title (optional)", wait=0.6)
+    type_text("Weekend")
+    keyboard_down()
+    tap("A new item", wait=0.8)
+    type_text("socks")
+    tap("+ Add", exact=True, wait=0.8)
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    gone = ended_behind_home()
+    kept = draft() or {}
+    fields = kept.get("fields") or {}
+    check("Home with a template being written keeps it aside, in the storage Android's backup leaves out",
+          gone and fields.get("name") == "Packing" and kept.get("waiting") == "Passport" and kept.get("edits") is None
+          and [r.get("text") for r in fields.get("checklist") or []] == ["socks"]
+          and not any(t.get("name") == "Packing" for t in read_file("templates.json") or []),
+          "ended %s, %s" % (gone, json.dumps(kept)[:300]))
+    to_templates()
+    asked = not says_soon("You were writing a template. Continue it?", within=6.0)
+    check("... and Settings > Templates asks about it, Continue and Discard said",
+          asked and find("Continue", exact=True) is not None and find("Discard", exact=True) is not None, str(asked))
+    shot(folder, "119-template-draft-asked", "Continue it?")
+    tap("Continue", exact=True, wait=2.0)
+    back_open = not screen_says("Packing", "Weekend", "socks", "Passport")
+    check("Continue brings every field back, the words waiting in A new item among them", back_open,
+          str(screen_says("Packing", "Weekend", "socks", "Passport")))
+    shot(folder, "120-template-draft-continued", "Passport")
+    tap("Save", exact=True, wait=1.5)
+    saved = next((t for t in read_file("templates.json") or [] if t.get("name") == "Packing"), {})
+    check("... and Save keeps them, the draft gone",
+          [r.get("text") for r in saved.get("checklist") or []] == ["socks", "Passport"]
+          and saved.get("title") == "Weekend" and draft() is None, json.dumps(saved)[:200])
+
+    # Editing one that exists, then Discard: nothing kept, the template as it was.
+    tap("Trip", exact=True, wait=1.5)
+    tap("Trip list", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" changed")
+    gone = ended_behind_home()
+    kept = draft() or {}
+    check("a template being edited is kept aside over the one it edits",
+          gone and kept.get("edits") == "Trip" and (kept.get("fields") or {}).get("title") == "Trip list changed",
+          json.dumps(kept)[:200])
+    to_templates()
+    tap("Discard", exact=True, wait=1.5)
+    trip = next((t for t in read_file("templates.json") or [] if t.get("name") == "Trip"), {})
+    check("Discard leaves no draft, and the template as it was saved",
+          draft() is None and trip.get("title") == "Trip list" and not screen_says("Trip")
+          and screen_says("You were writing a template"), json.dumps(trip)[:200])
+    back_to("Search notes")
 
 
 def calendar_large_letters(folder):
