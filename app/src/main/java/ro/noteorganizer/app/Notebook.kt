@@ -1405,11 +1405,14 @@ object Notebook {
      */
     const val MAX_CHECKLIST_ITEMS = 1000
 
+    /** What is said when a list is full: a note's, and a template's in its editor. */
+    const val CHECKLIST_FULL = "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+
     /** Adds a row to the end of a note's checklist. */
     fun addChecklistItem(load: Load, id: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
-                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+                return@editChecklist CHECKLIST_FULL
             }
             val item = JSONObject()
             item.put("text", mendSurrogates(text))
@@ -1468,7 +1471,7 @@ object Notebook {
     fun restoreChecklistItem(load: Load, id: Int, index: Int, row: JSONObject): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
-                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+                return@editChecklist CHECKLIST_FULL
             }
             val rows = (0 until checklist.length()).map { checklist.get(it) }.toMutableList()
             rows.add(index.coerceIn(0, rows.size), JSONObject(row.toString()))

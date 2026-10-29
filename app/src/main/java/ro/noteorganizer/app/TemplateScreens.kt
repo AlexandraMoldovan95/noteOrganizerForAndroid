@@ -42,8 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,6 +58,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -360,7 +363,12 @@ private fun TemplateEditor(
             for (k in 0 until list.length()) list.optJSONObject(k)?.let { add(it.optString("text") to it.optBoolean("done")) }
         }
     }
-    var newItem by remember { mutableStateOf("") }
+    // With its cursor, so a paste cut to fit leaves it after what came in.
+    var newItemField by remember { mutableStateOf(TextFieldValue("")) }
+    // Kept to a row's length, as the note editor's box and the desktop's
+    // are ([Editing.fitRow]): it took any length, and a long paste became a
+    // row every note made from the template showed read-only.
+    val rowCap = remember { Editing.RowCap { state.say(it) } }
     var askName by remember { mutableStateOf(false) }
     var askReplace by remember { mutableStateOf(false) }
     var askClose by remember { mutableStateOf(false) }
@@ -379,16 +387,23 @@ private fun TemplateEditor(
 
     fun collect(): JSONObject = Templates.normalize(JSONObject()
         .put("name", name).put("title", title).put("body", body).put("comments", comments.text.toString()).put("category", category)
-        .put("checklist", Templates.checklistWith(checklist, newItem))
+        .put("checklist", Templates.checklistWith(checklist, newItemField.text))
         .put("formatting", formatting)
         .put("paragraphs", paragraphs))
 
     val opened = remember { collect().toString() }
-    fun changed() = collect().toString() != opened
+    // Words waiting with no room for them are a change nobody saved: ✕ asks.
+    fun changed() = collect().toString() != opened || Templates.waitingLeftOut(checklist.size, newItemField.text)
 
     fun save() {
         if (PyText.strip(name).isEmpty()) {
             askName = true
+            return
+        }
+        // Never dropped unsaid: a full list keeps the editor open, the words
+        // in their box, and says why.
+        if (Templates.waitingLeftOut(checklist.size, newItemField.text)) {
+            state.say(Notebook.CHECKLIST_FULL)
             return
         }
         val tpl = collect()
@@ -459,46 +474,22 @@ private fun TemplateEditor(
                 if (checklist.isEmpty()) {
                     Text(stringResource(R.string.template_checklist_empty), color = palette.subtext, fontSize = 13.sp)
                 }
-                for ((k, item) in checklist.withIndex()) {
-                    // Each control says what it does to which row: read by their
-                    // symbols, "upwards arrow" and "multiplication x" named no row,
-                    // and the box was a checkbox with no name at all.
-                    val rowName = glimpse(item.first)
-                    val upSaid = stringResource(R.string.template_row_up, rowName)
-                    val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(item.second, { checklist[k] = item.first to it },
-                                 colors = CheckboxDefaults.colors(checkedColor = palette.accent),
-                                 modifier = Modifier.semantics { contentDescription = rowName })
-                        // Kept whole, drawn short: a row too long to lay out as
-                        // the note editor shows it, what it is and its start;
-                        // any other as a glimpse ([drawnRow]).
-                        if (Editing.tooLongToLayOut(item.first)) Box(Modifier.weight(1f)) { LongText(item.first) }
-                        else Text(drawnRow(item.first), fontSize = 15.sp,
-                             color = if (item.second) palette.subtext else palette.text,
-                             textDecoration = if (item.second) TextDecoration.LineThrough else null,
-                             modifier = Modifier.weight(1f))
-                        if (k > 0) {
-                            TextButton(onClick = { checklist.add(k - 1, checklist.removeAt(k)) },
-                                       modifier = Modifier.semantics { contentDescription = upSaid }) {
-                                Text("↑", color = palette.subtext)
-                            }
-                        }
-                        TextButton(onClick = { checklist.removeAt(k) },
-                                   modifier = Modifier.semantics { contentDescription = removeSaid }) {
-                            Text("✕", color = palette.subtext)
-                        }
-                    }
-                }
+                TemplateRows(checklist)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    OutlinedTextField(newItem, { newItem = it }, singleLine = true,
+                    OutlinedTextField(newItemField, { next ->
+                            newItemField = if (next.text == newItemField.text) next
+                                           else fittedValue(newItemField, next, rowCap.fit(newItemField.text, next.text))
+                        }, singleLine = true,
                         label = { Text(stringResource(R.string.checklist_new)) }, modifier = Modifier.weight(1f))
                     OutlinedButton(
                         onClick = {
-                            val text = PyText.strip(newItem)
-                            if (text.isNotEmpty()) {
+                            val text = Templates.newRow(newItemField.text)
+                            // At the cap the row was drawn, then dropped by Save unsaid.
+                            val full = Templates.noRoom(checklist.size)
+                            if (text.isNotEmpty() && full != null) state.say(full)
+                            else if (text.isNotEmpty()) {
                                 checklist.add(text to false)
-                                newItem = ""
+                                newItemField = TextFieldValue("")
                             }
                         },
                         modifier = Modifier.padding(start = 8.dp),
@@ -564,6 +555,72 @@ private fun TemplateEditor(
                 },
                 containerColor = palette.card,
             )
+        }
+    }
+}
+
+/**
+ * A template's checklist rows, drawn as the note editor draws a long list:
+ * the first [Editing.CHECKLIST_ROWS] and the last few, "Show" drawing more
+ * ([Editing.checklistShown]). Every row was drawn at once -- a box and two
+ * buttons each, up to 1,000 of them, as a template saved from a long list
+ * holds -- and drawn again at each letter typed in the template's name or
+ * title, whose scope they shared (the final audit's sixth round). A row
+ * moved by its arrow past the rows not drawn stays drawn, its key moving
+ * with it, and a row longer than a glimpse is read whole on asking.
+ */
+@Composable
+private fun TemplateRows(checklist: SnapshotStateList<Pair<String, Boolean>>) {
+    val palette = LocalPalette.current
+    var head by remember { mutableIntStateOf(Editing.CHECKLIST_ROWS) }
+    var tail by remember { mutableIntStateOf(Editing.CHECKLIST_TAIL_ROWS) }
+    val shown = remember(checklist.size, head, tail) { Editing.checklistShown(checklist.size, head, tail = tail) }
+    val keys = rowKeys(checklist.map { it.first })
+    var drawnUpTo = -1
+    for (k in shown) key(keys[k]) {
+        val item = checklist[k]
+        if (k > drawnUpTo + 1) {
+            val hidden = k - drawnUpTo - 1
+            val upTo = drawnUpTo
+            Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
+                 color = palette.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                 modifier = Modifier.fillMaxWidth().clickable { head = upTo + 1 + Editing.CHECKLIST_ROWS }
+                     .padding(vertical = 10.dp))
+        }
+        drawnUpTo = k
+        // Each control says what it does to which row: read by their
+        // symbols, "upwards arrow" and "multiplication x" named no row,
+        // and the box was a checkbox with no name at all.
+        val rowName = glimpse(item.first)
+        val upSaid = stringResource(R.string.template_row_up, rowName)
+        val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(item.second, { checklist[k] = item.first to it },
+                     colors = CheckboxDefaults.colors(checkedColor = palette.accent),
+                     modifier = Modifier.semantics { contentDescription = rowName })
+            // Kept whole: a row longer than a glimpse is shown by its start,
+            // and read whole on asking, as the note editor shows one.
+            if (Editing.rowTooLong(item.first) || drawnRow(item.first) != item.first) {
+                ReadOnlyRow(item.first, item.second, modifier = Modifier.weight(1f))
+            } else Text(item.first, fontSize = 15.sp,
+                 color = if (item.second) palette.subtext else palette.text,
+                 textDecoration = if (item.second) TextDecoration.LineThrough else null,
+                 modifier = Modifier.weight(1f))
+            if (k > 0) {
+                TextButton(onClick = {
+                               checklist.add(k - 1, checklist.removeAt(k))
+                               val (h, t) = Editing.keepMovedInSight(checklist.size, head, tail, -1, k, k - 1)
+                               head = h
+                               tail = t
+                           },
+                           modifier = Modifier.semantics { contentDescription = upSaid }) {
+                    Text("↑", color = palette.subtext)
+                }
+            }
+            TextButton(onClick = { checklist.removeAt(k) },
+                       modifier = Modifier.semantics { contentDescription = removeSaid }) {
+                Text("✕", color = palette.subtext)
+            }
         }
     }
 }

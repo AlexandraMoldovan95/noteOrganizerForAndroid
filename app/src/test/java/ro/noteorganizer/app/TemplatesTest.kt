@@ -253,4 +253,32 @@ class TemplatesTest {
         val drawnAll = List(1_000) { drawnRow(heavy) }
         assertTrue(drawnAll.sumOf { Editing.layoutCost(it)!! } < Editing.MAX_LAYOUT_COST)
     }
+
+    @Test
+    fun `a template full at 1,000 rows refuses a row, and words waiting with no room are not taken as saved`() {
+        // Its Add drew row 1,001 and Save dropped it, and the words waiting
+        // in A new item went the same way, unsaid, ✕ finding nothing changed.
+        assertEquals(null, Templates.noRoom(999))
+        assertEquals("A checklist holds at most 1000 items.", Templates.noRoom(1_000))
+        assertEquals(Notebook.CHECKLIST_FULL, Templates.noRoom(1_000))
+        assertTrue(Templates.waitingLeftOut(1_000, "Passport"))
+        assertFalse("room for them", Templates.waitingLeftOut(999, "Passport"))
+        assertFalse("nothing waiting but spaces", Templates.waitingLeftOut(1_000, "   "))
+        // Under the cap they are the template's last row, as before.
+        val rows = List(999) { "item $it" to false }
+        val saved = Templates.normalize(JSONObject().put("checklist", Templates.checklistWith(rows, "Passport")))
+            .getJSONArray("checklist")
+        assertEquals("Passport", saved.getJSONObject(998 + 1).getString("text"))
+    }
+
+    @Test
+    fun `A new item's words are cut to a row's length as the desktop's box and Save cut them`() {
+        // The desktop's strip()[:2000], in its Add and in what Save takes from
+        // the box; the phone saved a paste of 3,500 letters as one row.
+        assertEquals("milk", Templates.newRow("  milk  "))
+        assertEquals("w".repeat(2_000), Templates.newRow("w".repeat(3_500)))
+        assertEquals("counted in letters", "😀".repeat(2_000), Templates.newRow("😀".repeat(2_100)))
+        val list = Templates.checklistWith(emptyList(), "w".repeat(3_500))
+        assertEquals(2_000, list.getJSONObject(0).getString("text").length)
+    }
 }

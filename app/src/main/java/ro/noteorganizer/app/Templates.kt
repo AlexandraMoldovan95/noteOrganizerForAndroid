@@ -152,10 +152,36 @@ object Templates {
      */
     fun checklistWith(rows: List<Pair<String, Boolean>>, waiting: String): JSONArray {
         val out = JSONArray(rows.map { JSONObject().put("text", it.first).put("done", it.second) })
-        val added = PyText.strip(waiting)
+        val added = newRow(waiting)
         if (added.isNotEmpty()) out.put(JSONObject().put("text", added).put("done", false))
         return out
     }
+
+    /**
+     * The words of "A new item…" as a row: stripped, and no longer than a
+     * row is written in -- the desktop's `strip()[:MAX_CHECKLIST_ITEM_CHARS]`,
+     * in its Add and in what its Save takes from the box.
+     */
+    fun newRow(words: String): String {
+        val text = PyText.strip(words)
+        return if (Editing.rowChars(text) <= Editing.CHECKLIST_ROW_CHARS) text
+               else text.substring(0, text.offsetByCodePoints(0, Editing.CHECKLIST_ROW_CHARS))
+    }
+
+    /**
+     * Why a template of [rows] rows takes no more: past [MAX_CHECKLIST_ITEMS]
+     * a row is dropped by every read of it -- its Save among them -- so Add
+     * is refused there, in the note editor's words. Null when it has room.
+     */
+    fun noRoom(rows: Int): String? = if (rows >= MAX_CHECKLIST_ITEMS) Notebook.CHECKLIST_FULL else null
+
+    /**
+     * Whether words waiting in "A new item…" have no room in a template of
+     * [rows] rows: then Save cannot keep them, and they are not saved. Taken
+     * with the rows and cut by the cap, they were dropped unsaid, and ✕ found
+     * nothing changed (the final audit's sixth round).
+     */
+    fun waitingLeftOut(rows: Int, waiting: String): Boolean = newRow(waiting).isNotEmpty() && noRoom(rows) != null
 
     /** Whether another template than the one at [except] already has [name]. */
     fun nameTaken(templates: List<JSONObject>, name: String, except: Int? = null): Boolean =
