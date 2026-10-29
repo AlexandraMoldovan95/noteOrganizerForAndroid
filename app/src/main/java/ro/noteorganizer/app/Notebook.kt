@@ -1182,8 +1182,11 @@ object Notebook {
         }
 
         // Keep the whole state of the old version, so a rescue restores a
-        // note rather than its text with someone else's styling.
-        if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody)) {
+        // note rather than its text with someone else's styling -- when its
+        // words go, or its comments do.
+        val oldComments = (note.opt("comments") as? String) ?: ""
+        val newComments = comments?.let { mendSurrogates(it) } ?: oldComments
+        if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody, oldComments, newComments)) {
             val previous = JSONObject()
             previous.put("title", oldTitle)
             previous.put("body", oldBody)
@@ -2027,10 +2030,20 @@ object Notebook {
      * the text got: a short note replaced by a new line, and a paragraph
      * replaced by one as long, kept no copy (2026-10-24, the desktop's test
      * case 692).
+     *
+     * The comments are weighed as a text of their own, by the same bars:
+     * left out, wiping them -- selected and typed over, or deleted -- kept no
+     * copy, though the copy holds them; counted in with the body, a long
+     * comment would make a whole body deleted read as a small share (the
+     * final audit's sixth round, the desktop's fix with it).
      */
     internal fun shouldKeepPrevious(
         oldTitle: String, oldBody: String, newTitle: String, newBody: String,
-    ): Boolean {
+        oldComments: String = "", newComments: String = "",
+    ): Boolean = textDue(oldTitle, oldBody, newTitle, newBody) || textDue("", oldComments, "", newComments)
+
+    /** [shouldKeepPrevious]'s bars, for one text: a title and a body, or the comments alone -- `_text_rescue_due`. */
+    private fun textDue(oldTitle: String, oldBody: String, newTitle: String, newBody: String): Boolean {
         val oldLen = oldTitle.length + oldBody.length
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied

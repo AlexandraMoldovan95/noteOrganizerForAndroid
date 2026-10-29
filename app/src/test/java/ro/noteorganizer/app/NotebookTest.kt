@@ -1698,4 +1698,28 @@ class NotebookTest {
     }
 
     // settings.json, the retention window and the category map: SettingsTest.
+
+    @Test
+    fun `comments replaced keep a copy, weighed as a text of their own`() {
+        // The rule read the title and the body alone, though the copy holds
+        // the comments: 780 letters of them typed over with "ok" kept none.
+        // The desktop's test_data_safety holds the same five answers.
+        val comments = "A long thought kept under the note, in words. ".repeat(17).take(780)
+        assertTrue("typed over", Notebook.shouldKeepPrevious("t", "body", "t", "body", comments, "ok"))
+        assertTrue("emptied", Notebook.shouldKeepPrevious("t", "body", "t", "body", comments, ""))
+        // Weighed on their own, not added to the body: a body of 64 letters
+        // deleted with 900 letters of comments untouched still keeps one.
+        val long = "c".repeat(900)
+        assertTrue("a body wiped beside long comments", Notebook.shouldKeepPrevious("t", "b".repeat(64), "t", "", long, long))
+        assertTrue(Notebook.shouldKeepPrevious("t", "words of a body ".repeat(4), "t", "x", long, long))
+        assertFalse("a sentence added", Notebook.shouldKeepPrevious("t", "body", "t", "body", comments, "$comments One more."))
+        assertFalse("comments begun", Notebook.shouldKeepPrevious("t", "body", "t", "body", "", "new"))
+        // And through a save: the copy holds the comments that went.
+        val load = scratch(JSONArray().put(JSONObject().put("id", 1).put("title", "Plan").put("body", "Keep")
+            .put("comments", comments)).toString())
+        assertTrue(Notebook.updateNote(load, 1, "Plan", "Keep", comments = "ok") is SaveResult.Ok)
+        val saved = onDisk(load).getJSONObject(0)
+        assertEquals("ok", saved.getString("comments"))
+        assertEquals(comments, saved.getJSONObject("_prev").getString("comments"))
+    }
 }
