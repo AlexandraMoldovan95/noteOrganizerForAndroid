@@ -304,10 +304,23 @@ writes them:
   show again when a repeat comes back.
 - **A repeat ended by a share code's update or by a restore** leaves the
   series' days in the note and puts a copy of them in `_prev`, beside the
-  repeat they hang on (the desktop's `days_to_rescue`). And whenever a new
-  `_prev` replaces one holding days the note no longer has, those days
-  are carried into the new one: the copy is a single slot, and the days
-  must not live only in the copy it erases (2026-10-28).
+  repeat they hang on (the desktop's `days_to_rescue`). A copy of words is
+  words alone: a series' days live in one place, the note, as the desktop
+  keeps them -- kept only in the copy, the next copy over the single slot
+  erased them (the owner's choice, 2026-10-29).
+- **A notebook the phone's 0.12.0 wrote** kept a turned-off series' days
+  in its copy alone. They come back into the note as it is read from a
+  file -- at load, as a Trash entry is restored, at an import -- as the
+  desktop's `_days_back_from_copy` brings them: only from the series' own
+  copy, one that repeats and holds none of what only an update's copy
+  holds (`category`, `color`, `checklist`, `pinned`), into a note that
+  holds no days of its own and either no longer repeats or repeats again
+  as that same series, its date and rule the copy's -- and only when a day
+  there holds text of its own. Asked of the note as a load shapes it, and
+  never of the comparison an update makes, which reads the note without
+  its copy: taken in from an update's copy, the same backup imported twice
+  read as changed the second time (2026-10-29, the final audit's seventh
+  round, on both apps).
 
 Phase 3 writes the other two the day mode has:
 
@@ -735,10 +748,17 @@ either device. `_prev` holds the text fields and, after an update, every
 other field the update replaced; restoring puts all of them back. Since
 2026-10-22, on both apps, what the restore replaces becomes the copy in
 its turn, so the same button brings it back, unless it holds nothing
-the restored version lacks (an emptied note), when the copy is spent;
-and a save whose text matches the copy spends it too, since there is
-nothing left to rescue. An update that would change nothing does not
-touch the note at all, so it cannot spend a rescue copy on nothing.
+the restored version lacks (an emptied note), when the copy is spent --
+weighed by everything the restore writes over: the text, the comments,
+and, the words the same, their styles and lines (2026-10-29: comments
+typed since the copy went to no file). A save whose text matches the
+copy spends it too, since there is nothing left to rescue; and a save
+due a copy for its comments alone, over a copy the note does not hold
+again, keeps that copy's words and takes only the comments it replaces
+(2026-10-29: the comments rewritten after a big delete replaced the only
+copy of the deleted words). An update that would change nothing does not
+touch the note at all, so it cannot spend a rescue copy on nothing; it
+is judged with the note's own copy left out.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the

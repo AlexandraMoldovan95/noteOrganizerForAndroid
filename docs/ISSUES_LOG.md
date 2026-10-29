@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty of the seventy-nine are
+**the code**, or in **the design**. Twenty of the eighty are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-29](#a-rule-fixed-where-it-was-found-and-asked-again-beside-it) | code | The audit's seventh round: "Read all" looked for a space back to a row's start for every part, seconds on a row of no space; the title and a template's name kept take(200) of each new value; Undo forgot where the cursor wrote; the app itself took a template being written off the screen with no draft; the rescue rule counted UTF-16 units; the days' move asked the raw file, skipped the Trash, and took an update's days; a copy for the comments replaced a body's, and the restore weighed no comments | A rule put right where it was found is still asked the old way next door: sweep for the fix's question, not its line |
 | [2026-10-29](#a-days-text-in-a-copy-the-other-program-erased) | design | A turned-off series' days lived in the note on the desktop and in the series' copy alone on the phone: the desktop's next copy of words erased the phone's, and the phone's way of carrying days into every copy put a restarted series' old deleted day back; and a template being written was lost when Android ended the app behind Home | A thing kept in two places is kept by neither: where a value lives is part of the format, proved by running both programs on the same note |
 | [2026-10-29](#a-cap-that-cut-what-it-was-meant-to-keep) | code | The audit's sixth round: a row's 2,000-letter cap cut the row's own end when a letter or a paste went in at its start; a row moved across the line of rows not drawn vanished among them; a row past the limit showed no word of itself, Find stopping on words nobody saw; the template editor drew 1,000 rows at once; Redo left the cursor above a table typed at the end; comments wiped kept no rescue copy | A cap is put on what comes in, never on what is already there; and a window drawn in part follows the row a person moves, as it follows the one a search steps to |
 | [2026-10-29](#a-word-in-the-log-written-by-another-program) | checking | The full walk failed "99,000 characters of words reach the share sheet" with the sheet up: the log held "TransactionTooLargeException", written by Play services about a service of its own; three more checks read every process's log the same way | A check of the log reads the lines of the processes it is about, named by their pid before the act |
@@ -94,6 +95,107 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A rule fixed where it was found, and asked again beside it
+
+**2026-10-29.** The final audit's seventh round attacked round six's fixes
+and the shapes around them, and came back, on the phone, with three
+highs, five mediums and five lows, and five duplicates of them. Almost
+every one was round six's own rule, put right where it was found and
+still asked the old way one place over: by the box beside the one fixed,
+the reader beside the one that moved, the copy beside the one weighed.
+
+- **A search held to nothing.** Round six's "Read all" cut a long row into
+  parts of 300, each ending at the last space within the 60 letters
+  before its end -- and looked for that space with `lastIndexOf`, back to
+  the row's very start. A row with no space in it -- one long word,
+  Chinese, a pasted blob -- read the whole row before every part: the
+  square of its length over 600 letters read on the screen's thread, and
+  a row of five million letters, from a share code of 7 KB, held "Read
+  all" or a search's stop in it for tens of seconds. Nothing else the
+  grep found asks a near question with a far search: Find, the field
+  rule and the read-only pieces all go forward once.
+- **The cap's neighbours.** Round six replaced a checklist row's
+  `take(2,000)` with the desktop's `_limit_entry`; the note's title, a
+  template's name and title, Save as template's name and the name in
+  Settings kept `take` of each new value, in UTF-16 units: a letter
+  typed at the start of a full title pushed its last letter off unsaid, a
+  title of 150 emoji -- one the desktop holds -- kept 100 at the first
+  letter typed, and a letter typed at the cap could be cut in two. And
+  the row cap's words were said once an editor: a second long paste after
+  Add, or into another row, was cut without a word.
+- **A place emptied where nothing moved.** Undo and Redo forgot where the
+  cursor had been writing, and only a change of the words put it back:
+  B, then ↶, then ⊞ on the same bar put the table at the note's end --
+  onto a table closing it, refused with words about a note too large.
+- **The draft's two holes.** Round six kept a template being written as
+  a draft when the app went to the background. The app taking the editor
+  off the screen itself -- the reminder's notification tapped while the
+  app was in front, which opens the calendar, or an import's Open --
+  went past it: no draft, no question, everything typed gone. And a draft
+  was never deleted when the changes were taken back by hand, so an older
+  one was offered later, and Continue then Save wrote back words the
+  person had removed.
+- **Words behind a full list.** At 1,000 rows the note's "A new item…"
+  box took words, and only Add or leaving the note said there was no
+  room; Home ran a save that failed with no one to tell.
+- **The units of the rescue rule.** The phone counted what an edit takes
+  away in UTF-16 units where the desktop counts letters: eight emoji
+  deleted read as sixteen gone, the phone kept a copy the desktop did
+  not, and it replaced the one holding a deleted paragraph.
+- **The days' move, asked of the wrong note, from the wrong copy, on one
+  road of three.** Round six brought a series' days back from 0.12.0's
+  copy into the note at load. It asked the file as it lay, where the
+  desktop asks the note as its load shapes it; it never asked a Trash
+  entry being restored, so a series 0.12.0 turned off and deleted kept
+  its days in the copy alone again, and the next copy of words erased
+  them; it skipped 0.12.0's "turned off, then back on as it was", which
+  left the days in the copy too; and it took days from an update's copy
+  of a series as well, which on the desktop made the same backup read as
+  changed the second time and its Update spend the only earlier version.
+- **The comments, weighed for the copy and not for the restore.** Round
+  six let wiping the comments make a rescue copy, and that copy, of the
+  note as it stood, replaced one holding a deleted body. And "↩ Restore
+  previous" weighed the body and the title it wrote over, not the
+  comments: comments typed since the copy went to no file, the question
+  promising nothing to keep.
+
+**The fix:** the space is looked for within the slack alone. Every box
+kept to a length is kept by the one rule, its own words whole, only what
+came in cut, in letters, said in the desktop's words for that box -- over
+the template editor, and under the box where a dialog or a page stands
+over the app's messages -- and said again at the next cut that does not
+go on from the words the last one left. Undo and Redo keep the place
+written at when the words did not change. The template editor keeps a
+draft whenever it leaves the screen without being closed, and a draft
+of nothing changed is deleted. A full list's box says so as the words
+begin. What an edit takes away is counted in letters, as Python counts.
+And the days' move and the comments follow the desktop's own fix
+(cdbb89e there): the move is asked of the note as a load shapes it,
+at load and as a Trash entry is restored; only from the series' own
+copy, which holds none of an update's category, colour, checklist and
+pin; into a note that no longer repeats or repeats again as that same
+series; and an update's comparison reads the note without its copy. A
+save due a copy for its comments alone keeps the waiting copy's words
+and takes only the comments; a restore weighs the comments it writes
+over, and the styles of the same words. `days_cases.json`, rebuilt by
+the desktop's own core at cdbb89e, holds 31 cases now, the ten new ones
+the Trash, 0.12.0's turn-on, the same backup twice, the comments over a
+body's copy, a restore after comments and after bold; the 21 before it
+answered as they did. Each fix with a test and a mutant watched failing
+(AS237 to AS257, all 21 killed), and the walk's new `limits_round7`,
+written with the round and left for the emulator. The tools came out of
+the round holding to the computer they run on: no Gradle or Kotlin
+daemon left after a build, every adb call timed, the desktop's code run
+under the desktop's own memory ceiling.
+
+**The lesson:** a rule put right where it was found is a rule still
+asked the old way next door. The sweep for a fix is not for its line but
+for its question -- every box with a cap, every road a note is read by,
+every copy a save makes or a restore spends -- and each of them gets the
+same answer, or a written reason why not.
 
 ---
 
@@ -2861,6 +2963,37 @@ whether that is what the dialog should show.
   to 1.44 s** on the emulator on 2026-10-29, against its line of a second
   -- on the build before this round as on the build after it: the
   machine's that day, not the round's, left for the full walk to judge.
+
+### What the audit's seventh round left
+
+- **Words waiting in a full list's box are said, not kept.** At 1,000
+  rows, "A new item…" says the list is full as words begin there; if
+  Android then ends the app behind Home, the words are gone, as before,
+  though no longer unsaid. The desktop keeps such words waiting for their
+  note while it stays open and asks at its close; a phone app has no
+  close to ask at, and keeping them aside as the template editor's draft
+  is would be a file of its own -- the owner's call.
+- **The template editor's draft on the app's own way out is walked by
+  one road of two.** The reminder's notification is sent by its own
+  intent with the editor open; the notification tapped from the shade,
+  and an import's Open in split screen, are not walked. Both leave the
+  editor the same way, which is what keeps the draft.
+- **Bold, Undo, Insert table** is proved in the editor's model, not on a
+  phone: selecting a word and the bar's ↶ are not scripted, and whether a
+  person's keyboard keeps the field's focus through B and ↶ is the phone's.
+- **Settings' name box holds 80 letters, the desktop's 30.** It keeps its
+  own words at its cap now, as every box does; the number was the
+  phone's before this round and is left.
+- **Two Trash restores.** The Trash page restores through
+  `Organizing.restore`; `Notebook.restoreFromTrash`, an older route, is
+  reached by tests alone. Both take a 0.12.0 series' days back now; the
+  older one is a second copy of a rule, [the kind that
+  rots](#a-dead-route-carrying-a-second-copy-of-the-rules), left for a
+  round that may remove it.
+- **A word a keyboard commits past a cap is cut as a paste is**, the
+  sixth round's, now in the title and the template's boxes too: a
+  suggestion or a swiped word that does not fit is cut to the room left,
+  and a paste's words said.
 
 ### The phone's, from the audit of 2026-10-19
 

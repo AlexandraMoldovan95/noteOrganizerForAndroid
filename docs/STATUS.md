@@ -269,7 +269,10 @@ Grouped by what the app does; when each item arrived is in the
     rescue copy — left by a big deletion, of its words or of its comments
     weighed on their own, by a repeat turned off, or by an update that arrived
     from elsewhere — the note says so and brings it back, its text and
-    everything else the update changed.
+    everything else the update changed. A copy due for the comments alone
+    keeps a big delete's words it already held, taking only the comments;
+    and what the restore writes over -- the comments, the styles of the same
+    words -- is kept in its turn, as on the desktop (since 2026-10-29).
 25. **Find in note**: the count, back and next, case, prose and table
     cells together, then the checklist and the comments (since 2026-10-25;
     the desktop's bar looks through the text alone), every match painted
@@ -307,9 +310,12 @@ Grouped by what the app does; when each item arrived is in the
     them in Settings → Templates — the desktop's `templates.json`, so a
     template made on either device starts notes on both. A template's
     body shows its tables drawn, in place, as a note does. One being
-    written when Android ends the app behind Home is kept as a draft, in
-    the storage Android's backup leaves out, and offered back when
-    Templates opens: "You were writing a template. Continue it?".
+    written when Android ends the app behind Home -- or when the app itself
+    takes the editor off the screen, the reminder's notification tapped or
+    an import's Open -- is kept as a draft, in the storage Android's backup
+    leaves out, and offered back when Templates opens: "You were writing a
+    template. Continue it?". A draft whose changes were taken back by hand
+    is not kept.
 
 ### Organising
 
@@ -385,7 +391,7 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 851 JVM unit tests in 31 suites, mutation-tested; seven ports held to
+39. 861 JVM unit tests in 31 suites, mutation-tested; seven ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
@@ -649,7 +655,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 851 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 861 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -657,10 +663,18 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-63 parts since the final audit's sixth round added `days_in_the_note` (4
+64 parts since the final audit's seventh round added `limits_round7` (9
+checks, written with the round and not yet run: "Read all" on a checklist
+row of a million letters with no space, timed by the app's frames; a
+letter at the start of a title and of a template's name of 200 letters,
+refused and said; a full list's box told so as words begin; a second long
+paste into "A new item…" after Add said again; the reminder's own intent
+sent while a template is written, the draft kept and offered back; a
+draft whose change was taken back by hand gone at the next Home). The
+sixth round had added `days_in_the_note` (4
 checks: a notebook 0.12.0 left, its series' day back in the note at the
 next write; a turn-off from the Repeat sheet keeping a day's own text in
-the note; a big delete after it, a copy of words alone) and
+the note; a big delete after it, a copy of words alone),
 `template_draft` (7 checks: a template being written kept aside at Home,
 the app ended, offered back, every field continued and saved, an edit
 discarded), and `limits_round6` (20
@@ -971,7 +985,7 @@ the desktop's source and never write to it.
 | Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
 | Lists | its renumbering | 300 bodies |
 | Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts, 86 markdown tables |
-| A series' days (the final audit) | its save, Restore previous, `apply_shared_update`, `normalize_note`'s `_days_back_from_copy` | 21 notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update, 0.12.0's notes read: each step's stored note and its import |
+| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | 31 notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
 
 Pasting is the one port where the phone answers differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
@@ -1057,7 +1071,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-851 JVM unit tests in 31 suites pin the rules ported from Python, and
+861 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

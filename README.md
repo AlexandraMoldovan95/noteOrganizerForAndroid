@@ -113,7 +113,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 830 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # 861 JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in

@@ -19,14 +19,14 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-851 checks across thirty-one suites — `NotebookTest` (134),
-`TablesTest` (77), `RecurrenceTest` (49), `DaysTest` (45), `EditingTest` (41),
-`PastingTest` (41), `OrganizingTest` (40), `IdentityTest` (39), `CalculatorTest` (34),
-`StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (33),
-`AppStateTest` (33), `SharingTest` (26),
-`SettingsTest` (24), `BackupTest` (23), `FindingTest` (19),
-`TemplatesTest` (19), `ExportingTest` (16), `StartupTest` (14),
-`EditorTypingTest` (14), `OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
+861 checks across thirty-one suites — `NotebookTest` (136),
+`TablesTest` (77), `RecurrenceTest` (49), `DaysTest` (46), `EditingTest` (44),
+`PastingTest` (41), `OrganizingTest` (40), `IdentityTest` (39), `AppStateTest` (35),
+`CalculatorTest` (34), `StylingTest` (33), `ParagraphsTest` (33), `ImportingTest` (33),
+`SharingTest` (26),
+`SettingsTest` (24), `BackupTest` (23), `TemplatesTest` (20), `FindingTest` (19),
+`ExportingTest` (16), `EditorTypingTest` (15), `StartupTest` (14),
+`OutgoingTest` (12), `ListingTest` (11), `ThemesTest` (9), `EditorCopyTest` (8),
 `EditorTableTest` (7), `RemindersTest` (6),
 `StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). No device, no emulator:
@@ -57,7 +57,7 @@ and never writes to it:
 | `calculator_cases.json` | `make_calculator_fixture.py` | 661 sums evaluated, 378 values displayed |
 | `export_cases.json` | `make_export_fixture.py` | 400 notes exported as `.html` and `.txt`, 794 files |
 | `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
-| `days_cases.json` | `make_days_fixture.py` | 21 notes of a series walked through turn-offs, turn-ons, deletes, restores and updates, each step's stored note and its import |
+| `days_cases.json` | `make_days_fixture.py` | 31 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore and rewritten comments, each step's stored note and its import |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
 | `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
 
@@ -75,6 +75,12 @@ past. Where the phone answers differently on purpose, the paste tool
 makes its answers by the smallest change to the desktop's own function,
 in its own process, keeps the desktop's answer beside each case it
 changes, and stops when the line it changes is gone.
+
+Every tool here that runs the desktop's code does it under the desktop's
+own memory ceiling: it calls the desktop's `tools/guest.py` first
+(`tools/desktop_guest.py`), and stops if that file is not there. Point
+`NOTEORGANIZER_HOME` at a `git archive` of the desktop's commit, not at a
+working tree someone is editing, when the answers must be a commit's.
 
 **The task prints nothing useful when it fails.** The results are XML in
 `app/build/test-results/testDebugUnitTest/`, and the count in those files
