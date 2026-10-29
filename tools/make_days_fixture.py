@@ -31,6 +31,7 @@ import can be a notebook.
 Reads the desktop's Python and writes only this repository's fixture.
 """
 import copy
+import datetime
 import hashlib
 import io
 import json
@@ -110,6 +111,17 @@ def main():
     from noteorganizer.core.recurrence import is_recurring, normalize_recurrence
     from noteorganizer.core.formatting import normalize_formatting, normalize_paragraphs
     from noteorganizer.core.tables import with_caret_line
+    import noteorganizer.core.model as desktop_model
+
+    # The desktop stamps "updated" from the clock, and the parity judges no
+    # stamp: on a fixed clock a rebuild writes the same fixture, so one that
+    # changes it is a rule that changed (the stamps alone changed it before).
+    class FixedClock(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 10, 29, 12, 0, 0, tzinfo=tz)
+
+    desktop_model.datetime = FixedClock
 
     def whole_note_copy(note):
         """_whole_note_rescue_copy, as fingerprinted."""
