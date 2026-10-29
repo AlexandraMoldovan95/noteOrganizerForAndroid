@@ -96,6 +96,9 @@ object Normalize {
         // longer holds. Shaped as the desktop shapes it, not copied whole:
         // a restore puts it straight back into the note.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
+        // A turned-off series' days kept only in its copy come into the
+        // note, as the desktop's normalize_note brings them (round six).
+        Notebook.daysBackFromCopy(out)
         return out
     }
 

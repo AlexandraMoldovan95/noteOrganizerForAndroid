@@ -473,27 +473,21 @@ object Days {
      * -- the desktop's `_repeat_off_loses_days`. A day differing only in its
      * colour or category loses no text.
      */
-    internal fun repeatOffLosesDays(note: JSONObject): Boolean {
-        if (!Recurrence.isRecurring(note)) return false
-        val overrides = note.opt("overrides") as? JSONObject ?: return false
-        for (day in overrides.keys()) {
-            // What each day holds, as the desktop's save asks it (day_as_kept).
-            val shown = Recurrence.dayAsKept(note, day)
-            for (key in listOf("title", "body", "comments")) {
-                if ((shown.opt(key) as? String ?: "") != (note.opt(key) as? String ?: "")) return true
-            }
-        }
-        return false
-    }
+    internal fun repeatOffLosesDays(note: JSONObject): Boolean =
+        Recurrence.isRecurring(note) && Notebook.daysHoldOwnText(note)
 
     /**
      * Sets a note's repeat, or turns it off with [rule] null or a rule
      * that does not repeat. A repeating note needs a first day. Turned off,
-     * the repeat takes the days' own edits, skipped days and moves with it
-     * -- and when a day held text of its own, the note as it was goes into
-     * the rescue copy first, repeat and days included, so "↩ Restore
-     * previous" brings the series back whole. A note that already does not
-     * repeat keeps its days.
+     * when a day held text of its own, the note as it was goes into the
+     * rescue copy first, repeat and days included, so "↩ Restore previous"
+     * brings the series back whole -- and the days stay in the note as well,
+     * inert while it does not repeat, back if a repeat is: one place for
+     * them, the note, as the desktop keeps them (the owner's choice, the
+     * final audit's sixth round). Kept only in the copy, as up to 0.12.0,
+     * the desktop's next copy of words erased them. Days none of which holds
+     * text of its own -- skipped days, a colour -- go, as the desktop's save
+     * clears them, the copy aside.
      */
     /**
      * [startWas] is the series' start before the sheet's Save wrote a new
@@ -508,25 +502,20 @@ object Days {
         if (repeats && Recurrence.parseDate(note.opt("date")) == null) {
             return@edit "A repeating note needs a start date. Pick a date first."
         }
-        // Only a repeat being turned off takes its days. A note that does
-        // not repeat keeps whatever days it holds: they came with no copy
-        // of their own -- a share code ended the repeat and left them -- and
-        // a Save in this sheet with "Never" cleared them for good, the copy
-        // "↩ Restore previous" then brought back the repeat without them.
-        // They show again if a repeat comes back.
-        if (!repeats && Recurrence.isRecurring(note)) {
-            val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
-            if (repeatOffLosesDays(was)) {
-                // Days the copy it replaces held, and the note does not: kept;
-                // and the words of a big delete's copy the note still needs.
-                val copy = wholeNoteCopy(was)
-                Notebook.takeUnspentWords(copy, note)
-                Notebook.carryDays(copy, note.opt("_prev"), note)
-                note.put("_prev", copy)
+        if (!repeats) {
+            if (Recurrence.isRecurring(note)) {
+                val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
+                // The words of a big delete's copy the note still needs go
+                // into the turn-off's copy with the series.
+                if (repeatOffLosesDays(was)) {
+                    val copy = wholeNoteCopy(was)
+                    Notebook.takeUnspentWords(copy, note)
+                    note.put("_prev", copy)
+                }
             }
-            note.put("exceptions", JSONArray())
-            note.put("overrides", JSONObject())
-            note.put("moved", JSONObject())
+            // The desktop's `if not freq and not days_kept`: asked of the
+            // days the note holds, whether it repeated or not.
+            if (!Notebook.daysHoldOwnText(note)) Notebook.clearDays(note)
         }
         // Turned back on with another start or rule than the series had (the
         // sheet wrote the new start first): its old deleted days, which hold
@@ -534,6 +523,9 @@ object Days {
         // them -- and days with words of their own stay (Notebook.keptDaysFit).
         if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
+        // Back on as the series was, the note holds again all its copy kept:
+        // spent, as the desktop's save drops it, the banner with it.
+        Notebook.dropSpentCopy(note)
         null
     }
 
