@@ -4874,7 +4874,2447 @@
     "updated": "2026-10-20 09:00:00"
    },
    "steps": []
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {},
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off in the Trash, restored",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": ""
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "untrash"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {},
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off in the Trash, restored, then a big delete",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": ""
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "untrash"
+    },
+    {
+     "body": "Warm up.",
+     "comments": "",
+     "do": "write",
+     "title": "Gym"
+    }
+   ]
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, read, then a big delete",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "Warm up.",
+     "comments": "",
+     "do": "write",
+     "title": "Gym"
+    }
+   ]
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-09",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-09",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on from another start, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-09",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-29 12:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-29 12:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-29 12:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-29 12:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a backup's update ends a series, read, the same backup again",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "backup",
+     "incoming": {
+      "attachments": [],
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "created": "2026-10-20 09:00:00",
+      "date": "2026-11-02",
+      "exceptions": [],
+      "formatting": [],
+      "id": 1,
+      "moved": {},
+      "overrides": {},
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "freq": ""
+      },
+      "title": "Gym",
+      "uid": "gym-days",
+      "updated": "2026-10-20 09:00:00"
+     }
+    },
+    {
+     "do": "read"
+    },
+    {
+     "do": "backup",
+     "incoming": {
+      "attachments": [],
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "created": "2026-10-20 09:00:00",
+      "date": "2026-11-02",
+      "exceptions": [],
+      "formatting": [],
+      "id": 1,
+      "moved": {},
+      "overrides": {},
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "freq": ""
+      },
+      "title": "Gym",
+      "uid": "gym-days",
+      "updated": "2026-10-20 09:00:00"
+     }
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-29 12:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-29 12:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-29 12:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a share code's update ends a series, read",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "share",
+     "incoming": {
+      "attachments": [],
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
+      "comments": "",
+      "created": "2026-10-20 09:00:00",
+      "date": "2026-11-02",
+      "formatting": [],
+      "id": 1,
+      "paragraphs": [],
+      "pinned": false,
+      "recurrence": {
+       "freq": ""
+      },
+      "title": "Gym",
+      "uid": "gym-days",
+      "updated": "2026-10-20 09:00:00"
+     }
+    },
+    {
+     "do": "read"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Trip"
+     },
+     "attachments": [],
+     "body": "Day 2.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Trip",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Trip"
+     },
+     "attachments": [],
+     "body": "Day 2.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Car returned.",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Trip",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Car returned.",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Trip"
+     },
+     "attachments": [],
+     "body": "Day 2.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "ok, all booked",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Trip",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Day 2.",
+      "comments": "ok, all booked",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Trip"
+     },
+     "attachments": [],
+     "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Car returned.",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Trip",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Day 2.",
+     "comments": "ok, all booked",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Trip"
+    },
+    "attachments": [],
+    "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Car returned.",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Trip",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Trip",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "the comments rewritten over a big delete's copy",
+   "note": {
+    "attachments": [],
+    "body": "Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, and the map Ioana printed. Day 3: rest, then the castle at noon. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": ""
+    },
+    "title": "Trip",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "Day 2.",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+     "do": "write",
+     "title": "Trip"
+    },
+    {
+     "body": "Day 2.",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Car returned.",
+     "do": "write",
+     "title": "Trip"
+    },
+    {
+     "body": "Day 2.",
+     "comments": "ok, all booked",
+     "do": "write",
+     "title": "Trip"
+    },
+    {
+     "do": "restore"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Dan called back: plumber Tuesday 10:00, gate code 4471, quote 1,250 EUR.",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "",
+      "comments": "Dan called back: plumber Tuesday 10:00, gate code 4471, quote 1,250 EUR.",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "",
+     "comments": "Dan called back: plumber Tuesday 10:00, gate code 4471, quote 1,250 EUR.",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Renovation"
+    },
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "Restore previous after comments were typed",
+   "note": {
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": ""
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "",
+     "comments": "",
+     "do": "write",
+     "title": "Renovation"
+    },
+    {
+     "body": "",
+     "comments": "Dan called back: plumber Tuesday 10:00, gate code 4471, quote 1,250 EUR.",
+     "do": "write",
+     "title": "Renovation"
+    },
+    {
+     "do": "restore"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "Kitchen",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [
+      {
+       "end": 7,
+       "start": 0,
+       "style": "bold"
+      }
+     ],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+      "comments": "",
+      "formatting": [
+       {
+        "end": 7,
+        "start": 0,
+        "style": "bold"
+       }
+      ],
+      "paragraphs": [],
+      "title": "Renovation"
+     },
+     "attachments": [],
+     "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {},
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Renovation",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+     "comments": "",
+     "formatting": [
+      {
+       "end": 7,
+       "start": 0,
+       "style": "bold"
+      }
+     ],
+     "paragraphs": [],
+     "title": "Renovation"
+    },
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "Restore previous after the same words were made bold",
+   "note": {
+    "attachments": [],
+    "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": ""
+    },
+    "title": "Renovation",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "Kitchen",
+     "comments": "",
+     "do": "write",
+     "title": "Renovation"
+    },
+    {
+     "body": "Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. ",
+     "comments": "",
+     "do": "write",
+     "formatting": [
+      {
+       "end": 7,
+       "start": 0,
+       "style": "bold"
+      }
+     ],
+     "title": "Renovation"
+    },
+    {
+     "do": "restore"
+    }
+   ]
   }
  ],
- "source": "the desktop's core, 21 cases"
+ "source": "the desktop's core, 31 cases"
 }

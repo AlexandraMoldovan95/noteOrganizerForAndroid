@@ -827,6 +827,10 @@ object Organizing {
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
+            // Read from the Trash's file, as the notes are at load: a series
+            // 0.12.0 turned off and deleted takes its days back into the note
+            // (Notebook.daysBackAsRead), as the desktop's restore does.
+            Notebook.daysBackAsRead(note)
             note.put("id", nextId)
             val uid = note.opt("uid") as? String ?: ""
             if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())

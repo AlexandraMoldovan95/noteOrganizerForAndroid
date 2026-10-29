@@ -1018,6 +1018,26 @@ class NotebookTest {
     }
 
     @Test
+    fun `what an edit takes away is counted in letters, an emoji one, as the desktop counts`() {
+        // In UTF-16 units twelve emoji deleted were twenty-four characters:
+        // the phone's copy then replaced one the desktop keeps, its deleted
+        // paragraph in no copy. The desktop's answers, from its own core
+        // (scratch probe_rescue_units.py, at a4bbf05).
+        val party = "🎉"
+        val smile = "😀"
+        assertEquals(6, Notebook.textLost(smile.repeat(10), smile.repeat(4)))
+        assertEquals("an emoji the two share half of differs whole", 1, Notebook.textLost("a${smile}b", "a${party}b"))
+        assertEquals(1, Notebook.textLost("a${smile}b", "ab"))
+        assertFalse(Notebook.shouldKeepPrevious("Party", "", "Party", "", party.repeat(20), party.repeat(12)))
+        assertTrue("emptied", Notebook.shouldKeepPrevious("Party", "", "Party", "", party.repeat(20), ""))
+        assertFalse(Notebook.shouldKeepPrevious("t", smile.repeat(100), "t", smile.repeat(40) + party.repeat(21) + smile.repeat(39)))
+        assertFalse(Notebook.shouldKeepPrevious("t", "𠀀".repeat(120), "t", "𠀀".repeat(90)))
+        // Lone halves, as a file can hold them, are a letter each, as Python reads them.
+        assertEquals(1, Notebook.textLost("x\uDE00", "y\uDE00"))
+        assertEquals("a lone half kept is no emoji kept", 2, Notebook.textLost("\uD83Dx", "😀"))
+    }
+
+    @Test
     fun `a column added to a table loses no words, and leaves the copy of a deleted paragraph in place`() {
         // A column added pads every row again: measured as the span between
         // the first change and the last, it read as the whole table lost,
@@ -1413,6 +1433,23 @@ class NotebookTest {
         assertTrue(Notebook.restoreFromTrash(doomed, 5) is SaveResult.Failed)
         // The note is already safely back in the notebook.
         assertEquals("coming back", onDisk(load).getJSONObject(1).getString("title"))
+    }
+
+    @Test
+    fun `a series 0_12_0 turned off and sent to the Trash takes its days back into the note as it comes back`() {
+        // Restored as it lay, its days were in its copy alone for the rest of
+        // the session, and the next copy of words erased them; the desktop's
+        // restore shapes it, the move with it (the final audit's seventh round).
+        val load = scratchWithTrash("""[{"id": 1, "title": "Other"}]""",
+            """[{"id": 5, "uid": "g", "title": "Gym", "body": "Warm up.", "date": "2026-11-02", "recurrence": {"freq": ""},
+                "exceptions": [], "overrides": {}, "moved": {}, "deleted_at": "2026-10-27 10:00:00",
+                "_prev": {"title": "Gym", "body": "Warm up.", "comments": "", "formatting": [], "paragraphs": [],
+                          "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1},
+                          "exceptions": [], "overrides": {"2026-11-09": {"body": "Leg day"}}, "moved": {}}}]""")
+        val back = Notebook.restoreFromTrash(load, 5) as SaveResult.Ok
+        assertTrue(Notebook.updateNote(load, back.id, "Gym", "Rowing only, the whole plan written again from nothing at all.") is SaveResult.Ok)
+        val note = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it) }.single { it.getInt("id") == back.id }
+        assertEquals("Leg day", note.getJSONObject("overrides").getJSONObject("2026-11-09").getString("body"))
     }
 
     @Test

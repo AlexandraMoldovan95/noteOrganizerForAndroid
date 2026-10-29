@@ -737,17 +737,67 @@ class DaysTest {
         val imported = Normalize.normalizeNote(JSONArray(shipped()).getJSONObject(0))
         assertEquals("Leg day - knee hurt", dayTitleOrBody(imported, "2026-11-09"))
         // Never days that hold no text, nor an update's copy of a note that
-        // did not repeat, nor into a note that still repeats.
+        // did not repeat, nor into a note that repeats as another series.
         val empty = scratch(shipped(days = """"exceptions": ["2026-11-16"], "overrides": {"2026-11-09": {"color": "#ff6b6b"}}"""))
         assertEquals(0, empty.raw!!.getJSONObject(0).getJSONArray("exceptions").length())
         val update = scratch(shipped(rule = """{"freq": ""}"""))
         assertEquals(0, update.raw!!.getJSONObject(0).getJSONObject("overrides").length())
-        val live = scratch(shipped().replaceFirst(""""recurrence": {"freq": ""}""", """"recurrence": {"freq": "weekly"}"""))
-        assertEquals(0, live.raw!!.getJSONObject(0).getJSONObject("overrides").length())
+        val elsewhere = scratch(shipped().replaceFirst(""""date": "2026-11-02", "recurrence": {"freq": ""}""",
+                                                       """"date": "2026-11-09", "recurrence": {"freq": "weekly"}"""))
+        assertEquals(0, elsewhere.raw!!.getJSONObject(0).getJSONObject("overrides").length())
+        // Into one repeating again as that same series -- 0.12.0's turn-off,
+        // then on as it was, which gave the note none of its days back (the
+        // seventh round, as the desktop's cdbb89e).
+        val back = scratch(shipped().replaceFirst(""""recurrence": {"freq": ""}""", """"recurrence": {"freq": "weekly"}"""))
+        assertEquals("Leg day - knee hurt", dayTitleOrBody(back.raw!!.getJSONObject(0), "2026-11-09"))
     }
 
     private fun dayTitleOrBody(note: JSONObject, day: String): String? =
         (note.opt("overrides") as? JSONObject)?.optJSONObject(day)?.optString("body")
+
+    @Test
+    fun `the read asks the move of the note as the desktop's load shapes it, not of the file as it lies`() {
+        // The desktop moves the days at the end of normalize_note: its deleted
+        // days real dates, its copy shaped, a day's edit its text alone. The
+        // phone asked the raw file, and odd shapes moved differently. Each
+        // answer here is the desktop's own, run on its core at a4bbf05
+        // (scratch probe_read_parity.py): days in the note, or none.
+        fun read(over: String, prev: String = ""): JSONObject {
+            val copy = """"title": "Gym", "body": "Warm up.", "comments": "", "formatting": [], "paragraphs": [],
+                "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}, "exceptions": [],
+                "overrides": {"2026-11-09": {"body": "Leg day"}}, "moved": {}"""
+            val note = JSONObject("""{"id": 1, "uid": "g", "title": "Gym", "body": "Warm up.", "comments": "",
+                "category": "General", "date": "2026-11-02", "recurrence": {"freq": ""}, "exceptions": [],
+                "overrides": {}, "moved": {}, "_prev": {$copy}}""")
+            JSONObject("{$over}").let { o -> for (k in o.keys()) note.put(k, o.get(k)) }
+            if (prev.isNotEmpty()) JSONObject("{$prev}").let { o ->
+                val p = note.getJSONObject("_prev")
+                for (k in o.keys()) if (o.isNull(k)) p.remove(k) else p.put(k, o.get(k))
+            }
+            return scratch(JSONArray().put(note).toString()).raw!!.getJSONObject(0)
+        }
+        // A deleted day the desktop's load does not keep stops no move.
+        assertEquals("Leg day", dayTitleOrBody(read(""""exceptions": ["16.11.2026"]"""), "2026-11-09"))
+        assertEquals("Leg day", dayTitleOrBody(read(""""exceptions": [5, "x"]"""), "2026-11-09"))
+        // A copy the desktop's load reads as no series, or whose day it drops, moves nothing.
+        assertEquals(0, read("", """"date": null""").getJSONObject("overrides").length())
+        assertEquals(0, read("", """"recurrence": {"freq": "hourly"}""").getJSONObject("overrides").length())
+        assertEquals(0, read("", """"overrides": {"someday": {"body": "Leg day"}}""").getJSONObject("overrides").length())
+        assertEquals(0, read("", """"overrides": {"2026-11-09": {"title": 5}}""").getJSONObject("overrides").length())
+        // An update's comparison reads the note without its copy, as the
+        // desktop's shared_update_changes does: the move from the copy is a
+        // read's, never a difference the same backup brings.
+        val mine = JSONObject("""{"id": 1, "uid": "g", "title": "Gym", "body": "Warm up.", "category": "General",
+            "date": "2026-11-02", "recurrence": {"freq": ""}, "exceptions": [], "overrides": {}, "moved": {},
+            "_prev": {"title": "Gym", "body": "Warm up.", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1},
+                      "overrides": {"2026-11-09": {"body": "Leg day"}}}}""")
+        val same = JSONObject(mine.toString()).apply { remove("_prev") }
+        assertFalse(Notebook.sharedUpdateChanges(mine, same, Notebook.UPDATABLE_FROM_BACKUP))
+        // And a day's own text read as Python's `or ""` reads it: a number is no empty title.
+        assertTrue(Notebook.daysHoldOwnText(JSONObject("""{"title": "", "body": "b", "overrides": {"2026-11-09": {"title": 5}}}""")))
+        assertTrue(Notebook.daysHoldOwnText(JSONObject("""{"title": "Gym", "body": "b", "overrides": {"2026-11-09": {"title": ""}}}""")))
+    }
 
     @Test
     fun `a one-off's days with no text of their own go at its next edit, as the desktop's save clears them`() {
@@ -843,18 +893,26 @@ class DaysTest {
         val stream = javaClass.classLoader?.getResourceAsStream("days_cases.json")
         assertNotNull("days_cases.json is missing - rebuild it with tools/make_days_fixture.py", stream)
         val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
-        assertTrue(cases.length() >= 20)
+        assertTrue(cases.length() >= 31)
         for (c in 0 until cases.length()) {
             val case = cases.getJSONObject(c)
             val name = case.getString("name")
-            val load = scratch(JSONArray().put(case.getJSONObject("note")).toString())
             val steps = case.getJSONArray("steps")
+            // A note that starts in the Trash, as it lay there.
+            val trashed = steps.length() > 0 && steps.getJSONObject(0).getString("do") == "untrash"
+            var load = if (!trashed) scratch(JSONArray().put(case.getJSONObject("note")).toString()) else {
+                val dir = NioFiles.createTempDirectory("days").toFile()
+                File(dir, "notes_data.json").writeText("[]")
+                File(dir, "trash.json").writeText(JSONArray().put(JSONObject(case.getJSONObject("note").toString())
+                    .put("deleted_at", "2026-10-27 10:00:00")).toString())
+                Notebook.load(dir)
+            }
             if (steps.length() == 0) {
                 assertEquals("$name: as read", canon(case.getJSONObject("loaded")), canon(load.raw!!.getJSONObject(0)))
             }
             for (s in 0 until steps.length()) {
                 val step = steps.getJSONObject(s)
-                val now = load.raw!!.getJSONObject(0)
+                val now = load.raw!!.optJSONObject(0) ?: JSONObject()
                 val title = now.optString("title")
                 val body = now.optString("body")
                 when (step.getString("do")) {
@@ -865,7 +923,11 @@ class DaysTest {
                         assertTrue(Days.setRepeat(load, 1, step.getJSONObject("rule"), startWas = if (date != was) was else null) is SaveResult.Ok)
                     }
                     "write" -> assertTrue(Notebook.updateNote(load, 1, step.getString("title"), step.getString("body"),
-                        comments = step.getString("comments")) is SaveResult.Ok)
+                        comments = step.getString("comments"),
+                        formatting = step.optJSONArray("formatting")?.let { Exporting.normalizeFormatting(it) }) is SaveResult.Ok)
+                    "untrash" -> assertTrue("$name: untrash",
+                        Organizing.restore(load, load.trash.map { Organizing.keyOf(it) }) is SaveResult.Ok)
+                    "read" -> load = Notebook.load(load.file!!.parentFile!!)
                     "restore" -> assertTrue("$name: restore", Notebook.restorePrevious(load, 1) is SaveResult.Ok)
                     "share", "backup" -> {
                         val source = if (step.getString("do") == "share") Importing.Source.CODE else Importing.Source.BACKUP

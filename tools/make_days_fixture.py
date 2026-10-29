@@ -23,7 +23,14 @@ producing answers from an old copy.
 
 The desktop's code is imported with its home folders pointed at empty
 folders under app/build, checked empty afterwards: nothing it reads at
-import can be a notebook.
+import can be a notebook -- and under the desktop's own memory ceiling
+(`desktop_guest`).
+
+The cases since the seventh round: a 0.12.0 Trash entry restored, then
+rewritten; 0.12.0's turn-off then turn-on as it was; an update's copy of a
+series, which never moves; the same backup imported twice; the comments
+rewritten over a big delete's copy; "Restore previous" after comments were
+typed, and after the same words' styles changed.
 
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
@@ -56,7 +63,7 @@ REGIONS = {
                               "0dbcd5f3d72b87ec64ad2c16b132be4e6aae9128"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
-        '                    note["moved"] = {}\n', "fd5bcefb46001f178f53a98ccb469c6c1b25f0de"),
+        '                    note["moved"] = {}\n', "2a680145992b393dff9df7744aa160a1831a8715"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
                                          "307ce489636ae9adce9c88017b5f7d12b8769271"),
@@ -102,6 +109,9 @@ def main():
     if problem:
         print(problem)
         return 1
+    sys.path.insert(0, HERE)
+    from desktop_guest import settle
+    settle(DESKTOP)
     isolate()
     sys.path.insert(0, DESKTOP)
     from noteorganizer.core.model import (apply_shared_update, copy_replaced_by_restore,
@@ -110,6 +120,7 @@ def main():
                                           UPDATABLE_FROM_BACKUP, UPDATABLE_FROM_SHARED)
     from noteorganizer.core.recurrence import is_recurring, normalize_recurrence
     from noteorganizer.core.formatting import normalize_formatting, normalize_paragraphs
+    from noteorganizer.core.storage import restore_many_from_trash
     from noteorganizer.core.tables import with_caret_line
     import noteorganizer.core.model as desktop_model
 
@@ -149,21 +160,31 @@ def main():
                 prev[key] = copy.deepcopy(existing.get(key, prev[key]))
         return prev
 
-    def save(note, title, body, comments, date_value, recurrence):
+    def holds_unspent_rescue(note):
+        """_holds_unspent_rescue, the desktop's window method, whole."""
+        return isinstance(note.get("_prev"), dict) and not rescue_copy_spent(note)
+
+    def save(note, title, body, comments, date_value, recurrence, formatting=None):
         """save_current_note's series branch, as fingerprinted: the parts a
-        note's words, its date and its repeat take."""
+        note's words, its date and its repeat take -- and its styles, which
+        the window writes from the editor, when a step gives them."""
         recurrence = normalize_recurrence(recurrence)
         rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""), title, body,
                                      note.get("comments", ""), comments)
+        comments_alone = (rescue_due and holds_unspent_rescue(note)
+                          and not rescue_copy_due(note.get("title", ""), note.get("body", ""), title, body))
         days_lost = (is_recurring(note) and not recurrence.get("freq")
                      and days_hold_own_text(note))
         days_kept = days_hold_own_text(note)
         if not kept_days_fit(note, date_value, recurrence):
             note["exceptions"] = []
         if days_lost:
-            note["_prev"] = turn_off_copy(note, takes_text=rescue_due)
+            note["_prev"] = turn_off_copy(note, takes_text=rescue_due and not comments_alone)
+            if comments_alone:
+                note["_prev"]["comments"] = note.get("comments", "")
         elif rescue_due:
-            note["_prev"] = {
+            note["_prev"] = dict(copy.deepcopy(note["_prev"]),
+                                 comments=note.get("comments", "")) if comments_alone else {
                 "title": note.get("title", ""),
                 "body": note.get("body", ""),
                 "formatting": note.get("formatting", []),
@@ -172,6 +193,8 @@ def main():
             }
         note["title"] = title
         note["body"] = body
+        if formatting is not None:
+            note["formatting"] = copy.deepcopy(formatting)
         note["comments"] = comments
         note["date"] = date_value
         note["recurrence"] = recurrence
@@ -226,6 +249,20 @@ def main():
                            _prev={"title": "Gym", "body": "Older words", "comments": "", "formatting": [],
                                   "paragraphs": [], "exceptions": ["2026-11-16"],
                                   "overrides": {"2026-11-09": {"body": "Leg day"}}, "moved": {}})
+    # 0.12.0's turn-off, then on again as it was: its turn-on wrote the rule
+    # alone, the note repeating with no days, the series' copy holding them.
+    back_on = dict(shipped, recurrence=weekly)
+    back_on_elsewhere = dict(shipped, recurrence=weekly, date="2026-11-09")
+    # The seventh round's comments: a long comment beside a paragraph.
+    trip_body = ("Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, "
+                 "and the map Ioana printed. Day 3: rest, then the castle at noon. ") * 2
+    trip_comments = ("Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, "
+                     "guide +40 721 000 111. ") * 8
+    trip = dict(base, title="Trip", body=trip_body, comments=trip_comments, recurrence={"freq": ""},
+                date="")
+    renovation = dict(base, title="Renovation", recurrence={"freq": ""}, date="",
+                      body="Kitchen renovation plan: order the tiles, call Dan about the sink, measure the window. " * 3)
+    bold = [{"start": 0, "end": 7, "style": "bold"}]
 
     def sender(note, **fields):
         out = {k: copy.deepcopy(v) for k, v in note.items() if k not in ("exceptions", "overrides", "moved", "_prev")}
@@ -236,6 +273,9 @@ def main():
     on_same = {"do": "repeat", "date": "2026-11-02", "rule": weekly}
     on_other = {"do": "repeat", "date": "2026-11-09", "rule": weekly}
     big_delete = {"do": "write", "title": "Gym", "body": "Warm up.", "comments": ""}
+    untrash = {"do": "untrash"}
+    ended_by_backup = {"do": "backup", "incoming": dict(copy.deepcopy(own), recurrence={"freq": ""},
+                                                        exceptions=[], overrides={}, moved={})}
     cases = [
         ("a turn-off, a day with its own text", own, [off]),
         ("a turn-off, a deleted day only", deleted, [off]),
@@ -267,6 +307,32 @@ def main():
         ("0.12.0's turn-off, read, then Restore previous", shipped, [{"do": "restore"}]),
         ("0.12.0's turn-off of days with no text, read", shipped_empty, []),
         ("an update's copy of a one-off, read", updated_one_off, []),
+        # The seventh round. A Trash entry is read when it is restored.
+        ("0.12.0's turn-off in the Trash, restored", shipped, [untrash]),
+        ("0.12.0's turn-off in the Trash, restored, then a big delete", shipped, [untrash, big_delete]),
+        ("0.12.0's turn-off then on as it was, read", back_on, []),
+        ("0.12.0's turn-off then on as it was, read, then a big delete", back_on, [big_delete]),
+        ("0.12.0's turn-off then on from another start, read", back_on_elsewhere, []),
+        # An update's copy repeats when the series did: never taken in, so the
+        # same backup is the same note the second time.
+        ("a backup's update ends a series, read, the same backup again", own,
+         [ended_by_backup, {"do": "read"}, ended_by_backup]),
+        ("a share code's update ends a series, read", own,
+         [{"do": "share", "incoming": sender(own, recurrence={"freq": ""})}, {"do": "read"}]),
+        ("the comments rewritten over a big delete's copy", trip,
+         [{"do": "write", "title": "Trip", "body": "Day 2.", "comments": trip_comments},
+          {"do": "write", "title": "Trip", "body": "Day 2.", "comments": trip_comments + "Car returned."},
+          {"do": "write", "title": "Trip", "body": "Day 2.", "comments": "ok, all booked"},
+          {"do": "restore"}]),
+        ("Restore previous after comments were typed", renovation,
+         [{"do": "write", "title": "Renovation", "body": "", "comments": ""},
+          {"do": "write", "title": "Renovation", "body": "",
+           "comments": "Dan called back: plumber Tuesday 10:00, gate code 4471, quote 1,250 EUR."},
+          {"do": "restore"}]),
+        ("Restore previous after the same words were made bold", renovation,
+         [{"do": "write", "title": "Renovation", "body": "Kitchen", "comments": ""},
+          {"do": "write", "title": "Renovation", "body": renovation["body"], "comments": "", "formatting": bold},
+          {"do": "restore"}]),
     ]
 
     out = []
@@ -280,7 +346,15 @@ def main():
                      step["date"], step["rule"])
             elif step["do"] == "write":
                 save(note, step["title"], step["body"], step["comments"], note.get("date", ""),
-                     note.get("recurrence"))
+                     note.get("recurrence"), step.get("formatting"))
+            elif step["do"] == "untrash":
+                # The note lay in the Trash as written; restored as the
+                # desktop's Trash page restores it.
+                entry = dict(copy.deepcopy(start), deleted_at="2026-10-27 10:00:00")
+                note = restore_many_from_trash([], [entry], [entry])[2][0]
+            elif step["do"] == "read":
+                # The notebook read again from its file, at the next start.
+                note = normalize_note(json.loads(json.dumps(note)))
             elif step["do"] == "restore":
                 restore(note)
             elif step["do"] == "share":

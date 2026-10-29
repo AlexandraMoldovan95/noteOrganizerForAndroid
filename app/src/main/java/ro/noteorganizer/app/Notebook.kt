@@ -930,8 +930,8 @@ object Notebook {
         val raw = readOrRescue(file, "Your notes file", problems)
         // A turned-off series' days kept only in its copy, as this phone up
         // to 0.12.0 kept them: back in the note, once, as the desktop's load
-        // brings them back ([daysBackFromCopy]); the next write keeps them.
-        raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { daysBackFromCopy(it) } }
+        // brings them back ([daysBackAsRead]); the next write keeps them.
+        raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { daysBackAsRead(it) } }
         val trashFile = File(dir, "trash.json")
         val trashRaw = readOrRescue(trashFile, "The Trash", problems)
 
@@ -1191,12 +1191,20 @@ object Notebook {
         val oldComments = (note.opt("comments") as? String) ?: ""
         val newComments = comments?.let { mendSurrogates(it) } ?: oldComments
         if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody, oldComments, newComments)) {
-            val previous = JSONObject()
-            previous.put("title", oldTitle)
-            previous.put("body", oldBody)
-            previous.put("formatting", note.opt("formatting") ?: JSONArray())
-            previous.put("paragraphs", note.opt("paragraphs") ?: JSONArray())
-            previous.put("comments", note.opt("comments") ?: "")
+            // Due for the comments alone, over a copy the note does not hold
+            // again: that copy keeps its words and takes only the comments
+            // this save replaces, as the desktop's save does. Replaced whole,
+            // a big delete of the body before it was in no file once the
+            // comments were rewritten (the final audit's seventh round).
+            val waiting = note.opt("_prev") as? JSONObject
+            val commentsAlone = holdsUnspentCopy(note) && !shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody)
+            val previous = if (commentsAlone) JSONObject(waiting!!.toString()) else JSONObject().apply {
+                put("title", oldTitle)
+                put("body", oldBody)
+                put("formatting", note.opt("formatting") ?: JSONArray())
+                put("paragraphs", note.opt("paragraphs") ?: JSONArray())
+            }
+            previous.put("comments", if (commentsAlone) oldComments else note.opt("comments") ?: "")
             // Words alone, as the desktop's: a turned-off series' days live
             // in the note ([daysHoldOwnText]), never only in a copy the next
             // one replaces.
@@ -1385,6 +1393,11 @@ object Notebook {
 
         val restored = JSONObject(entry.toString())
         restored.remove("deleted_at")
+        // Read from a file, as a note at load is: a series 0.12.0 turned off
+        // and sent to the Trash takes its days back into the note, as the
+        // desktop's restore shapes it (normalize_note). Kept only in the copy,
+        // the next copy of words erased them (the final audit's seventh round).
+        daysBackAsRead(restored)
         var maxId = 0
         for (i in 0 until array.length()) {
             val o = array.opt(i) as? JSONObject ?: continue
@@ -1724,14 +1737,17 @@ object Notebook {
      * asked of a note that may no longer repeat, so of what each day holds
      * ([Recurrence.dayAsKept]), not of what it shows: the desktop's
      * `days_hold_own_text`, the one answer its turn-off, its saves and the
-     * read of an older notebook ([daysBackFromCopy]) all ask.
+     * read of an older notebook ([daysBackFromCopy]) all ask. Each value read
+     * as Python's `value or ""` reads it: a day's title written as a number
+     * by hand is a title of its own there, and read as text it was none.
      */
     internal fun daysHoldOwnText(note: JSONObject): Boolean {
         val overrides = note.opt("overrides") as? JSONObject ?: return false
+        fun read(value: Any?): Any = if (Exporting.truthy(value)) value!! else ""
         for (day in overrides.keys()) {
             val shown = Recurrence.dayAsKept(note, day)
             for (key in listOf("title", "body", "comments")) {
-                if ((shown.opt(key) as? String ?: "") != (note.opt(key) as? String ?: "")) return true
+                if (!sameJson(read(shown.opt(key)), read(note.opt(key)))) return true
             }
         }
         return false
@@ -1752,17 +1768,63 @@ object Notebook {
      * out of the note into the series' rescue copy at a turn-off, and the
      * desktop's next copy of words erased that copy: a day's own text was in
      * no file (the final audit's sixth round). Only from the series' own
-     * copy -- one that repeats -- into a note that no longer does and keeps
-     * no days of its own, when a day there holds text of its own; the copy
-     * keeps them too. Never from an update's copy of a note that did not
-     * repeat: it holds the days that update replaced, on purpose.
+     * copy ([seriesOwnCopy]) into a note that keeps no days of its own, when
+     * a day there holds text of its own; the copy keeps them too. Into a
+     * note that no longer repeats -- and into one that repeats again as that
+     * same series, its start and rule the copy's: 0.12.0 turned back on as it
+     * was gave the note none of its days back, and the next copy of words
+     * erased them (the seventh round). Never from an update's copy: it holds
+     * the days that update replaced, on purpose, and taken in from a backup's
+     * update of a series they made the same backup read as changed, its
+     * Update spending the only earlier version (the desktop's seventh round).
      */
     internal fun daysBackFromCopy(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
-        if (Recurrence.isRecurring(note) || !Recurrence.isRecurring(previous)) return
-        if (DAY_FIELDS.any { daysIn(note.opt(it)) > 0 }) return
-        if (!daysHoldOwnText(previous)) return
+        if (!daysBackWanted(note, previous)) return
         for (field in DAY_FIELDS) note.put(field, deepCopy(shaped(previous, field)))
+    }
+
+    /**
+     * What only an update's copy holds ([applyUpdate], the desktop's
+     * `apply_shared_update`): a series' own copy -- a turn-off's, on either
+     * app, 0.12.0's included -- holds the text, the date, the repeat and the
+     * days, and none of these. The desktop's `_UPDATE_COPY_ONLY`.
+     */
+    private val UPDATE_COPY_ONLY = listOf("category", "color", "checklist", "pinned")
+
+    /** Whether [previous] is the copy a repeat's turn-off made of its series: the desktop's `_series_own_copy`. */
+    private fun seriesOwnCopy(previous: JSONObject): Boolean =
+        Recurrence.isRecurring(previous) && UPDATE_COPY_ONLY.none { previous.has(it) }
+
+    /** [daysBackFromCopy]'s question, of a [note] as a load shapes it and its copy, [previous]. */
+    private fun daysBackWanted(note: JSONObject, previous: JSONObject): Boolean {
+        if (!seriesOwnCopy(previous) || DAY_FIELDS.any { daysIn(note.opt(it)) > 0 }) return false
+        // Repeating now as another series: its days are not these.
+        if (Recurrence.isRecurring(note) && (previous.opt("date") != note.opt("date") ||
+                !sameJson(Recurrence.normalize(previous.opt("recurrence")), Recurrence.normalize(note.opt("recurrence"))))) {
+            return false
+        }
+        return daysHoldOwnText(previous)
+    }
+
+    /**
+     * [daysBackFromCopy] for a note read from the file as it lies, [raw]:
+     * asked of the note as `normalize_note` shapes it -- its deleted days
+     * real dates, its copy shaped, a day's edit its text alone -- as the
+     * desktop asks it at the end of its load, and the days it takes put into
+     * the note as written, shaped. Asked of the file as it lay, a deleted
+     * day written another way stopped the move the desktop makes, and a copy
+     * with no date, or a day's edit under no date, made one the desktop does
+     * not (the final audit's seventh round). Only a note whose copy holds a
+     * day's edit is shaped to ask: the move needs one, and most have none.
+     */
+    internal fun daysBackAsRead(raw: JSONObject) {
+        val held = raw.opt("_prev") as? JSONObject ?: return
+        if (daysIn(held.opt("overrides")) == 0) return
+        val view = Normalize.normalizeNote(raw, daysBack = false)
+        val previous = view.opt("_prev") as? JSONObject ?: return
+        if (!daysBackWanted(view, previous)) return
+        for (field in DAY_FIELDS) raw.put(field, deepCopy(shaped(previous, field)))
     }
 
     /**
@@ -1816,7 +1878,13 @@ object Notebook {
         // colour, styles in another order, a closing table's line -- each a
         // difference no person made, and an Update on one spent the note's
         // only rescue copy on a copy of itself.
-        val mine = Normalize.normalizeNote(note)
+        // Mine without its rescue copy, as the desktop compares it: the copy
+        // is not compared, and the read of an older notebook takes days from
+        // it ([daysBackFromCopy]) -- an unchanged note read as changed, its
+        // Update spending the only earlier version (the seventh round).
+        val mine = Normalize.normalizeNote(JSONObject().also { bare ->
+            for (key in note.keys()) if (key != "_prev") bare.put(key, note.opt(key))
+        })
         val theirs = Normalize.normalizeNote(incoming)
         return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
     }
@@ -1939,8 +2007,19 @@ object Notebook {
         val taken = if (previous.has("recurrence")) {
             daysToRescue(live, previous.opt("recurrence")).filterKeys { !previous.has(it) }
         } else emptyMap()
-        val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), (live.opt("body") as? String).orEmpty().trim()) &&
+        // Everything the restore writes over is weighed: the comments too,
+        // and the styles of the same words. Comments typed since the copy
+        // was made went to no file, the question saying nothing of them --
+        // and a body as the copy has it, its bold changed since, the same
+        // (the final audit's seventh round, the desktop's fix with it).
+        val body = (live.opt("body") as? String).orEmpty()
+        val sameWords = body == (previous.opt("body") as? String).orEmpty()
+        val lines = body.split("\n").size
+        val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), PyText.strip(body)) &&
             (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
+            PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
+            (!sameWords || (Exporting.normalizeFormatting(live.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+                Exporting.normalizeParagraphs(live.opt("paragraphs"), lines) == Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines))) &&
             PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) } &&
             taken.isEmpty()
         if (nothingLost) return null
@@ -2053,7 +2132,8 @@ object Notebook {
 
     /** [shouldKeepPrevious]'s bars, for one text: a title and a body, or the comments alone -- `_text_rescue_due`. */
     private fun textDue(oldTitle: String, oldBody: String, newTitle: String, newBody: String): Boolean {
-        val oldLen = oldTitle.length + oldBody.length
+        // In letters, as Python's len counts them, as every count below is.
+        val oldLen = oldTitle.codePointCount(0, oldTitle.length) + oldBody.codePointCount(0, oldBody.length)
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied
         // Both bars below ask for 15 characters gone at least, and [lost] is
@@ -2113,16 +2193,28 @@ object Notebook {
     /**
      * How many characters of [old] [new] does not keep at either end: its
      * length less the longest start the two share and, of what follows, the
-     * longest end -- the desktop's `text_lost`. Words kept in the middle
-     * count as lost, so the measure errs towards keeping a copy.
+     * longest end -- the desktop's `text_lost`, in code points as Python
+     * counts. Words kept in the middle count as lost, so the measure errs
+     * towards keeping a copy.
      */
     internal fun textLost(old: String, new: String): Int {
         val limit = minOf(old.length, new.length)
         var start = 0
         while (start < limit && old[start] == new[start]) start++
+        // Ends on the edges of letters, as Python's are: an emoji the two
+        // share half of differs whole. Counted in UTF-16 units, twelve emoji
+        // deleted were twenty-four characters lost: past the bars on the
+        // phone alone, whose copy then replaced the one holding a deleted
+        // paragraph (the final audit's seventh round).
+        if (start > 0 && Character.isHighSurrogate(old[start - 1]) &&
+            (start < old.length && Character.isLowSurrogate(old[start]) ||
+                start < new.length && Character.isLowSurrogate(new[start]))) start--
         var end = 0
         while (end < limit - start && old[old.length - 1 - end] == new[new.length - 1 - end]) end++
-        return old.length - start - end
+        if (end > 0 && Character.isLowSurrogate(old[old.length - end]) &&
+            (old.length - end > 0 && Character.isHighSurrogate(old[old.length - end - 1]) ||
+                new.length - end > 0 && Character.isHighSurrogate(new[new.length - end - 1]))) end--
+        return old.codePointCount(start, old.length - end)
     }
 
     /**

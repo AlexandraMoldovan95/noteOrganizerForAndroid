@@ -43,9 +43,11 @@ object Normalize {
      * matter to a file another program will read: types, the attachment
      * names, the checklist and attachment ceilings, the repeat rule. Its
      * `id` is the caller's to give; its `uid` is kept, or minted when it
-     * has none -- as the desktop mints one at its own door.
+     * has none -- as the desktop mints one at its own door. [daysBack]
+     * false leaves a turned-off series' days where the copy holds them, for
+     * a caller that asks the move itself ([Notebook.daysBackAsRead]).
      */
-    fun normalizeNote(raw: JSONObject): JSONObject {
+    fun normalizeNote(raw: JSONObject, daysBack: Boolean = true): JSONObject {
         val out = JSONObject()
         val id = raw.opt("id")
         out.put("id", if (id is Number && id !is Double && id !is Float) id.toInt() else 0)
@@ -98,7 +100,7 @@ object Normalize {
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
         // A turned-off series' days kept only in its copy come into the
         // note, as the desktop's normalize_note brings them (round six).
-        Notebook.daysBackFromCopy(out)
+        if (daysBack) Notebook.daysBackFromCopy(out)
         return out
     }
 
