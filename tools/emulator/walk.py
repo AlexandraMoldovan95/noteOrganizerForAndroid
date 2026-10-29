@@ -457,6 +457,7 @@ def main():
     limits_round3(folder)
     limits_round4(folder)
     limits_round5(folder)
+    limits_round6(folder)
 
     print()
     if failures:
@@ -3158,13 +3159,17 @@ def long_lines(folder):
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
         opened = open_note(title, limit=30.0)
         time.sleep(1.5)
-        if title in ("Long comments", "Long row") and screen_says("too long to show here"):
+        # A row shown, not written in, says how long it is and offers to be
+        # read whole (since the final audit's sixth round); the rest say why
+        # they are shown read-only.
+        says = "Read all 150,000 characters" if title == "Long row" else "too long to show here"
+        if title in ("Long comments", "Long row") and screen_says(says):
             # Folded away under its label: opened.
             tap("Comments" if title == "Long comments" else "Checklist", wait=1.5)
         took = max(frames_since_reset() or [99.0])
         check("%s, too long to lay out, opens within a second and says so" % label,
-              opened and took < 1.0 and not screen_says("too long to show here"),
-              "%.2f s, %s" % (took, screen_says("too long to show here")))
+              opened and took < 1.0 and not screen_says(says),
+              "%.2f s, %s" % (took, screen_says(says)))
         if title == "Long body":
             shot(folder, "92-line-too-long", "too long to show here")
     back_to("Search notes")
@@ -3279,10 +3284,11 @@ def limits_round3(folder):
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     tap("Row for template", exact=True, wait=2.0)
     took = max(frames_since_reset() or [99.0])
+    # Shown by its start, read whole on asking (the final audit's sixth round).
     check("the template editor opens within a second, the long row read-only",
-          took < 1.0 and not screen_says("Edit template", "too long to show here"),
-          "%.2f s, %s" % (took, screen_says("Edit template", "too long to show here")))
-    shot(folder, "97-template-long-row", "too long to show here")
+          took < 1.0 and not screen_says("Edit template", "Read all 150,000 characters"),
+          "%.2f s, %s" % (took, screen_says("Edit template", "Read all 150,000 characters")))
+    shot(folder, "97-template-long-row", "Read all 150,000 characters")
     back_to("Search notes", tries=6)
 
     # Duplicate's bar quotes a 150,000-letter title short.
@@ -3766,7 +3772,7 @@ def limits_round5(folder):
     took = opened_in("Wide rows", limit=60.0)
     # Measured 2026-10-29: 7.07 s before the round, 1.74 after; the same text in a body, 1.63.
     check("a checklist of 120 rows of 150,000 letters opens within two and a half seconds, each row shown short",
-          took is not None and took < 2.5 and not screen_says("more than is shown here at once"), "%s s" % took)
+          took is not None and took < 2.5 and not screen_says("Read all 149,994 characters"), "%s s" % took)
     shot(folder, "110-wide-rows-short", "Rows")
     back_to("Search notes")
     kept = read_file("notes_data.json") or []
@@ -3836,6 +3842,316 @@ def limits_round5(folder):
           [[c.get("text") for c in t.get("checklist", [])] for t in saved if t.get("name") == "Trip"] == [["Passport"]],
           repr(saved)[:200])
     back_to("Search notes")
+
+
+def limits_round6(folder):
+    """The final audit's sixth round, walked. A checklist row at the
+    desktop's 2,000 letters keeps its own words when a letter or a paste goes
+    in at its start: the letter refused, the paste cut, each said. A row
+    moved up or down across the line of rows not drawn, or dragged over it,
+    stays in sight; a search for one of the last rows draws no more of them.
+    A row longer than one is written in, and one past what a list draws to
+    write in, are read whole, and Find shows where their word is. A template
+    of 1,000 rows of 2,000 letters opens with its rows drawn in part; one of
+    1,000 rows refuses an Add and never drops the waiting words unsaid. Redo
+    of a table row typed at the end puts the cursor under the grid; and
+    Insert table writes nothing where it would not be seen, and says so."""
+    print("\n-- round six's limits: a row's own words, rows in sight, rows read whole --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r6-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def rows_of(uid):
+        return [r.get("text") for r in (note_by_uid(uid) or {}).get("checklist") or []]
+
+    def opened_in(title, opens=None, limit=40.0):
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not (opens or (lambda: open_note(title, limit=limit)))():
+            return None
+        time.sleep(1.5)
+        longest = max(frames_since_reset() or [99.0])
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    def find_in_note(word):
+        if not find("Close find"):
+            tap("⋮", exact=True)
+            tap("🔍 Find in note", wait=1.2)
+        adb("shell", "input", "keyevent", *["KEYCODE_DEL"] * 24)
+        type_text(word)
+        time.sleep(1.2)
+
+    def close_find():
+        for _ in range(3):
+            if not find("Close find"):
+                break
+            back(wait=1.2)
+
+    def counter():
+        return next((t for t, d, _ in nodes() if re.fullmatch(r"\d+/\d+\+?", t or "")), "")
+
+    def shown_beside(word):
+        """Whether [word] is on the screen in a node of more than itself: the
+        find bar's own field holds the word alone."""
+        return any(word in t and t.strip() != word for t, d, _ in nodes())
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    def unfold(first_row):
+        if screen_says(first_row) and find("CHECKLIST"):
+            tap("CHECKLIST", wait=1.5)
+
+    def seek(found, tries=8, fast=False):
+        """Scrolled down until [found]() holds: the screen's tree holds only
+        what is on the screen, and a word below it is sought as a person seeks it."""
+        for _ in range(tries):
+            if found():
+                return True
+            adb("shell", "input", "swipe", "900", "1900", "900", "700", "120" if fast else "400")
+            time.sleep(0.8 if fast else 1.0)
+        return found()
+
+    key_row = "a" * (2_000 - 16) + "DON'T FORGET KEY"
+    recipe = "r" * 1_480 + " Serve with rice."
+    thousand = [{"text": "item %d" % k, "done": False} for k in range(1_000)]
+    words = " ".join("word%d" % k for k in range(600))
+    long_row = (words[:1_500] + " PINEAPPLE " + words[1_500:2_900] + " ZUCCHINI tail")
+    inventory = [{"text": ("stock " * 400)[:1_500] + "ITEM%04dX" % k + (" more" * 200)[:491], "done": False}
+                 for k in range(60)]
+    notes = [note(1, "Key row", checklist=[{"text": key_row, "done": False}, {"text": "milk", "done": False}]),
+             note(2, "Recipe row", checklist=[{"text": recipe, "done": False}, {"text": "salt", "done": False}]),
+             note(3, "Paste source", body="p" * 800),
+             note(4, "Long list", body="Shop", checklist=thousand),
+             note(5, "Long words", body="Words", checklist=[{"text": long_row, "done": False}]),
+             note(6, "Inventory", body="Stock", checklist=inventory)]
+    if not seed_inside(notes, {"welcome_offered": True}, "Key row"):
+        return
+
+    # A row at the cap: a letter at its start is refused, the row whole.
+    open_note("Key row")
+    unfold("milk")
+    tap("DON'T FORGET KEY", wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said = not says_soon("A checklist item can be up to 2,000 characters", within=6.0)
+    # The bar may be gone by the time of the photograph: the words were read above.
+    shot(folder, "112-row-cap-said", "milk")
+    tap("milk", exact=True, wait=1.0)
+    back_to("Search notes")
+    kept = rows_of("r6-1")
+    check("a letter typed at the start of a row at 2,000 letters is refused, said, the row whole",
+          said and kept[:1] == [key_row], "said %s, %r" % (said, (kept[0][-20:], len(kept[0])) if kept else kept))
+
+    # 800 letters pasted at the start of a row of 1,497: 503 of them, the row whole after them.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+    open_note("Recipe row")
+    unfold("salt")
+    tap("Serve with rice", wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    keys("CTRL_LEFT", "V")
+    said = not says_soon("Pasted text shortened: a checklist item can be up to 2,000 characters", within=6.0)
+    tap("salt", exact=True, wait=1.0)
+    back_to("Search notes")
+    kept = rows_of("r6-2")
+    check("a paste at the start of a long row is cut to the room left, the row's own words whole, and said",
+          said and kept[:1] == ["p" * 503 + recipe],
+          "said %s, %r" % (said, (kept[0][:10], kept[0][-20:], len(kept[0])) if kept else kept))
+
+    # A list of 1,000: the first 200 rows and the last five drawn, the line between.
+    open_note("Long list", limit=30.0)
+    unfold("item 0")
+    find_in_note("item 995")
+    close_find()
+    hidden = lambda: next((t for t, d, _ in nodes() if "more rows here" in t), "")
+    tap("Drag to move item 995", exact=True, wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[994:995] == ["item 995"], first=0.5)
+    check("Move up on the first of the last rows: it stays in sight, one place up",
+          order[994:996] == ["item 995", "item 994"] and find("Drag to move item 995", exact=True) is not None
+          and "794 more rows" in hidden(), "%r, %r" % (order[993:997], hidden()))
+    shot(folder, "113-moved-row-in-sight", "item 995")
+    tap("Drag to move item 995", exact=True, wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[995:996] == ["item 995"], first=0.5)
+    check("... and Move down puts it back in its place, still in sight",
+          order[994:996] == ["item 994", "item 995"] and find("Drag to move item 995", exact=True) is not None,
+          repr(order[993:997]))
+    # The last of the first 200, moved down past the line, and back.
+    find_in_note("item 199")
+    close_find()
+    tap("Drag to move item 199", exact=True, wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[200:201] == ["item 199"], first=0.5)
+    check("Move down on the 200th row: it stays in sight, one place down",
+          order[199:201] == ["item 200", "item 199"] and find("Drag to move item 199", exact=True) is not None,
+          repr(order[198:202]))
+    tap("Drag to move item 199", exact=True, wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    settle(lambda: rows_of("r6-4"), lambda r: r[199:200] == ["item 199"], first=0.5)
+    # Dragged from the last rows over the line onto the 200th: there, both in sight.
+    find_in_note("item 997")
+    close_find()
+    # Both on the screen: the found row may stand at the top of it, the 200th above.
+    for _ in range(3):
+        if find("Drag to move item 199", exact=True):
+            break
+        adb("shell", "input", "swipe", "900", "900", "900", "1300", "400")
+        time.sleep(1.0)
+    start, end = find("Drag to move item 997", exact=True), find("Drag to move item 199", exact=True)
+    if start and end:
+        adb("shell", "input", "swipe", str(start[0]), str(start[1]), str(end[0]), str(end[1]), "1500")
+        time.sleep(1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[199:200] == ["item 997"], first=0.5)
+    check("a row dragged over the line of rows not drawn lands where it was let go, and every row stays in sight",
+          bool(start and end) and order[199:201] == ["item 997", "item 199"]
+          and find("Drag to move item 997", exact=True) is not None and find("Drag to move item 199", exact=True) is not None,
+          "%s %s, %r" % (start, end, order[198:202]))
+    # A search for one of the last rows draws no more of them.
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    find_in_note("item 998")
+    took = max(frames_since_reset() or [99.0])
+    check("Find on one of the last rows draws no more rows, each letter in the bar quick",
+          counter() == "1/1" and "more rows here" in hidden() and took < 1.0, "%s, %r, %.2f s" % (counter(), hidden(), took))
+    close_find()
+    back_to("Search notes")
+
+    # A row longer than one is written in: read whole on asking; Find shows its word.
+    open_note("Long words")
+    unfold("Read all")
+    asked = find("Read all %s characters" % format(len(long_row), ","))
+    if asked:
+        tap("Read all", wait=1.5)
+        # Its middle lies under the screen's edge, as it would for a person: read down to it.
+        seek(lambda: shown_beside("PINEAPPLE"))
+    check("a row of %s letters says it can be read whole, and shows its middle when asked" % format(len(long_row), ","),
+          asked is not None and shown_beside("PINEAPPLE"), str(asked))
+    shot(folder, "114-long-row-read", "PINEAPPLE")
+    seek(lambda: find("‹ Show less", exact=True) is not None)
+    tap("‹ Show less", exact=True, wait=1.0)
+    find_in_note("ZUCCHINI")
+    check("... and Find opens it on the part its word is in", counter() == "1/1" and shown_beside("ZUCCHINI"),
+          counter())
+    close_find()
+    back_to("Search notes")
+    # Past what a list draws to write in: row 56 of 60 rows of 2,000 letters.
+    open_note("Inventory", limit=30.0)
+    unfold("stock")
+    find_in_note("ITEM0055X")
+    check("a row shown short, past what a list draws to write in, shows the word Find stopped on",
+          counter() == "1/1" and shown_beside("ITEM0055X"), counter())
+    keyboard_down()
+    shot(folder, "115-shown-short-found", "ITEM0055X")
+    close_find()
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file keeps every row as it was",
+          [r.get("text") for r in next((n for n in kept if n.get("uid") == "r6-6"), {}).get("checklist", [])]
+          == [r["text"] for r in inventory]
+          and [r.get("text") for r in next((n for n in kept if n.get("uid") == "r6-5"), {}).get("checklist", [])]
+          == [long_row])
+
+    # Templates: one of 1,000 rows of 2,000 letters, and one of 1,000 rows, full.
+    adb("shell", "pm", "clear", PACKAGE)
+    long_rows = [{"text": ("long words " * 200)[:1_990] + " row%04d" % k, "done": False} for k in range(1_000)]
+    full_rows = [{"text": "row %d" % k, "done": False} for k in range(1_000)]
+    put_inside("templates.json", [
+        {"name": "Thousand long", "title": "t", "body": "b", "comments": "", "category": "General", "checklist": long_rows},
+        {"name": "Full template", "title": "t", "body": "b", "comments": "", "category": "General", "checklist": full_rows}])
+    if not seed_inside([note(7, "Past the tables", body="\n".join("Heading %d\n| a%d | b |" % (k, k) for k in range(1, 601)))],
+                       {"welcome_offered": True}, "Past the tables", clear=False):
+        return
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    took = opened_in("Thousand long", opens=lambda: tap("Thousand long", exact=True, wait=0.5, patience=20.0))
+    # Measured 2026-10-29 in one session, the first opening and two more:
+    # 7.2 and 4.3 s before the round, 3.0, 1.9 and 1.4 after it.
+    check("a template of 1,000 rows of 2,000 letters opens within four seconds, its rows drawn in part",
+          took is not None and took < 4.0 and not screen_says("Edit template"), "%s s" % took)
+    tap("Template name", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    type_text("s")
+    time.sleep(0.8)
+    letter = max(frames_since_reset() or [99.0])
+    print("     a letter in its name: the longest frame %.2f s" % letter)
+    check("... and a letter typed in its name is drawn within a quarter of a second", letter < 0.25, "%.2f s" % letter)
+    tap("Close", exact=True, wait=1.0)
+    if find("Don't save", exact=True):
+        tap("Don't save", exact=True, wait=1.5)
+    # Full at 1,000: Add refused and said; the words waiting asked about, never dropped.
+    tap("Full template", exact=True, wait=2.0, patience=10.0)
+    # Under the 205 rows drawn: scrolled to, as a person would.
+    seek(lambda: find("A new item") is not None, tries=40, fast=True)
+    check("a template of 1,000 rows draws its first 200 and its last five, the line between saying so",
+          not screen_says("795 more rows here, not drawn yet. Show 200 of them", "row 999"),
+          str(screen_says("795 more rows here, not drawn yet. Show 200 of them", "row 999")))
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    keyboard_down()
+    tap("+ Add", exact=True, wait=0.3)
+    said = not says_soon("A checklist holds at most 1000 items.", within=6.0)
+    shot(folder, "116-template-full-said", "Passport")
+    tap("Close", exact=True, wait=1.0)
+    asked = find("Save changes?") is not None
+    tap_last("Save", wait=0.3)
+    still = not says_soon("A checklist holds at most 1000 items.", within=6.0) and find("Passport") is not None
+    check("a template of 1,000 rows refuses Add and says so; closing asks, and Save keeps the editor open, the words in it",
+          said and asked and still, "said %s, asked %s, still open %s" % (said, asked, still))
+    tap("Close", exact=True, wait=1.0)
+    tap("Don't save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    full = next((t for t in saved if t.get("name") == "Full template"), {})
+    check("... and nothing was saved over it", [c.get("text") for c in full.get("checklist", [])] == [r["text"] for r in full_rows])
+    back_to("Search notes")
+
+    # Insert table past what the note draws: nothing written, and said.
+    open_note("Past the tables", limit=40.0)
+    find_in_note("Heading 250")
+    close_find()
+    before = (note_by_uid("r6-7") or {}).get("body")
+    tap("Heading 250", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.4)
+    tap("Insert table", wait=1.2)
+    tap("Insert", exact=True, wait=0.3)
+    said = not says_soon("Tap in its text where the table should go", within=6.0)
+    back_to("Search notes")
+    check("Insert table where the note's drawing has ended writes nothing, and says where to tap",
+          said and (note_by_uid("r6-7") or {}).get("body") == before, str(said))
+
+    # Redo of a table row typed at the end: the cursor under the grid, the next row after it.
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Redo table")
+    tap("Write your note")
+    type_text("Costs")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    for k, key in enumerate(("\\|", "%s", "a", "%s", "\\|", "%s", "b", "%s", "\\|")):
+        adb("shell", "input", "text", key)
+        time.sleep(0.1)
+    time.sleep(1.5)
+    tap("Undo", exact=True, wait=1.2)
+    tap("Redo", exact=True, wait=1.2)
+    for key in ("\\|", "%s", "c", "%s", "\\|", "%s", "d", "%s", "\\|"):
+        adb("shell", "input", "text", key)
+        time.sleep(0.1)
+    time.sleep(1.5)
+    shot(folder, "117-redo-under-grid", "Redo table")
+    back_to("Search notes")
+    typed = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Redo table"), {})
+    check("after Undo and Redo of a table row typed at the end, the next row goes under the grid",
+          (typed.get("body") or "").lower() == "costs\n| a | b |\n| c | d |", repr(typed.get("body")))
 
 
 def calendar_large_letters(folder):
