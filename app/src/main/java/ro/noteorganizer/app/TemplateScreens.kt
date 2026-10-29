@@ -40,6 +40,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -188,6 +189,25 @@ fun TemplatesPage(state: AppState) {
     var creating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Int?>(null) }
     val failedSaid = stringResource(R.string.templates_not_saved)
+    // A template being written when Android ended the app: asked about as
+    // the page opens, and again before the editor opens on anything else --
+    // never written over unasked by the next one.
+    var draft by remember { mutableStateOf(Templates.loadDraft(state.draftDir)) }
+    var continuing by remember { mutableStateOf<Templates.Draft?>(null) }
+    var askDraft by remember { mutableStateOf(draft != null) }
+    // What was tapped while a draft waited: opened once it is answered.
+    var thenOpen by remember { mutableStateOf<Int?>(null) }
+    val goneSaid = stringResource(R.string.template_draft_gone)
+
+    // Every way into the editor asks first while a draft waits.
+    fun open(index: Int?) {
+        if (draft != null) {
+            thenOpen = index ?: -1
+            askDraft = true
+            return
+        }
+        if (index == null) creating = true else editing = index
+    }
 
     fun store(next: List<JSONObject>): Boolean {
         val problem = Templates.save(state.dir, next)
@@ -210,7 +230,7 @@ fun TemplatesPage(state: AppState) {
                     .padding(vertical = 4.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(palette.sidebar)
-                    .clickable { editing = i }
+                    .clickable { open(i) }
                     .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -219,7 +239,7 @@ fun TemplatesPage(state: AppState) {
                      modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp))
                 val editSaid = stringResource(R.string.template_edit_title)
                 val deleteSaid = stringResource(R.string.template_delete_title)
-                IconButton(onClick = { editing = i }, modifier = Modifier.semantics { contentDescription = editSaid }) {
+                IconButton(onClick = { open(i) }, modifier = Modifier.semantics { contentDescription = editSaid }) {
                     Text("✏", fontSize = 16.sp, color = palette.text)
                 }
                 IconButton(onClick = { deleting = i }, modifier = Modifier.semantics { contentDescription = deleteSaid }) {
@@ -228,7 +248,7 @@ fun TemplatesPage(state: AppState) {
             }
         }
         Button(
-            onClick = { creating = true },
+            onClick = { open(null) },
             colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         ) { Text(stringResource(R.string.template_new)) }
@@ -250,6 +270,41 @@ fun TemplatesPage(state: AppState) {
             destructive = true,
         )
     }
+    val waiting = draft
+    if (askDraft && waiting != null) {
+        // Continue is the safe answer, highlighted; Discard, which cannot be
+        // taken back, is quieter, in the warning colour. Dismissed, the draft
+        // stays, asked about again next time.
+        AlertDialog(
+            onDismissRequest = { askDraft = false; thenOpen = null },
+            title = { Text(stringResource(R.string.template_draft_title)) },
+            text = { Text(stringResource(R.string.template_draft_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    askDraft = false
+                    thenOpen = null
+                    draft = null
+                    val at = Templates.draftTarget(templates, waiting)
+                    if (Templates.draftLostItsTemplate(templates, waiting)) state.say(goneSaid)
+                    continuing = waiting
+                    if (at == null) creating = true else editing = at
+                }) { Text(stringResource(R.string.template_draft_continue), color = palette.accentText, fontWeight = FontWeight.Medium) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    Templates.deleteDraft(state.draftDir)
+                    draft = null
+                    askDraft = false
+                    val then = thenOpen
+                    thenOpen = null
+                    if (then != null) open(then.takeIf { it >= 0 })
+                }) { Text(stringResource(R.string.template_draft_discard), color = palette.dangerText) }
+            },
+            containerColor = palette.card,
+            titleContentColor = palette.text,
+            textContentColor = palette.subtext,
+        )
+    }
     if (creating || editing != null) {
         val index = editing
         val fullSaid = stringResource(R.string.templates_full, Templates.MAX_TEMPLATES)
@@ -257,6 +312,7 @@ fun TemplatesPage(state: AppState) {
             state = state,
             original = index?.let { templates.getOrNull(it) },
             others = templates.filterIndexed { j, _ -> j != index },
+            draft = continuing,
             onSave = { tpl ->
                 // A new one past the ceiling is refused, the editor left open.
                 if (Templates.full(templates, tpl.optString("name"), index)) {
@@ -266,7 +322,14 @@ fun TemplatesPage(state: AppState) {
                     store(Templates.saveEdited(templates, index, tpl))
                 }
             },
-            onClose = { creating = false; editing = null },
+            // However it closes -- saved, its changes not saved, or nothing
+            // to keep -- the draft is spent.
+            onClose = {
+                Templates.deleteDraft(state.draftDir)
+                continuing = null
+                creating = false
+                editing = null
+            },
         )
     }
 }
@@ -341,10 +404,16 @@ private fun TemplateEditor(
     others: List<JSONObject>,
     onSave: (JSONObject) -> Boolean,
     onClose: () -> Unit,
+    draft: Templates.Draft? = null,
 ) {
     val palette = LocalPalette.current
-    val start = remember { Templates.normalize(original ?: JSONObject()) }
-    var name by remember { mutableStateOf(if (original == null) "" else start.optString("name")) }
+    // What the template holds, and what the editor starts from: the draft
+    // kept aside as the app last went away, when it is continued, its fields
+    // as they were typed -- over the template it edits, which stays what
+    // a change is measured from, so Save and ✕ still ask about the draft.
+    val held = remember { Templates.normalize(original ?: JSONObject()) }
+    val start = remember { draft?.fields ?: held }
+    var name by remember { mutableStateOf(if (draft != null) start.optString("name") else if (original == null) "" else start.optString("name")) }
     var title by remember { mutableStateOf(start.optString("title")) }
     var body by remember { mutableStateOf(start.optString("body")) }
     // Held by the field itself: a field over a TextFieldState keeps its
@@ -357,15 +426,15 @@ private fun TemplateEditor(
     // an app started again opens on its list, not on this editor.
     val comments = remember { TextFieldState(start.optString("comments")) }
     val categories = state.load.categories.keys.toList()
-    var category by remember { mutableStateOf(start.optString("category").takeIf { it in categories } ?: "General") }
-    val checklist = remember {
-        mutableStateListOf<Pair<String, Boolean>>().apply {
-            val list = start.optJSONArray("checklist") ?: JSONArray()
-            for (k in 0 until list.length()) list.optJSONObject(k)?.let { add(it.optString("text") to it.optBoolean("done")) }
-        }
+    fun categoryOf(t: JSONObject) = t.optString("category").takeIf { it in categories } ?: "General"
+    var category by remember { mutableStateOf(categoryOf(start)) }
+    fun rowsOf(t: JSONObject): List<Pair<String, Boolean>> {
+        val list = t.optJSONArray("checklist") ?: JSONArray()
+        return (0 until list.length()).mapNotNull { k -> list.optJSONObject(k)?.let { it.optString("text") to it.optBoolean("done") } }
     }
+    val checklist = remember { mutableStateListOf<Pair<String, Boolean>>().apply { addAll(rowsOf(start)) } }
     // With its cursor, so a paste cut to fit leaves it after what came in.
-    var newItemField by remember { mutableStateOf(TextFieldValue("")) }
+    var newItemField by remember { mutableStateOf(TextFieldValue(draft?.waiting ?: "")) }
     // Kept to a row's length, as the note editor's box and the desktop's
     // are ([Editing.fitRow]): it took any length, and a long paste became a
     // row every note made from the template showed read-only.
@@ -377,8 +446,8 @@ private fun TemplateEditor(
     // The styles and lines it had, moved with the words at every change, as
     // the note editor moves them -- the desktop keeps them as tags. Kept at
     // their offsets, a line typed above them put the bold on other words.
-    var formatting by remember { mutableStateOf(start.optJSONArray("formatting") ?: JSONArray()) }
-    var paragraphs by remember { mutableStateOf(start.optJSONArray("paragraphs") ?: JSONArray()) }
+    var formatting by remember { mutableStateOf(JSONArray((start.optJSONArray("formatting") ?: JSONArray()).toString())) }
+    var paragraphs by remember { mutableStateOf(JSONArray((start.optJSONArray("paragraphs") ?: JSONArray()).toString())) }
     fun edited(new: String) {
         val (styles, lines) = Notebook.throughEdit(formatting, paragraphs, body, new)
         formatting = styles
@@ -386,13 +455,16 @@ private fun TemplateEditor(
         body = new
     }
 
-    fun collect(): JSONObject = Templates.normalize(JSONObject()
-        .put("name", name).put("title", title).put("body", body).put("comments", comments.text.toString()).put("category", category)
-        .put("checklist", Templates.checklistWith(checklist, newItemField.text))
-        .put("formatting", formatting)
-        .put("paragraphs", paragraphs))
+    fun collect(): JSONObject = Templates.collected(name, title, body, comments.text.toString(), category,
+        checklist, newItemField.text, formatting, paragraphs)
 
-    val opened = remember { collect().toString() }
+    // What the editor opened on, the template as it is saved -- never the
+    // draft, which is a change nobody saved yet.
+    val opened = remember {
+        Templates.collected(if (original == null) "" else held.optString("name"), held.optString("title"),
+            held.optString("body"), held.optString("comments"), categoryOf(held), rowsOf(held), "",
+            held.optJSONArray("formatting") ?: JSONArray(), held.optJSONArray("paragraphs") ?: JSONArray()).toString()
+    }
     // Words waiting with no room for them are a change nobody saved: ✕ asks.
     fun changed() = collect().toString() != opened || Templates.waitingLeftOut(checklist.size, newItemField.text)
 
@@ -416,6 +488,20 @@ private fun TemplateEditor(
     }
 
     fun close() = if (changed()) askClose = true else onClose()
+
+    // As the app goes to the background with changes nobody saved: kept
+    // aside, every field and the words waiting in "A new item…", to be
+    // offered back if Android ends the app there.
+    DisposableEffect(Unit) {
+        state.keepTemplateDraft = {
+            if (changed()) {
+                Templates.saveDraft(state.draftDir, Templates.Draft(original?.optString("name"),
+                    Templates.draftFields(name, title, body, comments.text.toString(), category, checklist.toList(),
+                        formatting, paragraphs), newItemField.text))
+            }
+        }
+        onDispose { state.keepTemplateDraft = null }
+    }
 
     // Edge to edge, with the bars' and the keyboard's room kept below: left
     // to the window, the keyboard pushed the whole dialog up and its top

@@ -141,11 +141,14 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val scope = rememberCoroutineScope()
-            val state = remember { AppState(dir, scope).also { it.notice = notice } }
+            val state = remember { AppState(dir, scope).also { it.notice = notice; it.draftDir = noBackupFilesDir } }
             LaunchedEffect(state) {
                 state.sendText = { text -> share(text) }
                 state.openFile = { file, name -> open(file, name) }
-                flush = { state.flush?.invoke() }
+                flush = {
+                    state.flush?.invoke()
+                    state.keepTemplateDraft?.invoke()
+                }
             }
             val waiting by incoming
             LaunchedEffect(waiting) {

@@ -183,6 +183,86 @@ object Templates {
      */
     fun waitingLeftOut(rows: Int, waiting: String): Boolean = newRow(waiting).isNotEmpty() && noRoom(rows) != null
 
+    /**
+     * The template editor's fields as its Save writes them: the template
+     * [collected] from what the editor holds, the words waiting in "A new
+     * item…" its last row. One function for Save, for what the editor
+     * opened with, and for a draft continued, so the three never differ in
+     * what counts as a change.
+     */
+    fun collected(name: String, title: String, body: String, comments: String, category: String,
+                  rows: List<Pair<String, Boolean>>, waiting: String, formatting: JSONArray, paragraphs: JSONArray): JSONObject =
+        normalize(JSONObject()
+            .put("name", name).put("title", title).put("body", body).put("comments", comments).put("category", category)
+            .put("checklist", checklistWith(rows, waiting))
+            .put("formatting", formatting)
+            .put("paragraphs", paragraphs))
+
+    /** The file a template being written waits in, in the app's own storage that Android's backup leaves out. */
+    const val DRAFT = "template_draft.json"
+
+    /**
+     * A template being written, kept aside when the app goes to the
+     * background with changes nobody saved: its [fields] as the editor held
+     * them -- the name as typed, empty or not -- the words [waiting] in "A new
+     * item…", and the name of the template it [edits], null for a new one.
+     * Without it, Android ending the app behind Home lost everything typed:
+     * the template editor saves only on Save (the owner's choice, the final
+     * audit's sixth round, is a draft offered back).
+     */
+    data class Draft(val edits: String?, val fields: JSONObject, val waiting: String)
+
+    /** The editor's fields as a draft keeps them: as typed, not as a template normalizes them. */
+    fun draftFields(name: String, title: String, body: String, comments: String, category: String,
+                    rows: List<Pair<String, Boolean>>, formatting: JSONArray, paragraphs: JSONArray): JSONObject =
+        JSONObject().put("name", name).put("title", title).put("body", body).put("comments", comments)
+            .put("category", category)
+            .put("checklist", JSONArray(rows.map { JSONObject().put("text", it.first).put("done", it.second) }))
+            .put("formatting", formatting).put("paragraphs", paragraphs)
+
+    /** Writes [draft] in [dir] -- null when it is there, otherwise why not. One draft: a newer one replaces it. */
+    fun saveDraft(dir: File, draft: Draft): String? {
+        dir.mkdirs()
+        val json = JSONObject().put("fields", draft.fields).put("waiting", draft.waiting)
+            .put("edits", draft.edits ?: JSONObject.NULL)
+        return Files.writeAtomic(File(dir, DRAFT), json.toString())
+    }
+
+    /**
+     * The draft in [dir], or null when there is none, or none that can be
+     * read -- set aside then, as any file that cannot be read is, never
+     * offered half.
+     */
+    fun loadDraft(dir: File): Draft? {
+        val file = File(dir, DRAFT)
+        if (!file.isFile) return null
+        val json = try {
+            Files.parseOwn(file) { JSONObject(it) }
+        } catch (e: Exception) {
+            Files.preserveCorrupt(file)
+            return null
+        }
+        val fields = json.opt("fields") as? JSONObject ?: return null
+        return Draft(json.opt("edits") as? String, fields, json.opt("waiting") as? String ?: "")
+    }
+
+    /** The draft gone: saved, discarded, or the editor closed with nothing to keep. */
+    fun deleteDraft(dir: File) {
+        File(dir, DRAFT).delete()
+    }
+
+    /**
+     * Where a draft continues: the place of the template it edits, by the
+     * name a template is known by -- or null, for a new one, and for one
+     * whose template is gone, which then opens as new ([draftLostItsTemplate]).
+     */
+    fun draftTarget(templates: List<JSONObject>, draft: Draft): Int? =
+        draft.edits?.let { name -> templates.indexOfFirst { it.optString("name") == name }.takeIf { it >= 0 } }
+
+    /** Whether [draft] was editing a template that is no longer there. */
+    fun draftLostItsTemplate(templates: List<JSONObject>, draft: Draft): Boolean =
+        draft.edits != null && draftTarget(templates, draft) == null
+
     /** Whether another template than the one at [except] already has [name]. */
     fun nameTaken(templates: List<JSONObject>, name: String, except: Int? = null): Boolean =
         templates.withIndex().any { (i, t) -> i != except && t.optString("name") == name }

@@ -256,6 +256,21 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var flush: (() -> String?)? = null
 
     /**
+     * Keeps aside the template being written, when it holds changes nobody
+     * saved: registered by the template editor while it is open, called by
+     * the activity as the app goes to the background, beside [flush]. Android
+     * may end the app there, and the editor saves only on Save.
+     */
+    var keepTemplateDraft: (() -> Unit)? = null
+
+    /**
+     * Where that draft waits: the app's own storage that Android's backup
+     * leaves out -- a draft is this phone's, for a moment. The activity
+     * gives it Android's no-backup folder; on the computer, beside the notebook.
+     */
+    var draftDir: File = File(dir.absoluteFile.parentFile ?: dir, "no_backup")
+
+    /**
      * Moves each time something other than the editor wrote the note open
      * in it: the list's pin or category beside it on a wide screen, a day
      * reset from the calendar, an import that updated it. The editor holds

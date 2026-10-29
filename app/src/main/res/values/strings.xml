@@ -366,6 +366,12 @@
     <string name="template_name_needed">Give the template a name.</string>
     <string name="template_delete_title">Delete template</string>
     <string name="template_delete_text">Delete the template “%1$s” for good?\n\nTemplates don\'t go to the Trash — this can\'t be undone.</string>
+    <!-- A template being written when Android ended the app, offered back -->
+    <string name="template_draft_title">A template not saved</string>
+    <string name="template_draft_text">You were writing a template. Continue it?</string>
+    <string name="template_draft_continue">Continue</string>
+    <string name="template_draft_discard">Discard</string>
+    <string name="template_draft_gone">The template you were editing is no longer here, so this opens as a new one.</string>
     <string name="template_save_changes_title">Save changes?</string>
     <string name="template_save_changes_text">You changed this template. Save the changes before closing?</string>
     <string name="template_dont_save">Don\'t save</string>

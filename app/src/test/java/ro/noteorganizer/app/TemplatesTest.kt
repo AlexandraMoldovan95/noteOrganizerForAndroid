@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -280,5 +281,52 @@ class TemplatesTest {
         assertEquals("counted in letters", "😀".repeat(2_000), Templates.newRow("😀".repeat(2_100)))
         val list = Templates.checklistWith(emptyList(), "w".repeat(3_500))
         assertEquals(2_000, list.getJSONObject(0).getString("text").length)
+    }
+
+    @Test
+    fun `a template being written is kept aside whole, and found again by the template it edits`() {
+        // Android ended the app behind Home and everything typed was gone:
+        // the editor saves only on Save. Kept aside instead, and offered back.
+        val dir = NioFiles.createTempDirectory("draft").toFile()
+        assertNull("no draft", Templates.loadDraft(dir))
+        val fields = Templates.draftFields("", "Packing", "Passport\nTickets", "for the trip", "Work",
+            listOf("socks" to true, "charger" to false), JSONArray(), JSONArray())
+        assertNull(Templates.saveDraft(dir, Templates.Draft("Trip", fields, "toothbrush")))
+        val back = Templates.loadDraft(dir)!!
+        assertEquals("Trip", back.edits)
+        assertEquals("the words waiting in A new item", "toothbrush", back.waiting)
+        assertEquals("the name as typed, empty", "", back.fields.getString("name"))
+        assertEquals("Passport\nTickets", back.fields.getString("body"))
+        assertEquals("for the trip", back.fields.getString("comments"))
+        assertEquals("Work", back.fields.getString("category"))
+        val rows = back.fields.getJSONArray("checklist")
+        assertEquals("socks", rows.getJSONObject(0).getString("text"))
+        assertTrue(rows.getJSONObject(0).getBoolean("done"))
+        // Continued over the template it edits, found by name -- or as a new one when it is gone.
+        val templates = listOf(JSONObject().put("name", "Other"), JSONObject().put("name", "Trip"))
+        assertEquals(1, Templates.draftTarget(templates, back))
+        assertFalse(Templates.draftLostItsTemplate(templates, back))
+        assertEquals(null, Templates.draftTarget(templates.take(1), back))
+        assertTrue(Templates.draftLostItsTemplate(templates.take(1), back))
+        val new = back.copy(edits = null)
+        assertEquals(null, Templates.draftTarget(templates, new))
+        assertFalse("a new one lost nothing", Templates.draftLostItsTemplate(templates, new))
+        // Gone once saved or discarded.
+        Templates.deleteDraft(dir)
+        assertNull(Templates.loadDraft(dir))
+        // One that cannot be read is set aside, never offered half.
+        File(dir, Templates.DRAFT).writeText("{\"fields\": {\"name\": \"Tr")
+        assertNull(Templates.loadDraft(dir))
+        assertTrue(dir.listFiles()!!.any { it.name.contains("corrupt") })
+    }
+
+    @Test
+    fun `what the template editor opened on is the template, so a draft continued over it is a change`() {
+        val template = Templates.normalize(JSONObject().put("name", "Trip").put("title", "Packing")
+            .put("checklist", JSONArray().put(JSONObject().put("text", "socks").put("done", false))))
+        val opened = Templates.collected("Trip", "Packing", "", "", "General", listOf("socks" to false), "", JSONArray(), JSONArray())
+        assertEquals("the editor's own reading of the template is the template", template.toString(), opened.toString())
+        val draft = Templates.collected("Trip", "Packing", "", "", "General", listOf("socks" to false), "charger", JSONArray(), JSONArray())
+        assertFalse(draft.toString() == opened.toString())
     }
 }
