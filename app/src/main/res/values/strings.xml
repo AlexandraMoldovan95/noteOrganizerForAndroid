@@ -210,6 +210,11 @@
     <string name="checklist_new">A new item…</string>
     <string name="checklist_shown_short">The rows from here are shown short: a list draws %1$,d characters to write in at once. Each is kept whole; tick, move or remove it here.</string>
     <string name="checklist_rows_hidden">… %1$,d more rows here, not drawn yet. Show %2$,d of them</string>
+    <!-- A checklist row shown, not written in, read whole on asking -->
+    <string name="row_read">Read all %1$,d characters ›</string>
+    <string name="row_read_header">%1$,d characters, shown here to read. The note keeps them whole.</string>
+    <string name="row_read_less">‹ Show less</string>
+    <string name="row_parts">Parts %1$,d to %2$,d of %3$,d</string>
     <string name="add_comments">💬 Add comments</string>
     <string name="comments_label">Comments</string>
     <string name="note_text_label">Text</string>

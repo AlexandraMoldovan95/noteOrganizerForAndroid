@@ -633,4 +633,117 @@ class EditingTest {
         // A different change from the same value is news at once.
         assertTrue(once.news("word\n", "word\ny", 1200 + Editing.Once.WINDOW_MS + 1))
     }
+
+    @Test
+    fun `a row's field keeps its own words whole and cuts only what came in, as the desktop's box does`() {
+        // take() over the whole value kept the first 2,000 of the result: a
+        // letter at the start of a row at the cap pushed its last letter
+        // off, a paste its last words -- out of sight, no Undo, unsaid.
+        val key = "a".repeat(2_000 - 16) + "DON'T FORGET KEY"
+        val typed = Editing.fitRow(key, "X$key")
+        assertEquals("a letter at the cap is refused, the row whole", key, typed.text)
+        assertEquals("A checklist item can be up to 2,000 characters", typed.said)
+        val recipe = "r".repeat(1_480) + " Serve with rice."
+        val pasted = Editing.fitRow(recipe, "p".repeat(800) + recipe)
+        assertEquals("503 of the 800 come in, the row whole after them", "p".repeat(503) + recipe, pasted.text)
+        assertEquals("the cursor after what came in", 503, pasted.caret)
+        assertEquals("Pasted text shortened: a checklist item can be up to 2,000 characters", pasted.said)
+        val middle = Editing.fitRow("Recipe: -- from Mum", "Recipe: " + "q".repeat(2_100) + "-- from Mum")
+        assertEquals("Recipe: " + "q".repeat(1_981) + "-- from Mum", middle.text)
+        // Within the cap, or shorter than it was -- a row from elsewhere already longer: as typed.
+        assertEquals(Editing.Fit("milk!", null, null), Editing.fitRow("milk", "milk!"))
+        val over = "o".repeat(2_500)
+        assertEquals(Editing.Fit(over.dropLast(1), null, null), Editing.fitRow(over, over.dropLast(1)))
+        // Words selected and typed over: what came in is cut to the room the selection left.
+        assertEquals("yyy" + "x".repeat(1_997), Editing.fitRow("abc" + "x".repeat(1_997), "y".repeat(500) + "x".repeat(1_997)).text)
+        // Counted as Python counts: 1,200 emoji are 1,200 letters, kept whole...
+        val emoji = "😀".repeat(1_200)
+        assertEquals(Editing.Fit(emoji, null, null), Editing.fitRow("", emoji))
+        // ... never cut through one: a letter of room, one whole emoji.
+        assertEquals("a".repeat(1_999) + "😀", Editing.fitRow("a".repeat(1_999), "a".repeat(1_999) + "😀😀").text)
+        // An edit that differs inside an emoji's pair is read as the whole emoji, at
+        // either end: the row's own emoji after it kept, one typed over replaced whole.
+        val near = "a".repeat(1_999) + "😀"
+        assertEquals(near, Editing.fitRow(near, "a".repeat(1_999) + "😁😀").text)
+        assertEquals("a".repeat(1_998) + "😁😀",
+                     Editing.fitRow("a".repeat(1_998) + "😀", "a".repeat(1_998) + "😁xxxxx😀").text)
+        assertEquals("a".repeat(1_999) + "z", Editing.fitRow(near, "a".repeat(1_999) + "zz🈀").text)
+        // A desktop row of 1,500 emoji, an ordinary row there, is one the phone writes in.
+        assertTrue(Editing.checklistFields(listOf("😀".repeat(1_500))).single())
+        assertFalse(Editing.rowTooLong("😀".repeat(1_500)))
+        assertTrue(Editing.rowTooLong("b".repeat(2_001)))
+    }
+
+    @Test
+    fun `a row's cap is said once while the letters meet it, and again after an edit that fitted`() {
+        val said = ArrayList<String>()
+        val cap = Editing.RowCap { said.add(it) }
+        val full = "f".repeat(2_000)
+        cap.fit(full, full + "a")
+        cap.fit(full, full + "b")
+        assertEquals(listOf("A checklist item can be up to 2,000 characters"), said)
+        cap.fit(full, full.dropLast(1))
+        cap.fit(full, "c$full")
+        assertEquals(2, said.size)
+    }
+
+    @Test
+    fun `a search's row already drawn among the last draws no more rows`() {
+        // A match in one of the last five -- where the newest item lands --
+        // reached past them all and drew every row, at each letter in the bar.
+        val drawn = (0 until 200).toList() + (995 until 1_000).toList()
+        for (reach in listOf(150, 995, 999)) assertEquals("reach $reach", drawn, Editing.checklistShown(1_000, 200, reach))
+        assertEquals((0..600).toList() + (995 until 1_000).toList(), Editing.checklistShown(1_000, 200, 600))
+        assertEquals("a tail grown by a move", (0 until 200).toList() + (994 until 1_000).toList(),
+                     Editing.checklistShown(1_000, 200, tail = 6))
+    }
+
+    @Test
+    fun `a row moved across the rows not drawn stays drawn, and every row drawn before with it`() {
+        // Counted over every row, Move up on the first of the last five put
+        // the row among those not drawn: gone, a row never shown in its place.
+        for (reach in listOf(-1, 600)) {
+            val before = Editing.checklistShown(1_000, 200, reach)
+            for ((from, to) in listOf(995 to 994, 199 to 200, 997 to 199, 5 to 997, 3 to 4, 998 to 996, 600 to 601)) {
+                val (h, t) = Editing.keepMovedInSight(1_000, 200, 5, reach, from, to)
+                // Each row by what it is: the one at each place after the move.
+                val order = (0 until 1_000).toMutableList().apply { add(to, removeAt(from)) }
+                val now = Editing.checklistShown(1_000, h, reach, t).map { order[it] }.toSet()
+                assertTrue("reach $reach, $from to $to: the row moved is drawn", from in now)
+                assertTrue("reach $reach, $from to $to: every row drawn before still is", before.all { it in now })
+            }
+        }
+        // Up from the first of the last rows and down again: back in its place, drawn throughout.
+        val (h, t) = Editing.keepMovedInSight(1_000, 200, 5, -1, 995, 994)
+        assertEquals(200 to 6, h to t)
+        val back = Editing.keepMovedInSight(1_000, h, t, -1, 994, 995)
+        assertTrue(995 in Editing.checklistShown(1_000, back.first, -1, back.second))
+        assertEquals("a move among rows all drawn changes nothing", 200 to 5, Editing.keepMovedInSight(100, 200, 5, -1, 10, 11))
+    }
+
+    @Test
+    fun `a dragged row lands on the drawn row nearest where it is let go, never among rows not drawn`() {
+        // Rows of 44, the first 200 and the last five, the "N more rows" line of 37 between.
+        val middles = HashMap<Int, Float>()
+        for (i in 0 until 200) middles[i] = 22f + 44f * i
+        for ((k, i) in (995 until 1_000).withIndex()) middles[i] = 200 * 44f + 37f + 22f + 44f * k
+        // The first of the last rows dragged up under the 200th lands on it; counted in rows it was 993.
+        assertEquals(199, Editing.dropTarget(middles, middles.getValue(995) - 81f, 995))
+        assertEquals("a short drag, one row down", 996, Editing.dropTarget(middles, middles.getValue(995) + 30f, 995))
+        assertEquals("less than half a row, where it was", 995, Editing.dropTarget(middles, middles.getValue(995) + 10f, 995))
+        // A row of the first 200 dragged onto the tail's second row lands there; counted in rows, on 202.
+        assertEquals(996, Editing.dropTarget(middles, middles.getValue(198) + 169f, 198))
+    }
+
+    @Test
+    fun `a long row is read in parts a phone can wrap, every letter in one, no word or emoji cut`() {
+        val text = "Lists:\n" + "word ".repeat(1_000) + "😀".repeat(400) + "\nend"
+        val parts = Editing.rowParts(text)
+        assertEquals("every letter once, in order, no line break", text.replace("\n", ""),
+                     parts.joinToString("") { (a, b) -> text.substring(a, b) })
+        assertTrue(parts.all { (a, b) -> b - a in 0..Editing.ROW_PART_CHARS })
+        assertTrue("never through an emoji", parts.all { (_, b) -> b == text.length || !Character.isLowSurrogate(text[b]) })
+        assertTrue("words whole", parts.drop(1).take(10).all { (a, b) -> text.substring(a, b).endsWith(" ") })
+        assertEquals("one line, one part", listOf(0 to 4), Editing.rowParts("milk"))
+    }
 }

@@ -180,4 +180,14 @@ class FindingTest {
         assertNull(Finding.prefill(""))
         assertNull(Finding.prefill(null))
     }
+
+    @Test
+    fun `a row the desktop writes in is searched as a field is, weighed in letters`() {
+        // 1,000 emoji and 1,000 x's: 3,000 UTF-16 units, 2,000 letters -- a
+        // field on the desktop, and on the phone now: every match a stop.
+        val row = "x😀".repeat(1_000)
+        assertEquals(1_000, Finding.scan("", "x", matchCase = false, checklist = listOf(row)).size)
+        // A row past the desktop's 2,000 is read-only: its line one stop.
+        assertEquals(1, Finding.scan("", "x", matchCase = false, checklist = listOf("x".repeat(2_001))).size)
+    }
 }

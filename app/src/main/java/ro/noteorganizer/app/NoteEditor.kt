@@ -94,6 +94,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -653,6 +656,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     var renaming by mutableStateOf<Renaming?>(null)
     var adding by mutableStateOf("")
+
+    /**
+     * A row's field and "A new item…" kept to a row's length, as the
+     * desktop keeps its box ([Editing.fitRow]): the row's own words whole,
+     * only what came in cut, said once.
+     */
+    val rowCap = Editing.RowCap { state.say(it) }
 
     /**
      * Rows renamed whose words could not be written when another row was
@@ -2595,7 +2605,6 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     if (folded) return
     var dragging by remember { mutableIntStateOf(-1) }
     var offset by remember { mutableFloatStateOf(0f) }
-    val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
     val tickedSaid = stringResource(R.string.checklist_ticked)
     val notTickedSaid = stringResource(R.string.checklist_not_ticked)
     val upSaid = stringResource(R.string.move_up)
@@ -2608,15 +2617,50 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // out once a search, not at every letter typed into a row.
     val writable = remember(items) { Editing.checklistFields(items.map { it.text }) }
     val firstShort = remember(writable, items) {
-        items.indices.firstOrNull { !writable[it] && items[it].text.length <= Editing.CHECKLIST_ROW_CHARS } ?: -1
+        items.indices.firstOrNull { !writable[it] && Editing.rowChars(items[it].text) <= Editing.CHECKLIST_ROW_CHARS } ?: -1
     }
     val foundByRow = remember(found) { found.groupBy({ it.item }, { it.start to it.end }) }
     // The rows drawn: the first ones and the last few, where a new item
     // lands, a search's row among them; "Show" draws more (Editing.checklistShown).
     var head by remember(model.id) { mutableIntStateOf(Editing.CHECKLIST_ROWS) }
-    val shownRows = remember(items.size, head, current?.item) { Editing.checklistShown(items.size, head, current?.item ?: -1) }
+    var tail by remember(model.id) { mutableIntStateOf(Editing.CHECKLIST_TAIL_ROWS) }
+    val reach = current?.item ?: -1
+    val shownRows = remember(items.size, head, tail, reach) { Editing.checklistShown(items.size, head, reach, tail) }
+    // Each row drawn under a key of its words: moved, its piece of the screen
+    // moves with it, and the keyboard's or a screen reader's focus with that.
+    // Kept by place, the focus stayed where the row had been, on the row a
+    // move put there -- a screen reader's next Move moved a row nobody chose.
+    val rowKeys = remember(items) { rowKeys(items.map { it.text }) }
+    // Where each drawn row lies, by its key: what a drag is dropped on.
+    val placed = remember(model.id) { HashMap<Any, LayoutCoordinates>() }
+
+    // A row moved from [from] to [to] -- by its handle's menu, a screen
+    // reader's or Switch Access's actions, or a drag -- and still drawn
+    // after it, the stretch it went into shown (Editing.keepMovedInSight).
+    fun move(from: Int, to: Int) {
+        val size = state.note(model.id)?.checklist?.size ?: return
+        if (to !in 0 until size || to == from || !renameWritten()) return
+        if (state.report(Notebook.moveChecklistItem(state.load, model.id, from, to))) {
+            val (h, t) = Editing.keepMovedInSight(size, head, tail, reach, from, to)
+            head = h
+            tail = t
+        }
+    }
+
+    // Where a row dragged from [from] by [by] pixels lands: on the drawn row
+    // its middle came nearest (Editing.dropTarget).
+    fun dropped(from: Int, by: Float): Int {
+        val middles = HashMap<Int, Float>()
+        for (i in shownRows) {
+            val at = placed[rowKeys.getOrNull(i) ?: continue]?.takeIf { it.isAttached } ?: continue
+            middles[i] = at.positionInRoot().y + at.size.height / 2f
+        }
+        val own = middles[from] ?: return from
+        return Editing.dropTarget(middles, own + by, from)
+    }
+
     var drawnUpTo = -1
-    for (index in shownRows) key(index) {
+    for (index in shownRows) key(rowKeys[index]) {
         val item = items[index]
         if (index > drawnUpTo + 1) {
             val hidden = index - drawnUpTo - 1
@@ -2642,11 +2686,17 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         val sight = remember { BringIntoViewRequester() }
         val here = current?.takeIf { it.item == index }
         if (here != null) LaunchedEffect(reveal, here) { sight.bringIntoView() }
+        val rowKey = rowKeys[index]
         Row(
             Modifier
                 .fillMaxWidth()
+                // Where the row lies, before a drag moves its drawing.
+                .onPlaced { placed[rowKey] = it }
                 .graphicsLayer { translationY = if (dragging == index) offset else 0f }
-                .height(44.dp)
+                // A finger's height at least; a row shown to be read is as
+                // tall as what it shows. Held to 44 dp, a row's read-only
+                // block was cut to the start of its first line.
+                .heightIn(min = 44.dp)
                 .bringIntoViewRequester(sight),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2657,12 +2707,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
             // One place up or down without a drag -- a tap on the handle, or
             // a screen reader's or Switch Access's actions on it: a drag was
             // the only way, and those could not move a row at all.
-            fun step(by: Int) {
-                val to = index + by
-                if (to in items.indices && renameWritten()) {
-                    state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
-                }
-            }
+            fun step(by: Int) = move(index, index + by)
             Box { Text(
                 "⠿",
                 color = palette.subtext,
@@ -2682,16 +2727,14 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     // A menu only when the row can go somewhere: the only
                     // row opened an empty one, a dead end for a screen reader.
                     .clickable { if (items.size > 1) rowMenu = index else state.say(nowhereSaid) }
-                    .pointerInput(index, items.size) {
+                    .pointerInput(index, shownRows, rowKeys) {
                         detectDragGestures(
                             onDragStart = { dragging = index; offset = 0f },
                             onDragEnd = {
-                                val to = (index + Math.round(offset / rowHeight)).coerceIn(0, items.size - 1)
+                                val to = dropped(index, offset)
                                 dragging = -1
                                 offset = 0f
-                                if (to != index && renameWritten()) {
-                                    state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
-                                }
+                                move(index, to)
                             },
                             onDragCancel = { dragging = -1; offset = 0f },
                             onDrag = { change, amount -> change.consume(); offset += amount.y },
@@ -2723,18 +2766,18 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
             val rowCurrent = here?.let { it.start to it.end }
             // A row longer than one is written in is shown, not edited, as
             // the body's lines too long to lay out are; past what the list
-            // draws to write in, a row is shown short (the line above says so).
-            if (item.text.length > Editing.CHECKLIST_ROW_CHARS || Editing.tooLongToLayOut(item.text)) {
-                Box(Modifier.weight(1f)) { LongText(item.text, found = rowFound, current = rowCurrent) }
-            } else if (!writable[index]) {
-                Text(paintRanges(AnnotatedString(drawnRow(item.text)), rowFound, rowCurrent, palette),
-                     color = if (item.done) palette.subtext else palette.text, fontSize = 15.sp, maxLines = 1,
-                     overflow = TextOverflow.Ellipsis,
-                     textDecoration = if (item.done) TextDecoration.LineThrough else null,
-                     modifier = Modifier.weight(1f))
+            // draws to write in, a row is shown short (the line above says
+            // so). Either is read whole on asking, and a search opens it.
+            if (Editing.rowTooLong(item.text) || !writable[index]) {
+                ReadOnlyRow(item.text, item.done, rowFound, rowCurrent, reveal, Modifier.weight(1f))
             } else ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
                           found = rowFound, current = rowCurrent,
-                          onValue = { now -> model.typeInRow(index, now.take(Editing.CHECKLIST_ROW_CHARS))?.let { state.say(it) } },
+                          onEdit = { was, now ->
+                              // Kept to a row's length, the row's own words whole.
+                              model.rowCap.fit(was, now).also { fit ->
+                                  if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.say(it) }
+                              }
+                          },
                           onLeave = { if (model.renaming?.index == index) renameWritten() })
             Text(
                 "✕",
@@ -2755,12 +2798,26 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         model.writeChecklist()?.let { state.say(it); return }
         added += 1
     }
+    // The box's words with their cursor, so a paste cut to fit leaves it
+    // after what came in ([fittedValue]); the words themselves are the model's.
+    var addField by remember { mutableStateOf(TextFieldValue(model.adding, TextRange(model.adding.length))) }
+    val addShown = if (addField.text == model.adding) addField
+                   else TextFieldValue(model.adding, TextRange(model.adding.length))
     Row(verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
         BasicTextField(
-            value = model.adding,
-            // At most what a row is written in at, as the desktop's box takes.
-            onValueChange = { model.adding = it.take(Editing.CHECKLIST_ROW_CHARS) },
+            value = addShown,
+            // At most what a row is written in at, as the desktop's box takes:
+            // the words already in it whole, what comes in cut, said once.
+            onValueChange = { next ->
+                if (next.text == addShown.text) {
+                    addField = next
+                } else {
+                    val fit = model.rowCap.fit(addShown.text, next.text)
+                    addField = fittedValue(addShown, next, fit)
+                    model.adding = addField.text
+                }
+            },
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),
@@ -2826,6 +2883,65 @@ internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.r
     }
 }
 
+/** How many parts of a row a reading of it shows first: a desktop row of 2,000 letters, whole. */
+private const val ROW_PARTS_SHOWN = 7
+
+/**
+ * A checklist row shown, not written in -- longer than a row is written in,
+ * past what a list draws to write in, or in the template editor, where no
+ * row is: one line of its start and "Read all N characters ›"; read, the
+ * whole row in parts a phone's width wraps, read on as a read-only piece of
+ * a note is ([Editing.rowParts]). Held in a row of 44 dp, a row longer than
+ * 2,000 letters showed "149,994 characters in 1 lines, more than is" and not
+ * a word of itself, and a row shown short its first forty letters, Find
+ * stopping on words nobody could see (the final audit's sixth round). A
+ * search's stop in it opens it on the part its words are in, painted.
+ */
+@Composable
+internal fun ReadOnlyRow(text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(),
+                         current: Pair<Int, Int>? = null, reveal: Int = 0, modifier: Modifier = Modifier) {
+    val palette = LocalPalette.current
+    var read by remember(text) { mutableStateOf(false) }
+    val length = remember(text) { Editing.rowChars(text) }
+    Column(modifier.padding(vertical = 4.dp)) {
+        if (!read && current == null) {
+            Text(paintRanges(AnnotatedString(drawnRow(text)), found, null, palette),
+                 color = if (done) palette.subtext else palette.text, fontSize = 15.sp, maxLines = 1,
+                 overflow = TextOverflow.Ellipsis, textDecoration = if (done) TextDecoration.LineThrough else null)
+            Text(stringResource(R.string.row_read, length), color = palette.accentText, fontSize = 13.sp,
+                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { read = true }.padding(vertical = 4.dp))
+            return@Column
+        }
+        val parts = remember(text) { Editing.rowParts(text) }
+        val lines = remember(parts) { parts.map { (from, to) -> text.substring(from, to) } }
+        val starts = remember(parts) { IntArray(parts.size) { parts[it].first } }
+        ReadOnlyBlock(lines, ROW_PARTS_SHOWN, found, current, reveal, parts = starts) {
+            Text(stringResource(R.string.row_read_header, length), color = palette.subtext, fontSize = 13.sp)
+        }
+        if (read) {
+            Text(stringResource(R.string.row_read_less), color = palette.accentText, fontSize = 13.sp,
+                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { read = false }.padding(vertical = 4.dp))
+        }
+    }
+}
+
+/**
+ * A box's next value under the row cap ([Editing.fitRow]): [next] as typed
+ * when it fits; what [fit] kept, the cursor after what came in, when it was
+ * cut; the box as it was, [shown], when nothing could come in.
+ */
+internal fun fittedValue(shown: TextFieldValue, next: TextFieldValue, fit: Editing.Fit): TextFieldValue = when {
+    fit.text == next.text -> next
+    fit.caret != null -> TextFieldValue(fit.text, TextRange(fit.caret))
+    else -> shown
+}
+
+/** Each checklist row's key: its words, and how many rows before it read the same -- one per row, moving with it. */
+internal fun rowKeys(texts: List<String>): List<Pair<String, Int>> {
+    val seen = HashMap<String, Int>()
+    return texts.map { text -> text to (seen.merge(text, 1, Int::plus) ?: 1) }
+}
+
 /** How many lines a read-only piece shows at a time once the person reads on. */
 private const val READ_ON_LINES = 40
 
@@ -2835,13 +2951,15 @@ private const val READ_ON_LINES = 40
  * and then, read on, [READ_ON_LINES] at a time. A search's matches are
  * painted, and the one stepped to brings the piece into sight with its line
  * shown, cut around it: the part of a note past what the phone draws could
- * be neither read nor found here (the final audit's fifth round).
+ * be neither read nor found here (the final audit's fifth round). Given
+ * the [parts] of a row and where each starts ([ReadOnlyRow]), each is shown
+ * whole, wrapped: short enough to wrap without cost, and read in full.
  */
 @Composable
 private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int, Int>>, current: Pair<Int, Int>?,
-                          reveal: Int, header: @Composable () -> Unit) {
+                          reveal: Int, parts: IntArray? = null, header: @Composable () -> Unit) {
     val palette = LocalPalette.current
-    val starts = remember(lines) { Finding.lineStarts(lines) }
+    val starts = remember(lines, parts) { parts ?: Finding.lineStarts(lines) }
     var first by remember(lines) { mutableIntStateOf(0) }
     var count by remember(lines) { mutableIntStateOf(shown) }
     val sight = remember { BringIntoViewRequester() }
@@ -2854,12 +2972,12 @@ private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int,
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).bringIntoViewRequester(sight)) {
         header()
-        Column(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
+        Column((if (parts == null) Modifier.horizontalScroll(rememberScrollState()) else Modifier).padding(top = 6.dp)) {
             for (i in first until minOf(lines.size, first + count)) {
                 val line = lines[i]
                 val start = starts[i]
                 val at = current?.first?.takeIf { it in start..start + line.length }?.minus(start)
-                val cut = Finding.cutAround(line, LARGE_TABLE_CHARS, at)
+                val cut = if (parts != null) Finding.Cut(0, line.length) else Finding.cutAround(line, LARGE_TABLE_CHARS, at)
                 // The matches on the part shown, counted from where it is cut.
                 fun local(range: Pair<Int, Int>): Pair<Int, Int>? {
                     val a = maxOf(range.first - start, cut.from)
@@ -2873,12 +2991,14 @@ private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int,
                     append(painted)
                     if (cut.to < line.length) append("…")
                 }
-                Text(drawn, color = palette.text, fontSize = 13.sp, maxLines = 1, softWrap = false)
+                if (parts != null) Text(drawn, color = palette.text, fontSize = 15.sp)
+                else Text(drawn, color = palette.text, fontSize = 13.sp, maxLines = 1, softWrap = false)
             }
         }
         // Three lines shown of five hundred said nothing of the rest.
         if (lines.size > first + count || first > 0) {
-            Text(if (first == 0) stringResource(R.string.table_more_lines, lines.size - count)
+            Text(if (parts != null) stringResource(R.string.row_parts, first + 1, minOf(lines.size, first + count), lines.size)
+                 else if (first == 0) stringResource(R.string.table_more_lines, lines.size - count)
                  else stringResource(R.string.read_only_lines, first + 1, minOf(lines.size, first + count), lines.size),
                  color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2925,17 +3045,32 @@ internal fun LargeTable(segment: Editing.Segment, found: List<Pair<Int, Int>> = 
  * A row's words. What is typed waits in the editor ([EditorModel.renaming])
  * and is written when the field is left or by the keyboard's ✓ -- one write
  * per edit, not per letter -- and by the save made on leaving the note or
- * the app.
+ * the app. [onEdit] is asked of each change of the words, from those shown
+ * to those typed, and answers what is kept ([Editing.fitRow]); the cursor
+ * is held here with them, so a paste cut to fit leaves it after what came in.
  */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null,
-    onValue: (String) -> Unit, onLeave: () -> Unit,
+    onEdit: (was: String, now: String) -> Editing.Fit, onLeave: () -> Unit,
 ) {
     val palette = LocalPalette.current
+    var field by remember { mutableStateOf(TextFieldValue(text, TextRange(text.length))) }
+    val shown = if (field.text == text) field else TextFieldValue(text, TextRange(text.length))
+    var focused by remember { mutableStateOf(false) }
+    // A search's stop in a row not being typed in: the field, one line,
+    // slides to show it -- it showed its start, and a word past it was
+    // stepped to out of sight.
+    LaunchedEffect(current) {
+        if (current != null && !focused && current.second <= shown.text.length) {
+            field = shown.copy(selection = TextRange(current.second))
+        }
+    }
     BasicTextField(
-        value = text,
-        onValueChange = onValue,
+        value = shown,
+        onValueChange = { next ->
+            field = if (next.text == shown.text) next else fittedValue(shown, next, onEdit(shown.text, next.text))
+        },
         singleLine = true,
         // ✓ writes the words and puts the keyboard down. It only put the
         // keyboard down: the words stayed in the field, looking kept.
@@ -2954,7 +3089,10 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
         cursorBrush = SolidColor(palette.accent),
         modifier = Modifier
             .weight(1f)
-            .onFocusChanged { if (!it.isFocused) onLeave() },
+            .onFocusChanged {
+                focused = it.isFocused
+                if (!it.isFocused) onLeave()
+            },
     )
 }
 

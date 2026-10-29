@@ -571,4 +571,39 @@ class AppStateTest {
         assertEquals(listOf("flour"), s.rowsOnDisk())
         assertEquals("bre", editor.adding)
     }
+
+    @Test
+    fun `a paste into a long row keeps the row's own words whole in the file, the rest of the note untouched`() {
+        // The field's take() wrote the paste's first 2,000 letters and lost
+        // " Serve with rice." -- the row's own end, without a word.
+        val recipe = "r".repeat(1_480) + " Serve with rice."
+        val dir = NioFiles.createTempDirectory("appstate").toFile()
+        // A note crossing the heavy features: a table, a repeat, a file, styles.
+        File(dir, "notes_data.json").writeText(JSONObject()
+            .put("id", 1).put("uid", "a").put("title", "Dinner").put("category", "General")
+            .put("body", "Costs\n| a | 1 |\n| b | 2 |").put("date", "2026-10-05")
+            .put("recurrence", JSONObject().put("freq", "weekly").put("weekdays", org.json.JSONArray().put(0)))
+            .put("formatting", org.json.JSONArray().put(JSONObject().put("start", 0).put("end", 5).put("style", "bold")))
+            .put("attachments", org.json.JSONArray().put(JSONObject().put("filename", "menu.pdf").put("stored_as", "1_menu.pdf")))
+            .put("checklist", org.json.JSONArray().put(JSONObject().put("text", recipe).put("done", false))
+                .put(JSONObject().put("text", "milk").put("done", true)))
+            .let { "[$it]" })
+        File(dir, "attachments").mkdirs()
+        File(dir, "attachments/1_menu.pdf").writeText("pdf")
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        s.openNote(1)
+        val editor = EditorModel(s, s.note(1))
+        s.flush = { editor.write() }
+        val before = org.json.JSONArray(File(dir, "notes_data.json").readText()).getJSONObject(0)
+        val fit = editor.rowCap.fit(recipe, "p".repeat(800) + recipe)
+        assertNull(editor.typeInRow(0, fit.text))
+        assertNull(s.flush!!.invoke())
+        assertEquals(listOf("p".repeat(503) + recipe, "milk"), s.rowsOnDisk())
+        assertEquals("Pasted text shortened: a checklist item can be up to 2,000 characters", s.said()!!.message)
+        val after = org.json.JSONArray(File(dir, "notes_data.json").readText()).getJSONObject(0)
+        for (key in listOf("body", "formatting", "recurrence", "attachments", "date", "uid")) {
+            assertEquals(key, before.opt(key).toString(), after.opt(key).toString())
+        }
+        assertTrue("its tick kept", after.getJSONArray("checklist").getJSONObject(1).getBoolean("done"))
+    }
 }

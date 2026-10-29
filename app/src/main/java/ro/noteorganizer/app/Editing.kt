@@ -263,10 +263,78 @@ object Editing {
     /**
      * The longest checklist row written in as a field: the desktop's
      * MAX_CHECKLIST_ITEM_CHARS, the most its box adds and the most of a row
-     * it draws. A longer row is shown read-only, its start, kept whole; the
-     * row's field and the box for a new one take no more.
+     * it draws -- counted as Python counts, an emoji one ([rowChars]). A
+     * longer row is shown read-only, kept whole, and read there; the row's
+     * field and the box for a new one take no more ([fitRow]).
      */
     const val CHECKLIST_ROW_CHARS = 2_000
+
+    /**
+     * A row's length as the desktop weighs it: in code points. Counted in
+     * UTF-16 units, 1,200 emoji typed kept 1,000, and a desktop row of 1,500
+     * emoji, an ordinary row there, was read-only on the phone (the final
+     * audit's sixth round).
+     */
+    fun rowChars(text: String): Int = text.codePointCount(0, text.length)
+
+    /**
+     * What a row's field, or a box for a new row, keeps of an edit from
+     * [was] to [now]: the [text] kept; the cursor's place in it, in UTF-16
+     * units, when what came in was cut ([caret]; null leaves the field's
+     * own); and what is [said] of it, in the desktop's words.
+     */
+    data class Fit(val text: String, val caret: Int?, val said: String?)
+
+    /**
+     * The desktop's `_limit_entry`, for a row's field and a box for a new
+     * row: an edit within [limit] -- or one leaving the words shorter than
+     * they were -- stands. Past it, the words already there stay whole and
+     * only what came in is cut, to the room left, never through an emoji:
+     * "Pasted text shortened: ...". With no room, nothing comes in: "... can
+     * be up to". `take` over the whole value kept the first 2,000 of the
+     * edit's result, so a letter or a paste anywhere but at the end cut the
+     * row's own last words -- out of sight in a field of one line, with no
+     * Undo and nothing said (the final audit's sixth round).
+     */
+    fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS): Fit {
+        val length = rowChars(now)
+        if (length <= limit || length < rowChars(was)) return Fit(now, null, null)
+        // What the edit put in: the words before it and after it read the
+        // same in both, each end on the edge of a letter, never inside an emoji.
+        val most = minOf(was.length, now.length)
+        var head = 0
+        while (head < most && was[head] == now[head]) head++
+        if (head > 0 && Character.isHighSurrogate(now[head - 1])) head--
+        var tail = 0
+        while (tail < most - head && was[was.length - 1 - tail] == now[now.length - 1 - tail]) tail++
+        if (tail > 0 && Character.isLowSurrogate(now[now.length - tail])) tail--
+        val before = was.substring(0, head)
+        val after = was.substring(was.length - tail)
+        val came = now.substring(head, now.length - tail)
+        val room = limit - rowChars(before) - rowChars(after)
+        val count = String.format(java.util.Locale.ENGLISH, "%,d", limit)
+        if (room <= 0) return Fit(was, null, "A checklist item can be up to $count characters")
+        val cut = came.offsetByCodePoints(0, room)
+        return Fit(before + came.substring(0, cut) + after, head + cut,
+                   "Pasted text shortened: a checklist item can be up to $count characters")
+    }
+
+    /**
+     * [fitRow] for one editor's boxes, what it says said once while edits go
+     * on meeting the cap -- a keyboard's letters at the cap are many, and the
+     * phone queues a bar for each -- and again after an edit that fitted.
+     */
+    class RowCap(private val say: (String) -> Unit) {
+        private var said = false
+
+        fun fit(was: String, now: String): Fit = fitRow(was, now).also { fit ->
+            if (fit.said == null) said = false
+            else if (!said) {
+                said = true
+                say(fit.said)
+            }
+        }
+    }
 
     /**
      * The most letters a checklist's rows draw as fields together, from the
@@ -292,29 +360,113 @@ object Editing {
 
     /**
      * The rows of a checklist of [size] that are drawn, in order: its first
-     * [head] and its last [CHECKLIST_TAIL_ROWS] -- all of them when that
-     * leaves out no more than a few -- and the rows up to [reach], a row a
-     * search stepped to, when it lies between.
+     * [head] and its last [tail] -- all of them when that leaves out no more
+     * than a few -- and the rows up to [reach], a row a search stepped to,
+     * when it lies in the rows between. A row already drawn among the last
+     * -- where the newest item lands, and is looked for -- reached past
+     * them all and drew every row, 1,000 of them at each letter typed in
+     * the bar (the final audit's sixth round).
      */
-    fun checklistShown(size: Int, head: Int, reach: Int = -1): List<Int> {
-        val first = maxOf(head, reach + 1)
-        val tail = size - CHECKLIST_TAIL_ROWS
-        if (tail - first <= CHECKLIST_TAIL_ROWS) return (0 until size).toList()
-        return (0 until first).toList() + (tail until size).toList()
+    fun checklistShown(size: Int, head: Int, reach: Int = -1, tail: Int = CHECKLIST_TAIL_ROWS): List<Int> {
+        val last = size - tail
+        val first = if (reach in head until last) reach + 1 else head
+        if (last - first <= CHECKLIST_TAIL_ROWS) return (0 until size).toList()
+        return (0 until first).toList() + (last until size).toList()
     }
+
+    /**
+     * The [checklistShown] window -- its head and its tail -- after the row
+     * at [from] moved to [to], in a list of [size]: wide enough that every
+     * row drawn before is drawn after, the rows the move pushed across an
+     * edge of the stretch not drawn included, and the row moved too -- into
+     * that stretch, it is drawn there, the window one row wider on the side
+     * it came from. Counted over every row, a step from the edge of the rows
+     * not drawn put the row among them: it vanished, a row never shown stood
+     * in its place, and a screen reader's next Move moved that one (the
+     * final audit's sixth round).
+     */
+    fun keepMovedInSight(size: Int, head: Int, tail: Int, reach: Int, from: Int, to: Int): Pair<Int, Int> {
+        val shown = checklistShown(size, head, reach, tail)
+        if (shown.size == size) return head to tail
+        // Where the head drawn now ends, a search's reach in it, and where the tail begins.
+        val ends = shown.indices.first { shown[it] != it }
+        val begins = size - tail
+        fun after(i: Int) = when {
+            i == from -> to
+            from < to && i in from + 1..to -> i - 1
+            to < from && i in to until from -> i + 1
+            else -> i
+        }
+        var h = head
+        var t = tail
+        // A move shifts the rows between its ends by one, so the last two of
+        // the head and the first two of the tail say where each edge went.
+        for (i in listOf(ends - 1, ends - 2)) if (i >= 0 && i != from) h = maxOf(h, after(i) + 1)
+        for (i in listOf(begins, begins + 1)) if (i < size && i != from) t = maxOf(t, size - after(i))
+        if (to >= h && to < size - t) {
+            if (from >= begins) t = size - to else h = to + 1
+        }
+        return h to t
+    }
+
+    /**
+     * Where a row dragged from [from] lands: on the drawn row whose middle
+     * is nearest the dragged row's middle, now at [at] -- [middles] holding
+     * each drawn row's. Counted in rows of one height from where it began,
+     * the "N more rows" line between the rows drawn was counted as a row and
+     * the rows it stands for as none, and a drop under the last row before
+     * it landed among rows not drawn (the final audit's sixth round).
+     */
+    fun dropTarget(middles: Map<Int, Float>, at: Float, from: Int): Int =
+        middles.minByOrNull { (_, middle) -> kotlin.math.abs(middle - at) }?.key ?: from
 
     /**
      * Which of a checklist's [rows] are written in as fields: each no
      * longer than [CHECKLIST_ROW_CHARS], all of them together no more than
-     * [CHECKLIST_CHARS].
+     * [CHECKLIST_CHARS] -- in letters, as the desktop counts them ([rowChars]).
      */
     fun checklistFields(rows: List<String>): BooleanArray {
         var left = CHECKLIST_CHARS
         return BooleanArray(rows.size) { i ->
-            val length = rows[i].length
+            val length = rowChars(rows[i])
             (length <= CHECKLIST_ROW_CHARS && length <= left).also { if (it) left -= length }
         }
     }
+
+    /** Whether a checklist row is longer than one is written in ([CHECKLIST_ROW_CHARS]), or too long to lay out. */
+    fun rowTooLong(text: String): Boolean = rowChars(text) > CHECKLIST_ROW_CHARS || tooLongToLayOut(text)
+
+    /**
+     * A row shown to be read, in parts of at most [chars] UTF-16 units that a
+     * phone's width wraps: each line of it, and each long line cut after its
+     * last space near the end of a part -- or, with none there, where the
+     * part ends, never through an emoji. Each part is its start and end in
+     * the row; a line break belongs to none.
+     */
+    fun rowParts(text: String, chars: Int = ROW_PART_CHARS): List<Pair<Int, Int>> {
+        val out = ArrayList<Pair<Int, Int>>()
+        var lineStart = 0
+        while (lineStart <= text.length) {
+            val lineEnd = text.indexOf('\n', lineStart).let { if (it < 0) text.length else it }
+            var start = lineStart
+            do {
+                var end = minOf(lineEnd, start + chars)
+                if (end < lineEnd) {
+                    val space = text.lastIndexOf(' ', end - 1)
+                    if (space >= end - ROW_PART_SLACK && space > start) end = space + 1
+                    else if (Character.isLowSurrogate(text[end])) end--
+                }
+                out.add(start to end)
+                start = end
+            } while (start < lineEnd)
+            lineStart = lineEnd + 1
+        }
+        return out
+    }
+
+    /** How long a part of a row shown to be read is ([rowParts]), and how far back a space is looked for. */
+    const val ROW_PART_CHARS = 300
+    private const val ROW_PART_SLACK = 60
 
     /**
      * How many cells a table's [lines] are drawn as: every row padded to
