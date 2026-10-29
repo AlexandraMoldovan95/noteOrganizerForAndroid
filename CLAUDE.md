@@ -202,6 +202,30 @@ probe that moves windows around, can rearrange the desktop of the
 machine it runs on. Photographs are of the emulator's screen only, never
 of the computer's.
 
+### One heavy job at a time, and nothing left running after it
+
+The computer this is built on has 16 GB of memory, often a quarter of
+it free, and on 2026-10-29 one runaway test run took it down (the
+desktop's Issues Log, "The test that took the computer down"). So one
+heavy job runs at a time -- a Gradle build or test run, a mutant run, the
+emulator and a walk on it, the desktop's suite -- never two at once. And
+nothing heavy outlives its job:
+
+- **Gradle leaves no process behind.** No daemon between builds
+  (`org.gradle.daemon=false` in `gradle.properties`, and `--no-daemon` on
+  the command line), and the Kotlin compiler run inside the build
+  (`kotlin.compiler.execution.strategy=in-process`), not as a daemon of its
+  own that outlived every build with its memory.
+- **Stop the emulator after a walk**: `adb emu kill`. Left running, it
+  holds two gigabytes and more for nothing.
+- **Every adb call has a time limit** (`tools/emulator/emulator_only.py`'s
+  `run`): an emulator that stops answering stops the script, naming the
+  call, rather than leaving it waiting for ever with the emulator up.
+- **The desktop's code runs under the desktop's memory ceiling.** The
+  fixture makers import its core into their own process; they call its
+  `tools/guest.py` first (`tools/desktop_guest.py`), and stop if it is
+  missing.
+
 ### Plain language
 
 The person working here is learning as she goes and asked for plain

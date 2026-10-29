@@ -31,7 +31,6 @@ import io
 import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import time
@@ -40,7 +39,7 @@ from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, command, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
@@ -177,7 +176,7 @@ SHOTS = [
 def adb(*args, binary=False):
     env = dict(os.environ)
     env["MSYS_NO_PATHCONV"] = "1"   # or a bash shell rewrites /sdcard/...
-    out = subprocess.run(command(*args), capture_output=True, env=env)
+    out = run(command(*args), capture_output=True, env=env)   # held to a time limit
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
 
 

@@ -9,13 +9,12 @@ afterwards, so a silent truncation cannot pass for a successful type.
 import io
 import os
 import re
-import subprocess
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import command  # noqa: E402 -- the emulator, never a phone
+from emulator_only import command, run  # noqa: E402 -- the emulator, never a phone
 
 CHUNK = 100
 
@@ -24,8 +23,9 @@ x, y = int(sys.argv[2]), int(sys.argv[3])
 
 
 def adb(*args):
-    return subprocess.run(command(*args), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace").stdout
+    # Held to a time limit (emulator_only.run): a stuck emulator stops the script.
+    return run(command(*args), capture_output=True, text=True,
+               encoding="utf-8", errors="replace").stdout
 
 
 adb("shell", "input", "tap", str(x), str(y))

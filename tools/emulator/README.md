@@ -37,6 +37,22 @@ runs it headless: the scripts see and photograph its screen through
 `adb`, and nothing appears on — or rearranges — the desktop of the
 machine they run on.
 
+## One heavy job at a time, and the emulator stopped after it
+
+The emulator is a heavy job: two gigabytes and more of the computer's
+memory while it runs. So it runs alone — never beside a Gradle build, a
+mutant run or the desktop's suite — and it is stopped as soon as the walk
+is done, photographs looked at or not:
+
+    adb emu kill
+
+Every adb call these scripts make has a time limit (`emulator_only.run`:
+two minutes a call, ten for an install). An emulator that stops answering
+— frozen, or starved by a computer out of memory — stopped a script on a
+call that never returned, the emulator still up and holding its memory.
+Past the limit the script stops, naming the call and saying to stop the
+emulator first ([why](../../CLAUDE.md#one-heavy-job-at-a-time-and-nothing-left-running-after-it)).
+
 ## Before the first run on a fresh emulator
 
 A new Android image opens a full-screen *"Try out your stylus"* panel the

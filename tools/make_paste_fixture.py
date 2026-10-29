@@ -273,6 +273,10 @@ def desktop():
     if not os.path.isdir(DESKTOP):
         return ("cannot find the desktop app at %s "
                 "(set NOTEORGANIZER_HOME if it lives somewhere else)" % DESKTOP)
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    from desktop_guest import settle
+    settle(DESKTOP)      # the desktop's memory ceiling, before its code runs here
     if DESKTOP not in sys.path:
         sys.path.insert(0, DESKTOP)
     try:

@@ -13,18 +13,47 @@ So every command names its device, and the device is chosen here: an
 emulator by the system's own word for one (`ro.kernel.qemu` or
 `ro.boot.qemu` is 1; a phone says 0 or nothing), `ANDROID_SERIAL` only
 if it names one. With no emulator attached the scripts stop and say so.
+
+And every adb call through here has a time limit ([run]): an emulator that
+stops answering -- frozen, or starved by a computer out of memory -- left a
+script waiting on one call for ever, the emulator holding its gigabytes the
+while, on a machine where one heavy job at a time is the rule. Past the
+limit the script stops, naming the call, rather than wait on.
 """
 import os
 import subprocess
 
 ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk", "platform-tools", "adb.exe")
 
+# How long one adb call may take: the slowest an emulator answers is a dump
+# of a long screen or of the log, a few seconds; an install, a minute or two.
+ADB_SECONDS = 120
+INSTALL_SECONDS = 600
+
 _chosen = None
 
 
+class AdbTimeout(SystemExit):
+    """adb did not answer in time: the emulator is stuck. A SystemExit, so
+    no part's own `except Exception` walks on into the next stuck call."""
+
+
+def run(args, timeout=None, **kwargs):
+    """`subprocess.run` of an adb command list, held to a time limit:
+    [timeout] seconds, else [INSTALL_SECONDS] for an install and
+    [ADB_SECONDS] for anything else."""
+    limit = timeout or (INSTALL_SECONDS if "install" in args[:4] else ADB_SECONDS)
+    try:
+        return subprocess.run(args, timeout=limit, **kwargs)
+    except subprocess.TimeoutExpired:
+        raise AdbTimeout("adb did not answer within %d s: %s\nThe emulator is stuck: stop it "
+                         "(adb emu kill) before anything else runs, then start it again."
+                         % (limit, " ".join(str(a) for a in args[1:])[:300]))
+
+
 def _prop(serial, name):
-    out = subprocess.run([ADB, "-s", serial, "shell", "getprop", name],
-                         capture_output=True, text=True, encoding="utf-8", errors="replace")
+    out = run([ADB, "-s", serial, "shell", "getprop", name], timeout=30,
+              capture_output=True, text=True, encoding="utf-8", errors="replace")
     return out.stdout.strip()
 
 
@@ -38,8 +67,8 @@ def device():
     global _chosen
     if _chosen:
         return _chosen
-    listed = subprocess.run([ADB, "devices"], capture_output=True, text=True,
-                            encoding="utf-8", errors="replace").stdout
+    listed = run([ADB, "devices"], timeout=30, capture_output=True, text=True,
+                 encoding="utf-8", errors="replace").stdout
     attached = [line.split()[0] for line in listed.splitlines()[1:]
                 if line.strip() and line.split()[-1] == "device"]
     wanted = os.environ.get("ANDROID_SERIAL")

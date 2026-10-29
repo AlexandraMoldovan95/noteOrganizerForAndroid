@@ -39,6 +39,9 @@ def main():
         print("cannot find the desktop app at %s" % DESKTOP)
         print("(set NOTEORGANIZER_HOME if it lives somewhere else)")
         return 2
+    sys.path.insert(0, HERE)
+    from desktop_guest import settle
+    settle(DESKTOP)      # the desktop's memory ceiling, before its code runs here
     sys.path.insert(0, DESKTOP)
     try:
         from noteorganizer.core.formatting import renumber, parse_list_marker

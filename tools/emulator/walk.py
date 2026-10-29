@@ -29,7 +29,7 @@ import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, AdbTimeout, command, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,8 +40,10 @@ NOTEBOOK = "files/notebook"
 failures = []
 
 
-def adb(*args, binary=False, check=False):
-    out = subprocess.run(command(*args), capture_output=True)
+def adb(*args, binary=False, check=False, timeout=None):
+    """One adb call to the emulator, held to a time limit (emulator_only.run):
+    past it the walk stops, naming the call, rather than wait on for ever."""
+    out = run(command(*args), timeout=timeout, capture_output=True)
     if check and out.returncode != 0:
         raise RuntimeError("adb %s: %s" % (" ".join(args), out.stderr.decode(errors="replace")))
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
@@ -335,7 +337,12 @@ def shades_while_tapping(label, frames=10):
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(0.25)
     adb("shell", "input", "tap", str(at[0]), str(at[1]))
-    burst.wait(timeout=120)
+    try:
+        burst.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        burst.kill()
+        raise AdbTimeout("the screen captures did not end within 120 s: the emulator is stuck -- "
+                         "stop it (adb emu kill) before anything else runs")
     shades = []
     for i in range(frames):
         raw = adb("exec-out", "cat", "/data/local/tmp/shade_%d.raw" % i, binary=True)

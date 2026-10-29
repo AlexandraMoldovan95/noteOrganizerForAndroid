@@ -6,19 +6,19 @@ spot -- which is how an automated tap lands on the wrong thing.
 """
 import os
 import re
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import command  # noqa: E402 -- the emulator, never a phone
+from emulator_only import command, run  # noqa: E402 -- the emulator, never a phone
 
 NEEDLE = sys.argv[1]
 XML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui.xml")
 
 
 def adb(*args):
-    return subprocess.run(command(*args), capture_output=True, text=True,
-                          encoding="utf-8", errors="replace").stdout
+    # Held to a time limit (emulator_only.run): a stuck emulator stops the script.
+    return run(command(*args), capture_output=True, text=True,
+               encoding="utf-8", errors="replace").stdout
 
 
 adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
@@ -41,6 +41,6 @@ if not hits:
     sys.exit(1)
 
 text, x, y = hits[0]
-print("gasit: %r la (%d, %d)" % (text[:60], x, y))
+print("found: %r at (%d, %d)" % (text[:60], x, y))
 adb("shell", "input", "tap", str(x), str(y))
-print("apasat")
+print("tapped")
