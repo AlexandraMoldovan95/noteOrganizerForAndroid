@@ -239,4 +239,55 @@ class EditorTypingTest {
         model.type("Aquickly fox", 1)
         assertEquals("a letter typed before it stays plain", listOf(FormatSpan(1, 8, "highlight", "#fff3b0")), model.spans)
     }
+
+    @Test
+    fun `Redo puts the cursor by the rule typing uses, under a grid and out of a full note`() {
+        // Undo and Redo asked a copy of the rule's first half: after Redo of
+        // a table row typed at the end the cursor stayed on the line above
+        // the grid, and the next row went in over the first.
+        val model = editor("Costs")
+        val typed = "Costs\n| a | b |"
+        model.typeInto(Editing.segments(model.body).first(), TextFieldValue(typed, TextRange(typed.length)), 0)
+        model.caret = typed.length
+        model.keepCaret(0, TextFieldValue(typed, TextRange(typed.length)))
+        model.undo()
+        assertEquals("Costs", model.body)
+        assertEquals(0, model.focus)
+        model.redo()
+        assertEquals(typed, model.body)
+        assertEquals("the field under the grid", 2, model.focus)
+        assertEquals(TextFieldValue("", TextRange(0)), model.focused)
+        model.typeInto(Editing.segments(model.body)[2], TextFieldValue("| c | d |", TextRange(9)), 2)
+        assertEquals("Costs\n| a | b |\n| c | d |", model.body)
+        // Enter at the end of a note drawing all it may: the keyboard went;
+        // Undo brings it back, and Redo lets it go again, not left on the line above.
+        val full = editor(List(Editing.MAX_DRAWN_LINES) { "x" }.joinToString("\\n"))
+        val last = Editing.segments(full.body).lastIndex
+        val segment = Editing.segments(full.body)[last]
+        val enter = segment.text + "\n"
+        full.typeInto(segment, TextFieldValue(enter, TextRange(enter.length)), last)
+        full.caret = full.body.length
+        full.keepCaret(last, TextFieldValue(enter, TextRange(enter.length)))
+        assertEquals(1, full.letGo)
+        full.undo()
+        assertEquals(last, full.focus)
+        full.redo()
+        assertEquals(null, full.focus)
+        assertEquals(2, full.letGo)
+    }
+
+    @Test
+    fun `Insert table writes nothing where no field would show it, and says where to tap`() {
+        // The cursor never in the note, the table went to its end -- past
+        // what the note draws, out of sight -- one more at every tap.
+        val model = editor((List(Editing.MAX_DRAWN_LINES) { "x" } + "past").joinToString("\\n"))
+        val before = model.body
+        assertEquals(null, model.insertTable(2, 2))
+        assertEquals(before, model.body)
+        assertTrue(state.snackbar.currentSnackbarData!!.visuals.message.startsWith("The end of this note is more than"))
+        // An ordinary note: at its end, a grid, as ever.
+        val plain = editor("Costs")
+        assertEquals(1, plain.insertTable(2, 2))
+        assertTrue(Editing.segments(plain.body).any { it.table && it.drawn && it.firstLine == 1 })
+    }
 }

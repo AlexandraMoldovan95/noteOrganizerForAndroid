@@ -268,20 +268,18 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // ...but the cursor stays in the note, as Tk leaves it: where the
         // change undone or redone was, or where it stood when only styles
         // changed. Left with no place, the field kept the keyboard and the
-        // next letter went to the end of the note.
+        // next letter went to the end of the note. Placed by the rule typing
+        // uses ([placeCaret]): asked here by a copy of its first half, a
+        // Redo of a table row typed at the end left the cursor on the line
+        // above the grid, and the next row went in over it (the final
+        // audit's sixth round).
         val (index, value) = kept
         if (was == body && index != null && value != null) {
             ask(index, value)
         } else {
             changeSite(was, body)?.let { at ->
-                val segments = Editing.segments(body)
-                val within = segments.indexOfFirst { s ->
-                    s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
-                }
-                if (within >= 0) {
-                    caret = at
-                    ask(within, fieldValue(within, at))
-                }
+                caret = at
+                placeCaret(at)
             }
         }
     }
@@ -369,8 +367,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun applyLines(done: Paragraphs.Done?, index: Int, from: Int, to: Int) {
         if (done == null) return
         apply(done)
-        focused = fieldValue(index, done.movePoint(from), done.movePoint(to))
-        caret = done.movePoint(to)
+        val start = done.movePoint(from)
+        val end = done.movePoint(to)
+        caret = end
+        // Markers put on make lines longer, and a full field gives its last
+        // line to the next: then the rule for a cursor whose line moved.
+        val segment = Editing.segments(body).getOrNull(index)
+        if (segment != null && holds(segment, start) && holds(segment, end)) focused = fieldValue(index, start, end)
+        else placeCaret(end, start)
     }
 
     /** The format bar's alignment keys. */
@@ -474,13 +478,16 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * the rows of a table typed by hand came out in reverse, and Enter at
      * the end of the longest notes made lines nobody could see (the final
      * audit's fifth round). With no field after it, the keyboard goes, and
-     * the note says why once.
+     * the note says why once. The one rule for where the cursor goes after
+     * a change -- typing, a paste, Undo and Redo, a line or a caption made,
+     * a list's markers changed -- each of which asked a copy of its first
+     * half. A selection from [from] to [at] is kept when one field holds both.
      */
-    private fun placeCaret(at: Int) {
+    private fun placeCaret(at: Int, from: Int = at) {
         val segments = Editing.segments(body)
         val within = segments.indexOfFirst { holds(it, at) }
         if (within >= 0) {
-            ask(within, fieldValue(within, at))
+            ask(within, fieldValue(within, if (holds(segments[within], from)) from else at, at))
             return
         }
         val piece = segments.indexOfLast { at >= it.cpStart }
@@ -520,8 +527,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         body = made.body
         if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
         changed()
-        val index = Editing.segments(body).indexOfFirst { it.field && made.line in it.firstLine..it.lastLine }
-        ask(index, fieldValue(index, made.selectStart, made.selectEnd))
+        caret = made.selectEnd
+        placeCaret(made.selectEnd, made.selectStart)
     }
 
     /** "Add a line above the table": an empty line there, the cursor on it. */
@@ -533,8 +540,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         follow(next)
         body = next
         changed()
-        val index = Editing.segments(body).indexOfFirst { it.field && segment.firstLine in it.firstLine..it.lastLine }
-        ask(index, fieldValue(index, at))
+        caret = at
+        placeCaret(at)
     }
 
     /**
@@ -566,10 +573,22 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         changed()
     }
 
-    /** A blank table at the cursor -- the end, when it was never in the note. The line it starts on. */
-    fun insertTable(rows: Int, columns: Int): Int {
+    /**
+     * A blank table at the cursor -- the end, when it was never in the note.
+     * The line it starts on; null when it would not be drawn as a table
+     * there -- past what the note draws, the cursor never in it or left in
+     * that part when the keyboard went -- and nothing is written, said. As
+     * the calculator's sum, it went where nothing showed it, one more blank
+     * table at every tap (the final audit's sixth round).
+     */
+    fun insertTable(rows: Int, columns: Int): Int? {
         val length = body.codePointCount(0, body.length)
         val made = Editing.insertTable(body, caret ?: length, rows, columns)
+        if (Editing.segments(made.body).none { it.table && it.firstLine == made.firstLine }) {
+            state.say("The end of this note is more than the phone shows at once. Tap in its text where the " +
+                "table should go, then insert it.")
+            return null
+        }
         spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans
         follow(made.body)
         body = made.body
@@ -1748,7 +1767,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 // The new table's first cell, open for typing -- as the
                 // desktop opens it the moment the table is made.
                 val first = model.insertTable(rows, columns)
-                if (Editing.segments(model.body).any { it.table && it.drawn && it.firstLine == first }) {
+                if (first != null && Editing.segments(model.body).any { it.table && it.drawn && it.firstLine == first }) {
                     model.activeCell = ActiveCell(first, CellAt(0, 0))
                 }
             },
