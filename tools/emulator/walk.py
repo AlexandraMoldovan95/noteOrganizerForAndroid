@@ -265,6 +265,28 @@ def check_settled(what, read, ok, within=8.0, first=1.5):
     return value
 
 
+def logged(pids, *words):
+    """The lines of the log, since it was last cleared, that the processes
+    [pids] wrote and that hold one of [words]. The log is every process's:
+    Play services wrote a TransactionTooLargeException of its own while a
+    note went to the share sheet (2026-10-29), and a check reading every
+    line failed a step the app had passed -- once in three runs."""
+    pids = {p for p in pids if p}
+    found = []
+    for line in adb("logcat", "-d", "-v", "threadtime").splitlines():
+        m = re.match(r"\S+ \S+\s+(\d+)\s", line)
+        if m and m.group(1) in pids and any(w in line for w in words):
+            found.append(line)
+    return found
+
+
+def route_pids(app, sheet):
+    """The processes a share goes through: the app ([app], its pid read
+    before the tap, so an app the share stopped is still named), the system
+    that starts the sheet, and the sheet itself, read once it is up."""
+    return [app] + [adb("shell", "pidof", name).strip() for name in ("system_server", sheet)]
+
+
 def fail(what):
     print("FAIL " + what)
     failures.append(what)
@@ -2916,9 +2938,10 @@ def template_long_comments(folder):
     shot(folder, "92-template-long-comments", "Comments")
     adb("shell", "input", "keyevent", "KEYCODE_HOME")
     time.sleep(6.0)
+    # The app's own crash: the buffer holds every process's (logged).
     crash = adb("logcat", "-b", "crash", "-d").strip()
     check("left with Home, the app is still running and nothing stopped it",
-          adb("shell", "pidof", PACKAGE).strip() == alive and not crash, crash[:300])
+          adb("shell", "pidof", PACKAGE).strip() == alive and PACKAGE not in crash, crash[:300])
     start_app()
     back_to("Search notes")
 
@@ -3333,10 +3356,12 @@ def limits_round3(folder):
     open_note("Under the line", limit=30.0)
     tap("Share", exact=True, wait=1.5)
     adb("logcat", "-c")
+    app = adb("shell", "pidof", PACKAGE).strip()
     tap("Text", exact=True, wait=0.3)
     sheet = handed(15.0)
+    failed = logged(route_pids(app, sheet), "TransactionTooLarge")
     check("99,000 characters of words reach the share sheet",
-          sheet != PACKAGE and "TransactionTooLarge" not in adb("logcat", "-d"), sheet)
+          sheet != PACKAGE and not failed, "%s %s" % (sheet, failed[:2]))
     back_in()
     back_to("Search notes")
 
@@ -3526,11 +3551,12 @@ def limits_round4(folder):
     open_note("Short Chinese", limit=30.0)
     tap("Share", exact=True, wait=1.5)
     adb("logcat", "-c")
+    app = adb("shell", "pidof", PACKAGE).strip()
     tap("Text", exact=True, wait=0.3)
     sheet = handed(15.0)
+    failed = logged(route_pids(app, sheet), "TransactionTooLarge", "Failed to deliver")
     check("55,000 Chinese characters reach the share sheet, no binder failure in the log",
-          sheet != PACKAGE and "TransactionTooLarge" not in adb("logcat", "-d")
-          and "Failed to deliver" not in adb("logcat", "-d"), sheet)
+          sheet != PACKAGE and not failed, "%s %s" % (sheet, failed[:2]))
     back_in()
     back_to("Search notes")
 
@@ -3780,6 +3806,7 @@ def limits_round5(folder):
     tap("end", exact=True, wait=1.0)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     adb("logcat", "-c")
+    typing = adb("shell", "pidof", PACKAGE).strip()
     heaps = []
     for k in range(1, 41):
         type_text("w%d" % k)
@@ -3790,7 +3817,7 @@ def limits_round5(folder):
     alive = adb("shell", "pidof", PACKAGE).strip()
     print("     the Java heap after 10, 20, 30, 40 bursts: %s MB" % heaps)
     check("a two-million-letter note typed in forty bursts keeps running, its heap no longer growing",
-          bool(alive) and len(heaps) == 4 and heaps[-1] - heaps[1] < 40 and "OutOfMemoryError" not in adb("logcat", "-d"),
+          bool(alive) and len(heaps) == 4 and heaps[-1] - heaps[1] < 40 and not logged([typing, alive], "OutOfMemoryError"),
           "%s, %s" % (alive, heaps))
     back_to("Search notes")
 

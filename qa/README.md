@@ -286,6 +286,15 @@ Share added two more:
   code is changed — that one showed the app idle
   ([the story](../docs/ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)).
 
+The final audit added one more:
+
+- **Read the log of the processes the check is about.** The log is the
+  whole phone's: Play services wrote "TransactionTooLargeException" of
+  its own during a share, and a check reading every line failed a step
+  the app had passed. `logged(pids, *words)` reads only the processes
+  named, their pids taken before the act
+  ([the story](../docs/ISSUES_LOG.md#a-word-in-the-log-written-by-another-program)).
+
 The other scripts in [`tools/emulator/`](../tools/emulator/) each survive
 a specific way the emulator lies to a script: tapping by fresh text,
 typing a long share code in pieces and verifying what arrived, and

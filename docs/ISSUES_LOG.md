@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Nineteen of the seventy-six are
+**the code**, or in **the design**. Twenty of the seventy-seven are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-29](#a-word-in-the-log-written-by-another-program) | checking | The full walk failed "99,000 characters of words reach the share sheet" with the sheet up: the log held "TransactionTooLargeException", written by Play services about a service of its own; three more checks read every process's log the same way | A check of the log reads the lines of the processes it is about, named by their pid before the act |
 | [2026-10-29](#a-ceiling-for-hostile-notes-that-ordinary-ones-reached) | code | The audit's fifth round: a checklist outside round four's whole-note budget, 18 million letters from a code of 38 KB; Undo's 200 whole copies of a long note; fifty weekly tables reaching the ceiling of 100 pieces, their end read-only and unfound; a cursor left in a field its line had gone out of; a list's markers read as words lost | A limit meant for hostile sizes is set where ordinary notes cannot reach it, and what lies past it stays found and readable; a cursor whose line leaves every field is placed, never left |
 | [2026-10-28](#what-one-note-draws-and-what-is-said-before-it-goes) | code | The audit's fourth round: what a note draws was held piece by piece -- ten tables of 1,000 cells drawn at once, 3,000 tiny tables, 200,000 short lines as one field; a rescue copy replaced unsaid three more ways the desktop had settled; one identity worn by two notes; and warnings given under the share sheet, after the tap, or in letters where Android counts bytes | A limit set for one piece limits nothing when the pieces can be many; a warning the person cannot read before choosing is an error they meet later |
 | [2026-10-28](#guards-that-asked-another-question-than-the-cost) | code | The audit's third round went around the second round's guards: words joined by no-break spaces, a hundred lines each under the limit, a run inside a table's cell, a template's row, a bar quoting a row; a plan applied by place after the list moved; an "off" read from the wrong file; and a ceiling on what is handed to another app that was reasoned, and failed on the emulator at 180,000 characters without a word | A guard asks of what actually costs, everywhere it is drawn; a ceiling set by another program is measured on it, not reasoned |
@@ -91,6 +92,39 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A word in the log written by another program
+
+**2026-10-29.** The full walk after the audit's fifth round failed one
+check, "99,000 characters of words reach the share sheet", with the
+share sheet on the screen. Its second condition was that the log held no
+"TransactionTooLarge" — and the log held one. Run alone twice, the part
+passed once and failed once.
+
+The line was not the app's. Read with each line's process
+(`logcat -v threadtime`), it came from Play services
+(`com.google.android.gms.persistent`), about a network service of its
+own it had no implementation for — written in the same seconds as the
+share, by chance. The check read every line every process wrote, so any
+program on the emulator could fail it. Three more read the log the same
+way: the 55,000 Chinese characters' share, "no OutOfMemoryError" while a
+two-million-letter note was typed, and the crash buffer after Home in
+the template part, where any process's crash counted.
+
+**The fix:** `logged(pids, *words)` in the walk returns only the lines
+the named processes wrote. A share names the app (its pid read before
+the tap, so an app the share stopped is still named), `system_server`
+that starts the sheet, and the sheet; the typing names the app; the
+crash buffer is asked for the app's package, as the walk's other crash
+check already did. Fed the captured log offline, the new check finds
+nothing where the old one failed, and still finds the word when the
+app, the sheet or the system writes it.
+
+**The lesson:** a check of the log reads the lines of the processes it
+is about, named by their pid before the act — the log is the whole
+phone's.
 
 ---
 
