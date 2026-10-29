@@ -3355,7 +3355,8 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     var dating by remember { mutableStateOf(false) }
     var repeating by remember { mutableStateOf(false) }
     val onADay = model.day != null
-    AppSheet(onDismissRequest = onDismiss) {
+    // The Repeat sheet, opened from here, says what a turn-off kept while this stays open.
+    AppSheet(onDismissRequest = onDismiss, messages = state.snackbar) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             // On one day, its own category and colour: said, as the desktop

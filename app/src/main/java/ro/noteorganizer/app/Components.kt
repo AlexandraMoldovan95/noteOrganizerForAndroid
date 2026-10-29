@@ -24,6 +24,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.TextButton
@@ -81,7 +83,8 @@ fun Modifier.said(id: Int): Modifier {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
+             content: @Composable ColumnScope.() -> Unit) {
     val palette = LocalPalette.current
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -91,8 +94,14 @@ fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -
             isAppearanceLightStatusBars = !palette.isDark,
             isAppearanceLightNavigationBars = !palette.isDark,
         ),
-        content = content,
-    )
+    ) {
+        content()
+        // The app's [messages], shown in the sheet when it stays open over
+        // what said them: drawn in the window under it, they were never
+        // seen -- the Repeat sheet's word that a turned-off repeat keeps its
+        // days, said as the note's details stayed open (the walk, 2026-10-29).
+        if (messages != null) SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+    }
 }
 
 /**
