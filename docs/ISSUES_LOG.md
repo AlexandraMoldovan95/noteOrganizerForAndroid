@@ -195,6 +195,22 @@ them now", days the note never took were spent. Ask what each edit did,
 and of each date whether the note holds it -- not whether the two ends
 look alike.
 
+**The full walk after it** failed one step, and the step was wrong: "a
+template holding the 300 by 300 table opens within two seconds" read
+3.2 s, three times in three, for an opening of half a second. Round nine
+had the walk read the frames once the screen showed the result, not 1.5 s
+after the tap, and what it then read was more than the opening. A row
+tapped to open a dialog kept its ripple going under it for about seven
+seconds, drawn by the render thread alone (gfxinfo's flag 2, no code of
+the app's in it); and each of the walk's looks at the screen had the app
+draw again what it showed. The walk now lists no render-thread frame, and
+times an opening by the frames the app's thread held before drawing them
+-- 5 ms or more, or 0.1 s in all: 0.44 to 0.77 s. A template editor made
+to spend 2.4 s in thirty frames of 80 ms read 2.04 to 2.10 s and failed;
+gfxinfo lists only frames that draw, so work that draws nothing shows only
+as the next frame's wait. The ripple is Android's own: the row stays
+shaded while its dialog is open and fades a few seconds after it closes.
+
 ---
 
 ## Kept where it was found, and kept on after it moved

@@ -1923,16 +1923,16 @@ def big_table(folder):
     print("\n-- a table too large to draw --")
 
     def drawn_in(title, shows, opens=None):
-        """From the first frame of the opening to the end of the last, read
-        once the screen shows [shows] ([frames_once_shown]): read 1.5 s after
-        the tap, with no look between, an opening frame still drawing was in
-        no list, and an opening of any length past two seconds passed (the
-        final audit's ninth round). The one parser of the frames is
-        [frames_since_reset]."""
+        """From the first frame of the opening to the end of the last that
+        did work, read once the screen shows [shows] ([frames_once_shown]):
+        read 1.5 s after the tap, with no look between, an opening frame
+        still drawing was in no list, and an opening of any length past two
+        seconds passed (the final audit's ninth round). The one parser of
+        the frames is [frames_since_reset]."""
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
         if not (opens or (lambda: open_note(title, limit=20.0)))():
             return None
-        missing, timed = frames_once_shown(shows, within=20.0, starts=True)
+        missing, timed = frames_once_shown(shows, within=20.0, starts=True, worked=True)
         if missing:
             return None
         return max(began + took for began, took in timed) - min(began for began, _ in timed)
@@ -3061,13 +3061,34 @@ def arranging(folder):
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
 
 
-def frames_since_reset(starts=False):
+# gfxinfo's flag on a frame the render thread drew alone (FrameInfoFlags::RTAnimation).
+RENDER_THREAD_ANIMATION = 2
+
+# How long the app's thread holds a frame that does work before drawing it:
+# a frame only drawing again what was laid out waited 0-2 ms, and took 35 ms
+# at most from its start to its end; one taking longer is kept.
+WORKED = 0.005
+HELD = 0.1
+
+
+def frames_since_reset(starts=False, worked=False):
     """The app's frames since `gfxinfo reset`, each from its intended start
     to its end, in seconds -- what held the screen, as the app drew it,
     which the walk's own looks (a second or more each) cannot time. With
     [starts], each as (its start, in seconds on the device's clock, its
     length). Only frames that have ENDED are listed: read this after
-    [frames_once_shown]'s look at the screen, never after a fixed pause."""
+    [frames_once_shown]'s look at the screen, never after a fixed pause.
+
+    A frame the render thread drew alone, for an animation of its own
+    (gfxinfo's flag 2), is not listed: no code of the app ran in it. The
+    ripple of a row tapped to open a dialog went on so for seven seconds
+    under it, and a template opening in half a second read as 3.2 (the walk
+    after the final audit's ninth round). With [worked], only frames the
+    app's thread held [WORKED] or more before drawing them -- a late start
+    counts: work that draws nothing is in no list, and shows only as the
+    next frame's wait -- or that took [HELD] or more: the walk's own look at
+    the screen has the app draw again what it shows, in frames of its own,
+    and those stretched the same opening to 1.97 s of a limit of two."""
     out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
     # One block per window -- a dialog is a window of its own -- each between
     # two "---PROFILEDATA---" lines, with its own header.
@@ -3079,14 +3100,18 @@ def frames_since_reset(starts=False):
         at = {h: k for k, h in enumerate(lines[0].split(","))}
         for line in lines[1:]:
             r = line.split(",")
-            if line[0].isdigit() and len(r) > max(at["FrameCompleted"], at["IntendedVsync"]):
+            if line[0].isdigit() and len(r) > max(at["FrameCompleted"], at["IntendedVsync"]) \
+                    and not int(r[at["Flags"]]) & RENDER_THREAD_ANIMATION:
                 began = int(r[at["IntendedVsync"]])
                 took = (int(r[at["FrameCompleted"]]) - began) / 1e9
+                held = (int(r[at["DrawStart"]]) - began) / 1e9
+                if worked and held < WORKED and took < HELD:
+                    continue
                 frames.append((began / 1e9, took) if starts else took)
     return frames
 
 
-def frames_once_shown(*words, within=30.0, gap=None, starts=False):
+def frames_once_shown(*words, within=30.0, gap=None, starts=False, worked=False):
     """The frames of an act since `gfxinfo reset`, read once the screen
     shows [words] -- the act's own result. A look at the screen waits for
     the app's thread, so the frame that drew them has ended: read after a
@@ -3098,12 +3123,13 @@ def frames_once_shown(*words, within=30.0, gap=None, starts=False):
     freeze past its patience passed (the ninth). With [gap], only the frames
     that began within [gap] seconds of the first: an autosave due 800 ms
     after a letter is a frame of its own. With [starts], each as (its start,
-    its length). The words missing, and the frames ([99.0] when none were
-    listed)."""
+    its length); with [worked], the frames that did work alone
+    ([frames_since_reset]). The words missing, and the frames ([99.0] when
+    none were listed)."""
     looked = unreadable
     missing = says_soon(*words, within=within)
     time.sleep(0.4)
-    timed = frames_since_reset(starts=True)
+    timed = frames_since_reset(starts=True, worked=worked)
     if not timed or unreadable != looked:
         return missing, [(0.0, 99.0)] if starts else [99.0]
     first = min(began for began, _ in timed)
