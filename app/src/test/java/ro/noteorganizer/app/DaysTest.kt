@@ -136,6 +136,18 @@ class DaysTest {
         // Deleted by the note, the day's words go with it, as the desktop's.
         val gone = scratch(shipped.replace(days, """"exceptions": ["2026-11-09"], "overrides": {}, "moved": {},"""))
         assertEquals(0, gone.raw!!.getJSONObject(0).getJSONObject("overrides").length())
+        // An edit the copy keeps under a day it deleted is drawn on no day:
+        // it stays under its own date, though the note moved that day away.
+        // The desktop's own answer, its normalize_note at 99f041e asked of
+        // this very note (scratch android_fixes_r10/probe_deleted_edit.py).
+        val stray = scratch(shipped.replace(days, """"exceptions": [], "overrides": {},
+                "moved": {"2026-11-09": "2026-11-11", "2026-11-16": "2026-11-18"},""")
+            .replace(""""exceptions": [], "overrides": {"2026-11-09": {"body": "Leg day - knee hurt"}}""",
+                     """"exceptions": ["2026-11-16"], "overrides": {"2026-11-16": {"body": "Stray words"}}"""))
+            .raw!!.getJSONObject(0)
+        assertEquals("Stray words", stray.getJSONObject("overrides").getJSONObject("2026-11-16").getString("body"))
+        assertFalse("not where the note moved the day", stray.getJSONObject("overrides").has("2026-11-18"))
+        assertEquals(0, stray.getJSONArray("exceptions").length())
     }
 
     @Test
