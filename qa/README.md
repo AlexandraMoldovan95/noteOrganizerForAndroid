@@ -57,7 +57,7 @@ and never writes to it:
 | `calculator_cases.json` | `make_calculator_fixture.py` | 661 sums evaluated, 378 values displayed |
 | `export_cases.json` | `make_export_fixture.py` | 400 notes exported as `.html` and `.txt`, 794 files |
 | `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
-| `days_cases.json` | `make_days_fixture.py` | 37 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore, rewritten comments, a day reset after a turn-on and a turn-off over an import's copy, each step's stored note and its import |
+| `days_cases.json` | `make_days_fixture.py` | 49 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore, rewritten comments, a day reset after a turn-on, a turn-off over an import's copy, a copy's days taken back by the date that holds them, a start put back, a second turn-off, each step's stored note and its import |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
 | `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
 

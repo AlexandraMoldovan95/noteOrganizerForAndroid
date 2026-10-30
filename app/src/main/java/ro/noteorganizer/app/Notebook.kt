@@ -1145,6 +1145,13 @@ object Notebook {
         // The same for the lines' lists, indents and alignment: an editor
         // that changes them hands back what it kept in step with its text.
         paragraphs: JSONArray? = null,
+        // A write of the repeat follows, which settles the schedule: the
+        // Repeat sheet saves the start first, then the rule. Asked here with
+        // the new start and the old rule, a copy's days were spent and the
+        // copy dropped on a state the desktop's one save never has (the
+        // final audit's ninth round); the repeat's write spends once, on the
+        // final start and rule ([Days.setRepeat]).
+        scheduleFollows: Boolean = false,
     ): SaveResult {
         val file = load.file
             ?: return SaveResult.Failed(NOWHERE)
@@ -1257,8 +1264,10 @@ object Notebook {
         // series' own -- the note holds the days, and the copy's are spent,
         // as in the desktop's every save of the whole note (a pin alone is no
         // such save there).
-        if (wordsChanged || otherChanged) spendSeriesDays(note)
-        dropSpentCopy(note)
+        if (!scheduleFollows) {
+            if (wordsChanged || otherChanged) spendSeriesDays(note)
+            dropSpentCopy(note)
+        }
 
         val candidate = copyOf(array)
         candidate.put(index, note)
@@ -1812,24 +1821,102 @@ object Notebook {
 
     /**
      * A series' own copy holds the series' days only while the note does not
-     * repeat as that series. Once it does again -- turned back on as it was,
-     * or its days taken back in -- the note holds them, and the copy's are
-     * spent, taken out of it: kept there, a day the person then reset came
-     * back from the copy at every start, in every duplicate and every Trash
-     * restore, and the same backup read as changed (the final audit's eighth
-     * round). The desktop's `spend_series_days`: at every read, after the
-     * move ([daysBackFromCopy], [daysBackAsRead]), and in every save of the
-     * whole note ([updateNote], [Days.setRepeat]). A note that does not
-     * repeat keeps its copy's days, as before.
+     * repeat as that series. Once it does again, the copy's days come back to
+     * the note on every date the note's own days leave free -- kept days come
+     * back onto the same date and rule -- and only then are the copy's spent,
+     * taken out of it. Kept there, a day the person then reset came back from
+     * the copy at every start, in every duplicate and every Trash restore,
+     * and the same backup read as changed (the final audit's eighth round);
+     * spent alone, days only the copy held were in no file: 0.12.0's series
+     * turned back on as it was, then any other day touched, lost its first
+     * day's own text at the first start, and a series turned on from another
+     * start, then put back, its deleted day (the ninth). The note's own day
+     * keeps its date, and a copy's move never goes onto a date the note
+     * holds. The desktop's `spend_series_days` (8b5d6cc): at every read,
+     * after the move ([daysBackFromCopy], [daysBackAsRead]), and in the save
+     * that turns the series back on ([updateNote], [Days.setRepeat]). A note
+     * that does not repeat keeps its copy's days, as before.
      */
     internal fun spendSeriesDays(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
-        if (seriesDaysSpent(note, previous)) for (field in DAY_FIELDS) previous.remove(field)
+        if (!seriesDaysSpent(note, previous)) return
+        takeDaysBack(note, previous)
+        for (field in DAY_FIELDS) previous.remove(field)
+    }
+
+    /**
+     * The dates [note]'s own days speak for -- a day edited, deleted or
+     * moved, and the dates days are moved to: the desktop's `_dates_held`.
+     */
+    private fun datesHeld(note: JSONObject): Set<String> {
+        val held = HashSet<String>()
+        (note.opt("overrides") as? JSONObject)?.keys()?.forEach { held.add(it) }
+        (note.opt("exceptions") as? JSONArray)?.let { days ->
+            for (i in 0 until days.length()) (days.opt(i) as? String)?.let { held.add(it) }
+        }
+        (note.opt("moved") as? JSONObject)?.let { moved ->
+            for (day in moved.keys()) {
+                held.add(day)
+                (moved.opt(day) as? String)?.let { held.add(it) }
+            }
+        }
+        return held
+    }
+
+    /**
+     * [previous]'s days put into [note] on every date the note's own leave
+     * free ([datesHeld], asked before any is put in): a day's edit, a deleted
+     * day, and a move -- in the order of its date, while the note holds
+     * fewer than the most a series has, and never onto a date the note holds:
+     * one day a date, the first in order, the copy's, would push the note's
+     * out. The note's deleted days written sorted, once each.
+     */
+    private fun takeDaysBack(note: JSONObject, previous: JSONObject) {
+        val held = datesHeld(note)
+        val overrides = (note.opt("overrides") as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
+        (previous.opt("overrides") as? JSONObject)?.let { theirs ->
+            for (day in theirs.keys().asSequence().toList()) {
+                if (day !in held) overrides.put(day, deepCopy(theirs.get(day)))
+            }
+        }
+        val exceptions = sortedSetOf<String>()
+        fun days(list: Any?): List<String> =
+            (list as? JSONArray)?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } } ?: emptyList()
+        exceptions.addAll(days(note.opt("exceptions")))
+        exceptions.addAll(days(previous.opt("exceptions")).filter { it !in held })
+        val moved = (note.opt("moved") as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
+        (previous.opt("moved") as? JSONObject)?.let { theirs ->
+            for (day in theirs.keys().asSequence().sorted()) {
+                val to = theirs.get(day)
+                if (day !in held && !(to is String && to in held) && moved.length() < Recurrence.MAX_OCCURRENCES) {
+                    moved.put(day, deepCopy(to))
+                }
+            }
+        }
+        note.put("overrides", overrides)
+        note.put("exceptions", JSONArray(exceptions.toList()))
+        note.put("moved", moved)
     }
 
     /** Whether [previous] is [note]'s series' own copy and [note] repeats as it: its days are the note's now. */
     private fun seriesDaysSpent(note: JSONObject, previous: JSONObject): Boolean =
         seriesOwnCopy(previous) && repeatsAs(note, previous)
+
+    /**
+     * Whether [note]'s rescue copy is the copy a turn-off made of the very
+     * series the note repeats as again -- same date, same rule: the
+     * desktop's `copy_holds_this_series`.
+     */
+    internal fun copyHoldsThisSeries(note: JSONObject): Boolean =
+        (note.opt("_prev") as? JSONObject)?.let { seriesDaysSpent(note, it) } == true
+
+    /**
+     * Whether the copy [note] keeps is an import's Update copy: a turn-off
+     * over one keeps it, and Restore previous then brings back the note as
+     * it was before it was updated, not the series -- the desktop's
+     * `_repeat_off_line` (the final audit's ninth round).
+     */
+    fun keepsUpdateCopy(note: JSONObject): Boolean = (note.opt("_prev") as? JSONObject)?.let { updateCopy(it) } == true
 
     /** Whether [note] repeats as the series [previous] holds, its date and its rule: the desktop's `_repeats_as`. */
     private fun repeatsAs(note: JSONObject, previous: JSONObject): Boolean =
@@ -1886,17 +1973,33 @@ object Notebook {
      * with no date, or a day's edit under no date, made one the desktop does
      * not (the final audit's seventh round). Then the copy's days are spent
      * from the copy as written, when the note repeats as its series
-     * ([spendSeriesDays]). Only a note whose copy holds days is shaped to
-     * ask: the move needs a day's edit and the spending a day, and most
-     * copies hold none.
+     * ([spendSeriesDays]): its days first taken back into the note on every
+     * date the note's own leave free, the note's days then written as the
+     * view holds them. Only a copy that can be a series' own copy holding a
+     * day is shaped to ask -- one with a repeat, none of an update's own
+     * fields, and a day's field: shaping takes a repeat away, never gives
+     * one, and keeps the fields a copy has. Asked of any copy with a day's
+     * field, every note an import's Update had made a copy of -- each holds
+     * all three -- was shaped twice at each start, for nothing (the final
+     * audit's ninth round).
      */
     internal fun daysBackAsRead(raw: JSONObject) {
         val held = raw.opt("_prev") as? JSONObject ?: return
-        if (DAY_FIELDS.none { held.has(it) }) return
+        if (DAY_FIELDS.none { held.has(it) } || !Recurrence.isRecurring(held) || UPDATE_COPY_ONLY.any { held.has(it) }) return
         val view = Normalize.normalizeNote(raw, daysBack = false)
         val previous = view.opt("_prev") as? JSONObject ?: return
-        if (daysBackWanted(view, previous)) for (field in DAY_FIELDS) raw.put(field, deepCopy(shaped(previous, field)))
-        if (seriesDaysSpent(view, previous)) for (field in DAY_FIELDS) held.remove(field)
+        if (daysBackWanted(view, previous)) for (field in DAY_FIELDS) {
+            val days = deepCopy(shaped(previous, field))
+            raw.put(field, days)
+            view.put(field, deepCopy(days))
+        }
+        if (seriesDaysSpent(view, previous)) {
+            takeDaysBack(view, previous)
+            for (field in DAY_FIELDS) {
+                raw.put(field, deepCopy(view.get(field)))
+                held.remove(field)
+            }
+        }
     }
 
     /**
@@ -1950,17 +2053,22 @@ object Notebook {
         // colour, styles in another order, a closing table's line -- each a
         // difference no person made, and an Update on one spent the note's
         // only rescue copy on a copy of itself.
-        // Both without their rescue copies, as the desktop compares them: a
-        // copy is not compared, and the read of an older notebook takes days
-        // from it ([daysBackFromCopy]) -- an unchanged note read as changed,
-        // its Update spending the only earlier version: this side's in the
-        // seventh round, the backup's in the eighth, a backup whose copy
-        // still held a day reset here.
-        fun bare(of: JSONObject) = JSONObject().also { out ->
-            for (key in of.keys()) if (key != "_prev") out.put(key, of.opt(key))
+        // This side without its rescue copy, as the desktop compares it: the
+        // note held here is not read again, and read again, an older
+        // notebook's read took days from its copy ([daysBackFromCopy]) -- an
+        // unchanged note read as changed, its Update spending the only
+        // earlier version (the seventh round). The arriving note read as a
+        // load reads it, its copy's days taken back, then compared without
+        // its copy: read bare, an older backup of a turned-off series read
+        // as edited elsewhere against the same notebook (the desktop's
+        // 8b5d6cc, the final audit's ninth round, reversing the eighth's bare
+        // reading; a backup whose copy holds a day reset here since now reads,
+        // truly, as changed). No field compared is the copy.
+        val bare = JSONObject().also { out ->
+            for (key in note.keys()) if (key != "_prev") out.put(key, note.opt(key))
         }
-        val mine = Normalize.normalizeNote(bare(note))
-        val theirs = Normalize.normalizeNote(bare(incoming))
+        val mine = Normalize.normalizeNote(bare)
+        val theirs = Normalize.normalizeNote(incoming)
         return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
     }
 
@@ -2064,21 +2172,31 @@ object Notebook {
      * no other file -- given the series' date, repeat and days only where it
      * lacks them: replaced by the turn-off's, that version was gone unsaid
      * (the final audit's eighth round, the desktop's `_turn_off_rescue_copy`).
+     * Asked first, as the desktop asks it since its 8b5d6cc, where it comes
+     * before the branch of a held save -- one this phone has no road to:
+     * its Repeat sheet saves the words before the repeat, never holding one.
+     *
+     * And an earlier turn-off's copy of this same series ([copyHoldsThisSeries])
+     * gives its words as a copy of words does: a big delete, the repeat
+     * off, back on as it was, off again, and the second turn-off's copy
+     * replaced the first's -- the deleted words, or a long comment the
+     * comments' own save had kept there, in no file (the ninth round).
      * The copy to keep: [copy], given words, or the update's.
      */
     internal fun turnOffCopy(copy: JSONObject, note: JSONObject): JSONObject {
         val existing = note.opt("_prev") as? JSONObject ?: return copy
         if (spent(note, existing)) return copy
-        if (existing.keys().asSequence().all { it in PREV_TEXT_FIELDS }) {
+        if (updateCopy(existing)) {
+            val kept = JSONObject(existing.toString())
+            for (key in listOf("date", "recurrence") + DAY_FIELDS) {
+                if (!kept.has(key)) kept.put(key, deepCopy(copy.opt(key) ?: JSONObject.NULL))
+            }
+            return kept
+        }
+        if (existing.keys().asSequence().all { it in PREV_TEXT_FIELDS } || copyHoldsThisSeries(note)) {
             for (field in PREV_TEXT_FIELDS) if (existing.has(field)) copy.put(field, deepCopy(existing.get(field)))
-            return copy
         }
-        if (!updateCopy(existing)) return copy
-        val kept = JSONObject(existing.toString())
-        for (key in listOf("date", "recurrence") + DAY_FIELDS) {
-            if (!kept.has(key)) kept.put(key, deepCopy(copy.opt(key) ?: JSONObject.NULL))
-        }
-        return kept
+        return copy
     }
 
     /**

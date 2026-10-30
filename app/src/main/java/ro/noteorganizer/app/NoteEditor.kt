@@ -712,13 +712,15 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * is said as well as drawn in red, which a screen reader never reads
      * out: every time when a tap asked for the save -- it is why the tap did
      * nothing -- and by the [auto]save once, when saving starts to fail.
+     * [scheduleFollows]: the Repeat sheet's save, a write of the repeat
+     * after it ([Notebook.updateNote]).
      */
-    fun save(force: Boolean = false, auto: Boolean = false): Boolean {
+    fun save(force: Boolean = false, auto: Boolean = false, scheduleFollows: Boolean = false): Boolean {
         val first = problem == null
         // The checklist's waiting words go with a save a tap asks for, never
         // with the autosave: it runs while a row or "A new item…" is being
         // typed in, and would add the half-typed words as a row.
-        val why = (if (auto) writeNote(force) else write(force)) ?: return true
+        val why = (if (auto) writeNote(force) else write(force, scheduleFollows)) ?: return true
         if (!auto || first) state.say("Not saved: $why")
         return false
     }
@@ -729,7 +731,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * app asks before the note is left or changed from outside
      * (AppState.flush), which says it in its own words.
      */
-    fun write(force: Boolean = false): String? = writeNote(force) ?: writeChecklist()
+    fun write(force: Boolean = false, scheduleFollows: Boolean = false): String? =
+        writeNote(force, scheduleFollows) ?: writeChecklist()
 
     /** A checklist row being renamed: the row at [index] read [was] when the change began. */
     data class Renaming(val index: Int, val was: String, val now: String)
@@ -892,7 +895,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return null
     }
 
-    private fun writeNote(force: Boolean): String? {
+    private fun writeNote(force: Boolean, scheduleFollows: Boolean = false): String? {
         if (!force && edits == saved) return null
         val target = edits
         val load = state.load
@@ -910,7 +913,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         } else {
             Notebook.updateNote(load, id, title, body, category, color, date, pinned,
                                 formatting = spans, comments = comments,
-                                paragraphs = Paragraphs.extract(body, props))
+                                paragraphs = Paragraphs.extract(body, props), scheduleFollows = scheduleFollows)
         }
         state.refresh()
         return when (result) {

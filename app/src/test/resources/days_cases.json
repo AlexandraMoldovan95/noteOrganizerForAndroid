@@ -7982,10 +7982,17 @@
     {
      "_prev": {
       "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "category": "General",
+      "checklist": [],
+      "color": "",
       "comments": "",
       "date": "2026-11-02",
+      "exceptions": [],
       "formatting": [],
+      "moved": {},
+      "overrides": {},
       "paragraphs": [],
+      "pinned": false,
       "recurrence": {
        "count": 0,
        "end": "",
@@ -8009,7 +8016,11 @@
      "formatting": [],
      "id": 1,
      "moved": {},
-     "overrides": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
      "paragraphs": [],
      "pinned": false,
      "recurrence": {
@@ -8023,16 +8034,23 @@
      },
      "title": "Gym",
      "uid": "gym-days",
-     "updated": "2026-10-20 09:00:00"
+     "updated": "2026-10-29 12:00:00"
     }
    ],
    "imported": {
     "_prev": {
      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
      "comments": "",
      "date": "2026-11-02",
+     "exceptions": [],
      "formatting": [],
+     "moved": {},
+     "overrides": {},
      "paragraphs": [],
+     "pinned": false,
      "recurrence": {
       "count": 0,
       "end": "",
@@ -8056,7 +8074,11 @@
     "formatting": [],
     "id": 1,
     "moved": {},
-    "overrides": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
     "paragraphs": [],
     "pinned": false,
     "recurrence": {
@@ -8070,7 +8092,7 @@
     },
     "title": "Gym",
     "uid": "gym-days",
-    "updated": "2026-10-20 09:00:00"
+    "updated": "2026-10-29 12:00:00"
    },
    "loaded": {
     "_prev": {
@@ -9091,7 +9113,2968 @@
      "do": "restore"
     }
    ]
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, then another day's text, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "color": "#ff6b6b"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "color": "#ff6b6b"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, then another day's colour, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-23": {
+      "color": "#ff6b6b"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16",
+     "2026-11-23"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16",
+     "2026-11-23"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, then another day deleted, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-23"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, then another day moved, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      },
+      "2026-11-23": {
+       "body": "Swim instead"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     },
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on as it was, then another day's text, a big delete",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-23": {
+      "body": "Swim instead"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "Warm up.",
+     "comments": "",
+     "do": "write",
+     "title": "Gym"
+    }
+   ]
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "The note's own Monday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "The note's own Monday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "the note's own day over the copy's, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "The note's own Monday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-25",
+     "2026-12-14": "2026-12-15"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-25",
+     "2026-12-14": "2026-12-15"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "the copy's moves onto dates the note's own move holds, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "moved": {
+      "2026-11-30": "2026-11-25",
+      "2026-12-07": "2026-11-23",
+      "2026-12-14": "2026-12-15"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-25"
+    },
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [
+    {
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-09",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "0.12.0's turn-off then on from another start, the start put back",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-09",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {},
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-09",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a turn-off, on from another start, the start put back",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "date": "2026-11-09",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-09",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a turn-off, on from another start, back to the first start every two weeks in one Save",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "date": "2026-11-09",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 2
+     }
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "formatting": [],
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a big delete, off, on as it was, off again, Restore previous",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "body": "Warm up.",
+     "comments": "",
+     "do": "write",
+     "title": "Gym"
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "do": "restore"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "date": "2026-11-02",
+      "formatting": [],
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "weekly",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "date": "2026-11-02",
+      "exceptions": [
+       "2026-11-16"
+      ],
+      "formatting": [],
+      "moved": {
+       "2026-11-23": "2026-11-24"
+      },
+      "overrides": {
+       "2026-11-09": {
+        "body": "Leg day - knee hurt, rest Thursday"
+       }
+      },
+      "paragraphs": [],
+      "recurrence": {
+       "count": 0,
+       "end": "",
+       "freq": "",
+       "interval": 1,
+       "month_day_policy": "clamp",
+       "month_days": [],
+       "weekdays": []
+      },
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [
+      "2026-11-16"
+     ],
+     "formatting": [],
+     "moved": {
+      "2026-11-23": "2026-11-24"
+     },
+     "overrides": {
+      "2026-11-09": {
+       "body": "Leg day - knee hurt, rest Thursday"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a series' long comment cleared while off, on as it was, off again, Restore previous",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, guide +40 721 000 111. ",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [
+     "2026-11-16"
+    ],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-23": "2026-11-24"
+    },
+    "overrides": {
+     "2026-11-09": {
+      "body": "Leg day - knee hurt, rest Thursday"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "do": "write",
+     "title": "Gym"
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": "weekly",
+      "interval": 1
+     }
+    },
+    {
+     "date": "2026-11-02",
+     "do": "repeat",
+     "rule": {
+      "freq": ""
+     }
+    },
+    {
+     "do": "restore"
+    }
+   ]
   }
  ],
- "source": "the desktop's core, 37 cases"
+ "source": "the desktop's core, 49 cases"
 }

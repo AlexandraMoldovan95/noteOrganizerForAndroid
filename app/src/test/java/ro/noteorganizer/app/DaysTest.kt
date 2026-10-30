@@ -39,6 +39,48 @@ class DaysTest {
         assertEquals(30 * 60_000L, Days.untilNextDay(eve))
     }
 
+    @Test
+    fun `a turn-off over an import's Update copy says Restore previous brings the note from before it`() {
+        // The copy kept is the update's, and Restore previous brings that
+        // back, not the series (the desktop's _repeat_off_line, 8b5d6cc).
+        val note = JSONObject(series.trim().removePrefix("[").removeSuffix("]"))
+            .put("_prev", JSONObject().put("title", "Stand-up").put("body", "older").put("category", "Work"))
+        assertTrue(Notebook.keepsUpdateCopy(note))
+        note.put("_prev", JSONObject().put("title", "Stand-up").put("body", "older").put("date", "2026-10-05")
+            .put("recurrence", JSONObject().put("freq", "weekly")))
+        assertFalse("a series' own copy", Notebook.keepsUpdateCopy(note))
+        assertFalse("no copy", Notebook.keepsUpdateCopy(JSONObject()))
+    }
+
+    @Test
+    fun `a read asks only a copy that can be a series' own, never every note an import updated`() {
+        // Every Update copy holds all three day fields, and each was shaped
+        // twice at every start for nothing (the final audit's ninth round).
+        // Measured, not judged by a clock: the read leaves such a copy as it
+        // lies, and the time each way is printed for the round's record.
+        val notes = JSONArray()
+        for (id in 1..1_000) {
+            notes.put(JSONObject().put("id", id).put("uid", "u$id").put("title", "Note $id")
+                .put("body", "word ".repeat(400)).put("category", "General")
+                .put("_prev", JSONObject().put("title", "Note $id").put("body", "older ".repeat(330))
+                    .put("category", "Work").put("color", "").put("checklist", JSONArray()).put("pinned", false)
+                    .put("date", "").put("recurrence", JSONObject().put("freq", ""))
+                    .put("exceptions", JSONArray()).put("overrides", JSONObject()).put("moved", JSONObject())))
+        }
+        val dir = NioFiles.createTempDirectory("days").toFile()
+        File(dir, "notes_data.json").writeText(notes.toString())
+        Notebook.load(dir)
+        val started = System.nanoTime()
+        val load = Notebook.load(dir)
+        val read = (System.nanoTime() - started) / 1_000_000
+        val shaping = System.nanoTime()
+        for (i in 0 until load.raw!!.length()) Normalize.normalizeNote(load.raw!!.getJSONObject(i), daysBack = false)
+        val shaped = (System.nanoTime() - shaping) / 1_000_000
+        println("1,000 notes with an Update's copy: the read $read ms; the shaping round eight's guard added, once, $shaped ms")
+        assertEquals("the copy as it lies", 3, load.raw!!.getJSONObject(0).getJSONObject("_prev")
+            .keys().asSequence().count { it in Notebook.DAY_FIELDS })
+    }
+
     private val series = """[{"id": 1, "uid": "s", "title": "Stand-up", "body": "agenda", "comments": "",
         "category": "Work", "color": "", "date": "2026-10-05",
         "recurrence": {"freq": "weekly", "weekdays": [0]}, "checklist": [{"text": "x", "done": false}]}]"""
@@ -893,7 +935,7 @@ class DaysTest {
         val stream = javaClass.classLoader?.getResourceAsStream("days_cases.json")
         assertNotNull("days_cases.json is missing - rebuild it with tools/make_days_fixture.py", stream)
         val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
-        assertTrue(cases.length() >= 37)
+        assertTrue(cases.length() >= 49)
         for (c in 0 until cases.length()) {
             val case = cases.getJSONObject(c)
             val name = case.getString("name")
@@ -918,10 +960,14 @@ class DaysTest {
                 val title = now.optString("title")
                 val body = now.optString("body")
                 when (step.getString("do")) {
+                    // The Repeat sheet's two writes: the start, then the
+                    // repeat, which settles the schedule and spends once.
                     "repeat" -> {
                         val was = now.optString("date")
                         val date = step.getString("date")
-                        if (date != was) assertTrue(Notebook.updateNote(load, 1, title, body, date = date) is SaveResult.Ok)
+                        if (date != was) {
+                            assertTrue(Notebook.updateNote(load, 1, title, body, date = date, scheduleFollows = true) is SaveResult.Ok)
+                        }
                         assertTrue(Days.setRepeat(load, 1, step.getJSONObject("rule"), startWas = if (date != was) was else null) is SaveResult.Ok)
                     }
                     "write" -> assertTrue(Notebook.updateNote(load, 1, step.getString("title"), step.getString("body"),

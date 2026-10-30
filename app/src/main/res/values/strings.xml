@@ -111,6 +111,7 @@
     <string name="repeat_start">Starts</string>
     <string name="repeat_needs_date">A repeating note needs a start date.</string>
     <string name="repeat_off_kept">The repeat is off; ↩ Restore previous brings it back with every day\'s own text.</string>
+    <string name="repeat_off_update_kept">The repeat is off; ↩ Restore previous brings back the note as it was before it was updated.</string>
     <plurals name="unit_day">
         <item quantity="one">day</item>
         <item quantity="other">days</item>

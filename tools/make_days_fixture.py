@@ -41,6 +41,16 @@ backup imported where the move ran; a turn-off over a share code's Update
 copy, which it keeps; and two letters of comments cleared after a long
 comment was deleted.
 
+And since the ninth (the desktop's 8b5d6cc): the copy's days taken back
+into the note per date before they are spent -- 0.12.0 turned on as it
+was, then another day edited, coloured, deleted or moved; the note's own
+day over the copy's; the copy's moves onto dates the note's own move
+holds; turned on from another start, then the start put back; back to the
+first start with another rule in one Save -- a second turn-off over the
+first one's copy of the same series, after a big delete and after the
+comments were cleared; and an arriving note read as a load reads it, its
+copy's days taken back, before both are compared bare.
+
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
 
@@ -69,7 +79,7 @@ REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
                                 "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "d513ccf3c4d367937ca1a4a791a38d45ba46aa0a"),
+                              "68b4b4ef7acd33aa13aae61b84974d45c66c46a0"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
         '                    note["moved"] = {}\n', "ee189b1fd26d1d315d9195c72bfa41faa2336c9f"),
@@ -126,7 +136,7 @@ def main():
     settle(DESKTOP)
     isolate()
     sys.path.insert(0, DESKTOP)
-    from noteorganizer.core.model import (apply_shared_update, comments_kept_by_copy,
+    from noteorganizer.core.model import (apply_shared_update, comments_kept_by_copy, copy_holds_this_series,
                                           copy_replaced_by_restore, days_hold_own_text,
                                           kept_days_fit, normalize_note, rescue_copy_due,
                                           rescue_copy_spent, shared_update_changes,
@@ -163,21 +173,23 @@ def main():
 
     def turn_off_copy(note, takes_text):
         """_turn_off_rescue_copy, as fingerprinted -- no save held behind a
-        turn-off, which the phone does not have."""
+        turn-off, which the phone does not have: its held branch is never
+        taken here."""
         prev = whole_note_copy(note)
         existing = note.get("_prev")
         if takes_text:
             pass
-        elif (isinstance(existing, dict) and set(existing) <= set(RESCUE_TEXT_KEYS)
-              and not rescue_copy_spent(note)):
-            for key in RESCUE_TEXT_KEYS:
-                prev[key] = copy.deepcopy(existing.get(key, prev[key]))
         elif update_copy(existing) and not rescue_copy_spent(note):
             kept = copy.deepcopy(existing)
             for key in ("date", "recurrence") + DAY_FIELDS:
                 if key not in kept:
                     kept[key] = copy.deepcopy(prev.get(key))
             return kept
+        elif (isinstance(existing, dict)
+              and (set(existing) <= set(RESCUE_TEXT_KEYS) or copy_holds_this_series(note))
+              and not rescue_copy_spent(note)):
+            for key in RESCUE_TEXT_KEYS:
+                prev[key] = copy.deepcopy(existing.get(key, prev[key]))
         return prev
 
     def holds_unspent_rescue(note):
@@ -399,6 +411,41 @@ def main():
           {"do": "write", "title": "Trip", "body": trip_body, "comments": ""},
           {"do": "restore"}]),
     ]
+    # The ninth round (the desktop's 8b5d6cc). The copy's days come back to
+    # the note on every date its own days leave free, then the copy's are
+    # spent: 0.12.0 turned back on as it was, then any other day touched,
+    # held its first day's own text in the copy alone, and the spend erased it.
+    later = "2026-11-23"
+    for what, days in (("another day's text", {"overrides": {later: {"body": "Swim instead"}}}),
+                       ("another day's colour", {"overrides": {later: {"color": "#ff6b6b"}}}),
+                       ("another day deleted", {"exceptions": [later]}),
+                       ("another day moved", {"moved": {later: "2026-11-24"}})):
+        cases.append(("0.12.0's turn-off then on as it was, then %s, read" % what, dict(back_on, **days), []))
+    cases.append(("0.12.0's turn-off then on as it was, then another day's text, a big delete",
+                  dict(back_on, overrides={later: {"body": "Swim instead"}}), [big_delete]))
+    # The note's own day keeps its date; a copy's move never goes onto a date the note holds.
+    cases.append(("the note's own day over the copy's, read",
+                  dict(back_on, overrides={"2026-11-09": {"body": "The note's own Monday"}}), []))
+    cases.append(("the copy's moves onto dates the note's own move holds, read",
+                  dict(back_on, moved={later: "2026-11-25"},
+                       _prev=dict(back_on["_prev"], exceptions=[],
+                                  moved={"2026-11-30": "2026-11-25", "2026-12-07": later,
+                                         "2026-12-14": "2026-12-15"})), []))
+    # Turned on again from another start, then the start put back: the save
+    # spent a deleted day the note never took, back on the calendar for good.
+    cases.append(("0.12.0's turn-off then on from another start, the start put back", back_on_elsewhere, [on_same]))
+    cases.append(("a turn-off, on from another start, the start put back", own, [off, on_other, on_same]))
+    # The phone's Repeat sheet saves the start, then the rule: the copy is
+    # spent once, on both, as the desktop's one save spends it.
+    cases.append(("a turn-off, on from another start, back to the first start every two weeks in one Save", own,
+                  [off, on_other, {"do": "repeat", "date": "2026-11-02", "rule": {"freq": "weekly", "interval": 2}}]))
+    # A second turn-off keeps the words the first one's copy of the same series held.
+    cases.append(("a big delete, off, on as it was, off again, Restore previous", own,
+                  [big_delete, off, on_same, off, {"do": "restore"}]))
+    cases.append(("a series' long comment cleared while off, on as it was, off again, Restore previous",
+                  dict(own, comments=trip_comments),
+                  [off, {"do": "write", "title": "Gym", "body": body, "comments": ""}, on_same, off,
+                   {"do": "restore"}]))
 
     out = []
     for name, start, steps in cases:

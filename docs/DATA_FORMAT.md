@@ -316,23 +316,39 @@ writes them:
   holds (`category`, `color`, `checklist`, `pinned`), into a note that
   holds no days of its own and either no longer repeats or repeats again
   as that same series, its date and rule the copy's -- and only when a day
-  there holds text of its own. Asked of the note as a load shapes it, and
-  never of the comparison an update makes, which reads both notes without
-  their copies: taken in from an update's copy, the same backup imported
-  twice read as changed the second time (2026-10-29, the final audit's
-  seventh round, on both apps), and a backup whose copy still held a day
-  reset here read as changed (its eighth).
-- **A series' own copy's days are spent** once the note repeats as that
-  series again -- the same date and rule: `exceptions`, `overrides` and
-  `moved` are taken out of the copy, at every read after the move and in
-  every save of the whole note, a repeat turned back on among them. Kept
-  there, a day the person then reset came back from the copy at every
-  start (2026-10-30, the final audit's eighth round, the desktop's
-  `spend_series_days`). A note that does not repeat keeps its copy's days.
+  there holds text of its own. Asked of the note as a load shapes it. An
+  update's comparison reads this side without its copy, and the arriving
+  note as a load reads it -- its copy's days taken back -- then compares
+  the two without their copies: taken in from an update's copy, the same
+  backup imported twice read as changed the second time (2026-10-29, the
+  final audit's seventh round, on both apps); read bare, an older backup of
+  a turned-off series read as edited elsewhere (its ninth). A backup whose
+  copy holds a day reset here since reads, truly, as changed.
+- **A series' own copy's days come back, then are spent,** once the note
+  repeats as that series again -- the same date and rule. First each of the
+  copy's days goes into the note on every date the note's own days leave
+  free: a day's edit, a deleted day, and a move, in the order of its date,
+  never onto a date the note holds -- its edited, deleted and moved days and
+  the dates it moves days to -- and while the note holds fewer moves than a
+  series has days. Then `exceptions`, `overrides` and `moved` are taken out
+  of the copy. At every read after the move, and in the save that turns the
+  series back on -- on the phone the Repeat sheet's write of the repeat,
+  never its write of the start before it. Kept in the copy, a day the person
+  then reset came back at every start (2026-10-30, the final audit's eighth
+  round); spent alone, days only the copy held -- 0.12.0's series turned
+  back on as it was, then another day touched; a series turned on from
+  another start, then put back -- were in no file (its ninth; the desktop's
+  `spend_series_days` since 8b5d6cc). A note that does not repeat keeps its
+  copy's days.
 - **A repeat turned off over an import's Update copy** the note does not
   hold again keeps that copy whole -- the note as it was before the Update
   -- given the series' date, rule and days only where it lacks them (the
-  desktop's `_turn_off_rescue_copy`, the same round).
+  desktop's `_turn_off_rescue_copy`, the eighth round). **Over an earlier
+  turn-off's copy of the same series** the note does not hold again, the
+  new copy takes that copy's words -- title, text, styles, lines and
+  comments -- as it takes a copy of words: replaced, a big delete's words,
+  or a long comment kept there, were in no file after the second turn-off
+  (the ninth round).
 
 Phase 3 writes the other two the day mode has:
 

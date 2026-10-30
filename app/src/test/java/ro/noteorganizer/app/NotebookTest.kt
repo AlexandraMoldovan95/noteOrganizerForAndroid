@@ -1788,9 +1788,15 @@ class NotebookTest {
         val elsewhere = series("_prev" to series()).put("date", "2026-11-09")
         Notebook.spendSeriesDays(elsewhere)
         assertTrue("another series keeps them", elsewhere.getJSONObject("_prev").has("overrides"))
-        // A backup whose copy still holds a day reset here is the same note.
+        // A backup whose copy still holds a day reset here reads, truly, as
+        // changed: the arriving note is read as a load reads it, its copy's
+        // day taken back -- the ninth round reversed the eighth's bare
+        // reading of the arriving side, as the desktop's 8b5d6cc. This side,
+        // held here, is still compared without its copy, never read again.
         val reset = series().put("overrides", JSONObject())
-        assertFalse(Notebook.sharedUpdateChanges(reset, series("_prev" to series()).put("overrides", JSONObject()),
+        assertTrue(Notebook.sharedUpdateChanges(reset, series("_prev" to series()).put("overrides", JSONObject()),
+                                                Notebook.UPDATABLE_FROM_BACKUP))
+        assertFalse(Notebook.sharedUpdateChanges(series("_prev" to series()).put("overrides", JSONObject()), reset,
                                                  Notebook.UPDATABLE_FROM_BACKUP))
         // The comments whose loss is the larger stay in a waiting copy.
         val long = "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A. ".repeat(4)
