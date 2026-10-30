@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty of the eighty are
+**the code**, or in **the design**. Twenty-one of the eighty-one are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-30](#a-stop-android-made-ten-seconds-late) | checking | The first full walk since round five failed 16 steps: Android stopped an app sent Home ten seconds later on an emulator drawing in software, and the walk read the save, and ended the app, before it was stopped; round seven's checks, never run, looked below the screen; and an Undo in a table cell, broken since round six, sent the next letter under the table | A wait for a fixed time is a guess about the machine: wait for the state the check is about, and read that the act happened before judging what follows from it |
 | [2026-10-29](#a-rule-fixed-where-it-was-found-and-asked-again-beside-it) | code | The audit's seventh round: "Read all" looked for a space back to a row's start for every part, seconds on a row of no space; the title and a template's name kept take(200) of each new value; Undo forgot where the cursor wrote; the app itself took a template being written off the screen with no draft; the rescue rule counted UTF-16 units; the days' move asked the raw file, skipped the Trash, and took an update's days; a copy for the comments replaced a body's, and the restore weighed no comments | A rule put right where it was found is still asked the old way next door: sweep for the fix's question, not its line |
 | [2026-10-29](#a-days-text-in-a-copy-the-other-program-erased) | design | A turned-off series' days lived in the note on the desktop and in the series' copy alone on the phone: the desktop's next copy of words erased the phone's, and the phone's way of carrying days into every copy put a restarted series' old deleted day back; and a template being written was lost when Android ended the app behind Home | A thing kept in two places is kept by neither: where a value lives is part of the format, proved by running both programs on the same note |
 | [2026-10-29](#a-cap-that-cut-what-it-was-meant-to-keep) | code | The audit's sixth round: a row's 2,000-letter cap cut the row's own end when a letter or a paste went in at its start; a row moved across the line of rows not drawn vanished among them; a row past the limit showed no word of itself, Find stopping on words nobody saw; the template editor drew 1,000 rows at once; Redo left the cursor above a table typed at the end; comments wiped kept no rescue copy | A cap is put on what comes in, never on what is already there; and a window drawn in part follows the row a person moves, as it follows the one a search steps to |
@@ -95,6 +96,51 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A stop Android made ten seconds late
+
+**2026-10-30.** The first full walk since the audit's fifth round, run
+after its seventh, failed 16 of its steps. It ran on an emulator drawing
+in software: drawn by the graphics card, the emulator had fallen over in
+the middle of the walk before. None of the 16 was understood until a
+probe wrote down what Android said around every Home.
+
+- **A save read before it was made.** Android stops an app sent Home
+  once the launcher has nothing more to do, or ten seconds later.
+  Drawing in software, the launcher never rests, and the stop -- the
+  moment the app writes what the editor holds -- came at ten seconds,
+  every time. The walk read the file one to three seconds after Home, and
+  the words were not there yet; read again once the check had failed,
+  they were. And `am kill`, the walk's "Android ended the app behind
+  Home", ends only an app off the screen: of one still paused it ended
+  nothing and said nothing. So "the words are there after Android ended
+  the process" passed with the process never ended -- twice, once in a
+  part that had passed for weeks. Every Home in the walk now waits until
+  Android says the app is stopped (`home()`), and every ending reads that
+  the process is gone (`kill_behind()`).
+- **Checks never run.** Round seven's `limits_round7` was written with
+  the round and left for the emulator. It looked for "Show less" under a
+  row of a million letters, seventy lines below the screen; tapped a full
+  list's "A new item…" without scrolling past its 205 rows; and left that
+  note with words the full list could not take -- where Back keeps the
+  note open and offers "Leave anyway" -- so every step after it was on
+  the wrong screen. Each now does what a person does, and all nine pass.
+- **A bug two rounds old.** The walk's oldest table check, not run since
+  round five, failed for the app: words typed in a cell, Undo, and the
+  next letter went to the line under the table. Round six had put the
+  cursor after Undo by the rule for prose (91c0264), and a place inside a
+  table is in no prose field: the line under the grid took the cursor,
+  and the cell let go. A change inside the table whose cell is being
+  written in now leaves the cursor in the cell (`EditorTableTest`;
+  mutants AS258 and AS259, both killed).
+
+**The lesson:** a wait for a fixed time is a guess about the machine.
+Wait for the state the check is about, and read that the act happened --
+a process ended, a file written -- before judging what follows from it.
+And the walk run in parts is not the walk: a part nobody ran is a check
+nobody has.
 
 ---
 
