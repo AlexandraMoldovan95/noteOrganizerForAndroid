@@ -188,6 +188,26 @@ comments kept whichever way the loss ran overwrote the larger. For each
 thing kept, ask what makes it stop being the one to keep -- and keep that
 answer in the same place as the keeping.
 
+**The full walk after it** failed ten steps, all in the round's own part,
+and was right twice. Typed at once after a title's break, " list" came
+back " li": the box showed the break, the first letter made the editor
+rewrite it under the keyboard, and letters arriving in that moment were
+lost -- a letter every tenth of a second kept them all. The box now shows
+the title on one line from the start, so nothing is rewritten; the note
+keeps its break until something is typed in (6d8e458, AS287). And looking
+at its photographs found the second: five photos named for a message
+showed none of it. Four had been taken after a second reading of the
+screen, the message's four seconds over -- the walk's own, now photographed
+the moment the words are read (`shot_as_said`). The fifth was not late:
+in the note's editor, the keyboard up, the app's words were drawn behind
+the keys. The window's messages kept above the bar and the +, never above
+the keyboard; the sheets and the template editor already did. They are
+now, and the walk reads the words' place against the keyboard's top
+(failed before: the words at 2,220, the keyboard from 1,517). The rest
+were the walk's: on its side the list shows two of four notes. A word in
+the screen's tree is not a word seen; a photo is looked at for what it is
+named for.
+
 ---
 
 ## A stop Android made ten seconds late
