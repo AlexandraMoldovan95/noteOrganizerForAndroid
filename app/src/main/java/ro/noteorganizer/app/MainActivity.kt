@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -61,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -508,15 +511,19 @@ fun AppRoot(state: AppState, version: String) {
         }
         // Above the bar at the bottom, and on the list above the + as well:
         // a message that half covers the button it sits next to reads as
-        // a mistake.
+        // a mistake. And above the keyboard, which covers the bar and the +:
+        // under it, a word said while typing -- a letter refused at a row's
+        // cap -- was drawn behind the keys (the final audit's eighth round).
         val listShown = state.tab == Tab.NOTES && tabShown
+        val typing = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         SnackbarHost(
             state.snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(bottom = when {
-                    open != null && !twoPanes -> 8.dp
+                    typing || open != null && !twoPanes -> 8.dp
                     !wide -> if (listShown) 160.dp else 80.dp
                     else -> if (listShown) 88.dp else 16.dp
                 }),
