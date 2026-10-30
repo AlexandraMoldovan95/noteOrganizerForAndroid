@@ -317,10 +317,22 @@ writes them:
   holds no days of its own and either no longer repeats or repeats again
   as that same series, its date and rule the copy's -- and only when a day
   there holds text of its own. Asked of the note as a load shapes it, and
-  never of the comparison an update makes, which reads the note without
-  its copy: taken in from an update's copy, the same backup imported twice
-  read as changed the second time (2026-10-29, the final audit's seventh
-  round, on both apps).
+  never of the comparison an update makes, which reads both notes without
+  their copies: taken in from an update's copy, the same backup imported
+  twice read as changed the second time (2026-10-29, the final audit's
+  seventh round, on both apps), and a backup whose copy still held a day
+  reset here read as changed (its eighth).
+- **A series' own copy's days are spent** once the note repeats as that
+  series again -- the same date and rule: `exceptions`, `overrides` and
+  `moved` are taken out of the copy, at every read after the move and in
+  every save of the whole note, a repeat turned back on among them. Kept
+  there, a day the person then reset came back from the copy at every
+  start (2026-10-30, the final audit's eighth round, the desktop's
+  `spend_series_days`). A note that does not repeat keeps its copy's days.
+- **A repeat turned off over an import's Update copy** the note does not
+  hold again keeps that copy whole -- the note as it was before the Update
+  -- given the series' date, rule and days only where it lacks them (the
+  desktop's `_turn_off_rescue_copy`, the same round).
 
 Phase 3 writes the other two the day mode has:
 
@@ -756,9 +768,11 @@ copy spends it too, since there is nothing left to rescue; and a save
 due a copy for its comments alone, over a copy the note does not hold
 again, keeps that copy's words and takes only the comments it replaces
 (2026-10-29: the comments rewritten after a big delete replaced the only
-copy of the deleted words). An update that would change nothing does not
-touch the note at all, so it cannot spend a rescue copy on nothing; it
-is judged with the note's own copy left out.
+copy of the deleted words) -- or keeps the copy's own comments, when theirs
+would be the larger loss (2026-10-30: two letters cleared after a long
+comment was deleted wrote over it). An update that would change nothing
+does not touch the note at all, so it cannot spend a rescue copy on
+nothing; it is judged with both notes' copies left out.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the

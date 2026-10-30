@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-one are
+**the code**, or in **the design**. Twenty-one of the eighty-two are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-30](#kept-where-it-was-found-and-kept-on-after-it-moved) | code | The audit's eighth round: the calculator's place kept through an Undo that changed nothing and dropped by one that changed the words; a series' days kept in its copy after the note took them back, so a day reset came back at every start; comments always taken into a waiting copy, two letters over a long comment; a turn-off over an import's Update copy; a title's Enter told by its length; refusals said under the sheet that stayed open; the walk's frames read before they ended, its turn taken halfway | What a fix keeps it must also let go of, and say when: ask of each thing kept what makes it stop being the one to keep |
 | [2026-10-30](#a-stop-android-made-ten-seconds-late) | checking | The first full walk since round five failed 16 steps: Android stopped an app sent Home ten seconds later on an emulator drawing in software, and the walk read the save, and ended the app, before it was stopped; round seven's checks, never run, looked below the screen; and an Undo in a table cell, broken since round six, sent the next letter under the table | A wait for a fixed time is a guess about the machine: wait for the state the check is about, and read that the act happened before judging what follows from it |
 | [2026-10-29](#a-rule-fixed-where-it-was-found-and-asked-again-beside-it) | code | The audit's seventh round: "Read all" looked for a space back to a row's start for every part, seconds on a row of no space; the title and a template's name kept take(200) of each new value; Undo forgot where the cursor wrote; the app itself took a template being written off the screen with no draft; the rescue rule counted UTF-16 units; the days' move asked the raw file, skipped the Trash, and took an update's days; a copy for the comments replaced a body's, and the restore weighed no comments | A rule put right where it was found is still asked the old way next door: sweep for the fix's question, not its line |
 | [2026-10-29](#a-days-text-in-a-copy-the-other-program-erased) | design | A turned-off series' days lived in the note on the desktop and in the series' copy alone on the phone: the desktop's next copy of words erased the phone's, and the phone's way of carrying days into every copy put a restarted series' old deleted day back; and a template being written was lost when Android ended the app behind Home | A thing kept in two places is kept by neither: where a value lives is part of the format, proved by running both programs on the same note |
@@ -96,6 +97,96 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Kept where it was found, and kept on after it moved
+
+**2026-10-30.** The final audit's eighth round attacked round seven's
+fixes and came back, on the phone, with four mediums and thirteen lows,
+one of them a duplicate; the desktop's own round brought four data rules
+the phone then took word for word (947e9d3 there). Most were a thing kept
+-- a place, a copy's days, a copy's comments, a copy -- kept on one road
+and not on the next, or kept on after it had moved.
+
+- **The calculator's place, half kept.** Round seven kept the place the
+  calculator's last answer ended through an Undo that left the words as
+  they were; one that changed them still emptied it, and the next answer
+  was glued on where the cursor was: Insert, ↶, ↷, Insert gave
+  "Total: 2+2=43×3=9". The desktop's Tk mark moves through Ctrl+Z and
+  Ctrl+Y. And on d6b5850's road, an Undo in a table cell, the cursor's
+  place was emptied too: once the cell let go, the answer went to the
+  note's end.
+- **A series' days kept twice.** Round seven took a series' days back
+  from its own copy into a note repeating as that series again, and left
+  them in the copy as well: a day the person then reset -- the note holding
+  no day, the very state the move was for -- came back from the copy at the
+  next start, in a duplicate, after a Trash restore, and through a backup
+  made a minute before, which, compared with its copy, read as changed.
+- **The comments taken whichever way the loss ran.** Round seven's save
+  of the comments alone kept the waiting copy's words and always took the
+  comments: two letters cleared after a long comment was deleted wrote
+  over it.
+- **An import's copy replaced.** A repeat turned off after an import's
+  Update made the turn-off's copy over the Update's: the note as it was
+  before the Update was in no file.
+- **Enter told by length.** Round seven moved the title to a value with its
+  cursor, and kept the old Enter test -- one letter longer, one line break
+  in all. In a title already holding a break (the phone before 0.11, a
+  desktop template, a share code) every letter passed it: dropped, the
+  cursor sent to the note's words, the next letters written there. And a
+  tap that only moved the cursor rewrote such a title and saved the note.
+- **Said where no one could see.** The category sheet's refusals -- a
+  name used, one over 80 letters -- went to the window under it, and Save
+  looked as if it did nothing; the Repeat sheet's the same. On a phone on
+  its side the note's details were taller than the window, their foot cut
+  and the message under them given no room. The words a dialog says under
+  its own box were read out to no one.
+- **A paste weighed as copied.** The phone weighed CR LF as two letters
+  and kept the CR in every capped box, and took a title paste of two lines
+  as two lines with a CR between; the desktop's round seven had settled
+  both.
+- **The walk's own.** Its frame checks read the frames a fixed time after
+  the act, and only frames that have ended are listed: a frame longer than
+  the pause was in no list, and round seven's "Read all" passed with its
+  slow search put back. It took the machine's one turn halfway through, at
+  the export part, sixteen parts beside whatever ran. And two of its PASS
+  lines claimed a Continue and a Discard that were never pressed.
+
+**The fix:** the calculator's place and the cursor's move through Undo and
+Redo as typing moves them (`Calculator.follow`). A series' own copy's days
+are spent once the note repeats as that series -- at every read, after the
+move, and in every save of the whole note, the Repeat sheet's turn-on among
+them; a note that does not repeat keeps its copy's days. An arriving note
+is compared without its copy, as the note here is. A waiting copy keeps
+the comments whose loss would be the larger. A turn-off keeps an unspent
+Update copy whole, giving it the series only where it lacks it. Enter is
+what came in being one line break, and a tap writes nothing. Every sheet
+that stays open over a refusal shows the app's messages over itself, the
+details and the category sheets scroll, and words said under a box are a
+live region. A paste is weighed as the desktop puts it in. The walk takes
+its turn as it starts, reads every frame after a look at the screen, and
+reads its premises back; and `limits_round8` walks the round. Each with a
+test and a mutant watched failing: AS260 to AS277 for the phone's own
+findings, AS278 to AS286 for the desktop's rules. `days_cases.json`,
+rebuilt from the desktop's core at 947e9d3, holds 37 cases: six new -- a
+day reset after the editor's turn-on and after 0.12.0's, read again; the
+backup made before the reset; 0.12.0's own backup where the move ran; a
+turn-off over a share code's Update; two letters of comments over a long
+one -- and two answers changed, both a 0.12.0 series turned back on as it
+was, read: its copy no longer holds the days the note took back. And
+`DaysTest` judges a step that writes nothing -- a read, an import that
+changes nothing -- by the note as the app holds it, which its next write
+stores: read from the file, 0.12.0's own backup imported where the move
+had run showed the notebook as 0.12.0 left it, the moved days not yet
+written.
+
+**The lesson:** what a fix keeps, it must also let go of, and say when. A
+place kept through one kind of Undo was still dropped by the other; days
+kept in a copy after the note had taken them back came back over a reset;
+comments kept whichever way the loss ran overwrote the larger. For each
+thing kept, ask what makes it stop being the one to keep -- and keep that
+answer in the same place as the keeping.
 
 ---
 
@@ -3040,6 +3131,43 @@ whether that is what the dialog should show.
   sixth round's, now in the title and the template's boxes too: a
   suggestion or a swiped word that does not fit is cut to the room left,
   and a paste's words said.
+
+### What the audit's eighth round left
+
+- **A title's paste of one line goes in as copied.** The desktop weighs
+  every title paste as `" ".join(pasted.split())` -- spaces at its ends
+  dropped, runs of them made one. The phone joins only what came in
+  holding a line break: it cannot tell a paste of one line from a
+  keyboard's word committed with its space, which joined would lose the
+  space. And a break a title already held becomes a space at its first
+  real edit, as since 0.11, where the desktop keeps it: "Groceries" and a
+  break, then " list" typed after it, is "Groceries  list".
+- **A search past 10,000 letters is not handed to Android.** After Android
+  ends the app behind Home, or a tab is left and drawn again, such a search
+  comes back empty -- the price of not stopping the app as Home is pressed.
+  The search still folds its words once a note, as before; measured at no
+  size a person types.
+- **The turn-off's comments-alone branch has no road of its own here.**
+  The desktop takes the comments and the repeat in one save; the phone's
+  Repeat sheet saves the note's words first and the repeat after, and the
+  copy comes out the same, through the save's rule and the turn-off's copy.
+  "Restore previous" and an import's Update spend no copy's days
+  themselves, as the desktop's do not; the next read does.
+- **A letter's edges by a short form of Unicode's rules.** Marks, ZWJ,
+  variation selectors, skin tones, tags, Hangul jamo and flags; no
+  prepended marks. A letter longer than the slack -- sixty units of
+  accents on one letter -- is cut where the part ends, never in an emoji.
+- **Walked by none:** the Repeat sheet's refusal over itself (it needs the
+  phone unable to write with the sheet open), the calculator after ↶ and ↷
+  (neither is scripted), a CR LF paste (the emulator's clipboard cannot be
+  given one by a script), and TalkBack's reading of the words under a box.
+  `limits_round8` was written with the round and left for the emulator.
+- **PASS after a failed premise.** The two named in the walk read their
+  premise now; the class -- a check whose state already held before its tap
+  -- was swept only where a process ends, not through all 6,400 lines.
+- **The desktop's CLAUDE.md** says the Android build and its emulator take
+  no turn; the walk takes it now, as it starts. That line is the desktop
+  repository's to change.
 
 ### The phone's, from the audit of 2026-10-19
 

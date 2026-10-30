@@ -270,8 +270,10 @@ Grouped by what the app does; when each item arrived is in the
     weighed on their own, by a repeat turned off, or by an update that arrived
     from elsewhere — the note says so and brings it back, its text and
     everything else the update changed. A copy due for the comments alone
-    keeps a big delete's words it already held, taking only the comments;
-    and what the restore writes over -- the comments, the styles of the same
+    keeps a big delete's words it already held, taking only the comments --
+    or keeping its own, when theirs would be the larger loss (since
+    2026-10-30); a repeat turned off keeps an import's Update copy; and
+    what the restore writes over -- the comments, the styles of the same
     words -- is kept in its turn, as on the desktop (since 2026-10-29).
 25. **Find in note**: the count, back and next, case, prose and table
     cells together, then the checklist and the comments (since 2026-10-25;
@@ -391,12 +393,12 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 862 JVM unit tests in 31 suites, mutation-tested; seven ports held to
+39. 872 JVM unit tests in 31 suites, mutation-tested; seven ports held to
     fixtures the desktop's own Python wrote; four gates against drift
     (the note's shape and the palettes against the desktop's Python, the
     rules layer free of Android, the repository in English) and a fifth
     on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 343
+    where the shrunk code will look); and an emulator walk of 351
     checks that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -655,7 +657,7 @@ or the phone itself.
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 862 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | 872 JVM unit tests, each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -663,8 +665,19 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-64 parts since the final audit's seventh round added `limits_round7` (9
-checks, written with the round and not yet run: "Read all" on a checklist
+65 parts since the final audit's eighth round added `limits_round8` (8
+checks, written with the round and not yet run: a category's name already
+used said over its sheet; a paste cut to Your name's and to Save as
+template's name said under the box; a title of 170 emoji counted 170 of
+200; a tap on a title holding a line break writing nothing, and letters
+typed after the break going into the title; on a phone on its side, the
+turn-off's word seen over the note's details, which scroll to their
+foot). The same round made the walk take the machine's one turn as it
+starts, read every frame check after a look at the screen -- "Read all"
+now on a row of five million letters -- and read back that Continue and
+Discard were pressed and that Android had stopped the app before it is
+ended behind a picker. The seventh round had added `limits_round7` (9
+checks: "Read all" on a checklist
 row of a million letters with no space, timed by the app's frames; a
 letter at the start of a title and of a template's name of 200 letters,
 refused and said; a full list's box told so as words begin; a second long
@@ -1071,7 +1084,7 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-862 JVM unit tests in 31 suites pin the rules ported from Python, and
+872 JVM unit tests in 31 suites pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
