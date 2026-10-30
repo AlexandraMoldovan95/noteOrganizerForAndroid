@@ -85,7 +85,8 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(top = 10.dp),
                     placeholder = { Text(stringResource(R.string.import_code_hint, Sharing.PREFIX)) },
                 )
-                problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+                // Said in the dialog alone, so read out as it appears ([saidAloud]).
+                problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp).saidAloud()) }
                 if (reading) {
                     Text(stringResource(R.string.code_reading), color = palette.accentText, fontSize = 13.sp,
                          modifier = Modifier.padding(top = 8.dp))

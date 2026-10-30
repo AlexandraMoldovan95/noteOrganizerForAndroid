@@ -160,7 +160,8 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
                     modifier = Modifier.fillMaxWidth(),
                 )
                 capSaid?.let {
-                    Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                    // Read out as it appears ([saidAloud]), as the app's messages are.
+                    Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp).saidAloud())
                 }
             }
         },

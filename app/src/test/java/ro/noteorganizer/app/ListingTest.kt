@@ -152,4 +152,17 @@ class ListingTest {
         assertEquals("All", saved.getString("note_filter"))
         assertFalse(saved.getJSONObject("categories").has("Work"))
     }
+
+    @Test
+    fun `a search's words are handed to Android only while they are short`() {
+        // Android hands the app's state over in one transaction as Home is
+        // pressed; the list's search, kept twice, stopped the app from one
+        // paste of a quarter of a million letters (the final audit's eighth round).
+        val short = "milk ".repeat(Showing.SEARCH_KEPT / 5)
+        assertEquals(Showing.SEARCH_KEPT, short.length)
+        assertEquals(short, Showing.searchKept(short))
+        assertEquals(null, Showing.searchKept(short + "x"))
+        assertEquals(null, Showing.searchKept("x".repeat(300_000)))
+        assertEquals("", Showing.searchKept(""))
+    }
 }

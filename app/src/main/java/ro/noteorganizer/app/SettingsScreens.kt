@@ -396,12 +396,13 @@ private fun NamePage(state: AppState) {
                               imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                           keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
                           modifier = Modifier.fillMaxWidth())
+        // Both read out as they appear ([saidAloud]), as the app's messages are.
         capSaid?.let {
-            Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp).saidAloud())
         }
         if (saved) {
             Text(stringResource(R.string.name_saved), color = palette.successText, fontSize = 13.sp,
-                 modifier = Modifier.padding(top = 6.dp))
+                 modifier = Modifier.padding(top = 6.dp).saidAloud())
         }
         Button(
             onClick = { save() },
@@ -529,6 +530,7 @@ private fun CategoriesPage(state: AppState) {
             },
             onDelete = null,
             onDismiss = { adding = false },
+            messages = state.snackbar,
         )
     }
     editing?.let { old ->
@@ -547,6 +549,7 @@ private fun CategoriesPage(state: AppState) {
             },
             onDelete = { asking = true },
             onDismiss = { editing = null },
+            messages = state.snackbar,
         )
         if (asking) {
             val (filed, daysOnly) = Organizing.categoryCounts(state.load, old)
@@ -571,12 +574,18 @@ private fun CategoryEditor(
     onSave: (String, String) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
+    messages: androidx.compose.material3.SnackbarHostState,
 ) {
     val palette = LocalPalette.current
     var draftName by remember(name) { mutableStateOf(name) }
     var draftColour by remember(colour) { mutableStateOf(colour) }
-    AppSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+    // A Save refused -- a name already used, one over 80 letters, the most
+    // categories, a delete or a write that failed -- leaves the sheet open,
+    // and is said over it: said in the window under it, Save looked as if
+    // it did nothing (the final audit's eighth round). Scrolled, with the
+    // keyboard up on a phone on its side.
+    AppSheet(onDismissRequest = onDismiss, messages = messages) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(title, color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             OutlinedTextField(
                 value = draftName,

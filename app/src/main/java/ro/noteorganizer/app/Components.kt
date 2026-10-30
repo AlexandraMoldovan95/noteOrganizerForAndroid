@@ -50,7 +50,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -95,14 +97,29 @@ fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
             isAppearanceLightNavigationBars = !palette.isDark,
         ),
     ) {
-        content()
         // The app's [messages], shown in the sheet when it stays open over
         // what said them: drawn in the window under it, they were never
         // seen -- the Repeat sheet's word that a turned-off repeat keeps its
-        // days, said as the note's details stayed open (the walk, 2026-10-29).
-        if (messages != null) SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        // days, said as the note's details stayed open (the walk, 2026-10-29);
+        // a category's name refused, Save looking as if it did nothing (the
+        // final audit's eighth round). Their room is kept: a sheet's words
+        // taller than the window -- the details, on a phone on its side --
+        // took all of it, and the message had none. Such a sheet scrolls.
+        if (messages == null) content()
+        else {
+            Column(Modifier.weight(1f, fill = false)) { content() }
+            SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        }
     }
 }
+
+/**
+ * Words that appear to say what just happened, read out by a screen reader
+ * as they come, as the app's messages at the foot are: where a dialog or a
+ * page says them under its own box instead, a plain line of text was read
+ * by nobody (the final audit's eighth round).
+ */
+fun Modifier.saidAloud(): Modifier = semantics { liveRegion = LiveRegionMode.Polite }
 
 /**
  * A text field in a column that scrolls, kept in sight where it is typed

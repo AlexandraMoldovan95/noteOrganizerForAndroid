@@ -341,6 +341,21 @@ object Showing {
         else -> note.category == selected
     }
 
+    /**
+     * A search's words as they are handed to Android, to be given back after
+     * it ends the app behind Home: kept while they are short, nothing past
+     * [SEARCH_KEPT] -- the words themselves stay in the box while the app
+     * runs. Android hands that state over in one transaction, and past about
+     * half a million letters the app stopped as Home was pressed (ISSUES_LOG,
+     * "A crash in front of the crash foretold"); the list's search, kept
+     * twice, got there at half that, from one paste (the final audit's
+     * eighth round). The desktop's search box takes any length, so the box
+     * keeps no cap.
+     */
+    fun searchKept(words: String): String? = words.takeIf { it.length <= SEARCH_KEPT }
+
+    const val SEARCH_KEPT = 10_000
+
     /** One row of a list grouped by category: a header, or a note under it. */
     sealed class Row {
         data class Header(val category: String, val count: Int, val collapsed: Boolean) : Row()

@@ -297,15 +297,62 @@ object Recurrence {
         is Int -> value
         is Long -> value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
         is Number -> value.toDouble().let { if (it.isFinite()) it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt() else null }
-        is String -> value.trim().toIntOrNull()
+        is String -> pythonIntOf(value)
         else -> null
     }
 
+    /**
+     * Python's `int(text)`, base 10: Python's spaces either side, a sign,
+     * then digits -- any script's -- with single underscores between them,
+     * as Python 3.6 reads "1_000"; past 4,300 digits Python refuses (its
+     * default int_max_str_digits). Null where Python raises; a number past
+     * an Int is held at its edge, as the clamp after it would hold it.
+     * `toIntOrNull` refused "1_0", which the desktop stores as 10, and so a
+     * hand-made code repeated on other days on the two apps (the final
+     * audit's eighth round).
+     */
+    internal fun pythonIntOf(text: String): Int? {
+        val t = PyText.strip(text)
+        var i = 0
+        val negative = t.startsWith("-")
+        if (t.startsWith("-") || t.startsWith("+")) i = 1
+        val digits = StringBuilder()
+        var afterSeparator = true      // an underscore neither leads nor follows another
+        while (i < t.length) {
+            val cp = t.codePointAt(i)
+            if (cp == '_'.code) {
+                if (afterSeparator) return null
+                afterSeparator = true
+            } else {
+                if (Character.getType(cp) != Character.DECIMAL_DIGIT_NUMBER.toInt()) return null
+                digits.append('0' + Character.digit(cp, 10))
+                afterSeparator = false
+            }
+            i += Character.charCount(cp)
+        }
+        // Nor ends: "1_" is refused, and so is a sign alone.
+        if (afterSeparator || digits.isEmpty() || digits.length > PYTHON_INT_DIGITS) return null
+        val value = java.math.BigInteger(digits.toString()).let { if (negative) it.negate() else it }
+        return value.max(java.math.BigInteger.valueOf(Int.MIN_VALUE.toLong()))
+            .min(java.math.BigInteger.valueOf(Int.MAX_VALUE.toLong())).toInt()
+    }
+
+    private const val PYTHON_INT_DIGITS = 4300
+
+    /**
+     * Python's `sorted({d for d in value if isinstance(d, int) and lo <= d <= hi})`.
+     * True and False are ints there, 1 and 0, and kept as the days they are:
+     * left out, a hand-made rule's [true, 3] was Thursday alone on the phone
+     * and Tuesday and Thursday on the desktop, and "the same series" answered
+     * no for a rule the desktop read as the same (the final audit's eighth
+     * round). Written as the numbers, which Python reads as equal to them.
+     */
     private fun sortedInts(value: Any?, range: IntRange): JSONArray {
         val list = value as? JSONArray ?: return JSONArray()
         val kept = sortedSetOf<Int>()
         for (i in 0 until list.length()) {
             when (val v = list.opt(i)) {
+                is Boolean -> (if (v) 1 else 0).let { if (it in range) kept.add(it) }
                 is Int -> if (v in range) kept.add(v)
                 is Long -> if (v in range.first.toLong()..range.last.toLong()) kept.add(v.toInt())
             }

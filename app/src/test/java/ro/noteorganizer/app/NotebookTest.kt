@@ -1026,7 +1026,10 @@ class NotebookTest {
         val party = "🎉"
         val smile = "😀"
         assertEquals(6, Notebook.textLost(smile.repeat(10), smile.repeat(4)))
-        assertEquals("an emoji the two share half of differs whole", 1, Notebook.textLost("a${smile}b", "a${party}b"))
+        assertEquals("two emoji that share no half", 1, Notebook.textLost("a${smile}b", "a${party}b"))
+        // 😀 and 🙂 share their first half, D83D: the start steps back to the
+        // emoji's edge (the desktop's answer at 947e9d3, probe_parity.py).
+        assertEquals("an emoji the two share half of differs whole", 1, Notebook.textLost("a${smile}b", "a🙂b"))
         assertEquals(1, Notebook.textLost("a${smile}b", "ab"))
         assertFalse(Notebook.shouldKeepPrevious("Party", "", "Party", "", party.repeat(20), party.repeat(12)))
         assertTrue("emptied", Notebook.shouldKeepPrevious("Party", "", "Party", "", party.repeat(20), ""))
@@ -1035,6 +1038,10 @@ class NotebookTest {
         // Lone halves, as a file can hold them, are a letter each, as Python reads them.
         assertEquals(1, Notebook.textLost("x\uDE00", "y\uDE00"))
         assertEquals("a lone half kept is no emoji kept", 2, Notebook.textLost("\uD83Dx", "😀"))
+        // ...and at the end, its mirror: a lone second half the new text pairs.
+        // Only this shape engages the end's step, which no case reached (the
+        // final audit's eighth round); Python counts 2.
+        assertEquals("a lone half kept at the end is no emoji kept", 2, Notebook.textLost("x\uDE00", "😀"))
     }
 
     @Test

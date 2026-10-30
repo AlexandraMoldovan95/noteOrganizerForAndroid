@@ -260,17 +260,18 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // The cell being written in shows its words as they are now.
         cellEpoch += 1
         comments = to.comments
-        // Places remembered in the old text mean nothing in a new one. In
-        // the same text -- only its styles or its lines' look taken back --
-        // they are where they were: emptied, Insert table and the calculator,
-        // which write at the place the cursor was, wrote at the note's end, a
-        // table onto a table closing the note, refused with words about a note
-        // too large (the final audit's seventh round).
+        // The places remembered in the text move with it, as the desktop's Tk
+        // marks move through Ctrl+Z and Ctrl+Y -- the way typing carries them
+        // ([follow]). Emptied, Insert table and the calculator, which write
+        // at the place the cursor was, wrote at the note's end: a table onto
+        // a table closing the note, refused with words about a note too large
+        // (the final audit's seventh round); and the calculator's next answer
+        // glued to the last one, "2+2=43×3=9", not on a line of its own (its
+        // eighth). In the same text -- only styles or lines' looks taken back
+        // -- they stay where they were.
         focused = null
-        if (to.body != was) {
-            caret = null
-            calcMark = null
-        }
+        caret = Calculator.follow(was, to.body, caret)
+        calcMark = Calculator.follow(was, to.body, calcMark)
         settled = to
         steps()
         edits += 1
@@ -296,7 +297,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 // the rule for prose the place is in no field: the line under
                 // the grid took the cursor, and the next letter after Undo
                 // was written there, not in the cell (the final audit's walk
-                // after its seventh round).
+                // after its seventh round). The places carried above stay:
+                // emptied, once the cell was let go the calculator wrote at
+                // the note's end (its eighth round).
                 if (inActiveTable(at)) return@let
                 caret = at
                 placeCaret(at)
@@ -707,12 +710,22 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /**
      * [next] typed into the title, shown as [shown]: one line, as the
-     * desktop's title is -- a break pasted in becomes a space; the list cut
-     * a title at a break -- and kept to 200 letters by [titleCap], its own
-     * words whole. The value to show, its cursor after what came in.
+     * desktop's title is -- a paste of lines goes in as the desktop's does,
+     * its words joined by spaces ([Editing.titleTyped]); the list cut a title
+     * at a break -- and kept to 200 letters by [titleCap], its own words
+     * whole, only what came in weighed. The value to show, its cursor after
+     * what came in. A tap, which moves the cursor and nothing else, writes
+     * nothing: a title holding a break was rewritten, and the note saved, by
+     * a tap alone (the final audit's eighth round).
      */
     fun typeTitle(shown: TextFieldValue, next: TextFieldValue): TextFieldValue {
-        val kept = keptBy(titleCap, shown, next.copy(text = next.text.replace('\n', ' ')))
+        if (next.text == shown.text) return next
+        val (text, at) = Editing.titleTyped(shown.text, next.text)
+        val typed = if (at == null) next.copy(text = text) else TextFieldValue(text, TextRange(at))
+        val base = shown.copy(text = Editing.oneLine(shown.text))
+        val kept = keptBy(titleCap, base, typed)
+        // Refused at the cap: the title as it was, breaks and all.
+        if (kept.text == base.text && typed.text != base.text) return shown
         if (kept.text != title) {
             title = kept.text
             changed(Editing.History.TYPING + ":title")
@@ -1666,9 +1679,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             if (Editing.tooLongToLayOut(model.title)) LongText(model.title) else BasicTextField(
                 value = titleShown,
                 onValueChange = { next ->
-                    // Enter goes on to the note's words, the title as it was.
-                    val enter = next.text.length == titleShown.text.length + 1 && next.text.count { c -> c == '\n' } == 1
-                    if (enter) focusManager.moveFocus(FocusDirection.Down)
+                    // Enter goes on to the note's words, the title as it was:
+                    // told by what came in, not by the whole value.
+                    if (Editing.isEnter(titleShown.text, next.text)) focusManager.moveFocus(FocusDirection.Down)
                     else titleField = model.typeTitle(titleShown, next)
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
@@ -3420,7 +3433,10 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     val onADay = model.day != null
     // The Repeat sheet, opened from here, says what a turn-off kept while this stays open.
     AppSheet(onDismissRequest = onDismiss, messages = state.snackbar) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // Scrolled, on a phone on its side: taller than the window there, its
+        // foot was cut away -- the word count, on a repeating note Pin too --
+        // and the message under it had no room (the final audit's eighth round).
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             // On one day, its own category and colour: said, as the desktop
             // puts "This day:" beside them.

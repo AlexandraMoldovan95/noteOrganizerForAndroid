@@ -5,6 +5,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -19,10 +20,10 @@ class EditorTypingTest {
 
     private lateinit var state: AppState
 
-    private fun editor(body: String, formatting: String = "[]"): EditorModel {
+    private fun editor(body: String, formatting: String = "[]", title: String = "A"): EditorModel {
         val dir = NioFiles.createTempDirectory("editortyping").toFile()
         File(dir, "notes_data.json").writeText(
-            """[{"id": 1, "uid": "a", "title": "A", "body": "$body", "category": "General", "formatting": $formatting}]""")
+            """[{"id": 1, "uid": "a", "title": "$title", "body": "$body", "category": "General", "formatting": $formatting}]""")
         File(dir, "attachments").mkdirs()
         state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
         return EditorModel(state, state.note(1))
@@ -330,5 +331,83 @@ class EditorTypingTest {
         val plain = editor("Costs")
         assertEquals(1, plain.insertTable(2, 2))
         assertTrue(Editing.segments(plain.body).any { it.table && it.drawn && it.firstLine == 1 })
+    }
+
+    @Test
+    fun `the calculator's place moves with Undo and Redo, so each answer still goes on a line of its own`() {
+        // An Undo or Redo that changed the words emptied the place the last
+        // answer ended, and the next went where the cursor was, glued on:
+        // "Total: 2+2=43×3=9", a false number. The desktop's Tk mark moves
+        // through Ctrl+Z and Ctrl+Y (the final audit's eighth round).
+        val model = editor("Total: ")
+        model.caret = 7
+        model.insertCalculation("2+2=4")
+        model.undo()
+        assertEquals("Total: ", model.body)
+        model.redo()
+        model.insertCalculation("3×3=9")
+        assertEquals("Total: 2+2=4\n3×3=9", model.body)
+        // A letter typed elsewhere and taken back: the answer after the last one, not glued to "Budget".
+        val budget = editor("Budget\\n")
+        budget.caret = 7
+        budget.insertCalculation("12+30=42")
+        budget.type("Budgets\n12+30=42", 7)
+        budget.undo()
+        assertEquals("Budget\n12+30=42", budget.body)
+        budget.insertCalculation("5×2=10")
+        assertEquals("Budget\n12+30=42\n5×2=10", budget.body)
+        // Only a style taken back, the words the same: the place stays where it
+        // was, the second answer on its own line (round seven's half, which no
+        // test held: the cursor's place was read, the calculator's was not).
+        val plan = editor("Plan\\nfuel")
+        plan.caret = 4
+        plan.insertCalculation("5+3=8")
+        assertEquals("Plan5+3=8\nfuel", plan.body)
+        plan.spans = toggleStyle(plan.spans, 0, 4, "bold", "")
+        plan.changed()
+        plan.undo()
+        assertEquals(emptyList<FormatSpan>(), plan.spans)
+        plan.insertCalculation("2+2=4")
+        assertEquals("Plan5+3=8\n2+2=4\nfuel", plan.body)
+    }
+
+    @Test
+    fun `a title holding a line break takes the letters typed into it, and a tap rewrites nothing`() {
+        // A share code, a desktop template or the phone before 0.11 can leave
+        // a break in a title. Every letter typed into it was taken for Enter
+        // and dropped, the cursor sent to the note's words; and a tap that
+        // only moved the cursor rewrote the title and saved the note (the
+        // final audit's eighth round).
+        val model = editor("x", title = "Groceries\\n")
+        assertEquals("Groceries\n", model.title)
+        val shown = TextFieldValue(model.title, TextRange(model.title.length))
+        val edits = model.edits
+        val tapped = model.typeTitle(shown, shown.copy(selection = TextRange(3)))
+        assertEquals("a tap writes nothing", "Groceries\n", model.title)
+        assertEquals(edits, model.edits)
+        assertEquals(TextRange(3), tapped.selection)
+        assertFalse("a letter after the break is no Enter", Editing.isEnter(shown.text, "Groceries\nl"))
+        val typed = model.typeTitle(shown, TextFieldValue("Groceries\nl", TextRange(11)))
+        assertEquals("the letter kept, the title one line", "Groceries l", model.title)
+        assertEquals(TextRange(11), typed.selection)
+        assertEquals("x", model.body)
+    }
+
+    @Test
+    fun `lines pasted into a title go in as the desktop's title paste puts them, said shortened only when cut`() {
+        // Weighed as copied, a line copied with its break, or two lines in CR
+        // LF, read as shortened at the cap, and the CR stayed in the title
+        // (the final audit's eighth round, the desktop's 6443d2c).
+        fun pasteInto(title: String, clip: String): Pair<String, String?> {
+            val model = editor("x", title = title)
+            val shown = TextFieldValue(title, TextRange(title.length))
+            model.typeTitle(shown, TextFieldValue(title + clip, TextRange(title.length + clip.length)))
+            return model.title to state.snackbar.currentSnackbarData?.visuals?.message
+        }
+        assertEquals("t".repeat(191) + "Groceries" to null, pasteInto("t".repeat(191), "Groceries\n"))
+        assertEquals("t".repeat(183) + "Line one Line two" to null, pasteInto("t".repeat(183), "Line one\r\nLine two"))
+        assertEquals("Shopping Milk, eggs" to null, pasteInto("", "Shopping\r\nMilk, eggs"))
+        assertEquals("t".repeat(195) + "Line " to "Pasted title shortened to 200 characters",
+                     pasteInto("t".repeat(195), "Line one\r\nLine two"))
     }
 }

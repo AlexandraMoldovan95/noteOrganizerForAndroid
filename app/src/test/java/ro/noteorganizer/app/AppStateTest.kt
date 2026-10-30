@@ -641,10 +641,12 @@ class AppStateTest {
         assertEquals("p".repeat(46) + title, editor.title)
         assertEquals(TextRange(46), kept.selection)
         assertEquals("Pasted title shortened to 200 characters", s.said()!!.message)
-        // A break pasted in is a space; a letter at the cap is refused, the title whole.
-        assertEquals("one line", "x y", EditorModel(s, s.note(1)).let { e ->
+        // Lines pasted in go on one line, as the desktop's title paste puts
+        // them (a break alone pastes nothing there, and is Enter here); a
+        // letter at the cap is refused, the title whole.
+        assertEquals("one line", "xa by", EditorModel(s, s.note(1)).let { e ->
             e.title = "xy"
-            e.typeTitle(TextFieldValue("xy", TextRange(1)), TextFieldValue("x\ny", TextRange(2)))
+            e.typeTitle(TextFieldValue("xy", TextRange(1)), TextFieldValue("xa\nby", TextRange(4)))
             e.title
         })
         val full = editor.title

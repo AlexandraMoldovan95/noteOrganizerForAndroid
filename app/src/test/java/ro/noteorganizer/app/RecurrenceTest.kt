@@ -702,4 +702,44 @@ class RecurrenceTest {
         assertEquals("what a kept day holds is still read, for the questions that keep it", "FIRST DAY",
             Recurrence.dayAsKept(kept, "2026-09-07").getString("body"))
     }
+
+    @Test
+    fun `a hand-made rule is read as the desktop's int() and isinstance read it`() {
+        // A code with interval "1_0" and weekdays [true, 3] repeated every
+        // ten weeks on Tuesday and Thursday on the desktop, and every
+        // Thursday on the phone (the final audit's eighth round). The
+        // desktop's answers, from its own normalize_recurrence at 947e9d3
+        // (scratch android_fixes_r8/probe_parity.py).
+        fun rule(vararg pairs: Pair<String, Any>): JSONObject {
+            val o = JSONObject().put("freq", "weekly").put("interval", 2).put("weekdays", JSONArray(listOf(1, 3)))
+                .put("month_days", JSONArray()).put("month_day_policy", "clamp").put("end", "").put("count", 0)
+            for ((k, v) in pairs) o.put(k, v)
+            return o
+        }
+        fun interval(text: String) = Recurrence.normalize(rule("interval" to text)).getInt("interval")
+        assertEquals(10, interval("1_0"))
+        assertEquals(1, interval("1__0"))
+        assertEquals(1, interval("_1"))
+        assertEquals(1, interval("1_"))
+        assertEquals(3, interval("+3"))
+        assertEquals(1, interval("-3"))
+        assertEquals(7, interval(" 0_7 "))
+        assertEquals(12, interval("１_２"))
+        assertEquals(Recurrence.MAX_INTERVAL, interval("9".repeat(99)))
+        assertEquals(Recurrence.MAX_INTERVAL, interval("1".repeat(4_300)))
+        assertEquals("past Python's 4,300 digits, refused", 1, interval("1".repeat(4_301)))
+        assertEquals(1, interval("-"))
+        assertEquals(1, interval("2.9"))
+        assertEquals(1_000, Recurrence.normalize(rule("count" to "1_000")).getInt("count"))
+        assertEquals(Recurrence.MAX_OCCURRENCES, Recurrence.normalize(rule("count" to "9_999")).getInt("count"))
+        fun days(key: String, vararg values: Any) =
+            Recurrence.normalize(rule(key to JSONArray(values.toList()))).getJSONArray(key).let { a -> (0 until a.length()).map { a.get(it) } }
+        assertEquals("true is 1, as Python's True", listOf(1, 3), days("weekdays", true, 3))
+        assertEquals("false is 0, and true and 1 the one day", listOf(0, 1), days("weekdays", false, true, 1))
+        assertEquals(listOf(1), days("month_days", true))
+        assertEquals("false, 0, is no day of a month", listOf(2), days("month_days", false, 2))
+        // "The same series", asked of a copy and its note, as the desktop answers it.
+        assertEquals(Recurrence.normalize(rule("weekdays" to JSONArray(listOf(true, 3)))).toString(),
+                     Recurrence.normalize(rule("weekdays" to JSONArray(listOf(1, 3)))).toString())
+    }
 }

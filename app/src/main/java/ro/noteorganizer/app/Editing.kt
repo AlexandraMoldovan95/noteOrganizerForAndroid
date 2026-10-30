@@ -305,10 +305,38 @@ object Editing {
      */
     fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS,
                what: String = "A checklist item", shortened: String? = null): Fit {
-        val length = rowChars(now)
-        if (length <= limit || length < rowChars(was)) return Fit(now, null, null)
-        // What the edit put in: the words before it and after it read the
-        // same in both, each end on the edge of a letter, never inside an emoji.
+        val change = changeOf(was, now)
+        val before = was.substring(0, change.head)
+        val after = was.substring(was.length - change.tail)
+        // Each line break one letter, as the desktop's _cap_paste puts a paste
+        // in before any box weighs it: Windows' clipboard keeps CR LF, and a
+        // paste that fitted was weighed at two letters a line, cut, said
+        // shortened, and kept its CR (the final audit's eighth round). Only
+        // what came in: what the box held stays as it was.
+        val came = lineBreaks(change.came)
+        val whole = if (came == change.came) now else before + came + after
+        val length = rowChars(whole)
+        if (length <= limit || length < rowChars(was)) {
+            return Fit(whole, if (whole == now) null else change.head + came.length, null)
+        }
+        val room = limit - rowChars(before) - rowChars(after)
+        val count = String.format(java.util.Locale.ENGLISH, "%,d", limit)
+        if (room <= 0) return Fit(was, null, "$what can be up to $count characters")
+        val cut = came.offsetByCodePoints(0, room)
+        return Fit(before + came.substring(0, cut) + after, change.head + cut,
+                   shortened ?: "Pasted text shortened: ${what.take(1).lowercase()}${what.drop(1)} can be up to $count characters")
+    }
+
+    /**
+     * What an edit from [was] to [now] put in: the words before it ([head],
+     * in UTF-16 units) and after it ([tail]) read the same in both, each end
+     * on the edge of a letter, never inside an emoji; [came] is what lies
+     * between them in [now]. An edit is one change at one place, as typing,
+     * a paste and a cut each are.
+     */
+    data class Change(val head: Int, val tail: Int, val came: String)
+
+    fun changeOf(was: String, now: String): Change {
         val most = minOf(was.length, now.length)
         var head = 0
         while (head < most && was[head] == now[head]) head++
@@ -316,15 +344,44 @@ object Editing {
         var tail = 0
         while (tail < most - head && was[was.length - 1 - tail] == now[now.length - 1 - tail]) tail++
         if (tail > 0 && Character.isLowSurrogate(now[now.length - tail])) tail--
-        val before = was.substring(0, head)
-        val after = was.substring(was.length - tail)
-        val came = now.substring(head, now.length - tail)
-        val room = limit - rowChars(before) - rowChars(after)
-        val count = String.format(java.util.Locale.ENGLISH, "%,d", limit)
-        if (room <= 0) return Fit(was, null, "$what can be up to $count characters")
-        val cut = came.offsetByCodePoints(0, room)
-        return Fit(before + came.substring(0, cut) + after, head + cut,
-                   shortened ?: "Pasted text shortened: ${what.take(1).lowercase()}${what.drop(1)} can be up to $count characters")
+        return Change(head, tail, now.substring(head, now.length - tail))
+    }
+
+    /** CR LF, and a CR alone, as one line break: the desktop's `_cap_paste`. */
+    fun lineBreaks(text: String): String =
+        if ('\r' !in text) text else text.replace("\r\n", "\n").replace('\r', '\n')
+
+    /**
+     * Whether the edit from [was] to [now], in a title, was Enter: what came
+     * in is one line break and nothing else. Asked of the whole value -- one
+     * letter longer, one break in all -- every letter typed into a title that
+     * already held a break was taken for Enter: dropped, the cursor sent to
+     * the note's words, the next letters written there (the final audit's
+     * eighth round). A share code, a desktop template, and the phone before
+     * 0.11 can each leave a break in a title.
+     */
+    fun isEnter(was: String, now: String): Boolean = changeOf(was, now).came == "\n"
+
+    /** [text] on one line: each line break a space, the length kept. */
+    fun oneLine(text: String): String =
+        if ('\n' !in text && '\r' !in text) text else text.replace('\r', ' ').replace('\n', ' ')
+
+    /**
+     * A note's title after [now] replaced [was]: one line, as the desktop's
+     * title is. What came in holding a line break -- a paste -- goes in as
+     * the desktop's `_on_title_paste` puts one, weighed as it goes in, on one
+     * line: its words joined by single spaces, none at either end, so a line
+     * copied with its break, or two lines in CR LF, are not read as
+     * shortened. A break the title already held is a space once the title is
+     * written in. The text, and where the cursor goes when what came in
+     * changed; null leaves the field's own.
+     */
+    fun titleTyped(was: String, now: String): Pair<String, Int?> {
+        val change = changeOf(was, now)
+        val broken = change.came.any { it == '\n' || it == '\r' }
+        val came = if (broken) PyText.split(change.came).joinToString(" ") else change.came
+        val text = oneLine(now.substring(0, change.head)) + came + oneLine(now.substring(now.length - change.tail))
+        return text to (if (broken) change.head + came.length else null)
     }
 
     /** A note's title, and a template's name and title: the desktop's TITLE_MAX_LEN, in letters. */
@@ -477,9 +534,13 @@ object Editing {
     /**
      * A row shown to be read, in parts of at most [chars] UTF-16 units that a
      * phone's width wraps: each line of it, and each long line cut after its
-     * last space near the end of a part -- or, with none there, where the
-     * part ends, never through an emoji. Each part is its start and end in
-     * the row; a line break belongs to none.
+     * last space near the end of a part -- or, with none there, on the edge
+     * of a letter as a person sees one ([letterEdge]): never through an
+     * emoji, a flag, a family joined by ZWJ, or a letter and its accent.
+     * Each part is drawn, and read aloud, as a piece of its own: cut between
+     * a flag's two halves, every flag in the next part paired one place off
+     * and showed another country (the final audit's eighth round). Each part
+     * is its start and end in the row; a line break belongs to none.
      *
      * The space is looked for within the slack alone. Looked for back to the
      * row's start, each part of a row with no space in it -- one unbroken
@@ -498,9 +559,15 @@ object Editing {
             do {
                 var end = minOf(lineEnd, start + chars)
                 if (end < lineEnd) {
-                    val space = lastSpace(text, end, maxOf(start + 1, end - ROW_PART_SLACK))
+                    val from = maxOf(start + 1, end - ROW_PART_SLACK)
+                    val space = lastSpace(text, end, from)
                     if (space >= 0) end = space + 1
-                    else if (Character.isLowSurrogate(text[end])) end--
+                    else {
+                        // A letter longer than the slack -- a pile of accents
+                        // -- is cut where the part ends, never inside an emoji.
+                        val edge = letterEdge(text, end, from, start)
+                        if (edge >= 0) end = edge else if (Character.isLowSurrogate(text[end])) end--
+                    }
                 }
                 out.add(start to end)
                 start = end
@@ -514,6 +581,82 @@ object Editing {
     private fun lastSpace(text: CharSequence, end: Int, from: Int): Int {
         for (at in end - 1 downTo from) if (text[at] == ' ') return at
         return -1
+    }
+
+    /**
+     * The last place at or before [end], and no earlier than [from], where
+     * one letter as a person sees it ends and the next begins -- a grapheme
+     * cluster's edge, by the rules of Unicode's TR29 that a note meets -- or
+     * -1. [start] is where the part begins: a flag is two regional letters,
+     * and a part drawn on its own pairs them from its own start. Reads a few
+     * letters back from [end]; a run of flags, at most back to [start].
+     */
+    private fun letterEdge(text: CharSequence, end: Int, from: Int, start: Int): Int {
+        var at = end
+        while (at >= from) {
+            if (at > start && at < text.length && regional(codePointAt(text, at)) && regional(codePointBefore(text, at))) {
+                // A flag's second regional letter (GB12, GB13): an odd count
+                // of them before it, counted once, from the part's start.
+                var count = 0
+                var back = at
+                while (back > start) {
+                    val prior = codePointBefore(text, back)
+                    if (!regional(prior)) break
+                    count++
+                    back -= Character.charCount(prior)
+                }
+                val edge = if (count % 2 == 1) at - 2 else at
+                return if (edge >= from) edge else -1
+            }
+            if (!joinsBack(text, at, start)) return at
+            at -= if (at >= 2 && Character.isLowSurrogate(text[at - 1]) && Character.isHighSurrogate(text[at - 2])) 2 else 1
+        }
+        return -1
+    }
+
+    /** Whether the code point at [at] is one letter with the one before it. */
+    private fun joinsBack(text: CharSequence, at: Int, start: Int): Boolean {
+        if (at <= start || at >= text.length) return false
+        // The second half of an emoji.
+        if (Character.isLowSurrogate(text[at]) && Character.isHighSurrogate(text[at - 1])) return true
+        val cp = codePointAt(text, at)
+        val before = codePointBefore(text, at)
+        // A family, a profession, a flag of a nation's part: joined by ZWJ
+        // (GB11), and the joiners themselves (GB9).
+        if (before == ZWJ || cp == ZWJ || cp == ZWNJ) return true
+        when (Character.getType(cp)) {
+            // Accents and marks, spacing or not (GB9, GB9a).
+            Character.NON_SPACING_MARK.toInt(), Character.ENCLOSING_MARK.toInt(),
+            Character.COMBINING_SPACING_MARK.toInt() -> return true
+        }
+        // Variation selectors, skin tones and tag letters (Extend, GB9).
+        if (cp in 0xFE00..0xFE0F || cp in 0xE0100..0xE01EF || cp in 0x1F3FB..0x1F3FF || cp in 0xE0020..0xE007F) return true
+        // Hangul spelt in jamo (GB6 to GB8): a vowel or a final joins what is before it, a first sound what follows.
+        if (cp in 0x1160..0x11FF || cp in 0xD7B0..0xD7FF) return true
+        if ((before in 0x1100..0x115F || before in 0xA960..0xA97F) &&
+            (cp in 0x1100..0x115F || cp in 0xA960..0xA97F || cp in 0xAC00..0xD7A3)) return true
+        return false
+    }
+
+    private const val ZWJ = 0x200D
+    private const val ZWNJ = 0x200C
+
+    private fun regional(cp: Int) = cp in 0x1F1E6..0x1F1FF
+
+    private fun codePointAt(text: CharSequence, at: Int): Int {
+        val c = text[at]
+        if (Character.isHighSurrogate(c) && at + 1 < text.length && Character.isLowSurrogate(text[at + 1])) {
+            return Character.toCodePoint(c, text[at + 1])
+        }
+        return c.code
+    }
+
+    private fun codePointBefore(text: CharSequence, at: Int): Int {
+        val c = text[at - 1]
+        if (Character.isLowSurrogate(c) && at >= 2 && Character.isHighSurrogate(text[at - 2])) {
+            return Character.toCodePoint(text[at - 2], c)
+        }
+        return c.code
     }
 
     /** How long a part of a row shown to be read is ([rowParts]), and how far back a space is looked for. */

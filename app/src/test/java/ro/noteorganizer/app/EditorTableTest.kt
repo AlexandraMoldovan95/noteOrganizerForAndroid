@@ -146,6 +146,24 @@ class EditorTableTest {
     }
 
     @Test
+    fun `after Undo of a cell's words, the calculator writes where the person was writing once the cell is let go`() {
+        // Undo in a cell keeps the cell (d6b5850), and emptied the places
+        // remembered in the text: once the cell was let go, the calculator's
+        // answer went to the note's end (the final audit's eighth round).
+        val body = "Costs\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nafter"
+        val model = editor(body)
+        model.caret = 5
+        model.activeCell = ActiveCell(model.table().firstLine, CellAt(1, 0))
+        model.editTable(model.table(), Editing.History.TYPING + ":cell") { it.setCell(2, 0, "fuel and oil") }
+        model.undo()
+        assertEquals(body, model.body)
+        assertEquals("the place written at, carried through the Undo", 5, model.caret)
+        model.activeCell = null
+        model.insertCalculation("1+1=2")
+        assertEquals("Costs1+1=2\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nafter", model.body)
+    }
+
+    @Test
     fun `words typed in a styled cell keep the style where it was`() {
         val model = styledTable()
         model.editTable(model.table(), Editing.History.TYPING + ":cell") { it.setCell(2, 1, "gyms") }

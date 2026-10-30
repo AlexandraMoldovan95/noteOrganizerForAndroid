@@ -74,12 +74,16 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
  * the + for a new note. Touch and hold a card to select it; while anything
  * is selected, a tap selects too, and the bar at the top acts on them all.
  */
+/** A search box's words, handed to Android only while short ([Showing.searchKept]). */
+internal val SearchSaver = androidx.compose.runtime.saveable.Saver<String, String>(
+    save = { Showing.searchKept(it) }, restore = { it })
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     val palette = LocalPalette.current
     val load = state.load
-    var query by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable(stateSaver = SearchSaver) { mutableStateOf("") }
     // Remembered across starts by the desktop's own keys and values, so a
     // choice made on one device reads back on the other.
     val order = SortOrder.fromLabel(state.settings.opt(Settings.NOTE_SORT) as? String)
@@ -116,8 +120,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // matches of a search typed with the list scrolled down sat above the
     // screen (the owner's call, 2026-10-21, as on the desktop). Back from a
     // note, the search is the one the list was drawn for, and it keeps its
-    // place.
-    var listedFor by rememberSaveable { mutableStateOf(query) }
+    // place: drawn again, the list starts from the search it is given back.
+    // Not handed to Android: a second copy of the words, it doubled what the
+    // app's stop carried (the final audit's eighth round).
+    var listedFor by remember { mutableStateOf(query) }
     LaunchedEffect(query) {
         if (query != listedFor) {
             listedFor = query

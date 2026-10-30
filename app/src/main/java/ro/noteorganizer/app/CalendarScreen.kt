@@ -485,7 +485,8 @@ internal fun DayQuestions(state: AppState, id: Int, day: String, cameFrom: Strin
 @Composable
 private fun History(state: AppState) {
     val palette = LocalPalette.current
-    var query by rememberSaveable { mutableStateOf("") }
+    // Handed to Android only while short, as the list's search is ([SearchSaver]).
+    var query by rememberSaveable(stateSaver = SearchSaver) { mutableStateOf("") }
     var bucket by rememberSaveable { mutableStateOf("All") }
     val open = remember { mutableStateListOf<Int>() }
     val entries = remember(state.revision, query, bucket) {

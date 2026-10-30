@@ -821,4 +821,87 @@ class EditingTest {
         val words = "x".repeat(250) + " " + "y".repeat(400)
         assertEquals(251, Editing.rowParts(words).first().second)
     }
+
+    @Test
+    fun `a row read in parts is cut on the edge of a letter, never inside a flag, a family or an accent`() {
+        // Each part is drawn and read aloud as a piece of its own: cut
+        // between a flag's halves, every flag after it paired one place off
+        // and showed another country -- US, AR read as SA, RU (the final
+        // audit's eighth round). The JVM's own grapheme rules are the judge.
+        fun regional(cp: Int) = cp in 0x1F1E6..0x1F1FF
+        val rows = listOf("x" + "🇺🇸🇦🇷".repeat(80), "x" + "👨‍👩‍👧".repeat(80), "x" + "é".repeat(400),
+                          "x" + "👍🏽".repeat(150), "x" + "🏳️‍🌈".repeat(60), "x" + "각".repeat(200))
+        for (row in rows) {
+            val parts = Editing.rowParts(row)
+            assertTrue(row.take(8), parts.size > 1)
+            assertEquals("every letter once, in order", row, parts.joinToString("") { (a, b) -> row.substring(a, b) })
+            val edges = java.text.BreakIterator.getCharacterInstance().apply { setText(row) }
+            for ((a, b) in parts) {
+                assertTrue("part ends at ${row.codePointAt(maxOf(0, b - 1))}", edges.isBoundary(b))
+                assertTrue(b - a in 1..Editing.ROW_PART_CHARS)
+                assertEquals("flags whole in each part", 0,
+                             row.substring(a, b).codePoints().filter { regional(it) }.count() % 2)
+            }
+        }
+        // Read a few letters back from each cut, not the row: a row of flags
+        // with no space costs about what a row of letters does.
+        class Counted(val text: String) : CharSequence {
+            var reads = 0L
+            override val length get() = text.length
+            override fun get(index: Int): Char { reads++; return text[index] }
+            override fun subSequence(startIndex: Int, endIndex: Int) = text.subSequence(startIndex, endIndex)
+            override fun toString() = text
+        }
+        val flags = Counted("x" + "🇺🇸".repeat(50_000))
+        Editing.rowParts(flags)
+        assertTrue("read ${flags.reads} for ${flags.length}", flags.reads <= 3L * flags.length)
+        // A letter longer than the slack -- a pile of accents -- is still cut, where the part ends.
+        val pile = "x" + "́".repeat(1_000)
+        assertEquals(pile, Editing.rowParts(pile).joinToString("") { (a, b) -> pile.substring(a, b) })
+    }
+
+    @Test
+    fun `a box weighs a paste in CR LF as one letter a line, as the desktop's paste puts it in`() {
+        // Windows' clipboard keeps CR LF: weighed as copied, a paste that
+        // fitted was cut, said shortened, and the CR kept in the row, the
+        // template's name, the title (the final audit's eighth round).
+        assertEquals(Editing.Fit("Monday\n", 7, null), Editing.fitRow("", "Monday\r\n", Editing.TITLE_CHARS, "A template name"))
+        val lines = (0 until 40).joinToString("\r\n") { "Item %02d: ".format(it) + "q".repeat(40) }
+        assertEquals(2_038, lines.length)
+        val kept = Editing.fitRow("", lines)
+        assertEquals("all 1,999 letters, each break one", lines.replace("\r\n", "\n"), kept.text)
+        assertEquals(null, kept.said)
+        // Past the room, what came in is cut by its letters, a line break one of them.
+        val near = "a".repeat(1_995)
+        val cut = Editing.fitRow(near, near + "bc\r\nde\rfg")
+        assertEquals(near + "bc\nde", cut.text)
+        assertEquals(near.length + 5, cut.caret)
+        assertTrue(cut.said!!.startsWith("Pasted text shortened"))
+        // What the box already held stays as it was: a CR there is not this edit's.
+        assertEquals(Editing.Fit("a\rbX", null, null), Editing.fitRow("a\rb", "a\rbX"))
+    }
+
+    @Test
+    fun `Enter in a title is told by what came in, so a title holding a break takes letters`() {
+        // Asked of the whole value -- one letter longer, one break in all --
+        // every letter typed into "Groceries\n" was Enter: dropped, the
+        // cursor sent to the note's words (the final audit's eighth round).
+        assertTrue(Editing.isEnter("Groceries", "Groceries\n"))
+        assertTrue(Editing.isEnter("Groceries\n", "Groceries\n\n"))
+        assertTrue("over a selection", Editing.isEnter("abc", "a\nc"))
+        assertFalse(Editing.isEnter("Groceries\n", "Groceries\nx"))
+        assertFalse(Editing.isEnter("Groceries\n", "Groceriesx\n"))
+        assertFalse(Editing.isEnter("Groceries\n", " Groceries\n"))
+        assertFalse("a paste of lines is no Enter", Editing.isEnter("a", "a\nb\nc"))
+        // What came in with a break goes in as the desktop's title paste puts
+        // it, one line, its words joined by single spaces; a break already
+        // there is a space; a letter typed stands, its cursor the field's.
+        assertEquals("Line one Line two" to 17, Editing.titleTyped("", "Line one\r\nLine two"))
+        assertEquals("Shopping Milk, eggs" to 19, Editing.titleTyped("", "Shopping\r\n  Milk, eggs\r\n"))
+        assertEquals("at the cursor, as the desktop inserts it", "Plan: Milk, eggs" to 16,
+                     Editing.titleTyped("Plan: ", "Plan: \r\nMilk, eggs\r\n"))
+        assertEquals("Groceries  " to null, Editing.titleTyped("Groceries\n", "Groceries\n "))
+        assertEquals("Groceries" to 9, Editing.titleTyped("", "Groceries\n"))
+        assertEquals("a b" to null, Editing.titleTyped("a\nb", "a b"))
+    }
 }
