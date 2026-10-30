@@ -57,6 +57,18 @@ call that never returned, the emulator still up and holding its memory.
 Past the limit the script stops, naming the call and saying to stop the
 emulator first ([why](../../CLAUDE.md#one-heavy-job-at-a-time-and-nothing-left-running-after-it)).
 
+The walk takes the machine's one turn itself, as it starts: the desktop's
+guard (`tools/guest.py`, through `tools/desktop_guest.py`), which every run
+of the desktop's suites takes too. A walk started while one of them runs
+waits for it, saying whose turn it is, before it installs or taps
+anything; refused the turn, it stops with exit 75 and says nothing was
+walked -- stop the emulator then. Taken where the desktop's code was first
+run (the export part), the walk ran sixteen parts beside a suite before it
+waited. From the start the desktop's code the walk runs is under its memory
+ceiling, and APPDATA and LOCALAPPDATA name empty folders of the run's own:
+the path to adb is read before that, at import. The screenshot script and
+the small helpers take no turn; keep them to one at a time by hand.
+
 ## Before the first run on a fresh emulator
 
 A new Android image opens a full-screen *"Try out your stylus"* panel the

@@ -23,6 +23,9 @@ limit the script stops, naming the call, rather than wait on.
 import os
 import subprocess
 
+# Read once, at import: the desktop's guard, which the walk takes as it
+# starts (walk.take_the_turn), points LOCALAPPDATA at an empty folder of the
+# run's own, and an adb looked for there after it is found nowhere.
 ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk", "platform-tools", "adb.exe")
 
 # How long one adb call may take: the slowest an emulator answers is a dump

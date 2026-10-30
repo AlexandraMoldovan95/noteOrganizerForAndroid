@@ -410,12 +410,21 @@ def home(patience=15.0):
     check that the words outlived the process passed with the process
     never ended."""
     adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    if stopped(patience):
+        return True
+    fail("Home: Android did not stop the app within %d s" % patience)
+    return False
+
+
+def stopped(patience=15.0):
+    """Whether Android has stopped the app -- behind Home, or behind
+    another app's screen such as its file picker -- within [patience]
+    seconds, read from Android, not assumed after a pause."""
     deadline = time.time() + patience
     while time.time() < deadline:
         if activity_state() == "STOPPED":
             return True
         time.sleep(0.5)
-    fail("Home: Android did not stop the app within %d s" % patience)
     return False
 
 
@@ -441,12 +450,45 @@ def seek(found, tries=8, fast=False):
     return found()
 
 
+def take_the_turn():
+    """The desktop's guard over this run ([desktop_guest]): the machine's
+    turn, the memory ceiling, homes of its own. None once it is held; the
+    exit code to stop with when another run holds the turn past the wait
+    (the desktop guest's BUSY, 75), said with what was not done."""
+    if not os.path.isdir(DESKTOP):
+        print("machine : the desktop is not at %s -- its parts are skipped, and no turn is taken" % DESKTOP)
+        return None
+    sys.path.insert(0, os.path.join(ANDROID, "tools"))
+    import desktop_guest
+    try:
+        desktop_guest.settle(DESKTOP)
+    except SystemExit as stop:
+        if stop.code == 2:
+            raise
+        print("\nThe walk did not get the machine's turn (exit %s): nothing was installed or walked. "
+              "Stop the emulator (adb emu kill) if nothing else needs it." % stop.code)
+        return stop.code if isinstance(stop.code, int) else 75
+    return None
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
     folder = sys.argv[1]
     os.makedirs(folder, exist_ok=True)
+    # The machine's one heavy-job turn, taken here, before anything runs,
+    # and held for the whole walk: taken at the export part, where the
+    # desktop's guard was first called, the walk ran its first sixteen parts
+    # beside a desktop suite, then waited for it up to an hour with the
+    # emulator up (the final audit's eighth round). The desktop's code the
+    # walk runs (its share-code encoder, its export, its templates) runs under
+    # its memory ceiling from here on. adb's path was read before this, at
+    # import (emulator_only.ADB): the guard points LOCALAPPDATA at an empty
+    # folder of the run's own.
+    turn = take_the_turn()
+    if turn is not None:
+        return turn
     if not wait_for_boot():
         print("The emulator did not finish starting.")
         return 2
@@ -519,6 +561,7 @@ def main():
     days_in_the_note(folder)
     template_draft(folder)
     limits_round7(folder)
+    limits_round8(folder)
 
     print()
     if failures:
@@ -2866,10 +2909,13 @@ def arranging(folder):
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
 
 
-def frames_since_reset():
+def frames_since_reset(starts=False):
     """The app's frames since `gfxinfo reset`, each from its intended start
     to its end, in seconds -- what held the screen, as the app drew it,
-    which the walk's own looks (a second or more each) cannot time."""
+    which the walk's own looks (a second or more each) cannot time. With
+    [starts], each as (its start, in seconds on the device's clock, its
+    length). Only frames that have ENDED are listed: read this after
+    [frames_once_shown]'s look at the screen, never after a fixed pause."""
     out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
     # One block per window -- a dialog is a window of its own -- each between
     # two "---PROFILEDATA---" lines, with its own header.
@@ -2882,8 +2928,29 @@ def frames_since_reset():
         for line in lines[1:]:
             r = line.split(",")
             if line[0].isdigit() and len(r) > max(at["FrameCompleted"], at["IntendedVsync"]):
-                frames.append((int(r[at["FrameCompleted"]]) - int(r[at["IntendedVsync"]])) / 1e9)
+                began = int(r[at["IntendedVsync"]])
+                took = (int(r[at["FrameCompleted"]]) - began) / 1e9
+                frames.append((began / 1e9, took) if starts else took)
     return frames
+
+
+def frames_once_shown(*words, within=30.0, gap=None):
+    """The frames of an act since `gfxinfo reset`, read once the screen
+    shows [words] -- the act's own result. A look at the screen waits for
+    the app's thread, so the frame that drew them has ended: read after a
+    fixed pause, a frame longer than the pause was in no list yet, and the
+    longest frame taken was a ripple's or the cursor's -- "Read all" with
+    round seven's slow search put back passed (the final audit's eighth
+    round). With [gap], only the frames that began within [gap] seconds of
+    the first: an autosave due 800 ms after a letter is a frame of its own.
+    The words missing, and the frames ([99.0] when none were listed)."""
+    missing = says_soon(*words, within=within)
+    time.sleep(0.4)
+    timed = frames_since_reset(starts=True)
+    if not timed:
+        return missing, [99.0]
+    first = min(began for began, _ in timed)
+    return missing, [took for began, took in timed if gap is None or began - first <= gap]
 
 
 def reminder_new_zone(folder):
@@ -3040,11 +3107,22 @@ def answers_after_restart(folder):
             "-d", "file:///sdcard/Download/" + name)
 
     def end_the_app():
+        # Once Android has stopped the app behind the picker, as Android's
+        # own ending meets it: it stops one behind another app's screen when
+        # that screen rests, or ten seconds later (home()), and saves its state
+        # then. Ended while only paused, the app had saved nothing, and the
+        # answer was lost for the walk's reason, not the app's (the final
+        # audit's eighth round). And read that the process is gone.
+        held = stopped()
         pid = adb("shell", "pidof", PACKAGE).strip()
         if pid:
             adb("shell", "su", "0", "kill", "-9", pid)
-        time.sleep(1.5)
-        return bool(pid) and not adb("shell", "pidof", PACKAGE).strip()
+        deadline = time.time() + 5.0
+        while adb("shell", "pidof", PACKAGE).strip() and time.time() < deadline:
+            time.sleep(0.3)
+        if not held:
+            print("     (Android had not stopped the app behind the picker within 15 s)")
+        return held and bool(pid) and not adb("shell", "pidof", PACKAGE).strip()
 
     try:
         if not seed_inside([{"id": 1, "uid": "ar-bread", "title": "Bread", "body": "Knead the dough",
@@ -3226,10 +3304,11 @@ def long_lines(folder):
         if title in ("Long comments", "Long row") and screen_says(says):
             # Folded away under its label: opened.
             tap("Comments" if title == "Long comments" else "Checklist", wait=1.5)
-        took = max(frames_since_reset() or [99.0])
+        # The screen read first, the frames once it says so (frames_once_shown).
+        missing, frames = frames_once_shown(says, within=20.0)
+        took = max(frames)
         check("%s, too long to lay out, opens within a second and says so" % label,
-              opened and took < 1.0 and not screen_says(says),
-              "%.2f s, %s" % (took, screen_says(says)))
+              opened and took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
         if title == "Long body":
             shot(folder, "92-line-too-long", "too long to show here")
     back_to("Search notes")
@@ -3299,10 +3378,10 @@ def limits_round3(folder):
         time.sleep(1.5)
         if screen_says("too long to show here") and screen_says("Comments") == []:
             tap("Comments", wait=1.5)       # folded away under its label
-        took = max(frames_since_reset() or [99.0])
+        missing, frames = frames_once_shown("too long to show here", within=20.0)
+        took = max(frames)
         check("%s opens within a second, read-only, and says so" % label,
-              opened and took < 1.0 and not screen_says("too long to show here"),
-              "%.2f s, %s" % (took, screen_says("too long to show here")))
+              opened and took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
         return opened
 
     if opens_read_only("NBSP body", "a line of 150,000 letters joined by no-break spaces"):
@@ -3342,12 +3421,12 @@ def limits_round3(folder):
     tap("Settings", exact=True, wait=1.2)
     tap("Templates", exact=True, wait=1.2)
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
-    tap("Row for template", exact=True, wait=2.0)
-    took = max(frames_since_reset() or [99.0])
+    tap("Row for template", exact=True, wait=0.3)
     # Shown by its start, read whole on asking (the final audit's sixth round).
+    missing, frames = frames_once_shown("Edit template", "Read all 150,000 characters", within=20.0)
+    took = max(frames)
     check("the template editor opens within a second, the long row read-only",
-          took < 1.0 and not screen_says("Edit template", "Read all 150,000 characters"),
-          "%.2f s, %s" % (took, screen_says("Edit template", "Read all 150,000 characters")))
+          took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
     shot(folder, "97-template-long-row", "Read all 150,000 characters")
     back_to("Search notes", tries=6)
 
@@ -3507,7 +3586,8 @@ def limits_round4(folder):
         if not open_note(title, limit=40.0):
             return None
         time.sleep(1.5)
-        longest = max(frames_since_reset() or [99.0])
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
         print("     %s: the longest frame %.2f s" % (title, longest))
         return longest
 
@@ -3555,8 +3635,11 @@ def limits_round4(folder):
     tap("Today I walked to the river and back again.", wait=0.8)
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     adb("shell", "input", "text", "Z")
-    time.sleep(0.5)
-    frames = frames_since_reset() or [99.0]
+    # Read once the letter is on the screen, the frames of the first 0.7 s
+    # alone: read half a second on, a frame longer than that was in no list,
+    # and a check of "within a second" could not fail (the final audit's
+    # eighth round).
+    _, frames = frames_once_shown("Z", within=20.0, gap=0.7)
     typed = max(frames)
     print("     Journal, a letter typed: the longest frames %s s" % ["%.2f" % f for f in sorted(frames)[-3:]])
     saved = settle(lambda: (note_by_uid("r4-5") or {}).get("body", ""), lambda b: "Z" in b, within=8.0)
@@ -3710,7 +3793,8 @@ def limits_round5(folder):
         if not open_note(title, limit=limit):
             return None
         time.sleep(1.5)
-        longest = max(frames_since_reset() or [99.0])
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
         print("     %s: the longest frame %.2f s" % (title, longest))
         return longest
 
@@ -3821,8 +3905,8 @@ def limits_round5(folder):
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     type_text("0")
-    time.sleep(0.6)
-    typed = max(frames_since_reset() or [99.0])
+    _, frames = frames_once_shown()     # a look, which waits for the letter's frame to end
+    typed = max(frames)
     check("... and a letter typed into a row is drawn within half a second", typed < 0.5, "%.2f s" % typed)
     back_to("Search notes")
     check("... and saved", ((note_by_uid("r5-4") or {}).get("checklist") or [{}])[0].get("text") == "item 10")
@@ -3932,7 +4016,8 @@ def limits_round6(folder):
         if not (opens or (lambda: open_note(title, limit=limit)))():
             return None
         time.sleep(1.5)
-        longest = max(frames_since_reset() or [99.0])
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
         print("     %s: the longest frame %.2f s" % (title, longest))
         return longest
 
@@ -4071,7 +4156,8 @@ def limits_round6(folder):
     # A search for one of the last rows draws no more of them.
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     find_in_note("item 998")
-    took = max(frames_since_reset() or [99.0])
+    _, frames = frames_once_shown()     # a look, which waits for the search's frames to end
+    took = max(frames)
     check("Find on one of the last rows draws no more rows, each letter in the bar quick",
           counter() == "1/1" and "more rows here" in hidden() and took < 1.0, "%s, %r, %.2f s" % (counter(), hidden(), took))
     close_find()
@@ -4133,8 +4219,9 @@ def limits_round6(folder):
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     type_text("s")
-    time.sleep(0.8)
-    letter = max(frames_since_reset() or [99.0])
+    # Read once the letter is drawn, not 1.4 s on (frames_once_shown).
+    _, frames = frames_once_shown("Thousand longs", within=20.0)
+    letter = max(frames)
     print("     a letter in its name: the longest frame %.2f s" % letter)
     check("... and a letter typed in its name is drawn within a quarter of a second", letter < 0.25, "%.2f s" % letter)
     tap("Close", exact=True, wait=1.0)
@@ -4336,10 +4423,13 @@ def template_draft(folder):
     check("... and Settings > Templates asks about it, Continue and Discard said",
           asked and find("Continue", exact=True) is not None and find("Discard", exact=True) is not None, str(asked))
     shot(folder, "119-template-draft-asked", "Continue it?")
-    tap("Continue", exact=True, wait=2.0)
+    # The question asked and Continue pressed, read: with neither, the editor
+    # left open by an `am kill` that ended nothing passed this check (the
+    # walk of 2026-10-30, the final audit's eighth round).
+    continued = asked and tap("Continue", exact=True, wait=2.0)
     back_open = not screen_says("Packing", "Weekend", "socks", "Passport")
-    check("Continue brings every field back, the words waiting in A new item among them", back_open,
-          str(screen_says("Packing", "Weekend", "socks", "Passport")))
+    check("Continue brings every field back, the words waiting in A new item among them", continued and back_open,
+          "continued %s, missing %s" % (continued, screen_says("Packing", "Weekend", "socks", "Passport")))
     shot(folder, "120-template-draft-continued", "Passport")
     tap("Save", exact=True, wait=1.5)
     saved = next((t for t in read_file("templates.json") or [] if t.get("name") == "Packing"), {})
@@ -4358,11 +4448,12 @@ def template_draft(folder):
           gone and kept.get("edits") == "Trip" and (kept.get("fields") or {}).get("title") == "Trip list changed",
           json.dumps(kept)[:200])
     to_templates()
-    tap("Discard", exact=True, wait=1.5)
+    asked_again = not says_soon("You were writing a template. Continue it?", within=6.0)
+    discarded = asked_again and tap("Discard", exact=True, wait=1.5)
     trip = next((t for t in read_file("templates.json") or [] if t.get("name") == "Trip"), {})
     check("Discard leaves no draft, and the template as it was saved",
-          draft() is None and trip.get("title") == "Trip list" and not screen_says("Trip")
-          and screen_says("You were writing a template"), json.dumps(trip)[:200])
+          discarded and draft() is None and trip.get("title") == "Trip list" and not screen_says("Trip")
+          and screen_says("You were writing a template"), "discarded %s, %s" % (discarded, json.dumps(trip)[:200]))
     back_to("Search notes")
 
 
@@ -4400,7 +4491,10 @@ def limits_round7(folder):
             tap("CHECKLIST", wait=1.5)
 
     title_200 = "t" * 199 + "!"
-    notes = [note(1, "Unbroken row", body="Row", checklist=[{"text": "a" * 1_000_000, "done": False},
+    # Five million letters, as a share code of 7 KB brings: round seven's
+    # slow search put back costs tens of seconds there, where on a million
+    # it cost 0.4 to 3.3 s, about the check's line (the final audit's eighth).
+    notes = [note(1, "Unbroken row", body="Row", checklist=[{"text": "a" * 5_000_000, "done": False},
                                                            {"text": "milk", "done": False}]),
              note(2, title_200),
              note(3, "Full list", body="Shop", checklist=[{"text": "item %d" % k, "done": False} for k in range(1_000)]),
@@ -4414,12 +4508,13 @@ def limits_round7(folder):
     open_note("Unbroken row", limit=30.0)
     unfold("milk")
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
-    tapped = tap("Read all 1,000,000 characters", wait=2.5)
-    longest = max(frames_since_reset() or [99.0])
-    # Read, the row says so over its parts; "Show less" is under the first
-    # seven, far below the screen.
-    reading = screen_says("1,000,000 characters, shown here to read")
-    check("Read all on a row of a million letters with no space reads it in parts at once, no frame of seconds",
+    tapped = tap("Read all 5,000,000 characters", wait=0.3)
+    # Read, the row says so over its parts ("Show less" is under the first
+    # seven, far below the screen) -- and the frames read once it says so,
+    # the slow frame ended (frames_once_shown).
+    reading, frames = frames_once_shown("5,000,000 characters, shown here to read", within=60.0)
+    longest = max(frames)
+    check("Read all on a row of five million letters with no space reads it in parts at once, no frame of seconds",
           tapped and longest < 2.0 and reading == [], "longest frame %.2f s, missing %s" % (longest, reading))
     shot(folder, "121-unbroken-row-read", "Unbroken row")
     back_to("Search notes")
@@ -4523,6 +4618,128 @@ def limits_round7(folder):
           written == "Trip listx" and draft() is None, "written %r, now %s" % (written, draft()))
     start_app()
     time.sleep(1.5)
+    back_to("Search notes")
+
+
+def limits_round8(folder):
+    """The final audit's eighth round, walked. A category's name already
+    used is refused and said over its sheet, which stays open -- said in the
+    window under it, Save looked as if it did nothing; a title holding a line
+    break takes the letters typed into it, and a tap on it writes nothing;
+    Your name and Save as template's name say a paste was cut, under the box;
+    the title's counter counts 170 emoji as 170; and on a phone on its side
+    the note's details scroll to their foot, and the Repeat sheet's word that
+    a turn-off keeps the days is seen over them. Each read back from the
+    screen or the file."""
+    print("\n-- round eight's limits: refusals over a sheet, a title holding a break, the caps' words, the details on their side --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r8-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    gym = note(4, "Gym", body="Warm up.", date="2026-11-02", recurrence={"freq": "weekly", "interval": 1},
+               overrides={"2026-11-09": {"body": "Leg day - knee hurt"}}, exceptions=[])
+    notes = [note(1, "Groceries\n", body="Milk"), note(2, "😀" * 170), note(3, "Paste source", body="p" * 3_000), gym]
+    if not seed_inside(notes, {"welcome_offered": True}, "Paste source"):
+        return
+
+    # A category's name already used: refused, and said over the sheet.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Categories", exact=True, wait=1.2)
+    tap("Add a category", wait=1.5)
+    tap("Name", exact=True, wait=0.8)
+    type_text("General")
+    tap("Save", exact=True, wait=0.3)
+    said = not says_soon("There is already a category called", within=6.0)
+    stays = not screen_says("Add a category", "Name")
+    check("a category's name already used is refused and said over its sheet, which stays open",
+          said and stays, "said %s, the sheet open %s" % (said, stays))
+    shot(folder, "123-category-refused-over-its-sheet", "There is already a category called")
+    back_to("Your name")
+    back_to("Search notes")
+
+    # Three thousand letters to paste.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+
+    # Your name and Save as template's name: a paste cut, said under the box.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Your name", wait=1.2)
+    tap("Name", exact=True, wait=0.8)
+    keys("CTRL_LEFT", "V")
+    name_said = not says_soon("Pasted text shortened: your name can be up to 80 characters", within=6.0)
+    check("a paste cut to Your name's 80 letters is said under the box", name_said)
+    shot(folder, "124-your-name-cap-said", "Pasted text shortened")
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Paste source")
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Template name", exact=True, wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "V")
+    template_said = not says_soon("Pasted text shortened: a template name can be up to 200 characters", within=6.0)
+    check("a paste cut to a template name's 200 letters is said under the box, in the dialog", template_said)
+    shot(folder, "125-template-name-cap-said", "Pasted text shortened")
+    keyboard_down()
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+    # The title's counter, in letters: 170 emoji are 170, not 340.
+    open_note("😀😀😀")
+    counted = not says_soon("170/200", within=6.0)
+    check("a title of 170 emoji is counted 170 of 200, as the desktop counts it", counted,
+          str(screen_says("170/200", "340/200")))
+    back_to("Search notes")
+
+    # A title holding a line break, as the phone before 0.11 left one: a tap
+    # on it writes nothing; a letter typed after the break is kept.
+    open_note("Groceries")
+    tap("Groceries", wait=2.0)
+    back_to("Search notes")
+    held = settle(lambda: note_by_uid("r8-1") or {}, lambda n: True, first=1.0)
+    check("a tap on a title holding a break writes nothing",
+          held.get("title") == "Groceries\n" and held.get("updated") == "2026-10-20 09:00", json.dumps(held)[:160])
+    open_note("Groceries")
+    tap("Groceries", wait=1.0)
+    keys("CTRL_LEFT", "MOVE_END")
+    type_text(" list")
+    back_to("Search notes")
+    typed = settle(lambda: note_by_uid("r8-1") or {}, lambda n: (n.get("title") or "").endswith("list"))
+    check("letters typed after a title's break go into the title, none into the note's words",
+          typed.get("title") == "Groceries  list" and typed.get("body") == "Milk", json.dumps(typed)[:160])
+
+    # On its side: the details scroll to their foot, and the Repeat sheet's
+    # word that a turn-off keeps the days is seen over them.
+    try:
+        turn(1)
+        open_note("Gym")
+        tap("ⓘ", wait=1.2)
+        tap("Every week", wait=1.5)
+        tap("Does not repeat", exact=True, wait=0.8)
+        tap("Save", exact=True, wait=0.3)
+        off_said = not says_soon("The repeat is off", within=6.0)
+        shot(folder, "126-details-on-its-side", "Note details")
+        check("on a phone on its side, the turn-off's word is seen over the note's details", off_said)
+        foot = False
+        for _ in range(4):
+            if find("2 words"):
+                foot = True
+                break
+            adb("shell", "input", "swipe", "1200", "900", "1200", "350", "400")
+            time.sleep(1.0)
+        check("... and the details scroll to their foot, the word count", foot)
+    finally:
+        turn(0)
     back_to("Search notes")
 
 
