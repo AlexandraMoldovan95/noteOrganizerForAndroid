@@ -35,7 +35,11 @@ emulator, never anywhere a real notebook lives.
 **Start the emulator without a window.** `emulator -avd <name> -no-window`
 runs it headless: the scripts see and photograph its screen through
 `adb`, and nothing appears on — or rearranges — the desktop of the
-machine they run on.
+machine they run on. Add `-gpu swiftshader_indirect`, drawing in
+software: drawn by the graphics card, it fell over mid-walk (exit 139,
+2026-10-29). Drawn in software, its launcher never rests, so Android
+stops an app sent Home ten seconds later rather than at once; the walk
+waits for that stop (`home()` in `walk.py`), never for a fixed time.
 
 ## One heavy job at a time, and the emulator stopped after it
 

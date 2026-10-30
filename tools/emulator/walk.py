@@ -390,6 +390,57 @@ def start_app():
     time.sleep(3)
 
 
+def activity_state():
+    """The app's screen as Android has it -- RESUMED, PAUSED, STOPPED --
+    or None when it has none."""
+    out = adb("shell", "dumpsys", "activity", "activities")
+    m = re.search(r"Hist\s+#\d+: ActivityRecord\{[^}]*%s/\.MainActivity[^}]*\}.*?state=(\w+)" % re.escape(PACKAGE),
+                  out, re.S)
+    return m.group(1) if m else None
+
+
+def home(patience=15.0):
+    """Home, and back once Android has stopped the app: the moment it
+    writes what the editor holds (MainActivity.onStop). Android stops the
+    app left when the launcher has nothing more to do, or ten seconds
+    later; an emulator drawing in software keeps its launcher busy, and
+    the stop came at ten seconds, every time (2026-10-30). Read a second
+    or three after Home, the app was only paused -- its words not written
+    yet, and an `am kill` of an app still on the screen did nothing, so a
+    check that the words outlived the process passed with the process
+    never ended."""
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    deadline = time.time() + patience
+    while time.time() < deadline:
+        if activity_state() == "STOPPED":
+            return True
+        time.sleep(0.5)
+    fail("Home: Android did not stop the app within %d s" % patience)
+    return False
+
+
+def kill_behind():
+    """Android ending the app behind Home, as it ends one whose memory it
+    needs: True once the process is gone, read -- `am kill` ends only an
+    app off the screen, and says nothing when it ends none."""
+    adb("shell", "am", "kill", PACKAGE)
+    deadline = time.time() + 5.0
+    while adb("shell", "pidof", PACKAGE).strip() and time.time() < deadline:
+        time.sleep(0.3)
+    return adb("shell", "pidof", PACKAGE).strip() == ""
+
+
+def seek(found, tries=8, fast=False):
+    """Scrolled down until [found]() holds: the screen's tree holds only
+    what is on the screen, and a word below it is sought as a person seeks it."""
+    for _ in range(tries):
+        if found():
+            return True
+        adb("shell", "input", "swipe", "900", "1900", "900", "700", "120" if fast else "400")
+        time.sleep(0.8 if fast else 1.0)
+    return found()
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -1549,14 +1600,15 @@ def checklist_words_kept(folder):
     tap("flour", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" 500g")
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    home()
     check_settled("Home writes the renamed row and the words waiting in A new item", rows,
                   lambda r: r == ["flour 500g", "yeast 7g", "salt"])
-    adb("shell", "am", "kill", PACKAGE)
+    ended = kill_behind()
     start_app()
     if open_note("Bread"):
         check("... and they are there after Android ended the process",
-              not screen_says("flour 500g", "yeast 7g", "salt"), str(screen_says("flour 500g", "yeast 7g", "salt")))
+              ended and not screen_says("flour 500g", "yeast 7g", "salt"),
+              "ended %s, missing %s" % (ended, screen_says("flour 500g", "yeast 7g", "salt")))
         shot(folder, "84-checklist-words-kept", "flour 500g", "salt")
     back_to("Search notes")
 
@@ -1763,13 +1815,12 @@ def code_started_once(folder):
     time.sleep(3.0)
     tap("Import", exact=True, wait=2.0)
     check("a code that started the app is imported", note_by_uid("walk-once") is not None)
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(1.0)
-    adb("shell", "am", "kill", PACKAGE)
+    home()
+    ended = kill_behind()
     start_app()
     check("ended in the background and opened again, the app does not offer the code again",
-          bool(screen_says("Import a code")) and not screen_says("Already here", "Shared once"),
-          " | ".join(t for t, d, _ in nodes() if t)[:160])
+          ended and bool(screen_says("Import a code")) and not screen_says("Already here", "Shared once"),
+          "ended %s: " % ended + " | ".join(t for t, d, _ in nodes() if t)[:160])
     shot(folder, "87-code-offered-once", "Already here", "Shared once")
     back_to("Search notes")
 
@@ -1825,8 +1876,7 @@ def google_backup(folder):
 
     def backed_up():
         # Home first: a stopped app is not backed up at all, whatever it says.
-        adb("shell", "input", "keyevent", "KEYCODE_HOME")
-        time.sleep(1.5)
+        home()
         out = adb("shell", "bmgr", "backupnow", PACKAGE)
         start_app()
         return "%s with result: Success" % PACKAGE in out, out
@@ -2859,8 +2909,7 @@ def reminder_new_zone(folder):
                          "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
                        {"welcome_offered": True, "phone_reminder_notify": True, "phone_reminder_hour": 9}, "Today"):
         return
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(2.0)
+    home()
     before = alarm_at()
     try:
         adb("shell", "service", "call", "alarm", "3", "s16", "America/New_York")
@@ -2947,8 +2996,9 @@ def template_long_comments(folder):
     check("the template opens, the app still running",
           not opened and adb("shell", "pidof", PACKAGE).strip() == alive, "missing %s" % opened)
     shot(folder, "92-template-long-comments", "Comments")
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(6.0)
+    # Stopped, the editor's words written: a crash in the writing ends the
+    # process before Android can say so.
+    home()
     # The app's own crash: the buffer holds every process's (logged).
     crash = adb("logcat", "-b", "crash", "-d").strip()
     check("left with Home, the app is still running and nothing stopped it",
@@ -3916,15 +3966,6 @@ def limits_round6(folder):
         if screen_says(first_row) and find("CHECKLIST"):
             tap("CHECKLIST", wait=1.5)
 
-    def seek(found, tries=8, fast=False):
-        """Scrolled down until [found]() holds: the screen's tree holds only
-        what is on the screen, and a word below it is sought as a person seeks it."""
-        for _ in range(tries):
-            if found():
-                return True
-            adb("shell", "input", "swipe", "900", "1900", "900", "700", "120" if fast else "400")
-            time.sleep(0.8 if fast else 1.0)
-        return found()
 
     key_row = "a" * (2_000 - 16) + "DON'T FORGET KEY"
     recipe = "r" * 1_480 + " Serve with rice."
@@ -4260,11 +4301,7 @@ def template_draft(folder):
             return None
 
     def ended_behind_home():
-        adb("shell", "input", "keyevent", "KEYCODE_HOME")
-        time.sleep(3.0)
-        adb("shell", "am", "kill", PACKAGE)
-        time.sleep(1.5)
-        return adb("shell", "pidof", PACKAGE).strip() == ""
+        return home() and kill_behind()
 
     def to_templates():
         start_app()
@@ -4379,8 +4416,11 @@ def limits_round7(folder):
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     tapped = tap("Read all 1,000,000 characters", wait=2.5)
     longest = max(frames_since_reset() or [99.0])
+    # Read, the row says so over its parts; "Show less" is under the first
+    # seven, far below the screen.
+    reading = screen_says("1,000,000 characters, shown here to read")
     check("Read all on a row of a million letters with no space reads it in parts at once, no frame of seconds",
-          tapped and longest < 2.0 and screen_says("Show less") == [], "longest frame %.2f s" % longest)
+          tapped and longest < 2.0 and reading == [], "longest frame %.2f s, missing %s" % (longest, reading))
     shot(folder, "121-unbroken-row-read", "Unbroken row")
     back_to("Search notes")
 
@@ -4399,10 +4439,17 @@ def limits_round7(folder):
     # A full list's box says it is full as the words begin.
     open_note("Full list", limit=30.0)
     unfold("item 0")
+    # Under the 205 rows drawn: scrolled to, as a person would.
+    seek(lambda: find("A new item") is not None, tries=40, fast=True)
     tap("A new item", wait=0.8)
     type_text("Passport")
     full_said = not says_soon("A checklist holds at most 1000 items.", within=6.0)
     check("words typed into a full list's box are told it is full as they begin", full_said)
+    # Back with the words still waiting: a full list takes no more, so the
+    # note stays open and offers to leave anyway -- the tap fails if not.
+    keyboard_down()
+    back()
+    tap("Leave anyway", exact=True, wait=1.5)
     back_to("Search notes")
 
     # Two long pastes into "A new item…", Add between them: each said.
@@ -4455,7 +4502,8 @@ def limits_round7(folder):
     # back by hand, the app sent away again: no draft stays to be offered.
     put_inside("templates.json", [{"name": "Trip", "title": "Trip list", "body": "", "comments": "",
                                    "category": "General", "checklist": []}])
-    adb("shell", "am", "kill", PACKAGE)
+    # Started again, to read it: the app is on the screen, where `am kill` ends nothing.
+    adb("shell", "am", "force-stop", PACKAGE)
     start_app()
     says_soon("Search notes", within=10.0)
     tap("Settings", exact=True, wait=1.2)
@@ -4464,15 +4512,13 @@ def limits_round7(folder):
     tap("Trip list", wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text("x")
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(3.0)
+    home()
     written = (draft() or {}).get("fields", {}).get("title")
     start_app()
     time.sleep(1.5)
     adb("shell", "input", "keyevent", "KEYCODE_DEL")
     time.sleep(0.6)
-    adb("shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(3.0)
+    home()
     check("a draft whose change was taken back by hand is gone at the next trip to the background",
           written == "Trip listx" and draft() is None, "written %r, now %s" % (written, draft()))
     start_app()
