@@ -149,14 +149,16 @@ def tree():
     return out
 
 
-def said_over(words, *targets, within=6.0):
+def said_over(words, *targets, within=6.0, touching=False):
     """Waits until the screen says [words], and reads, on that same look,
     which of [targets] -- (name, test of a node's text and description) --
     the message's block covers: the words' ancestor just below the one they
     share with the target, the message with its margin. A message drawn just
     above the keyboard covered the editor's own bar and "A new item…" with
-    its Add, and took their taps (the final audit's ninth round). The words
-    missing, and the names of the targets covered or not on the screen."""
+    its Add, and took their taps (the final audit's ninth round). With
+    [touching], a target counts as covered when the block reaches into it
+    anywhere, not only over its middle. The words missing, and the names of
+    the targets covered or not on the screen."""
     seen = settle(tree, lambda nodes_: any(words in t or words in d for t, d, _, _ in nodes_),
                   within=within, first=0)
     said = next((n for n in seen if words in n[0] or words in n[1]), None)
@@ -173,8 +175,13 @@ def said_over(words, *targets, within=6.0):
             common += 1
         block = next((n for n in seen if n[3] == said[3][:common + 1]), said)
         x1, y1, x2, y2 = block[2]
-        cx, cy = (target[2][0] + target[2][2]) // 2, (target[2][1] + target[2][3]) // 2
-        if x1 <= cx <= x2 and y1 <= cy <= y2:
+        tx1, ty1, tx2, ty2 = target[2]
+        if touching:
+            over = x1 < tx2 and tx1 < x2 and y1 < ty2 and ty1 < y2
+        else:
+            cx, cy = (tx1 + tx2) // 2, (ty1 + ty2) // 2
+            over = x1 <= cx <= x2 and y1 <= cy <= y2
+        if over:
             covered.append(name)
     return [], covered
 
@@ -5067,7 +5074,8 @@ def limits_round10(folder):
     keys("CTRL_LEFT", "V")
     shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
     missing, covered = said_over(shortened, ("the row being renamed", lambda t, d: t.startswith("milk")),
-                                 ("its remove button", lambda t, d: "Remove" in d and "milk" in d))
+                                 ("its remove button", lambda t, d: "Remove" in d and "milk" in d),
+                                 touching=True)
     photograph(folder, "127-message-above-the-row-renamed")
     check("a message said while a row is renamed stands above the row and its ✕, not over them",
           not missing and not covered, "missing %s, over %s" % (missing, covered))
