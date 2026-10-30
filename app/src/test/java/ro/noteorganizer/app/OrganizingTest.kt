@@ -145,6 +145,27 @@ class OrganizingTest {
     }
 
     @Test
+    fun `an id written as text is read as the desktop's int of its stripped text reads it, a float as none`() {
+        // toIntOrNull gave "1_0" and a digit of another script no id, so the
+        // next free number; and a float kept its whole part, which Python's
+        // int("7.5") refuses (the final audit's ninth round, beside the
+        // rule's int()). The desktop's own answers: normalize_note and
+        // repair_note_ids at 8b5d6cc (scratch android_fixes_r9/probe_int.py).
+        val load = notebook("""[{"id": "1_0", "title": "a"}, {"id": "\u0663", "title": "b"},
+                                {"id": "\u001c7", "title": "c"}, {"id": 7.5, "title": "d"},
+                                {"id": "\u20285", "title": "e"}, {"id": " 2 ", "title": "f"}]""")
+        assertTrue(Organizing.repairIds(load))
+        assertEquals(listOf(10, 3, 7, 11, 5, 2), (0..5).map { notesOnDisk(load).getJSONObject(it).get("id") })
+        val float = notebook("""[{"id": 3, "title": "a"}, {"id": 7.5, "title": "b"}]""")
+        assertTrue(Organizing.repairIds(float))
+        assertEquals("a float is no id: the next free number", listOf(3, 4),
+                     (0..1).map { notesOnDisk(float).getJSONObject(it).get("id") })
+        val whole = notebook("""[{"id": 6, "title": "a"}, {"id": 7.0, "title": "b"}]""")
+        assertTrue("a float id is written again as the whole number it is given", Organizing.repairIds(whole))
+        assertEquals(listOf(6, 7), (0..1).map { notesOnDisk(whole).getJSONObject(it).get("id") })
+    }
+
+    @Test
     fun `a pin is not an edit, its note's updated time stays, as the desktop's toggle_pin`() {
         val load = notebook("""[{"id": 1, "updated": "2026-01-01 00:00:00"}, {"id": 2, "updated": "2026-01-01 00:00:00"}]""")
         Organizing.setPinned(load, listOf(1, 2), true)

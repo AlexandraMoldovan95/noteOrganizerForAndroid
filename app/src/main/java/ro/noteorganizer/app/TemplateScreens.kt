@@ -393,10 +393,12 @@ private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (Str
                     val following = rememberFollowing()
                     BasicTextField(
                         value = segment.text,
-                        onValueChange = {
+                        onValueChange = { given ->
+                            // A CR that came in is one line break, as in a note ([Editing.breaksCame]).
+                            val now = Editing.breaksCame(segment.text, given)?.first ?: given
                             // A table pasted in comes without the widths its
                             // separator's dashes spell, as in a note.
-                            val kept = Pasting.forgetPastedWidths(segment.text, it, ownCopy)
+                            val kept = Pasting.forgetPastedWidths(segment.text, now, ownCopy)
                             following.typed(segment.text, kept)
                             onChange(Editing.replaceProse(body, segment, kept))
                         },
@@ -658,9 +660,11 @@ private fun TemplateEditor(
         // The app's messages, over the editor: said in the window under this
         // one, they were drawn beneath it and never seen -- a full list's
         // refusal, a list too full to save, the row cap's words (the walk,
-        // 2026-10-29). Shown by both, read by the one on top.
+        // 2026-10-29). Shown here alone while the editor is open
+        // ([MessagesShown]): shown by both, each was two live regions.
         Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
             contentAlignment = Alignment.BottomCenter) {
+            MessagesShown.Over(state.snackbar)
             SnackbarHost(state.snackbar, Modifier.padding(bottom = 16.dp))
         }
         if (askName) {

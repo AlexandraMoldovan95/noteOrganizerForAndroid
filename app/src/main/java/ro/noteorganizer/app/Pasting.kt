@@ -165,8 +165,13 @@ object Pasting {
         return new.substring(0, front) + kept + new.substring(new.length - back)
     }
 
-    /** A body after a paste: its text, styles and lines, and where the cursor goes. */
-    data class Inserted(val body: String, val spans: List<FormatSpan>, val props: Map<Int, Paragraphs.Props>, val caret: Int)
+    /**
+     * A body after a paste: its text, styles and lines, where the cursor
+     * goes, and the edits that made it, each in the text the one before
+     * left ([Calculator.follow]): the paste, then each marker renumbered.
+     */
+    data class Inserted(val body: String, val spans: List<FormatSpan>, val props: Map<Int, Paragraphs.Props>, val caret: Int,
+                        val edits: List<Paragraphs.Edit> = emptyList())
 
     /**
      * [text] put in place of [from, to) of [body] (code points), as the
@@ -289,7 +294,8 @@ object Pasting {
         // A pasted list starts at one; renumbering makes it continue the one it joined.
         val renumbered = Paragraphs.renumber(newBody, lines.filterValues { !it.plain })
         return Inserted(renumbered.body, Paragraphs.moveSpans(moved, renumbered.edits), renumbered.props,
-                        Paragraphs.moveStart(a + whole.size, renumbered.edits))
+                        Paragraphs.moveStart(a + whole.size, renumbered.edits),
+                        listOf(Paragraphs.Edit(a, b - a, whole.size)) + renumbered.edits.sortedByDescending { it.at })
     }
 
     /** `html_to_note`. */

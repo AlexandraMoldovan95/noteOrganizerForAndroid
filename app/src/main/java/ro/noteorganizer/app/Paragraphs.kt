@@ -115,6 +115,19 @@ object Paragraphs {
         }
     }
 
+    /**
+     * Where a mark goes through one edit, made in the text the edit before
+     * it left, as a Tk mark of right gravity moves -- the desktop's cursor,
+     * and its calculator's place: what the edit takes out goes first, a mark
+     * inside it falling to its start, then what it puts in, a mark right
+     * at that place carried after it.
+     */
+    fun moveMark(x: Int, e: Edit): Int = when {
+        x < e.at -> x
+        x <= e.at + e.removed -> e.at + e.inserted
+        else -> x - e.removed + e.inserted
+    }
+
     /** Where an end goes: text put in right at it stays after it. */
     fun moveEnd(x: Int, edits: List<Edit>): Int = x + edits.sumOf { e ->
         when {
@@ -193,6 +206,13 @@ object Paragraphs {
 
         /** A cursor or a selection's edge, carried through every step. */
         fun movePoint(at: Int): Int = steps.fold(at) { x, edits -> moveStart(x, edits) }
+
+        /**
+         * Its edits one after another, each in the text the one before left
+         * -- what a remembered place is carried through ([moveMark]): a
+         * step's own edits, made at once in its text, from the last back.
+         */
+        fun inTurn(): List<Edit> = steps.flatMap { step -> step.sortedByDescending { it.at } }
     }
 
     /** The lines' properties after a typed edit added or took away lines. */

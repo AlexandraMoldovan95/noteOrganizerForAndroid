@@ -309,10 +309,18 @@ object Recurrence {
      * an Int is held at its edge, as the clamp after it would hold it.
      * `toIntOrNull` refused "1_0", which the desktop stores as 10, and so a
      * hand-made code repeated on other days on the two apps (the final
-     * audit's eighth round).
+     * audit's eighth round). Its spaces are not `str.strip()`'s: `int()`
+     * turns a space past ASCII into " ", then skips ASCII's own six at the
+     * ends, so the separators U+001C to U+001F, which `str.isspace()`
+     * counts, are refused -- read as spaces, "\u001c7" repeated weekly on
+     * the phone and daily on the desktop (the final audit's ninth round).
      */
     internal fun pythonIntOf(text: String): Int? {
-        val t = PyText.strip(text)
+        var from = 0
+        var to = text.length
+        while (from < to && intSpace(text.codePointAt(from))) from += Character.charCount(text.codePointAt(from))
+        while (to > from && intSpace(text.codePointBefore(to))) to -= Character.charCount(text.codePointBefore(to))
+        val t = text.substring(from, to)
         var i = 0
         val negative = t.startsWith("-")
         if (t.startsWith("-") || t.startsWith("+")) i = 1
@@ -338,6 +346,9 @@ object Recurrence {
     }
 
     private const val PYTHON_INT_DIGITS = 4300
+
+    /** A space `int()` skips at a number's ends: ASCII's Py_ISSPACE six, or any space past ASCII ([PyText.isSpace]). */
+    private fun intSpace(cp: Int): Boolean = if (cp < 0x80) cp == 0x20 || cp in 0x09..0x0D else PyText.isSpace(cp)
 
     /**
      * Python's `sorted({d for d in value if isinstance(d, int) and lo <= d <= hi})`.

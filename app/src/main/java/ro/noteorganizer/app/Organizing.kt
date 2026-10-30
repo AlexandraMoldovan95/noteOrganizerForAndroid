@@ -453,10 +453,16 @@ object Organizing {
     fun repairIds(load: Notebook.Load): Boolean {
         val file = load.file ?: return false
         val array = load.raw ?: return false
+        // `int(str(raw_id).strip())`: a whole number as it is; text read as
+        // Python's int() reads it after str.strip() -- "1_0" 10, a digit of
+        // any script, where toIntOrNull gave no id and the next free number
+        // (the final audit's ninth round, beside the rule's int()); a float
+        // written out, "7.5" or "7.0", which int() refuses, none.
+        fun whole(raw: Any?) = raw is Int || raw is Long || raw is Short || raw is Byte || raw is java.math.BigInteger
         fun idOf(note: JSONObject): Int = when (val raw = note.opt("id")) {
             is Boolean -> 0
-            is Number -> raw.toInt()
-            is String -> raw.trim().toIntOrNull() ?: 0
+            is Number -> if (whole(raw)) raw.toInt() else 0
+            is String -> Recurrence.pythonIntOf(PyText.strip(raw)) ?: 0
             else -> 0
         }
         val notes = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
@@ -464,7 +470,7 @@ object Organizing {
         var next = (ids.filter { it > 0 }.maxOrNull() ?: 0) + 1
         val seen = HashSet<Int>()
         val wanted = ids.map { id -> if (id > 0 && seen.add(id)) id else next++.also { seen.add(it) } }
-        if (notes.indices.all { (notes[it].opt("id") as? Number)?.toInt() == wanted[it] && notes[it].opt("id") !is Boolean }) {
+        if (notes.indices.all { whole(notes[it].opt("id")) && (notes[it].opt("id") as Number).toInt() == wanted[it] }) {
             return false
         }
         val candidate = JSONArray(array.toString())

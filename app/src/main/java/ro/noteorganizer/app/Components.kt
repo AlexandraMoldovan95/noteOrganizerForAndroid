@@ -34,7 +34,9 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,7 +110,42 @@ fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
         if (messages == null) content()
         else {
             Column(Modifier.weight(1f, fill = false)) { content() }
+            MessagesShown.Over(messages)
             SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        }
+    }
+}
+
+/**
+ * The hosts drawing the app's messages over the window -- a sheet's, the
+ * template editor's -- counted for each state they draw: while one does,
+ * the window's own host draws none, so a message is one live region, read
+ * out once. Drawn by both, each said over a sheet was two, one in the
+ * sheet's window and one in the window under it, and TalkBack could read
+ * it twice (the final audit's ninth round). A host that goes leaves a
+ * message still standing to the window's, which shows it again.
+ */
+object MessagesShown {
+    private val over = mutableStateMapOf<Any, Int>()
+
+    /** Whether a host over the window draws [messages] now. */
+    fun elsewhere(messages: Any): Boolean = (over[messages] ?: 0) > 0
+
+    fun shown(messages: Any) {
+        over[messages] = (over[messages] ?: 0) + 1
+    }
+
+    fun gone(messages: Any) {
+        val left = (over[messages] ?: 0) - 1
+        if (left > 0) over[messages] = left else over.remove(messages)
+    }
+
+    /** A host over the window draws [messages] while this is composed. */
+    @Composable
+    fun Over(messages: SnackbarHostState) {
+        DisposableEffect(messages) {
+            shown(messages)
+            onDispose { gone(messages) }
         }
     }
 }

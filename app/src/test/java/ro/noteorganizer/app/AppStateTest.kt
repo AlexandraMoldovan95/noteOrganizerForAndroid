@@ -653,4 +653,20 @@ class AppStateTest {
         editor.typeTitle(TextFieldValue(full, TextRange(0)), TextFieldValue("Z$full", TextRange(1)))
         assertEquals(full, editor.title)
     }
+
+    @Test
+    fun `while a sheet draws the app's messages the window's host draws none, and draws them again after`() {
+        // Drawn by both, each message over a sheet was two live regions, and
+        // TalkBack could read it twice (the final audit's ninth round).
+        val messages = Any()
+        assertFalse(MessagesShown.elsewhere(messages))
+        MessagesShown.shown(messages)
+        MessagesShown.shown(messages)
+        assertTrue("a sheet over the window draws them", MessagesShown.elsewhere(messages))
+        MessagesShown.gone(messages)
+        assertTrue("a second still does", MessagesShown.elsewhere(messages))
+        MessagesShown.gone(messages)
+        assertFalse("the window draws them again once none does", MessagesShown.elsewhere(messages))
+        assertFalse("another state's are its own", MessagesShown.elsewhere(Any()))
+    }
 }

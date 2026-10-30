@@ -451,6 +451,29 @@ class IdentityTest {
         assertTrue(Notebook.previousKeeps(load, 7))
     }
 
+    @Test
+    fun `a restore over part of the copy's words made bold or a list since keeps them as the copy in turn`() {
+        // Styles were weighed only on the same words: a part of the copy's
+        // text made bold since went to no file, no copy kept, the question
+        // silent -- the desktop's ae6efe2 keeps it (test_data_safety's own
+        // case, "Trip" / "Packing list:"; the final audit's ninth round).
+        val prev = """{"title": "Trip", "body": "Packing list: boots, rope, map, torch.", "comments": "",
+                       "formatting": [], "paragraphs": []}"""
+        fun keeps(extra: String): Boolean {
+            val load = scratch("""[{"id": 7, "title": "Trip", "body": "Packing list:"$extra, "_prev": $prev}]""")
+            return Notebook.previousKeeps(load, 7)
+        }
+        assertTrue("bold since", keeps(""", "formatting": [{"start": 0, "end": 7, "style": "bold"}]"""))
+        assertTrue("indented since", keeps(""", "paragraphs": [{"line": 0, "indent": 2}]"""))
+        assertFalse("plain, nothing lost", keeps(""))
+        val load = scratch("""[{"id": 7, "title": "Trip", "body": "Packing list:",
+                                "formatting": [{"start": 0, "end": 7, "style": "bold"}], "_prev": $prev}]""")
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val kept = onDisk(load).getJSONObject(0).getJSONObject("_prev")
+        assertEquals("Packing list:", kept.getString("body"))
+        assertEquals(1, kept.getJSONArray("formatting").length())
+    }
+
     /** A rescue copy as a crafted backup brings it: past every ceiling, with what no copy holds. */
     private fun hostileCopy(): JSONObject {
         val body = "x".repeat(1300)

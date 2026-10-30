@@ -2106,11 +2106,20 @@ object Notebook {
         val body = (live.opt("body") as? String).orEmpty()
         val sameWords = body == (previous.opt("body") as? String).orEmpty()
         val lines = body.split("\n").size
+        val formatting = Exporting.normalizeFormatting(live.opt("formatting"))
+        val paragraphs = Exporting.normalizeParagraphs(live.opt("paragraphs"), lines)
+        // Words held in the copy's but not the same: their styles cannot be
+        // laid beside the copy's, so any style is weighed as lost -- a part of
+        // the copy's words made bold or set as a list since went to no file
+        // (the desktop's ae6efe2, `styles_kept`; the final audit's ninth round).
+        val stylesKept = if (sameWords) {
+            formatting == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+                paragraphs == Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines)
+        } else formatting.isEmpty() && paragraphs.isEmpty()
         val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), PyText.strip(body)) &&
             (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
             PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
-            (!sameWords || (Exporting.normalizeFormatting(live.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
-                Exporting.normalizeParagraphs(live.opt("paragraphs"), lines) == Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines))) &&
+            stylesKept &&
             PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) } &&
             taken.isEmpty()
         if (nothingLost) return null

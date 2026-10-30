@@ -95,6 +95,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -220,7 +222,27 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     private fun snap() = Snap(title, body, spans, props, comments)
-    private val history = Editing.History<Snap>(budget = Editing.HISTORY_CHARS, weigh = { it.weight() })
+
+    /**
+     * A step of Undo: the note as it was, and the edits that led from it to
+     * the note after it, each in the text the one before left -- the way the
+     * places remembered in the text ([caret], [calcMark]) go back and forth,
+     * as the desktop's Tk marks move through Ctrl+Z's own deletes and
+     * inserts. Followed as one change from where the two texts first differ
+     * to where they last do, an Undo of letters typed in two places sent the
+     * calculator's next answer into the later line (the final audit's ninth
+     * round). Mutable: a typing step joins letters typed after it, and the
+     * same edits go with it from Undo to Redo and back.
+     */
+    private class Step(val words: Snap, val edits: MutableList<Paragraphs.Edit> = ArrayList())
+
+    private val history = Editing.History<Step>(budget = Editing.HISTORY_CHARS, weigh = { it.words.weight() })
+
+    /** The edits made since the note was last settled: what the next step records. */
+    private val made = ArrayList<Paragraphs.Edit>()
+
+    /** The step last kept, which typing joins. */
+    private var newest: Step? = null
 
     /** How many steps Undo can take now. */
     val undoSteps: Int get() = history.steps
@@ -243,14 +265,22 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     fun undo() {
-        history.undo(snap())?.let { restore(it) }
+        val now = Step(snap())
+        val back = history.undo(now) ?: return
+        // Redo goes forward through the same edits.
+        now.edits.addAll(back.edits)
+        restore(back.words, back.edits, forward = false)
     }
 
     fun redo() {
-        history.redo(snap())?.let { restore(it) }
+        val now = Step(snap())
+        val ahead = history.redo(now) ?: return
+        // ...and Undo back through them.
+        now.edits.addAll(ahead.edits)
+        restore(ahead.words, ahead.edits, forward = true)
     }
 
-    private fun restore(to: Snap) {
+    private fun restore(to: Snap, through: List<Paragraphs.Edit>, forward: Boolean) {
         val was = body
         val kept = focus to focused
         title = to.title
@@ -261,17 +291,25 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         cellEpoch += 1
         comments = to.comments
         // The places remembered in the text move with it, as the desktop's Tk
-        // marks move through Ctrl+Z and Ctrl+Y -- the way typing carries them
-        // ([follow]). Emptied, Insert table and the calculator, which write
-        // at the place the cursor was, wrote at the note's end: a table onto
-        // a table closing the note, refused with words about a note too large
-        // (the final audit's seventh round); and the calculator's next answer
-        // glued to the last one, "2+2=43×3=9", not on a line of its own (its
-        // eighth). In the same text -- only styles or lines' looks taken back
-        // -- they stay where they were.
+        // marks move through Ctrl+Z and Ctrl+Y -- through the step's own
+        // edits, one by one ([Step]). Emptied, Insert table and the
+        // calculator, which write at the place the cursor was, wrote at the
+        // note's end: a table onto a table closing the note, refused with
+        // words about a note too large (the final audit's seventh round); and
+        // the calculator's next answer glued to the last one, "2+2=43×3=9",
+        // not on a line of its own (its eighth). In the same text -- only
+        // styles or lines' looks taken back -- they stay where they were.
         focused = null
-        caret = Calculator.follow(was, to.body, caret)
-        calcMark = Calculator.follow(was, to.body, calcMark)
+        if (through.isEmpty()) {
+            // A step that kept no edits, should a change come by a way that
+            // records none: the one change between the two texts.
+            caret = Calculator.follow(was, to.body, caret)
+            calcMark = Calculator.follow(was, to.body, calcMark)
+        } else {
+            caret = if (forward) Calculator.follow(through, caret) else Calculator.back(through, caret)
+            calcMark = if (forward) Calculator.follow(through, calcMark) else Calculator.back(through, calcMark)
+        }
+        made.clear()
         settled = to
         steps()
         edits += 1
@@ -368,18 +406,37 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** The end of the calculator's last insertion: the next goes after it. */
     private var calcMark: Int? = null
 
-    /** The body has changed: the places remembered in it move with the text, and the lines' properties too. */
+    /**
+     * The body has changed in one place: the places remembered in it move
+     * with the text, and the lines' properties too.
+     */
     private fun follow(next: String) {
-        caret = Calculator.follow(body, next, caret)
-        calcMark = Calculator.follow(body, next, calcMark)
+        carry(listOfNotNull(Calculator.changeOf(body, next)))
         props = Paragraphs.follow(body, next, props)
     }
 
-    /** A list, indent or alignment change, the styles carried through it exactly. */
+    /**
+     * The body changes by [edits], each in the text the one before left: the
+     * places remembered in it carried through them one by one, as a Tk mark
+     * of right gravity moves, and the edits kept for the step Undo records.
+     */
+    private fun carry(edits: List<Paragraphs.Edit>) {
+        caret = Calculator.follow(edits, caret)
+        calcMark = Calculator.follow(edits, calcMark)
+        made.addAll(edits)
+    }
+
+    /**
+     * A list, indent or alignment change, the styles carried through it
+     * exactly -- and the places remembered in the text with them: followed
+     * as one change, a list's markers put on three lines, or Enter in a
+     * numbered list above the calculator's last answer, sent its next one
+     * into a later line ("3×3=9Rent", or into "4.": the final audit's ninth
+     * round).
+     */
     private fun apply(done: Paragraphs.Done) {
         spans = if (day != null) emptyList() else done.move(spans)
-        caret = Calculator.follow(body, done.body, caret)
-        calcMark = Calculator.follow(body, done.body, calcMark)
+        carry(done.inTurn())
         props = done.props
         body = done.body
         changed()
@@ -636,9 +693,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val now = snap()
         val before = settled
         if (before != null && before != now) {
-            history.record(before, kind, System.currentTimeMillis())
+            val step = Step(before, ArrayList(made))
+            // Joined to the step before, its edits follow that step's.
+            if (history.record(step, kind, System.currentTimeMillis())) newest = step
+            else newest?.edits?.addAll(made)
             steps()
         }
+        made.clear()
         settled = now
         edits += 1
         status = null
@@ -684,6 +745,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var renaming by mutableStateOf<Renaming?>(null)
     var adding by mutableStateOf("")
 
+    /** The top of "A new item…" with its Add, in the window, while it is typed in; null otherwise ([AppState.editorFootTop]). */
+    var addBoxTop by mutableStateOf<Float?>(null)
+
     /**
      * A row's field and "A new item…" kept to a row's length, as the
      * desktop keeps its box ([Editing.fitRow]): the row's own words whole,
@@ -724,7 +788,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /**
      * [next] typed into the title, shown as [shown]: one line, as the
      * desktop's title is -- a paste of lines goes in as the desktop's does,
-     * its words joined by spaces ([Editing.titleTyped]); the list cut a title
+     * each break a space ([Editing.titleTyped]); the list cut a title
      * at a break -- and kept to 200 letters by [titleCap], its own words
      * whole, only what came in weighed. The value to show, its cursor after
      * what came in. A tap, which moves the cursor and nothing else, writes
@@ -733,7 +797,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     fun typeTitle(shown: TextFieldValue, next: TextFieldValue): TextFieldValue {
         if (next.text == shown.text) return next
-        val (text, at) = Editing.titleTyped(shown.text, next.text)
+        val (text, at) = Editing.titleTyped(shown.text, next.text, next.selection.end.takeIf { next.selection.collapsed })
         val typed = if (at == null) next.copy(text = text) else TextFieldValue(text, TextRange(at))
         val base = shown.copy(text = Editing.oneLine(shown.text))
         val kept = keptBy(titleCap, base, typed)
@@ -895,6 +959,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // a stale one would style the next word typed in the new body.
         pending = emptySet()
         history.clear()
+        made.clear()
+        newest = null
         settled = snap()
         steps()
         saved = edits
@@ -905,11 +971,15 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * keystroke can mean more than its character -- Enter continues the
      * list, Backspace against a marker takes it away -- and then the field
      * is given back rewritten, its cursor where it belongs: the value to
-     * show. Null when the text stands as typed.
+     * show. Null when the text stands as typed. A CR that came in -- a plain
+     * paste in CR LF -- is the one line break the desktop's paste puts in
+     * ([Editing.breaksCame]).
      */
-    fun typeInto(segment: Editing.Segment, typed: TextFieldValue, index: Int): TextFieldValue? {
+    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int): TextFieldValue? {
+        val broken = Editing.breaksCame(segment.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
+        val typed = if (broken == null) given else TextFieldValue(broken.first, TextRange(broken.second))
         val next = Editing.replaceProse(body, segment, typed.text)
-        if (next == body) return null
+        if (next == body) return if (broken == null) null else typed
         if (day == null) {
             Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
                 apply(done)
@@ -925,7 +995,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         follow(next)
         body = next
         changed(Editing.History.TYPING)
-        return null
+        return if (broken == null) null else typed
     }
 
     /**
@@ -1115,6 +1185,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         }
         spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
         props = Paragraphs.follow(body, placed.body, props)
+        // Where it went in, exactly, for Undo: found by comparing the texts,
+        // "\n3×3=9" put before a line break read as "3×3=9\n" after it.
+        val came = placed.body.codePointCount(0, placed.body.length) - body.codePointCount(0, body.length)
+        made.add(Paragraphs.Edit(placed.mark - came, 0, came))
         body = placed.body
         calcMark = placed.mark
         caret = placed.mark
@@ -1227,7 +1301,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** A paste written: the note, one step of Undo, and the cursor after what came in. */
     private fun land(done: Pasting.Inserted) {
-        calcMark = Calculator.follow(body, done.body, calcMark)
+        // Through the paste and each marker it renumbered, one by one: as one
+        // change, a paste in a list above the calculator's last answer sent
+        // its next one into a later line (the final audit's ninth round).
+        carry(done.edits.ifEmpty { listOfNotNull(Calculator.changeOf(body, done.body)) })
         spans = if (day != null) emptyList() else done.spans
         props = if (day != null) emptyMap() else done.props
         body = done.body
@@ -1818,6 +1895,15 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         // the two together would leave no note to see -- and comes back when
         // it goes down. Typed into, its own display keeps it in place.
         val writingIn = model.activeCell
+        // Where the foot drawn here begins, and the box being typed in, told
+        // to the window: its messages are drawn above them ([AppState.editorFootTop]).
+        var footTop by remember { mutableStateOf<Float?>(null) }
+        val footShown = listOfNotNull(footTop, model.addBoxTop).minOrNull()
+        LaunchedEffect(footShown) { state.editorFootTop = footShown }
+        DisposableEffect(Unit) { onDispose { state.editorFootTop = null } }
+        Box(Modifier.fillMaxWidth().onGloballyPositioned {
+            footTop = if (it.size.height > 0) it.boundsInWindow().top else null
+        }) {
         if (calc.open && (!WindowInsets.isImeVisible || calc.displayFocused)) {
             CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
                             onClose = { closeCalculator(calc, focusManager) })
@@ -1829,6 +1915,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             if (day == null) FormatBar(model) { tableAsk = true }
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
                       modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
+        }
         }
     }
     walkingOff?.let { days ->
@@ -2653,6 +2740,11 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     LaunchedEffect(addFocused, keyboardHeight) {
         if (addFocused && keyboardHeight > 0) addRow.bringIntoView()
     }
+    // Where the box and its Add stand while typed in, for the window's
+    // messages to be drawn above them, never over them ([AppState.editorFootTop]).
+    var addTop by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(addFocused, addTop) { model.addBoxTop = if (addFocused) addTop else null }
+    DisposableEffect(model) { onDispose { model.addBoxTop = null } }
     // And again after each row added, once it is laid out: the new row
     // pushed the box down a row at a time, under the keys, and the newest
     // item was out of sight with it.
@@ -2890,7 +2982,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val addShown = if (addField.text == model.adding) addField
                    else TextFieldValue(model.adding, TextRange(model.adding.length))
     Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
+        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)
+            .onGloballyPositioned { addTop = it.boundsInWindow().top }) {
         BasicTextField(
             value = addShown,
             // At most what a row is written in at, as the desktop's box takes:
@@ -3233,7 +3326,9 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
         LongText(model.comments, found = spots, current = current?.let { it.start to it.end }, reveal = reveal)
     } else BasicTextField(
         value = model.comments,
-        onValueChange = { now ->
+        onValueChange = { given ->
+            // A CR that came in is one line break, as the desktop's paste puts it.
+            val now = Editing.breaksCame(model.comments, given)?.first ?: given
             // A table pasted here showed as rows of bars: the comments draw no table.
             val kept = Pasting.commentsAfter(model.comments, now)
             following.typed(model.comments, kept ?: now)
@@ -3689,7 +3784,10 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val following = rememberFollowing()
     BasicTextField(
         value = draft,
-        onValueChange = { next ->
+        onValueChange = { given ->
+            // A CR that came in is one line break, as the desktop's paste puts it.
+            val next = Editing.breaksCame(draft.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
+                ?.let { (text, at) -> TextFieldValue(text, TextRange(at)) } ?: given
             val clean = next.text.replace("|", "/")
             following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)

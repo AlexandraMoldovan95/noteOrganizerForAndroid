@@ -904,4 +904,47 @@ class EditingTest {
         assertEquals("Groceries" to 9, Editing.titleTyped("", "Groceries\n"))
         assertEquals("a b" to null, Editing.titleTyped("a\nb", "a b"))
     }
+
+    @Test
+    fun `a CR that came into a box with no cap is one line break, a CR already there stays`() {
+        // The note's text, its comments, a cell and a template's text kept
+        // every CR of a plain paste in CR LF (the final audit's ninth round).
+        assertEquals(null, Editing.breaksCame("a", "ab"))
+        assertEquals("a\nb\nc" to 5, Editing.breaksCame("a", "a\rb\r\nc", 6))
+        assertEquals("what was there is not this edit's", null, Editing.breaksCame("a\rb", "a\rbX", 4))
+        assertEquals("x\ny\rz" to 2, Editing.breaksCame("y\rz", "x\r\ny\rz", 3))
+    }
+
+    @Test
+    fun `a title paste joins only its breaks, each with its spaces one space, as the desktop's 51f0c44`() {
+        // Joined by str.split(), " and more" copied with its break went in
+        // glued -- "Groceriesand more" -- and a tab stayed in the title (the
+        // final audit's ninth round). The desktop's own answers: its
+        // _TITLE_PASTE_BREAK at 8b5d6cc, read from its source and run
+        // (scratch android_fixes_r9/probe_title.py).
+        val desktop = mapOf(
+            " and more\r\n" to " and more", " fresh\n" to " fresh", "a  b\nc" to "a  b c", "Name\tValue" to "Name Value",
+            "Week\u2028plan" to "Week plan", "Shopping\r\n  Milk,  eggs" to "Shopping Milk,  eggs",
+            "  Weekly plan\nnotes" to "  Weekly plan notes", " fresh " to " fresh ", "\u001f x" to "\u001f x",
+            "a\u001fb\nc" to "a\u001fb c", "x \u3000\n\u00A0 y" to "x y", "\n\n" to "", "\t" to "", "a\u0085b" to "a b",
+            "  \t  " to "", "abc   " to "abc   ", "a\u001c\u001d\u001eb" to "a b", "a \u000b \u000c b" to "a b",
+            "a\u2029" to "a", "\r" to "", "  lead" to "  lead", "tail\u001f\n" to "tail",
+            "😀\n😀" to "😀 😀", "x\u00A0\u00A0y" to "x\u00A0\u00A0y",
+            "one\r\ntwo\r\nthree" to "one two three")
+        for ((pasted, joined) in desktop) assertEquals(pasted.map { it.code }.toString(), joined, Editing.titleLine(pasted))
+        assertEquals("Groceries and more" to 18, Editing.titleTyped("Groceries", "Groceries and more\r\n"))
+        // Pasted before the title's own space, what came in is read up to the
+        // cursor the field leaves after it: from the texts alone, the space
+        // was the paste's, and "Buy freshmilk" went in.
+        assertEquals("Buy fresh milk" to 9, Editing.titleTyped("Buy milk", "Buy fresh\n milk", 10))
+        assertEquals("over a selection", "Buy new milk" to 7, Editing.titleTyped("Buy old milk", "Buy new\n milk", 8))
+        assertEquals("a letter typed stands, its cursor the field's", "Buy  milk" to null,
+                     Editing.titleTyped("Buy milk", "Buy  milk", 4))
+        // A run of spaces as long as a paste can bring, read once: the
+        // desktop's regex took 0.2 s for 8,000 spaces, four times as long for each doubling.
+        val long = "a" + " ".repeat(1_000_000) + "\nb"
+        val start = System.nanoTime()
+        assertEquals("a b", Editing.titleLine(long))
+        assertTrue((System.nanoTime() - start) / 1_000_000 < 2_000)
+    }
 }

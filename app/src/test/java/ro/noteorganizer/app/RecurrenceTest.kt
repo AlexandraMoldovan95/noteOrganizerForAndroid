@@ -742,4 +742,24 @@ class RecurrenceTest {
         assertEquals(Recurrence.normalize(rule("weekdays" to JSONArray(listOf(true, 3)))).toString(),
                      Recurrence.normalize(rule("weekdays" to JSONArray(listOf(1, 3)))).toString())
     }
+
+    @Test
+    fun `int() skips only its own spaces, so the separators str-isspace counts are refused`() {
+        // pythonIntOf stripped with str.isspace(), which counts U+001C to
+        // U+001F: "\u001c7" was 7 on the phone, refused on the desktop, its
+        // interval 1 -- weekly here, daily there (the final audit's ninth
+        // round). Each answer is CPython's own int(), and the desktop's
+        // normalize_recurrence at 8b5d6cc (scratch android_fixes_r9/probe_int.py).
+        val python = mapOf(
+            "\u001c7" to null, "7\u001f" to null, "\u001e2" to null, "\u001d3" to null, "\u001f3\u0085" to null,
+            "\u00857" to 7, " 7 " to 7, "\u000b7" to 7, "\u00A07" to 7, "\u30007\u3000" to 7, "\t7\n" to 7,
+            "\u000c7\r" to 7, "7\u001c" to null, "+\u001c7" to null, "1\u001c0" to null, "\u20287" to 7, "7\u2029" to 7)
+        for ((text, int) in python) {
+            assertEquals("int(${text.map { "%04x".format(it.code) }})", int, Recurrence.pythonIntOf(text))
+            val rule = JSONObject().put("freq", "weekly").put("interval", text).put("count", text)
+            val read = Recurrence.normalize(rule)
+            assertEquals(int ?: 1, read.getInt("interval"))
+            assertEquals(int ?: 0, read.getInt("count"))
+        }
+    }
 }

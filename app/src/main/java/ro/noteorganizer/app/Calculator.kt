@@ -396,8 +396,18 @@ object Calculator {
      * last insertion's end pushes the next one after the typing, as a text
      * mark with right gravity does on the desktop.
      */
-    fun follow(old: String, new: String, at: Int?): Int? {
-        if (at == null || old == new) return at
+    fun follow(old: String, new: String, at: Int?): Int? = follow(listOfNotNull(changeOf(old, new)), at)
+
+    /**
+     * The one change from [old] to [new], found by what did not change: at
+     * the first place they differ, what was taken out and what was put in,
+     * in code points. Null when they are the same. Exact for a change made
+     * in one place -- a letter typed, a paste, a cut -- and nothing else: a
+     * list's markers put on three lines read as one change from the first to
+     * the last, and a place between them went to the end of it.
+     */
+    fun changeOf(old: String, new: String): Paragraphs.Edit? {
+        if (old == new) return null
         val a = old.codePoints().toArray()
         val b = new.codePoints().toArray()
         var prefix = 0
@@ -406,11 +416,26 @@ object Calculator {
         while (suffix < a.size - prefix && suffix < b.size - prefix &&
             a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
         ) suffix++
-        val oldEnd = a.size - suffix
-        return when {
-            at < prefix -> at
-            at > oldEnd -> at + (b.size - a.size)
-            else -> b.size - suffix
-        }
+        return Paragraphs.Edit(prefix, a.size - suffix - prefix, b.size - suffix - prefix)
     }
+
+    /**
+     * A remembered place carried through [edits], each made in the text the
+     * one before it left -- as the desktop's Tk mark moves through each
+     * insert and delete of an operation in turn ([Paragraphs.moveMark]). A
+     * list's markers, Enter in a numbered list, a paste that renumbers: one
+     * place followed as if the change were one, the calculator's next answer
+     * went into a later line -- "3×3=9Rent", or into "4." (the final audit's
+     * ninth round).
+     */
+    fun follow(edits: List<Paragraphs.Edit>, at: Int?): Int? =
+        at?.let { edits.fold(it) { x, e -> Paragraphs.moveMark(x, e) } }
+
+    /**
+     * ...and back through them, as Ctrl+Z replays each one's opposite, the
+     * last first: an Undo of a step that changed two places put the place
+     * between them at the end of the later one.
+     */
+    fun back(edits: List<Paragraphs.Edit>, at: Int?): Int? =
+        at?.let { edits.asReversed().fold(it) { x, e -> Paragraphs.moveMark(x, Paragraphs.Edit(e.at, e.inserted, e.removed)) } }
 }

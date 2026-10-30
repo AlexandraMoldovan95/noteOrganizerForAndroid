@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -65,6 +66,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -515,8 +518,23 @@ fun AppRoot(state: AppState, version: String) {
         // under it, a word said while typing -- a letter refused at a row's
         // cap -- was drawn behind the keys (the final audit's eighth round).
         val listShown = state.tab == Tab.NOTES && tabShown
-        val typing = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-        SnackbarHost(
+        val density = LocalDensity.current
+        val keys = WindowInsets.ime.getBottom(density)
+        val typing = keys > 0
+        // And above what the open note's editor draws at its foot -- its bar,
+        // "A new item…" being typed in -- which sits on the keyboard's top:
+        // drawn just above the keys, a message covered them and took their
+        // taps for its four seconds (the final audit's ninth round). Kept
+        // below the status bar however tall that foot is.
+        val footClear = state.editorFootTop?.takeIf { open != null }?.let { top ->
+            val below = maxOf(keys, WindowInsets.navigationBars.getBottom(density))
+            with(density) { (constraints.maxHeight - below - top).coerceAtLeast(0f).toDp() }
+                .coerceAtMost((maxHeight - with(density) { below.toDp() } - 160.dp).coerceAtLeast(0.dp))
+        }
+        // One host for a message: while a sheet or the template editor draws
+        // the app's messages over the window, this one draws none, so each is
+        // read out once ([MessagesShown]).
+        if (!MessagesShown.elsewhere(state.snackbar)) SnackbarHost(
             state.snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -526,7 +544,7 @@ fun AppRoot(state: AppState, version: String) {
                     typing || open != null && !twoPanes -> 8.dp
                     !wide -> if (listShown) 160.dp else 80.dp
                     else -> if (listShown) 88.dp else 16.dp
-                }),
+                }.let { rule -> if (footClear == null) rule else maxOf(rule, footClear + 8.dp) }),
         )
     }
 

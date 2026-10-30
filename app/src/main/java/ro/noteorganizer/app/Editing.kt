@@ -347,9 +347,42 @@ object Editing {
         return Change(head, tail, now.substring(head, now.length - tail))
     }
 
+    /**
+     * [changeOf], what came in ending at [cursor] -- where a field leaves its
+     * cursor after typing or a paste -- when the words after the cursor are
+     * the old words' end; [changeOf] alone otherwise.
+     */
+    fun changeAt(was: String, now: String, cursor: Int?): Change {
+        val plain = changeOf(was, now)
+        if (cursor == null || cursor !in 0..now.length) return plain
+        val tail = now.length - cursor
+        if (tail > was.length || !now.regionMatches(cursor, was, was.length - tail, tail)) return plain
+        val head = minOf(plain.head, was.length - tail)
+        if (head > cursor) return plain
+        return Change(head, tail, now.substring(head, cursor))
+    }
+
     /** CR LF, and a CR alone, as one line break: the desktop's `_cap_paste`. */
     fun lineBreaks(text: String): String =
         if ('\r' !in text) text else text.replace("\r\n", "\n").replace('\r', '\n')
+
+    /**
+     * [now] typed over [was] in a box with no cap -- the note's text, its
+     * comments, a table's cell, a template's -- with what came in holding a
+     * CR given as the one line break the desktop's paste puts in
+     * ([lineBreaks]), as the capped boxes take it ([fitRow]): the words and
+     * the cursor after what came in, or null when no CR came in. A plain
+     * paste in CR LF kept every CR in the file -- the field's own paste, a
+     * keyboard's clipboard chip -- where the desktop's stores none (the
+     * final audit's ninth round). A CR the words already held stays.
+     */
+    fun breaksCame(was: String, now: String, cursor: Int? = null): Pair<String, Int>? {
+        if ('\r' !in now) return null
+        val change = changeAt(was, now, cursor)
+        if ('\r' !in change.came) return null
+        val came = lineBreaks(change.came)
+        return now.substring(0, change.head) + came + now.substring(now.length - change.tail) to change.head + came.length
+    }
 
     /**
      * Whether the edit from [was] to [now], in a title, was Enter: what came
@@ -368,21 +401,66 @@ object Editing {
 
     /**
      * A note's title after [now] replaced [was]: one line, as the desktop's
-     * title is. What came in holding a line break -- a paste -- goes in as
-     * the desktop's `_on_title_paste` puts one, weighed as it goes in, on one
-     * line: its words joined by single spaces, none at either end, so a line
+     * title is. What came in goes in as the desktop's `_on_title_paste` puts
+     * a paste, weighed as it goes in, on one line ([titleLine]), so a line
      * copied with its break, or two lines in CR LF, are not read as
      * shortened. A break the title already held is a space once the title is
      * written in. The text, and where the cursor goes when what came in
-     * changed; null leaves the field's own.
+     * changed; null leaves the field's own. What came in ends at the
+     * [cursor] the field gives after it, when it does: read off the two
+     * texts alone, " fresh\n" pasted into "Buy| milk" came in as
+     * "fresh\n " -- the title's own space taken into the paste's break, and
+     * "Buy freshmilk" went in where the desktop puts "Buy fresh milk".
      */
-    fun titleTyped(was: String, now: String): Pair<String, Int?> {
-        val change = changeOf(was, now)
-        val broken = change.came.any { it == '\n' || it == '\r' }
-        val came = if (broken) PyText.split(change.came).joinToString(" ") else change.came
+    fun titleTyped(was: String, now: String, cursor: Int? = null): Pair<String, Int?> {
+        val change = changeAt(was, now, cursor)
+        val came = titleLine(change.came)
+        val broken = came != change.came
         val text = oneLine(now.substring(0, change.head)) + came + oneLine(now.substring(now.length - change.tail))
         return text to (if (broken) change.head + came.length else null)
     }
+
+    /**
+     * The desktop's `_TITLE_PASTE_BREAK` join, since its 51f0c44: a line
+     * break or a tab -- \t \n \v \f \r, U+001C to U+001E, U+0085, U+2028,
+     * U+2029 -- with the spaces around it, is one space between words and
+     * nothing at either end; every other space goes in as it was copied. Its
+     * `\s*[break]\s*` takes a whole run of Python's spaces holding a break,
+     * so the run is read here once, letter by letter -- in time that grows
+     * with the paste, where a regex would try each space of a long run again.
+     * Joined by `str.split()` before, " and more" copied with its break went
+     * in glued, "Groceriesand more", and a tab stayed in the title (the
+     * final audit's ninth round).
+     */
+    fun titleLine(text: String): String {
+        if (text.none { it.code < 0x20 || it == '\u0085' || it == '\u2028' || it == '\u2029' }) return text
+        val out = StringBuilder()
+        var i = 0
+        var pendingBreak = false
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            if (!PyText.isSpace(cp)) {
+                if (pendingBreak && out.isNotEmpty()) out.append(' ')
+                pendingBreak = false
+                out.appendCodePoint(cp)
+                i += Character.charCount(cp)
+                continue
+            }
+            // A run of spaces: a separator when it holds a break, kept as it was otherwise.
+            val start = i
+            var breaks = false
+            while (i < text.length && PyText.isSpace(text.codePointAt(i))) {
+                if (isTitleBreak(text.codePointAt(i))) breaks = true
+                i += Character.charCount(text.codePointAt(i))
+            }
+            if (breaks) pendingBreak = true
+            else out.append(text, start, i)
+        }
+        return out.toString()
+    }
+
+    private fun isTitleBreak(cp: Int): Boolean =
+        cp in 0x09..0x0D || cp in 0x1C..0x1E || cp == 0x85 || cp == 0x2028 || cp == 0x2029
 
     /** A note's title, and a template's name and title: the desktop's TITLE_MAX_LEN, in letters. */
     const val TITLE_CHARS = 200
@@ -1018,9 +1096,11 @@ object Editing {
         /**
          * [before] is the state just before a change of [kind] made at [now]
          * (milliseconds). A change of "typing" soon after another joins it:
-         * the state kept is the one before the first.
+         * the state kept is the one before the first. True when [before] is
+         * kept as a step of its own, the newest; false when the change
+         * joined the step before.
          */
-        fun record(before: T, kind: String, now: Long) {
+        fun record(before: T, kind: String, now: Long): Boolean {
             // Typing joins typing in the same field: "typing", "typing:title".
             val joins = kind.startsWith(TYPING) && kind == lastKind && now - lastAt in 0..pause && past.isNotEmpty()
             for (state in future) held -= weigh(state)
@@ -1033,6 +1113,7 @@ object Editing {
             }
             lastKind = kind
             lastAt = now
+            return !joins
         }
 
         /** The oldest steps forgotten while all of them hold more than the budget -- the newest kept. */

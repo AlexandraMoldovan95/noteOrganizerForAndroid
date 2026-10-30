@@ -223,6 +223,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     val snackbar = SnackbarHostState()
 
+    /**
+     * Where, in the window, the top is of what the open note's editor draws
+     * at the foot of its column -- its format bar, a table's bar, the box
+     * being typed in when it stands there -- for the window's messages to be
+     * drawn above it; null when it draws nothing there. Drawn just above the
+     * keyboard, a message covered the bar's keys and "A new item…" with its
+     * Add, and took the taps meant for them for its four seconds (the final
+     * audit's ninth round). In pixels.
+     */
+    var editorFootTop by mutableStateOf<Float?>(null)
+
     /** Android's share sheet, set by the activity: text out to any app. */
     var sendText: ((String) -> Unit)? = null
 

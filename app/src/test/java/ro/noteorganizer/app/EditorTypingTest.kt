@@ -372,6 +372,98 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `the calculator's place moves through every place a change made, so the next answer goes under the last`() {
+        // Followed as one change from the first place it touched to the last,
+        // a list's markers, Enter in a numbered list, or an Undo of letters
+        // typed in two places sent the next answer into a later line:
+        // "3*3=9Rent", "4\n3*3=9. Rent" (the final audit's ninth round). The
+        // desktop's Tk mark moves through each insert and delete in turn.
+        fun budget(): EditorModel = editor("Budget\\n\\nRent").also {
+            it.caret = 7
+            it.insertCalculation("2+2=4")
+            assertEquals("Budget\n2+2=4\nRent", it.body)
+        }
+        fun EditorModel.bullets() =
+            applyLines(Paragraphs.toggleList(body, props, 0, 2, "bullet"), 0, 0, body.length)
+        // A: bullets over the three lines, then Insert.
+        val a = budget()
+        a.bullets()
+        assertEquals("• Budget\n• 2+2=4\n• Rent", a.body)
+        a.insertCalculation("3*3=9")
+        assertEquals("• Budget\n• 2+2=4\n3*3=9\n• Rent", a.body)
+        // B: the bullets taken back, then Insert.
+        val b = budget()
+        b.bullets()
+        b.undo()
+        assertEquals("Budget\n2+2=4\nRent", b.body)
+        b.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n3*3=9\nRent", b.body)
+        // E: Undo, then Redo, of the bullets alone, then Insert.
+        val e = budget()
+        e.bullets()
+        e.undo()
+        e.redo()
+        e.insertCalculation("3*3=9")
+        assertEquals("• Budget\n• 2+2=4\n3*3=9\n• Rent", e.body)
+        // C: a letter after "Budget" and one before "Rent", one step of Undo.
+        val c = budget()
+        val steps = c.undoSteps
+        c.type("Budget!\n2+2=4\nRent", 7)
+        c.type("Budget!\n2+2=4\nXRent", 15)
+        org.junit.Assume.assumeTrue("the two letters typed within a second, one step", c.undoSteps == steps + 1)
+        c.undo()
+        assertEquals("Budget\n2+2=4\nRent", c.body)
+        c.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n3*3=9\nRent", c.body)
+        // ...and the other way round, the letter above the answer typed second:
+        // each letter of the step carried back, not the first alone.
+        val c2 = budget()
+        val steps2 = c2.undoSteps
+        c2.type("Budget\n2+2=4\nXRent", 14)
+        c2.type("Budget!\n2+2=4\nXRent", 7)
+        org.junit.Assume.assumeTrue("the two letters typed within a second, one step", c2.undoSteps == steps2 + 1)
+        c2.undo()
+        assertEquals("Budget\n2+2=4\nRent", c2.body)
+        c2.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n3*3=9\nRent", c2.body)
+        // D: Enter at the end of a numbered list's first item, the answer in the second.
+        val d = editor("1. Bread\\n2. Milk total: \\n3. Rent")
+        d.caret = 24
+        d.insertCalculation("2+2=4")
+        assertEquals("1. Bread\n2. Milk total: 2+2=4\n3. Rent", d.body)
+        d.type("1. Bread\n\n2. Milk total: 2+2=4\n3. Rent", 9)
+        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n4. Rent", d.body)
+        d.insertCalculation("3*3=9")
+        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n3*3=9\n4. Rent", d.body)
+        // A paste that renumbers the list below it: a table row put above the answer.
+        val p = editor("1. Bread\\n2. Total \\n3. Rent")
+        p.caret = 18
+        p.insertCalculation("2+2=4")
+        val field = Editing.segments(p.body).first()
+        assertTrue(p.paste(field, TextFieldValue(field.text, TextRange(9)), null, "| a | b |"))
+        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n2. Rent", p.body)
+        p.insertCalculation("3*3=9")
+        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n3*3=9\n2. Rent", p.body)
+    }
+
+    @Test
+    fun `a plain paste in CR LF goes into the note's text as the desktop's paste puts it, one break a line`() {
+        // The field's own paste, or a keyboard's clipboard chip, kept every
+        // CR in the file (the final audit's ninth round); the capped boxes
+        // already took CR LF as one break.
+        val model = editor("Shopping: ")
+        val field = Editing.segments(model.body).first()
+        val shown = model.typeInto(field, TextFieldValue("Shopping: Milk\r\nEggs\r\nBread", TextRange(27)), 0)
+        assertEquals("Shopping: Milk\nEggs\nBread", model.body)
+        assertEquals("the field shows the words as kept, the cursor after them",
+                     TextFieldValue("Shopping: Milk\nEggs\nBread", TextRange(25)), shown)
+        // A CR the words already held is not this edit's, and stays.
+        val held = editor("a\\rb")
+        held.type("a\rbX", 4)
+        assertEquals("a\rbX", held.body)
+    }
+
+    @Test
     fun `a title holding a line break takes the letters typed into it, and a tap rewrites nothing`() {
         // A share code, a desktop template or the phone before 0.11 can leave
         // a break in a title. Every letter typed into it was taken for Enter
