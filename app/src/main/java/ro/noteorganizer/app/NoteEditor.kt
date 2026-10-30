@@ -709,6 +709,19 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /**
+     * The title's box, [field] as it was last left: the title on one line
+     * from the start, a break it holds shown as the space it becomes. Shown
+     * with the break, the first letter typed rewrote the box under the
+     * keyboard, and letters arriving in that moment were lost -- " list"
+     * came back " li" (the final audit's eighth round, the walk). The note
+     * keeps its break until something is typed in.
+     */
+    fun titleBox(field: TextFieldValue): TextFieldValue {
+        val line = Editing.oneLine(title)
+        return if (field.text == line) field else TextFieldValue(line, TextRange(line.length))
+    }
+
+    /**
      * [next] typed into the title, shown as [shown]: one line, as the
      * desktop's title is -- a paste of lines goes in as the desktop's does,
      * its words joined by spaces ([Editing.titleTyped]); the list cut a title
@@ -1671,9 +1684,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
 
             // The title with its cursor, so a paste cut to fit leaves it after
             // what came in ([fittedValue]); the words themselves are the model's.
-            var titleField by remember { mutableStateOf(TextFieldValue(model.title, TextRange(model.title.length))) }
-            val titleShown = if (titleField.text == model.title) titleField
-                             else TextFieldValue(model.title, TextRange(model.title.length))
+            var titleField by remember { mutableStateOf(model.titleBox(TextFieldValue())) }
+            val titleShown = model.titleBox(titleField)
             // A title too long to lay out -- a share code can bring one -- is
             // shown, not edited: as a field it froze the note at every opening.
             if (Editing.tooLongToLayOut(model.title)) LongText(model.title) else BasicTextField(

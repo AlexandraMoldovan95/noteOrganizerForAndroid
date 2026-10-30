@@ -394,6 +394,27 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a title holding a break is shown on one line, so words typed at once are taken as they came`() {
+        // Shown with its break, the first letter rewrote the box under the
+        // keyboard and letters arriving in that moment were lost: " list"
+        // came back " li" (the final audit's eighth round, the walk).
+        val model = editor("x", title = "Groceries\\n")
+        val box = model.titleBox(TextFieldValue())
+        assertEquals("Groceries ", box.text)
+        assertEquals(TextRange(10), box.selection)
+        val moved = box.copy(selection = TextRange(3))
+        assertEquals("the cursor where the person put it", moved, model.titleBox(moved))
+        val edits = model.edits
+        model.typeTitle(box, moved)
+        assertEquals("a tap writes nothing", "Groceries\n", model.title)
+        assertEquals(edits, model.edits)
+        val came = TextFieldValue("Groceries  list", TextRange(15))
+        assertEquals("what came in is the box's, nothing rewritten", came, model.typeTitle(box, came))
+        assertEquals("Groceries  list", model.title)
+        assertEquals(came, model.titleBox(came))
+    }
+
+    @Test
     fun `lines pasted into a title go in as the desktop's title paste puts them, said shortened only when cut`() {
         // Weighed as copied, a line copied with its break, or two lines in CR
         // LF, read as shortened at the cap, and the CR stayed in the title
