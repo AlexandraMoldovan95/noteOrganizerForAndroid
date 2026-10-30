@@ -12,6 +12,12 @@ emulator. Photographs are of the emulator's screen alone, saved in the
 folder given.
 
     py tools/emulator/walk.py <photos folder>
+    py tools/emulator/walk.py <photos folder> <part> [<part> ...]
+
+The second walks the parts named -- `cell_menu`, `limits_round8` -- alone,
+on the same road: the machine's turn, the wait for the emulator, the
+install. A part called from a script of its own takes the turn at its first
+adb call.
 
 Needs: a running emulator, and the debug APK built
 (gradlew assembleDebug). Exit code 1 when any step's check fails.
@@ -40,9 +46,21 @@ NOTEBOOK = "files/notebook"
 failures = []
 
 
+# Whether this run holds the machine's turn ([take_the_turn]).
+turn_held = False
+
+
 def adb(*args, binary=False, check=False, timeout=None):
     """One adb call to the emulator, held to a time limit (emulator_only.run):
-    past it the walk stops, naming the call, rather than wait on for ever."""
+    past it the walk stops, naming the call, rather than wait on for ever.
+    The first takes the machine's turn when nothing has yet: a part called
+    from a script of its own walked the emulator beside whatever else ran,
+    with no memory ceiling and no homes of its own, and took the turn only at
+    the export part, halfway (the final audit's ninth round)."""
+    if not turn_held:
+        stop = take_the_turn()
+        if stop is not None:
+            raise SystemExit(stop)
     out = run(command(*args), timeout=timeout, capture_output=True)
     if check and out.returncode != 0:
         raise RuntimeError("adb %s: %s" % (" ".join(args), out.stderr.decode(errors="replace")))
@@ -86,11 +104,84 @@ def wait_for_boot(limit=300, quiet_for=30.0):
     return True
 
 
+# Looks at the screen that read no tree at all ([screen_xml]).
+unreadable = 0
+
+
+def screen_xml(tries=3):
+    """The screen's tree as uiautomator dumps it -- fresh. The last dump's
+    file goes first: a dump that writes nothing -- the app's thread held past
+    uiautomator's patience ("null root node"), or ten seconds of events
+    ("could not get idle state") -- left the screen before it in the file,
+    and the walk read that: a freeze longer than the look's patience passed
+    every check of the frames drawn in it, the worse the surer (the final
+    audit's ninth round). Asked [tries] times; a screen that never reads is
+    a failure of its own, so no check passes on a tree that is not there."""
+    global unreadable
+    said = ""
+    for _ in range(tries):
+        said = adb("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
+        raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
+        if "<?xml" in raw:
+            return raw[raw.find("<?xml"):]
+    unreadable += 1
+    fail("the screen could not be read: uiautomator wrote no tree (%s)" % said.strip()[:160])
+    return ""
+
+
+def tree():
+    """The screen's tree, fresh ([screen_xml]): (text, description, box,
+    path) for each node, the path its place from the root down, so the
+    block two nodes sit in apart can be found."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return []
+    out = []
+
+    def down(node, path):
+        box = re.findall(r"\d+", node.get("bounds", ""))
+        if len(box) == 4:
+            out.append((node.get("text", ""), node.get("content-desc", ""), tuple(map(int, box)), path))
+        for k, child in enumerate(node.findall("node")):
+            down(child, path + (k,))
+    down(root, ())
+    return out
+
+
+def said_over(words, *targets, within=6.0):
+    """Waits until the screen says [words], and reads, on that same look,
+    which of [targets] -- (name, test of a node's text and description) --
+    the message's block covers: the words' ancestor just below the one they
+    share with the target, the message with its margin. A message drawn just
+    above the keyboard covered the editor's own bar and "A new item…" with
+    its Add, and took their taps (the final audit's ninth round). The words
+    missing, and the names of the targets covered or not on the screen."""
+    seen = settle(tree, lambda nodes_: any(words in t or words in d for t, d, _, _ in nodes_),
+                  within=within, first=0)
+    said = next((n for n in seen if words in n[0] or words in n[1]), None)
+    if said is None:
+        return [words], []
+    covered = []
+    for name, test in targets:
+        target = next((n for n in seen if test(n[0], n[1])), None)
+        if target is None:
+            covered.append(name + " (not on the screen)")
+            continue
+        common = 0
+        while common < min(len(said[3]), len(target[3])) and said[3][common] == target[3][common]:
+            common += 1
+        block = next((n for n in seen if n[3] == said[3][:common + 1]), said)
+        x1, y1, x2, y2 = block[2]
+        cx, cy = (target[2][0] + target[2][2]) // 2, (target[2][1] + target[2][3]) // 2
+        if x1 <= cx <= x2 and y1 <= cy <= y2:
+            covered.append(name)
+    return [], covered
+
+
 def nodes():
     """The screen's UI tree, fresh: (text, description, centre) for each node."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -492,9 +583,15 @@ def take_the_turn():
     """The desktop's guard over this run ([desktop_guest]): the machine's
     turn, the memory ceiling, homes of its own. None once it is held; the
     exit code to stop with when another run holds the turn past the wait
-    (the desktop guest's BUSY, 75), said with what was not done."""
+    (the desktop guest's BUSY, 75), said with what was not done. Taken once
+    a run: by [main] as it starts, or by the first adb call of a part
+    walked on its own ([adb])."""
+    global turn_held
+    if turn_held:
+        return None
     if not os.path.isdir(DESKTOP):
         print("machine : the desktop is not at %s -- its parts are skipped, and no turn is taken" % DESKTOP)
+        turn_held = True
         return None
     sys.path.insert(0, os.path.join(ANDROID, "tools"))
     import desktop_guest
@@ -506,6 +603,7 @@ def take_the_turn():
         print("\nThe walk did not get the machine's turn (exit %s): nothing was installed or walked. "
               "Stop the emulator (adb emu kill) if nothing else needs it." % stop.code)
         return stop.code if isinstance(stop.code, int) else 75
+    turn_held = True
     return None
 
 
@@ -514,6 +612,13 @@ def main():
         print(__doc__)
         return 2
     folder = sys.argv[1]
+    # Parts named after the folder are walked alone, on the same road as the
+    # whole walk: the turn, the wait for the emulator, the install.
+    parts = sys.argv[2:]
+    unknown = [p for p in parts if p.startswith("_") or not callable(globals().get(p))]
+    if unknown:
+        print("no such part of the walk: %s" % ", ".join(unknown))
+        return 2
     os.makedirs(folder, exist_ok=True)
     # The machine's one heavy-job turn, taken here, before anything runs,
     # and held for the whole walk: taken at the export part, where the
@@ -534,6 +639,12 @@ def main():
     adb("shell", "settings", "put", "secure", "stylus_handwriting_enabled", "0")
     print("installing", APK)
     adb("install", "-r", APK, check=True)
+
+    if parts:
+        for part in parts:
+            globals()[part](folder)
+        print("\n%d step(s) failed%s" % (len(failures), (": " + "; ".join(failures)) if failures else "."))
+        return 1 if failures else 0
 
     brand_new(folder)
     seeded(folder)
@@ -1811,18 +1922,20 @@ def big_table(folder):
     look waits for the app to be idle, and takes seconds of its own."""
     print("\n-- a table too large to draw --")
 
-    def drawn_in(title, opens=None):
+    def drawn_in(title, shows, opens=None):
+        """From the first frame of the opening to the end of the last, read
+        once the screen shows [shows] ([frames_once_shown]): read 1.5 s after
+        the tap, with no look between, an opening frame still drawing was in
+        no list, and an opening of any length past two seconds passed (the
+        final audit's ninth round). The one parser of the frames is
+        [frames_since_reset]."""
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
         if not (opens or (lambda: open_note(title, limit=20.0)))():
             return None
-        time.sleep(1.5)
-        out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
-        lines = out[out.find("---PROFILEDATA---"):].splitlines()
-        if len(lines) < 3:
+        missing, timed = frames_once_shown(shows, within=20.0, starts=True)
+        if missing:
             return None
-        at = {h: k for k, h in enumerate(lines[1].split(","))}
-        rows = [line.split(",") for line in lines[2:] if line and line[0].isdigit()]
-        return (int(rows[-1][at["FrameCompleted"]]) - int(rows[0][at["IntendedVsync"]])) / 1e9 if rows else None
+        return max(began + took for began, took in timed) - min(began for began, _ in timed)
 
     def grid(rows, columns):
         return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
@@ -1843,7 +1956,7 @@ def big_table(folder):
                          "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
                        {"welcome_offered": True}, "Big table", clear=False):
         return
-    took = drawn_in("Big table")
+    took = drawn_in("Big table", "too large to draw here")
     check("a note with a 300 by 300 table is drawn within two seconds (0.5 s on 2026-10-27)",
           took is not None and took < 2.0, str(took))
     check("... the table said too large to draw, its first lines shown",
@@ -1853,12 +1966,12 @@ def big_table(folder):
     back_to("Search notes")
     check("... and the file holds the note as it was",
           (note_by_uid("walk-t1") or {}).get("body") == big)
-    took = drawn_in("Table at the line")
+    took = drawn_in("Table at the line", "r0c0")
     check("a table of 1,000 cells, at the line, is drawn within five seconds (2.2 s on 2026-10-27)",
           took is not None and took < 5.0, str(took))
     check("... and is still a grid", find("r0c0", exact=True) is not None)
     back_to("Search notes")
-    took = drawn_in("Ragged table")
+    took = drawn_in("Ragged table", "Ragged")
     check("a ragged table drawn as 125,500 cells is weighed so, and drawn within two seconds",
           took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
     back_to("Search notes")
@@ -1866,7 +1979,8 @@ def big_table(folder):
     # The page first, so the frames timed are the template's alone.
     tap("Settings", exact=True, wait=1.5)
     tap("Templates", exact=True, wait=1.5)
-    took = drawn_in("Big template", opens=lambda: tap("Big template", exact=True, wait=0.5, patience=20.0))
+    took = drawn_in("Big template", "too large to draw here",
+                    opens=lambda: tap("Big template", exact=True, wait=0.5, patience=20.0))
     check("a template holding the 300 by 300 table opens within two seconds, the table said too large",
           took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
     shot(folder, "86b-big-table-in-template", "too large to draw here")
@@ -2972,23 +3086,29 @@ def frames_since_reset(starts=False):
     return frames
 
 
-def frames_once_shown(*words, within=30.0, gap=None):
+def frames_once_shown(*words, within=30.0, gap=None, starts=False):
     """The frames of an act since `gfxinfo reset`, read once the screen
     shows [words] -- the act's own result. A look at the screen waits for
     the app's thread, so the frame that drew them has ended: read after a
     fixed pause, a frame longer than the pause was in no list yet, and the
     longest frame taken was a ripple's or the cursor's -- "Read all" with
     round seven's slow search put back passed (the final audit's eighth
-    round). With [gap], only the frames that began within [gap] seconds of
-    the first: an autosave due 800 ms after a letter is a frame of its own.
-    The words missing, and the frames ([99.0] when none were listed)."""
+    round). A look waits only as long as uiautomator does: one that read no
+    tree waited for nothing, and the frames are [99.0] -- read anyway, a
+    freeze past its patience passed (the ninth). With [gap], only the frames
+    that began within [gap] seconds of the first: an autosave due 800 ms
+    after a letter is a frame of its own. With [starts], each as (its start,
+    its length). The words missing, and the frames ([99.0] when none were
+    listed)."""
+    looked = unreadable
     missing = says_soon(*words, within=within)
     time.sleep(0.4)
     timed = frames_since_reset(starts=True)
-    if not timed:
-        return missing, [99.0]
+    if not timed or unreadable != looked:
+        return missing, [(0.0, 99.0)] if starts else [99.0]
     first = min(began for began, _ in timed)
-    return missing, [took for began, took in timed if gap is None or began - first <= gap]
+    kept = [(began, took) for began, took in timed if gap is None or began - first <= gap]
+    return missing, kept if starts else [took for _, took in kept]
 
 
 def reminder_new_zone(folder):
@@ -4593,7 +4713,14 @@ def limits_round7(folder):
     shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
     tap("A new item", wait=0.8)
     keys("CTRL_LEFT", "V")
-    first = not says_soon(shortened, within=6.0)
+    # Read on the look that finds the words: drawn just above the keyboard,
+    # the message lay over the box being typed in and its Add, and took
+    # their taps for its four seconds (the final audit's ninth round).
+    missing, covered = said_over(shortened, ("the box being typed in", lambda t, d: t.startswith("pppp")),
+                                 ("its Add", lambda t, d: t == "Add"))
+    first = not missing
+    check("... the words said above the box being typed in and its Add, not over them",
+          first and not covered, "missing %s, over %s" % (missing, covered))
     tap("Add", exact=True, wait=3.0)
     tap("A new item", wait=0.8)
     keys("CTRL_LEFT", "V")
@@ -4807,9 +4934,7 @@ def calendar_large_letters(folder):
 
 def bounds_of_desc(start):
     """The box of the first node whose description starts with [start]."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -4828,9 +4953,7 @@ def node_attrs(label):
     which nodes() leaves out. The words sit on a child of the control in the
     tree uiautomator dumps (a screen reader hears them merged), so the
     nearest clickable node holding them is the one read."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -5819,9 +5942,7 @@ def bounds(label):
     """The on-screen boxes of the nodes whose text is exactly [label].
     A node scrolled out of a pane is still in the tree -- counting
     nodes says it is there -- but its box is cut to what shows."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -5855,9 +5976,7 @@ def lines_of_field(words):
     gives the field as one node, its lines joined by the stand-in each break
     is drawn as (U+200B); where a line is comes from [body_line_px], the box
     being taller than its words when they are few."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -6216,9 +6335,7 @@ def editor_corners(folder):
 def switches():
     """The centres of the app's switches on the screen: a switch says no
     words, so it is found by what it is -- a node that can be checked."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -6532,9 +6649,7 @@ def wide(folder):
 def box_of(label):
     """The one on-screen box whose text or description is exactly [label],
     or None: the tabs are drawn as both."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:

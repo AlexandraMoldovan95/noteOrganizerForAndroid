@@ -217,9 +217,15 @@ and what each one checks, is in
 photographs are looked at, not only saved: several bugs the checks
 passed over were found in them ([the stories](../docs/ISSUES_LOG.md)).
 
-One part can be run on its own, on whatever build is installed, by
-importing `walk` and calling it — `walk.cell_menu(folder)` — which is how
-a mutant built into the app is walked without the whole hour.
+One part can be run on its own by naming it after the folder —
+`py tools/emulator/walk.py <folder> cell_menu` — on the whole walk's road:
+the machine's turn, the wait for the emulator, the install of the build
+in `app/build`. It is how a mutant built into the app is walked without
+the whole hour. A part called from a script of one's own (`import walk`,
+`walk.cell_menu(folder)`) takes the turn at its first adb call: taken only
+by the whole walk, a part walked that way ran beside whatever else ran,
+and took the turn halfway, at the export part (the final audit's ninth
+round).
 
 Two house rules came out of it:
 
