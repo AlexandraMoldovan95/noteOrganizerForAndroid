@@ -290,10 +290,25 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             if (index != null && value != null) ask(index, value)
         } else {
             changeSite(was, body)?.let { at ->
+                // A change in the table whose cell is being written in -- its
+                // words typed, a row put above it -- leaves the cursor in the
+                // cell, its field reading the words again ([cellEpoch]). By
+                // the rule for prose the place is in no field: the line under
+                // the grid took the cursor, and the next letter after Undo
+                // was written there, not in the cell (the final audit's walk
+                // after its seventh round).
+                if (inActiveTable(at)) return@let
                 caret = at
                 placeCaret(at)
             }
         }
+    }
+
+    /** True when [at], a place in the body in code points, is in the table that holds the cell being written in. */
+    private fun inActiveTable(at: Int): Boolean {
+        val cell = activeCell ?: return false
+        val table = Editing.segments(body).firstOrNull { it.table && it.firstLine == cell.firstLine } ?: return false
+        return at >= table.cpStart && at <= table.cpStart + table.text.codePointCount(0, table.text.length)
     }
 
     /** Where [was] and [now] differ, as a place in [now], in code points: the end of what changed. */

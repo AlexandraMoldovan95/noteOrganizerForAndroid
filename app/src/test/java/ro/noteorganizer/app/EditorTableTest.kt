@@ -1,5 +1,7 @@
 package ro.noteorganizer.app
 
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
@@ -103,6 +105,44 @@ class EditorTableTest {
         assertEquals("gym" to "gym", model.marks())
         model.editTable(model.table()) { it.setAlignment(2, 1, CellAlign.RIGHT) }
         assertEquals("the aligned cell's own words keep their bold", "gym" to "gym", model.marks())
+    }
+
+    @Test
+    fun `Undo and Redo of words typed in a cell leave the cursor in the cell`() {
+        // Placed by the rule for prose, the place of the change was in no
+        // field: the line under the grid took the cursor, the cell let go,
+        // and the next letter after Undo was written under the table.
+        val body = "Costs\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nafter"
+        val model = editor(body)
+        val cell = ActiveCell(model.table().firstLine, CellAt(1, 0))
+        model.activeCell = cell
+        model.editTable(model.table(), Editing.History.TYPING + ":cell") { it.setCell(2, 0, "fuel and oil") }
+        val epoch = model.cellEpoch
+        model.undo()
+        assertEquals(body, model.body)
+        assertEquals("still the cell written in", cell, model.activeCell)
+        assertEquals("no line of prose asked for the cursor", null, model.focus)
+        assertTrue("the cell's field reads its words again", model.cellEpoch > epoch)
+        model.redo()
+        assertEquals("fuel and oil", splitRow(model.body.split("\n")[3])[0])
+        assertEquals(cell, model.activeCell)
+        assertEquals(null, model.focus)
+        // No cell being written in: the cursor goes by the rule for prose, as before.
+        val plain = editor(body)
+        plain.editTable(plain.table()) { it.setCell(2, 0, "fuel and oil") }
+        plain.undo()
+        assertEquals("the line under the grid", Editing.segments(plain.body).indexOfFirst { it.field && it.firstLine == 4 },
+                     plain.focus)
+        // A cell written in, and Undo of words typed outside its table: the
+        // cursor goes where they were, as Tk puts it, and the cell lets go.
+        val prose = editor(body)
+        val after = Editing.segments(prose.body).indexOfFirst { it.field && it.firstLine == 4 }
+        prose.typeInto(Editing.segments(prose.body)[after], TextFieldValue("after all", TextRange(9)), after)
+        prose.activeCell = cell
+        prose.focus = null
+        prose.undo()
+        assertEquals(body, prose.body)
+        assertEquals("the words' own line", after, prose.focus)
     }
 
     @Test
