@@ -427,6 +427,24 @@ def shot_as_said(folder, name, *words, within=6.0, over_keys=False):
     return missing
 
 
+@contextlib.contextmanager
+def messages_held(ms):
+    """The app's messages held for [ms] while this is open: Android's own
+    accessibility setting for how long words that need no answer stay, which
+    Material's messages keep (SnackbarDuration.toMillis asks the
+    accessibility manager). Put back as it was after."""
+    name = "accessibility_non_interactive_ui_timeout_ms"
+    was = adb("shell", "settings", "get", "secure", name).strip()
+    adb("shell", "settings", "put", "secure", name, str(ms))
+    try:
+        yield
+    finally:
+        if was in ("", "null"):
+            adb("shell", "settings", "delete", "secure", name)
+        else:
+            adb("shell", "settings", "put", "secure", name, was)
+
+
 def keyboard_top():
     """Where the keyboard begins on the screen, from the window manager's
     insets; None while it is down."""
@@ -711,6 +729,7 @@ def main():
     template_draft(folder)
     limits_round7(folder)
     limits_round8(folder)
+    limits_round10(folder)
 
     print()
     if failures:
@@ -1919,23 +1938,48 @@ def big_table(folder):
     the line, this times the opening on the phone -- by the app's own frames,
     from the tap to the last one drawn. Timed by the walk's looks at the
     screen it read 9.8 s, then 5.0 s for a note drawn in half a second: a
-    look waits for the app to be idle, and takes seconds of its own."""
+    look waits for the app to be idle, and takes seconds of its own. The
+    property the Looper reads is read as the app starts, so the app is
+    started inside ([slow_dispatches_logged])."""
     print("\n-- a table too large to draw --")
+    with slow_dispatches_logged():
+        _tables_opened(folder)
 
-    def drawn_in(title, shows, opens=None):
-        """From the first frame of the opening to the end of the last that
-        did work, read once the screen shows [shows] ([frames_once_shown]):
-        read 1.5 s after the tap, with no look between, an opening frame
-        still drawing was in no list, and an opening of any length past two
-        seconds passed (the final audit's ninth round). The one parser of
-        the frames is [frames_since_reset]."""
+
+def _tables_opened(folder):
+    """[big_table]'s steps."""
+
+    def drawn_in(label, shows, exact=False):
+        """From the tap on [label] to the end of the last work the app's
+        thread did for it ([held_after_tap]) -- the screen read for [shows]
+        only then: no look at the screen falls inside the time measured.
+        Read once the screen showed the words, an opening ended where the
+        walk's own look had the app draw again: read 1.5 s after the tap, an
+        opening frame still drawing was in no list (the final audit's ninth
+        round); read after the look, a 0.5 s opening could fail by a redraw
+        started 5.6 ms late, and 2.4 s of work drawing nothing passed by a
+        look made sooner (the tenth)."""
+        deadline = time.time() + 20.0
+        at = find(label, exact)
+        while at is None and time.time() < deadline:
+            time.sleep(0.4)
+            at = find(label, exact)
+        if at is None:
+            fail("tap %r: not on the screen" % label)
+            return None
+        time.sleep(1.0)         # the look's own redraws over before the time starts
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
-        if not (opens or (lambda: open_note(title, limit=20.0)))():
+        adb("logcat", "-c")
+        pid = adb("shell", "pidof", PACKAGE).strip()
+        adb("shell", "input", "tap", str(at[0]), str(at[1]))
+        spans = held_after_tap(pid, within=20.0)
+        missing = says_soon(shows, within=20.0)
+        if missing or not spans:
+            print("     %r: missing %s, %d spans" % (label, missing, len(spans)))
             return None
-        missing, timed = frames_once_shown(shows, within=20.0, starts=True, worked=True)
-        if missing:
-            return None
-        return max(began + took for began, took in timed) - min(began for began, _ in timed)
+        took = max(end for _, end in spans) - min(start for start, _ in spans)
+        print("     %r opened in %.2f s: %d frames and slow messages on its thread" % (label, took, len(spans)))
+        return took
 
     def grid(rows, columns):
         return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
@@ -1979,8 +2023,7 @@ def big_table(folder):
     # The page first, so the frames timed are the template's alone.
     tap("Settings", exact=True, wait=1.5)
     tap("Templates", exact=True, wait=1.5)
-    took = drawn_in("Big template", "too large to draw here",
-                    opens=lambda: tap("Big template", exact=True, wait=0.5, patience=20.0))
+    took = drawn_in("Big template", "too large to draw here", exact=True)
     check("a template holding the 300 by 300 table opens within two seconds, the table said too large",
           took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
     shot(folder, "86b-big-table-in-template", "too large to draw here")
@@ -3064,14 +3107,13 @@ def arranging(folder):
 # gfxinfo's flag on a frame the render thread drew alone (FrameInfoFlags::RTAnimation).
 RENDER_THREAD_ANIMATION = 2
 
-# How long the app's thread holds a frame that does work before drawing it:
-# a frame only drawing again what was laid out waited 0-2 ms, and took 35 ms
-# at most from its start to its end; one taking longer is kept.
-WORKED = 0.005
-HELD = 0.1
+# A message on the app's thread that runs this long, in ms, is logged by
+# Android's Looper ("Slow dispatch took N ms main"), once the app is started
+# with the property set ([slow_dispatches_logged]).
+SLOW_DISPATCH_MS = 20
 
 
-def frames_since_reset(starts=False, worked=False):
+def frames_since_reset(starts=False):
     """The app's frames since `gfxinfo reset`, each from its intended start
     to its end, in seconds -- what held the screen, as the app drew it,
     which the walk's own looks (a second or more each) cannot time. With
@@ -3083,12 +3125,8 @@ def frames_since_reset(starts=False, worked=False):
     (gfxinfo's flag 2), is not listed: no code of the app ran in it. The
     ripple of a row tapped to open a dialog went on so for seven seconds
     under it, and a template opening in half a second read as 3.2 (the walk
-    after the final audit's ninth round). With [worked], only frames the
-    app's thread held [WORKED] or more before drawing them -- a late start
-    counts: work that draws nothing is in no list, and shows only as the
-    next frame's wait -- or that took [HELD] or more: the walk's own look at
-    the screen has the app draw again what it shows, in frames of its own,
-    and those stretched the same opening to 1.97 s of a limit of two."""
+    after the final audit's ninth round). Work that draws nothing is in no
+    list; [held_after_tap] reads it from the log."""
     out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
     # One block per window -- a dialog is a window of its own -- each between
     # two "---PROFILEDATA---" lines, with its own header.
@@ -3104,14 +3142,57 @@ def frames_since_reset(starts=False, worked=False):
                     and not int(r[at["Flags"]]) & RENDER_THREAD_ANIMATION:
                 began = int(r[at["IntendedVsync"]])
                 took = (int(r[at["FrameCompleted"]]) - began) / 1e9
-                held = (int(r[at["DrawStart"]]) - began) / 1e9
-                if worked and held < WORKED and took < HELD:
-                    continue
                 frames.append((began / 1e9, took) if starts else took)
     return frames
 
 
-def frames_once_shown(*words, within=30.0, gap=None, starts=False, worked=False):
+@contextlib.contextmanager
+def slow_dispatches_logged():
+    """Android's Looper logs each message on the app's main thread that runs
+    [SLOW_DISPATCH_MS] or more -- with the property set before the app
+    starts, which reads it as its thread begins: start the app inside."""
+    uid = re.search(r"uid:(\d+)", adb("shell", "pm", "list", "packages", "-U", PACKAGE))
+    prop = "log.looper.%s.main.slow" % (uid.group(1) if uid else "0")
+    adb("shell", "setprop", prop, str(SLOW_DISPATCH_MS))
+    try:
+        yield
+    finally:
+        adb("shell", "setprop", prop, "0")
+
+
+def held_after_tap(pid, quiet=1.0, within=20.0):
+    """What the app's thread did after a tap, each as (start, end) in
+    seconds on the device's monotonic clock: every frame it drew (the render
+    thread's own left out, [frames_since_reset]) and every message on it the
+    Looper logged as slow ([slow_dispatches_logged]) -- work that draws
+    nothing, which no frame lists. Read again, with no look at the screen,
+    until neither has grown for [quiet] seconds, or [within] are up.
+
+    Read once the screen showed the words, the end of an opening was where
+    the walk's own look had the app draw again: a trivial redraw started
+    5.6 ms late was kept as work, and a mutant holding the thread 2.4 s,
+    drawing nothing, read 2.04 to 2.10 s -- killed by 2 to 5% over the line,
+    and let through by a look made sooner (the final audit's tenth round)."""
+    deadline = time.time() + within
+    seen, still_since, spans = None, time.time(), []
+    while True:
+        frames = [(began, began + took) for began, took in frames_since_reset(starts=True)]
+        slow = []
+        for line in adb("logcat", "-d", "-v", "monotonic", "--pid=" + pid, "-s", "Looper").splitlines():
+            m = re.match(r"\s*(\d+\.\d+)\s.*Slow dispatch took (\d+)ms main", line)
+            if m:
+                slow.append((float(m.group(1)) - int(m.group(2)) / 1000.0, float(m.group(1))))
+        spans = frames + slow
+        if (len(frames), len(slow)) != seen:
+            seen, still_since = (len(frames), len(slow)), time.time()
+        elif spans and time.time() - still_since >= quiet:
+            return spans
+        if time.time() > deadline:
+            return spans
+        time.sleep(0.25)
+
+
+def frames_once_shown(*words, within=30.0, gap=None, starts=False):
     """The frames of an act since `gfxinfo reset`, read once the screen
     shows [words] -- the act's own result. A look at the screen waits for
     the app's thread, so the frame that drew them has ended: read after a
@@ -3123,13 +3204,12 @@ def frames_once_shown(*words, within=30.0, gap=None, starts=False, worked=False)
     freeze past its patience passed (the ninth). With [gap], only the frames
     that began within [gap] seconds of the first: an autosave due 800 ms
     after a letter is a frame of its own. With [starts], each as (its start,
-    its length); with [worked], the frames that did work alone
-    ([frames_since_reset]). The words missing, and the frames ([99.0] when
-    none were listed)."""
+    its length). The words missing, and the frames ([99.0] when none were
+    listed)."""
     looked = unreadable
     missing = says_soon(*words, within=within)
     time.sleep(0.4)
-    timed = frames_since_reset(starts=True, worked=worked)
+    timed = frames_since_reset(starts=True)
     if not timed or unreadable != looked:
         return missing, [(0.0, 99.0)] if starts else [99.0]
     first = min(began for began, _ in timed)
@@ -4055,13 +4135,22 @@ def limits_round5(folder):
     tap("Last", exact=True, wait=1.0)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     time.sleep(0.5)
-    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
-    said = not says_soon("The end of this note is more than the phone shows at once", within=6.0)
+    # A message of four seconds, read by looks of two seconds and more on the
+    # walk's heaviest screen, raced its own reading: read once in one run of
+    # two, the app having said it both times. Held for fifteen by Android's
+    # own setting, which the app's messages keep; photographed as read; the
+    # Enter's frames timed, so a hold by the app is told from a slow look
+    # (the final audit's tenth round).
+    with messages_held(15_000):
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+        missing = shot_as_said(folder, "109-end-past-drawn", "The end of this note is more than the phone shows at once",
+                               within=15.0)
+        longest = max(frames_since_reset() or [0.0])
     time.sleep(1.0)
     type_text("glued")
-    check("Enter at the end of what is drawn lets the keyboard go and says why", said and not keyboard_shown(),
-          "said %s, keyboard %s" % (said, keyboard_shown()))
-    shot(folder, "109-end-past-drawn", "Last")
+    check("Enter at the end of what is drawn lets the keyboard go", not keyboard_shown())
+    check("... and says why", not missing, "missing %s; the longest frame since the Enter %.2f s" % (missing, longest))
     back_to("Search notes")
     body = (note_by_uid("r5-3") or {}).get("body", "")
     lines = body.split("\n")
@@ -4522,7 +4611,7 @@ def days_in_the_note(folder):
     tap("Every week", wait=1.5)
     tap("Does not repeat", exact=True, wait=0.8)
     tap("Save", exact=True, wait=0.3)
-    said = not shot_as_said(folder, "118-repeat-off-kept", "The repeat is off", "Note details")
+    said = not shot_as_said(folder, "118-repeat-off-kept", "Restore previous brings it back", "Note details")
     back_to("Search notes")
     off = settle(lambda: note_said("dn-gym"), lambda n: not (n.get("recurrence") or {}).get("freq"))
     check("a series turned off from the Repeat sheet keeps its day's own text in the note, and the series in its copy",
@@ -4928,6 +5017,58 @@ def limits_round8(folder):
         check("... and the details scroll to their foot, the word count", foot)
     finally:
         turn(0)
+    back_to("Search notes")
+
+
+def limits_round10(folder):
+    """The final audit's tenth round, walked. A message said while a
+    checklist row is renamed stands above the row and its ✕: the row is
+    brought just above the keyboard, where the window's messages stood, and
+    one stood over it and took the taps meant for its ✕. Read back from the
+    screen, on the look that finds the words."""
+    print("\n-- round ten's limits: a message above the row being renamed --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r10-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    words = "\n".join("Line %d of the note's own words." % k for k in range(1, 61))
+    notes = [note(1, "Paste source", body="p" * 3_000),
+             note(2, "Low rows", body=words, checklist=[{"text": "bread", "done": False},
+                                                         {"text": "milk", "done": False}])]
+    if not seed_inside(notes, {"welcome_offered": True}, "Paste source"):
+        return
+
+    # Three thousand letters to paste.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+
+    # The rows under sixty lines of words: renamed, the row is brought just
+    # above the keys, and a paste past its cap is said there.
+    open_note("Low rows")
+    # Scrolled to the note's foot: the last row lies low, under where the
+    # keyboard rises, and is brought up just above its keys when tapped.
+    seek(lambda: False, tries=12, fast=True)
+    tap("milk", exact=True, wait=1.5)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.4)
+    keys("CTRL_LEFT", "V")
+    shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
+    missing, covered = said_over(shortened, ("the row being renamed", lambda t, d: t.startswith("milk")),
+                                 ("its remove button", lambda t, d: "Remove" in d and "milk" in d))
+    photograph(folder, "127-message-above-the-row-renamed")
+    check("a message said while a row is renamed stands above the row and its ✕, not over them",
+          not missing and not covered, "missing %s, over %s" % (missing, covered))
+    keyboard_down()
     back_to("Search notes")
 
 
