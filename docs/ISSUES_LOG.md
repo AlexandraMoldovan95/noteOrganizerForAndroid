@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-three are
+**the code**, or in **the design**. Twenty-one of the eighty-four are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a second turn-off giving back older words over a line added, and none of another series' copy after a big delete; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts, the calculator's place left behind and words glued at a cap; ids wrapping past an Int; two letters folded the desktop keeps; a message over a row being renamed, and drawn by two sheets; the walk timing an opening by its own look, and racing a four-second message | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
 | [2026-10-30](#every-place-a-change-made-and-every-date-a-note-holds) | code | The audit's ninth round: the calculator's place followed as one change through a list's markers, Enter in a numbered list, a paste that renumbered and an Undo of two places; a series' copy's days spent that the note never took; a second turn-off over the first one's copy; the Repeat sheet spending between its two writes; the desktop's old title paste; `int()` and CR LF read otherwise; messages over the bar being typed at; a frozen look read as the screen before | A change is the edits that made it, and a copy is not the note: ask what each edit did, and of each date whether the note holds it |
 | [2026-10-30](#kept-where-it-was-found-and-kept-on-after-it-moved) | code | The audit's eighth round: the calculator's place kept through an Undo that changed nothing and dropped by one that changed the words; a series' days kept in its copy after the note took them back, so a day reset came back at every start; comments always taken into a waiting copy, two letters over a long comment; a turn-off over an import's Update copy; a title's Enter told by its length; refusals said under the sheet that stayed open; the walk's frames read before they ended, its turn taken halfway | What a fix keeps it must also let go of, and say when: ask of each thing kept what makes it stop being the one to keep |
 | [2026-10-30](#a-stop-android-made-ten-seconds-late) | checking | The first full walk since round five failed 16 steps: Android stopped an app sent Home ten seconds later on an emulator drawing in software, and the walk read the save, and ended the app, before it was stopped; round seven's checks, never run, looked below the screen; and an Undo in a table cell, broken since round six, sent the next letter under the table | A wait for a fixed time is a guess about the machine: wait for the state the check is about, and read that the act happened before judging what follows from it |
@@ -98,6 +99,115 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A day read by its date, a change read by its texts
+
+**2026-10-30.** The final audit's tenth round attacked round nine's fixes
+and came back, on the phone, with a high and two mediums shared with the
+desktop's own round and two lows beside them, seven lows of the phone's
+own -- two of them only plausible -- and the walk's two, besides five
+duplicates; the desktop's round brought its data rules again (04044ce
+there, then 99f041e). Most were one thing read by another beside it: a day by a date
+that named it, a change by the two texts around it, a copy's words by
+whether they differed from the note's.
+
+- **A day's words spent where only its date was held.** Round nine took a
+  series' copy's days back by the date: any date the note's own days
+  named -- a day moved away, a day only coloured -- won it, and the copy's
+  own words for that very day were spent with the copy's days. A 0.12.0
+  notebook, or the desktop's 0.97.405, turned off and back on as it was,
+  then that day moved or coloured, lost the words at the first start of
+  this build; and in this build, Restore previous and then the start put
+  back lost a day's words written under the other start. The desktop
+  measured the same rule over 20,000 shapes either editor makes: 1,879
+  lost a day's words.
+- **Older words given back, and a big delete's not.** A second turn-off
+  gave the first one's copy its words whenever the two differed: a line
+  added between went back to the older words at Restore previous, and the
+  next turn-off put it in no file. And it gave them only from a copy of
+  words or of this very series: back on from another start, every two
+  weeks or to an end date, then off again, and a big delete's words were
+  replaced by the short text -- on both apps.
+- **A promise its own save dropped.** After an Update that only turned the
+  repeat on, the turn-off's copy was the note again in full, and the same
+  save dropped it; the Repeat sheet still said Restore previous brings it
+  back.
+- **A change read off the two texts.** Enter typed at the calculator's
+  last answer, a line below it, was read as the break after the old one,
+  and the place stayed before the new line: the next answer went above the
+  words typed under the last, where the desktop's Tk mark of right gravity
+  goes after them. A centred line broken there left its new half at the
+  margin; Backspace at an empty line's start glued the next answer to the
+  line below. At a box's cap, the title's paste, read at the cursor, was
+  read again off the texts: " fresh" pasted after "Buy" kept "fre", glued
+  to "milk". And a paste's own trailing space, all a cap took, was said to
+  be shortened.
+- **An id at the edge.** Round nine held an id written past an Int at
+  2,147,483,647, and the next new note's id was that and one more:
+  -2,147,483,648, the same for every new note after it, two notes edited as
+  one. A number past an Int was cut down onto another's, 4,294,967,301
+  read as 5.
+- **Letters folded that the desktop keeps.** In-note find folded U+023A and
+  U+023E, whose lower case takes a byte more in UTF-8, and every letter
+  past the basic plane; the desktop's Tcl fold (098d5a8) keeps them all.
+- **Messages over a row, and drawn by two sheets.** A checklist row being
+  renamed was not counted at the editor's foot: brought just above the
+  keyboard, it stood under the window's messages, its ✕ under a message's
+  Undo -- round nine's left list said it held no key a message could take.
+  And the Repeat sheet over the note's details drew each message as the
+  details did under it, two live regions; round nine silenced only the
+  window's host.
+- **A skip counted as a pass.** EditorTypingTest's Assume that two letters
+  made one step of Undo ended the whole method when the clock said
+  otherwise, and the list's and the paste's cases went unrun with it.
+- **The walk's own.** `drawn_in` timed an opening to the last frame its
+  thread held 5 ms or more: a redraw started 5.6 ms late, as the walk's own
+  look had the app draw again, set the reading, and a mutant holding the
+  thread 2.4 s, drawing nothing, read 2.04 to 2.10 s against a line of
+  two. And a message of four seconds was read by looks of two seconds and
+  more on the walk's heaviest screen: once in two runs the race was lost.
+
+**The fix:** the desktop's rule, ported: a copy's day is dropped only where
+the note deleted that day or wrote words of its own for it; anywhere else
+its words go to the date the note draws the day on, and a note's edit
+there with no words of its own takes them, its colour and category laid
+over (`Notebook.copyDaysPlaced`). The copy's deleted days and moves still
+ask which dates the note holds, and a copy's move onto a day whose own
+move stays behind stays behind too, followed in one worklist
+(`copyMovesTaken`). A turn-off gives an earlier copy's words -- any copy
+but an Update's, which is kept whole -- only when the note has lost words
+to it, the big delete's own test from the copy to the note. The Repeat
+sheet promises Restore previous only while a copy the note does not hold
+again is left (`Days.repeatOffWord`). A typed edit is read up to the
+cursor the field leaves, and a deletion at it (`Editing.proseEdit`,
+`changeAt`); the calculator's place and the lines' looks are carried
+through it, and a table, a caption and a line above a table are carried
+through the edit as made. Every capped box reads a paste up to its cursor,
+and says it cut only when words were left out (`fitRow`). An id an Int
+cannot hold takes a new number as a shared one does, and past the highest
+an Int holds a new note takes the lowest number free (`Organizing.Ids`);
+the desktop keeps such an id. Find folds as Tcl does, in the basic plane
+only, never into more bytes. A row being renamed is counted at the
+editor's foot, and of the hosts over the window only the deepest draws.
+The Assume guards its own two cases. The walk times an opening with no
+look inside the time -- the app's frames and the slow messages on its
+thread, read until both are still -- and holds a message for fifteen
+seconds while it reads it. Each with a test and a mutant watched failing:
+AS317 to AS325 for the desktop's rules, AS326 to AS338 for the phone's
+own, twenty-one of twenty-two killed at the first run. AS322 -- an edit
+the copy keeps under a day it deleted, read as that day's -- survived:
+the fixture holds no such shape. `DaysTest` now holds the desktop's own
+answer for it, asked of its core. The renamed row at the editor's foot
+and the walk's changes have no mutant; the walk reads the first. `days_cases.json`, rebuilt from the desktop's
+core at 99f041e, holds 62 cases, thirteen new; none of the 49 before
+changed. The unit tests count 896.
+
+**The lesson:** read a thing by what it is, not by what stands beside it
+-- a day by what it holds, not by a date its neighbours name; a change by
+the place it was made, not by the two texts around it; a copy's words by
+what the note has lost, not by whether the two differ.
 
 ---
 
@@ -3265,6 +3375,45 @@ whether that is what the dialog should show.
   suggestion or a swiped word that does not fit is cut to the room left,
   and a paste's words said.
 
+### What the audit's tenth round left
+
+- **A day reset under another start comes back when the start is put
+  back -- on both apps, decided as the round's rule has it.** Off, on again
+  from another start, a day reset there, then the first start put back:
+  the note repeats as its copy's series again, the reset day holds nothing
+  in the note, and the copy's own words for it come back. A copy's day is
+  dropped only where the note deleted that day or wrote words of its own
+  for it, and a reset is neither; the desktop's own auditor found its twin
+  and judged it contrived, and the two programs answer it the same way.
+  Nothing is lost, and the day can be reset again.
+- **The capped boxes say a cut only when words were left out**; the
+  desktop's title says it so since its 737efe7, but its other boxes
+  (`_limit_entry`) still say "Pasted text shortened" when a paste's own
+  trailing space was all the cap took. The desktop's to change.
+- **An id past an Int is given a new number on the phone, and kept on the
+  desktop.** Python's numbers hold it; the phone's cannot. A note's id is
+  this notebook's own -- a note's identity between the two programs is its
+  uid -- and no road but a file written by hand brings one.
+- **A caption, a line above a table and a deleted table** are carried
+  through their edits as made, as the calculator's place needs; no place
+  the calculator or the cursor can hold reads differently there from the
+  texts' reading, so no test fails without them and no mutant was offered.
+  A column's width and a cell's words are still read off the texts: their
+  edits lie inside the table's lines, which begin and end with a bar.
+- **Two of the copy's edits for one date**, a shape neither app writes,
+  are ordered as the desktop orders them -- words first, then the day's
+  own date, a move, a day drawn on none; no fixture case holds one.
+- **Find's fold is Tcl's, on this phone's Unicode tables**, which the
+  desktop's Python may not share for letters newer than either.
+- **Walked by none yet:** round ten's walk changes -- `limits_round10`'s
+  message above a row being renamed, `big_table` timed with no look inside
+  the time, the Enter at the end of what is drawn read with its message
+  held -- are written and parse; the session runs them. The renamed row's
+  place at the editor's foot and the deepest host's drawing have no unit
+  test that reaches the drawing.
+- **The comments being typed in are still not counted at the editor's
+  foot**: they hold no key a message can take.
+
 ### What the audit's ninth round left
 
 - **Decided, left as they were:** a check that passes because its state
@@ -3277,13 +3426,18 @@ whether that is what the dialog should show.
   it is typed in. A checklist row being renamed and the comments are not
   counted: a message there can stand over the row, as over the lines of
   the note's text being written; neither holds a key a message can take.
+  *The tenth round* found the row does -- its ⠿, ☐ and ✕ -- and counts it.
 - **The window's host hidden under a sheet** is drawn by nothing a script
   can read -- uiautomator dumps the sheet's window alone -- and TalkBack's
-  reading of a message once is not heard.
+  reading of a message once is not heard. *The tenth round* found two
+  sheets, one over the other, each drawing the message; the deeper alone
+  draws it now.
 - **A CR in a template's comments.** The template's text takes a CR that
   comes in as one break; its comments, a field of another kind, do not yet.
 - **An id past an Int.** Written as text, it is held at the edge, as the
   rule's numbers are; the desktop keeps a whole number of any size.
+  *The tenth round* found the edge wrapped the next new note's id to a
+  negative one, shared; such an id is given a new number now.
 - **The walk's look that gives up** is a failure of its own now; an
   Android "not responding" window over a freeze is read as a screen like
   any other.
