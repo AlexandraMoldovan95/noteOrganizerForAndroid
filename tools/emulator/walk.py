@@ -3183,8 +3183,11 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
             if m:
                 slow.append((float(m.group(1)) - int(m.group(2)) / 1000.0, float(m.group(1))))
         spans = frames + slow
-        if (len(frames), len(slow)) != seen:
-            seen, still_since = (len(frames), len(slow)), time.time()
+        # By the newest end too: gfxinfo keeps a window's last 120 frames,
+        # and past them a new frame leaves the count as it was.
+        now = (len(frames), len(slow), max((end for _, end in spans), default=0.0))
+        if now != seen:
+            seen, still_since = now, time.time()
         elif spans and time.time() - still_since >= quiet:
             return spans
         if time.time() > deadline:
