@@ -659,14 +659,50 @@ class AppStateTest {
         // Drawn by both, each message over a sheet was two live regions, and
         // TalkBack could read it twice (the final audit's ninth round).
         val messages = Any()
+        val first = Any()
+        val second = Any()
         assertFalse(MessagesShown.elsewhere(messages))
-        MessagesShown.shown(messages)
-        MessagesShown.shown(messages)
+        MessagesShown.shown(messages, first, 1)
+        MessagesShown.shown(messages, second, 1)
         assertTrue("a sheet over the window draws them", MessagesShown.elsewhere(messages))
-        MessagesShown.gone(messages)
+        MessagesShown.gone(messages, second)
         assertTrue("a second still does", MessagesShown.elsewhere(messages))
-        MessagesShown.gone(messages)
+        MessagesShown.gone(messages, first)
         assertFalse("the window draws them again once none does", MessagesShown.elsewhere(messages))
         assertFalse("another state's are its own", MessagesShown.elsewhere(Any()))
+    }
+
+    @Test
+    fun `of two sheets drawing the app's messages, the one opened over the other draws them, the other none`() {
+        // The Repeat sheet over the note's details: both drew each message,
+        // two live regions again (the final audit's tenth round). The deeper
+        // draws them; once it goes, the one under it does again.
+        val messages = Any()
+        val details = Any()
+        val repeat = Any()
+        MessagesShown.shown(messages, details, 1)
+        assertTrue(MessagesShown.drawn(messages, details))
+        MessagesShown.shown(messages, repeat, 2)
+        assertFalse("the details sheet, under it", MessagesShown.drawn(messages, details))
+        assertTrue("the Repeat sheet, over it", MessagesShown.drawn(messages, repeat))
+        // Registered in the other order -- a sheet composed in its own window
+        // may be -- the deeper still draws.
+        val again = Any()
+        val under = Any()
+        val over = Any()
+        MessagesShown.shown(again, over, 2)
+        MessagesShown.shown(again, under, 1)
+        assertTrue(MessagesShown.drawn(again, over))
+        assertFalse(MessagesShown.drawn(again, under))
+        MessagesShown.gone(messages, repeat)
+        assertTrue("the details draw them again", MessagesShown.drawn(messages, details))
+        // Of two at one depth, the newest.
+        val newer = Any()
+        MessagesShown.shown(messages, newer, 1)
+        assertTrue(MessagesShown.drawn(messages, newer))
+        assertFalse(MessagesShown.drawn(messages, details))
+        for (host in listOf(details, newer)) MessagesShown.gone(messages, host)
+        for (host in listOf(under, over)) MessagesShown.gone(again, host)
+        assertFalse(MessagesShown.elsewhere(messages) || MessagesShown.elsewhere(again))
     }
 }

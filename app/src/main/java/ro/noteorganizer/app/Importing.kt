@@ -429,7 +429,7 @@ object Importing {
             toAdd = kept
         }
         val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
-        var nextId = maxId(candidate) + 1
+        val newIds = Organizing.ids(candidate)
         for (incoming in toAdd + copies) {
             // A backup's note keeps its rescue copy ("↩ Restore previous"),
             // as the desktop's import keeps it through normalize_note:
@@ -440,9 +440,9 @@ object Importing {
             fileUnder(note, categories.keys)
             note.put("attachments", placeFiles(note.getJSONArray("attachments"), claimed,
                 attachmentsDir, extras.attachments))
+            val nextId = newIds.next()
             note.put("id", nextId)
             if (firstId == 0) firstId = nextId
-            nextId += 1
             if (note.optString("created").isEmpty()) note.put("created", now)
             if (note.optString("updated").isEmpty()) note.put("updated", now)
             candidate.put(note)
@@ -563,15 +563,6 @@ object Importing {
             addedTrash = addedTrash,
             firstId = firstId,
         ))
-    }
-
-    private fun maxId(array: JSONArray): Int {
-        var max = 0
-        for (i in 0 until array.length()) {
-            val id = (array.opt(i) as? JSONObject)?.opt("id")
-            if (id is Number && id.toInt() > max) max = id.toInt()
-        }
-        return max
     }
 
     private fun replaceContents(live: JSONArray, from: JSONArray) {

@@ -215,12 +215,34 @@ object Paragraphs {
         fun inTurn(): List<Edit> = steps.flatMap { step -> step.sortedByDescending { it.at } }
     }
 
-    /** The lines' properties after a typed edit added or took away lines. */
-    fun follow(old: String, new: String, props: Map<Int, Props>): Map<Int, Props> {
+    /**
+     * The lines' properties after a typed edit added or took away lines --
+     * the [edit] itself, in code points, when the field's cursor told where
+     * it was made ([Editing.proseEdit]): read off the two texts, Enter at the
+     * end of a centred line with a line below was the break after the old
+     * one, and the new line was left at the margin (the final audit's tenth
+     * round).
+     */
+    fun follow(old: String, new: String, props: Map<Int, Props>, edit: Edit? = null): Map<Int, Props> {
         if (props.isEmpty() || old == new) return props
-        breakAt(old, new)?.let { (line, column, made) -> return if (made) split(props, line, column) else join(props, line) }
+        (edit?.let { breakOf(old, new, it) } ?: breakAt(old, new))?.let { (line, column, made) ->
+            return if (made) split(props, line, column) else join(props, line)
+        }
         val moved = remapParagraphLines(old, new, props.keys.toList())
         return moved.entries.associate { (from, to) -> to to props.getValue(from) }
+    }
+
+    /** [breakAt]'s answer for an [edit] whose place is known: a line break put in, or taken out, alone. */
+    private fun breakOf(old: String, new: String, edit: Edit): Triple<Int, Int, Boolean>? {
+        val made = edit.removed == 0 && edit.inserted == 1
+        if (!made && !(edit.removed == 1 && edit.inserted == 0)) return null
+        val holder = if (made) new else old
+        if (edit.at !in 0 until holder.codePointCount(0, holder.length)) return null
+        val at = holder.offsetByCodePoints(0, edit.at)
+        if (holder[at] != '\n') return null
+        val line = holder.substring(0, at).count { it == '\n' }
+        val column = at - (holder.lastIndexOf('\n', at - 1) + 1)
+        return Triple(line, column, made)
     }
 
     /**

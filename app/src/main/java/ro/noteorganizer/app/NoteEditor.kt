@@ -408,11 +408,15 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /**
      * The body has changed in one place: the places remembered in it move
-     * with the text, and the lines' properties too.
+     * with the text, and the lines' properties too -- through [edit], the
+     * change as it was made, when the one making it knows its place: read
+     * off the two texts alone ([Calculator.changeOf]), a change that begins
+     * with what follows it is read as made further on, and a place right at
+     * it stayed behind (the final audit's tenth round).
      */
-    private fun follow(next: String) {
-        carry(listOfNotNull(Calculator.changeOf(body, next)))
-        props = Paragraphs.follow(body, next, props)
+    private fun follow(next: String, edit: Paragraphs.Edit? = null) {
+        carry(listOfNotNull(edit ?: Calculator.changeOf(body, next)))
+        props = Paragraphs.follow(body, next, props, edit)
     }
 
     /**
@@ -610,7 +614,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans.let { moved ->
             moved.map { it.style }.toSet().fold(moved) { acc, style -> clearStyle(acc, from, to, style) }
         }
-        follow(made.body)
+        // Put in at the end of the table's last line, as the desktop's
+        // insert at "{below}.end": the edit as made, not read off the texts.
+        follow(made.body, putIn(made.body, from - 1))
         body = made.body
         if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
         changed()
@@ -624,12 +630,17 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
         val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // One line break at the table's first line's start, as the desktop's insert at "{first}.0".
+        follow(next, putIn(next, at))
         body = next
         changed()
         caret = at
         placeCaret(at)
     }
+
+    /** What putting text in at [at], in code points, and nothing else made of the body [next]: the edit as made. */
+    private fun putIn(next: String, at: Int): Paragraphs.Edit =
+        Paragraphs.Edit(at, 0, next.codePointCount(0, next.length) - body.codePointCount(0, body.length))
 
     /**
      * A column's width, hidden mark or fit: the separator line alone
@@ -654,7 +665,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun deleteTable(segment: Editing.Segment) {
         val next = Editing.deleteLines(body, segment.firstLine, segment.lastLine)
         spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // Taken out from its first line's start: the edit as made.
+        val at = body.split("\n").take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
+        follow(next, Paragraphs.Edit(at, body.codePointCount(0, body.length) - next.codePointCount(0, next.length), 0))
         body = next
         focused = null
         changed()
@@ -677,7 +690,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             return null
         }
         spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans
-        follow(made.body)
+        // Put in at the cursor -- at the end, on a line of its own, when it
+        // was past it ([Editing.insertTable]): the edit as made.
+        follow(made.body, putIn(made.body, (caret ?: length).coerceIn(0, length)))
         body = made.body
         focused = null
         changed()
@@ -750,6 +765,16 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** The top of "A new item…" with its Add, in the window, while it is typed in; null otherwise ([AppState.editorFootTop]). */
     var addBoxTop by mutableStateOf<Float?>(null)
+
+    /**
+     * The checklist row being renamed -- its key, and its top in the window
+     * -- for the window's messages to stand above it, its ⠿, ☐ and ✕ with it
+     * ([AppState.editorFootTop]); null while none is. Counted not, the row
+     * was brought just above the keyboard and a message stood over it,
+     * taking the taps meant for its ✕ -- or its own Undo's (the final
+     * audit's tenth round).
+     */
+    var renamingRow by mutableStateOf<Pair<Any, Float>?>(null)
 
     /**
      * A row's field and "A new item…" kept to a row's length, as the
@@ -995,7 +1020,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // Otherwise the letters take styles as the desktop's text box gives
         // them, found from the caret ([spansAfterTyping]).
         spans = if (day != null) emptyList() else spansAfterTyping(body, next, caretIn(segment, typed), spans, pending)
-        follow(next)
+        // The places and the lines' looks carried through the edit read at
+        // the cursor, as the list's path reads Enter ([Editing.proseEdit]).
+        follow(next, Editing.proseEdit(segment, typed.text, cursorOf(typed)))
         body = next
         changed(Editing.History.TYPING)
         return if (broken == null) null else typed
@@ -1187,11 +1214,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             return
         }
         spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
-        props = Paragraphs.follow(body, placed.body, props)
         // Where it went in, exactly, for Undo: found by comparing the texts,
         // "\n3×3=9" put before a line break read as "3×3=9\n" after it.
         val came = placed.body.codePointCount(0, placed.body.length) - body.codePointCount(0, body.length)
-        made.add(Paragraphs.Edit(placed.mark - came, 0, came))
+        val edit = Paragraphs.Edit(placed.mark - came, 0, came)
+        props = Paragraphs.follow(body, placed.body, props, edit)
+        made.add(edit)
         body = placed.body
         calcMark = placed.mark
         caret = placed.mark
@@ -1901,7 +1929,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         // Where the foot drawn here begins, and the box being typed in, told
         // to the window: its messages are drawn above them ([AppState.editorFootTop]).
         var footTop by remember { mutableStateOf<Float?>(null) }
-        val footShown = listOfNotNull(footTop, model.addBoxTop).minOrNull()
+        val footShown = listOfNotNull(footTop, model.addBoxTop, model.renamingRow?.second).minOrNull()
         LaunchedEffect(footShown) { state.editorFootTop = footShown }
         DisposableEffect(Unit) { onDispose { state.editorFootTop = null } }
         Box(Modifier.fillMaxWidth().onGloballyPositioned {
@@ -2867,11 +2895,20 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         val readOnly = Editing.rowTooLong(item.text) || !writable[index]
         if (here != null && !readOnly) LaunchedEffect(reveal, here) { sight.bringIntoView() }
         val rowKey = rowKeys[index]
+        // Where the row stands while it is renamed, for the window's messages
+        // to stand above it ([EditorModel.renamingRow]); let go with the row.
+        fun renamed(on: Boolean) {
+            val at = placed[rowKey]?.takeIf { it.isAttached }?.boundsInWindow()?.top
+            if (on && at != null) model.renamingRow = rowKey to at
+            else if (model.renamingRow?.first == rowKey) model.renamingRow = null
+        }
+        DisposableEffect(rowKey) { onDispose { renamed(false) } }
         Row(
             Modifier
                 .fillMaxWidth()
                 // Where the row lies, before a drag moves its drawing.
                 .onPlaced { placed[rowKey] = it }
+                .onGloballyPositioned { if (model.renamingRow?.first == rowKey) renamed(true) }
                 .graphicsLayer { translationY = if (dragging == index) offset else 0f }
                 // A finger's height at least; a row shown to be read is as
                 // tall as what it shows. Held to 44 dp, a row's read-only
@@ -2953,13 +2990,14 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 ReadOnlyRow(item.text, item.done, rowFound, rowCurrent, reveal, Modifier.weight(1f))
             } else ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
                           found = rowFound, current = rowCurrent,
-                          onEdit = { was, now ->
+                          onEdit = { was, now, cursor ->
                               // Kept to a row's length, the row's own words whole.
-                              model.rowCap.fit(was, now, box = index).also { fit ->
+                              model.rowCap.fit(was, now, box = index, cursor = cursor).also { fit ->
                                   if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.say(it) }
                               }
                           },
-                          onLeave = { if (model.renaming?.index == index) renameWritten() })
+                          onLeave = { if (model.renaming?.index == index) renameWritten() },
+                          onFocus = { renamed(it) })
             Text(
                 "✕",
                 color = palette.subtext,
@@ -2995,8 +3033,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 if (next.text == addShown.text) {
                     addField = next
                 } else {
-                    val fit = model.rowCap.fit(addShown.text, next.text, box = Editing.NEW_ROW_BOX)
-                    addField = fittedValue(addShown, next, fit)
+                    addField = keptBy(model.rowCap, addShown, next, box = Editing.NEW_ROW_BOX)
                     model.typeAdding(addField.text)
                 }
             },
@@ -3109,10 +3146,16 @@ internal fun ReadOnlyRow(text: String, done: Boolean, found: List<Pair<Int, Int>
 
 /**
  * What a box kept to a length by [cap] shows after [next]: a move of the
- * cursor as it is, an edit as the cap keeps it ([fittedValue]).
+ * cursor as it is, an edit as the cap keeps it ([fittedValue]) -- what came
+ * in read up to the cursor [next] leaves ([cursorOf]): every capped box, the
+ * title, a row, "A new item…", a template's name and title, the person's
+ * name, is kept this one way.
  */
 internal fun keptBy(cap: Editing.BoxCap, shown: TextFieldValue, next: TextFieldValue, box: Any = Unit): TextFieldValue =
-    if (next.text == shown.text) next else fittedValue(shown, next, cap.fit(shown.text, next.text, box))
+    if (next.text == shown.text) next else fittedValue(shown, next, cap.fit(shown.text, next.text, box, cursorOf(next)))
+
+/** Where a field leaves its cursor after an edit; null while words are selected. */
+internal fun cursorOf(value: TextFieldValue): Int? = value.selection.end.takeIf { value.selection.collapsed }
 
 /**
  * A box's next value under its cap ([Editing.fitRow]): [next] as typed
@@ -3240,13 +3283,15 @@ internal fun LargeTable(segment: Editing.Segment, found: List<Pair<Int, Int>> = 
  * and is written when the field is left or by the keyboard's ✓ -- one write
  * per edit, not per letter -- and by the save made on leaving the note or
  * the app. [onEdit] is asked of each change of the words, from those shown
- * to those typed, and answers what is kept ([Editing.fitRow]); the cursor
- * is held here with them, so a paste cut to fit leaves it after what came in.
+ * to those typed and the cursor the field leaves ([cursorOf]), and answers
+ * what is kept ([Editing.fitRow]); the cursor is held here with them, so a
+ * paste cut to fit leaves it after what came in.
  */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null,
-    onEdit: (was: String, now: String) -> Editing.Fit, onLeave: () -> Unit,
+    onEdit: (was: String, now: String, cursor: Int?) -> Editing.Fit, onLeave: () -> Unit,
+    onFocus: (Boolean) -> Unit = {},
 ) {
     val palette = LocalPalette.current
     var field by remember { mutableStateOf(TextFieldValue(text, TextRange(text.length))) }
@@ -3263,7 +3308,7 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     BasicTextField(
         value = shown,
         onValueChange = { next ->
-            field = if (next.text == shown.text) next else fittedValue(shown, next, onEdit(shown.text, next.text))
+            field = if (next.text == shown.text) next else fittedValue(shown, next, onEdit(shown.text, next.text, cursorOf(next)))
         },
         singleLine = true,
         // ✓ writes the words and puts the keyboard down. It only put the
@@ -3285,6 +3330,7 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
             .weight(1f)
             .onFocusChanged {
                 focused = it.isFocused
+                onFocus(it.isFocused)
                 if (!it.isFocused) onLeave()
             },
     )

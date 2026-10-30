@@ -371,6 +371,13 @@ class EditorTypingTest {
         assertEquals("Plan5+3=8\n2+2=4\nfuel", plan.body)
     }
 
+    /** "Budget", the calculator's answer put on the empty line under it, then "Rent". */
+    private fun budget(): EditorModel = editor("Budget\\n\\nRent").also {
+        it.caret = 7
+        it.insertCalculation("2+2=4")
+        assertEquals("Budget\n2+2=4\nRent", it.body)
+    }
+
     @Test
     fun `the calculator's place moves through every place a change made, so the next answer goes under the last`() {
         // Followed as one change from the first place it touched to the last,
@@ -378,11 +385,6 @@ class EditorTypingTest {
         // typed in two places sent the next answer into a later line:
         // "3*3=9Rent", "4\n3*3=9. Rent" (the final audit's ninth round). The
         // desktop's Tk mark moves through each insert and delete in turn.
-        fun budget(): EditorModel = editor("Budget\\n\\nRent").also {
-            it.caret = 7
-            it.insertCalculation("2+2=4")
-            assertEquals("Budget\n2+2=4\nRent", it.body)
-        }
         fun EditorModel.bullets() =
             applyLines(Paragraphs.toggleList(body, props, 0, 2, "bullet"), 0, 0, body.length)
         // A: bullets over the three lines, then Insert.
@@ -405,6 +407,33 @@ class EditorTypingTest {
         e.redo()
         e.insertCalculation("3*3=9")
         assertEquals("• Budget\n• 2+2=4\n3*3=9\n• Rent", e.body)
+        // D: Enter at the end of a numbered list's first item, the answer in the second.
+        val d = editor("1. Bread\\n2. Milk total: \\n3. Rent")
+        d.caret = 24
+        d.insertCalculation("2+2=4")
+        assertEquals("1. Bread\n2. Milk total: 2+2=4\n3. Rent", d.body)
+        d.type("1. Bread\n\n2. Milk total: 2+2=4\n3. Rent", 9)
+        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n4. Rent", d.body)
+        d.insertCalculation("3*3=9")
+        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n3*3=9\n4. Rent", d.body)
+        // A paste that renumbers the list below it: a table row put above the answer.
+        val p = editor("1. Bread\\n2. Total \\n3. Rent")
+        p.caret = 18
+        p.insertCalculation("2+2=4")
+        val field = Editing.segments(p.body).first()
+        assertTrue(p.paste(field, TextFieldValue(field.text, TextRange(9)), null, "| a | b |"))
+        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n2. Rent", p.body)
+        p.insertCalculation("3*3=9")
+        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n3*3=9\n2. Rent", p.body)
+    }
+
+    @Test
+    fun `an Undo of letters typed in two places carries the calculator's place back through each`() {
+        // The two letters are one step of Undo only when typed within a
+        // second of each other (History joins by the clock): that alone is
+        // assumed here. In the test above, the Assume ended the whole method,
+        // and the list's and the paste's cases went unrun with it -- a skip
+        // the gate counts as a pass (the final audit's tenth round).
         // C: a letter after "Budget" and one before "Rent", one step of Undo.
         val c = budget()
         val steps = c.undoSteps
@@ -426,24 +455,99 @@ class EditorTypingTest {
         assertEquals("Budget\n2+2=4\nRent", c2.body)
         c2.insertCalculation("3*3=9")
         assertEquals("Budget\n2+2=4\n3*3=9\nRent", c2.body)
-        // D: Enter at the end of a numbered list's first item, the answer in the second.
-        val d = editor("1. Bread\\n2. Milk total: \\n3. Rent")
-        d.caret = 24
-        d.insertCalculation("2+2=4")
-        assertEquals("1. Bread\n2. Milk total: 2+2=4\n3. Rent", d.body)
-        d.type("1. Bread\n\n2. Milk total: 2+2=4\n3. Rent", 9)
-        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n4. Rent", d.body)
-        d.insertCalculation("3*3=9")
-        assertEquals("1. Bread\n2. \n3. Milk total: 2+2=4\n3*3=9\n4. Rent", d.body)
-        // A paste that renumbers the list below it: a table row put above the answer.
-        val p = editor("1. Bread\\n2. Total \\n3. Rent")
-        p.caret = 18
-        p.insertCalculation("2+2=4")
-        val field = Editing.segments(p.body).first()
-        assertTrue(p.paste(field, TextFieldValue(field.text, TextRange(9)), null, "| a | b |"))
-        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n2. Rent", p.body)
-        p.insertCalculation("3*3=9")
-        assertEquals("1. Bread\n| a | b |\n1. Total 2+2=4\n3*3=9\n2. Rent", p.body)
+    }
+
+    @Test
+    fun `Enter typed at the calculator's place, a line below it, carries the place after it, as the desktop's mark`() {
+        // Read off the two texts, Enter typed right after the answer was the
+        // break after the old one, and the place stayed before the new line:
+        // the next answer went above the words typed under the last (the
+        // final audit's tenth round). Read at the cursor, as Tk's mark of
+        // right gravity sees a key go in at the insert mark.
+        val food = budget()
+        food.type("Budget\n2+2=4\n\nRent", 13)
+        food.type("Budget\n2+2=4\nFood\nRent", 17)
+        food.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\nFood\n3*3=9\nRent", food.body)
+        // Enter alone, then Insert: under the empty line, as the desktop puts it.
+        val empty = budget()
+        empty.type("Budget\n2+2=4\n\nRent", 13)
+        empty.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n\n3*3=9\nRent", empty.body)
+        // One Undo of the Enter takes the place back with it.
+        val undone = budget()
+        undone.type("Budget\n2+2=4\n\nRent", 13)
+        undone.undo()
+        undone.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n3*3=9\nRent", undone.body)
+        // A line break taken away, of two in a row, is the one the cursor was
+        // after: Backspace at the empty line's start. Read off the texts it
+        // was the second, the place stayed on "Rent", and the answer was glued.
+        val back = budget()
+        back.type("Budget\n2+2=4\n\nRent", 13)
+        back.type("Budget\n2+2=4\nRent", 12)
+        back.insertCalculation("3*3=9")
+        assertEquals("Budget\n2+2=4\n3*3=9\nRent", back.body)
+    }
+
+    @Test
+    fun `Enter at the end of a centred line, a line below it, keeps the centring on both halves`() {
+        // The phone's own rule, as the desktop's tags lie over the text; read
+        // off the texts, the break was the next line's start, and the new
+        // line was left at the margin, where at the note's end it was centred
+        // (the final audit's tenth round).
+        val model = editor("Packing list\\nPassport, charger")
+        model.props = mapOf(0 to Paragraphs.Props(align = "center"))
+        model.type("Packing list\n\nPassport, charger", 13)
+        assertEquals(mapOf(0 to Paragraphs.Props(align = "center"), 1 to Paragraphs.Props(align = "center")), model.props)
+    }
+
+    @Test
+    fun `a table put in at the calculator's place carries the place after it`() {
+        // Made where the cursor was, not read off the texts: put in right
+        // after the answer, it was read as put in a line on, and the next
+        // answer went above the table (the final audit's tenth round).
+        val model = editor("Total \\nRent")
+        model.caret = 6
+        model.insertCalculation("2+2=4")
+        assertEquals("Total 2+2=4\nRent", model.body)
+        assertTrue(model.insertTable(1, 2) != null)
+        model.insertCalculation("3*3=9")
+        assertTrue("the answer under the table: ${model.body}", model.body.indexOf("3*3=9") > model.body.lastIndexOf("|"))
+    }
+
+    @Test
+    fun `a paste cut at a box's cap is cut where the cursor put it in, and said only when words are left out`() {
+        // The title's paste was read at the cursor, then read again off the
+        // texts at the cap: " fresh" pasted after "Buy" kept "fre" glued to
+        // "milk", where the desktop keeps "Buy fr milk"; and a paste's own
+        // trailing space, all the cap took, was said to be shortened (the
+        // final audit's tenth round, the desktop's 737efe7).
+        val title = "A".repeat(189) + "Buy milk"
+        val model = editor("x", title = title)
+        model.typeTitle(TextFieldValue(title, TextRange(192)), TextFieldValue("A".repeat(189) + "Buy fresh milk", TextRange(198)))
+        assertEquals("A".repeat(189) + "Buy fr milk", model.title)
+        assertEquals("Pasted title shortened to 200 characters", state.snackbar.currentSnackbarData?.visuals?.message)
+        val spaced = editor("x", title = "A".repeat(199))
+        spaced.typeTitle(TextFieldValue("A".repeat(199), TextRange(199)), TextFieldValue("A".repeat(199) + "x ", TextRange(201)))
+        assertEquals("A".repeat(199) + "x", spaced.title)
+        assertEquals("nothing said", null, state.snackbar.currentSnackbarData)
+        // Every other capped box keeps its words the one way (keptBy): a row,
+        // "A new item...", a template's name and title, the person's name.
+        for ((limit, what) in listOf(Editing.CHECKLIST_ROW_CHARS to "A checklist item", Editing.TITLE_CHARS to "A template name",
+                                     Editing.TITLE_CHARS to "A note title", 80 to "Your name")) {
+            val said = ArrayList<String>()
+            val cap = Editing.BoxCap({ said.add(it) }, limit, what)
+            val pad = "a".repeat(limit - 11)
+            val kept = keptBy(cap, TextFieldValue(pad + "Buy milk", TextRange(pad.length + 3)),
+                              TextFieldValue(pad + "Buy fresh milk", TextRange(pad.length + 9)))
+            assertEquals(what, TextFieldValue(pad + "Buy fr milk", TextRange(pad.length + 6)), kept)
+            assertEquals(what, 1, said.size)
+            val full = "b".repeat(limit - 1)
+            val trailing = keptBy(cap, TextFieldValue(full, TextRange(limit - 1)), TextFieldValue("${full}x ", TextRange(limit + 1)))
+            assertEquals(what, "${full}x", trailing.text)
+            assertEquals("$what: a trailing space alone, not said", 1, said.size)
+        }
     }
 
     @Test

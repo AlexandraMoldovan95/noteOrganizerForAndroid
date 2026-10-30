@@ -45,6 +45,32 @@ class FindingTest {
     }
 
     @Test
+    fun `prose folds a letter as Tk's search does - one for one, never into more bytes, the basic plane alone`() {
+        // The desktop's _tcl_lower (098d5a8): Tcl lowers a letter only into
+        // as many UTF-8 bytes or fewer, and only in the basic plane. The
+        // phone folded U+023A and U+023E (two bytes, their lower case three)
+        // and letters past the plane (the final audit's tenth round).
+        fun hits(body: String, query: String) = scan(body, query).size
+        // Lowered: the dotted capital I, the Kelvin sign, capital sharp s, sigma, the ohm sign.
+        assertEquals(1, hits("İstanbul", "istanbul"))
+        assertEquals(1, hits("5 K", "k"))
+        assertEquals(1, hits("Straẞe", "straße"))
+        assertEquals(1, hits("Σ", "σ"))
+        assertEquals(1, hits("Ω", "ω"))
+        // Never sharp s as "ss", nor sigma as the final sigma.
+        assertEquals(0, hits("Straße", "strasse"))
+        assertEquals(0, hits("Σ", "ς"))
+        // Kept: A and T with a stroke, and a letter past the basic plane (Deseret).
+        assertEquals(0, hits("Ⱥ", "ⱥ"))
+        assertEquals(0, hits("ⱥ", "Ⱥ"))
+        assertEquals(0, hits("Ⱦ", "ⱦ"))
+        assertEquals(1, hits("Ⱥ x Ⱥ", "Ⱥ x"))
+        assertEquals(0, hits("𐐀", "𐐨"))
+        // With case asked, exact.
+        assertEquals(0, scan("K", "k", matchCase = true).size)
+    }
+
+    @Test
     fun `stepping goes round from the last to the first`() {
         assertEquals(1, Finding.step(0, 1, 3))
         assertEquals(0, Finding.step(2, 1, 3))

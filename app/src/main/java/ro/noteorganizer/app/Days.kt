@@ -436,7 +436,7 @@ object Days {
         val shown = Recurrence.dayAsKept(note, day)
         val sameBody = shown.opt("body") == note.opt("body")
         val stamp = Files.now()
-        val freshId = Organizing.maxId(array) + 1
+        val freshId = Organizing.ids(array).next()
         val fresh = Normalize.normalizeNote(JSONObject()
             .put("id", freshId)
             .put("title", shown.opt("title") as? String ?: "")

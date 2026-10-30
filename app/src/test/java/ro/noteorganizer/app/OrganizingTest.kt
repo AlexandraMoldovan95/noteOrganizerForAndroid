@@ -166,6 +166,37 @@ class OrganizingTest {
     }
 
     @Test
+    fun `an id an Int cannot hold takes a new number, and no new note's id wraps onto another's`() {
+        // Held at the edge, 2,147,483,647, the next new note's id wrapped to
+        // -2,147,483,648 and every new note after took that same id; a number
+        // past an Int was cut onto another's, 4,294,967,301 read as 5 (the
+        // final audit's tenth round). The desktop keeps such an id: Python's
+        // numbers hold it, and the phone's cannot.
+        val past = notebook("""[{"id": 1, "title": "a"}, {"id": "99999999999", "title": "b"},
+                                {"id": 4294967301, "title": "c"}, {"id": 5, "title": "d"}]""")
+        assertTrue(Organizing.repairIds(past))
+        assertEquals(listOf(1, 6, 7, 5), (0..3).map { notesOnDisk(past).getJSONObject(it).get("id") })
+        // A note at the edge keeps its number; every new one takes the lowest
+        // number no note holds, never a negative one, never one in use.
+        val edge = notebook("""[{"id": 2147483647, "title": "a"}, {"id": 1, "title": "b"}, {"id": "x", "title": "c"}]""")
+        assertTrue(Organizing.repairIds(edge))
+        assertEquals(listOf(2147483647, 1, 2), (0..2).map { notesOnDisk(edge).getJSONObject(it).get("id") })
+        val load = Notebook.load(dir(edge))
+        val made = listOf(
+            (Notebook.createNote(load, "new", "one") as SaveResult.Ok).id,
+            (Notebook.createNote(load, "new", "two") as SaveResult.Ok).id,
+            (Organizing.duplicate(load, 1, attachments(load)) as SaveResult.Ok).id,
+        )
+        assertEquals(listOf(3, 4, 5), made)
+        val ids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getInt("id") }
+        assertEquals("one id a note", ids.size, ids.toSet().size)
+        assertFalse(Organizing.repairIds(Notebook.load(dir(load))))
+        // A note shaped as a load shapes it reads such an id as none, never cut down onto another's.
+        assertEquals(0, Normalize.normalizeNote(JSONObject().put("id", 4_294_967_301L)).getInt("id"))
+        assertEquals(5, Normalize.normalizeNote(JSONObject().put("id", 5)).getInt("id"))
+    }
+
+    @Test
     fun `a pin is not an edit, its note's updated time stays, as the desktop's toggle_pin`() {
         val load = notebook("""[{"id": 1, "updated": "2026-01-01 00:00:00"}, {"id": 2, "updated": "2026-01-01 00:00:00"}]""")
         Organizing.setPinned(load, listOf(1, 2), true)

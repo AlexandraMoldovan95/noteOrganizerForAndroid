@@ -302,10 +302,19 @@ object Editing {
      * units, so a title of 150 emoji the desktop holds lost 50 of them at the
      * first letter typed, and a letter typed at the cap split one in two
      * (the seventh).
+     *
+     * What came in is read up to the [cursor] the field leaves after it
+     * ([changeAt]), as the desktop inserts what fits at its insert mark: read
+     * off the two texts alone, " fresh" pasted after "Buy" in "Buy milk" was
+     * "fresh " a letter on, and at the cap its first letters were glued to
+     * the next word, "Buy fremilk" (the final audit's tenth round). And the
+     * cut is said only when words were left out, as the desktop's title
+     * says it since its 737efe7: a paste's own trailing space, all the cap
+     * took, was said to be shortened.
      */
     fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS,
-               what: String = "A checklist item", shortened: String? = null): Fit {
-        val change = changeOf(was, now)
+               what: String = "A checklist item", shortened: String? = null, cursor: Int? = null): Fit {
+        val change = changeAt(was, now, cursor)
         val before = was.substring(0, change.head)
         val after = was.substring(was.length - change.tail)
         // Each line break one letter, as the desktop's _cap_paste puts a paste
@@ -323,8 +332,10 @@ object Editing {
         val count = String.format(java.util.Locale.ENGLISH, "%,d", limit)
         if (room <= 0) return Fit(was, null, "$what can be up to $count characters")
         val cut = came.offsetByCodePoints(0, room)
+        val leftOut = PyText.strip(came.substring(cut)).isNotEmpty()
         return Fit(before + came.substring(0, cut) + after, change.head + cut,
-                   shortened ?: "Pasted text shortened: ${what.take(1).lowercase()}${what.drop(1)} can be up to $count characters")
+                   if (!leftOut) null
+                   else shortened ?: "Pasted text shortened: ${what.take(1).lowercase()}${what.drop(1)} can be up to $count characters")
     }
 
     /**
@@ -350,16 +361,37 @@ object Editing {
     /**
      * [changeOf], what came in ending at [cursor] -- where a field leaves its
      * cursor after typing or a paste -- when the words after the cursor are
-     * the old words' end; [changeOf] alone otherwise.
+     * the old words' end; [changeOf] alone otherwise. What is taken away and
+     * nothing put in -- Backspace, a cut -- is taken at the cursor too: read
+     * off the texts, a line break taken from a run of them was the last of
+     * the run.
      */
     fun changeAt(was: String, now: String, cursor: Int?): Change {
         val plain = changeOf(was, now)
         if (cursor == null || cursor !in 0..now.length) return plain
         val tail = now.length - cursor
         if (tail > was.length || !now.regionMatches(cursor, was, was.length - tail, tail)) return plain
-        val head = minOf(plain.head, was.length - tail)
-        if (head > cursor) return plain
+        val head = minOf(plain.head, was.length - tail, cursor)
         return Change(head, tail, now.substring(head, cursor))
+    }
+
+    /**
+     * The edit [typed], a prose field's words, made to its [segment] of the
+     * body, in the body's code points: what came in read up to the [cursor]
+     * the field leaves ([changeAt]), as the desktop's Tk marks see a key or a
+     * paste go in at the insert mark. Read off the two texts alone, Enter
+     * typed at the calculator's place, a line below it, was the line break
+     * after the old one, and the place stayed before the new line: the next
+     * answer went above the words typed under the last (the final audit's
+     * tenth round). Null when nothing changed, or for the field under a
+     * table that closes the note, a line the body does not hold yet.
+     */
+    fun proseEdit(segment: Segment, typed: String, cursor: Int?): Paragraphs.Edit? {
+        val was = segment.text
+        if (segment.isVirtual || typed == was) return null
+        val change = changeAt(was, typed, cursor)
+        return Paragraphs.Edit(segment.cpStart + was.codePointCount(0, change.head),
+            was.codePointCount(change.head, was.length - change.tail), change.came.codePointCount(0, change.came.length))
     }
 
     /** CR LF, and a CR alone, as one line break: the desktop's `_cap_paste`. */
@@ -497,7 +529,9 @@ object Editing {
         private var saidIn: Any? = null
         private var left: String? = null
 
-        fun fit(was: String, now: String, box: Any = Unit): Fit = fitRow(was, now, limit, what, shortened).also { fit ->
+        /** [fitRow] of [was] to [now], what came in read up to the [cursor] the field leaves, and said as above. */
+        fun fit(was: String, now: String, box: Any = Unit, cursor: Int? = null): Fit =
+            fitRow(was, now, limit, what, shortened, cursor).also { fit ->
             if (fit.said == null) {
                 saidIn = null
                 left = null

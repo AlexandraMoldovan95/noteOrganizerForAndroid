@@ -57,14 +57,67 @@ object Organizing {
         return indexOfUid(array, uid)
     }
 
-    internal fun maxId(array: JSONArray): Int {
-        var max = 0
-        for (i in 0 until array.length()) {
-            val itsId = (array.opt(i) as? JSONObject)?.opt("id")
-            if (itsId is Number && itsId.toInt() > max) max = itsId.toInt()
+    /**
+     * A note's id as this phone holds it: `normalize_note`'s
+     * `int(str(id).strip())` -- a whole number as it is, text read as
+     * Python's int() reads it after str.strip(), a float, "7.5" or "7.0",
+     * none (the final audit's ninth round) -- and then only a positive
+     * number an Int holds; 0 for anything else, which [repairIds] gives a
+     * new number. Read with toInt(), a number past an Int wrapped onto
+     * another's, 4,294,967,301 read as 5, and text past it was held at the
+     * edge, where the next new note's id wrapped (the tenth).
+     */
+    internal fun heldId(raw: Any?): Int {
+        val value = when (raw) {
+            is Boolean -> return 0
+            is Int, is Long, is Short, is Byte -> java.math.BigInteger.valueOf((raw as Number).toLong())
+            is java.math.BigInteger -> raw
+            is String -> Recurrence.pythonBigIntOf(PyText.strip(raw)) ?: return 0
+            else -> return 0
         }
-        return max
+        return if (value.signum() > 0 && value.bitLength() < Int.SIZE_BITS) value.toInt() else 0
     }
+
+    /** An id as the file holds it, when it is a whole number a Long holds; null otherwise -- to tell an id written as wanted. */
+    private fun written(raw: Any?): Long? =
+        if (raw is Int || raw is Long || raw is Short || raw is Byte) (raw as Number).toLong() else null
+
+    /**
+     * New note ids, for a notebook whose notes hold [inUse]: each one more
+     * than the highest, as the desktop's `max(ids) + 1` gives them -- and,
+     * once the highest is the most an Int holds, the lowest number no note
+     * has, which there always is. `max + 1` there wrapped to
+     * -2,147,483,648, and every new note after took that same id: two notes
+     * edited as one, the second's words written over the first's (the final
+     * audit's tenth round). Every road that makes a note asks here: a new
+     * note, a duplicate, a Trash restore, an import, a day made a note.
+     */
+    internal class Ids(inUse: Iterable<Int>) {
+        private val used = HashSet<Int>()
+        private var top = 0
+        private var free = 1
+
+        init {
+            for (id in inUse) if (id > 0) {
+                used.add(id)
+                if (id > top) top = id
+            }
+        }
+
+        fun next(): Int {
+            val id = if (top < Int.MAX_VALUE) top + 1 else {
+                while (free in used) free++
+                free
+            }
+            used.add(id)
+            if (id > top) top = id
+            return id
+        }
+    }
+
+    /** [Ids] for the notes of [array], each id read as [heldId] reads it. */
+    internal fun ids(array: JSONArray): Ids =
+        Ids((0 until array.length()).map { heldId((array.opt(it) as? JSONObject)?.opt("id")) })
 
     /** The live array the screen reads, given the written candidate's contents. */
     internal fun replace(live: JSONArray, from: JSONArray) {
@@ -94,7 +147,7 @@ object Organizing {
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
         val stamp = now()
         clone.put("updated", stamp)
-        clone.put("id", maxId(array) + 1)
+        clone.put("id", ids(array).next())
         val atts = clone.getJSONArray("attachments")
         val fresh = JSONArray()
         for (i in 0 until atts.length()) {
@@ -449,30 +502,25 @@ object Organizing {
      * as open is still the same note, and every later holder takes the next
      * free number. Two notes sharing an id were edited as one and went to
      * the Trash together. Written when anything changed; true then.
+     *
+     * One difference from the desktop, which Python's numbers never meet: an
+     * id this phone cannot hold, past 2,147,483,647, takes a new number like
+     * a shared one ([heldId]); the desktop keeps it. Held at the edge, it
+     * made the next new note's id wrap to -2,147,483,648, and every new note
+     * after took that same id (the final audit's tenth round).
      */
     fun repairIds(load: Notebook.Load): Boolean {
         val file = load.file ?: return false
         val array = load.raw ?: return false
-        // `int(str(raw_id).strip())`: a whole number as it is; text read as
-        // Python's int() reads it after str.strip() -- "1_0" 10, a digit of
-        // any script, where toIntOrNull gave no id and the next free number
-        // (the final audit's ninth round, beside the rule's int()); a float
-        // written out, "7.5" or "7.0", which int() refuses, none.
-        fun whole(raw: Any?) = raw is Int || raw is Long || raw is Short || raw is Byte || raw is java.math.BigInteger
-        fun idOf(note: JSONObject): Int = when (val raw = note.opt("id")) {
-            is Boolean -> 0
-            is Number -> if (whole(raw)) raw.toInt() else 0
-            is String -> Recurrence.pythonIntOf(PyText.strip(raw)) ?: 0
-            else -> 0
-        }
         val notes = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-        val ids = notes.map { idOf(it) }
-        var next = (ids.filter { it > 0 }.maxOrNull() ?: 0) + 1
+        val ids = notes.map { heldId(it.opt("id")) }
+        // The first holders kept, every one, before any number is handed out:
+        // a free number given early is not one a later note already holds.
         val seen = HashSet<Int>()
-        val wanted = ids.map { id -> if (id > 0 && seen.add(id)) id else next++.also { seen.add(it) } }
-        if (notes.indices.all { whole(notes[it].opt("id")) && (notes[it].opt("id") as Number).toInt() == wanted[it] }) {
-            return false
-        }
+        val keeps = ids.map { id -> id > 0 && seen.add(id) }
+        val fresh = Ids(seen)
+        val wanted = ids.indices.map { if (keeps[it]) ids[it] else fresh.next() }
+        if (notes.indices.all { written(notes[it].opt("id")) == wanted[it].toLong() }) return false
         val candidate = JSONArray(array.toString())
         var k = 0
         for (i in 0 until candidate.length()) {
@@ -826,7 +874,7 @@ object Organizing {
         val back = all.filter { keyOf(it) in wanted }
         if (back.isEmpty()) return SaveResult.Failed("Those notes are no longer in the Trash.")
         val notesCandidate = JSONArray(array.toString())
-        var nextId = maxId(array) + 1
+        val fresh = ids(array)
         var firstId = 0
         val worn = HashSet<String>()
         for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(it.opt("uid") as? String ?: "") }
@@ -837,13 +885,13 @@ object Organizing {
             // 0.12.0 turned off and deleted takes its days back into the note
             // (Notebook.daysBackAsRead), as the desktop's restore does.
             Notebook.daysBackAsRead(note)
+            val nextId = fresh.next()
             note.put("id", nextId)
             val uid = note.opt("uid") as? String ?: ""
             if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
             worn.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)
             if (firstId == 0) firstId = nextId
-            nextId += 1
             notesCandidate.put(note)
         }
         write(file, notesCandidate)?.let { return SaveResult.Failed(it) }

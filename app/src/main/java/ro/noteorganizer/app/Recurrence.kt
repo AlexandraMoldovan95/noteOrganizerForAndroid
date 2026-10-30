@@ -315,7 +315,12 @@ object Recurrence {
      * counts, are refused -- read as spaces, "\u001c7" repeated weekly on
      * the phone and daily on the desktop (the final audit's ninth round).
      */
-    internal fun pythonIntOf(text: String): Int? {
+    internal fun pythonIntOf(text: String): Int? =
+        pythonBigIntOf(text)?.max(java.math.BigInteger.valueOf(Int.MIN_VALUE.toLong()))
+            ?.min(java.math.BigInteger.valueOf(Int.MAX_VALUE.toLong()))?.toInt()
+
+    /** [pythonIntOf]'s number whole, however large: an id past an Int is no id here ([Organizing.heldId]), not one at the edge. */
+    internal fun pythonBigIntOf(text: String): java.math.BigInteger? {
         var from = 0
         var to = text.length
         while (from < to && intSpace(text.codePointAt(from))) from += Character.charCount(text.codePointAt(from))
@@ -340,9 +345,7 @@ object Recurrence {
         }
         // Nor ends: "1_" is refused, and so is a sign alone.
         if (afterSeparator || digits.isEmpty() || digits.length > PYTHON_INT_DIGITS) return null
-        val value = java.math.BigInteger(digits.toString()).let { if (negative) it.negate() else it }
-        return value.max(java.math.BigInteger.valueOf(Int.MIN_VALUE.toLong()))
-            .min(java.math.BigInteger.valueOf(Int.MAX_VALUE.toLong())).toInt()
+        return java.math.BigInteger(digits.toString()).let { if (negative) it.negate() else it }
     }
 
     private const val PYTHON_INT_DIGITS = 4300

@@ -55,16 +55,39 @@ object Finding {
     /** The [Match.segment] of a match outside the body. */
     const val OUTSIDE = -1
 
-    /** Letter by letter, so every position in the text stays where it was. */
+    /**
+     * Letter by letter, so every position in the text stays where it was --
+     * each lowered as Tk's -nocase search lowers it, the desktop's
+     * `_tcl_lower` (098d5a8): one for one, by its simple case mapping, in
+     * the basic plane only, and left as it is when its lower case takes more
+     * bytes in UTF-8, as Tcl_UtfToLower leaves it. Lowered whole, Ⱥ and Ⱦ
+     * (two bytes, their lower case three) and every letter past the basic
+     * plane were found here and not on the desktop (the final audit's tenth
+     * round).
+     */
     private fun foldEach(text: String): String {
         val out = StringBuilder(text.length)
         var i = 0
         while (i < text.length) {
             val cp = text.codePointAt(i)
-            out.appendCodePoint(Character.toLowerCase(cp))
+            out.appendCodePoint(tclLower(cp))
             i += Character.charCount(cp)
         }
         return out.toString()
+    }
+
+    /** One letter as Tcl lowers it on its own: [foldEach]'s rule. */
+    private fun tclLower(cp: Int): Int {
+        if (cp > 0xFFFF) return cp
+        val low = Character.toLowerCase(cp)
+        return if (low != cp && utf8Length(low) <= utf8Length(cp)) low else cp
+    }
+
+    private fun utf8Length(cp: Int): Int = when {
+        cp < 0x80 -> 1
+        cp < 0x800 -> 2
+        cp < 0x10000 -> 3
+        else -> 4
     }
 
     private const val MERGE_LEFT = "<"

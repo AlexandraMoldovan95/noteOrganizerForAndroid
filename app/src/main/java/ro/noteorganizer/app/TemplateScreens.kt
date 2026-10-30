@@ -664,8 +664,7 @@ private fun TemplateEditor(
         // ([MessagesShown]): shown by both, each was two live regions.
         Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
             contentAlignment = Alignment.BottomCenter) {
-            MessagesShown.Over(state.snackbar)
-            SnackbarHost(state.snackbar, Modifier.padding(bottom = 16.dp))
+            if (MessagesShown.Over(state.snackbar)) SnackbarHost(state.snackbar, Modifier.padding(bottom = 16.dp))
         }
         if (askName) {
             AlertDialog(

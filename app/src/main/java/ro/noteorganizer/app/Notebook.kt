@@ -1065,15 +1065,9 @@ object Notebook {
         if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
         val array = load.raw ?: JSONArray()
 
-        // Read the highest id from the RAW array: a note the model skipped
-        // still owns its id, and reusing it would merge two notes.
-        var maxId = 0
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val id = o.opt("id")
-            if (id is Number && id.toInt() > maxId) maxId = id.toInt()
-        }
-        val newId = maxId + 1
+        // Read the ids from the RAW array: a note the model skipped still
+        // owns its id, and reusing it would merge two notes.
+        val newId = Organizing.ids(array).next()
 
         val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
         val note = JSONObject()
@@ -1431,13 +1425,7 @@ object Notebook {
         // desktop's restore shapes it (normalize_note). Kept only in the copy,
         // the next copy of words erased them (the final audit's seventh round).
         daysBackAsRead(restored)
-        var maxId = 0
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() > maxId) maxId = itsId.toInt()
-        }
-        val newId = maxId + 1
+        val newId = Organizing.ids(array).next()
         restored.put("id", newId)
 
         val candidate = copyOf(array)

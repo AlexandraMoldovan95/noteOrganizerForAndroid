@@ -50,7 +50,11 @@ object Normalize {
     fun normalizeNote(raw: JSONObject, daysBack: Boolean = true): JSONObject {
         val out = JSONObject()
         val id = raw.opt("id")
-        out.put("id", if (id is Number && id !is Double && id !is Float) id.toInt() else 0)
+        // A whole number an Int holds, as it is; past one, no id, never one
+        // cut down onto another note's (4,294,967,301 read as 5: the final
+        // audit's tenth round). The load gives it a new number ([Organizing.repairIds]).
+        val whole = if (id is Int || id is Long || id is Short || id is Byte) (id as Number).toLong() else null
+        out.put("id", if (whole != null && whole in Int.MIN_VALUE..Int.MAX_VALUE) whole.toInt() else 0)
         val uid = (raw.opt("uid") as? String)?.trim().orEmpty()
         out.put("uid", uid.ifEmpty { java.util.UUID.randomUUID().toString() })
         for (field in TEXT_FIELDS) out.put(field, raw.opt(field) as? String ?: "")

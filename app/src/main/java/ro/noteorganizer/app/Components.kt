@@ -34,6 +34,8 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
@@ -90,6 +92,7 @@ fun Modifier.said(id: Int): Modifier {
 fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
              content: @Composable ColumnScope.() -> Unit) {
     val palette = LocalPalette.current
+    val depth = LocalMessagesDepth.current + 1
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -107,14 +110,20 @@ fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
         // final audit's eighth round). Their room is kept: a sheet's words
         // taller than the window -- the details, on a phone on its side --
         // took all of it, and the message had none. Such a sheet scrolls.
-        if (messages == null) content()
-        else {
-            Column(Modifier.weight(1f, fill = false)) { content() }
-            MessagesShown.Over(messages)
-            SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        // A sheet opened over another -- the Repeat sheet over the note's
+        // details -- draws them; the one under it, none ([MessagesShown]).
+        CompositionLocalProvider(LocalMessagesDepth provides depth) {
+            if (messages == null) content()
+            else {
+                Column(Modifier.weight(1f, fill = false)) { content() }
+                if (MessagesShown.Over(messages)) SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            }
         }
     }
 }
+
+/** How deep the sheets around what is composed here stand: a host's place in [MessagesShown]. */
+private val LocalMessagesDepth = compositionLocalOf { 0 }
 
 /**
  * The hosts drawing the app's messages over the window -- a sheet's, the
@@ -124,29 +133,45 @@ fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
  * sheet's window and one in the window under it, and TalkBack could read
  * it twice (the final audit's ninth round). A host that goes leaves a
  * message still standing to the window's, which shows it again.
+ *
+ * And of those hosts, one draws: the deepest -- a sheet opened over another
+ * sheet -- the newest of equals. The Repeat sheet over the note's details
+ * drew each message as the details did under it, two live regions again
+ * (the final audit's tenth round).
  */
 object MessagesShown {
-    private val over = mutableStateMapOf<Any, Int>()
+    private val over = mutableStateMapOf<Any, Map<Any, Int>>()
 
     /** Whether a host over the window draws [messages] now. */
-    fun elsewhere(messages: Any): Boolean = (over[messages] ?: 0) > 0
+    fun elsewhere(messages: Any): Boolean = over[messages]?.isNotEmpty() == true
 
-    fun shown(messages: Any) {
-        over[messages] = (over[messages] ?: 0) + 1
+    /** [host], [depth] sheets deep, stands over the window for [messages]. */
+    internal fun shown(messages: Any, host: Any, depth: Int) {
+        over[messages] = (over[messages] ?: emptyMap()) - host + (host to depth)
     }
 
-    fun gone(messages: Any) {
-        val left = (over[messages] ?: 0) - 1
-        if (left > 0) over[messages] = left else over.remove(messages)
+    internal fun gone(messages: Any, host: Any) {
+        val left = (over[messages] ?: emptyMap()) - host
+        if (left.isNotEmpty()) over[messages] = left else over.remove(messages)
     }
 
-    /** A host over the window draws [messages] while this is composed. */
+    /** Whether [host] is the one of [messages]' hosts that draws them: the deepest, the newest of equals. */
+    internal fun drawn(messages: Any, host: Any): Boolean {
+        val hosts = over[messages] ?: return false
+        val deepest = hosts.values.maxOrNull() ?: return false
+        return hosts.entries.last { it.value == deepest }.key === host
+    }
+
+    /** A host over the window for [messages] while this is composed; true while it is the one that draws them. */
     @Composable
-    fun Over(messages: SnackbarHostState) {
-        DisposableEffect(messages) {
-            shown(messages)
-            onDispose { gone(messages) }
+    fun Over(messages: SnackbarHostState): Boolean {
+        val host = remember { Any() }
+        val depth = LocalMessagesDepth.current
+        DisposableEffect(messages, depth) {
+            shown(messages, host, depth)
+            onDispose { gone(messages, host) }
         }
+        return drawn(messages, host)
     }
 }
 
