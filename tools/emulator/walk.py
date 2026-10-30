@@ -307,12 +307,50 @@ def shot(folder, name, *must_say, patience=6.0):
     if missing:
         fail("photo %s: the screen does not say %s" % (name, missing))
         return False
+    photograph(folder, name)
+    return True
+
+
+def shot_as_said(folder, name, *words, within=6.0, over_keys=False):
+    """[says_soon], photographed the moment the screen is read saying
+    [words]: a message lives four seconds, and [shot], reading the screen
+    again first, photographed five of them gone -- the photos named for
+    what was said showed none of it (the final audit's eighth round). The
+    words missing, as [says_soon] gives them; no photo without them.
+    [over_keys]: the keyboard is up here, and the first of [words] must be
+    drawn above it -- the UI tree holds a node the keys cover, and the
+    note's editor said its words under them unseen."""
+    def read():
+        seen = nodes()
+        return seen, [w for w in words if not any(w in t or w in d for t, d, _ in seen)]
+    seen, missing = settle(read, lambda r: not r[1], within=within, first=0)
+    if missing:
+        fail("photo %s: the screen does not say %s" % (name, missing))
+        return missing
+    photograph(folder, name)
+    if over_keys:
+        top = keyboard_top()
+        y = next(c[1] for t, d, c in seen if words[0] in t or words[0] in d)
+        check("%s: said above the keyboard, not under its keys" % name, top is not None and y < top,
+              "the words at %d, the keyboard from %s" % (y, top))
+    return missing
+
+
+def keyboard_top():
+    """Where the keyboard begins on the screen, from the window manager's
+    insets; None while it is down."""
+    if not keyboard_shown():
+        return None
+    at = re.search(r"type=ime frame=\[\d+,(\d+)\]\[\d+,\d+\][^\n]*visible=true", adb("shell", "dumpsys", "window"))
+    return int(at.group(1)) if at else None
+
+
+def photograph(folder, name):
     adb("shell", "screencap", "-p", "/sdcard/shot.png")
     data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
     with open(os.path.join(folder, name + ".png"), "wb") as f:
         f.write(data)
     print("     photo %s.png" % name)
-    return True
 
 
 def shades_while_tapping(label, frames=10):
@@ -4075,9 +4113,8 @@ def limits_round6(folder):
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
     time.sleep(0.4)
     type_text("X")
-    said = not says_soon("A checklist item can be up to 2,000 characters", within=6.0)
-    # The bar may be gone by the time of the photograph: the words were read above.
-    shot(folder, "112-row-cap-said", "milk")
+    said = not shot_as_said(folder, "112-row-cap-said", "A checklist item can be up to 2,000 characters",
+                            over_keys=True)
     tap("milk", exact=True, wait=1.0)
     back_to("Search notes")
     kept = rows_of("r6-1")
@@ -4238,8 +4275,7 @@ def limits_round6(folder):
     type_text("Passport")
     keyboard_down()
     tap("+ Add", exact=True, wait=0.3)
-    said = not says_soon("A checklist holds at most 1000 items.", within=6.0)
-    shot(folder, "116-template-full-said", "Passport")
+    said = not shot_as_said(folder, "116-template-full-said", "A checklist holds at most 1000 items.", "Passport")
     tap("Close", exact=True, wait=1.0)
     asked = find("Save changes?") is not None
     tap_last("Save", wait=0.3)
@@ -4340,8 +4376,7 @@ def days_in_the_note(folder):
     tap("Every week", wait=1.5)
     tap("Does not repeat", exact=True, wait=0.8)
     tap("Save", exact=True, wait=0.3)
-    said = not says_soon("The repeat is off", within=6.0)
-    shot(folder, "118-repeat-off-kept", "Note details")
+    said = not shot_as_said(folder, "118-repeat-off-kept", "The repeat is off", "Note details")
     back_to("Search notes")
     off = settle(lambda: note_said("dn-gym"), lambda n: not (n.get("recurrence") or {}).get("freq"))
     check("a series turned off from the Repeat sheet keeps its day's own text in the note, and the series in its copy",
@@ -4656,10 +4691,8 @@ def limits_round8(folder):
     tap("Name", exact=True, wait=0.8)
     type_text("General")
     tap("Save", exact=True, wait=0.3)
-    said = not says_soon("There is already a category called", within=6.0)
-    # Photographed as it is said: the word lives four seconds, and a photo
-    # that waited for it after the sheet was read found it gone.
-    shot(folder, "123-category-refused-over-its-sheet", "Add a category")
+    said = not shot_as_said(folder, "123-category-refused-over-its-sheet", "There is already a category called",
+                            over_keys=True)
     stays = not screen_says("Add a category", "Name")
     check("a category's name already used is refused and said over its sheet, which stays open",
           said and stays, "said %s, the sheet open %s" % (said, stays))
@@ -4730,8 +4763,7 @@ def limits_round8(folder):
         tap("Every week", wait=1.5)
         tap("Does not repeat", exact=True, wait=0.8)
         tap("Save", exact=True, wait=0.3)
-        off_said = not says_soon("The repeat is off", within=6.0)
-        shot(folder, "126-details-on-its-side", "Note details")
+        off_said = not shot_as_said(folder, "126-details-on-its-side", "The repeat is off", "Note details")
         check("on a phone on its side, the turn-off's word is seen over the note's details", off_said)
         foot = False
         for _ in range(4):
