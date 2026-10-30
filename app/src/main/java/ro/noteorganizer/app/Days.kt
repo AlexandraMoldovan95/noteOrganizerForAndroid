@@ -476,6 +476,25 @@ object Days {
     internal fun repeatOffLosesDays(note: JSONObject): Boolean =
         Recurrence.isRecurring(note) && Notebook.daysHoldOwnText(note)
 
+    /** What a turn-off that took days' own text says of the copy its save left. */
+    enum class OffWord { SERIES_KEPT, UPDATE_KEPT, NO_COPY }
+
+    /**
+     * What the Repeat sheet says of a turn-off, asked of [note] as its save
+     * left it -- the desktop's `_repeat_off_line`: the copy it kept is the
+     * series, or, after an import's Update, the note as it was before that,
+     * which Restore previous brings back instead (the ninth round). A copy
+     * the note holds again in full is dropped by the same save
+     * ([Notebook.dropSpentCopy]): no Restore previous is promised for it.
+     * Said from the copy's kind alone, the sheet promised a button that was
+     * gone (the tenth round, the desktop's 04044ce).
+     */
+    internal fun repeatOffWord(note: JSONObject?): OffWord = when {
+        note == null || !Notebook.holdsUnspentCopy(note) -> OffWord.NO_COPY
+        Notebook.keepsUpdateCopy(note) -> OffWord.UPDATE_KEPT
+        else -> OffWord.SERIES_KEPT
+    }
+
     /**
      * Sets a note's repeat, or turns it off with [rule] null or a rule
      * that does not repeat. A repeating note needs a first day. Turned off,

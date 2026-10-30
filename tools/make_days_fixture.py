@@ -51,6 +51,17 @@ first one's copy of the same series, after a big delete and after the
 comments were cleared; and an arriving note read as a load reads it, its
 copy's days taken back, before both are compared bare.
 
+And since the tenth (the desktop's round-ten data fix): a copy's day is
+dropped only where the note deleted that day or wrote words of its own for
+it -- 0.12.0 turned on as it was, then that very day moved, coloured (the
+desktop's patch and the phone's), or moved with another put on its date;
+the copy's moved day where the note moved another onto its date, coloured
+it where it stood, or deleted it; a copy's move onto a day whose own move
+stays behind; an edit the copy draws on no day; a second turn-off after
+a line was added, which keeps the newest words; and a big delete, the repeat
+off, on as another series (another start, every two weeks, an end date) and
+off again, which keeps the deleted words.
+
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
 
@@ -79,7 +90,7 @@ REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
                                 "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "68b4b4ef7acd33aa13aae61b84974d45c66c46a0"),
+                              "3a2c7065e86642a5c8d22de46d4d6ddaa50ae335"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
         '                    note["moved"] = {}\n', "ee189b1fd26d1d315d9195c72bfa41faa2336c9f"),
@@ -186,8 +197,9 @@ def main():
                     kept[key] = copy.deepcopy(prev.get(key))
             return kept
         elif (isinstance(existing, dict)
-              and (set(existing) <= set(RESCUE_TEXT_KEYS) or copy_holds_this_series(note))
-              and not rescue_copy_spent(note)):
+              and rescue_copy_due(existing.get("title") or "", existing.get("body") or "",
+                                  note.get("title") or "", note.get("body") or "",
+                                  existing.get("comments") or "", note.get("comments") or "")):
             for key in RESCUE_TEXT_KEYS:
                 prev[key] = copy.deepcopy(existing.get(key, prev[key]))
         return prev
@@ -446,6 +458,53 @@ def main():
                   dict(own, comments=trip_comments),
                   [off, {"do": "write", "title": "Gym", "body": body, "comments": ""}, on_same, off,
                    {"do": "restore"}]))
+    # The tenth round (the desktop's round-ten data fix). A date the note holds
+    # with no words of its own no longer spends the copy's own text for that
+    # day: 0.12.0 turned on as it was, then THAT day moved, or only coloured.
+    first = "2026-11-09"
+    for what, days in (("that day moved", {"moved": {first: "2026-11-10"}}),
+                       ("that day coloured, the desktop's shape",
+                        {"overrides": {first: {"title": "Gym", "body": body, "comments": "",
+                                               "color": "#ff6b6b", "category": "Work"}}}),
+                       ("that day coloured, the phone's shape", {"overrides": {first: {"color": "#ff6b6b"}}}),
+                       ("that day moved, another moved onto its date",
+                        {"moved": {first: "2026-11-11", "2026-11-23": first}})):
+        cases.append(("0.12.0's turn-off then on as it was, then %s, read" % what, dict(back_on, **days), []))
+    # A copy's move the note's days leave no room for keeps its words on the day.
+    copy_moved = dict(back_on["_prev"], exceptions=[], moved={first: "2026-11-10"},
+                      overrides={"2026-11-10": {"body": "Leg day - knee hurt, rest Thursday"}})
+    for what, days in (("another day moved onto its date", {"moved": {"2026-11-23": "2026-11-10"}}),
+                       ("the day coloured where it stood", {"overrides": {first: {"color": "#ff6b6b"}}}),
+                       ("the day deleted", {"exceptions": [first]})):
+        cases.append(("the copy's moved day, %s, read" % what, dict(back_on, _prev=copy_moved, **days), []))
+    # A copy's move onto a day whose own move stays behind stays behind too.
+    cases.append(("the copy's moves onto a day whose own move stays behind, read",
+                  dict(back_on, moved={"2026-11-23": "2026-11-10"},
+                       _prev=dict(copy_moved, moved={first: "2026-11-10", "2026-11-16": first},
+                                  overrides={"2026-11-10": {"body": "Monday 9th's words"},
+                                             first: {"body": "Monday 16th's words"}})), []))
+    # An edit the copy draws on no day stays on its date (the note holds a
+    # day of its own, so the copy's come back one by one, not all at once).
+    cases.append(("an edit the copy draws on no day, read",
+                  dict(back_on, overrides={"2026-11-30": {"body": "Rest week"}},
+                       _prev=dict(copy_moved, overrides=dict(
+                      copy_moved["overrides"], **{first: {"body": "Stray words"}}))), []))
+    # A second turn-off gives the first one's copy its words only when the
+    # note has lost words to it: a line added between stays the newest.
+    cases.append(("off, a line added, on as it was, off again, Restore previous", own,
+                  [off, {"do": "write", "title": "Gym", "body": body + "\nAdded later: bring water",
+                         "comments": ""}, on_same, off, {"do": "restore"}]))
+    # Any earlier copy but an Update's gives its words when the note has lost
+    # them, whatever series it held: back on as another series, the first
+    # turn-off's copy was replaced, a big delete's words in no file.
+    for what, step in (("from another start", on_other),
+                       ("every two weeks", {"do": "repeat", "date": "2026-11-02",
+                                            "rule": {"freq": "weekly", "interval": 2}}),
+                       ("ending 1 March 2027", {"do": "repeat", "date": "2026-11-02",
+                                                "rule": {"freq": "weekly", "interval": 1,
+                                                         "end": "2027-03-01"}})):
+        cases.append(("a big delete, off, on %s, off again, Restore previous" % what, own,
+                      [big_delete, off, step, off, {"do": "restore"}]))
 
     out = []
     for name, start, steps in cases:

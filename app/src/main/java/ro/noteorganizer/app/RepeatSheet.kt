@@ -180,6 +180,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
 
             val offKept = stringResource(R.string.repeat_off_kept)
             val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)
+            val offNoCopy = stringResource(R.string.repeat_off_no_copy)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
                 TextButton(
@@ -207,9 +208,13 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                             // Kept over an import's Update, the copy is the note
                             // from before the update, which Restore previous then
                             // brings back -- not the series (the desktop's
-                            // _repeat_off_line, the final audit's ninth round).
-                            val update = state.rawNote(model.id)?.let { Notebook.keepsUpdateCopy(it) } == true
-                            if (losing) state.say(if (update) offKeptUpdate else offKept)
+                            // _repeat_off_line, the final audit's ninth round);
+                            // a copy the same save dropped promises nothing (the tenth).
+                            if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
+                                Days.OffWord.SERIES_KEPT -> offKept
+                                Days.OffWord.UPDATE_KEPT -> offKeptUpdate
+                                Days.OffWord.NO_COPY -> offNoCopy
+                            })
                             onDone()
                         }
                     },
