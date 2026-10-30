@@ -32,6 +32,15 @@ series, which never moves; the same backup imported twice; the comments
 rewritten over a big delete's copy; "Restore previous" after comments were
 typed, and after the same words' styles changed.
 
+And since the eighth (the desktop's 947e9d3): a day reset after a series is
+turned back on as its copy's series, read again -- the copy's days spent --
+by the editor's turn-on and by 0.12.0's notebook read; the backup made
+before the reset, compared without either side's copy (an import asks
+before it updates, as the desktop's _known_note_differs does); 0.12.0's own
+backup imported where the move ran; a turn-off over a share code's Update
+copy, which it keeps; and two letters of comments cleared after a long
+comment was deleted.
+
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
 
@@ -60,13 +69,16 @@ REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
                                 "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "0dbcd5f3d72b87ec64ad2c16b132be4e6aae9128"),
+                              "d513ccf3c4d367937ca1a4a791a38d45ba46aa0a"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
-        '                    note["moved"] = {}\n', "2a680145992b393dff9df7744aa160a1831a8715"),
+        '                    note["moved"] = {}\n', "ee189b1fd26d1d315d9195c72bfa41faa2336c9f"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
                                          "307ce489636ae9adce9c88017b5f7d12b8769271"),
+    "_reset_occurrence_override's write": ('        note["overrides"].pop(occurrence_date, None)\n',
+                                           '            note["moved"].pop(origin, None)\n',
+                                           "41d1e6cd94035d59b2b505b7a1dd709896ed5dc5"),
 }
 PREV_EXTRA_KEYS = ("checklist", "date", "recurrence", "color", "category", "overrides",
                    "exceptions", "moved", "pinned")
@@ -114,9 +126,11 @@ def main():
     settle(DESKTOP)
     isolate()
     sys.path.insert(0, DESKTOP)
-    from noteorganizer.core.model import (apply_shared_update, copy_replaced_by_restore,
-                                          days_hold_own_text, kept_days_fit, normalize_note,
-                                          rescue_copy_due, rescue_copy_spent,
+    from noteorganizer.core.model import (apply_shared_update, comments_kept_by_copy,
+                                          copy_replaced_by_restore, days_hold_own_text,
+                                          kept_days_fit, normalize_note, rescue_copy_due,
+                                          rescue_copy_spent, shared_update_changes,
+                                          spend_series_days, update_copy, DAY_FIELDS,
                                           UPDATABLE_FROM_BACKUP, UPDATABLE_FROM_SHARED)
     from noteorganizer.core.recurrence import is_recurring, normalize_recurrence
     from noteorganizer.core.formatting import normalize_formatting, normalize_paragraphs
@@ -158,6 +172,12 @@ def main():
               and not rescue_copy_spent(note)):
             for key in RESCUE_TEXT_KEYS:
                 prev[key] = copy.deepcopy(existing.get(key, prev[key]))
+        elif update_copy(existing) and not rescue_copy_spent(note):
+            kept = copy.deepcopy(existing)
+            for key in ("date", "recurrence") + DAY_FIELDS:
+                if key not in kept:
+                    kept[key] = copy.deepcopy(prev.get(key))
+            return kept
         return prev
 
     def holds_unspent_rescue(note):
@@ -181,10 +201,12 @@ def main():
         if days_lost:
             note["_prev"] = turn_off_copy(note, takes_text=rescue_due and not comments_alone)
             if comments_alone:
-                note["_prev"]["comments"] = note.get("comments", "")
+                note["_prev"]["comments"] = comments_kept_by_copy(
+                    note["_prev"].get("comments", ""), note.get("comments", ""))
         elif rescue_due:
-            note["_prev"] = dict(copy.deepcopy(note["_prev"]),
-                                 comments=note.get("comments", "")) if comments_alone else {
+            note["_prev"] = dict(copy.deepcopy(note["_prev"]), comments=comments_kept_by_copy(
+                note["_prev"].get("comments", ""),
+                note.get("comments", ""))) if comments_alone else {
                 "title": note.get("title", ""),
                 "body": note.get("body", ""),
                 "formatting": note.get("formatting", []),
@@ -198,6 +220,7 @@ def main():
         note["comments"] = comments
         note["date"] = date_value
         note["recurrence"] = recurrence
+        spend_series_days(note)
         if not recurrence["freq"] and not days_kept:
             note["exceptions"] = []
             note["overrides"] = {}
@@ -221,6 +244,19 @@ def main():
             note.pop("_prev", None)
         else:
             note["_prev"] = replaced
+
+    def reset(note, day):
+        """_reset_occurrence_override's write, as fingerprinted, for a day
+        with its own text and no move: its own edit goes, and the notebook
+        is saved as it is."""
+        note["overrides"].pop(day, None)
+
+    def imported(note, incoming, fields):
+        """An import's update of a note already here: asked first, as the
+        desktop's _known_note_differs asks it of the note as it arrived, and
+        applied only when it changes a field (apply_shared_update)."""
+        if shared_update_changes(note, incoming, fields):
+            apply_shared_update(note, incoming, fields)
 
     weekly = {"freq": "weekly", "interval": 1}
     body = "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan."
@@ -253,6 +289,10 @@ def main():
     # alone, the note repeating with no days, the series' copy holding them.
     back_on = dict(shipped, recurrence=weekly)
     back_on_elsewhere = dict(shipped, recurrence=weekly, date="2026-11-09")
+    # The eighth round's: a series whose one day of its own is the only day it
+    # holds -- reset, it holds none, the state the copy's days came back into.
+    one_day = dict(base, overrides={"2026-11-09": {"body": "Leg day - knee hurt, rest Thursday"}})
+    back_on_one = dict(back_on, _prev=dict(back_on["_prev"], exceptions=[]))
     # The seventh round's comments: a long comment beside a paragraph.
     trip_body = ("Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, "
                  "and the map Ioana printed. Day 3: rest, then the castle at noon. ") * 2
@@ -333,6 +373,31 @@ def main():
          [{"do": "write", "title": "Renovation", "body": "Kitchen", "comments": ""},
           {"do": "write", "title": "Renovation", "body": renovation["body"], "comments": "", "formatting": bold},
           {"do": "restore"}]),
+        # The eighth round. A series' own copy's days are spent once the note
+        # repeats as that series again: a day reset after stays reset.
+        ("one day of its own: off, an edit, on as it was, the day reset, read", one_day,
+         [off, {"do": "write", "title": "Gym!", "body": body, "comments": ""}, on_same,
+          {"do": "reset", "day": "2026-11-09"}, {"do": "read"}]),
+        ("0.12.0's turn-off then on as it was, its one day reset, read again", back_on_one,
+         [{"do": "reset", "day": "2026-11-09"}, {"do": "read"}]),
+        # ...and a backup made before the reset, whose copy still holds the
+        # day, is the same note: both sides compared without their copies.
+        ("0.12.0's turn-off then on as it was, its one day reset, the backup made before", back_on_one,
+         [{"do": "reset", "day": "2026-11-09"}, {"do": "backup", "incoming": copy.deepcopy(back_on_one)}]),
+        # The edge said: imported where the move already ran, it is asked
+        # about, and its update changes nothing.
+        ("0.12.0's turn-off then on as it was, its own backup again", back_on,
+         [{"do": "backup", "incoming": copy.deepcopy(back_on)}]),
+        # A turn-off keeps an import's Update copy, the series given to it.
+        ("a share code's update, the repeat turned off, Restore previous", own,
+         [{"do": "share", "incoming": sender(own, body="Warm up.\nThe laptop's plan: bike, then weights.")},
+          off, {"do": "restore"}]),
+        # Two letters cleared after a long comment was deleted keep it.
+        ("a long comment deleted, two letters typed and cleared, Restore previous", trip,
+         [{"do": "write", "title": "Trip", "body": trip_body, "comments": ""},
+          {"do": "write", "title": "Trip", "body": trip_body, "comments": "ok"},
+          {"do": "write", "title": "Trip", "body": trip_body, "comments": ""},
+          {"do": "restore"}]),
     ]
 
     out = []
@@ -357,10 +422,12 @@ def main():
                 note = normalize_note(json.loads(json.dumps(note)))
             elif step["do"] == "restore":
                 restore(note)
+            elif step["do"] == "reset":
+                reset(note, step["day"])
             elif step["do"] == "share":
-                apply_shared_update(note, step["incoming"], UPDATABLE_FROM_SHARED)
+                imported(note, step["incoming"], UPDATABLE_FROM_SHARED)
             elif step["do"] == "backup":
-                apply_shared_update(note, step["incoming"], UPDATABLE_FROM_BACKUP)
+                imported(note, step["incoming"], UPDATABLE_FROM_BACKUP)
             after.append(json.loads(json.dumps(note)))
         out.append({"name": name, "note": start, "steps": steps,
                     "loaded": json.loads(json.dumps(normalize_note(copy.deepcopy(start)))),

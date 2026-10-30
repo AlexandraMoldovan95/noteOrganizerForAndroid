@@ -1766,4 +1766,55 @@ class NotebookTest {
         assertEquals("ok", saved.getString("comments"))
         assertEquals(comments, saved.getJSONObject("_prev").getString("comments"))
     }
+
+    @Test
+    fun `round eight's copy rules, as the desktop's 947e9d3 has them`() {
+        // The days_cases fixture walks each through both programs; here each
+        // rule is asked on its own.
+        val weekly = JSONObject().put("freq", "weekly").put("interval", 1)
+        val day = JSONObject().put("2026-11-09", JSONObject().put("body", "Leg day"))
+        fun series(vararg extra: Pair<String, Any>) = JSONObject().put("title", "Gym").put("body", "Warm up.")
+            .put("date", "2026-11-02").put("recurrence", JSONObject(weekly.toString()))
+            .put("exceptions", JSONArray()).put("overrides", JSONObject(day.toString())).put("moved", JSONObject())
+            .also { o -> for ((k, v) in extra) o.put(k, v) }
+        // A series' own copy's days are spent once the note repeats as that
+        // series; a note that does not repeat keeps its copy's days.
+        val back = series("_prev" to series())
+        Notebook.spendSeriesDays(back)
+        assertTrue(Notebook.DAY_FIELDS.none { back.getJSONObject("_prev").has(it) })
+        val off = series("_prev" to series()).put("recurrence", JSONObject().put("freq", ""))
+        Notebook.spendSeriesDays(off)
+        assertTrue(Notebook.DAY_FIELDS.all { off.getJSONObject("_prev").has(it) })
+        val elsewhere = series("_prev" to series()).put("date", "2026-11-09")
+        Notebook.spendSeriesDays(elsewhere)
+        assertTrue("another series keeps them", elsewhere.getJSONObject("_prev").has("overrides"))
+        // A backup whose copy still holds a day reset here is the same note.
+        val reset = series().put("overrides", JSONObject())
+        assertFalse(Notebook.sharedUpdateChanges(reset, series("_prev" to series()).put("overrides", JSONObject()),
+                                                 Notebook.UPDATABLE_FROM_BACKUP))
+        // The comments whose loss is the larger stay in a waiting copy.
+        val long = "Booking refs and phone numbers for the trip: hotel 88231, car 1192-A. ".repeat(4)
+        assertEquals(long, Notebook.commentsKeptByCopy(long, "ok"))
+        assertEquals(long, Notebook.commentsKeptByCopy("ok", long))
+        // A turn-off keeps an unspent Update copy, given the series where it lacks it.
+        val update = JSONObject().put("title", "Gym").put("body", "Older words").put("category", "General")
+        val turned = series("_prev" to update)
+        val kept = Notebook.turnOffCopy(series(), turned)
+        assertEquals("Older words", kept.getString("body"))
+        assertEquals("General", kept.getString("category"))
+        assertEquals("2026-11-02", kept.getString("date"))
+        assertEquals("Leg day", kept.getJSONObject("overrides").getJSONObject("2026-11-09").getString("body"))
+        // ...but a spent one, the note holding all it kept, gives way.
+        val spentUpdate = series("_prev" to JSONObject().put("title", "Gym").put("body", "Warm up.").put("category", "General"))
+            .put("category", "General")
+        assertEquals("the turn-off's", Notebook.turnOffCopy(series().put("body", "the turn-off's"), spentUpdate).getString("body"))
+        // A save that puts the date back to the copy's series spends its days,
+        // as the desktop's every save of the whole note does.
+        val load = scratch(JSONArray().put(series("_prev" to series().put("body", "Older words"), "id" to 1, "uid" to "g")
+            .put("date", "2026-11-09")).toString())
+        assertTrue("another series at first: the copy keeps them",
+                   load.raw!!.getJSONObject(0).getJSONObject("_prev").has("overrides"))
+        assertTrue(Notebook.updateNote(load, 1, "Gym", "Warm up.", date = "2026-11-02") is SaveResult.Ok)
+        assertTrue(Notebook.DAY_FIELDS.none { onDisk(load).getJSONObject(0).getJSONObject("_prev").has(it) })
+    }
 }

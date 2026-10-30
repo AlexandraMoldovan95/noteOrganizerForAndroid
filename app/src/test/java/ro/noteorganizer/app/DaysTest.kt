@@ -893,7 +893,7 @@ class DaysTest {
         val stream = javaClass.classLoader?.getResourceAsStream("days_cases.json")
         assertNotNull("days_cases.json is missing - rebuild it with tools/make_days_fixture.py", stream)
         val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
-        assertTrue(cases.length() >= 31)
+        assertTrue(cases.length() >= 37)
         for (c in 0 until cases.length()) {
             val case = cases.getJSONObject(c)
             val name = case.getString("name")
@@ -910,8 +910,10 @@ class DaysTest {
             if (steps.length() == 0) {
                 assertEquals("$name: as read", canon(case.getJSONObject("loaded")), canon(load.raw!!.getJSONObject(0)))
             }
+            var stored = load.raw!!.optJSONObject(0)
             for (s in 0 until steps.length()) {
                 val step = steps.getJSONObject(s)
+                val fileWas = load.file!!.readText()
                 val now = load.raw!!.optJSONObject(0) ?: JSONObject()
                 val title = now.optString("title")
                 val body = now.optString("body")
@@ -929,17 +931,24 @@ class DaysTest {
                         Organizing.restore(load, load.trash.map { Organizing.keyOf(it) }) is SaveResult.Ok)
                     "read" -> load = Notebook.load(load.file!!.parentFile!!)
                     "restore" -> assertTrue("$name: restore", Notebook.restorePrevious(load, 1) is SaveResult.Ok)
+                    // A day reset to the series: its own edit dropped.
+                    "reset" -> assertTrue("$name: reset", Days.resetDay(load, 1, step.getString("day")) is SaveResult.Ok)
                     "share", "backup" -> {
                         val source = if (step.getString("do") == "share") Importing.Source.CODE else Importing.Source.BACKUP
                         assertTrue(Importing.apply(load, Importing.plan(load.raw!!, listOf(step.getJSONObject("incoming")), source),
                             Importing.Answers(update = true), null) is Importing.Result.Done)
                     }
                 }
+                // The file, when the step wrote it; when it wrote nothing -- a
+                // read, an import that changed nothing -- the note as the app
+                // holds it, which its next write stores: read from the file,
+                // a notebook 0.12.0 left showed the days its read had moved
+                // (the eighth round's backup of a series turned back on).
+                stored = if (load.file!!.readText() != fileWas) onDisk(load) else load.raw!!.getJSONObject(0)
                 assertEquals("$name, step ${s + 1} (${step.getString("do")})",
-                    canon(case.getJSONArray("after").getJSONObject(s)), canon(onDisk(load)))
+                    canon(case.getJSONArray("after").getJSONObject(s)), canon(stored!!))
             }
-            val ends = if (steps.length() == 0) load.raw!!.getJSONObject(0) else onDisk(load)
-            assertEquals("$name: imported", canon(case.getJSONObject("imported")), canon(Normalize.normalizeNote(ends)))
+            assertEquals("$name: imported", canon(case.getJSONObject("imported")), canon(Normalize.normalizeNote(stored!!)))
         }
     }
 }

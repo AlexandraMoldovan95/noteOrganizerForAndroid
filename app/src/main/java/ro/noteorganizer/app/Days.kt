@@ -506,12 +506,11 @@ object Days {
             if (Recurrence.isRecurring(note)) {
                 val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
                 // The words of a big delete's copy the note still needs go
-                // into the turn-off's copy with the series.
-                if (repeatOffLosesDays(was)) {
-                    val copy = wholeNoteCopy(was)
-                    Notebook.takeUnspentWords(copy, note)
-                    note.put("_prev", copy)
-                }
+                // into the turn-off's copy with the series; an import's
+                // Update copy is kept whole, given the series where it lacks
+                // it (Notebook.turnOffCopy). Asked of the note as it was
+                // before this Save, as the desktop's save asks it.
+                if (repeatOffLosesDays(was)) note.put("_prev", Notebook.turnOffCopy(wholeNoteCopy(was), was))
             }
             // The desktop's `if not freq and not days_kept`: asked of the
             // days the note holds, whether it repeated or not.
@@ -523,6 +522,11 @@ object Days {
         // them -- and days with words of their own stay (Notebook.keptDaysFit).
         if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
+        // Turned back on as the series its copy holds: the note holds the
+        // days again, and the copy's are spent -- kept there, a day reset
+        // after came back at every start (the desktop's spend_series_days,
+        // the final audit's eighth round).
+        Notebook.spendSeriesDays(note)
         // Back on as the series was, the note holds again all its copy kept:
         // spent, as the desktop's save drops it, the banner with it.
         Notebook.dropSpentCopy(note)
