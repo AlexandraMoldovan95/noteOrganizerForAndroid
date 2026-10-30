@@ -4657,10 +4657,12 @@ def limits_round8(folder):
     type_text("General")
     tap("Save", exact=True, wait=0.3)
     said = not says_soon("There is already a category called", within=6.0)
+    # Photographed as it is said: the word lives four seconds, and a photo
+    # that waited for it after the sheet was read found it gone.
+    shot(folder, "123-category-refused-over-its-sheet", "Add a category")
     stays = not screen_says("Add a category", "Name")
     check("a category's name already used is refused and said over its sheet, which stays open",
           said and stays, "said %s, the sheet open %s" % (said, stays))
-    shot(folder, "123-category-refused-over-its-sheet", "There is already a category called")
     back_to("Your name")
     back_to("Search notes")
 
@@ -4719,10 +4721,11 @@ def limits_round8(folder):
           typed.get("title") == "Groceries  list" and typed.get("body") == "Milk", json.dumps(typed)[:160])
 
     # On its side: the details scroll to their foot, and the Repeat sheet's
-    # word that a turn-off keeps the days is seen over them.
+    # word that a turn-off keeps the days is seen over them. Opened upright:
+    # on its side the list shows two notes, and Gym is the fourth.
     try:
-        turn(1)
         open_note("Gym")
+        turn(1)
         tap("ⓘ", wait=1.2)
         tap("Every week", wait=1.5)
         tap("Does not repeat", exact=True, wait=0.8)
