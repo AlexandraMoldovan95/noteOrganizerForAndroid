@@ -546,6 +546,11 @@ def main():
         grown = dict(back_on, overrides={first: {"body": mine}},
                      _prev=dict(back_on["_prev"], exceptions=[], overrides={first: {"body": theirs}}))
         cases.append(("%s, read" % what, grown, []))
+    # ...and a day ending in a table, nothing in the copy for it: stored with
+    # the line under the table, as the desktop stores it.
+    cases.append(("a day's text ending in a table typed on the phone, read",
+                  dict(back_on, overrides={first: {"body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |"}},
+                       _prev=dict(back_on["_prev"], exceptions=[], overrides={})), []))
 
     out = []
     for name, start, steps in cases:
