@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-seven are
+**the code**, or in **the design**. Twenty-one of the eighty-eight are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-31](#a-day-cut-off-by-a-tables-line-the-old-text-again-a-cells-bold-dropped) | code | The audit's fourteenth round: round thirteen's line under a day's table, without the series' too, cut a day off from its series and read a colour as words; a day corrected in its middle got its old text again; a letter typed in a padded cell dropped its bold | A rule written into one side of a comparison is written into both; to keep what is lacking, compare what both hold, in order |
 | [2026-10-31](#a-days-words-added-twice-and-slowly-a-tables-line-the-phone-never-wrote) | code | The audit's thirteenth round: round twelve's added words came twice where a day had grown from the copy's text, and were read off a copy of the whole note for each day -- a year of days froze the turn-on; a day ending in a table typed on the phone lacked the line under it, and an import read it as changed; a column's width spread a cell's colour | A rule that adds asks what is already there, as lines; a cost per item never carries the whole |
 | [2026-10-31](#words-kept-where-nothing-looked-a-days-undo-over-another-styles-read-off-the-texts) | code | The audit's twelfth round: the words round eleven kept in the copy were read again by date at every start, lost or put on the wrong day; a deleted day's Undo came back over a day moved onto its date; a table or an answer inserted where a styled run began took its style | A place the next read looks at again is not a place to keep things; a change that knows where it was made says so to everything it moves |
 | [2026-10-31](#a-day-moved-onto-words-no-calendar-showed-a-copys-words-no-day-could-take) | code | The audit's eleventh round, on both apps at once: a day moved onto a date that kept the words of a day the calendar no longer showed wrote over them; a day coloured before its series' words changed read as words of its own, and the copy's for that day were dropped | Ask a date what it holds, not only what it draws; a day's words are its own only where they are not its series' |
@@ -102,6 +103,48 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A day cut off by a table's line, the old text again, a cell's bold dropped
+
+**2026-10-31.** The final audit's fourteenth round, small, on round
+thirteen's fixes, came back with a high and a medium on the phone, and a
+medium on both apps from the desktop's round.
+
+- **A day cut off by a table's line.** Round thirteen gave a day's text
+  the line under a closing table, as the desktop does; the series' text
+  typed on this phone stays as typed. Every reader comparing the two saw
+  a difference nobody made: a day put back to its series' words stayed
+  its own edit, cut off from the series' later edits; a day given only a
+  colour read as holding words, and the repeat's turn-off made a copy,
+  said the days' text was kept, and kept the days.
+- **The old text again.** Round thirteen's `linesLacked` added every line
+  after the first difference: a day corrected in its first line or its
+  middle, or one table cell edited, got its old text again under it.
+- **A cell's bold dropped.** A letter typed in a table cell moved the
+  cell's styles off the texts: a cell narrower than its column, or aligned
+  right or centre, cut or dropped the bold on its words. The phone's own
+  paste of a web table brings such bold; nothing shows it on the phone,
+  and the desktop and the exports show it lost.
+
+**The fix:** `Normalize.sameBody` compares a day's and its series' text
+with the line under a closing table on both sides or neither, in every
+reader. `linesLacked` adds the copy's lines outside the longest run the
+two share in order, a table's rows compared by their cells' words, with
+its header and separator (`lineKey`) -- the desktop's rule. The cell's
+field hands its cursor to `carryCellStyles` (`cellWordsCaret`), which
+moves the typed cell's styles by the edit as made, the letters taking
+the style of the one before them, as the desktop's cell editor does.
+check_test_results' floor rises to 880. Mutants AS358 to AS363.
+
+**What it left:** the calculator's answer and a paste into a cell still
+move the cell's styles off the texts; a keyboard line break put in at
+once (a clipboard chip, dictation) drops the line's look; a deleted day's
+kept edit is counted in the series' banner.
+
+**The lesson:** a rule written into one side of a comparison is written
+into both. And to keep what is lacking, compare what both hold, in order.
 
 ---
 
