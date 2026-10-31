@@ -1947,7 +1947,8 @@ def big_table(folder):
     screen it read 9.8 s, then 5.0 s for a note drawn in half a second: a
     look waits for the app to be idle, and takes seconds of its own. The
     property the Looper reads is read as the app starts, so the app is
-    started inside ([slow_dispatches_logged])."""
+    started inside ([slow_dispatches_logged]). The walk's own reads of the
+    frames are messages on that thread too, left out ([held_after_tap])."""
     print("\n-- a table too large to draw --")
     with slow_dispatches_logged():
         _tables_opened(folder)
@@ -3119,6 +3120,11 @@ RENDER_THREAD_ANIMATION = 2
 # with the property set ([slow_dispatches_logged]).
 SLOW_DISPATCH_MS = 20
 
+# The message `dumpsys gfxinfo` sends the app's thread -- the walk's own read
+# of the frames (ActivityThread.H.DUMP_GFXINFO), logged as "h=android.app.
+# ActivityThread$H ... m=165" when it runs that long.
+WALK_READ_MESSAGE = re.compile(r"h=android\.app\.ActivityThread\$H\b.*\bm=165\b")
+
 
 def frames_since_reset(starts=False):
     """The app's frames since `gfxinfo reset`, each from its intended start
@@ -3173,13 +3179,20 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
     thread's own left out, [frames_since_reset]) and every message on it the
     Looper logged as slow ([slow_dispatches_logged]) -- work that draws
     nothing, which no frame lists. Read again, with no look at the screen,
-    until neither has grown for [quiet] seconds, or [within] are up.
+    until neither has grown for [quiet] seconds, or [within] are up; the
+    opening is what came before the first [quiet] seconds of nothing, on the
+    device's clock.
 
     Read once the screen showed the words, the end of an opening was where
     the walk's own look had the app draw again: a trivial redraw started
     5.6 ms late was kept as work, and a mutant holding the thread 2.4 s,
     drawing nothing, read 2.04 to 2.10 s -- killed by 2 to 5% over the line,
-    and let through by a look made sooner (the final audit's tenth round)."""
+    and let through by a look made sooner (the final audit's tenth round).
+    And each read here is a message on the app's thread ([WALK_READ_MESSAGE]):
+    with a template of 90,000 cells open it ran 40 ms, logged as slow, so
+    every read was work found and the reading never went quiet -- an opening
+    of 0.6 s, read with no read during it, timed 4.5 to 8.3 s, a lone frame
+    seconds later taken in at its end (the full walk after the tenth)."""
     deadline = time.time() + within
     seen, still_since, spans = None, time.time(), []
     while True:
@@ -3187,7 +3200,7 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
         slow = []
         for line in adb("logcat", "-d", "-v", "monotonic", "--pid=" + pid, "-s", "Looper").splitlines():
             m = re.match(r"\s*(\d+\.\d+)\s.*Slow dispatch took (\d+)ms main", line)
-            if m:
+            if m and not WALK_READ_MESSAGE.search(line):
                 slow.append((float(m.group(1)) - int(m.group(2)) / 1000.0, float(m.group(1))))
         spans = frames + slow
         # By the newest end too: gfxinfo keeps a window's last 120 frames,
@@ -3196,10 +3209,17 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
         if now != seen:
             seen, still_since = now, time.time()
         elif spans and time.time() - still_since >= quiet:
-            return spans
+            break
         if time.time() > deadline:
-            return spans
+            break
         time.sleep(0.25)
+    opening, end = [], None
+    for start, stop in sorted(spans):
+        if end is not None and start - end >= quiet:
+            break
+        opening.append((start, stop))
+        end = stop if end is None else max(end, stop)
+    return opening
 
 
 def frames_once_shown(*words, within=30.0, gap=None, starts=False):

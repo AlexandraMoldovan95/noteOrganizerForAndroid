@@ -209,6 +209,20 @@ changed. The unit tests count 896.
 the place it was made, not by the two texts around it; a copy's words by
 what the note has lost, not by whether the two differ.
 
+**The full walk after it** passed 538 steps and failed one, the same
+step as round nine's, and again the step was wrong: the template of
+90,000 cells read 4.5 s, then 8.3, 8.3 and 5.9 run alone, where the
+same build had read 0.98 s two hours before. Its opening, read once ten
+seconds after the tap with no read in between, was 0.62 s. The rest was
+the walk's: each of its reads of the frames is a message on the app's
+thread (`ActivityThread$H`, `m=165`, gfxinfo's dump), and with that
+template open it ran 40 ms, over the 20 ms the Looper logs. So every read
+was work found, the reading never went still, and a lone frame seconds
+later was taken in at its end. The walk now leaves out its own reads, and
+the opening ends at the first second of nothing on the device's clock:
+0.59 to 0.67 s, three runs in three, and the template mutant, holding the
+thread 2.4 s, read 3.27 s and failed.
+
 ---
 
 ## Every place a change made, and every date a note holds
@@ -3405,12 +3419,11 @@ whether that is what the dialog should show.
   own date, a move, a day drawn on none; no fixture case holds one.
 - **Find's fold is Tcl's, on this phone's Unicode tables**, which the
   desktop's Python may not share for letters newer than either.
-- **Walked by none yet:** round ten's walk changes -- `limits_round10`'s
-  message above a row being renamed, `big_table` timed with no look inside
-  the time, the Enter at the end of what is drawn read with its message
-  held -- are written and parse; the session runs them. The renamed row's
-  place at the editor's foot and the deepest host's drawing have no unit
-  test that reaches the drawing.
+- **The renamed row's place at the editor's foot and the deepest host's
+  drawing have no unit test that reaches the drawing**; the full walk
+  reads the first (`limits_round10`, photo 127). Its mutant -- the row
+  left out of the foot -- passes on the emulator's screen, where the
+  message already stands above the row by its own margin.
 - **The comments being typed in are still not counted at the editor's
   foot**: they hold no key a message can take.
 
