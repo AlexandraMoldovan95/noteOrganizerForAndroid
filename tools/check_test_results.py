@@ -40,6 +40,14 @@ RESULTS = os.path.join(ANDROID, "app", "build", "test-results",
 
 FLOOR = 200
 
+# The only tests that may skip, and why: each Assumes what the clock alone
+# decides. Any other skip fails the gate -- counted as a pass, a test that
+# stopped running kept CI green (the final audit's twelfth round).
+MAY_SKIP = {
+    ("ro.noteorganizer.app.EditorTypingTest",
+     "an Undo of letters typed in two places carries the calculator's place back through each"),
+}
+
 SOURCES = os.path.join(ANDROID, "app", "src")
 
 
@@ -81,6 +89,7 @@ def main():
             return 1
 
     total = failures = errors = skipped = 0
+    unexpected = []
     for path in files:
         try:
             suite = ET.parse(path).getroot()
@@ -91,6 +100,9 @@ def main():
         failures += int(suite.get("failures", 0))
         errors += int(suite.get("errors", 0))
         skipped += int(suite.get("skipped", 0))
+        for case in suite.iter("testcase"):
+            if case.find("skipped") is not None and (case.get("classname"), case.get("name")) not in MAY_SKIP:
+                unexpected.append("%s > %s" % (case.get("classname"), case.get("name")))
         print("  %-40s %s tests" % (os.path.basename(path)[:40],
                                     suite.get("tests", "?")))
 
@@ -101,8 +113,13 @@ def main():
     if failures or errors:
         print("FAILED: read the XML above.")
         return 1
-    if total < FLOOR:
-        print("TOO FEW: %d, under the floor of %d." % (total, FLOOR))
+    if unexpected or skipped > len(unexpected) + len(MAY_SKIP):
+        print("SKIPPED: a test that does not run is not a test that passed.")
+        for name in unexpected[:10]:
+            print("    %s" % name)
+        return 1
+    if total - skipped < FLOOR:
+        print("TOO FEW: %d run, under the floor of %d." % (total - skipped, FLOOR))
         print("Either a suite stopped being discovered without saying so,")
         print("or the floor belongs in the same commit that removes tests.")
         return 1

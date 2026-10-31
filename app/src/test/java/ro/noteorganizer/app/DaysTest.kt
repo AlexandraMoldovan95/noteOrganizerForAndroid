@@ -829,7 +829,8 @@ class DaysTest {
         val load = scratch(offTheSchedule)
         Days.saveDay(load, 1, "2026-10-13", "Stand-up", "room 4B", "", "Work", "")
         val (refused, move) = Days.moveDay(load, 1, "2026-10-13", "2026-10-12")
-        assertTrue(refused is SaveResult.Failed && refused.reason.startsWith("This series still keeps the words of a day on"))
+        assertTrue(refused is SaveResult.Failed &&
+                   refused.reason.startsWith("This series still keeps text or a colour of its own for a day on"))
         assertNull(move)
         val note = onDisk(load)
         assertEquals("own text", note.getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
@@ -843,6 +844,28 @@ class DaysTest {
         assertEquals("kept", onDisk(deleted).getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
         // A date the series holds nothing for still takes the day.
         assertTrue(Days.moveDay(load, 1, "2026-10-13", "2026-10-15").first is SaveResult.Ok)
+    }
+
+    @Test
+    fun `a deleted day's Undo leaves it out while another day stands on its date`() {
+        // The 12th deleted, the 19th moved onto its date, then the delete's
+        // Undo: the 12th came back over the 19th, which was drawn nowhere,
+        // its words read as the 12th's and the 12th's own lost (the twelfth round).
+        val load = scratch(series)
+        Days.saveDay(load, 1, "2026-10-12", "Stand-up", "Mon 12 own", "", "Work", "")
+        Days.saveDay(load, 1, "2026-10-19", "Stand-up", "Mon 19 own", "", "Work", "")
+        val gone = Days.deleteDay(load, 1, "2026-10-12").second!!
+        assertTrue(Days.moveDay(load, 1, "2026-10-19", "2026-10-12").first is SaveResult.Ok)
+        val undo = Days.undoDeleteDay(load, gone)
+        assertTrue(undo is SaveResult.Failed && undo.reason.startsWith("Another day of this series is on"))
+        val note = onDisk(load)
+        assertEquals("2026-10-12", note.getJSONObject("moved").getString("2026-10-19"))
+        assertEquals("Mon 19 own", note.getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
+        assertEquals(listOf("2026-10-12"), (0 until note.getJSONArray("exceptions").length()).map { note.getJSONArray("exceptions").getString(it) })
+        // Moved away again, the date is free and the Undo brings the 12th back with its words.
+        assertTrue(Days.moveDay(load, 1, "2026-10-12", "2026-10-20").first is SaveResult.Ok)
+        assertTrue(Days.undoDeleteDay(load, gone) is SaveResult.Ok)
+        assertEquals("Mon 12 own", onDisk(load).getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
     }
 
     @Test

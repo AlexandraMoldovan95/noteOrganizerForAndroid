@@ -277,6 +277,21 @@ object Days {
         return edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "That note no longer repeats, so the day can't come back."
             val skipped = gone.cameFrom ?: gone.day
+            // Back only onto a date the series holds nothing on now, as a move
+            // comes home ([dayIsFree]): another day moved there since was hidden
+            // under it, its words read as this day's and this day's own lost
+            // (the final audit's twelfth round). The delete took this day's edit.
+            val on = Recurrence.parseDate(gone.day)
+            val stillSkipped = (note.opt("exceptions") as? JSONArray)?.let { a ->
+                (0 until a.length()).any { a.opt(it) == skipped } } == true
+            val drawn = on != null && Recurrence.expand(note, on, on) == listOf(gone.day)
+            if (stillSkipped && on != null && (drawn || keepsWordsOn(note, gone.day))) {
+                return@edit if (drawn) {
+                    "Another day of this series is on ${Recurrence.showDay(on)} now, so that day can't come back."
+                } else {
+                    "This series keeps text or a colour of its own on ${Recurrence.showDay(on)} now, so that day can't come back."
+                }
+            }
             val exceptions = (note.opt("exceptions") as? JSONArray)?.let { a ->
                 (0 until a.length()).mapNotNull { a.opt(it) as? String }.filter { it != skipped }
             } ?: emptyList()
@@ -308,9 +323,14 @@ object Days {
         if (origin != null && sendHome) {
             // Home only when nothing else is there now (see dayIsFree).
             if (!dayIsFree(note, day, origin)) {
-                return@edit "Another day of this series is on " +
-                    "${Recurrence.parseDate(origin)?.let { Recurrence.showDay(it) } ?: origin} now, " +
-                    "so this day stays where it is."
+                val home = Recurrence.parseDate(origin)
+                val shown = home?.let { Recurrence.showDay(it) } ?: origin
+                // Said as it is: a day there, or an edit alone (the twelfth round).
+                return@edit if (home != null && Recurrence.expand(note, home, home) != listOf(origin)) {
+                    "This series keeps text or a colour of its own on $shown, so this day stays where it is."
+                } else {
+                    "Another day of this series is on $shown now, so this day stays where it is."
+                }
             }
             Recurrence.moveDay(note, day, origin)
             if (dropText) (note.opt("overrides") as? JSONObject)?.remove(origin)
@@ -363,8 +383,8 @@ object Days {
         (note.opt("overrides") as? JSONObject)?.has(date) == true
 
     private fun keptThere(target: java.time.LocalDate) =
-        "This series still keeps the words of a day on ${Recurrence.showDay(target)}, which its calendar " +
-            "no longer shows. A day can move only to a date the series holds nothing for."
+        "This series still keeps text or a colour of its own for a day on ${Recurrence.showDay(target)}, " +
+            "which its calendar no longer shows. A day can move only to a date the series holds nothing for."
 
     /** What [moveDay] did, for its Undo to undo: the date the rule gives the day, and where it was and went. */
     data class DayMove(val id: Int, val uid: String, val origin: String, val from: String, val to: String)

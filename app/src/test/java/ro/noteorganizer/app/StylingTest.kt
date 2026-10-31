@@ -176,6 +176,16 @@ class StylingTest {
         shape(spansAfterTyping(old, new, caret, spans, pending))
 
     @Test
+    fun `a letter deleted beside its twin takes its own style away, as Tk deletes at the cursor`() {
+        // Read off the texts, the deletion was found one letter late: the
+        // twin kept the deleted letter's bold (the final audit's twelfth round).
+        assertEquals("Backspace after the bold first l of Hello", emptyList<String>(),
+                     typed("Hello", "Helo", 2, listOf(s(2, 3, "bold"))))
+        assertEquals("Backspace after the first t of tthe: the bold the stays whole", listOf("0-3:bold"),
+                     typed("tthe end", "the end", 0, listOf(s(1, 4, "bold"))))
+    }
+
+    @Test
     fun `letters typed before a styled word stay plain`() {
         // "Very " typed at a line's start, before a bold "Important".
         assertEquals(listOf("5-14:bold"), typed("Important", "Very Important", 5, listOf(s(0, 9, "bold"))))

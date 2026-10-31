@@ -189,9 +189,10 @@ fun typedSpans(
 /**
  * [old] become [new] by typing that left the caret at [caret], in code
  * points: the edit found from the caret -- what follows it is the old
- * text's end -- and the styles moved by [typedSpans]. A change that is not
- * letters typed before the caret, or that only took letters away, is
- * moved by [remapSpans].
+ * text's end -- and the styles moved by [typedSpans]; letters only taken
+ * away, at the caret, as Tk deletes them -- read off the texts, a letter
+ * deleted beside its twin took the twin's style (the final audit's twelfth
+ * round). Any other change is moved by [remapSpans].
  */
 fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpan>,
                      pending: Set<String> = emptySet()): List<FormatSpan> {
@@ -203,7 +204,7 @@ fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpa
     val oldTail = a.size - tail
     var at = 0
     while (at < oldTail && at < caret && a[at] == b[at]) at++
-    if (caret == at) return remapSpans(old, new, spans).spans
+    if (caret == at) return Paragraphs.moveSpans(spans, listOf(Paragraphs.Edit(at, oldTail - at, 0)))
     return typedSpans(spans, at, oldTail - at, b.copyOfRange(at, caret), if (at > 0) a[at - 1] else null, pending)
 }
 

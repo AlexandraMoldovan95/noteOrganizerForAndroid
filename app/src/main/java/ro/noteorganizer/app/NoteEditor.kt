@@ -611,12 +611,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val from = lines.take(made.line).sumOf { it.codePointCount(0, it.length) + 1 }
         val to = from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
             lines[made.line + 1].codePointCount(0, lines[made.line + 1].length)
-        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans.let { moved ->
+        // Put in at the end of the table's last line, as the desktop's
+        // insert at "{below}.end": the edit as made, not read off the texts --
+        // the styles too, or a run starting where it went in took it all.
+        val edit = putIn(made.body, from - 1)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit)).let { moved ->
             moved.map { it.style }.toSet().fold(moved) { acc, style -> clearStyle(acc, from, to, style) }
         }
-        // Put in at the end of the table's last line, as the desktop's
-        // insert at "{below}.end": the edit as made, not read off the texts.
-        follow(made.body, putIn(made.body, from - 1))
+        follow(made.body, edit)
         body = made.body
         if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
         changed()
@@ -629,9 +631,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val lines = body.split("\n")
         val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
         val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
         // One line break at the table's first line's start, as the desktop's insert at "{first}.0".
-        follow(next, putIn(next, at))
+        val edit = putIn(next, at)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(next, edit)
         body = next
         changed()
         caret = at
@@ -664,10 +667,11 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** The table taken out of the note. */
     fun deleteTable(segment: Editing.Segment) {
         val next = Editing.deleteLines(body, segment.firstLine, segment.lastLine)
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        // Taken out from its first line's start: the edit as made.
+        // Taken out from its first line's start: the edit as made, the styles too.
         val at = body.split("\n").take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
-        follow(next, Paragraphs.Edit(at, body.codePointCount(0, body.length) - next.codePointCount(0, next.length), 0))
+        val edit = Paragraphs.Edit(at, body.codePointCount(0, body.length) - next.codePointCount(0, next.length), 0)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(next, edit)
         body = next
         focused = null
         changed()
@@ -689,10 +693,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 "table should go, then insert it.")
             return null
         }
-        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans
         // Put in at the cursor -- at the end, on a line of its own, when it
-        // was past it ([Editing.insertTable]): the edit as made.
-        follow(made.body, putIn(made.body, (caret ?: length).coerceIn(0, length)))
+        // was past it ([Editing.insertTable]): the edit as made, the styles
+        // too -- read off the texts, a run starting at the cursor took the
+        // whole table (the final audit's twelfth round).
+        val edit = putIn(made.body, (caret ?: length).coerceIn(0, length))
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(made.body, edit)
         body = made.body
         focused = null
         changed()
@@ -1213,11 +1220,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 "answer should go, then insert it.")
             return
         }
-        spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
-        // Where it went in, exactly, for Undo: found by comparing the texts,
-        // "\n3×3=9" put before a line break read as "3×3=9\n" after it.
+        // Where it went in, exactly, for Undo and the styles: found by
+        // comparing the texts, "\n3×3=9" put before a line break read as
+        // "3×3=9\n" after it, and a run starting on the next line took it.
         val came = placed.body.codePointCount(0, placed.body.length) - body.codePointCount(0, body.length)
         val edit = Paragraphs.Edit(placed.mark - came, 0, came)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
         props = Paragraphs.follow(body, placed.body, props, edit)
         made.add(edit)
         body = placed.body

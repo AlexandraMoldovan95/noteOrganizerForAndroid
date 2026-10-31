@@ -62,11 +62,12 @@ a line was added, which keeps the newest words; and a big delete, the repeat
 off, on as another series (another start, every two weeks, an end date) and
 off again, which keeps the deleted words.
 
-And since the eleventh (the desktop's round-eleven data fix): a copy's day
-whose words the note's day cannot take stays in the copy -- 0.12.0 turned
-on as it was, that day coloured, then the series' words changed: read, read
-again, Restore previous, the day reset; and two of the copy's days for one
-date, the note's day moved onto a day off the copy's schedule.
+And since the eleventh and twelfth (the desktop's data fixes of those
+rounds): a copy's day whose words the note's day lacks puts them on the day,
+after its own -- 0.12.0 turned on as it was, that day coloured, then the
+series' words changed: read, read again, Restore previous, the day reset;
+and two of the copy's days for one date, the note's day moved onto a day off
+the copy's schedule.
 
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
@@ -511,9 +512,9 @@ def main():
                                                          "end": "2027-03-01"}})):
         cases.append(("a big delete, off, on %s, off again, Restore previous" % what, own,
                       [big_delete, off, step, off, {"do": "restore"}]))
-    # The eleventh round. A copy's day whose words the note's day cannot take
-    # stays in the copy: a day coloured before the series' words changed holds
-    # the old words, read as its own, and the copy's for it were dropped.
+    # The eleventh and twelfth rounds. A day coloured before the series' words
+    # changed holds the old words, read as its own, and the copy's for it were
+    # dropped; they go on the day now, after its own.
     stale = dict(back_on, body=body + "\nBring water.",
                  overrides={first: {"title": "Gym", "body": body, "comments": "",
                                     "color": "#ff6b6b", "category": "Work"}})

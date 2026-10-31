@@ -48,6 +48,34 @@ class EditorTableTest {
     }
 
     @Test
+    fun `a table or an answer put in where a styled run starts leaves it as it was, as the desktop's insert`() {
+        // Read off the texts, a run starting where the table went in grew
+        // over the whole table, and one starting on the line after an
+        // answer took the answer (the final audit's twelfth round).
+        val model = editor("Trip\nImportant: book flights")
+        model.spans = listOf(FormatSpan(5, 14, "highlight", "#ffff00"))
+        model.changed()
+        model.caret = 5
+        assertTrue(model.insertTable(2, 2) != null)
+        assertEquals("only Important is highlighted", listOf("Important"), model.spans.map { model.styled(it) })
+        for ((name, op) in listOf<Pair<String, (EditorModel) -> Unit>>(
+            "a caption" to { m -> m.addCaption(m.table()) },
+            "a line above" to { m -> m.addLineAbove(m.table()) },
+            "the table taken out" to { m -> m.deleteTable(m.table()) })) {
+            op(model)
+            assertEquals("$name keeps it on its word", listOf("Important"), model.spans.map { model.styled(it) })
+        }
+        val calc = editor("Budget: \nRent 500")
+        calc.spans = listOf(FormatSpan(9, 13, "highlight", "#ffff00"))
+        calc.changed()
+        calc.caret = 8
+        calc.insertCalculation("2+2=4")
+        calc.insertCalculation("3*3=9")
+        assertTrue(calc.body, calc.body.contains("3*3=9\nRent"))
+        assertEquals("only Rent is highlighted", listOf("Rent"), calc.spans.map { calc.styled(it) })
+    }
+
+    @Test
     fun `the calculator's answer goes into the cell being written in, at its cursor`() {
         // The desktop's _calc_insert_formula puts it in the open cell; the
         // phone put it on a line under the table.
