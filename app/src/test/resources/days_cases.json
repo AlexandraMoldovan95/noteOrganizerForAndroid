@@ -16665,7 +16665,615 @@
      "do": "read"
     }
    ]
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda.\nBook room\nCancelled"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda.\nBook room\nCancelled"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a day grown from the copy's text, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Agenda.\nBook room"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda.\nBook room\nCancelled"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room 4\nBook room\nAt 10"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room 4\nBook room\nAt 10"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "the copy's text a line in the day's middle, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Book room"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room 4\nBook room\nAt 10"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda.\nBook room"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda.\nBook room"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "the copy's text the day's and a line more, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "Agenda.\nBook room"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Agenda."
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
+  },
+  {
+   "after": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n| x | y |\n| --- | --- |\n| 3 | 4 |\n"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "formatting": [],
+     "paragraphs": [],
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 1,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n| x | y |\n| --- | --- |\n| 3 | 4 |\n"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 1,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "a day's text ending in a table, the copy's a table, read",
+   "note": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "moved": {},
+     "overrides": {
+      "2026-11-09": {
+       "body": "| x | y |\n| --- | --- |\n| 3 | 4 |"
+      }
+     },
+     "paragraphs": [],
+     "recurrence": {
+      "freq": "weekly",
+      "interval": 1
+     },
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {},
+    "overrides": {
+     "2026-11-09": {
+      "body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 1
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": []
   }
  ],
- "source": "the desktop's core, 68 cases"
+ "source": "the desktop's core, 72 cases"
 }

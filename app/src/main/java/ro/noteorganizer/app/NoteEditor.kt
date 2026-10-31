@@ -609,8 +609,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val tableAlign = props[segment.firstLine]?.align
         val lines = made.body.split("\n")
         val from = lines.take(made.line).sumOf { it.codePointCount(0, it.length) + 1 }
-        val to = from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
-            lines[made.line + 1].codePointCount(0, lines[made.line + 1].length)
+        // The Source line's own line break too, as the desktop's clears to
+        // "{cap_line + 2}.0": a style past the table's end kept it, and its bar
+        // ran to the margin there (the final audit's thirteenth round).
+        val to = minOf(from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
+            lines[made.line + 1].codePointCount(0, lines[made.line + 1].length) + 1,
+            made.body.codePointCount(0, made.body.length))
         // Put in at the end of the table's last line, as the desktop's
         // insert at "{below}.end": the edit as made, not read off the texts --
         // the styles too, or a run starting where it went in took it all.
@@ -655,8 +659,23 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val changedTable = change(table)
         if (changedTable == table) return
         val next = replaceTable(body, segment.firstLine..segment.lastLine, changedTable)
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // The separator line alone put in or rewritten ([withColumnMechanics]):
+        // the edit as made, the styles too. Read off the texts, a separator put
+        // in above a row beginning "| " as it does was found two letters into
+        // that row, and its first cell's colour spread over the separator, lost
+        // at the next row added (the final audit's thirteenth round).
+        fun width(line: String) = line.codePointCount(0, line.length)
+        fun startOf(line: Int) =
+            if (line < lines.size) lines.take(line).sumOf { width(it) + 1 } else width(body)
+        val edit = if (changedTable.size == table.size + 1) {
+            Paragraphs.Edit(startOf(segment.firstLine + 1), 0, width(changedTable[1]) + 1)
+        } else {
+            table.indices.singleOrNull { table[it] != changedTable[it] }
+                ?.let { Paragraphs.Edit(startOf(segment.firstLine + it), width(table[it]), width(changedTable[it])) }
+        }
+        spans = if (day != null) emptyList()
+                else edit?.let { Paragraphs.moveSpans(spans, listOf(it)) } ?: remapSpans(body, next, spans).spans
+        follow(next, edit)
         body = next
         if (changedTable.size > table.size && day == null) {
             props = withAlign(props, listOf(segment.firstLine + 1), props[segment.firstLine]?.align)

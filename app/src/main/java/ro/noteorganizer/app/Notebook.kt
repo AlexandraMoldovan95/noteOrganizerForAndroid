@@ -1983,33 +1983,53 @@ object Notebook {
     }
 
     /**
-     * [overrides]' edit of [at] with the words [previous]'s day [key] has of
-     * its own -- not its series' ([Recurrence.dayAsKept]) -- and the day
-     * lacks, added after its own: a title and text to its text, comments to
-     * its comments. The desktop's `_words_added`.
+     * [overrides]' edit of [at] with the lines [previous]'s day [key] holds
+     * of its own -- not its series' -- and the day lacks, added after its
+     * own ([linesLacked]): a title's and text's to its text, comments' to its
+     * comments. The desktop's `_words_added`. The day's words are read off
+     * its edit and the note, not off a copy of the note: copied for each
+     * day, a year of days froze the turn-on (the thirteenth round).
      */
     private fun wordsAdded(note: JSONObject, overrides: JSONObject, at: String, previous: JSONObject, key: String): JSONObject {
-        fun read(value: Any?): Any = if (Exporting.truthy(value)) value!! else ""
-        val mine = Recurrence.dayAsKept(JSONObject(note.toString()).put("overrides", JSONObject(overrides.toString())), at)
+        fun text(value: Any?): String = (if (Exporting.truthy(value)) value!! else "").toString()
+        val patch = overrides.opt(at) as? JSONObject
+        fun mine(word: String): String = text(if (patch != null && patch.has(word)) patch.opt(word) else note.opt(word))
         val theirs = Recurrence.dayAsKept(previous, key)
-        val lacked = LinkedHashMap<String, String>()
-        for (word in DAY_WORDS) {
-            val value = read(theirs.opt(word))
-            if (!sameJson(value, read(previous.opt(word))) && !sameJson(value, read(mine.opt(word)))) {
-                lacked[word] = value.toString()
+        val edit = patch?.let { JSONObject(it.toString()) } ?: JSONObject()
+        for ((field, words) in listOf("body" to listOf("title", "body"), "comments" to listOf("comments"))) {
+            val added = ArrayList<String>()
+            for (word in words) {
+                val own = text(theirs.opt(word))
+                if (own != text(previous.opt(word)) && own != mine(word)) {
+                    added += linesLacked(own, (listOf(mine(field), mine("title")) + added).joinToString("\n"))
+                }
+            }
+            if (added.isNotEmpty()) {
+                // Under a table the editor's line first, as a stored body has it.
+                val shaped: (String) -> String = if (field == "body") Normalize::withCaretLine else { value -> value }
+                val base = shaped(mine(field))
+                edit.put(field, shaped(((if (base.isNotEmpty()) listOf(base) else emptyList()) + added).joinToString("\n")))
             }
         }
-        val edit = (overrides.opt(at) as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
-        val added = listOf("title", "body").mapNotNull { lacked[it] }
-        if (added.isNotEmpty()) {
-            val body = read(mine.opt("body")).toString()
-            edit.put("body", ((if (body.isNotEmpty()) listOf(body) else emptyList()) + added).joinToString("\n"))
-        }
-        lacked["comments"]?.let { theirComments ->
-            val comments = read(mine.opt("comments")).toString()
-            edit.put("comments", ((if (comments.isNotEmpty()) listOf(comments) else emptyList()) + theirComments).joinToString("\n"))
-        }
         return edit
+    }
+
+    /**
+     * The lines of [own] to add after [have]: none when [have] holds them all
+     * as one run of lines, else all but those [have] begins with -- whole, so
+     * a table among them keeps its rows. The desktop's `_lines_lacked`: added
+     * whole, a day grown from the copy's text showed it twice (the thirteenth round).
+     */
+    private fun linesLacked(own: String, have: String): List<String> {
+        val lines = own.split("\n")
+        val held = have.split("\n")
+        if ((0..held.size - lines.size).any { held.subList(it, it + lines.size) == lines }) return emptyList()
+        var first = 0
+        while (first < minOf(lines.size, held.size) && lines[first] == held[first]) first++
+        val rest = lines.subList(first, lines.size).toMutableList()
+        while (rest.isNotEmpty() && rest.first().isBlank()) rest.removeAt(0)
+        while (rest.isNotEmpty() && rest.last().isBlank()) rest.removeAt(rest.size - 1)
+        return rest
     }
 
     /**

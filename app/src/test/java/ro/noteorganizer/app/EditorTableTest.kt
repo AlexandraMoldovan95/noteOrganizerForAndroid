@@ -76,6 +76,38 @@ class EditorTableTest {
     }
 
     @Test
+    fun `a caption under a highlighted table takes no highlight, its Source line's break included`() {
+        // The desktop clears to the line after "Source: "; the phone left its
+        // line break highlighted, a bar to the margin there (the thirteenth round).
+        val model = editor("Budget\n| Item | Cost |\n| Rent | 500 |\nNext line")
+        model.spans = listOf(FormatSpan(7, codePointsOf(model.body).size, "highlight", "#ffff00"))
+        model.changed()
+        model.addCaption(model.table())
+        val lines = model.body.split("\n")
+        val source = lines.indexOfFirst { it.startsWith("Source: ") }
+        val breakAt = lines.take(source + 1).sumOf { it.codePointCount(0, it.length) + 1 } - 1
+        assertTrue("no highlight on the Source line or its break: ${model.spans}",
+                   model.spans.none { it.start <= breakAt && it.end > breakAt - "Source: ".length })
+        assertTrue("Next is still highlighted", model.spans.any { model.styled(it).contains("Next") })
+    }
+
+    @Test
+    fun `a column made wider on a table with no separator keeps a cell's colour on its cell, through a row added`() {
+        // The phone's own tables have no separator; Wider puts one under the
+        // header. Read off the texts it was found two letters into the next
+        // row, that row's first cell's colour spread over it, and the next row
+        // added dropped the colour (the final audit's thirteenth round).
+        val model = editor("Budget\n| Item | Cost |\n| Rent | 500 |")
+        model.highlightCell(model.table(), 1, 0, "#ffff00")
+        val before = model.styled(model.spans.single())
+        model.editColumns(model.table()) { setColumnWidth(it, 0, 10) }
+        assertEquals("the colour where it was", before, model.styled(model.spans.single()))
+        model.editTable(model.table()) { it.insertRowAfter(0) }
+        assertTrue("the colour still on Rent's cell: ${model.spans}",
+                   model.spans.any { it.style == "highlight" && model.styled(it).contains("Rent") })
+    }
+
+    @Test
     fun `the calculator's answer goes into the cell being written in, at its cursor`() {
         // The desktop's _calc_insert_formula puts it in the open cell; the
         // phone put it on a line under the table.

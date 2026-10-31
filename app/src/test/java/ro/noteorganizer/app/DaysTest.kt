@@ -223,6 +223,42 @@ class DaysTest {
             .keys().asSequence().count { it in Notebook.DAY_FIELDS })
     }
 
+    /** A daily series turned back on as its copy's, [days] days of its own text in both. */
+    private fun yearOfDays(days: Int): JSONObject {
+        val start = java.time.LocalDate.of(2025, 1, 1)
+        fun dayEdits() = JSONObject().also { edits ->
+            for (i in 0 until days) {
+                val day = start.plusDays(i.toLong()).toString()
+                edits.put(day, JSONObject().put("title", "Journal").put("body", "$day: " + "walked, wrote, read. ".repeat(24)))
+            }
+        }
+        val rule = JSONObject().put("freq", "daily").put("interval", 1)
+        return JSONObject().put("id", 1).put("title", "Journal").put("body", "").put("date", "2025-01-01")
+            .put("recurrence", rule).put("overrides", dayEdits()).put("exceptions", JSONArray()).put("moved", JSONObject())
+            .put("_prev", JSONObject().put("title", "Journal").put("body", "").put("date", "2025-01-01")
+                .put("recurrence", JSONObject(rule.toString())).put("overrides", dayEdits())
+                .put("exceptions", JSONArray()).put("moved", JSONObject()))
+    }
+
+    @Test
+    fun `a series turned back on with a year of days of its own takes them back in time that grows with the days`() {
+        // The words added to a day were read off a copy of the whole note, made
+        // for each day: the turn-on grew with the square of the days, on the
+        // main thread (the final audit's thirteenth round). Timed against a
+        // quarter as many days in the same run: four times the work, not sixteen.
+        fun timed(days: Int): Long = (0 until 3).minOf {
+            val note = yearOfDays(days)
+            val started = System.nanoTime()
+            Notebook.spendSeriesDays(note)
+            System.nanoTime() - started
+        }
+        timed(60)
+        val small = timed(90)
+        val large = timed(360)
+        println("the take-back: 90 days ${small / 1_000_000} ms, 360 days ${large / 1_000_000} ms")
+        assertTrue("360 days took ${large / maxOf(small, 1)} times as long as 90", large < small * 9)
+    }
+
     private val series = """[{"id": 1, "uid": "s", "title": "Stand-up", "body": "agenda", "comments": "",
         "category": "Work", "color": "", "date": "2026-10-05",
         "recurrence": {"freq": "weekly", "weekdays": [0]}, "checklist": [{"text": "x", "done": false}]}]"""

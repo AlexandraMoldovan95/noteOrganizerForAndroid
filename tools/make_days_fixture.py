@@ -67,7 +67,9 @@ rounds): a copy's day whose words the note's day lacks puts them on the day,
 after its own -- 0.12.0 turned on as it was, that day coloured, then the
 series' words changed: read, read again, Restore previous, the day reset;
 and two of the copy's days for one date, the note's day moved onto a day off
-the copy's schedule.
+the copy's schedule. Since the thirteenth: only the lines a day lacks -- a
+day grown from the copy's text, the copy's text mid-way in the day's, and a
+day ending in a table typed on the phone with the copy's a table.
 
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
@@ -531,6 +533,19 @@ def main():
                                      "2026-11-16": {"body": "Monday 16th's own"}}))
     cases.append(("two of the copy's days for one date, read", tie, []))
     cases.append(("two of the copy's days for one date, read again", tie, [{"do": "read"}]))
+    # The thirteenth round. Only the lines a day lacks are added: a day grown
+    # from the copy's text, or holding it mid-way, is left as it is; and a day
+    # ending in a table the phone typed, with no line under it, keeps the copy's
+    # table apart from its own.
+    for what, mine, theirs in (
+            ("a day grown from the copy's text", "Agenda.\nBook room\nCancelled", "Agenda.\nBook room"),
+            ("the copy's text a line in the day's middle", "Room 4\nBook room\nAt 10", "Book room"),
+            ("the copy's text the day's and a line more", "Agenda.", "Agenda.\nBook room"),
+            ("a day's text ending in a table, the copy's a table",
+             "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |", "| x | y |\n| --- | --- |\n| 3 | 4 |")):
+        grown = dict(back_on, overrides={first: {"body": mine}},
+                     _prev=dict(back_on["_prev"], exceptions=[], overrides={first: {"body": theirs}}))
+        cases.append(("%s, read" % what, grown, []))
 
     out = []
     for name, start, steps in cases:

@@ -232,7 +232,10 @@ object Normalize {
      * The desktop's `clean_override`: only the fields a day may replace, as
      * text, a colour that cannot be drawn dropped -- not the whole edit. A
      * category this device lacks is the importer's to file under General,
-     * as it files the note's own.
+     * as it files the note's own. A day's text ending in a table gains the
+     * line under it ([withCaretLine]), as the desktop's does: without it the
+     * same day read as changed in an import, and words added under it were
+     * glued onto its table (the final audit's thirteenth round).
      */
     fun cleanOverride(patch: JSONObject): JSONObject {
         val out = JSONObject()
@@ -242,7 +245,7 @@ object Normalize {
                 val colour = Notebook.sanitizeColor(value)
                 if (colour.isNotEmpty()) out.put(key, colour)
             } else {
-                out.put(key, value)
+                out.put(key, if (key == "body") withCaretLine(value) else value)
             }
         }
         return out
