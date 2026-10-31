@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-five are
+**the code**, or in **the design**. Twenty-one of the eighty-six are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-31](#words-kept-where-nothing-looked-a-days-undo-over-another-styles-read-off-the-texts) | code | The audit's twelfth round: the words round eleven kept in the copy were read again by date at every start, lost or put on the wrong day; a deleted day's Undo came back over a day moved onto its date; a table or an answer inserted where a styled run began took its style | A place the next read looks at again is not a place to keep things; a change that knows where it was made says so to everything it moves |
 | [2026-10-31](#a-day-moved-onto-words-no-calendar-showed-a-copys-words-no-day-could-take) | code | The audit's eleventh round, on both apps at once: a day moved onto a date that kept the words of a day the calendar no longer showed wrote over them; a day coloured before its series' words changed read as words of its own, and the copy's for that day were dropped | Ask a date what it holds, not only what it draws; a day's words are its own only where they are not its series' |
 | [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a second turn-off giving back older words over a line added, and none of another series' copy after a big delete; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts, the calculator's place left behind and words glued at a cap; ids wrapping past an Int; two letters folded the desktop keeps; a message over a row being renamed, and drawn by two sheets; the walk timing an opening by its own look, and racing a four-second message | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
 | [2026-10-30](#every-place-a-change-made-and-every-date-a-note-holds) | code | The audit's ninth round: the calculator's place followed as one change through a list's markers, Enter in a numbered list, a paste that renumbered and an Undo of two places; a series' copy's days spent that the note never took; a second turn-off over the first one's copy; the Repeat sheet spending between its two writes; the desktop's old title paste; `int()` and CR LF read otherwise; messages over the bar being typed at; a frozen look read as the screen before | A change is the edits that made it, and a copy is not the note: ask what each edit did, and of each date whether the note holds it |
@@ -100,6 +101,52 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Words kept where nothing looked, a day's Undo over another, styles read off the texts
+
+**2026-10-31.** The final audit's twelfth round -- small, its areas
+turned to round eleven's fixes and what rounds ten and eleven had not
+covered -- came back on the phone with a high and two mediums; the
+desktop's, with two highs on the same keep.
+
+- **Round eleven's keep.** The words a copy's day held that no day could
+  take stayed in the copy -- still the series' own copy, so every start
+  read it again by date, without the copy's moves and deleted days: a
+  reset day took the old words back, and words filed under another day's
+  own date were dropped or put on the wrong day at the second start. On
+  the desktop, Restore previous of such a copy parked every other day's
+  edits in its one slot.
+- **A deleted day's Undo over another day.** Delete a day, move another
+  onto its date, Undo the delete -- the snackbars queue, so the Undo
+  waits through the move: the day came back over the moved one, which no
+  calendar drew; its words read as the deleted day's, the deleted day's
+  own lost. `undoDeleteDay` asked whether the rule gives the day, not
+  whether the date was free. Both apps.
+- **Styles read off the texts.** A table, a caption, a line above and a
+  calculator answer moved the styles by `remapSpans`, which reads an
+  insert at the end of the longest common prefix: a run starting where
+  the insert landed grew over all of it -- a whole table highlighted --
+  though the editor already built the edit as made for the places and
+  Undo. A letter deleted beside its twin took its style, the same way.
+
+**The fix:** by the owner's choice, a copy's day's own words that a day
+already holding words lacks go on that day, after its own (`wordsAdded`),
+and the copy's days are spent as before; nothing is kept in the copy.
+`undoDeleteDay` refuses a date another day or a kept edit holds, saying
+which. The styles move through the edit as made (`Paragraphs.moveSpans`)
+for every insert the editor makes and for a deletion at the cursor. The
+refusal sentences say "text or a colour of its own". check_test_results
+fails on any skip but the clock's one. Mutants AS346 to AS351.
+
+**What it left:** the template editor still moves its styles by
+`remapSpans` at every change, with no edit to read; a deleted day's edit
+kept from an old notebook blocks its date and no screen lists it.
+
+**The lesson:** a place the next read looks at again is not a place to
+keep things -- keep them where they are seen. And a change that knows
+where it was made says so to everything it moves.
 
 ---
 
