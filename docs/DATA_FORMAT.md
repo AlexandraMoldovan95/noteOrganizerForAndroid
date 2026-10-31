@@ -355,8 +355,9 @@ Phase 3 writes the other two the day mode has:
 - **A day moved** is written in `moved` against the date its rule gives
   it — `{"2026-10-20": "2026-10-22"}` — and its own edit, if it has one,
   moves with it in `overrides`. Moved back home, the entry goes. A day
-  may move only to a date the series has no day on, and comes home only
-  to one ([the desktop's own date rule does not ask](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+  may move only to a date the series has no day on and keeps no edit
+  for, and comes home only to one -- on both apps since the final
+  audit's eleventh round.
 - **A day off the schedule** — an override on a date the rule no longer
   gives, after the repeat changed — is settled as the desktop settles
   it: made a note of its own on that date (its title, text, comments,

@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-four are
+**the code**, or in **the design**. Twenty-one of the eighty-five are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-31](#a-day-moved-onto-words-no-calendar-showed-a-copys-words-no-day-could-take) | code | The audit's eleventh round, on both apps at once: a day moved onto a date that kept the words of a day the calendar no longer showed wrote over them; a day coloured before its series' words changed read as words of its own, and the copy's for that day were dropped | Ask a date what it holds, not only what it draws; a day's words are its own only where they are not its series' |
 | [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a second turn-off giving back older words over a line added, and none of another series' copy after a big delete; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts, the calculator's place left behind and words glued at a cap; ids wrapping past an Int; two letters folded the desktop keeps; a message over a row being renamed, and drawn by two sheets; the walk timing an opening by its own look, and racing a four-second message | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
 | [2026-10-30](#every-place-a-change-made-and-every-date-a-note-holds) | code | The audit's ninth round: the calculator's place followed as one change through a list's markers, Enter in a numbered list, a paste that renumbered and an Undo of two places; a series' copy's days spent that the note never took; a second turn-off over the first one's copy; the Repeat sheet spending between its two writes; the desktop's old title paste; `int()` and CR LF read otherwise; messages over the bar being typed at; a frozen look read as the screen before | A change is the edits that made it, and a copy is not the note: ask what each edit did, and of each date whether the note holds it |
 | [2026-10-30](#kept-where-it-was-found-and-kept-on-after-it-moved) | code | The audit's eighth round: the calculator's place kept through an Undo that changed nothing and dropped by one that changed the words; a series' days kept in its copy after the note took them back, so a day reset came back at every start; comments always taken into a waiting copy, two letters over a long comment; a turn-off over an import's Update copy; a title's Enter told by its length; refusals said under the sheet that stayed open; the walk's frames read before they ended, its turn taken halfway | What a fix keeps it must also let go of, and say when: ask of each thing kept what makes it stop being the one to keep |
@@ -99,6 +100,55 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A day moved onto words no calendar showed, a copy's words no day could take
+
+**2026-10-31.** The final audit's eleventh round -- small, two auditors a
+side, by the owner's call on the week's usage -- found the same high on
+both apps, each auditor in its own, and a second high the desktop's
+auditor proved on both.
+
+- **A move over words nobody could see.** A weekly series changed from
+  Mondays to Tuesdays keeps the Mondays' own words, off the schedule.
+  "📅 Move this day…" onto such a Monday was accepted: `dayIsFree` asked
+  only whether the calendar draws a day there. The move wrote over the
+  kept words, and its Undo took the day back without them; a day with no
+  words of its own took them as its own instead, and the Undo filed them
+  under the wrong day.
+- **A copy's words read as the note's.** A day coloured while the series
+  said one thing keeps the series' words as they were. The series' text
+  edited after, the day held words no other did, and `dayHasWords` read
+  them as its own: the take-back dropped the copy's own text for that
+  day, and 0.12.0's notebook -- the one on the owner's phone -- would
+  have lost it at the next build's first start. The tie the tenth round
+  called "a shape neither app writes", two of the copy's days for one
+  date, the move above writes.
+
+**The fix:** `dayIsFree` also refuses a date the series keeps an edit for
+(`keepsWordsOn`), and the move says why. A copy's day is dropped only
+where the note deleted it; one whose own words the note's day does not
+hold (`ownWordsHeld` -- the series' words are not the day's), or that
+lost its date to another of the copy's, stays in the copy under the date
+it wanted, and Restore previous brings it -- in `spendSeriesDays` and in
+the notebook's read, `daysBackAsRead`, which emptied the copy on its own
+and was found by the fixture before any test of its own. The owner chose
+this over a finer test of the words. The desktop does the same, and asks
+the phone's question before a day comes home. `days_cases.json`, rebuilt
+from the desktop's core, holds 68 cases; of the 62 before one changed, as
+intended. Mutants AS339 to AS345 (AS344 not offered: its shape is one the
+fixture cannot tell apart).
+
+**What it left:** a copy is one slot -- another turn-off or big delete on
+that note makes a new one, and the kept words go with the old. The
+walk's timing, a low: its opening is cut at the first idle second, not
+anchored at the tap, so work moved off the main thread or behind a delay
+could pass, and a blinking cursor would fail at twenty seconds; today's
+openings run on the main thread with no field focused.
+
+**The lesson:** ask a date what it holds, not only what it draws; a day's
+words are its own only where they are not its series'.
 
 ---
 
@@ -3634,6 +3684,8 @@ phone matches the desktop wherever the difference is not a fault.
   one of them where there were two. Confirmed with the desktop's own
   recurrence code. The phone refuses that return and says why
   ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+  *Fixed on the desktop in the final audit's eleventh round*, where "Only
+  the date" was found to write over the other day's words too.
 * **A pasted page's second table puts its styles beside their words.**
   `tables.align` re-pads every table in a paste and reports where it put
   spaces in or took them out; `shift_spans` judges those places against

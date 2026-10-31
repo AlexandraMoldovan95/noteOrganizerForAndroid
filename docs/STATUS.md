@@ -483,9 +483,12 @@ effect or a fault rather than a rule — all five are
 Phase 3 added three, for the same reason —
 [desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3):
 
-* **A day comes home only to an empty date.** Undo of a move, or "Reset
+* **A day comes home only to an empty date** -- no longer a difference:
+  the desktop asks the same since the final audit's eleventh round, and
+  both refuse a date that keeps a day's words the calendar no longer
+  shows. Undo of a move, or "Reset
   this day", is refused when another day of the series has been moved
-  onto the date it would return to; the desktop brings it back on top,
+  onto the date it would return to; the desktop brought it back on top,
   and the other day is drawn nowhere.
 * **Taking a file off a note keeps the stored file while another note
   uses it**, as the phone's Trash already does.
