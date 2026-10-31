@@ -1842,8 +1842,11 @@ object Notebook {
     internal fun spendSeriesDays(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
         if (!seriesDaysSpent(note, previous)) return
-        takeDaysBack(note, previous)
+        val kept = takeDaysBack(note, previous)
         for (field in DAY_FIELDS) previous.remove(field)
+        // A day's words no day of the note could take stay in the copy, and
+        // Restore previous brings them (the eleventh round, [copyDaysPlaced]).
+        if (kept.length() > 0) previous.put("overrides", kept)
     }
 
     /**
@@ -1877,21 +1880,23 @@ object Notebook {
      * moved that day or given it a colour: 0.12.0's notebook, or the
      * desktop's 0.97.405, lost them at the first start, in no file (the
      * final audit's tenth round). The note's deleted days written sorted,
-     * once each.
+     * once each. Returns the copy's days' edits whose words no day took,
+     * which stay in the copy ([copyDaysPlaced]).
      */
-    private fun takeDaysBack(note: JSONObject, previous: JSONObject) {
+    private fun takeDaysBack(note: JSONObject, previous: JSONObject): JSONObject {
         val held = datesHeld(note)
         val moved = (note.opt("moved") as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
         for ((day, to) in copyMovesTaken(previous.opt("moved") as? JSONObject, held, moved.length())) {
             moved.put(day, deepCopy(to))
         }
-        val overrides = copyDaysPlaced(note, previous, moved)
+        val (overrides, kept) = copyDaysPlaced(note, previous, moved)
         val exceptions = sortedSetOf<String>()
         exceptions.addAll(datesIn(note.opt("exceptions")))
         exceptions.addAll(datesIn(previous.opt("exceptions")).filter { it !in held })
         note.put("overrides", overrides)
         note.put("exceptions", JSONArray(exceptions.toList()))
         note.put("moved", moved)
+        return kept
     }
 
     /** The texts of a list of dates, anything else in it left out. */
@@ -1935,11 +1940,17 @@ object Notebook {
      * own for it. An edit there with no words of its own takes the copy's,
      * its colour and category kept. An edit the copy draws on no day -- off
      * its schedule, or under a date its day left or it deleted -- stays on
-     * its date. Two of the copy's for one date, a shape neither app writes:
-     * the one with words is kept, then the one on its own date, then the one
-     * moved there, then the one drawn on no day.
+     * its date. Two of the copy's for one date: the one with words goes in,
+     * then the one on its own date, then the one moved there, then the one
+     * drawn on no day. Returns the edits, and the copy's own whose words no
+     * day took -- the note's day holds other words, or another of the
+     * copy's took its date -- by the date each wanted, or its own when
+     * another kept one wants that date too: they stay in the copy. Dropped,
+     * a day coloured before the series' text changed, which holds the old
+     * text, cost the copy's words for it, and a day moved onto a day off the
+     * schedule the off-schedule day's (the final audit's eleventh round).
      */
-    private fun copyDaysPlaced(note: JSONObject, previous: JSONObject, moved: JSONObject): JSONObject {
+    private fun copyDaysPlaced(note: JSONObject, previous: JSONObject, moved: JSONObject): Pair<JSONObject, JSONObject> {
         val mine = note.opt("overrides") as? JSONObject ?: JSONObject()
         val overrides = JSONObject(mine.toString())
         val deleted = datesIn(note.opt("exceptions")).toHashSet()
@@ -1947,7 +1958,7 @@ object Notebook {
         (previous.opt("moved") as? JSONObject)?.let { theirs -> for (day in theirs.keys()) came.putIfAbsent(theirs.get(day), day) }
         val undrawn = Recurrence.offScheduleDays(previous).toHashSet()
         datesIn(previous.opt("exceptions")).filterTo(undrawn) { it !in came }
-        class Wanted(val noWords: Boolean, val rank: Int, val at: String, val patch: Any)
+        class Wanted(val noWords: Boolean, val rank: Int, val at: String, val key: String, val patch: Any)
         val wanted = ArrayList<Wanted>()
         val theirs = previous.opt("overrides") as? JSONObject ?: JSONObject()
         for (key in theirs.keys().asSequence().toList()) {
@@ -1956,21 +1967,47 @@ object Notebook {
             if (day in deleted) continue
             val at = if (stray) key else moved.opt(day) as? String ?: day
             val rank = if (stray) 2 else if (at == day) 0 else 1
-            wanted.add(Wanted(!dayHasWords(previous, key), rank, at, theirs.get(key)))
+            wanted.add(Wanted(!dayHasWords(previous, key), rank, at, key, theirs.get(key)))
         }
         val taken = HashSet<String>()
+        val kept = JSONObject()
         for (want in wanted.sortedWith(compareBy<Wanted>({ it.noWords }, { it.rank }, { it.at }))) {
-            if (!taken.add(want.at)) continue
-            val look = mine.opt(want.at)
-            if (look == null || look == JSONObject.NULL) {
+            val look = mine.opt(want.at)?.takeUnless { it == JSONObject.NULL }
+            if (want.at in taken || (look != null && !want.noWords && dayHasWords(note, want.at))) {
+                if (!want.noWords && (want.at in taken || !ownWordsHeld(previous, want.key, note, want.at))) {
+                    val slot = if (kept.has(want.at)) want.key else want.at
+                    if (!kept.has(slot)) kept.put(slot, deepCopy(want.patch))
+                }
+                taken.add(want.at)
+                continue
+            }
+            taken.add(want.at)
+            if (look == null) {
                 overrides.put(want.at, deepCopy(want.patch))
-            } else if (!want.noWords && !dayHasWords(note, want.at)) {
+            } else if (!want.noWords) {
                 val laid = deepCopy(want.patch) as JSONObject
                 (look as? JSONObject)?.let { for (key in DAY_LOOK) if (it.has(key)) laid.put(key, it.opt(key)) }
                 overrides.put(want.at, laid)
             }
         }
-        return overrides
+        return overrides to kept
+    }
+
+    /**
+     * Whether [note]'s day [at] holds every word [previous]'s day [key] has
+     * of its own: each title, text or comments it holds that is not its
+     * series' ([Recurrence.dayAsKept]) -- the desktop's `_own_words_held`.
+     * The series' own words are not the day's: the note's renamed series
+     * held a day's text, and it was kept as if lost.
+     */
+    private fun ownWordsHeld(previous: JSONObject, key: String, note: JSONObject, at: String): Boolean {
+        fun read(value: Any?): Any = if (Exporting.truthy(value)) value!! else ""
+        val theirs = Recurrence.dayAsKept(previous, key)
+        val mine = Recurrence.dayAsKept(note, at)
+        return DAY_WORDS.all {
+            val word = read(theirs.opt(it))
+            sameJson(word, read(previous.opt(it))) || sameJson(word, read(mine.opt(it)))
+        }
     }
 
     /**
@@ -2066,11 +2103,13 @@ object Notebook {
             view.put(field, deepCopy(days))
         }
         if (seriesDaysSpent(view, previous)) {
-            takeDaysBack(view, previous)
+            val kept = takeDaysBack(view, previous)
             for (field in DAY_FIELDS) {
                 raw.put(field, deepCopy(view.get(field)))
                 held.remove(field)
             }
+            // The words no day took stay in the copy, as [spendSeriesDays] keeps them.
+            if (kept.length() > 0) held.put("overrides", kept)
         }
     }
 

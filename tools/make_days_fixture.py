@@ -62,6 +62,12 @@ a line was added, which keeps the newest words; and a big delete, the repeat
 off, on as another series (another start, every two weeks, an end date) and
 off again, which keeps the deleted words.
 
+And since the eleventh (the desktop's round-eleven data fix): a copy's day
+whose words the note's day cannot take stays in the copy -- 0.12.0 turned
+on as it was, that day coloured, then the series' words changed: read, read
+again, Restore previous, the day reset; and two of the copy's days for one
+date, the note's day moved onto a day off the copy's schedule.
+
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
 
@@ -505,6 +511,25 @@ def main():
                                                          "end": "2027-03-01"}})):
         cases.append(("a big delete, off, on %s, off again, Restore previous" % what, own,
                       [big_delete, off, step, off, {"do": "restore"}]))
+    # The eleventh round. A copy's day whose words the note's day cannot take
+    # stays in the copy: a day coloured before the series' words changed holds
+    # the old words, read as its own, and the copy's for it were dropped.
+    stale = dict(back_on, body=body + "\nBring water.",
+                 overrides={first: {"title": "Gym", "body": body, "comments": "",
+                                    "color": "#ff6b6b", "category": "Work"}})
+    for what, steps in (("read", []), ("read again", [{"do": "read"}]),
+                        ("Restore previous", [{"do": "restore"}]),
+                        ("the day reset, read again", [{"do": "reset", "day": first}, {"do": "read"}])):
+        cases.append(("0.12.0 on as it was, that day coloured, then the series' words changed, %s" % what,
+                      stale, steps))
+    # ...and two of the copy's for one date: the note moved its day onto a
+    # day off the copy's schedule, which holds words of its own.
+    tie = dict(back_on, moved={"2026-11-16": "2026-11-10"},
+               _prev=dict(back_on["_prev"], exceptions=[],
+                          overrides={"2026-11-10": {"body": "Off-schedule words"},
+                                     "2026-11-16": {"body": "Monday 16th's own"}}))
+    cases.append(("two of the copy's days for one date, read", tie, []))
+    cases.append(("two of the copy's days for one date, read again", tie, [{"do": "read"}]))
 
     out = []
     for name, start, steps in cases:

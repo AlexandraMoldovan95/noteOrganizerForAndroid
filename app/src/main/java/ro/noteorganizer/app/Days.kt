@@ -349,8 +349,22 @@ object Days {
 
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false
-        return to == day || Recurrence.expand(note, target, target) != listOf(to)
+        return to == day || (Recurrence.expand(note, target, target) != listOf(to) && !keepsWordsOn(note, to))
     }
+
+    /**
+     * Whether the series keeps an edit of its own under [date] that it draws
+     * no day on -- a day off its schedule, or one deleted with its edit
+     * kept. A day moved there would take that edit's place: its words were
+     * written over, and an Undo took the day back without them (the final
+     * audit's eleventh round).
+     */
+    fun keepsWordsOn(note: JSONObject, date: String): Boolean =
+        (note.opt("overrides") as? JSONObject)?.has(date) == true
+
+    private fun keptThere(target: java.time.LocalDate) =
+        "This series still keeps the words of a day on ${Recurrence.showDay(target)}, which its calendar " +
+            "no longer shows. A day can move only to a date the series holds nothing for."
 
     /** What [moveDay] did, for its Undo to undo: the date the rule gives the day, and where it was and went. */
     data class DayMove(val id: Int, val uid: String, val origin: String, val from: String, val to: String)
@@ -370,6 +384,7 @@ object Days {
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
             if (!givenDay(note, day)) return@edit NOT_A_DAY
             if (!dayIsFree(note, day, to)) {
+                if (Recurrence.expand(note, target, target) != listOf(to)) return@edit keptThere(target)
                 return@edit "This series already has a day on ${Recurrence.showDay(target)}. " +
                     "A day can move only to a date the series does not have."
             }

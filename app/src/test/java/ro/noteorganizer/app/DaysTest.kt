@@ -822,6 +822,30 @@ class DaysTest {
         "overrides": {"2026-10-12": {"title": "Room 2", "body": "own text"}}}]"""
 
     @Test
+    fun `a day is not moved onto a date that keeps the words of a day the calendar no longer shows`() {
+        // The 12th, a Monday of a series now on Tuesdays, keeps its own words
+        // and is drawn nowhere. The 13th moved onto it wrote over them, and
+        // the move's Undo took the day back without them (the eleventh round).
+        val load = scratch(offTheSchedule)
+        Days.saveDay(load, 1, "2026-10-13", "Stand-up", "room 4B", "", "Work", "")
+        val (refused, move) = Days.moveDay(load, 1, "2026-10-13", "2026-10-12")
+        assertTrue(refused is SaveResult.Failed && refused.reason.startsWith("This series still keeps the words of a day on"))
+        assertNull(move)
+        val note = onDisk(load)
+        assertEquals("own text", note.getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
+        assertEquals("room 4B", note.getJSONObject("overrides").getJSONObject("2026-10-13").getString("body"))
+        assertNull(note.optJSONObject("moved"))
+        assertEquals(listOf("2026-10-12"), Recurrence.offScheduleDays(note))
+        // A deleted day's words kept under its date are held the same way.
+        val deleted = scratch(series.replace("\"checklist\"",
+            "\"exceptions\": [\"2026-10-12\"], \"overrides\": {\"2026-10-12\": {\"body\": \"kept\"}}, \"checklist\""))
+        assertTrue(Days.moveDay(deleted, 1, "2026-10-19", "2026-10-12").first is SaveResult.Failed)
+        assertEquals("kept", onDisk(deleted).getJSONObject("overrides").getJSONObject("2026-10-12").getString("body"))
+        // A date the series holds nothing for still takes the day.
+        assertTrue(Days.moveDay(load, 1, "2026-10-13", "2026-10-15").first is SaveResult.Ok)
+    }
+
+    @Test
     fun `a day off the schedule becomes a note of its own, on its date, with what it showed`() {
         val load = scratch(offTheSchedule)
         assertEquals(listOf("2026-10-12"), Recurrence.offScheduleDays(onDisk(load)))
