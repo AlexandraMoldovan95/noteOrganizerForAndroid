@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-six are
+**the code**, or in **the design**. Twenty-one of the eighty-seven are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-10-31](#a-days-words-added-twice-and-slowly-a-tables-line-the-phone-never-wrote) | code | The audit's thirteenth round: round twelve's added words came twice where a day had grown from the copy's text, and were read off a copy of the whole note for each day -- a year of days froze the turn-on; a day ending in a table typed on the phone lacked the line under it, and an import read it as changed; a column's width spread a cell's colour | A rule that adds asks what is already there, as lines; a cost per item never carries the whole |
 | [2026-10-31](#words-kept-where-nothing-looked-a-days-undo-over-another-styles-read-off-the-texts) | code | The audit's twelfth round: the words round eleven kept in the copy were read again by date at every start, lost or put on the wrong day; a deleted day's Undo came back over a day moved onto its date; a table or an answer inserted where a styled run began took its style | A place the next read looks at again is not a place to keep things; a change that knows where it was made says so to everything it moves |
 | [2026-10-31](#a-day-moved-onto-words-no-calendar-showed-a-copys-words-no-day-could-take) | code | The audit's eleventh round, on both apps at once: a day moved onto a date that kept the words of a day the calendar no longer showed wrote over them; a day coloured before its series' words changed read as words of its own, and the copy's for that day were dropped | Ask a date what it holds, not only what it draws; a day's words are its own only where they are not its series' |
 | [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a second turn-off giving back older words over a line added, and none of another series' copy after a big delete; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts, the calculator's place left behind and words glued at a cap; ids wrapping past an Int; two letters folded the desktop keeps; a message over a row being renamed, and drawn by two sheets; the walk timing an opening by its own look, and racing a four-second message | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
@@ -101,6 +102,50 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A day's words added twice and slowly, a table's line the phone never wrote
+
+**2026-10-31.** The final audit's thirteenth round, small, on round
+twelve's fixes, came back with two highs and a medium on the phone, and
+the desktop's with the same doubled words.
+
+- **Words added twice.** Round twelve's `wordsAdded` added a copy's day's
+  words whole whenever they differed from the day's: a day grown from the
+  copy's text got it again under its own, and an emptied word a blank line.
+- **Added slowly.** It read the day's words off a copy of the whole note
+  made for each day -- written out and parsed again. Turning on a series
+  with a year of days of its own grew with the square of the days, on the
+  main thread.
+- **A table's line.** The desktop's `clean_override` gives a day's text
+  ending in a table the line under it; the phone's `cleanOverride`, said
+  to be the same, did not, and its day save neither. The same note then
+  differed between the apps: an import of the desktop's backup read it as
+  changed, its Update spending the real rescue copy on a copy of itself,
+  and a copy's table added under it was glued onto it.
+- **A column's width.** `editColumns` moved the styles off the texts: a
+  separator put in above a row beginning "| " was found two letters into
+  that row, the first cell's colour spread over it, and the next row
+  added dropped it. Round twelve's sweep of the editor's inserts missed it.
+
+**The fix:** `linesLacked`, as the desktop's `_lines_lacked`: nothing
+when the day holds the copy's lines as one run, else all but those it
+begins with, whole. `wordsAdded` reads the day's edit and the note, not a
+copy -- 90 days 3 ms, 360 days 13 ms, a test timing one against the
+other. `cleanOverride` passes a day's body through `withCaretLine`.
+`editColumns` moves the styles through the edit as made; `addCaption`
+clears the Source line's own break. Mutants AS352 to AS357 -- AS352
+passed until the fixture held a day ending in a table with nothing in
+the copy for it.
+
+**What it left:** a cell's words still move their styles off the texts
+(typing, pasting and the calculator's answer in a cell); a keyboard that
+edits an earlier word and leaves the cursor at the end drops the styles
+between.
+
+**The lesson:** a rule that adds asks what is already there, as lines.
+And a cost paid for each item never carries the whole.
 
 ---
 
