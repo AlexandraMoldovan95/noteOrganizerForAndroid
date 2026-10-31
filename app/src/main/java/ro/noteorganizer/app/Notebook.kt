@@ -1783,7 +1783,11 @@ object Notebook {
     internal fun dayHasWords(note: JSONObject, day: String): Boolean {
         fun read(value: Any?): Any = if (Exporting.truthy(value)) value!! else ""
         val shown = Recurrence.dayAsKept(note, day)
-        return DAY_WORDS.any { !sameJson(read(shown.opt(it)), read(note.opt(it))) }
+        return DAY_WORDS.any {
+            val mine = read(shown.opt(it))
+            val theirs = read(note.opt(it))
+            if (it == "body") !Normalize.sameBody(mine, theirs) && !sameJson(mine, theirs) else !sameJson(mine, theirs)
+        }
     }
 
     /** A note's days taken out: what a repeat's end leaves when none of them holds text of its own. */
@@ -2000,7 +2004,8 @@ object Notebook {
             val added = ArrayList<String>()
             for (word in words) {
                 val own = text(theirs.opt(word))
-                if (own != text(previous.opt(word)) && own != mine(word)) {
+                fun same(other: String) = if (word == "body") Normalize.sameBody(own, other) else own == other
+                if (!same(text(previous.opt(word))) && !same(mine(word))) {
                     added += linesLacked(own, (listOf(mine(field), mine("title")) + added).joinToString("\n"))
                 }
             }
@@ -2015,21 +2020,59 @@ object Notebook {
     }
 
     /**
-     * The lines of [own] to add after [have]: none when [have] holds them all
-     * as one run of lines, else all but those [have] begins with -- whole, so
-     * a table among them keeps its rows. The desktop's `_lines_lacked`: added
-     * whole, a day grown from the copy's text showed it twice (the thirteenth round).
+     * A line as the take-back compares it: a table's row by its cells' words
+     * -- its padding and a box's tick left out, so a re-padded column or a
+     * ticked box is the same row -- a separator as any, else as it is. The
+     * desktop's `_line_key`.
+     */
+    private fun lineKey(line: String): List<String> = when {
+        !isTableRow(line) -> listOf("line", line)
+        isSeparatorRow(line) -> listOf("separator")
+        else -> listOf("row") + splitRow(line).map { if (checkboxState(it) != null) "[ ]" else it.trim() }
+    }
+
+    /**
+     * The lines of [own] that [have] lacks, in order: those outside the
+     * longest run the two share in order ([lineKey]), a table among them with
+     * its header and separator; blank lines alone add nothing. The desktop's
+     * `_lines_lacked`: added whole after the first difference, a day corrected
+     * in its middle showed its old text again under it (the fourteenth round).
      */
     private fun linesLacked(own: String, have: String): List<String> {
         val lines = own.split("\n")
-        val held = have.split("\n")
-        if ((0..held.size - lines.size).any { held.subList(it, it + lines.size) == lines }) return emptyList()
-        var first = 0
-        while (first < minOf(lines.size, held.size) && lines[first] == held[first]) first++
-        val rest = lines.subList(first, lines.size).toMutableList()
-        while (rest.isNotEmpty() && rest.first().isBlank()) rest.removeAt(0)
-        while (rest.isNotEmpty() && rest.last().isBlank()) rest.removeAt(rest.size - 1)
-        return rest
+        val a = lines.map { lineKey(it) }
+        val b = have.split("\n").map { lineKey(it) }
+        val lacked = ArrayList<Int>()
+        if (a.size.toLong() * b.size > 250_000) {
+            val kept = b.toHashSet()
+            a.forEachIndexed { i, key -> if (key !in kept) lacked.add(i) }
+        } else {
+            // The longest common subsequence, from a table of lengths built from the end.
+            val n = a.size
+            val m = b.size
+            val size = Array(n + 1) { IntArray(m + 1) }
+            for (i in n - 1 downTo 0) for (j in m - 1 downTo 0) {
+                size[i][j] = if (a[i] == b[j]) size[i + 1][j + 1] + 1 else maxOf(size[i + 1][j], size[i][j + 1])
+            }
+            var i = 0
+            var j = 0
+            while (i < n) {
+                if (j < m && a[i] == b[j]) { i++; j++ }
+                else if (j < m && size[i][j + 1] >= size[i + 1][j]) j++
+                else lacked.add(i++)
+            }
+        }
+        // Blank as Python's strip() finds it: U+0085 and the non-breaking
+        // spaces count as space there, not for Kotlin's isWhitespace.
+        fun blank(line: String) = line.all { it.isWhitespace() || it.code in setOf(0x85, 0xA0, 0x2007, 0x202F) }
+        val wanted = lacked.filter { !blank(lines[it]) }.toSortedSet()
+        for (block in tableBlocks(own)) {
+            if (wanted.any { it in block }) {
+                wanted.add(block.first)
+                if (block.first < block.last && isSeparatorRow(lines[block.first + 1])) wanted.add(block.first + 1)
+            }
+        }
+        return wanted.map { lines[it] }
     }
 
     /**

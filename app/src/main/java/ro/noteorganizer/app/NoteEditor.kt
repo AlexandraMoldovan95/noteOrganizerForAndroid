@@ -199,7 +199,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // A day's own text is plain -- but a day given only its own colour
         // or category keeps the series' words, and with them their styles,
         // as the desktop's load_note keeps them while the two bodies agree.
-        if (own?.has("body") == true && body != (raw.opt("body") as? String ?: "")) spans = emptyList()
+        if (own?.has("body") == true && !Normalize.sameBody(body, raw.opt("body") as? String ?: "")) spans = emptyList()
     }
 
     /** Counts changes; the autosave runs a moment after the last one. */
@@ -377,6 +377,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     var cellCaret: Int? = null
     var cellCaretNext: Int? = null
+
+    /**
+     * While a letter typed in a cell is written: the cursor in the cell's
+     * words as they are stored (a line break counted as its "<br>"), so the
+     * words' styles move by the edit as made ([carryCellStyles]).
+     */
+    var cellWordsCaret: Int? = null
 
     /**
      * The table cell being written in, by the line its table starts on --
@@ -1102,6 +1109,16 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             val was = before[origin] ?: continue
             if (origin !in goesTo) goesTo[origin] = p to (words(oldPoints, was) == words(newPoints, p))
         }
+        // The one cell whose words a letter typed changed: its words' styles
+        // move by the edit as made, as the desktop's cell editor styles a
+        // typed letter. Read off the texts, a padded or aligned cell's styles
+        // were cut or dropped (the final audit's fourteenth round).
+        val typedIn = goesTo.entries.singleOrNull { !it.value.second }
+        val typedWords = typedIn?.let { words(oldPoints, before.getValue(it.key)) }
+        val typed = cellWordsCaret?.let { caret ->
+            typedIn?.let { cellEdit(typedWords!!, words(newPoints, it.value.first), caret) } }
+        val afterBreak = typed != null && typed.at >= 4 &&
+            String(codePointsOf(typedWords!!), typed.at - 4, 4) == "<br>"
         val carried = ArrayList<FormatSpan>()
         val rest = ArrayList<FormatSpan>()
         // Only a style inside the table is looked for among its cells: this
@@ -1125,12 +1142,48 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                     val shift = now.wordsStart - was.wordsStart
                     carried.add(span.copy(start = span.start + shift, end = span.end + shift))
                     placed = true
+                } else if (typed != null && origin == typedIn?.key && span.end > span.start &&
+                           span.start >= was.wordsStart && span.end <= was.wordsEnd) {
+                    cellSpanThrough(span.start - was.wordsStart, span.end - was.wordsStart, typed, afterBreak)
+                        ?.let { (s, e) -> carried.add(span.copy(start = now.wordsStart + s, end = now.wordsStart + e)) }
+                    placed = true
                 }
                 if (placed) break
             }
             if (!placed) rest.add(span)
         }
         return (remapSpans(old, new, rest).spans + carried).sortedWith(compareBy({ it.start }, { it.end }))
+    }
+
+    /** A cell's words [old] become [new] with the cursor at [caret]: the edit as made, or null when what follows the cursor is not the old words' end. */
+    private fun cellEdit(old: String, new: String, caret: Int): Paragraphs.Edit? {
+        val a = codePointsOf(old)
+        val b = codePointsOf(new)
+        val c = caret.coerceIn(0, b.size)
+        val tail = b.size - c
+        if (tail > a.size) return null
+        for (i in 0 until tail) if (a[a.size - tail + i] != b[c + i]) return null
+        var at = 0
+        val limit = minOf(c, a.size - tail)
+        while (at < limit && a[at] == b[at]) at++
+        return Paragraphs.Edit(at, a.size - tail - at, c - at)
+    }
+
+    /**
+     * A style on a cell's words, [s] to [e], through [edit]: the letters put
+     * in take the style of the letter before them -- of the one ahead at the
+     * words' start, and none after a line break -- the desktop's
+     * `_editor_typing_style`. Null when nothing of it is left.
+     */
+    private fun cellSpanThrough(s: Int, e: Int, edit: Paragraphs.Edit, afterBreak: Boolean): Pair<Int, Int>? {
+        val at = edit.at
+        val k = edit.inserted
+        val s1 = if (s <= at) s else maxOf(at, s - edit.removed)
+        val e1 = if (e <= at) e else maxOf(at, e - edit.removed)
+        val takes = k > 0 && !afterBreak && (if (at > 0) s1 <= at - 1 && at - 1 < e1 else s1 == 0 && e1 > 0)
+        val s2 = if (s1 > at || (s1 == at && !takes)) s1 + k else s1
+        val e2 = if (e1 > at || (e1 == at && takes)) e1 + k else e1
+        return if (e2 > s2) s2 to e2 else null
     }
 
     /**
@@ -3874,9 +3927,14 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
             // The desktop writes a cell when it is left; the next letter
             // writes this one.
             if (!isCellToken(clean)) {
+                val stored = clean.replace("\n", "<br>")
+                val upTo = clean.substring(0, next.selection.end.coerceIn(0, clean.length)).replace("\n", "<br>")
+                model.cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) -
+                    (stored.length - stored.trimStart().length))
                 model.editTable(segment, Editing.History.TYPING + ":cell") {
-                    it.setCell(table.fileRow(at.row), at.column, clean.replace("\n", "<br>"))
+                    it.setCell(table.fileRow(at.row), at.column, stored)
                 }
+                model.cellWordsCaret = null
             }
         },
         onTextLayout = following::laidOut,

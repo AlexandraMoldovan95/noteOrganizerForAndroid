@@ -469,7 +469,7 @@ object Days {
         }
         // What the day holds: the note made of it carries the day's words.
         val shown = Recurrence.dayAsKept(note, day)
-        val sameBody = shown.opt("body") == note.opt("body")
+        val sameBody = Normalize.sameBody(shown.opt("body"), note.opt("body"))
         val stamp = Files.now()
         val freshId = Organizing.ids(array).next()
         val fresh = Normalize.normalizeNote(JSONObject()

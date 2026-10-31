@@ -38,7 +38,10 @@ ANDROID = os.path.dirname(HERE)
 RESULTS = os.path.join(ANDROID, "app", "build", "test-results",
                        "testDebugUnitTest", "*.xml")
 
-FLOOR = 200
+# Near the count the suite holds (903 at the final audit's fourteenth round):
+# at 200, twelve of 31 test classes -- 612 tests -- could go undiscovered and
+# the gate still passed.
+FLOOR = 880
 
 # The only tests that may skip, and why: each Assumes what the clock alone
 # decides. Any other skip fails the gate -- counted as a pass, a test that

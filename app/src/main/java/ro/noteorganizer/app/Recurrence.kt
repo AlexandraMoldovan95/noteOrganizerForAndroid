@@ -735,7 +735,7 @@ object Recurrence {
                 mine = mine.trim()
                 theirs = theirs.trim()
             }
-            if (mine != theirs) return false
+            if (if (field == "body") !Normalize.sameBody(mine, theirs) else mine != theirs) return false
         }
         return true
     }

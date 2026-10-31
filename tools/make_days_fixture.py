@@ -542,7 +542,17 @@ def main():
             ("the copy's text a line in the day's middle", "Room 4\nBook room\nAt 10", "Book room"),
             ("the copy's text the day's and a line more", "Agenda.", "Agenda.\nBook room"),
             ("a day's text ending in a table, the copy's a table",
-             "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |", "| x | y |\n| --- | --- |\n| 3 | 4 |")):
+             "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |", "| x | y |\n| --- | --- |\n| 3 | 4 |"),
+            # The fourteenth round: the lines the day lacks, not all after the first difference.
+            ("the day's first line corrected", "Agenda (Monday).\nBook room\nCall Ann",
+             "Agenda.\nBook room\nCall Ann"),
+            ("a line changed in the day's middle", "Agenda.\nBook room 4\nCall Ann", "Agenda.\nBook room\nCall Ann"),
+            ("a table's cell edited, its column re-padded",
+             "Plan\n| Task | Who        |\n| ---- | ---------- |\n| Room | Ann (done) |\n| Food | Bob        |",
+             "Plan\n| Task | Who |\n| ---- | --- |\n| Room | Ann |\n| Food | Bob |"),
+            ("a checkbox ticked in a table",
+             "| Done | Task |\n| --- | --- |\n| [x] | Order lunch |\n| [ ] | Call Ann |",
+             "| Done | Task |\n| --- | --- |\n| [ ] | Order lunch |\n| [ ] | Call Ann |")):
         grown = dict(back_on, overrides={first: {"body": mine}},
                      _prev=dict(back_on["_prev"], exceptions=[], overrides={first: {"body": theirs}}))
         cases.append(("%s, read" % what, grown, []))

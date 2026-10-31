@@ -185,6 +185,17 @@ object Normalize {
         return if (last.last == body.split("\n").size - 1) body + "\n" else body
     }
 
+    /**
+     * Whether two of a note's texts say the same, the line under a closing
+     * table counted on both sides or neither: a day's text is stored with it
+     * ([cleanOverride]), the series' as typed on this phone, and a day that
+     * said what its series said read as text of its own -- cut off from the
+     * series, its colour alone taken for words (the final audit's fourteenth
+     * round).
+     */
+    fun sameBody(a: Any?, b: Any?): Boolean =
+        if (a is String && b is String) withCaretLine(a) == withCaretLine(b) else a == b
+
     /** The deleted days of a series: real dates only, each once, in order. */
     private fun cleanExceptions(days: JSONArray): JSONArray {
         val kept = sortedSetOf<String>()

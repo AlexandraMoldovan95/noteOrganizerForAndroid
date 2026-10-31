@@ -47,6 +47,37 @@ class EditorTableTest {
         assertEquals(listOf(FormatSpan(gym, gym + 3, "bold")), model.spans)
     }
 
+    /** A cell's words written as its field writes them, the cursor at [caret] in the words. */
+    private fun EditorModel.typeInCell(fileRow: Int, column: Int, text: String, caret: Int) {
+        cellWordsCaret = caret
+        editTable(Editing.segments(body).first { it.table }) { it.setCell(fileRow, column, text) }
+        cellWordsCaret = null
+    }
+
+    @Test
+    fun `letters typed in a padded or aligned cell keep its words' styles, as the desktop's cell editor styles them`() {
+        // Read off the texts, a cell narrower than its column, or aligned
+        // right, cut or dropped the bold on its words (the fourteenth round).
+        val body = "Budget\n| Item  |  Cost |\n|-------|------:|\n| Rent  |   500 |\n| Total |  1250 |"
+        val model = editor(body)
+        val total = body.indexOf("1250")
+        model.spans = listOf(FormatSpan(total, total + 4, "bold"))
+        model.changed()
+        for ((text, caret) in listOf("125" to 3, "12" to 2, "1" to 1, "13" to 2, "130" to 3, "1300" to 4)) {
+            model.typeInCell(3, 1, text, caret)
+        }
+        assertEquals("1300 is bold, right-aligned", listOf("1300"), model.spans.map { model.styled(it) })
+        val left = editor("Budget\n| Item  | Cost |\n|-------|------|\n| Rent  | 500  |\n| Total | 1250 |")
+        val rent = left.body.indexOf("Rent")
+        left.spans = listOf(FormatSpan(rent, rent + 4, "bold"))
+        left.changed()
+        left.typeInCell(2, 0, "Reent", 2)
+        assertEquals("a letter after the bold R is bold", listOf("Reent"), left.spans.map { left.styled(it) })
+        for ((text, caret) in listOf("MReent" to 1, "MyReent" to 2, "My Reent" to 3)) left.typeInCell(2, 0, text, caret)
+        assertEquals("letters at the words' start take the style of the one ahead",
+                     listOf("My Reent"), left.spans.map { left.styled(it) })
+    }
+
     @Test
     fun `a table or an answer put in where a styled run starts leaves it as it was, as the desktop's insert`() {
         // Read off the texts, a run starting where the table went in grew

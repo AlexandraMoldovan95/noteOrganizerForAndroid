@@ -413,6 +413,23 @@ class DaysTest {
     }
 
     @Test
+    fun `a day of a series ending in a table typed on the phone follows it, and its colour alone is no text`() {
+        // A day's text is kept with the line under a closing table, the
+        // series' as typed: compared as they lay, a day saying what the series
+        // said was cut off from it, and a colour alone read as words, so the
+        // repeat's turn-off made a copy and kept the days (the fourteenth round).
+        val load = scratch(series.replace("\"body\": \"agenda\"", "\"body\": \"agenda\\n| a | b |\""))
+        var said: Days.DaySaved? = null
+        Days.saveDay(load, 1, "2026-10-12", "Stand-up", "agenda\n| a | b |", "", "Work", "", result = { said = it })
+        assertEquals(Days.DaySaved.FOLLOWS, said)
+        assertFalse(onDisk(load).getJSONObject("overrides").has("2026-10-12"))
+        Days.saveDay(load, 1, "2026-10-19", "Stand-up", "agenda\n| a | b |", "", "Work", "#ff6b6b")
+        val note = onDisk(load)
+        assertTrue("the colour is kept", note.getJSONObject("overrides").has("2026-10-19"))
+        assertFalse("and is no text of its own", Notebook.daysHoldOwnText(note))
+    }
+
+    @Test
     fun `a day of a note that no longer repeats is refused, not written`() {
         val load = scratch("""[{"id": 1, "title": "x", "date": "2026-10-05"}]""")
         assertTrue(Days.saveDay(load, 1, "2026-10-05", "y", "", "", "General", "") is SaveResult.Failed)
