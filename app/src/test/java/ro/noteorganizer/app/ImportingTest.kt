@@ -77,6 +77,12 @@ class ImportingTest {
         assertEquals(1, (again as Importing.Result.Done).outcome.updated)
         assertEquals(0, again.outcome.earlierText)
         assertEquals(1, notes(here.file!!.readText()).count { it.getString("title") == "Gym (earlier text)" })
+        // ...its comments among its words: the same text with other comments
+        // is another note, or its comments arrived nowhere.
+        val book = JSONArray(here.file!!.readText())
+        book.getJSONObject(0).put("_set_aside", JSONArray().put(JSONObject().put("day", "2026-11-09")
+            .put("body", "knee").put("comments", "ask the physio")))
+        assertEquals(1, Notebook.settleAside(book))
     }
 
     @Test

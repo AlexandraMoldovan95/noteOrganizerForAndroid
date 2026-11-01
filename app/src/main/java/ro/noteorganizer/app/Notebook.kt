@@ -2189,7 +2189,9 @@ object Notebook {
     internal fun asideNotes(note: JSONObject, ids: Organizing.Ids, among: JSONArray): List<JSONObject> {
         val entries = shapedAside(note.remove("_set_aside")) ?: return emptyList()
         fun text(value: Any?): String = value as? String ?: ""
-        fun key(made: JSONObject) = listOf(text(made.opt("title")), text(made.opt("date")), text(made.opt("body")))
+        // Its comments among its words: other comments are another note.
+        fun key(made: JSONObject) = listOf(text(made.opt("title")), text(made.opt("date")), text(made.opt("body")),
+                                          text(made.opt("comments")))
         // A note of [among] already holding the same words on the same day is
         // that note: a backup's Update made it again at every import (the lows
         // wave's verification; the desktop's settle_set_aside the same).
