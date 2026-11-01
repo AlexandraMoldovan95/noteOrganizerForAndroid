@@ -1224,6 +1224,18 @@ class DaysTest {
     }
 
     @Test
+    fun `a file's days set aside are read at most as many as a series' moved days`() {
+        // Each becomes a note at the next start, and a file can say anything;
+        // a save empties the list each time (the desktop's cap).
+        val flood = JSONArray()
+        for (i in 0..Recurrence.MAX_OCCURRENCES) flood.put(JSONObject().put("day", "2026-11-09").put("body", "words $i"))
+        val read = Normalize.normalizeNote(JSONObject().put("id", 30).put("title", "Gym").put("_set_aside", flood))
+        val aside = read.getJSONArray("_set_aside")
+        assertEquals(Recurrence.MAX_OCCURRENCES, aside.length())
+        assertEquals("words 0", aside.getJSONObject(0).getString("body"))
+    }
+
+    @Test
     fun `a note restored from the Trash makes its copy's days set aside notes of their own in the same write`() {
         val dir = NioFiles.createTempDirectory("days").toFile()
         File(dir, "notes_data.json").writeText("[]")

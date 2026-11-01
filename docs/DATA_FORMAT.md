@@ -214,7 +214,8 @@ Three more keys travel beside these, though they are not defaults: `_prev`,
 the one-step rescue copy
 ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
 `_set_aside`, a series' days' words waiting to be notes of their own
-([below](#recurrence)), and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
+([below](#recurrence); read at most `MAX_OCCURRENCES` long, as moved
+days are), and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
 shaped as the desktop's `normalize_note` shapes it — its words as text,
 its styles held to the line ceilings, and beside them only the fields an
 update from a backup replaces, each by the note's own rules — since a

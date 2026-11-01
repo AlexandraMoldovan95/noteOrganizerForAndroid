@@ -2111,6 +2111,9 @@ object Notebook {
             for (key in Recurrence.OVERRIDABLE_FIELDS) shaped.put(key, entry.opt(key) as? String ?: "")
             shaped.put("day", Recurrence.formatDate(day))
             if (DAY_WORDS.any { pyStrip(shaped.getString(it)).isNotEmpty() }) kept.put(shaped)
+            // Capped as moved days are: each becomes a note at the next
+            // start, and a file can say anything (the desktop's cap).
+            if (kept.length() >= Recurrence.MAX_OCCURRENCES) break
         }
         return kept.takeIf { it.length() > 0 }
     }

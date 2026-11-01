@@ -141,7 +141,9 @@ the series. `sameWord` reads a title without its spaces
 and a text with a table's line on both sides or neither, as the
 desktop's `_same_word`. days_cases.json: 88 cases, the notes made
 compared too; DaysTest walks a start moved in the editor and a share
-code made daily. Mutants AS364 to AS385.
+code made daily. A file's `_set_aside` is read at most
+`MAX_OCCURRENCES` long, as moved days are (a commit's security review:
+each entry becomes a note at the start). Mutants AS364 to AS386.
 
 **What it left:** the desktop says on its status line when a save makes
 such a note; the phone says it only at the start. A note set aside may
