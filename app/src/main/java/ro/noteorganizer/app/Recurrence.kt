@@ -925,10 +925,17 @@ object Recurrence {
                 val off = offScheduleDays(note).toSet()
                 // Every day of this series asked of one reading of its moves.
                 val schedule = Schedule(note)
+                // The dates moved days are drawn on. One past the end or before
+                // the start is outside the span the rule's days were asked of:
+                // listed too, or it was in no row and no search found its words
+                // (the desktop's history_entries, the eighteenth round).
+                val drawnOn = moves(note).mapNotNull { (_, new) ->
+                    (new as? String)?.takeIf { isDate(it) && schedule.on(parseDate(it)!!) == listOf(it) }
+                }.toSet()
                 val days = ArrayList<HistoryDay>()
                 var anyChildMatch = false
                 val kind: String
-                val listed = occDays
+                val listed = occDays?.let { (it + drawnOn).distinct() }
                 if (listed != null) {
                     kind = "occurrences"
                     for (day in listed.sortedDescending()) {
@@ -955,8 +962,10 @@ object Recurrence {
                 } else {
                     kind = "edited"
                     for (day in overrides.keys().asSequence().sortedDescending()) {
-                        // A deleted day's edit must not resurface.
-                        if (day in exceptions || !isDate(day)) continue
+                        // A deleted day's edit must not resurface -- but a day
+                        // moved onto that date holds its own words there, drawn
+                        // or off the schedule (the eighteenth round).
+                        if ((day in exceptions && day !in drawnOn && day !in off) || !isDate(day)) continue
                         if (!bucketOk(day)) continue
                         val own = overrides.opt(day) as? JSONObject ?: JSONObject()
                         val childMatch = matches(query, own.opt("title"), own.opt("body"), own.opt("comments"))

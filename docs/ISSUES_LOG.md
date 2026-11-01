@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the ninety-one are
+**the code**, or in **the design**. Twenty-one of the ninety-two are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#history-and-the-days-it-never-asked-about) | code | The audit's eighteenth round: a series with an end listed in History only the days between its start and end, so a day moved past the end was drawn and in no row, its words found by no search; an endless series skipped every deleted date, a day moved onto one missed the same way | A fix to one reader of a shape is a question to every reader of it |
 | [2026-11-01](#words-that-never-move-on-their-own) | design | The audit's seventeenth round, both apps: round sixteen's moving of words sent home one by one wrote one day's text over another's after a week shifted a day at a time; a day moved onto a deleted date listed nowhere; an Update's copy, as a restore leaves it, replaced with its days' words; a series turned back on as it was read as another for a weekday lit once. The owner chose: words never move on their own, and the audit changed how it runs | Do not move a person's words on their own: drop what hides them, and show the rest |
 | [2026-11-01](#a-home-the-rule-no-longer-gives-and-a-move-the-calendar-never-saw-go) | code | The audit's sixteenth round, both apps: round fifteen's movesHome sent a day "home" to a date the rule no longer gives, its words off the calendar, and walked a chain once a link; the phone's calendar read notes no read had sent home, and Restore previous sent none, so a delete there took another day; a copy's day the note had moved since set aside as words it still held; the start's notes made again at every launch | A rule that moves something "back" must ask whether "back" still exists, and run where the reader reads |
 | [2026-11-01](#four-ways-of-adding-and-a-note-of-its-own) | design | The audit's fifteenth round, both apps: another series' days kept in a copy the next turn-off, big delete or Update replaced; a moved line read back as added text; a day moved onto a date a new rule gives drawn nowhere; a day only coloured read as words by a title's space. The owner chose the simpler rule: the copy's words for a day holding words of its own become a note of their own | When each fix of a merging rule leaves a new case, stop merging: keep both where the person sees them |
@@ -106,6 +107,32 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## History and the days it never asked about
+
+**2026-11-01.** The final audit's eighteenth round, small, the first under
+the owner's severity rule. A series with an end, or a count, listed its
+days in History only between its start and end: a day moved past the end,
+or before the start, was drawn on the calendar and in no row, so a search
+for its words -- History is the one search of a day's own words -- found
+nothing, and the row counted one day fewer. An endless series skipped every
+deleted date, so a day moved onto one was missed the same way; round
+seventeen had fixed that for the off-schedule list, not for History. The
+desktop's `history_entries` did the same.
+
+**The fix.** `Recurrence.history` adds the dates moved days are drawn on to
+a bounded series' days, and skips a deleted date only when no move lands
+on it, drawn or off the schedule. DaysTest; mutants AS407, AS408.
+
+**What it left:** the round's lows are on the audit's list for a wave of
+their own (an old notebook's two moves onto one date; an Undo putting a
+move back beside a dead one; the fuzz's roads not taken, and its counting
+a word kept wherever the file holds it).
+
+**The lesson:** a fix to one reader of a shape is a question to every
+reader of it.
 
 ---
 

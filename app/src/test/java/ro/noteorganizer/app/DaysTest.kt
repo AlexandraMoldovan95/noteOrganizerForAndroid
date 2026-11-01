@@ -567,6 +567,24 @@ class DaysTest {
             "2026-11-02", JSONObject().put("freq", "monthly").put("month_days", JSONArray().put(2))))
     }
 
+    @Test
+    fun `History lists a day moved past a bounded series' end, or onto a deleted date, and finds its words`() {
+        // In no row, a search found them nowhere -- History is the one search
+        // of a day's own words (the eighteenth round, as on the desktop).
+        fun read(json: String) = Normalize.normalizeNote(JSONObject(json))
+        fun found(note: JSONObject) = Recurrence.history(listOf(note), "Budget")
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().flatMap { s -> s.days.map { it.date } }
+        val bounded = read("""{"id": 43, "title": "Meeting", "body": "x", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly", "end": "2026-12-14"}, "moved": {"2026-12-14": "2026-12-18"},
+            "overrides": {"2026-12-18": {"body": "Budget review"}}}""")
+        val endless = read("""{"id": 44, "title": "Meeting", "body": "x", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}, "exceptions": ["2026-12-14"], "moved": {"2026-12-21": "2026-12-14"},
+            "overrides": {"2026-12-14": {"body": "Budget review"}}}""")
+        assertEquals(listOf("2026-12-18"), found(bounded))
+        assertEquals(listOf("2026-12-14"), found(endless))
+        assertEquals(7, (Recurrence.history(listOf(bounded)).first() as Recurrence.HistoryEntry.Series).occurrences)
+    }
+
     /**
      * The fuzz of a series' days (the owner's choice, the seventeenth round;
      * the desktop's test_data_safety runs its own). Random roads through the
