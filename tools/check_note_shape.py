@@ -80,6 +80,10 @@ NOT_A_DEFAULT = {
     "id": "computed as max + 1 where a note is appended, never defaulted",
     "_prev": "carried through when a note from outside has one, never "
              "made for a new note -- see NOT_ON_THE_PHONE",
+    "_set_aside": "a series' days whose earlier text waits to become notes "
+                  "of their own: carried through when a note has some, as "
+                  "the desktop's normalize_note carries them, and never made "
+                  "for a new note (the final audit's fifteenth round)",
     "order": "a note's place in Custom order: kept when it is a finite "
              "number, never defaulted -- 'not placed yet' is its own "
              "answer, and it is not in the desktop's NOTE_DEFAULTS either",

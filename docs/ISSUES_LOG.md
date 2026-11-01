@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-eight are
+**the code**, or in **the design**. Twenty-one of the eighty-nine are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#four-ways-of-adding-and-a-note-of-its-own) | design | The audit's fifteenth round, both apps: another series' days kept in a copy the next turn-off, big delete or Update replaced; a moved line read back as added text; a day moved onto a date a new rule gives drawn nowhere; a day only coloured read as words by a title's space. The owner chose the simpler rule: the copy's words for a day holding words of its own become a note of their own | When each fix of a merging rule leaves a new case, stop merging: keep both where the person sees them |
 | [2026-10-31](#a-day-cut-off-by-a-tables-line-the-old-text-again-a-cells-bold-dropped) | code | The audit's fourteenth round: round thirteen's line under a day's table, without the series' too, cut a day off from its series and read a colour as words; a day corrected in its middle got its old text again; a letter typed in a padded cell dropped its bold | A rule written into one side of a comparison is written into both; to keep what is lacking, compare what both hold, in order |
 | [2026-10-31](#a-days-words-added-twice-and-slowly-a-tables-line-the-phone-never-wrote) | code | The audit's thirteenth round: round twelve's added words came twice where a day had grown from the copy's text, and were read off a copy of the whole note for each day -- a year of days froze the turn-on; a day ending in a table typed on the phone lacked the line under it, and an import read it as changed; a column's width spread a cell's colour | A rule that adds asks what is already there, as lines; a cost per item never carries the whole |
 | [2026-10-31](#words-kept-where-nothing-looked-a-days-undo-over-another-styles-read-off-the-texts) | code | The audit's twelfth round: the words round eleven kept in the copy were read again by date at every start, lost or put on the wrong day; a deleted day's Undo came back over a day moved onto its date; a table or an answer inserted where a styled run began took its style | A place the next read looks at again is not a place to keep things; a change that knows where it was made says so to everything it moves |
@@ -103,6 +104,51 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Four ways of adding, and a note of its own
+
+**2026-11-01.** The final audit's fifteenth round, small, on round
+fourteen's fixes, found on both apps that four rounds of adding a copy's
+words to a day had each left a case.
+
+- **Another series' days in no file.** A note repeating as another
+  series than its copy's -- turned on from another start or rule -- kept
+  the old series' days with words in the copy alone; the next turn-off,
+  big delete or import Update replaced the copy, and they were gone.
+- **The line comparison's own cases.** A line moved within a day came
+  back as added text, and the copy's text, kept raw, read a day of the
+  same words as different.
+- **A day gone under a new rule.** A day moved onto a Tuesday, then the
+  repeat made daily: the Tuesday was the rule's own day, the moved day
+  was drawn nowhere, and a delete there took it.
+- **A day only coloured read as words** when its title had a space after
+  it.
+
+**The fix -- the owner's choice, the simpler rule.** A day holding words
+of its own keeps them exactly; the copy's different words for it are set
+aside (`_set_aside`, carried by `Normalize` as the desktop carries it)
+and become a note of their own on that date, titled with the series'
+name and "(earlier text)" (`asideNotes`): at the load, which says so at
+the top of the list, and in the same write as every save that sets some
+aside (`settleAside`). `wordsAdded`, `linesLacked` and `lineKey` are
+gone. `copyDaysSetAside` runs before a turn-off, a big delete or an
+Update replaces another series' copy. A day moved onto a date its rule
+gives by itself goes home with its words (`Normalize.movesHome`,
+`Recurrence.ruleDaysAmong`), at every read and every save or update of
+the series. `sameWord` reads a title without its spaces
+and a text with a table's line on both sides or neither, as the
+desktop's `_same_word`. days_cases.json: 88 cases, the notes made
+compared too; DaysTest walks a start moved in the editor and a share
+code made daily. Mutants AS364 to AS385.
+
+**What it left:** the desktop says on its status line when a save makes
+such a note; the phone says it only at the start. A note set aside may
+repeat lines the day also holds: only the same words count as held.
+
+**The lesson:** when each fix of a merging rule leaves a new case, stop
+merging -- keep both, side by side, where the person sees them.
 
 ---
 

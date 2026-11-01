@@ -99,10 +99,10 @@ REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
                                 "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "3a2c7065e86642a5c8d22de46d4d6ddaa50ae335"),
+                              "2c288cd95e371508174f8bb5c602d294be16dbbf"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
-        '                    note["moved"] = {}\n', "ee189b1fd26d1d315d9195c72bfa41faa2336c9f"),
+        '                    note["moved"] = {}\n', "411dfd961dee232ae319329f86dcb1746f1b023a"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
                                          "307ce489636ae9adce9c88017b5f7d12b8769271"),
@@ -157,8 +157,9 @@ def main():
     isolate()
     sys.path.insert(0, DESKTOP)
     from noteorganizer.core.model import (apply_shared_update, comments_kept_by_copy, copy_holds_this_series,
-                                          copy_replaced_by_restore, days_hold_own_text,
-                                          kept_days_fit, normalize_note, rescue_copy_due,
+                                          copy_days_set_aside, copy_replaced_by_restore, days_hold_own_text,
+                                          kept_days_fit, moves_home, normalize_note, notes_set_aside,
+                                          rescue_copy_due,
                                           rescue_copy_spent, shared_update_changes,
                                           spend_series_days, update_copy, DAY_FIELDS,
                                           UPDATABLE_FROM_BACKUP, UPDATABLE_FROM_SHARED)
@@ -195,6 +196,7 @@ def main():
         """_turn_off_rescue_copy, as fingerprinted -- no save held behind a
         turn-off, which the phone does not have: its held branch is never
         taken here."""
+        copy_days_set_aside(note)
         prev = whole_note_copy(note)
         existing = note.get("_prev")
         if takes_text:
@@ -237,6 +239,8 @@ def main():
                 note["_prev"]["comments"] = comments_kept_by_copy(
                     note["_prev"].get("comments", ""), note.get("comments", ""))
         elif rescue_due:
+            if not comments_alone:
+                copy_days_set_aside(note)
             note["_prev"] = dict(copy.deepcopy(note["_prev"]), comments=comments_kept_by_copy(
                 note["_prev"].get("comments", ""),
                 note.get("comments", ""))) if comments_alone else {
@@ -253,6 +257,7 @@ def main():
         note["comments"] = comments
         note["date"] = date_value
         note["recurrence"] = recurrence
+        moves_home(note)
         spend_series_days(note)
         if not recurrence["freq"] and not days_kept:
             note["exceptions"] = []
@@ -516,7 +521,7 @@ def main():
                       [big_delete, off, step, off, {"do": "restore"}]))
     # The eleventh and twelfth rounds. A day coloured before the series' words
     # changed holds the old words, read as its own, and the copy's for it were
-    # dropped; they go on the day now, after its own.
+    # dropped; since the fifteenth they are set aside, a note of their own.
     stale = dict(back_on, body=body + "\nBring water.",
                  overrides={first: {"title": "Gym", "body": body, "comments": "",
                                     "color": "#ff6b6b", "category": "Work"}})
@@ -561,6 +566,53 @@ def main():
     cases.append(("a day's text ending in a table typed on the phone, read",
                   dict(back_on, overrides={first: {"body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |"}},
                        _prev=dict(back_on["_prev"], exceptions=[], overrides={})), []))
+    # The fifteenth round (the owner's choice). A copy's day whose words a day
+    # holding words lacks is set aside, to be a note of their own -- above; and
+    # a copy of another series is set aside before a turn-off, a big delete or
+    # an import's Update replaces it, its days with words in it alone.
+    elsewhere_own = dict(back_on_elsewhere, overrides={"2026-11-16": {"body": "Swim instead"}})
+    for what, steps in (("turned off", [off]), ("a big delete", [big_delete]),
+                        ("a backup's Update", [{"do": "backup", "incoming": dict(
+                            copy.deepcopy(elsewhere_own), body="Warm up.\nThe laptop's plan.")}]),
+                        ("read again", [{"do": "read"}])):
+        cases.append(("0.12.0's turn-off then on from another start, a day of its own, %s" % what,
+                      elsewhere_own, steps))
+    # ...nothing set aside of a day the note holds again, its series renamed
+    # since: the series' words are not the day's; and a note in the Trash
+    # sets its aside as it is restored.
+    cases.append(("the copy's day the note holds again, its series renamed, read",
+                  dict(back_on, title="Gym!", overrides={first: {"body": "Leg day - knee hurt, rest Thursday"}}), []))
+    cases.append(("a day of its own over the copy's, in the Trash, restored",
+                  dict(back_on, overrides={first: {"body": "Swim instead"}}), [untrash]))
+    # ...a day moved onto a date its rule now gives goes home with its words,
+    # a chain of moves too; a chain on dates the rule leaves free holds.
+    daily = {"freq": "daily", "interval": 1}
+    held = dict(base, moved={first: "2026-11-10", "2026-11-16": first},
+                overrides={"2026-11-10": {"body": "Monday 9th's words"}, first: {"body": "Monday 16th's words"}})
+    cases.append(("a chain of moves, read", held, []))
+    cases.append(("a chain of moves, the repeat made daily, read", held,
+                  [{"do": "repeat", "date": "2026-11-02", "rule": daily}, {"do": "read"}]))
+    cases.append(("a day moved onto a deleted day, made daily, read",
+                  dict(base, exceptions=["2026-11-10"], moved={first: "2026-11-10"},
+                       overrides={"2026-11-10": {"body": "Held on Tuesday"}}),
+                  [{"do": "repeat", "date": "2026-11-02", "rule": daily}, {"do": "read"}]))
+    # ...and a day's words read alike: a title with a space after it, a text
+    # ending in a table with the line under it or without.
+    table = "Plan\n| a | b |\n| --- | --- |\n| 1 | 2 |"
+    cases.append(("that day coloured, its title with a space after it, read",
+                  dict(back_on, overrides={first: {"title": "Gym ", "body": body, "color": "#ff6b6b"}}), []))
+    cases.append(("the copy's day only coloured, its table with the line under it, read",
+                  dict(back_on, overrides={first: {"body": "Own words"}},
+                       _prev=dict(back_on["_prev"], body=table, exceptions=[],
+                                  overrides={first: {"title": "Gym ", "body": table + "\n",
+                                                     "color": "#ff6b6b"}})), []))
+
+    def aside(note):
+        """The notes the desktop's window makes of *note*'s days set aside
+        (_set_aside_days): each through normalize_note, as it makes them."""
+        return [{key: made[key] for key in ("title", "body", "comments", "category", "color", "date")}
+                for made in (normalize_note(dict(fresh, id=0))
+                             for fresh in notes_set_aside(json.loads(json.dumps(note))))]
 
     out = []
     for name, start, steps in cases:
@@ -591,9 +643,10 @@ def main():
             elif step["do"] == "backup":
                 imported(note, step["incoming"], UPDATABLE_FROM_BACKUP)
             after.append(json.loads(json.dumps(note)))
+        loaded = json.loads(json.dumps(normalize_note(copy.deepcopy(start))))
         out.append({"name": name, "note": start, "steps": steps,
-                    "loaded": json.loads(json.dumps(normalize_note(copy.deepcopy(start)))),
-                    "after": after,
+                    "loaded": loaded, "aside_loaded": aside(loaded),
+                    "after": after, "aside_after": [aside(note_then) for note_then in after],
                     # What the desktop's import makes of the note as it ends.
                     "imported": json.loads(json.dumps(normalize_note(copy.deepcopy(note))))})
     check_isolated()

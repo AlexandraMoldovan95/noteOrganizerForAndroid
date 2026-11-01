@@ -904,6 +904,8 @@ object Notebook {
         val retentionDays: Int = Settings.TRASH_RETENTION_DAYS,
         /** The settings this notebook was read with; null only in tests. */
         val settings: Settings.Load? = null,
+        /** How many notes this read made of days a series' copy set aside ([settleAside]). */
+        val setAside: Int = 0,
     )
 
     /**
@@ -947,6 +949,10 @@ object Notebook {
         // to 0.12.0 kept them: back in the note, once, as the desktop's load
         // brings them back ([daysBackAsRead]); the next write keeps them.
         raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { daysBackAsRead(it) } }
+        // ...and what a day holding words could not take, notes of their own
+        // now, as the desktop's start makes them; the next write keeps them,
+        // and until then each start makes the same from the same file.
+        val setAside = raw?.let { settleAside(it) } ?: 0
         val trashFile = File(dir, "trash.json")
         val trashRaw = readOrRescue(trashFile, "The Trash", problems)
 
@@ -962,6 +968,7 @@ object Notebook {
             trashRaw = trashRaw,
             retentionDays = Settings.retentionDays(settings.raw),
             settings = settings,
+            setAside = setAside,
         )
     }
 
@@ -1227,7 +1234,9 @@ object Notebook {
                                      else note.opt("comments") ?: "")
             // Words alone, as the desktop's: a turned-off series' days live
             // in the note ([daysHoldOwnText]), never only in a copy the next
-            // one replaces.
+            // one replaces -- another series' copy, replaced here, sets its
+            // days with words aside first ([copyDaysSetAside]).
+            if (!commentsAlone) copyDaysSetAside(note)
             note.put("_prev", previous)
         }
         // No longer repeating, as the desktop's save has it: days that hold
@@ -1259,15 +1268,22 @@ object Notebook {
         // as in the desktop's every save of the whole note (a pin alone is no
         // such save there).
         if (!scheduleFollows) {
-            if (wordsChanged || otherChanged) spendSeriesDays(note)
+            if (wordsChanged || otherChanged) {
+                Normalize.movesHome(note)
+                spendSeriesDays(note)
+            }
             dropSpentCopy(note)
         }
 
         val candidate = copyOf(array)
         candidate.put(index, note)
+        // Days a series' copy set aside, notes of their own in the same write.
+        val made = asideNotes(note, Organizing.ids(candidate))
+        for (fresh in made) candidate.put(fresh)
         val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
         array.put(index, note)
+        for (fresh in made) array.put(fresh)
         return SaveResult.Ok(id, moved.lost)
     }
 
@@ -1430,9 +1446,12 @@ object Notebook {
 
         val candidate = copyOf(array)
         candidate.put(restored)
+        val made = asideNotes(restored, Organizing.ids(candidate))
+        for (fresh in made) candidate.put(fresh)
         val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
         array.put(restored)
+        for (fresh in made) array.put(fresh)
 
         val trashCandidate = copyWithout(trash, index)
         val trashProblem = writeAtomic(trashFile, trashCandidate)
@@ -1776,19 +1795,43 @@ object Notebook {
     /**
      * Whether [note]'s edit of [day] holds a title, text or comments of its
      * own -- what the day holds ([Recurrence.dayAsKept]), not what it shows:
-     * the desktop's `day_has_words`. Each value read as Python's
-     * `value or ""` reads it: a day's title written as a number by hand is a
-     * title of its own there, and read as text it was none.
+     * the desktop's `day_has_words`, each word compared as [sameWord].
      */
     internal fun dayHasWords(note: JSONObject, day: String): Boolean {
-        fun read(value: Any?): Any = if (Exporting.truthy(value)) value!! else ""
         val shown = Recurrence.dayAsKept(note, day)
-        return DAY_WORDS.any {
-            val mine = read(shown.opt(it))
-            val theirs = read(note.opt(it))
-            if (it == "body") !Normalize.sameBody(mine, theirs) && !sameJson(mine, theirs) else !sameJson(mine, theirs)
+        return DAY_WORDS.any { !sameWord(it, shown.opt(it), note.opt(it)) }
+    }
+
+    /**
+     * Whether two of a day's words say the same -- the desktop's
+     * `_same_word`, each read as Python's `str(value or "")`: a title without
+     * the spaces around it, as [Recurrence.dayMatchesSeries] reads one; a text
+     * with the line under a closing table on both sides or neither
+     * ([Normalize.withCaretLine]) -- a copy this phone made keeps its series'
+     * text as typed and its days with the line, and a day only coloured read
+     * as words (the final audit's fifteenth round).
+     */
+    private fun sameWord(word: String, a: Any?, b: Any?): Boolean {
+        val x = pyText(a)
+        val y = pyText(b)
+        return when (word) {
+            "title" -> pyStrip(x) == pyStrip(y)
+            "body" -> Normalize.withCaretLine(x) == Normalize.withCaretLine(y)
+            else -> x == y
         }
     }
+
+    /** Python's `str(value or "")`, for the values a note's words hold. */
+    private fun pyText(value: Any?): String = when {
+        !Exporting.truthy(value) -> ""
+        value == true -> "True"
+        else -> value.toString()
+    }
+
+    /** Python's `strip()`: U+0085 and the non-breaking spaces count as space there, not for Kotlin's isWhitespace. */
+    private fun pyStrip(text: String): String = text.trim { it.isWhitespace() || it.code in PY_SPACES }
+
+    private val PY_SPACES = setOf(0x85, 0xA0, 0x2007, 0x202F)
 
     /** A note's days taken out: what a repeat's end leaves when none of them holds text of its own. */
     internal fun clearDays(note: JSONObject) {
@@ -1846,8 +1889,9 @@ object Notebook {
     internal fun spendSeriesDays(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
         if (!seriesDaysSpent(note, previous)) return
-        takeDaysBack(note, previous)
+        val aside = takeDaysBack(note, previous)
         for (field in DAY_FIELDS) previous.remove(field)
+        addAside(note, aside)
     }
 
     /**
@@ -1881,21 +1925,22 @@ object Notebook {
      * moved that day or given it a colour: 0.12.0's notebook, or the
      * desktop's 0.97.405, lost them at the first start, in no file (the
      * final audit's tenth round). The note's deleted days written sorted,
-     * once each.
+     * once each. Returns the copy's days set aside ([copyDaysPlaced]).
      */
-    private fun takeDaysBack(note: JSONObject, previous: JSONObject) {
+    private fun takeDaysBack(note: JSONObject, previous: JSONObject): JSONArray {
         val held = datesHeld(note)
         val moved = (note.opt("moved") as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
         for ((day, to) in copyMovesTaken(previous.opt("moved") as? JSONObject, held, moved.length())) {
             moved.put(day, deepCopy(to))
         }
-        val overrides = copyDaysPlaced(note, previous, moved)
+        val (overrides, aside) = copyDaysPlaced(note, previous, moved)
         val exceptions = sortedSetOf<String>()
         exceptions.addAll(datesIn(note.opt("exceptions")))
         exceptions.addAll(datesIn(previous.opt("exceptions")).filter { it !in held })
         note.put("overrides", overrides)
         note.put("exceptions", JSONArray(exceptions.toList()))
         note.put("moved", moved)
+        return aside
     }
 
     /** The texts of a list of dates, anything else in it left out. */
@@ -1941,13 +1986,15 @@ object Notebook {
      * its schedule, or under a date its day left or it deleted -- stays on
      * its date. Two of the copy's for one date: the one with words goes in,
      * then the one on its own date, then the one moved there, then the one
-     * drawn on no day. A day already holding words -- the note's, or another
-     * of the copy's -- gets the copy's own it lacks after them ([wordsAdded]):
-     * dropped, a day coloured before the series' text changed cost the
-     * copy's words for it (the eleventh round), and kept in the copy they
-     * were lost by its one slot and read again by date (the twelfth).
+     * drawn on no day. Of a day already holding words -- the note's, or
+     * another of the copy's -- the copy's words it lacks are set aside
+     * ([asideEntry]), to be a note of their own: dropped, a day coloured
+     * before the series' text changed cost them (the eleventh round); kept in
+     * the copy, its one slot lost them (the twelfth); added to the day, four
+     * ways of telling its lines apart each left a case (the thirteenth to
+     * fifteenth, the owner's choice). Returns the edits, and those set aside.
      */
-    private fun copyDaysPlaced(note: JSONObject, previous: JSONObject, moved: JSONObject): JSONObject {
+    private fun copyDaysPlaced(note: JSONObject, previous: JSONObject, moved: JSONObject): Pair<JSONObject, JSONArray> {
         val mine = note.opt("overrides") as? JSONObject ?: JSONObject()
         val overrides = JSONObject(mine.toString())
         val deleted = datesIn(note.opt("exceptions")).toHashSet()
@@ -1967,10 +2014,13 @@ object Notebook {
             wanted.add(Wanted(!dayHasWords(previous, key), rank, at, key, theirs.get(key)))
         }
         val taken = HashSet<String>()
+        val aside = JSONArray()
         for (want in wanted.sortedWith(compareBy<Wanted>({ it.noWords }, { it.rank }, { it.at }))) {
             val look = mine.opt(want.at)?.takeUnless { it == JSONObject.NULL }
             if (want.at in taken || (look != null && !want.noWords && dayHasWords(note, want.at))) {
-                if (!want.noWords) overrides.put(want.at, wordsAdded(note, overrides, want.at, previous, want.key))
+                if (!want.noWords && !ownWordsHeld(previous, want.key, note, overrides, want.at)) {
+                    aside.put(asideEntry(previous, want.key, want.at))
+                }
                 taken.add(want.at)
                 continue
             }
@@ -1983,96 +2033,134 @@ object Notebook {
                 overrides.put(want.at, laid)
             }
         }
-        return overrides
+        return overrides to aside
     }
 
     /**
-     * [overrides]' edit of [at] with the lines [previous]'s day [key] holds
-     * of its own -- not its series' -- and the day lacks, added after its
-     * own ([linesLacked]): a title's and text's to its text, comments' to its
-     * comments. The desktop's `_words_added`. The day's words are read off
-     * its edit and the note, not off a copy of the note: copied for each
-     * day, a year of days froze the turn-on (the thirteenth round).
+     * Whether [note]'s day [at], its edits [days], holds every word
+     * [previous]'s day [key] has of its own: each title, text or comments it
+     * holds unlike its series' ([sameWord]) -- the series' words are not the
+     * day's. The desktop's `_own_words_held`. Read off the edit and the note,
+     * not off a copy of the note: copied for each day, a year of days froze
+     * the turn-on (the thirteenth round).
      */
-    private fun wordsAdded(note: JSONObject, overrides: JSONObject, at: String, previous: JSONObject, key: String): JSONObject {
-        fun text(value: Any?): String = (if (Exporting.truthy(value)) value!! else "").toString()
-        val patch = overrides.opt(at) as? JSONObject
-        fun mine(word: String): String = text(if (patch != null && patch.has(word)) patch.opt(word) else note.opt(word))
+    private fun ownWordsHeld(previous: JSONObject, key: String, note: JSONObject, days: JSONObject?, at: String): Boolean {
         val theirs = Recurrence.dayAsKept(previous, key)
-        val edit = patch?.let { JSONObject(it.toString()) } ?: JSONObject()
-        for ((field, words) in listOf("body" to listOf("title", "body"), "comments" to listOf("comments"))) {
-            val added = ArrayList<String>()
-            for (word in words) {
-                val own = text(theirs.opt(word))
-                fun same(other: String) = if (word == "body") Normalize.sameBody(own, other) else own == other
-                if (!same(text(previous.opt(word))) && !same(mine(word))) {
-                    added += linesLacked(own, (listOf(mine(field), mine("title")) + added).joinToString("\n"))
-                }
-            }
-            if (added.isNotEmpty()) {
-                // Under a table the editor's line first, as a stored body has it.
-                val shaped: (String) -> String = if (field == "body") Normalize::withCaretLine else { value -> value }
-                val base = shaped(mine(field))
-                edit.put(field, shaped(((if (base.isNotEmpty()) listOf(base) else emptyList()) + added).joinToString("\n")))
-            }
+        val patch = days?.opt(at) as? JSONObject
+        return DAY_WORDS.all { word ->
+            val own = theirs.opt(word)
+            val mine = if (patch != null && patch.has(word)) patch.opt(word) else note.opt(word)
+            sameWord(word, own, previous.opt(word)) || sameWord(word, own, mine)
         }
-        return edit
     }
 
     /**
-     * A line as the take-back compares it: a table's row by its cells' words
-     * -- its padding and a box's tick left out, so a re-padded column or a
-     * ticked box is the same row -- a separator as any, else as it is. The
-     * desktop's `_line_key`.
+     * [previous]'s day [key], drawn on [at], as the copy kept it: what a note
+     * of its own is made of ([asideNotes]). The desktop's `_aside_entry`.
      */
-    private fun lineKey(line: String): List<String> = when {
-        !isTableRow(line) -> listOf("line", line)
-        isSeparatorRow(line) -> listOf("separator")
-        else -> listOf("row") + splitRow(line).map { if (checkboxState(it) != null) "[ ]" else it.trim() }
+    private fun asideEntry(previous: JSONObject, key: String, at: String): JSONObject {
+        val kept = Recurrence.dayAsKept(previous, key)
+        val entry = JSONObject()
+        for (word in Recurrence.OVERRIDABLE_FIELDS) entry.put(word, pyText(kept.opt(word)))
+        return entry.put("day", at)
+    }
+
+    /** [aside] added to the days [note] set aside, as the desktop's `note["_set_aside"] += aside`. */
+    private fun addAside(note: JSONObject, aside: JSONArray) {
+        if (aside.length() == 0) return
+        val all = note.opt("_set_aside") as? JSONArray ?: JSONArray()
+        for (i in 0 until aside.length()) all.put(aside.get(i))
+        note.put("_set_aside", all)
     }
 
     /**
-     * The lines of [own] that [have] lacks, in order: those outside the
-     * longest run the two share in order ([lineKey]), a table among them with
-     * its header and separator; blank lines alone add nothing. The desktop's
-     * `_lines_lacked`: added whole after the first difference, a day corrected
-     * in its middle showed its old text again under it (the fourteenth round).
+     * Before [note]'s rescue copy is replaced -- a turn-off, a big delete, an
+     * import's Update: the days with words of their own of a series' copy the
+     * note no longer repeats as, set aside to be notes of their own, unless
+     * the note's own day holds them. The copy was the only place they were
+     * kept, and the next copy erased them (the final audit's fifteenth round,
+     * the desktop's `copy_days_set_aside`). [asked] is the note as the
+     * question is asked of it: the series as it was before this save.
      */
-    private fun linesLacked(own: String, have: String): List<String> {
-        val lines = own.split("\n")
-        val a = lines.map { lineKey(it) }
-        val b = have.split("\n").map { lineKey(it) }
-        val lacked = ArrayList<Int>()
-        if (a.size.toLong() * b.size > 250_000) {
-            val kept = b.toHashSet()
-            a.forEachIndexed { i, key -> if (key !in kept) lacked.add(i) }
-        } else {
-            // The longest common subsequence, from a table of lengths built from the end.
-            val n = a.size
-            val m = b.size
-            val size = Array(n + 1) { IntArray(m + 1) }
-            for (i in n - 1 downTo 0) for (j in m - 1 downTo 0) {
-                size[i][j] = if (a[i] == b[j]) size[i + 1][j + 1] + 1 else maxOf(size[i + 1][j], size[i][j + 1])
-            }
-            var i = 0
-            var j = 0
-            while (i < n) {
-                if (j < m && a[i] == b[j]) { i++; j++ }
-                else if (j < m && size[i][j + 1] >= size[i + 1][j]) j++
-                else lacked.add(i++)
+    internal fun copyDaysSetAside(note: JSONObject, asked: JSONObject = note) {
+        val previous = note.opt("_prev") as? JSONObject ?: return
+        if (!seriesOwnCopy(previous) || repeatsAs(asked, previous)) return
+        val mine = note.opt("overrides") as? JSONObject
+        val aside = JSONArray()
+        (previous.opt("overrides") as? JSONObject)?.keys()?.asSequence()?.sorted()?.forEach { key ->
+            if (dayHasWords(previous, key) && !(mine?.has(key) == true && ownWordsHeld(previous, key, note, mine, key))) {
+                aside.put(asideEntry(previous, key, key))
             }
         }
-        // Blank as Python's strip() finds it: U+0085 and the non-breaking
-        // spaces count as space there, not for Kotlin's isWhitespace.
-        fun blank(line: String) = line.all { it.isWhitespace() || it.code in setOf(0x85, 0xA0, 0x2007, 0x202F) }
-        val wanted = lacked.filter { !blank(lines[it]) }.toSortedSet()
-        for (block in tableBlocks(own)) {
-            if (wanted.any { it in block }) {
-                wanted.add(block.first)
-                if (block.first < block.last && isSeparatorRow(lines[block.first + 1])) wanted.add(block.first + 1)
+        addAside(note, aside)
+        for (field in DAY_FIELDS) previous.remove(field)
+    }
+
+    /**
+     * A note's days set aside as a load reads them -- the desktop's
+     * `_shaped_aside`: each with a real date, written as the calendar keys
+     * one, and a word, every field text. Null when none is left.
+     */
+    internal fun shapedAside(entries: Any?): JSONArray? {
+        val list = entries as? JSONArray ?: return null
+        val kept = JSONArray()
+        for (i in 0 until list.length()) {
+            val entry = list.opt(i) as? JSONObject ?: continue
+            val day = Recurrence.parseDate(entry.opt("day")) ?: continue
+            val shaped = JSONObject()
+            for (key in Recurrence.OVERRIDABLE_FIELDS) shaped.put(key, entry.opt(key) as? String ?: "")
+            shaped.put("day", Recurrence.formatDate(day))
+            if (DAY_WORDS.any { pyStrip(shaped.getString(it)).isNotEmpty() }) kept.put(shaped)
+        }
+        return kept.takeIf { it.length() > 0 }
+    }
+
+    /**
+     * The notes made of [note]'s days set aside, each on its date with its
+     * words and look, the series' title marked "(earlier text)", numbered
+     * from [ids] -- and taken off the note. Shown on its day, those words
+     * were read four ways in four rounds, each leaving a case; a note of its
+     * own is seen and kept as it is (the fifteenth round, the owner's choice:
+     * the desktop's `notes_set_aside`, made as its `_set_aside_days` makes them).
+     */
+    internal fun asideNotes(note: JSONObject, ids: Organizing.Ids): List<JSONObject> {
+        val entries = shapedAside(note.remove("_set_aside")) ?: return emptyList()
+        fun text(value: Any?): String = value as? String ?: ""
+        val stamp = Files.now()
+        return (0 until entries.length()).map { i ->
+            val entry = entries.getJSONObject(i)
+            val title = text(entry.opt("title")).ifEmpty { text(note.opt("title")) }
+            Normalize.normalizeNote(JSONObject()
+                .put("id", ids.next())
+                .put("title", pyStrip("$title (earlier text)"))
+                .put("body", text(entry.opt("body")))
+                .put("comments", text(entry.opt("comments")))
+                .put("category", text(entry.opt("category")).ifEmpty { text(note.opt("category")) })
+                .put("color", text(entry.opt("color")))
+                .put("date", text(entry.opt("day")))
+                .put("created", stamp)
+                .put("updated", stamp))
+        }
+    }
+
+    /**
+     * Every note of [array] whose days were set aside given them as notes of
+     * their own, added at its end; how many. [array] is what is about to be
+     * written -- a copy, made the list on screen once written -- or the list
+     * a load just read, which its next write keeps.
+     */
+    internal fun settleAside(array: JSONArray): Int {
+        val ids = Organizing.ids(array)
+        var made = 0
+        for (i in 0 until array.length()) {
+            val note = array.opt(i) as? JSONObject ?: continue
+            if (!note.has("_set_aside")) continue
+            for (fresh in asideNotes(note, ids)) {
+                array.put(fresh)
+                made++
             }
         }
-        return wanted.map { lines[it] }
+        return made
     }
 
     /**
@@ -2168,11 +2256,15 @@ object Notebook {
             view.put(field, deepCopy(days))
         }
         if (seriesDaysSpent(view, previous)) {
-            takeDaysBack(view, previous)
+            addAside(view, takeDaysBack(view, previous))
             for (field in DAY_FIELDS) {
                 raw.put(field, deepCopy(view.get(field)))
                 held.remove(field)
             }
+            // The copy's days a day holding words could not take, set aside
+            // as the desktop's load keeps them: notes of their own at once
+            // ([settleAside]).
+            view.opt("_set_aside")?.let { raw.put("_set_aside", it) }
         }
     }
 
@@ -2278,9 +2370,13 @@ object Notebook {
             for ((field, days) in daysToRescue(note, shaped(incoming, "recurrence"))) previous.put(field, days)
         }
         if (restarted && daysIn(note.opt("exceptions")) > 0) previous.put("exceptions", deepCopy(shaped(note, "exceptions")))
+        // The copy this one replaces may hold another series' days alone:
+        // set aside once [keptDaysFit] has read them (the fifteenth round).
+        copyDaysSetAside(note)
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
         if (restarted) note.put("exceptions", JSONArray())
+        Normalize.movesHome(note)
         note.put("updated", now)
         return true
     }

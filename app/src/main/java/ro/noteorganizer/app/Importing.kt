@@ -548,6 +548,9 @@ object Importing {
         }
         val changed = updated > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         if (changed) {
+            // Days a series' copy set aside -- an Update replacing another
+            // series' copy, a backup's note read -- notes of their own.
+            Notebook.settleAside(candidate)
             Files.writeAtomic(notesFile, candidate.toString(2))?.let { return Result.Failed(it) }
             replaceContents(notebook, candidate)
         }

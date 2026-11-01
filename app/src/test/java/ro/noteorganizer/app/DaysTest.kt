@@ -504,6 +504,36 @@ class DaysTest {
         assertEquals("Own", home.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
     }
 
+    @Test
+    fun `a start moved in the editor onto a moved day's date sends that day home at the save`() {
+        // Mondays, the 12th moved to Tuesday the 13th; the editor's date set
+        // to a Tuesday makes the 13th a day of the rule's own. Left till the
+        // next start, the moved day was drawn nowhere (the fifteenth round).
+        val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly"}, "moved": {"2026-10-12": "2026-10-13"},
+            "overrides": {"2026-10-13": {"title": "Own"}}}]""")
+        assertTrue(Notebook.updateNote(load, 1, "S", "", date = "2026-10-06") is SaveResult.Ok)
+        val saved = onDisk(load)
+        assertEquals(0, saved.getJSONObject("moved").length())
+        assertEquals("Own", saved.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
+        assertFalse(saved.getJSONObject("overrides").has("2026-10-13"))
+    }
+
+    @Test
+    fun `a share code making the series daily sends a day moved onto its new days home at once`() {
+        // As the desktop's test_data_safety: at the Update, not the next start.
+        val load = scratch("""[{"id": 1, "uid": "coded", "title": "Gym", "body": "x", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}, "moved": {"2026-11-09": "2026-11-10"},
+            "overrides": {"2026-11-10": {"body": "Held on Tuesday"}}}]""")
+        val incoming = JSONObject("""{"uid": "coded", "title": "Gym", "body": "x", "date": "2026-11-02",
+            "recurrence": {"freq": "daily"}}""")
+        assertTrue(Importing.apply(load, Importing.plan(load.raw!!, listOf(incoming), Importing.Source.CODE),
+            Importing.Answers(update = true), null) is Importing.Result.Done)
+        val saved = onDisk(load)
+        assertEquals(0, saved.getJSONObject("moved").length())
+        assertEquals("Held on Tuesday", saved.getJSONObject("overrides").getJSONObject("2026-11-09").getString("body"))
+    }
+
     // ---- the repeat ----
 
     @Test
@@ -1146,6 +1176,67 @@ class DaysTest {
         assertEquals("the note as it stands", "agenda", onDisk(load).getJSONObject("_prev").getString("body"))
     }
 
+    /** A weekly stand-up repeating as its copy's series again, a day with words of its own; the copy holds others for it. */
+    private fun dayAndCopyDiffer(): String = """[{"id": 1, "uid": "s", "title": "Standup", "body": "SERIES TEXT",
+        "category": "Work", "date": "2026-09-07", "recurrence": {"freq": "weekly", "interval": 1},
+        "overrides": {"2026-09-14": {"body": "Moved to room 2"}},
+        "_prev": {"title": "Standup", "body": "SERIES TEXT", "date": "2026-09-07",
+                  "recurrence": {"freq": "weekly", "interval": 1},
+                  "overrides": {"2026-09-14": {"body": "DAY 14 OWN TEXT, room 4B"}}}}]"""
+
+    @Test
+    fun `a day with words of its own keeps them, the copy's a note of their own, kept by the next write and said at the start`() {
+        // Added to the day, four rounds read them four ways, each leaving a
+        // case (the final audit's fifteenth round, the owner's choice).
+        val load = scratch(dayAndCopyDiffer())
+        assertEquals(1, load.setAside)
+        val made = load.raw!!.getJSONObject(1)
+        assertEquals("Standup (earlier text)", made.getString("title"))
+        assertEquals("DAY 14 OWN TEXT, room 4B", made.getString("body"))
+        assertEquals("2026-09-14", made.getString("date"))
+        assertEquals("Work", made.getString("category"))
+        assertTrue(made.getString("created").isNotEmpty() && made.getString("updated").isNotEmpty())
+        val note = load.raw!!.getJSONObject(0)
+        assertEquals("the day keeps its own", "Moved to room 2", Recurrence.effectiveNote(note, "2026-09-14").getString("body"))
+        assertFalse(note.has("_set_aside"))
+        // Unwritten, the next start makes the same note from the same file, once;
+        // written, none makes it again.
+        assertEquals(1, Notebook.load(load.file!!.parentFile!!).setAside)
+        assertTrue(Notebook.updateNote(load, 1, "Standup", "SERIES TEXT!") is SaveResult.Ok)
+        val disk = JSONArray(load.file!!.readText())
+        assertEquals(2, disk.length())
+        assertFalse(disk.getJSONObject(0).has("_set_aside"))
+        assertEquals(0, Notebook.load(load.file!!.parentFile!!).setAside)
+        val fresh = NioFiles.createTempDirectory("days").toFile()
+        File(fresh, "notes_data.json").writeText(dayAndCopyDiffer())
+        assertTrue(Startup.prepare(fresh, older = null).orEmpty().contains("It is kept as 1 note of its own"))
+    }
+
+    @Test
+    fun `days set aside read from a file keep a real date in the calendar's form and a word, as the desktop reads them`() {
+        val read = Normalize.normalizeNote(JSONObject("""{"id": 28, "title": "Gym", "_set_aside": [
+            {"day": " 2026-11-9 ", "body": "Kept", "color": 5}, {"day": 5, "body": "No date"},
+            "not a day", {"day": "2026-11-10", "body": "   "}, {"day": "2026-11-11", "title": "Only a title"}]}"""))
+        val aside = read.getJSONArray("_set_aside")
+        assertEquals(listOf("2026-11-09" to "Kept", "2026-11-11" to ""),
+            (0 until aside.length()).map { aside.getJSONObject(it).let { e -> e.getString("day") to e.getString("body") } })
+        assertEquals("", aside.getJSONObject(0).getString("color"))
+    }
+
+    @Test
+    fun `a note restored from the Trash makes its copy's days set aside notes of their own in the same write`() {
+        val dir = NioFiles.createTempDirectory("days").toFile()
+        File(dir, "notes_data.json").writeText("[]")
+        val entry = JSONArray(dayAndCopyDiffer()).getJSONObject(0).put("deleted_at", "2026-10-27 10:00:00")
+        File(dir, "trash.json").writeText(JSONArray().put(entry).toString())
+        val load = Notebook.load(dir)
+        assertTrue(Notebook.restoreFromTrash(load, 1) is SaveResult.Ok)
+        val disk = JSONArray(load.file!!.readText())
+        assertEquals(listOf("Standup", "Standup (earlier text)"), (0 until disk.length()).map { disk.getJSONObject(it).getString("title") })
+        assertEquals(2, load.raw!!.length())
+        assertFalse(disk.getJSONObject(0).has("_set_aside"))
+    }
+
     /** A note as both programs' parity is judged: its words, its schedule, its days and its copy, each as plain data. */
     private fun canon(note: JSONObject?): Map<String, Any?>? {
         note ?: return null
@@ -1160,6 +1251,16 @@ class DaysTest {
         }
         return out
     }
+
+    /** A note made of a day set aside, as both programs' parity is judged: its words, its look and its date. */
+    private fun asideOf(note: JSONObject): Map<String, Any?> =
+        listOf("title", "body", "comments", "category", "color", "date").associateWith { note.opt(it) }.toSortedMap()
+
+    /** The desktop's notes made of days set aside, as the fixture lists them. */
+    private fun asideCanon(made: JSONArray): List<Map<String, Any?>> = (0 until made.length()).map { asideOf(made.getJSONObject(it)) }
+
+    /** The phone's: every note after the one the case walks, made of its days set aside. */
+    private fun madeCanon(raw: JSONArray): List<Map<String, Any?>> = (1 until raw.length()).map { asideOf(raw.getJSONObject(it)) }
 
     private fun plainJson(value: Any?): Any? = when (value) {
         is JSONObject -> value.keys().asSequence().associateWith { plainJson(value.opt(it)) }.toSortedMap()
@@ -1193,6 +1294,7 @@ class DaysTest {
             }
             if (steps.length() == 0) {
                 assertEquals("$name: as read", canon(case.getJSONObject("loaded")), canon(load.raw!!.getJSONObject(0)))
+                assertEquals("$name: set aside as read", asideCanon(case.getJSONArray("aside_loaded")), madeCanon(load.raw!!))
             }
             var stored = load.raw!!.optJSONObject(0)
             for (s in 0 until steps.length()) {
@@ -1235,6 +1337,8 @@ class DaysTest {
                 stored = if (load.file!!.readText() != fileWas) onDisk(load) else load.raw!!.getJSONObject(0)
                 assertEquals("$name, step ${s + 1} (${step.getString("do")})",
                     canon(case.getJSONArray("after").getJSONObject(s)), canon(stored!!))
+                assertEquals("$name, step ${s + 1}: set aside",
+                    asideCanon(case.getJSONArray("aside_after").getJSONArray(s)), madeCanon(load.raw!!))
             }
             assertEquals("$name: imported", canon(case.getJSONObject("imported")), canon(Normalize.normalizeNote(stored!!)))
         }

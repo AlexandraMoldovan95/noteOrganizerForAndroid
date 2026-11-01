@@ -183,6 +183,8 @@ object Days {
         val note = candidate.getJSONObject(index)
         change(note)?.let { return SaveResult.Failed(it) }
         note.put("updated", Files.now())
+        // Days a series' copy set aside, notes of their own in the same write.
+        Notebook.settleAside(candidate)
         Organizing.write(file, candidate)?.let { return SaveResult.Failed(it) }
         Organizing.replace(array, candidate)
         return SaveResult.Ok(id)
@@ -564,7 +566,13 @@ object Days {
                 // Update copy is kept whole, given the series where it lacks
                 // it (Notebook.turnOffCopy). Asked of the note as it was
                 // before this Save, as the desktop's save asks it.
-                if (repeatOffLosesDays(was)) note.put("_prev", Notebook.turnOffCopy(wholeNoteCopy(was), was))
+                if (repeatOffLosesDays(was)) {
+                    // Another series' copy, replaced here, held its days
+                    // alone: set aside first, asked of the series as it was.
+                    Notebook.copyDaysSetAside(note, was)
+                    if (was !== note) (note.opt("_prev") as? JSONObject)?.let { was.put("_prev", JSONObject(it.toString())) }
+                    note.put("_prev", Notebook.turnOffCopy(wholeNoteCopy(was), was))
+                }
             }
             // The desktop's `if not freq and not days_kept`: asked of the
             // days the note holds, whether it repeated or not.
@@ -576,6 +584,9 @@ object Days {
         // them -- and days with words of their own stay (Notebook.keptDaysFit).
         if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
+        // A day moved onto a date the new rule gives goes home now, not at
+        // the next start (Normalize.movesHome, the desktop's moves_home).
+        Normalize.movesHome(note)
         // Turned back on as the series its copy holds: the note holds the
         // days again, and the copy's are spent -- kept there, a day reset
         // after came back at every start (the desktop's spend_series_days,

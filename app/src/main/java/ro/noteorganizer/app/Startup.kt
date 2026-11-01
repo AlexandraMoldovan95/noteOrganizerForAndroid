@@ -54,6 +54,13 @@ object Startup {
         }
         var load = Notebook.load(dir)
         load.problem?.let { lines.add(it) }
+        // The desktop's start says the same of the same notes (round 15).
+        if (load.setAside > 0) {
+            val many = load.setAside != 1
+            lines.add("Some days of a repeating note had earlier text kept aside, where those days now hold " +
+                "text of their own. It is kept as ${load.setAside} note${if (many) "s" else ""} of " +
+                "${if (many) "their" else "its"} own, each on its day, titled with the series' name and \"(earlier text)\".")
+        }
         // Every note a number of its own, as the desktop's repair_note_ids
         // makes it on each load: two notes sharing one were edited as one
         // and sent to the Trash together. Written once, then read again.

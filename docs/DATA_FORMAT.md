@@ -210,10 +210,11 @@ stop agreeing:
 }
 ```
 
-Two more keys travel beside these, though they are not defaults: `_prev`,
+Three more keys travel beside these, though they are not defaults: `_prev`,
 the one-step rescue copy
 ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
-and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
+`_set_aside`, a series' days' words waiting to be notes of their own
+([below](#recurrence)), and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
 shaped as the desktop's `normalize_note` shapes it — its words as text,
 its styles held to the line ceilings, and beside them only the fields an
 update from a backup replaces, each by the note's own rules — since a
@@ -340,6 +341,15 @@ writes them:
   another start, then put back -- were in no file (its ninth; the desktop's
   `spend_series_days` since 8b5d6cc). A note that does not repeat keeps its
   copy's days.
+- **A copy's words for a day that holds words of its own** are not added
+  to the day: they are set aside, in `_set_aside`, and become a note of
+  their own on that date, titled with the series' name and "(earlier
+  text)". So are the days with words of another series' copy, before a
+  turn-off, a big delete or an Update replaces it. Each entry is the day's
+  five fields as text and its `day`; a read keeps the entries with a real
+  date and a word. The desktop makes the notes at its start and at every
+  save; the phone at its load and in the write that sets some aside (the
+  final audit's fifteenth round, the owner's choice).
 - **A repeat turned off over an import's Update copy** the note does not
   hold again keeps that copy whole -- the note as it was before the Update
   -- given the series' date, rule and days only where it lacks them (the
@@ -357,7 +367,10 @@ Phase 3 writes the other two the day mode has:
   moves with it in `overrides`. Moved back home, the entry goes. A day
   may move only to a date the series has no day on and keeps no edit
   for, and comes home only to one -- on both apps since the final
-  audit's eleventh round.
+  audit's eleventh round. A move onto a date its rule gives by itself --
+  the rule or its start changed since -- goes as a note is read, the day
+  home with its edit, until none is left; a move onto a date whose own
+  day was deleted or moved away stays (the fifteenth round).
 - **A day off the schedule** — an override on a date the rule no longer
   gives, after the repeat changed — is settled as the desktop settles
   it: made a note of its own on that date (its title, text, comments,

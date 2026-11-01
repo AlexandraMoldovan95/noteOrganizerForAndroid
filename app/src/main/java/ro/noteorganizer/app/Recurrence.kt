@@ -448,7 +448,7 @@ object Recurrence {
         }
 
         /** Whether the rule itself gives [day], deleted days apart. */
-        private fun ruleGives(day: LocalDate): Boolean {
+        fun ruleGives(day: LocalDate): Boolean {
             val text = formatDate(day)
             return counted?.contains(text) ?: (expandRule(parts, day, day, null, emptySet()) == listOf(text))
         }
@@ -470,6 +470,17 @@ object Recurrence {
 
         /** `movedFrom(note, day)`. */
         fun movedFrom(day: String): String? = cameFrom[day]
+    }
+
+    /**
+     * Which of [days] -- date texts -- the note's rule itself gives, its
+     * deleted and moved days aside: the desktop's `_rule_days_among`. A text
+     * written another way than the calendar writes a date is never one.
+     */
+    fun ruleDaysAmong(note: JSONObject, days: Collection<String>): Set<String> {
+        if (days.isEmpty()) return emptySet()
+        val schedule = Schedule(note, withExceptions = false)
+        return days.filterTo(HashSet()) { text -> parseDate(text)?.let { formatDate(it) == text && schedule.ruleGives(it) } == true }
     }
 
     /**

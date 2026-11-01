@@ -894,6 +894,8 @@ object Organizing {
             if (firstId == 0) firstId = nextId
             notesCandidate.put(note)
         }
+        // Days a series' copy set aside as one was read, notes of their own.
+        Notebook.settleAside(notesCandidate)
         write(file, notesCandidate)?.let { return SaveResult.Failed(it) }
         replace(array, notesCandidate)
         val trashCandidate = JSONArray().apply { all.filter { it !in back }.forEach { put(it) } }

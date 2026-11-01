@@ -95,6 +95,7 @@ object Normalize {
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
         out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
         out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
+        movesHome(out)
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
         // The rescue copy is carried through, as the desktop carries it:
@@ -102,6 +103,9 @@ object Normalize {
         // longer holds. Shaped as the desktop shapes it, not copied whole:
         // a restore puts it straight back into the note.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
+        // A copy's days set aside, kept until the notebook makes them notes
+        // of their own ([Notebook.settleAside]), as the desktop keeps them.
+        Notebook.shapedAside(raw.opt("_set_aside"))?.let { out.put("_set_aside", it) }
         // A turned-off series' days kept only in its copy come into the
         // note, as the desktop's normalize_note brings them (round six).
         if (daysBack) Notebook.daysBackFromCopy(out)
@@ -226,6 +230,39 @@ object Normalize {
             }
         }
         return out
+    }
+
+    /**
+     * Each day moved onto a date its rule now gives by itself -- the rule or
+     * its start changed since -- sent home with its words, until none is
+     * left: drawn where the rule had a day already, it was drawn nowhere, and
+     * a delete there took it. Not off a date whose own day was deleted or
+     * moved away. The desktop's `moves_home`, at every read and in every
+     * save of the series and update (the final audit's fifteenth round).
+     */
+    internal fun movesHome(note: JSONObject) {
+        val moved = note.opt("moved") as? JSONObject ?: return
+        if (moved.length() == 0 || !Recurrence.isRecurring(note)) return
+        val deleted = (note.opt("exceptions") as? JSONArray)
+            ?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }.orEmpty().toSet()
+        val gives = Recurrence.ruleDaysAmong(note, moved.keys().asSequence().mapNotNull { moved.opt(it) as? String }.toList())
+        val home = LinkedHashMap<String, String>()
+        while (true) {
+            val more = moved.keys().asSequence().toList().sorted()
+                .mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
+                .filter { (_, new) -> new in gives && new !in deleted && !moved.has(new) }
+            if (more.isEmpty()) break
+            for ((orig, new) in more) {
+                moved.remove(orig)
+                home[orig] = new
+            }
+        }
+        if (home.isEmpty()) return
+        val days = note.opt("overrides") as? JSONObject ?: JSONObject().also { note.put("overrides", it) }
+        val words = HashMap<String, Any>()
+        for (new in home.values) days.remove(new)?.let { words[new] = it }
+        for ((orig, new) in home) if (new in words && !days.has(orig)) days.put(orig, words.remove(new))
+        for ((new, patch) in words) days.put(new, patch)
     }
 
     /** Each day's own edit, under a real date, in the shape a load gives it. */
