@@ -1279,7 +1279,7 @@ object Notebook {
         val candidate = copyOf(array)
         candidate.put(index, note)
         // Days a series' copy set aside, notes of their own in the same write.
-        val made = asideNotes(note, Organizing.ids(candidate))
+        val made = asideNotes(note, Organizing.ids(candidate), candidate)
         for (fresh in made) candidate.put(fresh)
         val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
@@ -1447,7 +1447,7 @@ object Notebook {
 
         val candidate = copyOf(array)
         candidate.put(restored)
-        val made = asideNotes(restored, Organizing.ids(candidate))
+        val made = asideNotes(restored, Organizing.ids(candidate), candidate)
         for (fresh in made) candidate.put(fresh)
         val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
@@ -1790,10 +1790,20 @@ object Notebook {
                 rec.put("month_days", JSONArray().put(whenDay.dayOfMonth))
             }
         }
-        // "Skip that month" is read by a monthly or a yearly rule alone: kept
-        // hidden in a weekly one saved from a monthly draft, it made a series
-        // turned back on as it was read as another (the audit's round 19).
-        for (rec in rules) if (rec.optString("freq") !in setOf("monthly", "yearly")) rec.put("month_day_policy", "clamp")
+        // A field the frequency never reads changes no day: kept hidden (the
+        // Repeat sheet stores all three), it made a series turned back on as
+        // it was read as another (the audit's round 19 and the lows wave; the
+        // desktop's _same_series the same).
+        for (rec in rules) {
+            val freq = rec.optString("freq")
+            if (freq != "weekly") rec.put("weekdays", JSONArray())
+            if (freq != "monthly") rec.put("month_days", JSONArray())
+            val monthDays = rec.getJSONArray("month_days")
+            // "Skip that month" is read only where a month can lack the day.
+            val short = (freq == "monthly" && (0 until monthDays.length()).any { monthDays.optInt(it) > 28 }) ||
+                (freq == "yearly" && whenDay != null && whenDay.monthValue == 2 && whenDay.dayOfMonth == 29)
+            if (!short) rec.put("month_day_policy", "clamp")
+        }
         return sameJson(rules[0], rules[1])
     }
 
@@ -2176,15 +2186,20 @@ object Notebook {
      * own is seen and kept as it is (the fifteenth round, the owner's choice:
      * the desktop's `notes_set_aside`, made as its `_set_aside_days` makes them).
      */
-    internal fun asideNotes(note: JSONObject, ids: Organizing.Ids): List<JSONObject> {
+    internal fun asideNotes(note: JSONObject, ids: Organizing.Ids, among: JSONArray): List<JSONObject> {
         val entries = shapedAside(note.remove("_set_aside")) ?: return emptyList()
         fun text(value: Any?): String = value as? String ?: ""
+        fun key(made: JSONObject) = listOf(text(made.opt("title")), text(made.opt("date")), text(made.opt("body")))
+        // A note of [among] already holding the same words on the same day is
+        // that note: a backup's Update made it again at every import (the lows
+        // wave's verification; the desktop's settle_set_aside the same).
+        val held = (0 until among.length()).mapNotNull { among.opt(it) as? JSONObject }.mapTo(HashSet()) { key(it) }
         val stamp = Files.now()
-        return (0 until entries.length()).map { i ->
+        val made = ArrayList<JSONObject>()
+        for (i in 0 until entries.length()) {
             val entry = entries.getJSONObject(i)
             val title = text(entry.opt("title")).ifEmpty { text(note.opt("title")) }
-            Normalize.normalizeNote(JSONObject()
-                .put("id", ids.next())
+            val fresh = Normalize.normalizeNote(JSONObject()
                 .put("title", pyStrip("$title (earlier text)"))
                 .put("body", text(entry.opt("body")))
                 .put("comments", text(entry.opt("comments")))
@@ -2193,7 +2208,10 @@ object Notebook {
                 .put("date", text(entry.opt("day")))
                 .put("created", stamp)
                 .put("updated", stamp))
+            if (!held.add(key(fresh))) continue
+            made.add(fresh.put("id", ids.next()))
         }
+        return made
     }
 
     /**
@@ -2208,7 +2226,7 @@ object Notebook {
         for (i in 0 until array.length()) {
             val note = array.opt(i) as? JSONObject ?: continue
             if (!note.has("_set_aside")) continue
-            for (fresh in asideNotes(note, ids)) {
+            for (fresh in asideNotes(note, ids, array)) {
                 array.put(fresh)
                 made++
             }

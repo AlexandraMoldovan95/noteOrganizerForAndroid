@@ -269,6 +269,16 @@ class EditorTypingTest {
         assertEquals("center", day.props[0]?.align)
         state.openNote(1, "2026-11-16")
         assertEquals(emptyMap<Int, Paragraphs.Props>(), EditorModel(state, state.note(1), day = state.openDay).props)
+        // ...but a list's depth, which lives in its entries alone, stays where
+        // the day's line keeps its marker: on the desktop a nested numbered
+        // list read flat and the next Enter renumbered it (the lows wave).
+        File(dir, "notes_data.json").writeText("""[{"id": 2, "uid": "a", "title": "Agenda", "body": "Agenda\n1. Buy\n1. milk",
+            "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}],
+            "overrides": {"2026-11-16": {"body": "Agenda today\n1. Buy\n1. milk"}}}]""")
+        val nested = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        nested.openNote(2, "2026-11-16")
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), EditorModel(nested, nested.note(2), day = nested.openDay).props)
     }
 
     @Test

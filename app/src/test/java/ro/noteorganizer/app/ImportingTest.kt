@@ -66,6 +66,17 @@ class ImportingTest {
                       "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(update = true), null)
         assertEquals(1, (updated as Importing.Result.Done).outcome.earlierText)
         assertTrue(notes(here.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" && it.getString("body") == "knee" })
+        // ...once: the next Update from the same backup, the note edited here
+        // since, made the same note again (the lows wave's verification).
+        assertTrue(Notebook.updateNote(here, 1, "Gym", "edited here since") is SaveResult.Ok)
+        val again = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(update = true), null)
+        assertEquals(1, (again as Importing.Result.Done).outcome.updated)
+        assertEquals(0, again.outcome.earlierText)
+        assertEquals(1, notes(here.file!!.readText()).count { it.getString("title") == "Gym (earlier text)" })
     }
 
     @Test

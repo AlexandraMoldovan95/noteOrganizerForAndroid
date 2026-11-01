@@ -180,8 +180,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val raw = note?.let { state.rawNote(it.id) } ?: return emptyMap()
         val onDay = day ?: return Paragraphs.propsOf(raw.opt("paragraphs"), note.body)
         val shown = Recurrence.effectiveNote(raw, onDay).opt("body") as? String ?: return emptyMap()
-        return if (Normalize.sameBody(shown, raw.opt("body") as? String ?: "")) Paragraphs.propsOf(raw.opt("paragraphs"), shown)
-               else emptyMap()
+        return Paragraphs.dayProps(raw.opt("paragraphs"), shown, Normalize.sameBody(shown, raw.opt("body") as? String ?: ""))
     }
 
     init {
@@ -1060,13 +1059,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // Otherwise the letters take styles as the desktop's text box gives
         // them, found from the caret ([spansAfterTyping]).
         spans = if (day != null) emptyList() else spansAfterTyping(body, next, caretIn(segment, typed), spans, pending)
-        // ...and no lines' looks: the series' were shown only while the day
-        // showed the series' words ([linesOf]).
-        if (day != null) props = emptyMap()
         // The places and the lines' looks carried through the edit read at
         // the cursor, as the list's path reads Enter ([Editing.proseEdit]).
         follow(next, Editing.proseEdit(segment, typed.text, cursorOf(typed)))
         body = next
+        // ...and of the series' lines' looks, its lists' depth alone, as the
+        // day reads back once saved ([Paragraphs.dayProps]).
+        if (day != null) props = Paragraphs.listDepths(props, next)
         changed(Editing.History.TYPING)
         return if (broken == null) null else typed
     }

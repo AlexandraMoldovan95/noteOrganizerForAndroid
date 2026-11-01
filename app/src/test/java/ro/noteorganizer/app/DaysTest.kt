@@ -585,6 +585,16 @@ class DaysTest {
             "2026-11-02", JSONObject().put("freq", "weekly")))
         assertFalse(Notebook.sameSeries("2026-01-31", JSONObject().put("freq", "monthly").put("month_day_policy", "skip"),
             "2026-01-31", JSONObject().put("freq", "monthly")))
+        // ...nor the weekdays, month days or policy a rule keeps that its
+        // frequency never reads: the Repeat sheet stores all three (the lows wave).
+        assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly").put("month_days", JSONArray().put(15)),
+            "2026-11-02", JSONObject().put("freq", "weekly")))
+        assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "daily").put("weekdays", JSONArray().put(0).put(2)),
+            "2026-11-02", JSONObject().put("freq", "daily")))
+        assertTrue(Notebook.sameSeries("2026-11-07", JSONObject().put("freq", "monthly").put("month_day_policy", "skip"),
+            "2026-11-07", JSONObject().put("freq", "monthly")))
+        assertFalse(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly").put("weekdays", JSONArray().put(0).put(2)),
+            "2026-11-02", JSONObject().put("freq", "weekly")))
         // ...and an import reads the repeat by the days it gives: the start's
         // weekday lit in the backup and not here is no change.
         val here = JSONObject("""{"id": 49, "uid": "lit", "title": "Gym", "body": "x", "date": "2026-11-02",
@@ -890,7 +900,10 @@ class DaysTest {
                 val copyNow = after.opt("_prev") as? JSONObject
                 val spent = copyWas?.let { JSONObject(it.toString()).apply { for (f in listOf("overrides", "exceptions", "moved")) remove(f) } }
                 val replaced = copyNow != null && !(copyWas != null && Notebook.sameJson(copyNow, copyWas)) &&
-                    !(spent != null && Notebook.sameJson(copyNow, spent))
+                    !(spent != null && Notebook.sameJson(copyNow, spent)) &&
+                    // ...and never an Update's copy a turn-off replaced: kept
+                    // whole is the promise there (the ninth round).
+                    !(op in setOf("off", "rule") && copyWas != null && Notebook.updateCopy(copyWas))
                 if (replaced) for (word in onlyCopy - heldAfter) live[word] = 0
                 for (word in olderLost - heldAfter) live[word] = 0
                 doubles += shown.groupingBy { it }.eachCount().count { it.value > 1 }

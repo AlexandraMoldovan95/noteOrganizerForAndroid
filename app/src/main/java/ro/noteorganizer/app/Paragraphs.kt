@@ -67,6 +67,31 @@ object Paragraphs {
             .filterValues { !it.plain }
     }
 
+    /**
+     * The series' [paragraphs] a day of it shows, [body] the day's text: all
+     * of them while the day shows the series' words ([sameBody]); on text of
+     * its own, only the list entries whose line still carries their marker,
+     * without alignment -- the desktop's `day_paragraphs`. A list's depth
+     * lives nowhere else, and the rest, put on by line number, landed on the
+     * wrong lines (the final audit's lows wave).
+     */
+    fun dayProps(paragraphs: Any?, body: String, sameBody: Boolean): Map<Int, Props> {
+        if (sameBody) return propsOf(paragraphs, body)
+        val lines = body.split("\n")
+        return Exporting.normalizeParagraphs(paragraphs, lines.size)
+            .filter { it.kind != null && parseListMarker(lines.getOrElse(it.line) { "" }).kind == it.kind }
+            .associate { it.line to Props(it.indent) }
+            .filterValues { !it.plain }
+    }
+
+    /** [props] as a day's own text keeps them once typed in: its lists' depth alone ([dayProps]). */
+    fun listDepths(props: Map<Int, Props>, body: String): Map<Int, Props> {
+        val lines = body.split("\n")
+        return props.filterKeys { parseListMarker(lines.getOrElse(it) { "" }).kind != null }
+            .mapValues { Props(it.value.indent) }
+            .filterValues { !it.plain }
+    }
+
     /** `_extract_paragraphs`: what the file stores, the kind read off each line's marker. */
     fun extract(body: String, props: Map<Int, Props>): JSONArray {
         val out = JSONArray()
