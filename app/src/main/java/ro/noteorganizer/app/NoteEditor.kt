@@ -180,7 +180,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val raw = note?.let { state.rawNote(it.id) } ?: return emptyMap()
         val onDay = day ?: return Paragraphs.propsOf(raw.opt("paragraphs"), note.body)
         val shown = Recurrence.effectiveNote(raw, onDay).opt("body") as? String ?: return emptyMap()
-        return Paragraphs.dayProps(raw.opt("paragraphs"), shown, Normalize.sameBody(shown, raw.opt("body") as? String ?: ""))
+        val own = (raw.opt("overrides") as? org.json.JSONObject)?.optJSONObject(onDay)?.opt("paragraphs")
+        return Paragraphs.dayProps(raw.opt("paragraphs"), shown, Normalize.sameBody(shown, raw.opt("body") as? String ?: ""), own)
     }
 
     init {
@@ -966,7 +967,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         var follows = false
         val result = if (day != null && id != 0) {
             // A day of a series saves to that day alone, never to the series.
-            Days.saveDay(load, id, day, title, body, comments, category, color) { follows = it == Days.DaySaved.FOLLOWS }
+            Days.saveDay(load, id, day, title, body, comments, category, color, Paragraphs.extract(body, props)) {
+                follows = it == Days.DaySaved.FOLLOWS
+            }
         } else if (id == 0) {
             if (!force && title.isBlank() && body.isBlank() && comments.isBlank()) {
                 saved = target
@@ -1377,7 +1380,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             // still comes without the widths its separator's dashes spell.
             val text = Pasting.foreignPlain(plain, state.ownCopy)
             if (text == plain.replace("\r\n", "\n").replace("\r", "\n")) return false
-            land(Pasting.insert(body, emptyList(), emptyMap(), from, to, text))
+            land(Pasting.insert(body, emptyList(), Paragraphs.listDepths(props, body), from, to, text))
             return true
         }
         val read = if (html.isNullOrEmpty()) null else Pasting.fromHtml(html, state.ownCopy)
@@ -1416,7 +1419,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val text = Pasting.plainText(Pasting.foreignPlain(raw, state.ownCopy))
         if (text.isEmpty() && old.selection.collapsed) return
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
-        land(Pasting.insert(body, spans, if (day != null) emptyMap() else props, from, to, text))
+        // On a day, its lists' depth goes in, or the paste renumbered a nested
+        // list as one run (the lows wave's verification).
+        land(Pasting.insert(body, spans, if (day != null) Paragraphs.listDepths(props, body) else props, from, to, text))
     }
 
     /** A paste written: the note, one step of Undo, and the cursor after what came in. */
@@ -1426,7 +1431,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // its next one into a later line (the final audit's ninth round).
         carry(done.edits.ifEmpty { listOfNotNull(Calculator.changeOf(body, done.body)) })
         spans = if (day != null) emptyList() else done.spans
-        props = if (day != null) emptyMap() else done.props
+        props = if (day != null) Paragraphs.listDepths(done.props, done.body) else done.props
         body = done.body
         caret = done.caret
         changed()

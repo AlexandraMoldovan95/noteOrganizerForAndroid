@@ -328,6 +328,10 @@ object Normalize {
                 out.put(key, if (key == "body") withCaretLine(value) else value)
             }
         }
+        // ...and the day's own list lines, kept even empty: a day saved since
+        // keeps its lists' structure, one saved before takes the series' by
+        // line (the desktop's clean_override; the owner's choice, the lows wave).
+        (patch.opt("paragraphs") as? JSONArray)?.let { out.put("paragraphs", Paragraphs.listLines(it, out.opt("body") as? String)) }
         return out
     }
 

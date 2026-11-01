@@ -75,13 +75,68 @@ object Paragraphs {
      * lives nowhere else, and the rest, put on by line number, landed on the
      * wrong lines (the final audit's lows wave).
      */
-    fun dayProps(paragraphs: Any?, body: String, sameBody: Boolean): Map<Int, Props> {
-        if (sameBody) return propsOf(paragraphs, body)
+    fun dayProps(paragraphs: Any?, body: String, sameBody: Boolean, own: Any? = null): Map<Int, Props> =
+        propsOf(dayParagraphs(paragraphs, body, sameBody, own), body)
+
+    /**
+     * The lines' looks a day of a series shows, as stored entries -- the
+     * desktop's `day_paragraphs`: the series' [paragraphs] while the day
+     * shows the series' words, its lists' depth its [own] when it keeps
+     * them; on text of its own, its own list lines, or -- a day saved
+     * before it kept them -- the series' list entries, by line. What the day
+     * view shows ([dayProps]) and Make it a note keeps.
+     */
+    fun dayParagraphs(paragraphs: Any?, body: String, sameBody: Boolean, own: Any? = null): JSONArray {
+        if (!sameBody) return listLines(own ?: paragraphs, body)
+        val looks = sortedMapOf<Int, JSONObject>()
+        for (entry in Exporting.normalizeParagraphs(paragraphs, body.split("\n").size)) {
+            looks[entry.line] = JSONObject().put("line", entry.line).also { item ->
+                entry.kind?.let { item.put("kind", it) }
+                if (entry.indent != 0) item.put("indent", entry.indent)
+                entry.align?.takeIf { it != "left" }?.let { item.put("align", it) }
+            }
+        }
+        if (own != null) {
+            val lists = listLines(own, body)
+            for (i in 0 until lists.length()) {
+                val entry = lists.getJSONObject(i)
+                val line = entry.getInt("line")
+                val item = looks[line] ?: JSONObject().put("line", line)
+                item.put("kind", entry.getString("kind"))
+                if (entry.has("indent")) item.put("indent", entry.getInt("indent")) else item.remove("indent")
+                looks[line] = item
+            }
+        }
+        return JSONArray().also { out -> looks.values.forEach { out.put(it) } }
+    }
+
+    /**
+     * The list lines of [body] -- the desktop's `list_lines`: each line
+     * starting with a list marker, its kind and the depth [paragraphs] give
+     * it, else a bullet's glyph's. The one look a day of a series keeps of its
+     * own: its text is plain, but a nested list's depth lives nowhere else
+     * (the owner's choice, the lows wave). Without [body], the list entries
+     * as they are.
+     */
+    fun listLines(paragraphs: Any?, body: String?): JSONArray {
+        val out = JSONArray()
+        fun put(line: Int, kind: String, indent: Int) =
+            out.put(JSONObject().put("line", line).put("kind", kind).also { if (indent != 0) it.put("indent", indent) })
+        if (body == null) {
+            for (entry in Exporting.normalizeParagraphs(paragraphs, null)) entry.kind?.let { put(entry.line, it, entry.indent) }
+            return out
+        }
         val lines = body.split("\n")
-        return Exporting.normalizeParagraphs(paragraphs, lines.size)
-            .filter { it.kind != null && parseListMarker(lines.getOrElse(it.line) { "" }).kind == it.kind }
-            .associate { it.line to Props(it.indent) }
-            .filterValues { !it.plain }
+        val given = Exporting.normalizeParagraphs(paragraphs, lines.size).filter { it.kind != null }
+            .associate { it.line to (it.kind to it.indent) }
+        for ((n, line) in lines.withIndex()) {
+            val marker = parseListMarker(line)
+            val kind = marker.kind ?: continue
+            val depth = given[n]?.takeIf { it.first == kind }?.second
+                ?: if (kind == "bullet") BULLET_GLYPHS.indexOf(marker.marker.trim()).coerceAtLeast(0) else 0
+            put(n, kind, depth)
+        }
+        return out
     }
 
     /** [props] as a day's own text keeps them once typed in: its lists' depth alone ([dayProps]). */

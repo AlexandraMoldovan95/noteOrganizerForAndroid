@@ -295,13 +295,25 @@ final audit's twenty-fourth and twenty-fifth rounds, kept as known).
 `comments`, `category`, `color`. Everything else belongs to the series.
 Getting this wrong produces a note that looks edited and is not.
 
+Beside them an override may keep **`paragraphs`: the day's own list
+lines** -- `[{"line": int, "kind": "bullet"|"number", "indent": int}]`,
+one per line of the day's body that starts with a list marker, with no
+alignment (the owner's choice, the final audit's lows wave). A nested
+list's depth lives nowhere else: taken from the series by line number,
+an item added or removed on the day put the rest on the wrong level, and
+the next Enter renumbered them so. Both apps write it with every day they
+save, even empty; a day saved before it existed has none, and shows the
+series' list entries by line, as it did. A day that says what the series
+says follows the series again only when its list lines are the series'
+too.
+
 Since Phase 2 the phone writes all three, as the desktop's day mode
 writes them:
 
-- **A day saved on its own** keeps only those five fields, and only
-  plain text — a day's body carries no styles. A day that says exactly
-  what the series says keeps no override at all, and follows the series
-  again.
+- **A day saved on its own** keeps only those five fields and its list
+  lines, and only plain text — a day's body carries no styles. A day that
+  says exactly what the series says, its lists as the series' are, keeps
+  no override at all, and follows the series again.
 - **A day deleted** from its series goes into `exceptions` — a moved day
   by the date its rule gives it, not the date it was moved to — and its
   Undo finds the note by `uid`, not by `id`, and brings back the day's own

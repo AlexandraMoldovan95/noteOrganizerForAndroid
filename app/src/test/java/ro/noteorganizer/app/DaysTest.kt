@@ -437,6 +437,35 @@ class DaysTest {
     }
 
     @Test
+    fun `a day keeps its own list lines, and follows the series only when they are the series' too`() {
+        // The owner's choice (the lows wave): a day's lists' depth lives with
+        // the day, taken from the series by line it slid after a line added.
+        val load = scratch("""[{"id": 1, "uid": "a", "title": "Agenda", "body": "Agenda\n1. Buy\n1. milk",
+            "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}]}]""")
+        val nested = JSONArray("""[{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}]""")
+        var said: Days.DaySaved? = null
+        Days.saveDay(load, 1, "2026-11-09", "Agenda", "Agenda\n1. Buy\n1. milk", "", "General", "", nested) { said = it }
+        assertEquals(Days.DaySaved.FOLLOWS, said)
+        val flat = JSONArray("""[{"line": 1, "kind": "number"}, {"line": 2, "kind": "number"}]""")
+        Days.saveDay(load, 1, "2026-11-09", "Agenda", "Agenda\n1. Buy\n1. milk", "", "General", "", flat) { said = it }
+        assertEquals(Days.DaySaved.OWN, said)
+        val kept = onDisk(load).getJSONObject("overrides").getJSONObject("2026-11-09").getJSONArray("paragraphs")
+        assertTrue(kept.toString(), Notebook.sameJson(kept, flat))
+        // ...and Make it a note keeps the day's own list lines, not the
+        // series' looks by line (the desktop's Make it a note the same).
+        val off = scratch("""[{"id": 1, "uid": "o", "title": "Agenda", "body": "Agenda", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}, "paragraphs": [{"line": 0, "align": "center"}],
+            "overrides": {"2026-11-04": {"body": "own\n1. a\n1. b",
+                "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}]}}}]""")
+        assertTrue(Days.settleOffScheduleDay(off, 1, "2026-11-04", Days.Settle.NOTE) is SaveResult.Ok)
+        val made = JSONArray(off.file!!.readText()).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+            .first { it.optString("body").startsWith("own") }
+        assertTrue(made.getJSONArray("paragraphs").toString(), Notebook.sameJson(made.getJSONArray("paragraphs"),
+            JSONArray("""[{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}]""")))
+    }
+
+    @Test
     fun `a day the series no longer draws is refused, not written where no screen shows it`() {
         // A deleted day, a date the rule does not give: the words saved there
         // were on no calendar, in no list of days off the schedule, in no

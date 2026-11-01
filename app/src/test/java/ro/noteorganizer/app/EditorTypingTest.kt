@@ -4,6 +4,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -278,7 +279,34 @@ class EditorTypingTest {
             "overrides": {"2026-11-16": {"body": "Agenda today\n1. Buy\n1. milk"}}}]""")
         val nested = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
         nested.openNote(2, "2026-11-16")
-        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), EditorModel(nested, nested.note(2), day = nested.openDay).props)
+        val listDay = EditorModel(nested, nested.note(2), day = nested.openDay)
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), listDay.props)
+        // ...a paste there keeps it: renumbered with no depth, the nested list
+        // read as one run, stored (the lows wave's verification).
+        val field = Editing.segments(listDay.body).first()
+        listDay.pastePlain(field, TextFieldValue(field.text, TextRange("Agenda today".length)), " (room 4)")
+        assertEquals("Agenda today (room 4)\n1. Buy\n1. milk", listDay.body.trimEnd('\n'))
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), listDay.props)
+        // ...and the day keeps its own list lines once saved, read back as it
+        // keeps them, not by line from the series (the owner's choice).
+        assertTrue(listDay.save())
+        val stored = JSONArray(File(dir, "notes_data.json").readText()).getJSONObject(0)
+            .getJSONObject("overrides").getJSONObject("2026-11-16").getJSONArray("paragraphs")
+        assertEquals(2, stored.length())
+        assertEquals(1, stored.getJSONObject(1).optInt("indent"))
+        val again = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        again.openNote(2, "2026-11-16")
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), EditorModel(again, again.note(2), day = again.openDay).props)
+        // ...a day whose lines moved -- a guest added above the list -- reads
+        // its own depth, where the series' by line put Buy in the sub-list.
+        File(dir, "notes_data.json").writeText("""[{"id": 2, "uid": "a", "title": "Agenda", "body": "Agenda\n1. Buy\n1. milk",
+            "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}],
+            "overrides": {"2026-11-23": {"body": "Agenda\nGuest: Ana\n1. Buy\n1. milk",
+                "paragraphs": [{"line": 2, "kind": "number"}, {"line": 3, "kind": "number", "indent": 1}]}}}]""")
+        val moved = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        moved.openNote(2, "2026-11-23")
+        assertEquals(mapOf(3 to Paragraphs.Props(indent = 1)), EditorModel(moved, moved.note(2), day = moved.openDay).props)
     }
 
     @Test

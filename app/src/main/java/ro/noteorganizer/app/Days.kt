@@ -206,7 +206,7 @@ object Days {
      * the two it was, for the screen to say.
      */
     fun saveDay(load: Notebook.Load, id: Int, day: String, title: String, body: String,
-                comments: String, category: String, color: String,
+                comments: String, category: String, color: String, paragraphs: JSONArray? = null,
                 result: ((DaySaved) -> Unit)? = null): SaveResult {
         var outcome = DaySaved.OWN
         val written = edit(load, id) { note ->
@@ -214,15 +214,21 @@ object Days {
             // As deleteDay and moveDay ask: a day's words saved where the
             // series draws no day are on no screen and in no search.
             if (!givenDay(note, day)) return@edit NOT_A_DAY
+            // ...its own list lines with them ([paragraphs], the editor's):
+            // cleanOverride keeps those alone (the owner's choice, the lows wave).
             val patch = Normalize.cleanOverride(JSONObject()
                 .put("title", Notebook.pyStrip(title)).put("body", body).put("comments", comments)
-                .put("category", category).put("color", color))
+                .put("category", category).put("color", color).also { if (paragraphs != null) it.put("paragraphs", paragraphs) })
             // A colour cleared on one day of a coloured series stays cleared
             // in the copy the editor compares with; the next load gives the
             // day the series' colour again, as on the desktop.
             if (color.isEmpty() && !(note.opt("color") as? String).isNullOrEmpty()) patch.put("color", "")
             val overrides = overridesOf(note)
-            if (Recurrence.dayMatchesSeries(note, patch)) {
+            // ...and its lists as the series' are: a day's own depth on the
+            // series' words is kept (the desktop's save the same).
+            val listsAsSeries = !patch.has("paragraphs") || Notebook.sameJson(patch.opt("paragraphs"),
+                Paragraphs.listLines(note.opt("paragraphs"), note.opt("body") as? String ?: ""))
+            if (Recurrence.dayMatchesSeries(note, patch) && listsAsSeries) {
                 overrides.remove(day)
                 outcome = DaySaved.FOLLOWS
             } else {
@@ -495,7 +501,10 @@ object Days {
             .put("title", shown.opt("title") as? String ?: "")
             .put("body", shown.opt("body") as? String ?: "")
             .put("formatting", if (sameBody) JSONArray((note.opt("formatting") as? JSONArray)?.toString() ?: "[]") else JSONArray())
-            .put("paragraphs", JSONArray((note.opt("paragraphs") as? JSONArray)?.toString() ?: "[]"))
+            // ...and the lines' looks the day view shows (Paragraphs.dayParagraphs),
+            // as the desktop's Make it a note keeps them.
+            .put("paragraphs", Paragraphs.dayParagraphs(note.opt("paragraphs"), shown.opt("body") as? String ?: "",
+                sameBody, overrides.optJSONObject(day)?.opt("paragraphs")))
             .put("comments", shown.opt("comments") as? String ?: "")
             .put("category", (shown.opt("category") as? String)?.ifEmpty { null } ?: note.opt("category") ?: "")
             .put("color", shown.opt("color") as? String ?: "")
