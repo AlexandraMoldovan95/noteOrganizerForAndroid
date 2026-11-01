@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the ninety-four are
+**the code**, or in **the design**. Twenty-two of the ninety-five are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#a-fuzz-that-never-took-the-road-it-guarded) | checking | The lows wave: the fuzz of a series' days passed on its seeds, never reached round 21's road in thousands of roads, excused a spent copy as a replaced one, and the gate let 26 of 31 test classes vanish one at a time | A random test proves only the roads it takes: count that it reaches the branch it guards, and take that branch's fix out to watch it fail alone |
 | [2026-11-01](#the-day-the-editor-stayed-on) | code | The audit's twenty-third round: Restore previous tapped on a day brought back a version with that day deleted, and the editor stayed on it; what was typed there was "Saved for this day only" to a day no screen showed and no search found | A guard written for one way a day stops being drawn is a question about every way: ask whether the day is drawn, not why it might not be |
 | [2026-11-01](#two-moves-onto-one-date-and-a-list-that-threw) | code | The audit's nineteenth round: a series holding two moves onto one date -- 0.13.0 after three ordinary taps, or an Undo beside a dead move -- gave History two rows of one key, and the list threw at every unfolding; graded low by the finder, taken as a crash by the session | A grade is about the road a person takes: a crash an upgrade can reach is not low because this build alone makes it rarely |
 | [2026-11-01](#history-and-the-days-it-never-asked-about) | code | The audit's eighteenth round: a series with an end listed in History only the days between its start and end, so a day moved past the end was drawn and in no row, its words found by no search; an endless series skipped every deleted date, a day moved onto one missed the same way | A fix to one reader of a shape is a question to every reader of it |
@@ -109,6 +110,42 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A fuzz that never took the road it guarded
+
+**2026-11-01.** The owner's lows wave, after wave 1 closed on both apps.
+DaysTest's fuzz of a series' days, written in the seventeenth round so the
+rounds would stop finding lost words one road at a time, passed on its 120
+seeds. The rounds since measured it: it never took Reset, the Undos, Make
+it a note, the Trash and back; it never reached round 21's road (a copy's
+words for a day the note deleted) in thousands of roads; three of the next
+12,000 seeds doubled a word.
+
+**The mechanism.** Round 21's shape comes from 0.13.0 -- a series turned
+off and on as it was, its days in the copy alone -- and no step built it.
+With the step added, the fuzz still let a loss through: it excused any word
+whose copy "changed", as the one-slot rule allows for a copy replaced, and
+a copy spent back into the note changes too. And the gate reading the
+results had a floor of 880 against 924 tests: one class at a time could
+stop being discovered, the gate green.
+
+**The fix.** The fuzz is rewritten: 360 roads through the phone's own
+actions, those it never took among them, 0.13.0's turn-off and turn-on
+followed by the install's read, and the copy's repeat put back. It must
+reach round 21's road; it excuses a copy replaced, never one spent; words
+shown twice -- the duplicates the owner chose to leave -- are counted, not
+failed; History must find every day the calendar draws.
+`check_test_results.py` holds each class to the @Test count its file
+holds, and a newer fixture makes the results stale. days_cases.json takes
+two moves onto one date in both orders. The same wave fixed what the
+rounds had recorded as low where a person can meet it (the commit lists
+them); hand-made date forms are written down in DATA_FORMAT.
+
+**The lesson:** a random test proves only the roads it takes: count that it
+reaches the branch it guards, and take that branch's fix out to watch it
+fail alone.
 
 ---
 
