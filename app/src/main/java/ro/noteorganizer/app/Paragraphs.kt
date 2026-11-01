@@ -684,9 +684,15 @@ object Paragraphs {
         val (l2, c2) = end
         val first = parseListMarker(lines[l1])
         val m1 = cpLength(first.marker)
+        // A paste bringing its own marker, over a selection begun at an item's
+        // marker, takes that marker's place wherever the selection ends: kept,
+        // a whole item pasted over the last one read "3. 1. Milk" (the lows
+        // wave's verification, rounds 6 and 7).
+        val own = pasted != null && parseListMarker(pasted.substringBefore('\n')).kind != null
+        val fromMarker = own && first.kind != null && c1 <= m1
         if (l1 == l2) {
             // Within one line only its own marker can be reached.
-            if (first.kind == null || c1 >= m1) return null
+            if (first.kind == null || (c1 >= m1 && !fromMarker)) return null
             return Pos(l1, 0) to Pos(l2, maxOf(c2, m1))
         }
         val last = parseListMarker(lines[l2])
@@ -696,20 +702,16 @@ object Paragraphs {
         val keepsWords = c1 > (if (first.kind != null) m1 else 0)
         if (last.kind != null && c2 <= m2) {
             // The end is at the start of an item, before its words. A paste
-            // bringing its own line break, or its own marker, takes the place
-            // of the one it covers: kept, a whole item pasted over another
-            // read "2. 3. Bread" (the lows wave's verification, round 6).
+            // bringing its own line break takes the covered break's place:
+            // kept, a whole item pasted over another left an empty line.
             val upto = if (pasted?.endsWith("\n") == true) Pos(l2, 0) else null
             if (keepsWords) return start to (upto ?: Pos(l2, m2))
-            if (typing) {
-                val own = pasted != null && parseListMarker(pasted.substringBefore('\n')).kind != null
-                return Pos(l1, if (first.kind != null && !own) m1 else 0) to
-                    (upto ?: Pos(l2 - 1, cpLength(lines[l2 - 1])))
-            }
+            if (typing) return Pos(l1, if (first.kind != null && !own) m1 else 0) to
+                (upto ?: Pos(l2 - 1, cpLength(lines[l2 - 1])))
             return Pos(l1, 0) to Pos(l2, 0)
         }
         // From just after (or inside) a marker into words: the item keeps it.
-        if (first.kind != null && c1 in 1..m1) return Pos(l1, m1) to end
+        if (first.kind != null && c1 in 1..m1) return Pos(l1, if (fromMarker) 0 else m1) to end
         return start to end
     }
 

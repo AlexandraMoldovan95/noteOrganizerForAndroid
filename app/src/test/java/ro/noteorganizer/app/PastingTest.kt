@@ -383,6 +383,19 @@ class PastingTest {
         // A letter typed over the same selection still keeps the item's marker.
         assertEquals(Paragraphs.Pos(2, 3) to Paragraphs.Pos(2, 7),
                      Paragraphs.deletionRange(list.split("\n"), Paragraphs.Pos(2, 0), Paragraphs.Pos(3, 0), typing = true))
+        // ...over the last item, one item's words, the note's end: begun at the
+        // item's marker, the paste's own marker takes its place (round 7).
+        val last = "Shopping\n1. Milk\n2. Bread\n3. Jam\nCall mum"
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Milk\nCall mum",
+                     Pasting.insert(last, emptyList(), emptyMap(), last.indexOf("Jam"), last.indexOf("Call mum"), "1. Milk\n").body)
+        val words = last.indexOf("Bread")
+        assertEquals("Shopping\n1. Milk\n2. Milk\n3. Jam\nCall mum",
+                     Pasting.insert(last, emptyList(), emptyMap(), words, words + 5, "1. Milk").body)
+        val end = "Shopping\n1. Milk\n2. Bread\n3. Jam"
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Milk",
+                     Pasting.insert(end, emptyList(), emptyMap(), end.indexOf("Jam"), end.length, "1. Milk").body)
+        // A letter typed over an item's words keeps its marker.
+        assertEquals(null, Paragraphs.deletionRange(last.split("\n"), Paragraphs.Pos(2, 3), Paragraphs.Pos(2, 8), typing = true))
     }
 
     @Test
