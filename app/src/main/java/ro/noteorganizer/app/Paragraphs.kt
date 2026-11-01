@@ -309,7 +309,48 @@ object Paragraphs {
             return if (made) split(props, line, column) else join(props, line)
         }
         val moved = remapParagraphLines(old, new, props.keys.toList())
-        return moved.entries.associate { (from, to) -> to to props.getValue(from) }
+        val out = moved.entries.associate { (from, to) -> to to props.getValue(from) }.toMutableMap()
+        // Text put into a line, or taken from it, across line breaks: each line
+        // the edit leaves carries the looks of the line it began in, as the
+        // desktop's text gives inserted text the tags around it. Dropped, a cut
+        // pasted back into a nested item, or lines pasted into one, went to the
+        // margin (the lows wave's verification, round 4).
+        edited(old, new, edit)?.let { (line, until) -> props[line]?.let { kept -> for (n in line until until) out[n] = kept } }
+        return out
+    }
+
+    /**
+     * The lines an edit that added or took away lines leaves of the line it
+     * began in, when it began inside that line rather than at its start: that
+     * line, and each line the text it put in makes. Read off the [edit]'s
+     * place when the field told it; else off the two texts, from the first
+     * line they differ on. Null for an edit begun at a line's start, which
+     * moves the line whole.
+     */
+    private fun edited(old: String, new: String, edit: Edit?): Pair<Int, Int>? {
+        if (old.count { it == '\n' } == new.count { it == '\n' }) return null
+        if (edit != null) {
+            val oldLength = old.codePointCount(0, old.length)
+            if (edit.at !in 0..oldLength) return null
+            val at = old.offsetByCodePoints(0, edit.at)
+            val column = at - (old.lastIndexOf('\n', at - 1) + 1)
+            if (column == 0) return null
+            val line = old.substring(0, at).count { it == '\n' }
+            val start = new.offsetByCodePoints(0, edit.at.coerceAtMost(new.codePointCount(0, new.length)))
+            val end = runCatching { new.offsetByCodePoints(start, edit.inserted) }.getOrNull() ?: return null
+            return line to line + new.substring(start, end).count { it == '\n' } + 1
+        }
+        val a = old.split("\n")
+        val b = new.split("\n")
+        var prefix = 0
+        while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
+        var suffix = 0
+        while (suffix < a.size - prefix && suffix < b.size - prefix && a[a.size - 1 - suffix] == b[b.size - 1 - suffix]) suffix++
+        // Lines the edit leaves of its own -- not ones carried whole from below,
+        // which keep their own looks (the remap's) -- begun inside its line.
+        val end = b.size - suffix
+        if (end <= prefix || prefix >= a.size || a[prefix].commonPrefixWith(b[prefix]).isEmpty()) return null
+        return prefix to end
     }
 
     /** [breakAt]'s answer for an [edit] whose place is known: a line break put in, or taken out, alone. */

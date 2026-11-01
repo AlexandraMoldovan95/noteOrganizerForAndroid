@@ -333,6 +333,20 @@ class EditorTypingTest {
         assertEquals(mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1)), day.props)
         assertTrue(day.save())
         assertEquals("follows", day.status)
+        // ...a cut across two nested items pasted straight back, and lines
+        // pasted into a new nested item, keep the depth of the line they
+        // went into, as the desktop's text does (the round-4 medium).
+        val cutFrom = words.indexOf("hotel")
+        val cutTo = words.indexOf("ck\n2. Go")
+        day.type(words.removeRange(cutFrom, cutTo), cutFrom)
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), day.props)
+        day.type(words, cutTo)
+        assertEquals(words, day.body)
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1)), day.props)
+        val endOfPack = words.indexOf("\n2. Go")
+        val pasted = words.substring(0, endOfPack) + "\n2. Passports\nTickets" + words.substring(endOfPack)
+        day.type(pasted, endOfPack + "\n2. Passports\nTickets".length)
+        assertEquals(Paragraphs.Props(indent = 1), day.props[4])
     }
 
     @Test
