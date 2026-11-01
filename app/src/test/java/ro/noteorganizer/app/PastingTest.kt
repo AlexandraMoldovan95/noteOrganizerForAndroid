@@ -399,6 +399,28 @@ class PastingTest {
     }
 
     @Test
+    fun `a paste bringing its own marker at an item's marker end, nothing selected, takes its place or goes before`() {
+        // Where Enter in a list leaves the cursor: copied items pasted into the
+        // new empty one read "3. 1. Kiwi" (round 8).
+        val list = "Shopping\n1. Milk\n2. Bread\n3. "
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Kiwi\n4. Plum",
+                     Pasting.insert(list, emptyList(), emptyMap(), list.length, list.length, "1. Kiwi\n2. Plum").body)
+        // ...a nested empty item keeps its level.
+        val nested = "Plan\n1. Fruit\n1. "
+        val done = Pasting.insert(nested, emptyList(), mapOf(2 to Paragraphs.Props(indent = 1)),
+                                  nested.length, nested.length, "1. Kiwi")
+        assertEquals("Plan\n1. Fruit\n1. Kiwi", done.body)
+        assertEquals(Paragraphs.Props(indent = 1), done.props[2])
+        // A tap on an item's marker, then a whole item with its break: it goes in before.
+        val jam = "Shopping\n1. Milk\n2. Jam\n3. Tea"
+        val at = jam.indexOf("Jam")
+        assertEquals("Shopping\n1. Milk\n2. Kiwi\n3. Jam\n4. Tea",
+                     Pasting.insert(jam, emptyList(), emptyMap(), at, at, "1. Kiwi\n").body)
+        // Words with no marker still go in after the item's.
+        assertEquals("Shopping\n1. Milk\n2. KiwiJam\n3. Tea", Pasting.insert(jam, emptyList(), emptyMap(), at, at, "Kiwi").body)
+    }
+
+    @Test
     fun `a page with no formatting at all - a PDF - has its column rejoined`() {
         // Each line broken because the next word would not have fitted.
         val column = "The quick brown fox jumps over the lazy dog and then\n" +

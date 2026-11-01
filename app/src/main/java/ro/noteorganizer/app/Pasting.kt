@@ -211,6 +211,24 @@ object Pasting {
                 b = starts[e.line] + e.column
             }
         }
+        // With nothing selected, at an item's marker end -- where Enter in a
+        // list and a tap on a marker leave the cursor -- a paste bringing its
+        // own marker takes that one's place, or, with words after it and a
+        // line break of its own, goes in before the item. Kept, a copied item
+        // pasted into a new one read "3. 1. Kiwi" (the lows wave's
+        // verification, round 8).
+        val head = text.substringBefore('\n')
+        if (a == b && Paragraphs.parseListMarker(head).kind != null && !isRow(head)) {
+            var ls = a
+            while (ls > 0 && c[ls - 1] != '\n'.code) ls--
+            var le = a
+            while (le < c.size && c[le] != '\n'.code) le++
+            val item = Paragraphs.parseListMarker(String(c, ls, le - ls))
+            if (item.kind != null && a - ls == item.marker.codePointCount(0, item.marker.length)) {
+                if (PyText.strip(item.rest).isNotEmpty() && text.endsWith("\n")) b = ls
+                a = ls
+            }
+        }
         val firstLine = (0 until a).count { c[it] == '\n'.code }
         val lastLine = firstLine + (a until b).count { c[it] == '\n'.code }
         val kept = c.copyOfRange(0, a) + c.copyOfRange(b, c.size)
