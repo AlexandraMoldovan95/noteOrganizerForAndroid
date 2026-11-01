@@ -122,9 +122,17 @@ deleted date, so a day moved onto one was missed the same way; round
 seventeen had fixed that for the off-schedule list, not for History. The
 desktop's `history_entries` did the same.
 
+The desktop's round found one more on both: a copy's rule compared as
+stored (`spent`, `replacedByRestore`) while round seventeen's `sameSeries`
+read a weekday lit or not as one rule, so a series turned back on as it
+was kept its copy unspent, Restore previous offered for nothing.
+
 **The fix.** `Recurrence.history` adds the dates moved days are drawn on to
 a bounded series' days, and skips a deleted date only when no move lands
-on it, drawn or off the schedule. DaysTest; mutants AS407, AS408.
+on it, drawn or off the schedule. `copyFieldHeld` compares a copy's rule by
+the days it gives. DaysTest's fuzz now shifts a run of days a day later and
+counts a word kept only where a person can reach it. Mutants AS407 to
+AS409.
 
 **What it left:** the round's lows are on the audit's list for a wave of
 their own (an old notebook's two moves onto one date; an Undo putting a

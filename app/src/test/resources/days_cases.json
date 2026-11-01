@@ -22249,25 +22249,6 @@
      "updated": "2026-10-20 09:00:00"
     },
     {
-     "_prev": {
-      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
-      "comments": "",
-      "date": "2026-11-02",
-      "formatting": [],
-      "paragraphs": [],
-      "recurrence": {
-       "count": 0,
-       "end": "",
-       "freq": "weekly",
-       "interval": 1,
-       "month_day_policy": "clamp",
-       "month_days": [],
-       "weekdays": [
-        0
-       ]
-      },
-      "title": "Gym"
-     },
      "attachments": [],
      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
      "category": "General",
@@ -22305,25 +22286,6 @@
      "updated": "2026-10-20 09:00:00"
     },
     {
-     "_prev": {
-      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
-      "comments": "",
-      "date": "2026-11-02",
-      "formatting": [],
-      "paragraphs": [],
-      "recurrence": {
-       "count": 0,
-       "end": "",
-       "freq": "weekly",
-       "interval": 1,
-       "month_day_policy": "clamp",
-       "month_days": [],
-       "weekdays": [
-        0
-       ]
-      },
-      "title": "Gym"
-     },
      "attachments": [],
      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
      "category": "General",
@@ -22368,25 +22330,6 @@
    ],
    "aside_loaded": [],
    "imported": {
-    "_prev": {
-     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
-     "comments": "",
-     "date": "2026-11-02",
-     "formatting": [],
-     "paragraphs": [],
-     "recurrence": {
-      "count": 0,
-      "end": "",
-      "freq": "weekly",
-      "interval": 1,
-      "month_day_policy": "clamp",
-      "month_days": [],
-      "weekdays": [
-       0
-      ]
-     },
-     "title": "Gym"
-    },
     "attachments": [],
     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
     "category": "General",

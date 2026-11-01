@@ -568,6 +568,20 @@ class DaysTest {
     }
 
     @Test
+    fun `a copy holding the series as the note does, its weekday lit and the note's not, is spent`() {
+        // Compared as stored, Restore previous stayed offered for nothing, and
+        // the next turn-off brought back an old agenda (the eighteenth round).
+        val note = Normalize.normalizeNote(JSONObject("""{"id": 45, "title": "Gym", "body": "plan",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly", "weekdays": [0]}}}"""))
+        assertFalse(Notebook.holdsUnspentCopy(note))
+        assertNull(Notebook.replacedByRestore(note, note.getJSONObject("_prev")))
+        note.put("recurrence", JSONObject().put("freq", "weekly").put("weekdays", JSONArray().put(1)))
+        assertTrue(Notebook.holdsUnspentCopy(note))
+    }
+
+    @Test
     fun `History lists a day moved past a bounded series' end, or onto a deleted date, and finds its words`() {
         // In no row, a search found them nowhere -- History is the one search
         // of a day's own words (the eighteenth round, as on the desktop).
@@ -597,10 +611,23 @@ class DaysTest {
      * series the note does not (those are set aside).
      */
     @Test
-    fun `a fuzz of a series' days loses and doubles no day's words`() {
+    fun `a fuzz of a series' days loses, hides and doubles no day's words`() {
         val days = (0 until 42).map { java.time.LocalDate.of(2026, 11, 2).plusDays(it.toLong()).toString() }
         val rules = listOf("""{"freq": "weekly"}""", """{"freq": "weekly", "weekdays": [0, 2]}""", """{"freq": "daily"}""",
-            """{"freq": "daily", "interval": 2}""", """{"freq": "weekly", "weekdays": [1, 3]}""", """{"freq": ""}""")
+            """{"freq": "daily", "interval": 2}""", """{"freq": "weekly", "weekdays": [1, 3]}""", """{"freq": ""}""",
+            """{"freq": "weekly", "weekdays": [0, 1, 2]}""", """{"freq": "weekly", "weekdays": [1, 2, 3]}""")
+        // A word a person can reach: a day the calendar draws or lists off the
+        // schedule (any day of a note that no longer repeats, which a repeat
+        // brings back). In the file alone, on a date nothing shows, it is not
+        // kept (the eighteenth round: the fuzz counted it kept).
+        fun seen(note: JSONObject): List<String> {
+            val days = note.optJSONObject("overrides") ?: return emptyList()
+            val repeats = Recurrence.isRecurring(note)
+            val off = if (repeats) Recurrence.offScheduleDays(note).toSet() else emptySet()
+            return days.keys().asSequence().filter { d ->
+                !repeats || d in off || java.time.LocalDate.parse(d).let { Recurrence.expand(note, it, it) == listOf(d) }
+            }.mapNotNull { days.optJSONObject(it)?.optString("body") }.filter { it.isNotEmpty() }.toList()
+        }
         fun bodies(o: JSONObject?) = o?.keys()?.asSequence()?.mapNotNull { (o.opt(it) as? JSONObject)?.optString("body") }
             ?.filter { it.isNotEmpty() }?.toList().orEmpty()
         val failures = ArrayList<String>()
@@ -625,9 +652,32 @@ class DaysTest {
                 val held = bodies(now.optJSONObject("overrides")).toSet() + made().toSet() +
                     (now.optJSONArray("_set_aside")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).optString("body") } }.orEmpty())
                 val onlyCopy = if (slot) bodies(copyWas!!.optJSONObject("overrides")).toSet() - held else emptySet()
-                val op = listOf("edit", "edit", "move", "delete", "rule", "read", "share", "backup", "restore")[rng.nextInt(9)]
+                val ops = listOf("edit", "edit", "move", "shift", "delete", "rule", "rule", "read", "share", "backup", "restore")
+                val op = ops[rng.nextInt(ops.size)]
                 road.add(op)
                 when {
+                    // A run of days each given words, each held a day later, the
+                    // last first -- the road the desktop's round 17 lost one on.
+                    op == "shift" && repeats && drawn.size >= 2 -> {
+                        val i = rng.nextInt(drawn.size - 1)
+                        val run = drawn.subList(i, minOf(drawn.size, i + 2 + rng.nextInt(3)))
+                        for (d in run) {
+                            val old = note().optJSONObject("overrides")?.optJSONObject(d)?.optString("body")
+                            if (old != null && (live[old] ?: 0) > 0) live[old] = 0
+                            n++
+                            Days.saveDay(load, 1, d, "Gym", "w$n", "", "General", "")
+                            live["w$n"] = 1
+                        }
+                        for (d in run.asReversed()) {
+                            val t = java.time.LocalDate.parse(d).plusDays(1).toString()
+                            val at = note()
+                            val drawnNow = Recurrence.expand(at, java.time.LocalDate.parse(days.first()), java.time.LocalDate.parse(days.last()))
+                            val targets = at.optJSONObject("moved")?.let { m -> m.keys().asSequence().mapNotNull { m.opt(it) as? String }.toSet() }.orEmpty()
+                            if (t in days && t !in drawnNow && at.optJSONObject("overrides")?.has(t) != true && t !in targets) {
+                                Days.moveDay(load, 1, d, t)
+                            }
+                        }
+                    }
                     op == "edit" && repeats && drawn.isNotEmpty() -> {
                         val d = drawn[rng.nextInt(drawn.size)]
                         val old = now.optJSONObject("overrides")?.optJSONObject(d)?.optString("body")
@@ -669,7 +719,7 @@ class DaysTest {
                 }
                 val after = note()
                 val shown = bodies(after.optJSONObject("overrides")) + made()
-                val heldAfter = shown.toSet() + bodies((after.opt("_prev") as? JSONObject)?.optJSONObject("overrides")) +
+                val heldAfter = seen(after).toSet() + made() + bodies((after.opt("_prev") as? JSONObject)?.optJSONObject("overrides")) +
                     (after.optJSONArray("_set_aside")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).optString("body") } }.orEmpty())
                 if ((after.opt("_prev") as? JSONObject)?.toString() != copyWas?.toString()) {
                     for (word in onlyCopy - heldAfter) live[word] = 0

@@ -2468,7 +2468,19 @@ object Notebook {
     /** Whether [note] holds again everything [previous] kept: the desktop's `rescue_copy_spent`. */
     private fun spent(note: JSONObject, previous: JSONObject): Boolean =
         PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(note, field), shaped(previous, field)) }
+            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || copyFieldHeld(note, previous, field) }
+
+    /**
+     * Whether [note] holds [previous]'s [field] again: a repeat rule by the
+     * days it gives ([sameSeries]), any other as it is. Compared as stored, a
+     * rule with its weekday lit was never the same, and the copy never spent
+     * (the desktop's `_copy_field_held`, the eighteenth round).
+     */
+    private fun copyFieldHeld(note: JSONObject, previous: JSONObject, field: String): Boolean =
+        if (field == "recurrence") {
+            sameSeries(if (previous.has("date")) previous.opt("date") else note.opt("date"), previous.opt("recurrence"),
+                note.opt("date"), note.opt("recurrence"))
+        } else sameJson(shaped(note, field), shaped(previous, field))
 
     /**
      * Whether [note] holds a rescue copy with something the note lacks --
@@ -2590,7 +2602,7 @@ object Notebook {
             (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
             PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
             stylesKept &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) } &&
+            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || copyFieldHeld(live, previous, field) } &&
             taken.isEmpty()
         if (nothingLost) return null
         val replaced = JSONObject()
