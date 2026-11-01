@@ -980,7 +980,10 @@ object Recurrence {
                         val newText = new as? String ?: continue
                         if (overrides.has(newText) || !isDate(newText) || !bucketOk(newText) || !baseMatches) continue
                         val day = parseDate(newText)!!
-                        if (schedule.on(day) != listOf(newText)) continue
+                        // The move the calendar draws there, once: two onto one
+                        // date gave two rows of one key, and the list threw
+                        // (the nineteenth round).
+                        if (schedule.on(day) != listOf(newText) || schedule.movedFrom(newText) != orig) continue
                         days.add(HistoryDay(newText, title, false, false, orig))
                     }
                 }

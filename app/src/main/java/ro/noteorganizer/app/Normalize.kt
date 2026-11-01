@@ -215,8 +215,8 @@ object Normalize {
      * days on one date, and no move of a deleted day. Capped as a rule's
      * days are: each is worked out on every calendar draw.
      */
-    private fun cleanMoves(moved: JSONObject, exceptions: JSONArray): JSONObject {
-        val deleted = (0 until exceptions.length()).map { exceptions.getString(it) }.toSet()
+    internal fun cleanMoves(moved: JSONObject, exceptions: JSONArray): JSONObject {
+        val deleted = (0 until exceptions.length()).mapNotNull { exceptions.opt(it) as? String }.toSet()
         val out = JSONObject()
         val heldOn = HashSet<String>()
         val pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }

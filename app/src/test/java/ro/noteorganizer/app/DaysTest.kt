@@ -568,6 +568,35 @@ class DaysTest {
     }
 
     @Test
+    fun `two moves onto one date are read as one, and History lists the date once`() {
+        // As 0.13.0 could leave them: History gave two rows of one key, and
+        // the list threw at every unfolding (the nineteenth round).
+        val load = scratch("""[{"id": 1, "uid": "m", "title": "Meeting", "body": "x", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly", "interval": 2},
+            "moved": {"2026-12-07": "2026-12-10", "2026-12-14": "2026-12-10"}}]""")
+        val moved = load.raw!!.getJSONObject(0).getJSONObject("moved")
+        assertEquals(1, moved.length())
+        val days = Recurrence.history(listOf(load.raw!!.getJSONObject(0)))
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().flatMap { s -> s.days.map { it.date } }
+        assertEquals(days.distinct(), days)
+        // ...and History alone, given the twin as an Undo once left it, lists it once.
+        val twin = JSONObject(load.raw!!.getJSONObject(0).toString())
+            .put("moved", JSONObject().put("2026-12-14", "2026-12-10").put("2026-12-07", "2026-12-10"))
+        val twinDays = Recurrence.history(listOf(twin))
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().flatMap { s -> s.days.map { it.date } }
+        assertEquals(twinDays.distinct(), twinDays)
+    }
+
+    @Test
+    fun `the Undo of a deleted moved day drops a dead move onto its date`() {
+        val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-16"], "moved": {"2026-11-18": "2026-11-20"}}]""")
+        val gone = Days.DayGone(1, "s", "2026-11-20", null, "2026-11-16")
+        assertTrue(Days.undoDeleteDay(load, gone) is SaveResult.Ok)
+        assertEquals("""{"2026-11-16":"2026-11-20"}""", onDisk(load).getJSONObject("moved").toString())
+    }
+
+    @Test
     fun `a copy holding the series as the note does, its weekday lit and the note's not, is spent`() {
         // Compared as stored, Restore previous stayed offered for nothing, and
         // the next turn-off brought back an old agenda (the eighteenth round).

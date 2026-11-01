@@ -300,6 +300,12 @@ object Days {
             note.put("exceptions", JSONArray(exceptions))
             if (gone.cameFrom != null) {
                 val moved = note.opt("moved") as? JSONObject ?: JSONObject().also { note.put("moved", it) }
+                // A dead move onto the date, found free, goes, as Move this day
+                // drops one: two moves onto one date gave History two rows of
+                // one key, and the list threw (the nineteenth round).
+                for (dead in moved.keys().asSequence().toList()) {
+                    if (dead != gone.cameFrom && moved.opt(dead) == gone.day) moved.remove(dead)
+                }
                 moved.put(gone.cameFrom, gone.day)
             }
             // The desktop's `_undo_occurrence_delete` guards: the repeat

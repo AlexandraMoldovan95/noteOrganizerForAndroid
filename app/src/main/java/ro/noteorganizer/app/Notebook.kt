@@ -2293,6 +2293,13 @@ object Notebook {
      */
     internal fun settleAsRead(raw: JSONObject) {
         daysBackAsRead(raw)
+        // One move a date, as the read's view keeps them: two moves onto one
+        // date, left by 0.13.0 or an Undo, gave History two rows of one key,
+        // and the list threw (the nineteenth round).
+        (raw.opt("moved") as? JSONObject)?.let { moved ->
+            val clean = Normalize.cleanMoves(moved, raw.opt("exceptions") as? JSONArray ?: JSONArray())
+            if (clean.length() != moved.length()) raw.put("moved", clean)
+        }
         Normalize.dropHiddenMoves(raw)
     }
 

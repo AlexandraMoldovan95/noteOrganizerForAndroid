@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the ninety-two are
+**the code**, or in **the design**. Twenty-one of the ninety-three are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#two-moves-onto-one-date-and-a-list-that-threw) | code | The audit's nineteenth round: a series holding two moves onto one date -- 0.13.0 after three ordinary taps, or an Undo beside a dead move -- gave History two rows of one key, and the list threw at every unfolding; graded low by the finder, taken as a crash by the session | A grade is about the road a person takes: a crash an upgrade can reach is not low because this build alone makes it rarely |
 | [2026-11-01](#history-and-the-days-it-never-asked-about) | code | The audit's eighteenth round: a series with an end listed in History only the days between its start and end, so a day moved past the end was drawn and in no row, its words found by no search; an endless series skipped every deleted date, a day moved onto one missed the same way | A fix to one reader of a shape is a question to every reader of it |
 | [2026-11-01](#words-that-never-move-on-their-own) | design | The audit's seventeenth round, both apps: round sixteen's moving of words sent home one by one wrote one day's text over another's after a week shifted a day at a time; a day moved onto a deleted date listed nowhere; an Update's copy, as a restore leaves it, replaced with its days' words; a series turned back on as it was read as another for a weekday lit once. The owner chose: words never move on their own, and the audit changed how it runs | Do not move a person's words on their own: drop what hides them, and show the rest |
 | [2026-11-01](#a-home-the-rule-no-longer-gives-and-a-move-the-calendar-never-saw-go) | code | The audit's sixteenth round, both apps: round fifteen's movesHome sent a day "home" to a date the rule no longer gives, its words off the calendar, and walked a chain once a link; the phone's calendar read notes no read had sent home, and Restore previous sent none, so a delete there took another day; a copy's day the note had moved since set aside as words it still held; the start's notes made again at every launch | A rule that moves something "back" must ask whether "back" still exists, and run where the reader reads |
@@ -107,6 +108,29 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Two moves onto one date, and a list that threw
+
+**2026-11-01.** The final audit's nineteenth round. A series holding two
+moves onto one date gave History two rows of one key, and the Compose list
+threw at every unfolding of that series. 0.13.0 leaves that shape after
+three ordinary taps -- a day moved, the repeat made every two weeks, another
+day moved onto the same date -- and the read kept both moves in the raw
+notes the calendar and History read; this build made it only by the Undo of
+a deleted moved day beside a dead move. The finder graded it low, by the
+owner's rule, on this build's road; the session took it as the crash it is
+on the road through the install over 0.13.0.
+
+**The fix.** `Notebook.settleAsRead` keeps one move a date in the raw notes
+(`Normalize.cleanMoves`, the view's own rule); `Recurrence.history` lists a
+moved date once, for the move the calendar draws; `Days.undoDeleteDay`
+drops a dead move onto the date, as `Recurrence.moveDay` does. The desktop
+the same, where it drew a double row. DaysTest; mutants AS410 to AS412.
+
+**The lesson:** a grade is about the road a person takes: a crash an
+upgrade can reach is not low because this build alone makes it rarely.
 
 ---
 
