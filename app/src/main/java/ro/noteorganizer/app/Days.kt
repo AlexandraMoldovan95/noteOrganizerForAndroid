@@ -568,8 +568,9 @@ object Days {
                 // before this Save, as the desktop's save asks it.
                 if (repeatOffLosesDays(was)) {
                     // Another series' copy, replaced here, held its days
-                    // alone: set aside first, asked of the series as it was.
-                    Notebook.copyDaysSetAside(note, was)
+                    // alone: set aside first, asked of the series as it was
+                    // -- not an Update's copy the turn-off keeps whole.
+                    if (!Notebook.turnOffKeepsCopy(was)) Notebook.copyDaysSetAside(note, was)
                     if (was !== note) (note.opt("_prev") as? JSONObject)?.let { was.put("_prev", JSONObject(it.toString())) }
                     note.put("_prev", Notebook.turnOffCopy(wholeNoteCopy(was), was))
                 }
@@ -584,9 +585,9 @@ object Days {
         // them -- and days with words of their own stay (Notebook.keptDaysFit).
         if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
-        // A day moved onto a date the new rule gives goes home now, not at
-        // the next start (Normalize.movesHome, the desktop's moves_home).
-        Normalize.movesHome(note)
+        // A day moved onto a date the new rule gives loses its move now, not
+        // at the next start (Normalize.dropHiddenMoves).
+        Normalize.dropHiddenMoves(note)
         // Turned back on as the series its copy holds: the note holds the
         // days again, and the copy's are spent -- kept there, a day reset
         // after came back at every start (the desktop's spend_series_days,

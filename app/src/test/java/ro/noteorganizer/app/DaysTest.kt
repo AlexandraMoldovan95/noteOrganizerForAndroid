@@ -505,23 +505,23 @@ class DaysTest {
     }
 
     @Test
-    fun `a start moved in the editor onto a moved day's date sends that day home at the save`() {
+    fun `a start moved in the editor onto a moved day's date drops that move at the save, its words where they showed`() {
         // Daily from the 10th, the 12th moved back to the 8th; the editor's
-        // date set to the 5th makes the 8th a day of the rule's own, the 12th
-        // still one. Left till the next start, the moved day was drawn
-        // nowhere (the fifteenth round).
+        // date set to the 5th makes the 8th a day of the rule's own. Left till
+        // the next start, the moved day was drawn nowhere (the fifteenth
+        // round); its words never move on their own (the seventeenth).
         val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-10-10",
             "recurrence": {"freq": "daily"}, "moved": {"2026-10-12": "2026-10-08"},
             "overrides": {"2026-10-08": {"title": "Own"}}}]""")
         assertTrue(Notebook.updateNote(load, 1, "S", "", date = "2026-10-05") is SaveResult.Ok)
         val saved = onDisk(load)
         assertEquals(0, saved.getJSONObject("moved").length())
-        assertEquals("Own", saved.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
-        assertFalse(saved.getJSONObject("overrides").has("2026-10-08"))
+        assertEquals("Own", saved.getJSONObject("overrides").getJSONObject("2026-10-08").getString("title"))
+        assertFalse(saved.getJSONObject("overrides").has("2026-10-12"))
     }
 
     @Test
-    fun `a share code making the series daily sends a day moved onto its new days home at once`() {
+    fun `a share code making the series daily drops a move onto its new days at once, the words where they showed`() {
         // As the desktop's test_data_safety: at the Update, not the next start.
         val load = scratch("""[{"id": 1, "uid": "coded", "title": "Gym", "body": "x", "date": "2026-11-02",
             "recurrence": {"freq": "weekly", "weekdays": [0]}, "moved": {"2026-11-09": "2026-11-10"},
@@ -532,7 +532,139 @@ class DaysTest {
             Importing.Answers(update = true), null) is Importing.Result.Done)
         val saved = onDisk(load)
         assertEquals(0, saved.getJSONObject("moved").length())
-        assertEquals("Held on Tuesday", saved.getJSONObject("overrides").getJSONObject("2026-11-09").getString("body"))
+        assertEquals("Held on Tuesday", saved.getJSONObject("overrides").getJSONObject("2026-11-10").getString("body"))
+        assertFalse(saved.getJSONObject("overrides").has("2026-11-09"))
+    }
+
+    @Test
+    fun `a day moved onto a deleted date, its own date no longer the rule's, is listed off the schedule`() {
+        // Drawn by no day and left out of the list with every deleted date,
+        // its words were shown and said by nothing (the seventeenth round).
+        val hidden = JSONObject("""{"date": "2026-11-02", "recurrence": {"freq": "weekly", "end": "2026-12-20"},
+            "exceptions": ["2026-12-14"], "moved": {"2026-12-21": "2026-12-14"},
+            "overrides": {"2026-12-14": {"body": "Budget review"}}}""")
+        assertEquals(listOf("2026-12-14"), Recurrence.offScheduleDays(hidden))
+        val drawn = JSONObject(hidden.toString()).put("recurrence", JSONObject().put("freq", "weekly"))
+        assertEquals(emptyList<String>(), Recurrence.offScheduleDays(drawn))
+    }
+
+    @Test
+    fun `a day moved onto a date a dead move points at takes it, the dead move gone`() {
+        // Two moves onto one date were read as the dead one (the seventeenth round).
+        val note = JSONObject("""{"date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "moved": {"2026-11-18": "2026-11-20"}}""")
+        Recurrence.moveDay(note, "2026-11-23", "2026-11-20")
+        assertEquals("""{"2026-11-23":"2026-11-20"}""", note.getJSONObject("moved").toString())
+    }
+
+    @Test
+    fun `a weekly series is the same with its start's weekday lit or left to the start`() {
+        assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly"),
+            "2026-11-02", JSONObject().put("freq", "weekly").put("weekdays", JSONArray().put(0))))
+        assertFalse(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly"),
+            "2026-11-02", JSONObject().put("freq", "weekly").put("weekdays", JSONArray().put(1))))
+        assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "monthly"),
+            "2026-11-02", JSONObject().put("freq", "monthly").put("month_days", JSONArray().put(2))))
+    }
+
+    /**
+     * The fuzz of a series' days (the owner's choice, the seventeenth round;
+     * the desktop's test_data_safety runs its own). Random roads through the
+     * phone's own actions -- a day edited, moved, deleted; the Repeat sheet's
+     * start and rule, off and on; Restore previous; a read; a share code's or
+     * a backup's Update -- and after every step every day's words the person
+     * did not delete or type over are somewhere (a day, the copy, a note made
+     * of them), and none twice among the days and the notes made. A copy is
+     * one slot: replaced, what it alone held goes, unless it repeats as a
+     * series the note does not (those are set aside).
+     */
+    @Test
+    fun `a fuzz of a series' days loses and doubles no day's words`() {
+        val days = (0 until 42).map { java.time.LocalDate.of(2026, 11, 2).plusDays(it.toLong()).toString() }
+        val rules = listOf("""{"freq": "weekly"}""", """{"freq": "weekly", "weekdays": [0, 2]}""", """{"freq": "daily"}""",
+            """{"freq": "daily", "interval": 2}""", """{"freq": "weekly", "weekdays": [1, 3]}""", """{"freq": ""}""")
+        fun bodies(o: JSONObject?) = o?.keys()?.asSequence()?.mapNotNull { (o.opt(it) as? JSONObject)?.optString("body") }
+            ?.filter { it.isNotEmpty() }?.toList().orEmpty()
+        val failures = ArrayList<String>()
+        for (seed in 0 until 120) {
+            val rng = java.util.Random(seed.toLong())
+            var load = scratch("""[{"id": 1, "uid": "f17", "title": "Gym", "body": "plan", "date": "2026-11-02",
+                "recurrence": {"freq": "weekly"}}]""")
+            val live = HashMap<String, Int>()
+            var n = 0
+            val road = ArrayList<String>()
+            for (step in 0 until 12) {
+                fun note() = load.raw!!.getJSONObject(0)
+                val now = note()
+                val repeats = Recurrence.isRecurring(now)
+                val drawn = Recurrence.expand(now, java.time.LocalDate.parse(days.first()), java.time.LocalDate.parse(days.last()))
+                    .filter { it in days }
+                val copyWas = (now.opt("_prev") as? JSONObject)?.let { JSONObject(it.toString()) }
+                val slot = copyWas != null && !(Recurrence.isRecurring(copyWas) && !(repeats &&
+                    Notebook.sameSeries(copyWas.opt("date"), copyWas.opt("recurrence"), now.opt("date"), now.opt("recurrence"))))
+                fun made() = (1 until load.raw!!.length()).map { load.raw!!.getJSONObject(it) }
+                    .filter { it.optString("title").endsWith("(earlier text)") }.map { it.optString("body") }
+                val held = bodies(now.optJSONObject("overrides")).toSet() + made().toSet() +
+                    (now.optJSONArray("_set_aside")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).optString("body") } }.orEmpty())
+                val onlyCopy = if (slot) bodies(copyWas!!.optJSONObject("overrides")).toSet() - held else emptySet()
+                val op = listOf("edit", "edit", "move", "delete", "rule", "read", "share", "backup", "restore")[rng.nextInt(9)]
+                road.add(op)
+                when {
+                    op == "edit" && repeats && drawn.isNotEmpty() -> {
+                        val d = drawn[rng.nextInt(drawn.size)]
+                        val old = now.optJSONObject("overrides")?.optJSONObject(d)?.optString("body")
+                        if (old != null && (live[old] ?: 0) > 0) live[old] = 0
+                        n++
+                        Days.saveDay(load, 1, d, "Gym", "w$n", "", "General", "")
+                        live["w$n"] = 1
+                    }
+                    op == "move" && repeats && drawn.isNotEmpty() -> {
+                        val targets = now.optJSONObject("moved")?.let { m -> m.keys().asSequence().mapNotNull { m.opt(it) as? String }.toSet() }.orEmpty()
+                        val free = days.filter { it !in drawn && now.optJSONObject("overrides")?.has(it) != true && it !in targets }
+                        if (free.isNotEmpty()) Days.moveDay(load, 1, drawn[rng.nextInt(drawn.size)], free[rng.nextInt(free.size)])
+                    }
+                    op == "delete" && repeats && drawn.isNotEmpty() -> {
+                        val d = drawn[rng.nextInt(drawn.size)]
+                        val gone = now.optJSONObject("overrides")?.optJSONObject(d)?.optString("body")
+                        if (gone != null) live[gone] = 0
+                        Days.deleteDay(load, 1, d)
+                    }
+                    op == "rule" -> {
+                        val was = now.optString("date")
+                        val date = days[rng.nextInt(7)]
+                        if (date != was) Notebook.updateNote(load, 1, now.optString("title"), now.optString("body"), date = date, scheduleFollows = true)
+                        Days.setRepeat(load, 1, JSONObject(rules[rng.nextInt(rules.size)]), startWas = if (date != was) was else null)
+                    }
+                    op == "read" -> load = Notebook.load(load.file!!.parentFile!!)
+                    op == "share" || op == "backup" -> {
+                        val incoming = JSONObject().put("uid", "f17").put("title", "Gym").put("body", "plan, from the laptop $step")
+                            .put("date", days[rng.nextInt(7)]).put("recurrence", JSONObject(rules[rng.nextInt(rules.size)]))
+                        if (op == "backup") {
+                            n++
+                            incoming.put("overrides", JSONObject().put(days[rng.nextInt(days.size)], JSONObject().put("body", "w$n")))
+                            live["w$n"] = 1
+                        }
+                        val source = if (op == "share") Importing.Source.CODE else Importing.Source.BACKUP
+                        Importing.apply(load, Importing.plan(load.raw!!, listOf(incoming), source), Importing.Answers(update = true), null)
+                    }
+                    op == "restore" && now.opt("_prev") is JSONObject -> Notebook.restorePrevious(load, 1)
+                }
+                val after = note()
+                val shown = bodies(after.optJSONObject("overrides")) + made()
+                val heldAfter = shown.toSet() + bodies((after.opt("_prev") as? JSONObject)?.optJSONObject("overrides")) +
+                    (after.optJSONArray("_set_aside")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).optString("body") } }.orEmpty())
+                if ((after.opt("_prev") as? JSONObject)?.toString() != copyWas?.toString()) {
+                    for (word in onlyCopy - heldAfter) live[word] = 0
+                }
+                val lost = live.filter { it.value > 0 && it.key !in heldAfter }.keys.sorted()
+                val twice = shown.groupingBy { it }.eachCount().filter { it.value > 1 }.keys.sorted()
+                if (lost.isNotEmpty() || twice.isNotEmpty()) {
+                    failures.add("seed $seed $road lost $lost twice $twice")
+                    break
+                }
+            }
+        }
+        assertEquals(emptyList<String>(), failures.take(3))
     }
 
     // ---- the repeat ----

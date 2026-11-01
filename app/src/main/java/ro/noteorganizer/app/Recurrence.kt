@@ -533,6 +533,13 @@ object Recurrence {
             note.put("moved", moved)
         }
         val orig = movedFrom(note, day) ?: day
+        // Another move onto [to], which the caller found free, is a dead one
+        // -- its own date no longer the rule's -- and goes: two moves onto one
+        // date were read as the dead one (the desktop's move_day, the
+        // seventeenth round).
+        for (dead in moved.keys().asSequence().toList()) {
+            if (dead != orig && moved.opt(dead) == to) moved.remove(dead)
+        }
         if (to == orig) moved.remove(orig) else moved.put(orig, to)
         val overrides = note.opt("overrides") as? JSONObject
         if (overrides != null && overrides.has(day) && to != day) {
@@ -756,20 +763,26 @@ object Recurrence {
     /**
      * The days a repeating note keeps its own edits for that its schedule
      * no longer reaches, oldest first. Asked of [expand] itself, so it
-     * cannot disagree with the calendar. A deleted day is not counted.
+     * cannot disagree with the calendar. A deleted day is not counted -- but
+     * a deleted date a day was moved onto holds that day's words, and is
+     * asked of the series as it is: hidden there, they were listed nowhere
+     * (the desktop's off_schedule_days, the seventeenth round).
      */
     fun offScheduleDays(note: JSONObject): List<String> {
         if (!isRecurring(note)) return emptyList()
         val overrides = note.opt("overrides") as? JSONObject ?: return emptyList()
         if (overrides.length() == 0) return emptyList()
         val exceptions = stringsOf(note.opt("exceptions"))
+        val moved = note.opt("moved") as? JSONObject
+        val landed = moved?.keys()?.asSequence()?.mapNotNull { moved.opt(it) as? String }?.toSet().orEmpty()
         // The schedule alone, deleted days drawn, read once for every day.
         val schedule = Schedule(note, withExceptions = false)
+        val kept by lazy { Schedule(note) }
         val off = ArrayList<String>()
         for (day in overrides.keys().asSequence().sorted()) {
             val whenDay = parseDate(day) ?: continue
-            if (day in exceptions) continue
-            if (schedule.on(whenDay) != listOf(day)) off.add(day)
+            if (day in exceptions && day !in landed) continue
+            if ((if (day in exceptions) kept else schedule).on(whenDay) != listOf(day)) off.add(day)
         }
         return off
     }

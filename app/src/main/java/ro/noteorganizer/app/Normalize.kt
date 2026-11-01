@@ -95,7 +95,7 @@ object Normalize {
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
         out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
         out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
-        movesHome(out)
+        dropHiddenMoves(out)
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
         // The rescue copy is carried through, as the desktop carries it:
@@ -233,38 +233,25 @@ object Normalize {
     }
 
     /**
-     * Each day moved onto a date its rule now gives by itself -- the rule or
-     * its start changed since -- taken off that date: drawn where the rule
-     * had a day already, it was drawn nowhere, and a delete there took it.
-     * It goes home with its words where the rule still gives its own date;
-     * where it does not, the day has no home, and its words stay where they
-     * showed, on the rule's day there (the sixteenth round). Not off a date
-     * whose own day was deleted or moved away, unless that day goes too:
-     * each chain walked once -- a pass a link took the square of a chain's
-     * length, and a crafted backup froze the desktop's window. The desktop's
-     * `moves_home`, at every read -- the raw notes too ([Notebook.load]) --
-     * and in every save, update and restore of the series.
+     * Each move of [note] onto a date its rule now gives -- the day drawn
+     * nowhere there, a delete there taking it -- dropped; its words stay
+     * where they showed, on the rule's day there. Words never move on their
+     * own (the owner's choice, the seventeenth round: round sixteen's moving
+     * them wrote one day's text over another's). Not off a date whose own day
+     * stays deleted or moved away; each chain walked once. The desktop's
+     * `drop_hidden_moves`, at every read -- the raw notes too
+     * ([Notebook.settleAsRead]) -- and in every save, update and restore.
      */
-    internal fun movesHome(note: JSONObject) {
+    internal fun dropHiddenMoves(note: JSONObject) {
         val moved = note.opt("moved") as? JSONObject ?: return
         if (moved.length() == 0 || !Recurrence.isRecurring(note)) return
         val deleted = (note.opt("exceptions") as? JSONArray)
             ?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }.orEmpty().toSet()
         val links = LinkedHashMap<String, String>()
         for (orig in moved.keys().asSequence().toList().sorted()) (moved.opt(orig) as? String)?.let { links[orig] = it }
-        val gives = Recurrence.ruleDaysAmong(note, links.keys + links.values)
+        val gives = Recurrence.ruleDaysAmong(note, links.values)
         val goes = linksLeaving(links, { moved.has(it) }) { new -> new in gives && new !in deleted }
-        val home = LinkedHashMap<String, String>()
-        for ((orig, new) in links) if (goes[orig] == true) {
-            moved.remove(orig)
-            home[orig] = new
-        }
-        if (home.isEmpty()) return
-        val days = note.opt("overrides") as? JSONObject ?: JSONObject().also { note.put("overrides", it) }
-        val words = HashMap<String, Any>()
-        for ((orig, new) in home) if (orig in gives && orig !in deleted) days.remove(new)?.let { words[new] = it }
-        for ((orig, new) in home) if (new in words && !days.has(orig)) days.put(orig, words.remove(new))
-        for ((new, patch) in words) days.put(new, patch)
+        for (orig in links.keys) if (goes[orig] == true) moved.remove(orig)
     }
 
     /**

@@ -99,13 +99,13 @@ REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
                                 "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "2c288cd95e371508174f8bb5c602d294be16dbbf"),
+                              "92ea4efa47540e945eed99cb3167d6414722af3e"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
-        '                    note["moved"] = {}\n', "411dfd961dee232ae319329f86dcb1746f1b023a"),
+        '                    note["moved"] = {}\n', "ecbd403e984725ab8b25b422287dcf09d9300c74"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
-                                         "c855c3fe3da7f710501d9919b263135ab63c7375"),
+                                         "16e564baa985aa70fa754fe230d33d0a9fcb42df"),
     "_reset_occurrence_override's write": ('        note["overrides"].pop(occurrence_date, None)\n',
                                            '            note["moved"].pop(origin, None)\n',
                                            "41d1e6cd94035d59b2b505b7a1dd709896ed5dc5"),
@@ -118,7 +118,7 @@ REGIONS = {
                                            '                note.pop("_prev", None)\n',
                                            "8af9cd9916fcdb708e01cc7d0b05453faa3df673"),
     "_set_aside_days": ("    def _set_aside_days(self, say=True):", "        return made\n",
-                        "e2e1a9f925e4e3f3716d39d63718b5b229df5e8b"),
+                        "29d58dc8629297acf9fd028c455b77de42d41bc7"),
     "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
                          "d9232b1dd0728f8cad7e901548bd151a1795ab99"),
 }
@@ -170,7 +170,7 @@ def main():
     sys.path.insert(0, DESKTOP)
     from noteorganizer.core.model import (apply_shared_update, comments_kept_by_copy, copy_holds_this_series,
                                           copy_days_set_aside, copy_replaced_by_restore, days_hold_own_text,
-                                          kept_days_fit, moves_home, normalize_note, notes_set_aside,
+                                          kept_days_fit, drop_hidden_moves, normalize_note, notes_set_aside,
                                           rescue_copy_due,
                                           rescue_copy_spent, shared_update_changes,
                                           spend_series_days, update_copy, DAY_FIELDS,
@@ -208,9 +208,10 @@ def main():
         """_turn_off_rescue_copy, as fingerprinted -- no save held behind a
         turn-off, which the phone does not have: its held branch is never
         taken here."""
-        copy_days_set_aside(note)
-        prev = whole_note_copy(note)
         existing = note.get("_prev")
+        if takes_text or not (update_copy(existing) and not rescue_copy_spent(note)):
+            copy_days_set_aside(note)
+        prev = whole_note_copy(note)
         if takes_text:
             pass
         elif update_copy(existing) and not rescue_copy_spent(note):
@@ -269,7 +270,7 @@ def main():
         note["comments"] = comments
         note["date"] = date_value
         note["recurrence"] = recurrence
-        moves_home(note)
+        drop_hidden_moves(note)
         spend_series_days(note)
         if not recurrence["freq"] and not days_kept:
             note["exceptions"] = []
@@ -290,7 +291,7 @@ def main():
         for key in PREV_EXTRA_KEYS:
             if key in prev:
                 note[key] = copy.deepcopy(prev[key])
-        moves_home(note)
+        drop_hidden_moves(note)
         if replaced is None:
             note.pop("_prev", None)
         else:
@@ -640,6 +641,41 @@ def main():
                  overrides={"2026-11-11": {"body": "Moved day's words"}})
     cases.append(("a share code made it weekly, a day moved, Restore previous", coded,
                   [{"do": "restore"}, {"do": "read"}]))
+    # The seventeenth round (the owner's choice): words never move on their
+    # own. A week shifted a day at a time, the shift then made the rule: the
+    # moves go, each day's words where they showed.
+    mon_wed = {"freq": "weekly", "interval": 1, "weekdays": [0, 1, 2]}
+    cases.append(("a week shifted a day at a time, the shift then made the rule",
+                  dict(base, recurrence=mon_wed,
+                       moved={"2026-11-04": "2026-11-05", "2026-11-03": "2026-11-04", "2026-11-02": "2026-11-03"},
+                       overrides={"2026-11-05": {"body": "WED"}, "2026-11-04": {"body": "TUE"},
+                                  "2026-11-03": {"body": "MON"}}),
+                  [{"do": "repeat", "date": "2026-11-02", "rule": dict(mon_wed, weekdays=[1, 2, 3])}, {"do": "read"}]))
+    # ...a weekly series turned back on as it was, its Monday lit before and
+    # not after, is the same series: its deleted day stays deleted.
+    lit = dict(own, recurrence={"freq": "weekly", "interval": 1, "weekdays": [0]})
+    cases.append(("Monday lit, off, on again with no weekday lit", lit, [off, on_same, {"do": "read"}]))
+    # ...an Update's copy of another series, as a restore leaves it, sets its
+    # days with words aside when a big delete replaces it.
+    upd_copy = dict(base, recurrence=daily, date="2026-11-04",
+                    _prev={"title": "Gym", "body": body, "comments": "", "formatting": [], "paragraphs": [],
+                           "category": "Work", "color": "", "date": "2026-11-02", "recurrence": weekly,
+                           "exceptions": [], "overrides": {"2026-11-22": {"body": "Room W2"}}, "moved": {}})
+    cases.append(("an Update's copy of another series, then a big delete", upd_copy, [big_delete]))
+    # ...and a backup's Update counts the days it brings as held.
+    held_back = dict(base, recurrence=daily, date="2026-11-04",
+                     _prev={"title": "Gym", "body": body, "comments": "", "formatting": [], "paragraphs": [],
+                            "date": "2026-11-02", "recurrence": weekly, "exceptions": [], "moved": {},
+                            "overrides": {first: {"body": "ROOM 4B"}}})
+    # ...a turn-off keeps an import's Update copy of another series whole,
+    # its days in it, nothing set aside.
+    cases.append(("a backup of another start, the repeat turned off, Restore previous", own,
+                  [{"do": "backup", "incoming": dict(copy.deepcopy(own), date="2026-11-03",
+                                                     overrides={"2026-11-10": {"body": "PHONE TUESDAY"}})},
+                   off, {"do": "restore"}]))
+    cases.append(("a backup's Update bringing the copy's day words back", held_back,
+                  [{"do": "backup", "incoming": dict(copy.deepcopy(base), body="Warm up, from the laptop.",
+                                                     overrides={first: {"body": "ROOM 4B"}})}]))
     # ...and a copy of another series asks for each day where the note holds
     # it now: moved since, a day's words are held, not set aside as earlier.
     cases.append(("on from another start, the copy's day moved since, turned off",

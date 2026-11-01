@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the ninety are
+**the code**, or in **the design**. Twenty-one of the ninety-one are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#words-that-never-move-on-their-own) | design | The audit's seventeenth round, both apps: round sixteen's moving of words sent home one by one wrote one day's text over another's after a week shifted a day at a time; a day moved onto a deleted date listed nowhere; an Update's copy, as a restore leaves it, replaced with its days' words; a series turned back on as it was read as another for a weekday lit once. The owner chose: words never move on their own, and the audit changed how it runs | Do not move a person's words on their own: drop what hides them, and show the rest |
 | [2026-11-01](#a-home-the-rule-no-longer-gives-and-a-move-the-calendar-never-saw-go) | code | The audit's sixteenth round, both apps: round fifteen's movesHome sent a day "home" to a date the rule no longer gives, its words off the calendar, and walked a chain once a link; the phone's calendar read notes no read had sent home, and Restore previous sent none, so a delete there took another day; a copy's day the note had moved since set aside as words it still held; the start's notes made again at every launch | A rule that moves something "back" must ask whether "back" still exists, and run where the reader reads |
 | [2026-11-01](#four-ways-of-adding-and-a-note-of-its-own) | design | The audit's fifteenth round, both apps: another series' days kept in a copy the next turn-off, big delete or Update replaced; a moved line read back as added text; a day moved onto a date a new rule gives drawn nowhere; a day only coloured read as words by a title's space. The owner chose the simpler rule: the copy's words for a day holding words of its own become a note of their own | When each fix of a merging rule leaves a new case, stop merging: keep both where the person sees them |
 | [2026-10-31](#a-day-cut-off-by-a-tables-line-the-old-text-again-a-cells-bold-dropped) | code | The audit's fourteenth round: round thirteen's line under a day's table, without the series' too, cut a day off from its series and read a colour as words; a day corrected in its middle got its old text again; a letter typed in a padded cell dropped its bold | A rule written into one side of a comparison is written into both; to keep what is lacking, compare what both hold, in order |
@@ -105,6 +106,57 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Words that never move on their own
+
+**2026-11-01.** The final audit's seventeenth round, small, on round
+sixteen's fixes and the series' days as a whole. The desktop's round found
+a day's text lost: a week shifted a day at a time (Wed to Thu, Tue to Wed,
+Mon to Tue), then the shift made the rule, and round sixteen's moving of
+words sent home one by one wrote what was left over the Wednesday's. The
+phone's round found two of its own:
+
+- **A day listed nowhere.** A day moved onto a deleted date, its own date
+  then no longer the rule's: drawn by no day, and `offScheduleDays` left
+  out every deleted date.
+- **An Update's copy, as a restore leaves it**, replaced by a big delete
+  with its days' words in it alone: `copyDaysSetAside` asked the copy's
+  shape, not what it holds.
+
+And on both: a dead move's date taken by a second move, read as the dead
+one; a weekly series turned back on as it was read as another when its
+start's weekday was lit once and not the next time.
+
+**The fix -- the owner's choice.** Since round eleven nearly every finding
+came from rules that moved a day's words on their own, and each was the
+next round's finding. Words now never move on their own:
+`Normalize.dropHiddenMoves` (was `movesHome`) drops a move onto a date the
+rule now gives, its words staying where they showed. `offScheduleDays`
+asks a deleted date a day was moved onto of the series as it is.
+`Recurrence.moveDay` drops a dead move onto the date it moves a day to.
+`Notebook.sameSeries` reads a weekly rule's start weekday, or a monthly
+rule's day, lit or left to the start, as one rule (`repeatsAs`,
+`keptDaysFit`). `copyDaysSetAside` takes any copy that repeats, except the
+one a turn-off keeps whole (`turnOffKeepsCopy`); a backup's Update counts
+its own days as held. `Startup` writes the notes made at the start
+whatever the Trash or settings file holds. days_cases.json: 98 cases;
+DaysTest gains the deleted date listed, the dead move, the weekday lit,
+and a fuzz of a series' days through the phone's own actions. Mutants
+AS397 to AS406.
+
+**And the audit itself, the owner's choice:** a committed fuzz of a
+series' days on both apps; a finding keeps a round open only if ordinary
+steps in the app reproduce it (losing data always counts); lows wait for a
+wave of their own.
+
+**What it left:** a rule changed and changed back does not bring back a
+move it dropped; Restore previous of a copy holding some day kinds and not
+others puts those beside the current series' others.
+
+**The lesson:** do not move a person's words on their own -- drop what
+hides them, and show the rest.
 
 ---
 

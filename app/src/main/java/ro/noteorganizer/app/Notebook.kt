@@ -1270,7 +1270,7 @@ object Notebook {
         // such save there).
         if (!scheduleFollows) {
             if (wordsChanged || otherChanged) {
-                Normalize.movesHome(note)
+                Normalize.dropHiddenMoves(note)
                 spendSeriesDays(note)
             }
             dropSpentCopy(note)
@@ -1769,8 +1769,28 @@ object Notebook {
         val previous = note.opt("_prev") as? JSONObject
         if (kept.isEmpty() || previous == null || !Recurrence.isRecurring(previous) ||
             kept.any { !sameJson(previous.opt(it), note.opt(it)) }) return true
-        return previous.opt("date") == date &&
-            sameJson(Recurrence.normalize(previous.opt("recurrence") as? JSONObject), Recurrence.normalize(recurrence as? JSONObject))
+        return sameSeries(previous.opt("date"), previous.opt("recurrence"), date, recurrence)
+    }
+
+    /**
+     * Whether two starts and rules are one series: a weekly rule's start
+     * weekday lit, or left to the start, is the same rule -- as a monthly
+     * rule's day. Both are stored, and a series turned back on as it was read
+     * as another (the desktop's `_same_series`, the seventeenth round).
+     */
+    internal fun sameSeries(day: Any?, rule: Any?, otherDay: Any?, otherRule: Any?): Boolean {
+        if (day != otherDay) return false
+        val whenDay = Recurrence.parseDate(day)
+        val rules = listOf(Recurrence.normalize(rule), Recurrence.normalize(otherRule))
+        if (whenDay != null) for (rec in rules) {
+            if (rec.optString("freq") == "weekly" && rec.getJSONArray("weekdays").length() == 0) {
+                rec.put("weekdays", JSONArray().put(whenDay.dayOfWeek.value - 1))
+            }
+            if (rec.optString("freq") == "monthly" && rec.getJSONArray("month_days").length() == 0) {
+                rec.put("month_days", JSONArray().put(whenDay.dayOfMonth))
+            }
+        }
+        return sameJson(rules[0], rules[1])
     }
 
     /**
@@ -2080,24 +2100,28 @@ object Notebook {
      * note no longer repeats as, set aside to be notes of their own, unless
      * the note's own day holds them. The copy was the only place they were
      * kept, and the next copy erased them (the final audit's fifteenth round,
-     * the desktop's `copy_days_set_aside`). [asked] is the note as the
-     * question is asked of it: the series as it was before this save.
+     * the desktop's `copy_days_set_aside`). An Update's copy too, as a
+     * restore leaves it (the seventeenth round). [asked] is the note as the
+     * question is asked of it: the series as it was before this save;
+     * [incoming], the note whose days a backup's Update is about to write,
+     * holds a day as well.
      */
-    internal fun copyDaysSetAside(note: JSONObject, asked: JSONObject = note) {
+    internal fun copyDaysSetAside(note: JSONObject, asked: JSONObject = note, incoming: JSONObject? = null) {
         val previous = note.opt("_prev") as? JSONObject ?: return
-        if (!seriesOwnCopy(previous) || repeatsAs(asked, previous)) return
-        val mine = note.opt("overrides") as? JSONObject
-        val moved = note.opt("moved") as? JSONObject
+        if (!Recurrence.isRecurring(previous) || repeatsAs(asked, previous)) return
         val came = HashMap<String, String>()
         (previous.opt("moved") as? JSONObject)?.let { m -> for (day in m.keys()) (m.opt(day) as? String)?.let { came[it] = day } }
-        // The note's day for it: on its date, on the day the copy moved there
-        // from, or where the note has moved that day since -- by date alone, a
-        // day the note moved was set aside as words it still held (the
+        // A holder's day for it: on its date, on the day the copy moved there
+        // from, or where the holder has moved that day since -- by date alone,
+        // a day the note moved was set aside as words it still held (the
         // sixteenth round, the desktop's copy_days_set_aside).
         fun held(key: String): Boolean {
             val day = came[key] ?: key
-            val there = moved?.opt(day) as? String ?: day
-            return mine != null && setOf(key, day, there).any { at -> mine.has(at) && ownWordsHeld(previous, key, note, mine, at) }
+            return listOfNotNull(note, incoming).any { holder ->
+                val mine = holder.opt("overrides") as? JSONObject
+                val there = (holder.opt("moved") as? JSONObject)?.opt(day) as? String ?: day
+                mine != null && setOf(key, day, there).any { at -> mine.has(at) && ownWordsHeld(previous, key, holder, mine, at) }
+            }
         }
         val aside = JSONArray()
         (previous.opt("overrides") as? JSONObject)?.keys()?.asSequence()?.sorted()?.forEach { key ->
@@ -2196,8 +2220,8 @@ object Notebook {
 
     /** Whether [note] repeats as the series [previous] holds, its date and its rule: the desktop's `_repeats_as`. */
     private fun repeatsAs(note: JSONObject, previous: JSONObject): Boolean =
-        Recurrence.isRecurring(note) && previous.opt("date") == note.opt("date") &&
-            sameJson(Recurrence.normalize(previous.opt("recurrence")), Recurrence.normalize(note.opt("recurrence")))
+        Recurrence.isRecurring(note) &&
+            sameSeries(previous.opt("date"), previous.opt("recurrence"), note.opt("date"), note.opt("recurrence"))
 
     /**
      * Whether [previous] is the copy an import's Update made: the note as it
@@ -2263,13 +2287,13 @@ object Notebook {
      * What the desktop's read does to a note from a file, done to the raw
      * note the calendar and every day's action read -- at the load and at a
      * restore from the Trash: a series' days back from its copy
-     * ([daysBackAsRead]), and a day moved onto a date its rule now gives
-     * sent home ([Normalize.movesHome]); a delete there took the hidden day
-     * (the sixteenth round). The next write keeps it.
+     * ([daysBackAsRead]), and a move onto a date its rule now gives dropped
+     * ([Normalize.dropHiddenMoves]); a delete there took the hidden day (the
+     * sixteenth round). The next write keeps it.
      */
     internal fun settleAsRead(raw: JSONObject) {
         daysBackAsRead(raw)
-        Normalize.movesHome(raw)
+        Normalize.dropHiddenMoves(raw)
     }
 
     internal fun daysBackAsRead(raw: JSONObject) {
@@ -2398,12 +2422,13 @@ object Notebook {
         }
         if (restarted && daysIn(note.opt("exceptions")) > 0) previous.put("exceptions", deepCopy(shaped(note, "exceptions")))
         // The copy this one replaces may hold another series' days alone:
-        // set aside once [keptDaysFit] has read them (the fifteenth round).
-        copyDaysSetAside(note)
+        // set aside once [keptDaysFit] has read them (the fifteenth round) --
+        // held by the days a backup brings, too (the seventeenth round).
+        copyDaysSetAside(note, incoming = if ("overrides" in fields) incoming else null)
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
         if (restarted) note.put("exceptions", JSONArray())
-        Normalize.movesHome(note)
+        Normalize.dropHiddenMoves(note)
         note.put("updated", now)
         return true
     }
@@ -2485,6 +2510,16 @@ object Notebook {
      * the older words at Restore previous (the tenth, the desktop's 04044ce).
      * The copy to keep: [copy], given words, or the update's.
      */
+    /**
+     * Whether a turn-off of [note] keeps its copy whole -- an import's
+     * Update copy not spent ([turnOffCopy]): its days stay in it, nothing
+     * set aside (the seventeenth round).
+     */
+    internal fun turnOffKeepsCopy(note: JSONObject): Boolean {
+        val existing = note.opt("_prev") as? JSONObject ?: return false
+        return !spent(note, existing) && updateCopy(existing)
+    }
+
     internal fun turnOffCopy(copy: JSONObject, note: JSONObject): JSONObject {
         val existing = note.opt("_prev") as? JSONObject ?: return copy
         if (spent(note, existing)) return copy
@@ -2627,9 +2662,9 @@ object Notebook {
             }
         }
         // An older rule brought back can give a date a day was moved onto
-        // since: it goes home now, as the desktop's restore sends it (the
+        // since: that move goes now, as the desktop's restore drops it (the
         // sixteenth round).
-        Normalize.movesHome(note)
+        Normalize.dropHiddenMoves(note)
         if (replaced == null) note.remove("_prev") else note.put("_prev", replaced)
         note.put("updated", Files.now())
         val candidate = copyOf(array)

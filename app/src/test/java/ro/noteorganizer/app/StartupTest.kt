@@ -67,6 +67,15 @@ class StartupTest {
         val again = JSONArray(File(dir, "notes_data.json").readText())
         assertEquals(2, again.length())
         assertEquals(first.getJSONObject(1).getString("uid"), again.getJSONObject(1).getString("uid"))
+        // ...and a Trash file the start could not read does not hold that
+        // write: the notes were read (the seventeenth round).
+        val damaged = temp("phone")
+        File(damaged, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "_set_aside": [{"day": "2026-11-16", "body": "More"}]}]""")
+        File(damaged, "trash.json").writeText("{")
+        Startup.prepare(damaged, older = null)
+        assertEquals(2, JSONArray(File(damaged, "notes_data.json").readText()).length())
     }
 
     @Test

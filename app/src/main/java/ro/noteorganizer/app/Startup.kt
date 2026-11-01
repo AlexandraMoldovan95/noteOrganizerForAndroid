@@ -63,7 +63,9 @@ object Startup {
                 "text of their own. It is kept as ${load.setAside} note${if (many) "s" else ""} of " +
                 "${if (many) "their" else "its"} own, each on its day, titled with the day's or the series' name " +
                 "and \"(earlier text)\".")
-            if (load.problem == null) load.file?.let { file -> load.raw?.let { Organizing.write(file, it) } }
+            // Notes read, as any made means: a Trash or settings file that
+            // could not be read does not hold this write (as on the desktop).
+            load.file?.let { file -> load.raw?.let { Organizing.write(file, it) } }
         }
         // Every note a number of its own, as the desktop's repair_note_ids
         // makes it on each load: two notes sharing one were edited as one
