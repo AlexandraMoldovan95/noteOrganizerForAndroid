@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the ninety-three are
+**the code**, or in **the design**. Twenty-one of the ninety-four are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#the-day-the-editor-stayed-on) | code | The audit's twenty-third round: Restore previous tapped on a day brought back a version with that day deleted, and the editor stayed on it; what was typed there was "Saved for this day only" to a day no screen showed and no search found | A guard written for one way a day stops being drawn is a question about every way: ask whether the day is drawn, not why it might not be |
 | [2026-11-01](#two-moves-onto-one-date-and-a-list-that-threw) | code | The audit's nineteenth round: a series holding two moves onto one date -- 0.13.0 after three ordinary taps, or an Undo beside a dead move -- gave History two rows of one key, and the list threw at every unfolding; graded low by the finder, taken as a crash by the session | A grade is about the road a person takes: a crash an upgrade can reach is not low because this build alone makes it rarely |
 | [2026-11-01](#history-and-the-days-it-never-asked-about) | code | The audit's eighteenth round: a series with an end listed in History only the days between its start and end, so a day moved past the end was drawn and in no row, its words found by no search; an endless series skipped every deleted date, a day moved onto one missed the same way | A fix to one reader of a shape is a question to every reader of it |
 | [2026-11-01](#words-that-never-move-on-their-own) | design | The audit's seventeenth round, both apps: round sixteen's moving of words sent home one by one wrote one day's text over another's after a week shifted a day at a time; a day moved onto a deleted date listed nowhere; an Update's copy, as a restore leaves it, replaced with its days' words; a series turned back on as it was read as another for a weekday lit once. The owner chose: words never move on their own, and the audit changed how it runs | Do not move a person's words on their own: drop what hides them, and show the rest |
@@ -108,6 +109,36 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## The day the editor stayed on
+
+**2026-11-01.** The final audit's twenty-third round. A weekly meeting's
+day deleted, then a backup of the notebook from before the delete
+imported with Update: the day was back, and the note kept a copy holding
+it deleted. Open that day, tap "↩ Restore previous": the restored version
+deletes the day again, and the editor stayed on it. What was typed next
+said "Saved for this day only", and went to a day the calendar did not
+draw, the list of days off the schedule did not list, and History's search
+did not find -- on the phone, and on the desktop after a backup.
+
+**The mechanism.** The editor read the note back after the restore and
+left the day only when the note no longer repeated (round four's
+`leaveDayIfNotRepeating`). A note can still repeat and not draw that day:
+deleted, or a rule that no longer gives the date. And `Days.saveDay` asked
+only whether the note repeats, where `deleteDay` and `moveDay` asked
+whether the series draws the day (`givenDay`).
+
+**The fix.** `AppState.leaveDayIfNotDrawn` leaves the day for the whole
+note whenever the series no longer draws it; `Days.saveDay` refuses a day
+it does not draw, as the day's other actions do. The desktop the same:
+`load_note` opens a day only where the series draws one. EditorTypingTest,
+DaysTest; mutants AS415 and AS416.
+
+**The lesson:** a guard written for one way a day stops being drawn is a
+question about every way: ask whether the day is drawn, not why it might
+not be.
 
 ---
 

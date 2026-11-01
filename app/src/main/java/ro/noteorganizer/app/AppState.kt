@@ -399,14 +399,20 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The note open on one of its days, [id], read back after something
      * else rewrote it -- "↩ Restore previous" brought back a copy with no
-     * repeat, an import's update ended it: when it no longer repeats, the
-     * editor leaves the day for the whole note, as [openNote] would open it.
-     * Left on the day, every save went to the day and was refused, "This
-     * note no longer repeats", and "Edit the whole series" saved first.
-     * True when it left.
+     * repeat, or one with that day deleted, an import's update ended it:
+     * when the series no longer draws the day ([Days.givenDay]), the editor
+     * leaves it for the whole note, as [openNote] would open it. Left on a
+     * note that no longer repeats, every save was refused, "This note no
+     * longer repeats"; left on a day the series had deleted, every save went
+     * through, "Saved for this day only", to a day no screen shows and no
+     * search finds (ISSUES_LOG, "The day the editor stayed on"). True when
+     * it left.
      */
-    fun leaveDayIfNotRepeating(id: Int): Boolean {
-        if (openId != id || openDay == null || rawNote(id)?.let { Recurrence.isRecurring(it) } == true) return false
+    fun leaveDayIfNotDrawn(id: Int): Boolean {
+        val day = openDay
+        if (openId != id || day == null) return false
+        val raw = rawNote(id)
+        if (raw != null && Recurrence.isRecurring(raw) && Days.givenDay(raw, day)) return false
         openDay = null
         return true
     }

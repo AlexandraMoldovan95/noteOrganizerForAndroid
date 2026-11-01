@@ -437,6 +437,20 @@ class DaysTest {
     }
 
     @Test
+    fun `a day the series no longer draws is refused, not written where no screen shows it`() {
+        // A deleted day, a date the rule does not give: the words saved there
+        // were on no calendar, in no list of days off the schedule, in no
+        // History search, and the editor said "Saved for this day only".
+        val load = scratch(series)
+        assertTrue(Days.deleteDay(load, 1, "2026-10-12").first is SaveResult.Ok)
+        assertTrue(Days.saveDay(load, 1, "2026-10-12", "Stand-up", "Call the supplier", "", "Work", "") is SaveResult.Failed)
+        assertTrue(Days.saveDay(load, 1, "2026-10-13", "Stand-up", "Call the supplier", "", "Work", "") is SaveResult.Failed)
+        assertFalse(onDisk(load).optJSONObject("overrides")?.toString().orEmpty().contains("supplier"))
+        assertTrue("a day it draws still saves",
+                   Days.saveDay(load, 1, "2026-10-19", "Stand-up", "Call the supplier", "", "Work", "") is SaveResult.Ok)
+    }
+
+    @Test
     fun `deleting one day skips it, and the Undo brings it back with its own edit`() {
         val load = scratch(series)
         Days.saveDay(load, 1, "2026-10-12", "Moved room", "agenda", "", "Work", "")

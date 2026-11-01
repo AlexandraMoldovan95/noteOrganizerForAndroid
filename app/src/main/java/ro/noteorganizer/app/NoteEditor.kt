@@ -997,9 +997,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** The note on disk again, after something other than typing changed it. */
     fun reloadFrom(note: Note) {
-        // Open on a day of a note that no longer repeats: the whole note is
-        // opened in this editor's place ([AppState.leaveDayIfNotRepeating]).
-        if (day != null && state.leaveDayIfNotRepeating(note.id)) return
+        // Open on a day the series no longer draws: the whole note is
+        // opened in this editor's place ([AppState.leaveDayIfNotDrawn]).
+        if (day != null && state.leaveDayIfNotDrawn(note.id)) return
         title = note.title
         body = note.body
         spans = note.formatting

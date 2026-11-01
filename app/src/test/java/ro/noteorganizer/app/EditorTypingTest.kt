@@ -233,6 +233,25 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a restore that brings back the day deleted, from that day, leaves it for the whole note`() {
+        // The editor stayed on the day, which the restored series had
+        // deleted, and every save there said "Saved for this day only" to
+        // a day no screen showed and no search found.
+        val dir = NioFiles.createTempDirectory("editorrestoregone").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Team meeting", "body": "Agenda",
+            "category": "General", "date": "2026-11-03", "recurrence": {"freq": "weekly", "weekdays": [1]},
+            "_prev": {"title": "Team meeting", "body": "Agenda", "exceptions": ["2026-11-17"]}}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-11-17")
+        val model = EditorModel(state, state.note(1), day = state.openDay)
+        assertTrue(Notebook.restorePrevious(state.load, 1) is SaveResult.Ok)
+        model.reloadFrom(state.note(1)!!)
+        assertEquals(null, state.openDay)
+        assertEquals(1, state.openId)
+    }
+
+    @Test
     fun `glued on a styled word, and before one, as the desktop types`() {
         val model = editor("quick fox", """[{"start": 0, "end": 5, "style": "highlight", "value": "#fff3b0"}]""")
         model.type("quickly fox", 7)

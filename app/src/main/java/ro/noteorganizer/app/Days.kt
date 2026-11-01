@@ -211,6 +211,9 @@ object Days {
         var outcome = DaySaved.OWN
         val written = edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
+            // As deleteDay and moveDay ask: a day's words saved where the
+            // series draws no day are on no screen and in no search.
+            if (!givenDay(note, day)) return@edit NOT_A_DAY
             val patch = Normalize.cleanOverride(JSONObject()
                 .put("title", Notebook.pyStrip(title)).put("body", body).put("comments", comments)
                 .put("category", category).put("color", color))
