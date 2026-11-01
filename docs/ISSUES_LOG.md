@@ -137,6 +137,14 @@ its words listed off the schedule. `cleanMoves` now keeps the move whose
 own date the rule gives (`Recurrence.ruleDaysAmong`, asked only of dates
 two moves land on), as the desktop's read does. Mutant AS413.
 
+**The twenty-first round, the owner's call.** A day the note deleted won
+over the copy's words for it, which were dropped (the tenth round's rule).
+But 0.13.0, turned off and on as it was, showed such a day blank, its words
+in the copy alone: deleting a day that looked empty erased words the person
+never saw, at the install. Now the day stays deleted and the copy's words
+are set aside, a note "(earlier text)" (`copyDaysPlaced`, as the desktop's
+`_copy_days_placed`). days_cases.json 99 cases; mutant AS414.
+
 **The lesson:** a grade is about the road a person takes: a crash an
 upgrade can reach is not low because this build alone makes it rarely.
 

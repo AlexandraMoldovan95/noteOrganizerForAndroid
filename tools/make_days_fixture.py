@@ -676,6 +676,11 @@ def main():
     cases.append(("a backup's Update bringing the copy's day words back", held_back,
                   [{"do": "backup", "incoming": dict(copy.deepcopy(base), body="Warm up, from the laptop.",
                                                      overrides={first: {"body": "ROOM 4B"}})}]))
+    # The twenty-first round (the owner's choice): a day the note deleted stays
+    # deleted, but the copy's words for it are set aside -- 0.13.0 turned off
+    # and on as it was showed that day blank, its words in the copy alone.
+    cases.append(("0.12.0's turn-off then on as it was, the blank-looking day deleted, read",
+                  dict(back_on, exceptions=[first]), [{"do": "read"}]))
     # ...and a copy of another series asks for each day where the note holds
     # it now: moved since, a day's words are held, not set aside as earlier.
     cases.append(("on from another start, the copy's day moved since, turned off",

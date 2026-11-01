@@ -2025,17 +2025,28 @@ object Notebook {
         datesIn(previous.opt("exceptions")).filterTo(undrawn) { it !in came }
         class Wanted(val noWords: Boolean, val rank: Int, val at: String, val key: String, val patch: Any)
         val wanted = ArrayList<Wanted>()
+        val gone = ArrayList<String>()
         val theirs = previous.opt("overrides") as? JSONObject ?: JSONObject()
         for (key in theirs.keys().asSequence().toList()) {
             val stray = key in undrawn
             val day = if (stray) key else came[key] ?: key
-            if (day in deleted) continue
+            if (day in deleted) {
+                if (dayHasWords(previous, key)) gone.add(key)
+                continue
+            }
             val at = if (stray) key else moved.opt(day) as? String ?: day
             val rank = if (stray) 2 else if (at == day) 0 else 1
             wanted.add(Wanted(!dayHasWords(previous, key), rank, at, key, theirs.get(key)))
         }
         val taken = HashSet<String>()
         val aside = JSONArray()
+        // A day the note deleted stays deleted, but the copy's words for it
+        // are set aside, not dropped: 0.13.0 showed such a day blank, its
+        // words in the copy alone (the owner's choice, the twenty-first round,
+        // as the desktop's _copy_days_placed).
+        for (key in gone.sorted()) {
+            if (!ownWordsHeld(previous, key, note, mine, key)) aside.put(asideEntry(previous, key, key))
+        }
         for (want in wanted.sortedWith(compareBy<Wanted>({ it.noWords }, { it.rank }, { it.at }))) {
             val look = mine.opt(want.at)?.takeUnless { it == JSONObject.NULL }
             if (want.at in taken || (look != null && !want.noWords && dayHasWords(note, want.at))) {
