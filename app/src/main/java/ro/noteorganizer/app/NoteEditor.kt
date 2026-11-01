@@ -1043,9 +1043,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * is given back rewritten, its cursor where it belongs: the value to
      * show. Null when the text stands as typed. A CR that came in -- a plain
      * paste in CR LF -- is the one line break the desktop's paste puts in
-     * ([Editing.breaksCame]).
+     * ([Editing.breaksCame]). [pasted]: the field's own paste, which no list
+     * rule reads as a word the keyboard corrected.
      */
-    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int): TextFieldValue? {
+    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int, pasted: Boolean = false): TextFieldValue? {
         val broken = Editing.breaksCame(segment.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
         val typed = if (broken == null) given else TextFieldValue(broken.first, TextRange(broken.second))
         val next = Editing.replaceProse(body, segment, typed.text)
@@ -1055,7 +1056,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // day has them: a day keeps its lists, and without them Enter then
         // Backspace at an item's start lost its depth, stored (the lows wave's
         // verification, round 3).
-        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
+        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed), pasted)?.let { done ->
             apply(done)
             if (day != null) props = Paragraphs.listDepths(props, body)
             val at = done.caret ?: return null
@@ -2261,7 +2262,7 @@ private fun ProseField(
             if (next.selection != value.selection) pressedAt = null
             // A keystroke that meant a list operation comes back rewritten;
             // a tap past a line's end, put back on that line.
-            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null)
+            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index, pasted != null) else null)
                 ?: if (pressed != null && next.text == value.text) tapLanding(next, pressed, layout) else next
             following.typed(value.text, shown.text, shown.selection.end)
             model.focus = index

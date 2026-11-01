@@ -73,7 +73,10 @@ object Pasting {
             if (hi > lo) s.copy(start = lo - from, end = hi - from) else null
         }
         val firstLine = (0 until from).count { c[it] == '\n'.code }
-        val lineCount = text.count { it == '\n' } + 1
+        // A copy ending in a line break holds nothing of the line after it:
+        // counted in, that line's looks went onto the line a paste landed
+        // before (the lows wave's verification, round 5).
+        val lineCount = text.count { it == '\n' } + if (text.endsWith("\n")) 0 else 1
         val stored = Paragraphs.extract(body, props)
         val lines = JSONArray()
         // The lines the copy holds, as the desktop picks them. Both readers
@@ -257,15 +260,21 @@ object Pasting {
 
         // The lines: those after the paste move down by the lines it brought,
         // those the selection took away are gone, and the caret's keeps its own.
+        // Words a paste with a line break pushes down keep their line's looks,
+        // as the desktop's text carries its tags: left on the line the paste
+        // began, a line pasted before a nested item flattened it.
         val added = whole.count { it == '\n'.code }
+        val pushed = added > 0 && after.isNotEmpty()
         val lines = HashMap<Int, Paragraphs.Props>()
         for ((n, p) in props) {
             when {
-                n <= firstLine -> lines[n] = p
+                n < firstLine -> lines[n] = p
+                n == firstLine -> if (before.isNotEmpty() || !pushed) lines[n] = p
                 n <= lastLine -> Unit
                 else -> lines[n - (lastLine - firstLine) + added] = p
             }
         }
+        if (pushed) props[lastLine]?.let { lines[firstLine + added] = it }
         val texts = newBody.split("\n")
         val base = firstLine + if (lead.isNotEmpty()) 1 else 0
         for (p in pastedLines) {

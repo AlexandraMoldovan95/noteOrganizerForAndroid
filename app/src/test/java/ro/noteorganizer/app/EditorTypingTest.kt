@@ -31,8 +31,8 @@ class EditorTypingTest {
     }
 
     /** [text] typed so the field holds [now], its caret after the last letter typed, at [caret]. */
-    private fun EditorModel.type(now: String, caret: Int) {
-        typeInto(Editing.segments(body).first(), TextFieldValue(now, TextRange(caret)), 0)
+    private fun EditorModel.type(now: String, caret: Int, pasted: Boolean = false) {
+        typeInto(Editing.segments(body).first(), TextFieldValue(now, TextRange(caret)), 0, pasted)
     }
 
     @Test
@@ -333,9 +333,10 @@ class EditorTypingTest {
         assertEquals(mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1)), day.props)
         assertTrue(day.save())
         assertEquals("follows", day.status)
-        // ...a cut across two nested items pasted straight back, and lines
-        // pasted into a new nested item, keep the depth of the line they
-        // went into, as the desktop's text does (the round-4 medium).
+        // ...a cut across two nested items pasted straight back keeps the depth
+        // of the line it went into, as the desktop's text does (the round-4
+        // medium); lines pasted after an item's end keep its depth too, where
+        // the desktop's take its centring alone.
         val cutFrom = words.indexOf("hotel")
         val cutTo = words.indexOf("ck\n2. Go")
         day.type(words.removeRange(cutFrom, cutTo), cutFrom)
@@ -356,6 +357,49 @@ class EditorTypingTest {
         whole.type(whole.body.substring(0, atStart) + "Note\n" + whole.body.substring(atStart), atStart + "Note\n".length)
         assertEquals(null, whole.props[2])
         assertEquals(Paragraphs.Props(indent = 1), whole.props[3])
+    }
+
+    @Test
+    fun `a list line cut and pasted back on a day is the line again, never a word corrected with Enter`() {
+        // Read as the keyboard's corrected word and its Enter, "• Eggs" and its
+        // break pasted before "• Bread" gave "• • Bread", stored, the day cut
+        // off from its series (the lows wave's verification, round 5).
+        val dir = NioFiles.createTempDirectory("editordaypaste").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Shopping",
+            "body": "Shopping\n• Milk\n• Eggs\n• Bread\nCall mum", "category": "General",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "bullet"}, {"line": 2, "kind": "bullet"},
+                           {"line": 3, "kind": "bullet"}]}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-11-09")
+        val day = EditorModel(state, state.note(1), day = state.openDay)
+        val words = day.body
+        val eggs = words.indexOf("• Eggs")
+        val line = "• Eggs\n"
+        val cut = words.removeRange(eggs, eggs + line.length)
+        // The field's paste, and the keyboard's clipboard, which the app cannot tell from typing.
+        for (pasted in listOf(true, false)) {
+            day.type(cut, eggs)
+            assertEquals(cut, day.body)
+            day.type(words, eggs + line.length, pasted)
+            assertEquals("pasted by the field: $pasted", words, day.body)
+        }
+        assertTrue(day.save())
+        assertEquals("follows", day.status)
+        // ...and before a plain line it makes no list of it.
+        val mum = words.indexOf("Call mum")
+        day.type(words.substring(0, mum) + line + words.substring(mum), mum + line.length)
+        assertTrue(day.body, day.body.endsWith("\n• Eggs\nCall mum"))
+        day.save()
+        // A paste ending in a break at an item's end adds no item: the
+        // desktop's paste puts the words in alone.
+        state.openNote(1)
+        val whole = EditorModel(state, state.note(1))
+        val milkEnd = whole.body.indexOf("\n• Eggs")
+        whole.type(whole.body.substring(0, milkEnd) + " and eggs\n" + whole.body.substring(milkEnd),
+                   milkEnd + " and eggs\n".length, pasted = true)
+        assertTrue(whole.body, whole.body.startsWith("Shopping\n• Milk and eggs\n\n• Eggs"))
     }
 
     @Test

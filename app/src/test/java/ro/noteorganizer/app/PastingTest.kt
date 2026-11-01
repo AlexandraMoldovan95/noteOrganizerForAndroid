@@ -280,7 +280,10 @@ class PastingTest {
         val props = mapOf(0 to Paragraphs.Props(align = "center"), 1 to Paragraphs.Props(indent = 2))
         val done = Pasting.insert("top\nnext", emptyList(), props, 1, 1, "a\nb\nc")
         assertEquals("ta\nb\ncop\nnext", done.body)
-        assertEquals(mapOf(0 to Paragraphs.Props(align = "center"), 3 to Paragraphs.Props(indent = 2)), done.props)
+        // ...and so do the caret's line's words the paste pushed down, as the
+        // desktop's text carries its tags with them.
+        assertEquals(mapOf(0 to Paragraphs.Props(align = "center"), 2 to Paragraphs.Props(align = "center"),
+                           3 to Paragraphs.Props(indent = 2)), done.props)
     }
 
     @Test
@@ -310,6 +313,44 @@ class PastingTest {
         val copy = Pasting.copyOut("indented line", emptyList(), props, 0, 8)!!
         assertEquals(listOf(Exporting.Paragraph(0, null, 2, null)), copy.paragraphs)
         assertEquals(emptyList<Exporting.Paragraph>(), Pasting.fromHtml(copy.html, copy)!!.paragraphs)
+    }
+
+    /** The app's own copy of [from, to) of [body], pasted at [at] of [into]. */
+    private fun movedBy(body: String, props: Map<Int, Paragraphs.Props>, from: Int, to: Int,
+                        into: String, intoProps: Map<Int, Paragraphs.Props>, at: Int): Pasting.Inserted {
+        val copy = Pasting.copyOut(body, emptyList(), props, from, to)!!
+        val read = Pasting.fromHtml(copy.html, copy)!!
+        return Pasting.insert(into, emptyList(), intoProps, at, at, read.text, read.formatting, read.paragraphs)
+    }
+
+    @Test
+    fun `a whole line cut and pasted before another carries no looks of the line after it, and the other keeps its own`() {
+        // Counted in, the line after a copy ending in a break went with it: a
+        // line moved from above a centred one centred the line it was pasted
+        // before (the lows wave's verification, round 5).
+        val week = "Call the bank\nTuesday\nDentist at 10\nBuy stamps"
+        val centred = mapOf(1 to Paragraphs.Props(align = "center"))
+        assertEquals(emptyList<Exporting.Paragraph>(), Pasting.copyOut(week, emptyList(), centred, 0, 14)!!.paragraphs)
+        val cut = "Tuesday\nDentist at 10\nBuy stamps"
+        val moved = movedBy(week, centred, 0, 14, cut, mapOf(0 to Paragraphs.Props(align = "center")), cut.indexOf("Dentist"))
+        assertEquals("Tuesday\nCall the bank\nDentist at 10\nBuy stamps", moved.body)
+        assertEquals(mapOf(0 to Paragraphs.Props(align = "center")), moved.props)
+        // Pasted straight back, before the centred line: that line's words go
+        // down with their centring, the line pasted takes none of it.
+        val back0 = movedBy(week, centred, 0, 14, cut, mapOf(0 to Paragraphs.Props(align = "center")), 0)
+        assertEquals(week, back0.body)
+        assertEquals(centred, back0.props)
+        // ...and a nested item put before another keeps both on their level:
+        // the line pasted before keeps its own depth, which stayed on the line
+        // the paste began while the words went down.
+        val agenda = "Agenda\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go"
+        val nested = mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1))
+        val without = "Agenda\n1. Plan the trip\n1. Book hotel\n2. Go"
+        val pack = agenda.indexOf("2. Pack")
+        val back = movedBy(agenda, nested, pack, pack + "2. Pack\n".length,
+                           without, mapOf(2 to Paragraphs.Props(indent = 1)), without.indexOf("1. Book hotel"))
+        assertEquals("Agenda\n1. Plan the trip\n1. Pack\n2. Book hotel\n2. Go", back.body)
+        assertEquals(nested, back.props)
     }
 
     @Test

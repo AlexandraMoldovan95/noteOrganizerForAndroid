@@ -533,9 +533,10 @@ object Paragraphs {
      * from [old] -- the keyboard's own edit is the first of them, or is
      * taken back -- so styles move from the text before the keystroke.
      * Null when the edit is not one of these, and the text stays as typed.
+     * [pasted]: the edit is a paste, never a word the keyboard corrected.
      */
-    fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
-        corrected(old, new, props, caret)?.let { return it }
+    fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int, pasted: Boolean = false): Done? {
+        if (!pasted) corrected(old, new, props, caret)?.let { return it }
         val (done, from) = typed(old, new, props, caret) ?: return null
         return done.copy(caret = done.movePoint(from))
     }
@@ -551,6 +552,10 @@ object Paragraphs {
         val a = old.codePoints().toArray()
         val b = new.codePoints().toArray()
         if (caret < 1 || caret > b.size || b[caret - 1] != '\n'.code || oneMore(a, b, caret - 1)) return null
+        // Lines put in before a line -- a paste the keyboard's clipboard made --
+        // are no word corrected: read as one, "• Eggs" pasted back before
+        // "• Bread" gave "• • Bread" (the lows wave's verification, round 5).
+        if (linesPutBefore(a, b, caret)) return null
         val m = b.copyOfRange(0, caret - 1) + b.copyOfRange(caret, b.size)
         val mid = String(m, 0, m.size)
         if (mid == old || mid.count { it == '\n' } != old.count { it == '\n' }) return null
@@ -563,6 +568,15 @@ object Paragraphs {
         while (tail < a.size - head && tail < m.size - head && a[a.size - 1 - tail] == m[m.size - 1 - tail]) tail++
         val word = Edit(head, a.size - head - tail, m.size - head - tail)
         return enter.copy(steps = listOf(listOf(word)) + enter.steps)
+    }
+
+    /** Whether [new] is [old] with text put in at a line's start, ending at [caret]. */
+    private fun linesPutBefore(old: IntArray, new: IntArray, caret: Int): Boolean {
+        val start = caret - (new.size - old.size)
+        if (start !in 0 until caret || (start > 0 && old[start - 1] != '\n'.code)) return false
+        for (i in 0 until start) if (old[i] != new[i]) return false
+        for (i in start until old.size) if (old[i] != new[i + caret - start]) return false
+        return true
     }
 
     /** Whether [longer] is [shorter] with one code point put in at [at]. */
