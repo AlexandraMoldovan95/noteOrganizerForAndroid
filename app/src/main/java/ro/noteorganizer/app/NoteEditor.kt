@@ -1050,13 +1050,17 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val typed = if (broken == null) given else TextFieldValue(broken.first, TextRange(broken.second))
         val next = Editing.replaceProse(body, segment, typed.text)
         if (next == body) return if (broken == null) null else typed
-        if (day == null) {
-            Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
-                apply(done)
-                val at = done.caret ?: return null
-                caret = at
-                return fieldValue(index, at)
-            }
+        // The list rules -- Enter continues a list, the marker's last character
+        // climbs out a level, numbers follow -- on a day too, as the desktop's
+        // day has them: a day keeps its lists, and without them Enter then
+        // Backspace at an item's start lost its depth, stored (the lows wave's
+        // verification, round 3).
+        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
+            apply(done)
+            if (day != null) props = Paragraphs.listDepths(props, body)
+            val at = done.caret ?: return null
+            caret = at
+            return fieldValue(index, at)
         }
         // A day's own text is plain: once typed in, it carries no styling.
         // Otherwise the letters take styles as the desktop's text box gives

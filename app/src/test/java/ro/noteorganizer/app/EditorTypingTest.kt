@@ -310,6 +310,32 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `on a day, Enter then Backspace at a nested item's start keep its depth, and the day follows the series again`() {
+        // The list rules ran on the whole note only: on a day the item lost
+        // its depth, and since a day keeps its lists, that was stored and the
+        // day cut off from the series (the lows wave's verification, round 3).
+        val dir = NioFiles.createTempDirectory("editordayenter").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Agenda",
+            "body": "Agenda\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go", "category": "General",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1},
+                           {"line": 3, "kind": "number", "indent": 1}, {"line": 4, "kind": "number"}]}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-11-09")
+        val day = EditorModel(state, state.note(1), day = state.openDay)
+        val words = day.body
+        val start = "Agenda\n1. Plan the trip\n".length
+        day.type(words.substring(0, start) + "\n" + words.substring(start), start + 1)
+        assertEquals(words.substring(0, start) + "\n" + words.substring(start), day.body)
+        day.type(words, start)
+        assertEquals(words, day.body)
+        assertEquals(mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1)), day.props)
+        assertTrue(day.save())
+        assertEquals("follows", day.status)
+    }
+
+    @Test
     fun `a day the series does not draw opens the whole note, asked after the open note is saved`() {
         // Opened on it, every save was refused, and every way out that saves
         // first: only "Leave anyway" was left (the twenty-fourth round).
