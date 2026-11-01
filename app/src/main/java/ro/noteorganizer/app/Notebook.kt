@@ -2297,7 +2297,7 @@ object Notebook {
         // date, left by 0.13.0 or an Undo, gave History two rows of one key,
         // and the list threw (the nineteenth round).
         (raw.opt("moved") as? JSONObject)?.let { moved ->
-            val clean = Normalize.cleanMoves(moved, raw.opt("exceptions") as? JSONArray ?: JSONArray())
+            val clean = Normalize.cleanMoves(moved, raw.opt("exceptions") as? JSONArray ?: JSONArray(), raw)
             if (clean.length() != moved.length()) raw.put("moved", clean)
         }
         Normalize.dropHiddenMoves(raw)

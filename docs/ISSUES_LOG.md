@@ -129,6 +129,14 @@ moved date once, for the move the calendar draws; `Days.undoDeleteDay`
 drops a dead move onto the date, as `Recurrence.moveDay` does. The desktop
 the same, where it drew a double row. DaysTest; mutants AS410 to AS412.
 
+**The twentieth round on this fix.** Of two moves onto one date,
+`cleanMoves` kept the one whose own date sorts first -- often the dead one
+-- and this round's fix carried that into the raw notes the calendar reads:
+a meeting moved under 0.13.0 jumped back to its own date at the install,
+its words listed off the schedule. `cleanMoves` now keeps the move whose
+own date the rule gives (`Recurrence.ruleDaysAmong`, asked only of dates
+two moves land on), as the desktop's read does. Mutant AS413.
+
 **The lesson:** a grade is about the road a person takes: a crash an
 upgrade can reach is not low because this build alone makes it rarely.
 

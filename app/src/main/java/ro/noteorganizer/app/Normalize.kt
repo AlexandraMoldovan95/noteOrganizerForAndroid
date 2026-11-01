@@ -93,7 +93,7 @@ object Normalize {
         out.put("paragraphs", Templates.paragraphsJson(
             Exporting.normalizeParagraphs(raw.opt("paragraphs"), body.split("\n").size)))
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
-        out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
+        out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions"), out))
         out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
         dropHiddenMoves(out)
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
@@ -215,12 +215,21 @@ object Normalize {
      * days on one date, and no move of a deleted day. Capped as a rule's
      * days are: each is worked out on every calendar draw.
      */
-    internal fun cleanMoves(moved: JSONObject, exceptions: JSONArray): JSONObject {
+    internal fun cleanMoves(moved: JSONObject, exceptions: JSONArray, note: JSONObject): JSONObject {
         val deleted = (0 until exceptions.length()).mapNotNull { exceptions.opt(it) as? String }.toSet()
         val out = JSONObject()
         val heldOn = HashSet<String>()
-        val pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
-            .sortedWith(compareBy({ it.first }, { it.second }))
+        var pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
+            .sortedWith(compareBy({ it.first }, { it.second })).toList()
+        // Of two moves onto one date, the one the calendar draws -- its own
+        // date the rule's -- is kept: by date alone the read kept a dead one,
+        // and a meeting moved under 0.13.0 jumped back at the upgrade (the
+        // twentieth round, the desktop's normalize_note).
+        val twins = pairs.groupingBy { it.second }.eachCount().filter { it.value > 1 }.keys
+        if (twins.isNotEmpty() && Recurrence.isRecurring(note)) {
+            val live = Recurrence.ruleDaysAmong(note, pairs.filter { it.second in twins }.map { it.first })
+            pairs = pairs.sortedWith(compareBy({ !(it.second in twins && it.first in live) }, { it.first }, { it.second }))
+        }
         for ((orig, new) in pairs) {
             if (Recurrence.parseDate(orig) != null && Recurrence.parseDate(new) != null && orig != new &&
                 new !in heldOn && orig !in deleted) {

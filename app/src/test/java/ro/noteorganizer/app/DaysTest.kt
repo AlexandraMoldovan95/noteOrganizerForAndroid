@@ -574,8 +574,10 @@ class DaysTest {
         val load = scratch("""[{"id": 1, "uid": "m", "title": "Meeting", "body": "x", "date": "2026-11-02",
             "recurrence": {"freq": "weekly", "interval": 2},
             "moved": {"2026-12-07": "2026-12-10", "2026-12-14": "2026-12-10"}}]""")
+        // The one the calendar draws stays: 14 Dec is the rule's, 7 Dec no
+        // longer (the twentieth round: by date alone, the dead one was kept).
         val moved = load.raw!!.getJSONObject(0).getJSONObject("moved")
-        assertEquals(1, moved.length())
+        assertEquals("""{"2026-12-14":"2026-12-10"}""", moved.toString())
         val days = Recurrence.history(listOf(load.raw!!.getJSONObject(0)))
             .filterIsInstance<Recurrence.HistoryEntry.Series>().flatMap { s -> s.days.map { it.date } }
         assertEquals(days.distinct(), days)
