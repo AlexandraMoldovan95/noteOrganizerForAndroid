@@ -73,10 +73,12 @@ object Pasting {
             if (hi > lo) s.copy(start = lo - from, end = hi - from) else null
         }
         val firstLine = (0 until from).count { c[it] == '\n'.code }
-        // A copy ending in a line break holds nothing of the line after it:
-        // counted in, that line's looks went onto the line a paste landed
-        // before (the lows wave's verification, round 5).
+        // A copy ending in a line break holds nothing of the line after it,
+        // nor one begun at a line's end of that line: counted in, its looks
+        // went onto the line a paste landed in (the lows wave's verification,
+        // rounds 5 and 6).
         val lineCount = text.count { it == '\n' } + if (text.endsWith("\n")) 0 else 1
+        val skipped = if (text.startsWith("\n") && from > 0 && c[from - 1] != '\n'.code) 1 else 0
         val stored = Paragraphs.extract(body, props)
         val lines = JSONArray()
         // The lines the copy holds, as the desktop picks them. Both readers
@@ -84,7 +86,7 @@ object Pasting {
         for (i in 0 until stored.length()) {
             val p = stored.getJSONObject(i)
             val n = p.getInt("line") - firstLine
-            if (n in 0 until lineCount) lines.put(JSONObject(p.toString()).put("line", n))
+            if (n in skipped until lineCount) lines.put(JSONObject(p.toString()).put("line", n))
         }
         val html = Exporting.noteToHtml(text, Templates.spansJson(clipped), lines, inlineTables = true)
         return OwnCopy(text, clipped, Exporting.normalizeParagraphs(lines, lineCount), html)
@@ -204,7 +206,7 @@ object Pasting {
                 val n = starts.indexOfLast { it <= x }
                 return Paragraphs.Pos(n, x - starts[n])
             }
-            Paragraphs.deletionRange(body.split("\n"), pos(a), pos(b), typing = true)?.let { (s, e) ->
+            Paragraphs.deletionRange(body.split("\n"), pos(a), pos(b), typing = true, pasted = text)?.let { (s, e) ->
                 a = starts[s.line] + s.column
                 b = starts[e.line] + e.column
             }

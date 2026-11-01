@@ -354,6 +354,38 @@ class PastingTest {
     }
 
     @Test
+    fun `a copy begun at a line's end carries none of that line's looks, an empty line copied whole keeps its own`() {
+        // The other end of round 5's: copied from a centred title's end, the
+        // next line centred the line it was pasted into (round 6).
+        val body = "Title\nMonday: gym"
+        val centred = mapOf(0 to Paragraphs.Props(align = "center"))
+        val copy = Pasting.copyOut(body, emptyList(), centred, 5, body.length)!!
+        assertEquals(emptyList<Exporting.Paragraph>(), copy.paragraphs)
+        val read = Pasting.fromHtml(copy.html, copy)!!
+        val done = Pasting.insert("Tuesday", emptyList(), emptyMap(), 7, 7, read.text, read.formatting, read.paragraphs)
+        assertEquals("Tuesday\nMonday: gym", done.body)
+        assertEquals(emptyMap<Int, Paragraphs.Props>(), done.props)
+        assertEquals(listOf(Exporting.Paragraph(0, null, 0, "center")),
+                     Pasting.copyOut("x\n\ny", emptyList(), mapOf(1 to Paragraphs.Props(align = "center")), 2, 4)!!.paragraphs)
+    }
+
+    @Test
+    fun `a whole item pasted over another takes its place whole, its marker and its break`() {
+        // Kept as a letter typed over the selection keeps them, the paste read
+        // "2. 3. Bread" (round 6).
+        val list = "Shopping\n1. Milk\n2. Eggs\n3. Bread\nCall mum"
+        val eggs = list.indexOf("2. Eggs")
+        val bread = list.indexOf("3. Bread")
+        for (pasted in listOf("3. Bread\n", "3. Bread")) {
+            val done = Pasting.insert(list, emptyList(), emptyMap(), eggs, bread, pasted)
+            assertEquals(pasted, "Shopping\n1. Milk\n2. Bread\n3. Bread\nCall mum", done.body)
+        }
+        // A letter typed over the same selection still keeps the item's marker.
+        assertEquals(Paragraphs.Pos(2, 3) to Paragraphs.Pos(2, 7),
+                     Paragraphs.deletionRange(list.split("\n"), Paragraphs.Pos(2, 0), Paragraphs.Pos(3, 0), typing = true))
+    }
+
+    @Test
     fun `a page with no formatting at all - a PDF - has its column rejoined`() {
         // Each line broken because the next word would not have fitted.
         val column = "The quick brown fox jumps over the lazy dog and then\n" +

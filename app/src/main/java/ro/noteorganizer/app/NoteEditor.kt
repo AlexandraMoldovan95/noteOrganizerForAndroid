@@ -1043,10 +1043,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * is given back rewritten, its cursor where it belongs: the value to
      * show. Null when the text stands as typed. A CR that came in -- a plain
      * paste in CR LF -- is the one line break the desktop's paste puts in
-     * ([Editing.breaksCame]). [pasted]: the field's own paste, which no list
-     * rule reads as a word the keyboard corrected.
+     * ([Editing.breaksCame]).
      */
-    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int, pasted: Boolean = false): TextFieldValue? {
+    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int): TextFieldValue? {
         val broken = Editing.breaksCame(segment.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
         val typed = if (broken == null) given else TextFieldValue(broken.first, TextRange(broken.second))
         val next = Editing.replaceProse(body, segment, typed.text)
@@ -1056,7 +1055,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // day has them: a day keeps its lists, and without them Enter then
         // Backspace at an item's start lost its depth, stored (the lows wave's
         // verification, round 3).
-        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed), pasted)?.let { done ->
+        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
             apply(done)
             if (day != null) props = Paragraphs.listDepths(props, body)
             val at = done.caret ?: return null
@@ -1359,33 +1358,38 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * A copy or a cut of [plain] from a field: when it is the selection
      * noted, the HTML to put beside it on the clipboard -- so it arrives
      * elsewhere formatted -- and the copy kept for a paste back into a
-     * note. Null lets the plain copy stand: a day's own text is plain.
+     * note. A day's own text is plain: its copy carries its lists' depth
+     * alone, as the desktop's day copies it -- cut plain, a nested item
+     * pasted back went to the margin (the lows wave's verification, round 6).
      */
     fun copyOut(plain: String): String? {
-        if (day != null) return null
         freshenPick()
         val p = picked ?: return null
-        val copy = Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to) ?: return null
+        val copy = (if (day != null) Pasting.copyOut(p.body, emptyList(), Paragraphs.listDepths(p.props, p.body), p.from, p.to)
+                    else Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to)) ?: return null
         if (copy.text != plain) return null
         state.ownCopy = copy
         return copy.html
     }
 
     /**
-     * A paste the field was about to make, made here instead: HTML with its
-     * formatting, table rows on lines of their own, or words holding a
-     * table whose separator spells widths ([Pasting.foreignPlain]). False
-     * lets the field's own plain paste stand -- ordinary text, or a day's
-     * own text with no such table, which is plain.
+     * A paste the field was about to make, made here instead, as the
+     * desktop's paste makes it: the lists it lands in renumbered and given
+     * their depth ([Pasting.insert]). HTML with its formatting, table rows
+     * on lines of their own, words with a table's separator at markdown's
+     * minimum ([Pasting.foreignPlain]). Left to the field, a list line cut
+     * and pasted back read 1, 2, 2, and a nested one went to the margin
+     * (the lows wave's verification, round 6). True: the paste is made.
      */
     fun paste(segment: Editing.Segment, old: TextFieldValue, html: String?, plain: String): Boolean {
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
         if (day != null) {
-            // A day's own text takes the words only -- but a table in them
-            // still comes without the widths its separator's dashes spell.
-            val text = Pasting.foreignPlain(plain, state.ownCopy)
-            if (text == plain.replace("\r\n", "\n").replace("\r", "\n")) return false
-            land(Pasting.insert(body, emptyList(), Paragraphs.listDepths(props, body), from, to, text))
+            // A day's own text takes the words, and of its own copy the
+            // lists' depth -- never styles or centring.
+            val mine = state.ownCopy?.takeIf { !html.isNullOrEmpty() && html == it.html }
+            val text = mine?.text ?: Pasting.foreignPlain(plain, state.ownCopy)
+            val lines = mine?.paragraphs.orEmpty().filter { it.kind != null }.map { it.copy(align = null) }
+            land(Pasting.insert(body, emptyList(), Paragraphs.listDepths(props, body), from, to, text, emptyList(), lines))
             return true
         }
         val read = if (html.isNullOrEmpty()) null else Pasting.fromHtml(html, state.ownCopy)
@@ -1393,15 +1397,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             Pasting.insert(body, spans, props, from, to, read.text, read.formatting, read.paragraphs)
         } else {
             // Words from elsewhere: a table's separator at markdown's minimum.
-            // A table in the middle of the text, which pipeRows leaves to the
-            // field, is pasted here too, or its widths would come with it.
             val text = Pasting.foreignPlain(plain, state.ownCopy)
-            val rows = Pasting.pipeRows(text)
-            when {
-                rows != null -> Pasting.insert(body, spans, props, from, to, rows)
-                text != plain.replace("\r\n", "\n").replace("\r", "\n") -> Pasting.insert(body, spans, props, from, to, text)
-                else -> return false
-            }
+            Pasting.insert(body, spans, props, from, to, Pasting.pipeRows(text) ?: text)
         }
         land(done)
         if (read?.textCut == true) {
@@ -2262,7 +2259,7 @@ private fun ProseField(
             if (next.selection != value.selection) pressedAt = null
             // A keystroke that meant a list operation comes back rewritten;
             // a tap past a line's end, put back on that line.
-            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index, pasted != null) else null)
+            val shown = (if (next.text != segment.text) model.typeInto(segment, next, index) else null)
                 ?: if (pressed != null && next.text == value.text) tapLanding(next, pressed, layout) else next
             following.typed(value.text, shown.text, shown.selection.end)
             model.focus = index

@@ -107,10 +107,14 @@ class EditorCopyTest {
     }
 
     @Test
-    fun `words with no such table are still the field's own paste`() {
+    fun `words with no table are the editor's paste too, which renumbers the list it lands in`() {
+        // Left to the field, a numbered line pasted into a list kept its
+        // number (the lows wave's verification, round 6).
         val (_, model) = editor()
-        assertTrue(!model.pasteAtEnd(" and Spike"))
-        assertTrue(!model.pasteAtEnd("\nTom\nJerry"))
+        assertTrue(model.pasteAtEnd(" and Spike"))
+        assertEquals("$words and Spike", model.body)
+        assertTrue(model.pasteAtEnd("\n1. Tom\n1. Jerry"))
+        assertEquals("$words and Spike\n1. Tom\n2. Jerry", model.body)
     }
 
     @Test
@@ -140,6 +144,9 @@ class EditorCopyTest {
         val day = EditorModel(state, state.note(1), day = "2026-10-12")
         assertTrue(day.pasteAtEnd("\n$markdown"))
         assertEquals(listOf(listOf<Int?>(null, null)), widths(day.body))
-        assertTrue("and words alone are still the field's", !day.pasteAtEnd(" and arms"))
+        // ...and words alone are the editor's paste too, plain as a day's text is.
+        assertTrue(day.pasteAtEnd(" and arms"))
+        assertTrue(day.body, day.body.endsWith(" and arms"))
+        assertEquals(emptyList<FormatSpan>(), day.spans)
     }
 }

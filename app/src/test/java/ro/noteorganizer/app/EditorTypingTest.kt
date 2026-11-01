@@ -31,8 +31,23 @@ class EditorTypingTest {
     }
 
     /** [text] typed so the field holds [now], its caret after the last letter typed, at [caret]. */
-    private fun EditorModel.type(now: String, caret: Int, pasted: Boolean = false) {
-        typeInto(Editing.segments(body).first(), TextFieldValue(now, TextRange(caret)), 0, pasted)
+    private fun EditorModel.type(now: String, caret: Int) {
+        typeInto(Editing.segments(body).first(), TextFieldValue(now, TextRange(caret)), 0)
+    }
+
+    /** The editor's paste of [plain] (and [html]) over [from, to): what the menu's Paste does. */
+    private fun EditorModel.pasteAt(from: Int, plain: String, html: String? = null, to: Int = from): Boolean {
+        val segment = Editing.segments(body).first()
+        return paste(segment, TextFieldValue(segment.text, TextRange(from, to)), html, plain)
+    }
+
+    /** The menu's Cut of [from, to): the copy it makes, then the words taken out. */
+    private fun EditorModel.cutAt(from: Int, to: Int): String? {
+        val segment = Editing.segments(body).first()
+        pick(segment, TextFieldValue(segment.text, TextRange(from, to)))
+        val html = copyOut(body.substring(from, to))
+        type(body.removeRange(from, to), from)
+        return html
     }
 
     @Test
@@ -378,12 +393,12 @@ class EditorTypingTest {
         val eggs = words.indexOf("• Eggs")
         val line = "• Eggs\n"
         val cut = words.removeRange(eggs, eggs + line.length)
-        // The field's paste, and the keyboard's clipboard, which the app cannot tell from typing.
-        for (pasted in listOf(true, false)) {
+        // The editor's paste, and the keyboard's clipboard, which the app cannot tell from typing.
+        for (byEditor in listOf(true, false)) {
             day.type(cut, eggs)
             assertEquals(cut, day.body)
-            day.type(words, eggs + line.length, pasted)
-            assertEquals("pasted by the field: $pasted", words, day.body)
+            if (byEditor) assertTrue(day.pasteAt(eggs, line)) else day.type(words, eggs + line.length)
+            assertEquals("pasted by the editor: $byEditor", words, day.body)
         }
         assertTrue(day.save())
         assertEquals("follows", day.status)
@@ -396,10 +411,42 @@ class EditorTypingTest {
         // desktop's paste puts the words in alone.
         state.openNote(1)
         val whole = EditorModel(state, state.note(1))
-        val milkEnd = whole.body.indexOf("\n• Eggs")
-        whole.type(whole.body.substring(0, milkEnd) + " and eggs\n" + whole.body.substring(milkEnd),
-                   milkEnd + " and eggs\n".length, pasted = true)
+        assertTrue(whole.pasteAt(whole.body.indexOf("\n• Eggs"), " and eggs\n"))
         assertTrue(whole.body, whole.body.startsWith("Shopping\n• Milk and eggs\n\n• Eggs"))
+    }
+
+    @Test
+    fun `on a day a numbered item cut and pasted back is renumbered, and a nested one keeps its level by its copy`() {
+        // Left to the field, the paste read 1, 2, 2 and a nested item went to
+        // the margin, the day stored apart from its series: a day's copy was
+        // plain (the lows wave's verification, round 6).
+        val dir = NioFiles.createTempDirectory("editordaycut").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Trip",
+            "body": "Trip\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go", "category": "General",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1},
+                           {"line": 3, "kind": "number", "indent": 1}, {"line": 4, "kind": "number"}]}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-11-09")
+        val day = EditorModel(state, state.note(1), day = state.openDay)
+        val words = day.body
+        val nested = mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1))
+        val book = words.indexOf("1. Book hotel")
+        val bookLine = words.substring(book, words.indexOf("2. Pack"))
+        val html = day.cutAt(book, book + bookLine.length)
+        assertTrue(day.pasteAt(book, bookLine, html))
+        assertEquals(words, day.body)
+        assertEquals(nested, day.props)
+        val plan = words.indexOf("1. Plan the trip")
+        val planLine = words.substring(plan, book)
+        val planHtml = day.cutAt(plan, book)
+        assertTrue(day.body, day.body.endsWith("\n1. Go"))
+        assertTrue(day.pasteAt(plan, planLine, planHtml))
+        assertEquals(words, day.body)
+        assertEquals(nested, day.props)
+        assertTrue(day.save())
+        assertEquals("follows", day.status)
     }
 
     @Test

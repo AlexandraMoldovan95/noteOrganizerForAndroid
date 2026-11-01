@@ -533,10 +533,9 @@ object Paragraphs {
      * from [old] -- the keyboard's own edit is the first of them, or is
      * taken back -- so styles move from the text before the keystroke.
      * Null when the edit is not one of these, and the text stays as typed.
-     * [pasted]: the edit is a paste, never a word the keyboard corrected.
      */
-    fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int, pasted: Boolean = false): Done? {
-        if (!pasted) corrected(old, new, props, caret)?.let { return it }
+    fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
+        corrected(old, new, props, caret)?.let { return it }
         val (done, from) = typed(old, new, props, caret) ?: return null
         return done.copy(caret = done.movePoint(from))
     }
@@ -676,9 +675,11 @@ object Paragraphs {
      * that item; a deletion from just after a marker keeps it, one into a
      * marker takes all of it, and one from a line's very start takes the
      * marker it chose. [start] and [end] are what the key would delete;
-     * [typing]: the selection is being typed over.
+     * [typing]: the selection is being typed over -- with [pasted], the
+     * text a paste puts in.
      */
-    fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false): Pair<Pos, Pos>? {
+    fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false,
+                      pasted: String? = null): Pair<Pos, Pos>? {
         val (l1, c1) = start
         val (l2, c2) = end
         val first = parseListMarker(lines[l1])
@@ -694,9 +695,17 @@ object Paragraphs {
             (l1 + 1 until l2).none { parseListMarker(lines[it]).kind != null }) return null
         val keepsWords = c1 > (if (first.kind != null) m1 else 0)
         if (last.kind != null && c2 <= m2) {
-            // The end is at the start of an item, before its words.
-            if (keepsWords) return start to Pos(l2, m2)
-            if (typing) return Pos(l1, if (first.kind != null) m1 else 0) to Pos(l2 - 1, cpLength(lines[l2 - 1]))
+            // The end is at the start of an item, before its words. A paste
+            // bringing its own line break, or its own marker, takes the place
+            // of the one it covers: kept, a whole item pasted over another
+            // read "2. 3. Bread" (the lows wave's verification, round 6).
+            val upto = if (pasted?.endsWith("\n") == true) Pos(l2, 0) else null
+            if (keepsWords) return start to (upto ?: Pos(l2, m2))
+            if (typing) {
+                val own = pasted != null && parseListMarker(pasted.substringBefore('\n')).kind != null
+                return Pos(l1, if (first.kind != null && !own) m1 else 0) to
+                    (upto ?: Pos(l2 - 1, cpLength(lines[l2 - 1])))
+            }
             return Pos(l1, 0) to Pos(l2, 0)
         }
         // From just after (or inside) a marker into words: the item keeps it.
