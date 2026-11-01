@@ -347,6 +347,15 @@ class EditorTypingTest {
         val pasted = words.substring(0, endOfPack) + "\n2. Passports\nTickets" + words.substring(endOfPack)
         day.type(pasted, endOfPack + "\n2. Passports\nTickets".length)
         assertEquals(Paragraphs.Props(indent = 1), day.props[4])
+        // ...but a line put in at a line's very start moves that line whole, its
+        // own depth kept, the new one not given it (the desktop's tags): on the
+        // whole note, where a plain line can carry an indent.
+        state.openNote(1)
+        val whole = EditorModel(state, state.note(1))
+        val atStart = whole.body.indexOf("1. Book hotel")
+        whole.type(whole.body.substring(0, atStart) + "Note\n" + whole.body.substring(atStart), atStart + "Note\n".length)
+        assertEquals(null, whole.props[2])
+        assertEquals(Paragraphs.Props(indent = 1), whole.props[3])
     }
 
     @Test
