@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-one of the eighty-nine are
+**the code**, or in **the design**. Twenty-one of the ninety are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-01](#a-home-the-rule-no-longer-gives-and-a-move-the-calendar-never-saw-go) | code | The audit's sixteenth round, both apps: round fifteen's movesHome sent a day "home" to a date the rule no longer gives, its words off the calendar, and walked a chain once a link; the phone's calendar read notes no read had sent home, and Restore previous sent none, so a delete there took another day; a copy's day the note had moved since set aside as words it still held; the start's notes made again at every launch | A rule that moves something "back" must ask whether "back" still exists, and run where the reader reads |
 | [2026-11-01](#four-ways-of-adding-and-a-note-of-its-own) | design | The audit's fifteenth round, both apps: another series' days kept in a copy the next turn-off, big delete or Update replaced; a moved line read back as added text; a day moved onto a date a new rule gives drawn nowhere; a day only coloured read as words by a title's space. The owner chose the simpler rule: the copy's words for a day holding words of its own become a note of their own | When each fix of a merging rule leaves a new case, stop merging: keep both where the person sees them |
 | [2026-10-31](#a-day-cut-off-by-a-tables-line-the-old-text-again-a-cells-bold-dropped) | code | The audit's fourteenth round: round thirteen's line under a day's table, without the series' too, cut a day off from its series and read a colour as words; a day corrected in its middle got its old text again; a letter typed in a padded cell dropped its bold | A rule written into one side of a comparison is written into both; to keep what is lacking, compare what both hold, in order |
 | [2026-10-31](#a-days-words-added-twice-and-slowly-a-tables-line-the-phone-never-wrote) | code | The audit's thirteenth round: round twelve's added words came twice where a day had grown from the copy's text, and were read off a copy of the whole note for each day -- a year of days froze the turn-on; a day ending in a table typed on the phone lacked the line under it, and an import read it as changed; a column's width spread a cell's colour | A rule that adds asks what is already there, as lines; a cost per item never carries the whole |
@@ -104,6 +105,55 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A home the rule no longer gives, and a move the calendar never saw go
+
+**2026-11-01.** The final audit's sixteenth round, small, on round
+fifteen's rule, found the same two on both apps, and two of the phone's own.
+
+- **Words sent off the calendar.** A weekly day moved onto a Thursday,
+  the series then moved to Thursdays: `movesHome` sent the day "home" to
+  its Monday, a date the rule no longer gives, its words now a day off the
+  schedule.
+- **A chain walked once a link.** Each pass sent one link of a chain of
+  moves home; a crafted backup froze the desktop's window for 8.5 s.
+- **The phone's calendar read what no read had sent home.** `movesHome`
+  ran in `Normalize`, but the calendar and every day's action read the raw
+  notes; and Restore previous, on both apps, sent no day home. A day moved
+  under a newer rule stayed on a date the older rule gives, drawn nowhere,
+  and Delete this day there deleted the hidden day instead.
+- **Smaller.** A copy of another series asked for each day by its date
+  alone, so a day the note had moved since was set aside as earlier text
+  it still held. The start's notes were written only by the next save, so
+  each launch made them again under new identities. `dayMatchesSeries`
+  and the day's save trimmed a title with Kotlin's `trim`, which keeps a
+  NEL the desktop strips. DaysTest read the notes made from memory, never
+  from the file a save wrote.
+
+**The fix.** `Normalize.movesHome` walks each chain once
+(`linksLeaving`, asked once a link); a day goes home only where the rule
+still gives its own date and it was not deleted, else the move goes and
+its words stay where they showed. `Notebook.settleAsRead` -- the load and
+both restores from the Trash -- takes the copy's days back and sends days
+home in the raw notes; `restorePrevious` sends them home too.
+`copyDaysSetAside` looks for a day where the note holds it now. `Startup`
+writes the notes a load made at once. `pyStrip` in `dayMatchesSeries` and
+`saveDay`. DaysTest compares the notes made from the file a step wrote.
+days_cases.json: five cases more, and the fixture tool fingerprints four
+more regions of the desktop. Mutants AS387 to AS396.
+
+**What it left:** a rule changed and changed back does not bring back a
+move it dropped. A share code's Update keeps no move in its copy, so
+Restore previous after it brings the rule back, not the move.
+`contentSignature` and the copy-suffix rule still trim the Kotlin way:
+both compare the phone's own notes with each other. A made note keeps a
+category the notebook no longer has.
+
+**The lesson:** a rule that moves something "back" must ask whether
+"back" still exists -- and run where the reader reads, not only where the
+other app does.
 
 ---
 

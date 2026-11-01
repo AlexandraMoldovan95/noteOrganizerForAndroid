@@ -369,9 +369,11 @@ Phase 3 writes the other two the day mode has:
   may move only to a date the series has no day on and keeps no edit
   for, and comes home only to one -- on both apps since the final
   audit's eleventh round. A move onto a date its rule gives by itself --
-  the rule or its start changed since -- goes as a note is read, the day
-  home with its edit, until none is left; a move onto a date whose own
-  day was deleted or moved away stays (the fifteenth round).
+  the rule or its start changed since -- goes as a note is read, saved,
+  updated or restored: the day home with its edit where the rule still
+  gives its own date, else its edit staying on the date it showed on; a
+  move onto a date whose own day stays deleted or moved away stays (the
+  fifteenth and sixteenth rounds).
 - **A day off the schedule** — an override on a date the rule no longer
   gives, after the repeat changed — is settled as the desktop settles
   it: made a note of its own on that date (its title, text, comments,

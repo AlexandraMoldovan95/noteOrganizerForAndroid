@@ -883,8 +883,8 @@ object Organizing {
             note.remove("deleted_at")
             // Read from the Trash's file, as the notes are at load: a series
             // 0.12.0 turned off and deleted takes its days back into the note
-            // (Notebook.daysBackAsRead), as the desktop's restore does.
-            Notebook.daysBackAsRead(note)
+            // (Notebook.settleAsRead), as the desktop's restore does.
+            Notebook.settleAsRead(note)
             val nextId = fresh.next()
             note.put("id", nextId)
             val uid = note.opt("uid") as? String ?: ""

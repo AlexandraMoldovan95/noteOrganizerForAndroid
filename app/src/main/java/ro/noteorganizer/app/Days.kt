@@ -212,7 +212,7 @@ object Days {
         val written = edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
             val patch = Normalize.cleanOverride(JSONObject()
-                .put("title", title.trim()).put("body", body).put("comments", comments)
+                .put("title", Notebook.pyStrip(title)).put("body", body).put("comments", comments)
                 .put("category", category).put("color", color))
             // A colour cleared on one day of a coloured series stays cleared
             // in the copy the editor compares with; the next load gives the

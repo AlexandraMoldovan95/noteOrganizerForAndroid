@@ -234,35 +234,71 @@ object Normalize {
 
     /**
      * Each day moved onto a date its rule now gives by itself -- the rule or
-     * its start changed since -- sent home with its words, until none is
-     * left: drawn where the rule had a day already, it was drawn nowhere, and
-     * a delete there took it. Not off a date whose own day was deleted or
-     * moved away. The desktop's `moves_home`, at every read and in every
-     * save of the series and update (the final audit's fifteenth round).
+     * its start changed since -- taken off that date: drawn where the rule
+     * had a day already, it was drawn nowhere, and a delete there took it.
+     * It goes home with its words where the rule still gives its own date;
+     * where it does not, the day has no home, and its words stay where they
+     * showed, on the rule's day there (the sixteenth round). Not off a date
+     * whose own day was deleted or moved away, unless that day goes too:
+     * each chain walked once -- a pass a link took the square of a chain's
+     * length, and a crafted backup froze the desktop's window. The desktop's
+     * `moves_home`, at every read -- the raw notes too ([Notebook.load]) --
+     * and in every save, update and restore of the series.
      */
     internal fun movesHome(note: JSONObject) {
         val moved = note.opt("moved") as? JSONObject ?: return
         if (moved.length() == 0 || !Recurrence.isRecurring(note)) return
         val deleted = (note.opt("exceptions") as? JSONArray)
             ?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }.orEmpty().toSet()
-        val gives = Recurrence.ruleDaysAmong(note, moved.keys().asSequence().mapNotNull { moved.opt(it) as? String }.toList())
+        val links = LinkedHashMap<String, String>()
+        for (orig in moved.keys().asSequence().toList().sorted()) (moved.opt(orig) as? String)?.let { links[orig] = it }
+        val gives = Recurrence.ruleDaysAmong(note, links.keys + links.values)
+        val goes = linksLeaving(links, { moved.has(it) }) { new -> new in gives && new !in deleted }
         val home = LinkedHashMap<String, String>()
-        while (true) {
-            val more = moved.keys().asSequence().toList().sorted()
-                .mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
-                .filter { (_, new) -> new in gives && new !in deleted && !moved.has(new) }
-            if (more.isEmpty()) break
-            for ((orig, new) in more) {
-                moved.remove(orig)
-                home[orig] = new
-            }
+        for ((orig, new) in links) if (goes[orig] == true) {
+            moved.remove(orig)
+            home[orig] = new
         }
         if (home.isEmpty()) return
         val days = note.opt("overrides") as? JSONObject ?: JSONObject().also { note.put("overrides", it) }
         val words = HashMap<String, Any>()
-        for (new in home.values) days.remove(new)?.let { words[new] = it }
+        for ((orig, new) in home) if (orig in gives && orig !in deleted) days.remove(new)?.let { words[new] = it }
         for ((orig, new) in home) if (new in words && !days.has(orig)) days.put(orig, words.remove(new))
         for ((new, patch) in words) days.put(new, patch)
+    }
+
+    /**
+     * Which of [links] -- a day to the date it was moved onto -- leave that
+     * date: [free] says the date is the rule's own and not deleted, and the
+     * day whose date it is must leave it too, when it was moved ([origin]).
+     * Each chain walked once, [free] asked once a link: a pass a link took
+     * the square of a chain's length (the sixteenth round).
+     */
+    internal fun linksLeaving(links: Map<String, String>, origin: (String) -> Boolean,
+                              free: (String) -> Boolean): Map<String, Boolean> {
+        val goes = HashMap<String, Boolean>()
+        for (start in links.keys) {
+            val path = ArrayList<String>()
+            val onPath = HashSet<String>()
+            var at = start
+            while (at in links && at !in goes && at !in onPath) {
+                path.add(at)
+                onPath.add(at)
+                at = links.getValue(at)
+            }
+            // The chain's end, a day already settled, or a loop -- none of
+            // whose days is ever free to come back to.
+            var after = when {
+                at in onPath -> false
+                at in goes -> goes.getValue(at)
+                else -> !origin(at)
+            }
+            for (orig in path.asReversed()) {
+                after = after && free(links.getValue(orig))
+                goes[orig] = after
+            }
+        }
+        return goes
     }
 
     /** Each day's own edit, under a real date, in the shape a load gives it. */

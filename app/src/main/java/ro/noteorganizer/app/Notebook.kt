@@ -947,11 +947,12 @@ object Notebook {
         val raw = readOrRescue(file, "Your notes file", problems)
         // A turned-off series' days kept only in its copy, as this phone up
         // to 0.12.0 kept them: back in the note, once, as the desktop's load
-        // brings them back ([daysBackAsRead]); the next write keeps them.
-        raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { daysBackAsRead(it) } }
+        // brings them back; a moved day home, as its read sends it
+        // ([settleAsRead]). The next write keeps them.
+        raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { settleAsRead(it) } }
         // ...and what a day holding words could not take, notes of their own
-        // now, as the desktop's start makes them; the next write keeps them,
-        // and until then each start makes the same from the same file.
+        // now, as the desktop's start makes them; the start writes them at
+        // once (Startup), or each start made them again under new identities.
         val setAside = raw?.let { settleAside(it) } ?: 0
         val trashFile = File(dir, "trash.json")
         val trashRaw = readOrRescue(trashFile, "The Trash", problems)
@@ -1440,7 +1441,7 @@ object Notebook {
         // and sent to the Trash takes its days back into the note, as the
         // desktop's restore shapes it (normalize_note). Kept only in the copy,
         // the next copy of words erased them (the final audit's seventh round).
-        daysBackAsRead(restored)
+        settleAsRead(restored)
         val newId = Organizing.ids(array).next()
         restored.put("id", newId)
 
@@ -1829,7 +1830,7 @@ object Notebook {
     }
 
     /** Python's `strip()`: U+0085 and the non-breaking spaces count as space there, not for Kotlin's isWhitespace. */
-    private fun pyStrip(text: String): String = text.trim { it.isWhitespace() || it.code in PY_SPACES }
+    internal fun pyStrip(text: String): String = text.trim { it.isWhitespace() || it.code in PY_SPACES }
 
     private val PY_SPACES = setOf(0x85, 0xA0, 0x2007, 0x202F)
 
@@ -2086,11 +2087,21 @@ object Notebook {
         val previous = note.opt("_prev") as? JSONObject ?: return
         if (!seriesOwnCopy(previous) || repeatsAs(asked, previous)) return
         val mine = note.opt("overrides") as? JSONObject
+        val moved = note.opt("moved") as? JSONObject
+        val came = HashMap<String, String>()
+        (previous.opt("moved") as? JSONObject)?.let { m -> for (day in m.keys()) (m.opt(day) as? String)?.let { came[it] = day } }
+        // The note's day for it: on its date, on the day the copy moved there
+        // from, or where the note has moved that day since -- by date alone, a
+        // day the note moved was set aside as words it still held (the
+        // sixteenth round, the desktop's copy_days_set_aside).
+        fun held(key: String): Boolean {
+            val day = came[key] ?: key
+            val there = moved?.opt(day) as? String ?: day
+            return mine != null && setOf(key, day, there).any { at -> mine.has(at) && ownWordsHeld(previous, key, note, mine, at) }
+        }
         val aside = JSONArray()
         (previous.opt("overrides") as? JSONObject)?.keys()?.asSequence()?.sorted()?.forEach { key ->
-            if (dayHasWords(previous, key) && !(mine?.has(key) == true && ownWordsHeld(previous, key, note, mine, key))) {
-                aside.put(asideEntry(previous, key, key))
-            }
+            if (dayHasWords(previous, key) && !held(key)) aside.put(asideEntry(previous, key, key))
         }
         addAside(note, aside)
         for (field in DAY_FIELDS) previous.remove(field)
@@ -2248,6 +2259,19 @@ object Notebook {
      * all three -- was shaped twice at each start, for nothing (the final
      * audit's ninth round).
      */
+    /**
+     * What the desktop's read does to a note from a file, done to the raw
+     * note the calendar and every day's action read -- at the load and at a
+     * restore from the Trash: a series' days back from its copy
+     * ([daysBackAsRead]), and a day moved onto a date its rule now gives
+     * sent home ([Normalize.movesHome]); a delete there took the hidden day
+     * (the sixteenth round). The next write keeps it.
+     */
+    internal fun settleAsRead(raw: JSONObject) {
+        daysBackAsRead(raw)
+        Normalize.movesHome(raw)
+    }
+
     internal fun daysBackAsRead(raw: JSONObject) {
         val held = raw.opt("_prev") as? JSONObject ?: return
         if (DAY_FIELDS.none { held.has(it) } || !Recurrence.isRecurring(held) || UPDATE_COPY_ONLY.any { held.has(it) }) return
@@ -2602,6 +2626,10 @@ object Notebook {
                 }
             }
         }
+        // An older rule brought back can give a date a day was moved onto
+        // since: it goes home now, as the desktop's restore sends it (the
+        // sixteenth round).
+        Normalize.movesHome(note)
         if (replaced == null) note.remove("_prev") else note.put("_prev", replaced)
         note.put("updated", Files.now())
         val candidate = copyOf(array)

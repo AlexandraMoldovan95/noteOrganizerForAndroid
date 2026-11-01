@@ -3,6 +3,7 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,6 +48,25 @@ class StartupTest {
         // The second start greets nobody.
         Startup.prepare(dir, older = null)
         assertEquals(1, JSONArray(File(dir, "notes_data.json").readText()).length())
+    }
+
+    @Test
+    fun `days a series' copy set aside become notes at the start, written at once, made once`() {
+        // Left for the next save, each start made them again under new
+        // identities and said so again (the sixteenth round).
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "_set_aside": [{"day": "2026-11-09", "body": "Earlier words"}]}]""")
+        assertTrue(Startup.prepare(dir, older = null)!!.contains("(earlier text)"))
+        val first = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals(2, first.length())
+        assertEquals("Gym (earlier text)", first.getJSONObject(1).getString("title"))
+        assertFalse(first.getJSONObject(0).has("_set_aside"))
+        Startup.prepare(dir, older = null)
+        val again = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals(2, again.length())
+        assertEquals(first.getJSONObject(1).getString("uid"), again.getJSONObject(1).getString("uid"))
     }
 
     @Test

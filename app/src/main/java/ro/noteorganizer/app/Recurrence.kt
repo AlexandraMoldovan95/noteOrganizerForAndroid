@@ -742,9 +742,11 @@ object Recurrence {
             var mine = orEmpty(patch.opt(field))
             var theirs = orEmpty(note.opt(field))
             if (mine !is String || theirs !is String) return false
+            // Stripped as Python strips (Notebook.pyStrip): Kotlin's trim
+            // kept a NEL the desktop's day_matches_series takes off.
             if (field == "title") {
-                mine = mine.trim()
-                theirs = theirs.trim()
+                mine = Notebook.pyStrip(mine)
+                theirs = Notebook.pyStrip(theirs)
             }
             if (if (field == "body") !Normalize.sameBody(mine, theirs) else mine != theirs) return false
         }

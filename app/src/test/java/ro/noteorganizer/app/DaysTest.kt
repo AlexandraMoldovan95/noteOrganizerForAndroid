@@ -506,17 +506,18 @@ class DaysTest {
 
     @Test
     fun `a start moved in the editor onto a moved day's date sends that day home at the save`() {
-        // Mondays, the 12th moved to Tuesday the 13th; the editor's date set
-        // to a Tuesday makes the 13th a day of the rule's own. Left till the
-        // next start, the moved day was drawn nowhere (the fifteenth round).
-        val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-10-05",
-            "recurrence": {"freq": "weekly"}, "moved": {"2026-10-12": "2026-10-13"},
-            "overrides": {"2026-10-13": {"title": "Own"}}}]""")
-        assertTrue(Notebook.updateNote(load, 1, "S", "", date = "2026-10-06") is SaveResult.Ok)
+        // Daily from the 10th, the 12th moved back to the 8th; the editor's
+        // date set to the 5th makes the 8th a day of the rule's own, the 12th
+        // still one. Left till the next start, the moved day was drawn
+        // nowhere (the fifteenth round).
+        val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-10-10",
+            "recurrence": {"freq": "daily"}, "moved": {"2026-10-12": "2026-10-08"},
+            "overrides": {"2026-10-08": {"title": "Own"}}}]""")
+        assertTrue(Notebook.updateNote(load, 1, "S", "", date = "2026-10-05") is SaveResult.Ok)
         val saved = onDisk(load)
         assertEquals(0, saved.getJSONObject("moved").length())
         assertEquals("Own", saved.getJSONObject("overrides").getJSONObject("2026-10-12").getString("title"))
-        assertFalse(saved.getJSONObject("overrides").has("2026-10-13"))
+        assertFalse(saved.getJSONObject("overrides").has("2026-10-08"))
     }
 
     @Test
@@ -1224,6 +1225,32 @@ class DaysTest {
     }
 
     @Test
+    fun `a chain of moved days is walked once, each link's date asked once, and two days swapped stay`() {
+        // A pass a link took the square of a chain's length: a crafted backup
+        // froze the desktop's window (the sixteenth round).
+        val links = LinkedHashMap<String, String>()
+        for (i in 0 until 3000) links["d$i"] = "d${i + 1}"
+        var asked = 0
+        val goes = Normalize.linksLeaving(links, { it in links }) { asked++; true }
+        assertEquals(3000, asked)
+        assertTrue(goes.values.all { it })
+        val swap = Normalize.linksLeaving(mapOf("a" to "b", "b" to "a"), { it == "a" || it == "b" }) { true }
+        assertTrue(swap.values.none { it })
+    }
+
+    @Test
+    fun `a day's title with a next-line mark after it matches the series' title, as the desktop strips it`() {
+        val series = JSONObject().put("title", "Piano").put("body", "Lesson")
+        assertTrue(Recurrence.dayMatchesSeries(series, JSONObject().put("title", "Piano\u0085").put("body", "Lesson")))
+        // ...and a day's own title is stored stripped so too.
+        val load = scratch("""[{"id": 1, "uid": "p", "title": "Piano", "body": "Lesson", "date": "2026-10-05",
+            "recurrence": {"freq": "weekly"}}]""")
+        assertTrue(Days.saveDay(load, 1, "2026-10-12", "Piano\u0085", "Moved to room 2", "", "General", "") is SaveResult.Ok)
+        val patch = onDisk(load).getJSONObject("overrides").getJSONObject("2026-10-12")
+        assertEquals("Piano", (patch.opt("title") as? String) ?: "Piano")
+    }
+
+    @Test
     fun `a file's days set aside are read at most as many as a series' moved days`() {
         // Each becomes a note at the next start, and a file can say anything;
         // a save empties the list each time (the desktop's cap).
@@ -1346,11 +1373,15 @@ class DaysTest {
                 // holds it, which its next write stores: read from the file,
                 // a notebook 0.12.0 left showed the days its read had moved
                 // (the eighth round's backup of a series turned back on).
-                stored = if (load.file!!.readText() != fileWas) onDisk(load) else load.raw!!.getJSONObject(0)
+                val wrote = load.file!!.readText() != fileWas
+                stored = if (wrote) onDisk(load) else load.raw!!.getJSONObject(0)
                 assertEquals("$name, step ${s + 1} (${step.getString("do")})",
                     canon(case.getJSONArray("after").getJSONObject(s)), canon(stored!!))
+                // The notes made, from the file the step wrote: from memory,
+                // a road that made them and wrote the note without them passed.
                 assertEquals("$name, step ${s + 1}: set aside",
-                    asideCanon(case.getJSONArray("aside_after").getJSONArray(s)), madeCanon(load.raw!!))
+                    asideCanon(case.getJSONArray("aside_after").getJSONArray(s)),
+                    madeCanon(if (wrote) JSONArray(load.file!!.readText()) else load.raw!!))
             }
             assertEquals("$name: imported", canon(case.getJSONObject("imported")), canon(Normalize.normalizeNote(stored!!)))
         }

@@ -105,10 +105,22 @@ REGIONS = {
         '                    note["moved"] = {}\n', "411dfd961dee232ae319329f86dcb1746f1b023a"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
-                                         "307ce489636ae9adce9c88017b5f7d12b8769271"),
+                                         "c855c3fe3da7f710501d9919b263135ab63c7375"),
     "_reset_occurrence_override's write": ('        note["overrides"].pop(occurrence_date, None)\n',
                                            '            note["moved"].pop(origin, None)\n',
                                            "41d1e6cd94035d59b2b505b7a1dd709896ed5dc5"),
+    # The desktop code the copy below takes besides (the sixteenth round: a
+    # change in any of it left every fingerprint above as it was).
+    "_holds_unspent_rescue": ("    def _holds_unspent_rescue(note):",
+                              '        return isinstance(note.get("_prev"), dict) and not rescue_copy_spent(note)\n',
+                              "5a60ca0482da42f8505cf1326dcfc259a510b60d"),
+    "the spent copy's drop after a save": ("            # The note holds again what its rescue copy kept -- Undo after\n",
+                                           '                note.pop("_prev", None)\n',
+                                           "8af9cd9916fcdb708e01cc7d0b05453faa3df673"),
+    "_set_aside_days": ("    def _set_aside_days(self, say=True):", "        return made\n",
+                        "e2e1a9f925e4e3f3716d39d63718b5b229df5e8b"),
+    "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
+                         "d9232b1dd0728f8cad7e901548bd151a1795ab99"),
 }
 PREV_EXTRA_KEYS = ("checklist", "date", "recurrence", "color", "category", "overrides",
                    "exceptions", "moved", "pinned")
@@ -278,6 +290,7 @@ def main():
         for key in PREV_EXTRA_KEYS:
             if key in prev:
                 note[key] = copy.deepcopy(prev[key])
+        moves_home(note)
         if replaced is None:
             note.pop("_prev", None)
         else:
@@ -606,10 +619,41 @@ def main():
                        _prev=dict(back_on["_prev"], body=table, exceptions=[],
                                   overrides={first: {"title": "Gym ", "body": table + "\n",
                                                      "color": "#ff6b6b"}})), []))
+    # The sixteenth round. A day goes home only where the rule still gives its
+    # own date: moved onto a Thursday, the series then moved to Thursdays, its
+    # words stay on the Thursday they showed on, and the move goes.
+    thursday = dict(base, moved={first: "2026-11-12"}, overrides={"2026-11-12": {"body": "dentist at 4"}})
+    cases.append(("a day moved onto a Thursday, the series moved to Thursdays, back again", thursday,
+                  [{"do": "repeat", "date": "2026-11-05", "rule": weekly}, {"do": "read"}, on_same]))
+    # ...read as 0.97.405 or 0.13.0 left it, on the phone too: its calendar
+    # reads the notes as written, not the desktop's view of them.
+    cases.append(("a day moved onto a date its rule now gives, read",
+                  dict(base, recurrence=daily, moved={first: "2026-11-10"},
+                       overrides={"2026-11-10": {"body": "Held on Tuesday"}}), []))
+    cases.append(("a day moved onto a Thursday, the series on Thursdays since, read",
+                  dict(thursday, date="2026-11-05"), []))
+    # ...an older rule brought back by Restore previous sends a day moved since
+    # home too: a share code made the daily series weekly, a day was moved.
+    coded = normalize_note(dict(base, recurrence=daily))
+    apply_shared_update(coded, sender(base), UPDATABLE_FROM_SHARED)
+    coded = dict(json.loads(json.dumps(coded)), moved={first: "2026-11-11"},
+                 overrides={"2026-11-11": {"body": "Moved day's words"}})
+    cases.append(("a share code made it weekly, a day moved, Restore previous", coded,
+                  [{"do": "restore"}, {"do": "read"}]))
+    # ...and a copy of another series asks for each day where the note holds
+    # it now: moved since, a day's words are held, not set aside as earlier.
+    cases.append(("on from another start, the copy's day moved since, turned off",
+                  dict(base, date="2026-10-26", moved={first: "2026-11-11"},
+                       overrides={"2026-11-11": {"body": "legs + towel"}},
+                       _prev={"title": "Gym", "body": body, "comments": "", "formatting": [], "paragraphs": [],
+                              "date": "2026-11-02", "recurrence": weekly, "exceptions": [],
+                              "overrides": {first: {"body": "legs + towel"}}, "moved": {}}),
+                  [off]))
 
     def aside(note):
-        """The notes the desktop's window makes of *note*'s days set aside
-        (_set_aside_days): each through normalize_note, as it makes them."""
+        """The notes the desktop makes of *note*'s days set aside
+        (_set_aside_days and the load, through the core's settle_set_aside):
+        each through normalize_note, as it makes them."""
         return [{key: made[key] for key in ("title", "body", "comments", "category", "color", "date")}
                 for made in (normalize_note(dict(fresh, id=0))
                              for fresh in notes_set_aside(json.loads(json.dumps(note))))]
