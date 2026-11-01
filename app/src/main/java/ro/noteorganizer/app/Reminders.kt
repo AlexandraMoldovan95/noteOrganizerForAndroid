@@ -56,6 +56,12 @@ object Reminders {
         } catch (e: Exception) {
             return null
         }
+        // Settled as the app's load settles it, in memory alone: the file
+        // keeps the shape 0.13.0 wrote until the first save after the install,
+        // and the count differed from the calendar's on the days the read
+        // changes (the final audit's twenty-first round).
+        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { Notebook.settleAsRead(it) }
+        Notebook.settleAside(array)
         return dueOn((0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }, day)
     }
 

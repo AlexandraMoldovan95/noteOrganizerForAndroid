@@ -199,6 +199,7 @@
     <string name="restore_text_only">Bring back the earlier version of this note\'s text? The current text will be replaced.</string>
     <string name="restore_text_with">Bring back this note as it was before it was updated? Its text comes back, and so do its %1$s. What the note holds now will be replaced.</string>
     <string name="restore_kept">It is kept in its turn, so “↩ Restore previous” brings it back.</string>
+    <string name="restore_whole_note">This note repeats, and the earlier version is of the whole note — not just the day you are looking at.</string>
     <string name="restore_confirm">Restore</string>
     <string name="select_to_format">Select text to format it, or tap B, I, U or S for what you type next</string>
     <string name="pending_on">On for what you type next: %1$s — tap again to stop</string>

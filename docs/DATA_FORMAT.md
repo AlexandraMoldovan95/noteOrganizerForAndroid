@@ -283,6 +283,14 @@ Plus three maps on the note itself: `exceptions` (dates deleted
 individually), `overrides` (date → partial note, for "edit only this
 day") and `moved` (a day of the series held on another date).
 
+Their dates are written `YYYY-MM-DD`, zero-padded, in ASCII digits, by
+both apps. The desktop's reader (Python's `strptime`) also takes a few
+forms neither app writes -- a space before a one-digit day, full-width
+digits, a trailing NEL -- and the phone's does not: a
+day kept under such a key in a backup made by hand reads on the desktop
+and is left out on the phone. Nothing the apps write reaches it (the
+final audit's twenty-fourth and twenty-fifth rounds, kept as known).
+
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
 Getting this wrong produces a note that looks edited and is not.

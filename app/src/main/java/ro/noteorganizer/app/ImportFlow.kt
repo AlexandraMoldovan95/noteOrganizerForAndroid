@@ -390,5 +390,10 @@ fun importMessage(o: Importing.Outcome): String {
     if (o.refusedCategories > 0) {
         parts.add("${o.refusedCategories} categories could not be added, so their notes are in General.")
     }
+    // As the desktop says it after a save, in the same words.
+    if (o.earlierText > 0) {
+        parts.add("Earlier text of ${o.earlierText} day${if (o.earlierText == 1) "" else "s"} of a repeating note " +
+            "kept as notes of their own.")
+    }
     return parts.joinToString(" ")
 }

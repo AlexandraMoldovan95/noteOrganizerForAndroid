@@ -40,6 +40,35 @@ class ImportingTest {
     // ---- the desktop's door ----
 
     @Test
+    fun `a backup moving in a 0_13_0 notebook says the earlier text it kept as notes`() {
+        // Its series turned off and on as it was, the blank-looking day
+        // deleted: the read sets the copy's words aside, and the message said
+        // only "Added 1 note." (the final audit's twenty-third round).
+        val load = notebook("[]")
+        val result = Importing.apply(load, backupPlan(load, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(), null)
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(1, outcome.earlierText)
+        assertTrue(importMessage(outcome), importMessage(outcome).contains("Earlier text of 1 day of a repeating note"))
+        assertTrue(notes(load.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" })
+        // ...and an Update of the note already here keeps them too: an Add
+        // kept what the arriving note's copy set aside, an Update dropped it
+        // (the twenty-second round; the desktop the same).
+        val here = notebook("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "here", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}}]""")
+        val updated = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(update = true), null)
+        assertEquals(1, (updated as Importing.Result.Done).outcome.earlierText)
+        assertTrue(notes(here.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" && it.getString("body") == "knee" })
+    }
+
+    @Test
     fun `a number that is no number comes in as nothing, and the import goes on`() {
         // Android's org.json takes NaN inside an array unchecked, and its
         // toString() of everything holding it then gives null: the import's

@@ -252,6 +252,53 @@ class EditorTypingTest {
     }
 
     @Test
+    fun `a day showing the series' words shows its lines' looks, and none once it has its own text`() {
+        // Centred and indented on the whole series and on the desktop's day,
+        // flat on every day of it here (the twenty-fifth round).
+        val dir = NioFiles.createTempDirectory("editordaylines").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "p", "title": "Plan", "body": "Agenda\nsecond",
+            "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "paragraphs": [{"line": 0, "align": "center"}, {"line": 1, "indent": 1}],
+            "overrides": {"2026-11-16": {"body": "own words\nhere"}}}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        val series = EditorModel(state, state.note(1))
+        state.openNote(1, "2026-11-09")
+        val day = EditorModel(state, state.note(1), day = state.openDay)
+        assertEquals(series.props, day.props)
+        assertEquals("center", day.props[0]?.align)
+        state.openNote(1, "2026-11-16")
+        assertEquals(emptyMap<Int, Paragraphs.Props>(), EditorModel(state, state.note(1), day = state.openDay).props)
+    }
+
+    @Test
+    fun `a day the series does not draw opens the whole note, asked after the open note is saved`() {
+        // Opened on it, every save was refused, and every way out that saves
+        // first: only "Leave anyway" was left (the twenty-fourth round).
+        val dir = NioFiles.createTempDirectory("editoropenundrawn").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "g", "title": "Gym", "body": "plan",
+            "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "exceptions": ["2026-11-16"]}]""")
+        File(dir, "attachments").mkdirs()
+        val state = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        state.openNote(1, "2026-11-16")
+        assertEquals(1, state.openId)
+        assertEquals(null, state.openDay)
+        state.openNote(1, "2026-11-09")
+        assertEquals("2026-11-09", state.openDay)
+        // The open note's own save moves the start past the day tapped, as a
+        // date changed a moment before the tap on two panes: asked after it.
+        state.openNote(1)
+        state.flush = {
+            Notebook.updateNote(state.load, 1, "Gym", "plan", date = "2026-11-16")
+            state.refresh()
+            null
+        }
+        state.openNote(1, "2026-11-09")
+        assertEquals(null, state.openDay)
+    }
+
+    @Test
     fun `glued on a styled word, and before one, as the desktop types`() {
         val model = editor("quick fox", """[{"start": 0, "end": 5, "style": "highlight", "value": "#fff3b0"}]""")
         model.type("quickly fox", 7)

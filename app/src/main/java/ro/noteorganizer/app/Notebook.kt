@@ -1790,6 +1790,10 @@ object Notebook {
                 rec.put("month_days", JSONArray().put(whenDay.dayOfMonth))
             }
         }
+        // "Skip that month" is read by a monthly or a yearly rule alone: kept
+        // hidden in a weekly one saved from a monthly draft, it made a series
+        // turned back on as it was read as another (the audit's round 19).
+        for (rec in rules) if (rec.optString("freq") !in setOf("monthly", "yearly")) rec.put("month_day_policy", "clamp")
         return sameJson(rules[0], rules[1])
     }
 
@@ -2404,7 +2408,14 @@ object Notebook {
         }
         val mine = Normalize.normalizeNote(bare)
         val theirs = Normalize.normalizeNote(incoming)
-        return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
+        // The repeat by the days it gives ([sameSeries]): its start weekday lit
+        // in one and left to the start in the other read as changed, and the
+        // Update spent the note's only earlier version (the audit's round 19).
+        // Another start is a change all the same, through "date".
+        return fields.any {
+            if (it == "recurrence") !sameSeries(mine.opt("date"), mine.opt(it), mine.opt("date"), theirs.opt(it))
+            else !sameJson(shaped(mine, it), shaped(theirs, it))
+        }
     }
 
     /**
@@ -2445,6 +2456,15 @@ object Notebook {
         copyDaysSetAside(note, incoming = if ("overrides" in fields) incoming else null)
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
+        // A backup's note sets aside what its own copy kept, as it is read:
+        // an Add kept those, an Update dropped them (the audit's twenty-second
+        // round; the desktop's apply_shared_update the same).
+        val arriving = incoming.opt("_set_aside") as? JSONArray
+        if ("overrides" in fields && arriving != null && arriving.length() > 0) {
+            val mine = note.opt("_set_aside") as? JSONArray ?: JSONArray()
+            for (i in 0 until arriving.length()) mine.put(deepCopy(arriving.get(i)))
+            note.put("_set_aside", mine)
+        }
         if (restarted) note.put("exceptions", JSONArray())
         Normalize.dropHiddenMoves(note)
         note.put("updated", now)

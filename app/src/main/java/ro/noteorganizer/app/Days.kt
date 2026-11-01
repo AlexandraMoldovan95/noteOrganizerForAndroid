@@ -303,12 +303,19 @@ object Days {
             note.put("exceptions", JSONArray(exceptions))
             if (gone.cameFrom != null) {
                 val moved = note.opt("moved") as? JSONObject ?: JSONObject().also { note.put("moved", it) }
+                val others = moved.keys().asSequence().filter { it != gone.cameFrom && moved.opt(it) == gone.day }.toList()
+                // Another day still moved onto the date -- its own date one the
+                // rule gives -- holds it: the date is not free, as above. Within
+                // the Undo's seconds a Restore previous brought one back, and the
+                // Undo dropped it as dead, its words read as this day's (the
+                // twentieth round; the desktop the same).
+                if (on != null && (Recurrence.ruleDaysAmong(note, others) - exceptions.toSet()).isNotEmpty()) {
+                    return@edit "Another day of this series is on ${Recurrence.showDay(on)} now, so that day can't come back."
+                }
                 // A dead move onto the date, found free, goes, as Move this day
                 // drops one: two moves onto one date gave History two rows of
                 // one key, and the list threw (the nineteenth round).
-                for (dead in moved.keys().asSequence().toList()) {
-                    if (dead != gone.cameFrom && moved.opt(dead) == gone.day) moved.remove(dead)
-                }
+                for (dead in others) moved.remove(dead)
                 moved.put(gone.cameFrom, gone.day)
             }
             // The desktop's `_undo_occurrence_delete` guards: the repeat

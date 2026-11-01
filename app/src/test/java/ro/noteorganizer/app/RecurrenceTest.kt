@@ -298,6 +298,12 @@ class RecurrenceTest {
         assertEquals(listOf("2025-12-01"), (last[0] as Recurrence.HistoryEntry.Series).days.map { it.date })
         assertEquals(listOf(2), Recurrence.history(historyNotes, yearBucket = "Older", today = today).map { it.noteId })
         assertTrue(Recurrence.history(historyNotes, yearBucket = "2 years ago", today = today).isEmpty())
+        // A day of a year to come is this year's work, not the archive's (the
+        // audit's nineteenth round: it was filed under Older).
+        val next = listOf(JSONObject().put("id", 9).put("title", "Booked").put("body", "")
+            .put("date", "${today.year + 1}-01-05"))
+        assertEquals(listOf(9), Recurrence.history(next, yearBucket = "This year", today = today).map { it.noteId })
+        assertTrue(Recurrence.history(next, yearBucket = "Older", today = today).isEmpty())
     }
 
     // ---- days off the schedule ----

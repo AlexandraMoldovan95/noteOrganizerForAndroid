@@ -118,9 +118,20 @@ REGIONS = {
                                            '                note.pop("_prev", None)\n',
                                            "8af9cd9916fcdb708e01cc7d0b05453faa3df673"),
     "_set_aside_days": ("    def _set_aside_days(self, say=True):", "        return made\n",
-                        "29d58dc8629297acf9fd028c455b77de42d41bc7"),
+                        "4d0bf7f1b06f17bacab79cb0d92b3c9124994b9e"),
     "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
                          "d9232b1dd0728f8cad7e901548bd151a1795ab99"),
+    # ...and what the copy below writes out by hand (PREV_EXTRA_KEYS, the
+    # turn-off's two questions), which no fingerprint watched (the audit's
+    # eighteenth round).
+    "_PREV_EXTRA_LABELS": ("    _PREV_EXTRA_LABELS = (", '        ("pinned", "pin"),\n    )\n',
+                           "95c49ecfde5f333f72ad84911010a0f06304f71a"),
+    "_repeat_off_loses_days": ("    def _repeat_off_loses_days(self, note, recurrence):",
+                               "        return self._days_hold_own_text(note)\n",
+                               "db96865f19a9f03c04ef64c8eac3204fbf05ac3f"),
+    "_days_kept_off_repeat": ("    def _days_kept_off_repeat(self, note):",
+                              "        return self._days_hold_own_text(note)\n",
+                              "10312e795536627240402a6f42678ff6bed03963"),
 }
 PREV_EXTRA_KEYS = ("checklist", "date", "recurrence", "color", "category", "overrides",
                    "exceptions", "moved", "pinned")
@@ -681,6 +692,21 @@ def main():
     # and on as it was showed that day blank, its words in the copy alone.
     cases.append(("0.12.0's turn-off then on as it was, the blank-looking day deleted, read",
                   dict(back_on, exceptions=[first]), [{"do": "read"}]))
+    # Rounds nineteen and twenty: 0.13.0 leaves two moves onto one date (a day
+    # moved, the repeat made every two weeks, another day moved onto the same
+    # date); the read keeps the one the calendar draws, whichever the file
+    # lists first -- parity once rested on one hand-written case a side.
+    fortnight = dict(weekly, interval=2)
+    for order, moves in (("the live move first", [("2026-11-16", "2026-11-18"), ("2026-11-09", "2026-11-18")]),
+                         ("the dead move first", [("2026-11-09", "2026-11-18"), ("2026-11-16", "2026-11-18")])):
+        cases.append(("two moves onto one date, %s, read" % order,
+                      dict(base, recurrence=fortnight, moved=dict(moves),
+                           overrides={"2026-11-18": {"body": "Budget review"}}), [{"do": "read"}]))
+        cases.append(("two moves onto one date, %s, Restore previous" % order,
+                      dict(base, recurrence=fortnight, moved=dict(moves),
+                           overrides={"2026-11-18": {"body": "Budget review"}},
+                           _prev={"title": "Gym", "body": "Earlier plan", "comments": "", "formatting": [],
+                                  "paragraphs": []}), [{"do": "restore"}, {"do": "read"}]))
     # ...and a copy of another series asks for each day where the note holds
     # it now: moved since, a day's words are held, not set aside as earlier.
     cases.append(("on from another start, the copy's day moved since, turned off",

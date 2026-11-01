@@ -869,10 +869,13 @@ object Recurrence {
 
     private fun bucketOf(date: String, today: LocalDate): String? {
         val d = parseDate(date) ?: return null
-        return when (d.year) {
-            today.year -> "This year"
-            today.year - 1 -> "Last year"
-            today.year - 2 -> "2 years ago"
+        // A day already given words in a year to come is this year's work:
+        // under "Older" it read as the archive (the audit's nineteenth round,
+        // as on the desktop).
+        return when {
+            d.year >= today.year -> "This year"
+            d.year == today.year - 1 -> "Last year"
+            d.year == today.year - 2 -> "2 years ago"
             else -> "Older"
         }
     }

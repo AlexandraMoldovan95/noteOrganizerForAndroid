@@ -169,13 +169,20 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * Each line's indent and alignment, kept in step with the text as it
      * changes; a list item's kind is its marker, in the text itself. A day
      * of a series has none of its own -- the desktop keeps them with the
-     * series -- so day mode keeps none.
+     * series -- so a day shows the series' while it shows the series' words,
+     * and none once it has text of its own: a centred or indented line read
+     * flat on every day, where the whole series and the desktop's day showed
+     * it (the final audit's twenty-fifth round).
      */
     var props by mutableStateOf(linesOf(note))
 
-    private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> =
-        if (day != null || note == null) emptyMap()
-        else Paragraphs.propsOf(state.rawNote(note.id)?.opt("paragraphs"), note.body)
+    private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> {
+        val raw = note?.let { state.rawNote(it.id) } ?: return emptyMap()
+        val onDay = day ?: return Paragraphs.propsOf(raw.opt("paragraphs"), note.body)
+        val shown = Recurrence.effectiveNote(raw, onDay).opt("body") as? String ?: return emptyMap()
+        return if (Normalize.sameBody(shown, raw.opt("body") as? String ?: "")) Paragraphs.propsOf(raw.opt("paragraphs"), shown)
+               else emptyMap()
+    }
 
     init {
         if (day != null && note != null) showDay(note.id, day)
@@ -1053,6 +1060,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // Otherwise the letters take styles as the desktop's text box gives
         // them, found from the caret ([spansAfterTyping]).
         spans = if (day != null) emptyList() else spansAfterTyping(body, next, caretIn(segment, typed), spans, pending)
+        // ...and no lines' looks: the series' were shown only while the day
+        // showed the series' words ([linesOf]).
+        if (day != null) props = emptyMap()
         // The places and the lines' looks carried through the edit read at
         // the cursor, as the list's path reads Enter ([Editing.proseEdit]).
         follow(next, Editing.proseEdit(segment, typed.text, cursorOf(typed)))
@@ -2121,17 +2131,22 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             // ...and kept, said only when it is: an emptied note is not.
             text = (if (also.isEmpty()) stringResource(R.string.restore_text_only)
                     else stringResource(R.string.restore_text_with, joinWithAnd(also))) +
-                   (if (keeps) " " + stringResource(R.string.restore_kept) else ""),
+                   (if (keeps) " " + stringResource(R.string.restore_kept) else "") +
+                   // On one day of a series, as the desktop asks: the copy is
+                   // of the whole note, and "the current text" read as the
+                   // day's (the final audit's twenty-third round).
+                   (if (day != null) "\n\n" + stringResource(R.string.restore_whole_note) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
                 askRestore = false
+                val onADay = day != null
                 // Whatever waits for its autosave is saved first, so the
                 // version being replaced is the one on screen -- and when it
                 // cannot be, nothing is replaced: read back, the restored
                 // note would take the place of words no file holds.
                 if (model.save() && state.report(Notebook.restorePrevious(state.load, model.id))) {
                     state.note(model.id)?.let { model.reloadFrom(it) }
-                    state.say("Restored the previous version")
+                    state.say(if (onADay) "Restored the previous version of the whole note" else "Restored the previous version")
                 }
             },
             onDismiss = { askRestore = false },

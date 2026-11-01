@@ -375,21 +375,26 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     // ---- the notes ----
 
     /**
-     * Opens a note -- on one [day] of it, when the note repeats and a day is
-     * named; as a whole otherwise. A plain note opened from a calendar day
-     * is simply the note.
+     * Opens a note -- on one [day] of it, when the series draws that day
+     * ([Days.givenDay]); as a whole otherwise. A plain note opened from a
+     * calendar day is simply the note. Opened on a day it does not draw,
+     * every save there was refused, and every way out that saves first with
+     * it: only "Leave anyway" was left, and what was typed went with it (the
+     * final audit's twenty-fourth round; the desktop's load_note asks the
+     * same).
      */
     fun openNote(id: Int, day: String? = null) {
-        val onDay = if (day != null && rawNote(id)?.let { Recurrence.isRecurring(it) } == true) day else null
+        fun onDay() = day?.takeIf { d -> rawNote(id)?.let { Recurrence.isRecurring(it) && Days.givenDay(it, d) } == true }
         // Its own card tapped again: the note stays as it is, cursor and all.
-        if (id == openId && onDay == openDay) {
+        if (id == openId && onDay() == openDay) {
             flush?.invoke()
             return
         }
         // On a wide screen the list stays beside the note, and a tap on
-        // another card replaces it: what it holds is saved first.
+        // another card replaces it: what it holds is saved first -- and the
+        // day asked again after, as that save can move the series' start.
         leaving {
-            openDay = onDay
+            openDay = onDay()
             newNoteDate = ""
             openId = id
             opening += 1

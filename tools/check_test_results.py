@@ -20,7 +20,14 @@ compile leaves the last run's XML exactly where it was, so this gate once
 printed "221 tests passed" under a Gradle run that had just failed --
 the silent-mutant failure again, one level up. A result file older than
 the newest source file is from some other version of the code, and is
-refused as such.
+refused as such. A source file is any file the tests are built or fed
+from: a fixture the tests replay (days_cases.json) counts as much as the
+Kotlin (the final audit's twenty-second round).
+
+And when a test class ran fewer tests than its file holds, or did not run
+at all: each *Test.kt file's @Test count must be the count its result
+file reports. The floor alone let 26 of 31 classes vanish one at a time
+with the gate green (the final audit's twenty-fifth round).
 
 The floor is not a target to grow; it is a tripwire. If a whole suite
 stops being discovered, the count quietly halves and every run stays
@@ -52,19 +59,29 @@ MAY_SKIP = {
 }
 
 SOURCES = os.path.join(ANDROID, "app", "src")
+TESTS = os.path.join(SOURCES, "test", "java", "ro", "noteorganizer", "app")
 
 
 def newest_source():
-    """The newest Kotlin file the tests could have been built from."""
+    """The newest file the tests could have been built or fed from."""
     newest, name = 0.0, None
     for root, _dirs, files in os.walk(SOURCES):
         for file in files:
-            if file.endswith(".kt"):
-                path = os.path.join(root, file)
-                stamp = os.path.getmtime(path)
-                if stamp > newest:
-                    newest, name = stamp, path
+            path = os.path.join(root, file)
+            stamp = os.path.getmtime(path)
+            if stamp > newest:
+                newest, name = stamp, path
     return newest, name
+
+
+def tests_written():
+    """{class name: the @Test count its file holds}, for every *Test.kt."""
+    written = {}
+    for path in glob.glob(os.path.join(TESTS, "*Test.kt")):
+        with open(path, encoding="utf-8") as source:
+            count = sum(1 for line in source if line.strip().startswith("@Test"))
+        written["ro.noteorganizer.app." + os.path.basename(path)[:-3]] = count
+    return written
 
 
 def main():
@@ -93,12 +110,14 @@ def main():
 
     total = failures = errors = skipped = 0
     unexpected = []
+    ran = {}
     for path in files:
         try:
             suite = ET.parse(path).getroot()
         except ET.ParseError as problem:
             print("Broken XML: %s (%s)" % (os.path.basename(path), problem))
             return 1
+        ran[suite.get("name")] = int(suite.get("tests", 0))
         total += int(suite.get("tests", 0))
         failures += int(suite.get("failures", 0))
         errors += int(suite.get("errors", 0))
@@ -126,6 +145,16 @@ def main():
         print("Either a suite stopped being discovered without saying so,")
         print("or the floor belongs in the same commit that removes tests.")
         return 1
+    if len(sys.argv) <= 1:
+        short = ["%s: %d written, %s run" % (name.rsplit(".", 1)[-1], count, ran.get(name, "none"))
+                 for name, count in sorted(tests_written().items()) if ran.get(name) != count]
+        if short:
+            print("NOT EVERY TEST RAN: a class's result differs from its file.")
+            for line in short[:10]:
+                print("    %s" % line)
+            print("A class undiscovered, or tests in it that never ran: run")
+            print("the whole suite, not a part of it, before this gate.")
+            return 1
 
     print("The tests ran, and they passed.")
     return 0

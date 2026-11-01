@@ -23615,6 +23615,754 @@
   {
    "after": [
     {
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "aside_after": [
+    []
+   ],
+   "aside_loaded": [],
+   "imported": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "two moves onto one date, the live move first, read",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-09": "2026-11-18",
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 2
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "read"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Earlier plan",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Earlier plan",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "aside_after": [
+    [],
+    []
+   ],
+   "aside_loaded": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Earlier plan",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Earlier plan",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "two moves onto one date, the live move first, Restore previous",
+   "note": {
+    "_prev": {
+     "body": "Earlier plan",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-09": "2026-11-18",
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 2
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "restore"
+    },
+    {
+     "do": "read"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "attachments": [],
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "aside_after": [
+    []
+   ],
+   "aside_loaded": [],
+   "imported": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "two moves onto one date, the dead move first, read",
+   "note": {
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-09": "2026-11-18",
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 2
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "read"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Earlier plan",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    },
+    {
+     "_prev": {
+      "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+      "comments": "",
+      "formatting": [],
+      "paragraphs": [],
+      "title": "Gym"
+     },
+     "attachments": [],
+     "body": "Earlier plan",
+     "category": "General",
+     "checklist": [],
+     "color": "",
+     "comments": "",
+     "created": "2026-10-20 09:00:00",
+     "date": "2026-11-02",
+     "exceptions": [],
+     "formatting": [],
+     "id": 1,
+     "moved": {
+      "2026-11-16": "2026-11-18"
+     },
+     "overrides": {
+      "2026-11-18": {
+       "body": "Budget review"
+      }
+     },
+     "paragraphs": [],
+     "pinned": false,
+     "recurrence": {
+      "count": 0,
+      "end": "",
+      "freq": "weekly",
+      "interval": 2,
+      "month_day_policy": "clamp",
+      "month_days": [],
+      "weekdays": []
+     },
+     "title": "Gym",
+     "uid": "gym-days",
+     "updated": "2026-10-20 09:00:00"
+    }
+   ],
+   "aside_after": [
+    [],
+    []
+   ],
+   "aside_loaded": [],
+   "imported": {
+    "_prev": {
+     "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Earlier plan",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "loaded": {
+    "_prev": {
+     "body": "Earlier plan",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "count": 0,
+     "end": "",
+     "freq": "weekly",
+     "interval": 2,
+     "month_day_policy": "clamp",
+     "month_days": [],
+     "weekdays": []
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "name": "two moves onto one date, the dead move first, Restore previous",
+   "note": {
+    "_prev": {
+     "body": "Earlier plan",
+     "comments": "",
+     "formatting": [],
+     "paragraphs": [],
+     "title": "Gym"
+    },
+    "attachments": [],
+    "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+    "category": "General",
+    "checklist": [],
+    "color": "",
+    "comments": "",
+    "created": "2026-10-20 09:00:00",
+    "date": "2026-11-02",
+    "exceptions": [],
+    "formatting": [],
+    "id": 1,
+    "moved": {
+     "2026-11-09": "2026-11-18",
+     "2026-11-16": "2026-11-18"
+    },
+    "overrides": {
+     "2026-11-18": {
+      "body": "Budget review"
+     }
+    },
+    "paragraphs": [],
+    "pinned": false,
+    "recurrence": {
+     "freq": "weekly",
+     "interval": 2
+    },
+    "title": "Gym",
+    "uid": "gym-days",
+    "updated": "2026-10-20 09:00:00"
+   },
+   "steps": [
+    {
+     "do": "restore"
+    },
+    {
+     "do": "read"
+    }
+   ]
+  },
+  {
+   "after": [
+    {
      "_prev": {
       "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
       "comments": "",
@@ -23861,5 +24609,5 @@
    ]
   }
  ],
- "source": "the desktop's core, 99 cases"
+ "source": "the desktop's core, 103 cases"
 }

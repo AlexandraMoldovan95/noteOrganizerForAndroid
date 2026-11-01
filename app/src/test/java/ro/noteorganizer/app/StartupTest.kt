@@ -58,7 +58,11 @@ class StartupTest {
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},
             "_set_aside": [{"day": "2026-11-09", "body": "Earlier words"}]}]""")
-        assertTrue(Startup.prepare(dir, older = null)!!.contains("(earlier text)"))
+        val said = Startup.prepare(dir, older = null)!!
+        assertTrue(said.contains("(earlier text)"))
+        // ...for both reasons, a day the note deleted among them (round 21's
+        // notes were said to be of days holding text of their own).
+        assertTrue(said, said.contains("those days now show other text, or were deleted"))
         val first = JSONArray(File(dir, "notes_data.json").readText())
         assertEquals(2, first.length())
         assertEquals("Gym (earlier text)", first.getJSONObject(1).getString("title"))

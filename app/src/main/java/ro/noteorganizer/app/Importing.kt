@@ -116,6 +116,8 @@ object Importing {
         val addedTrash: Int = 0,
         /** The first note it added or updated, for the screen to open. */
         val firstId: Int = 0,
+        /** Notes '(earlier text)' made of a series' copy as it was read. */
+        val earlierText: Int = 0,
     )
 
     sealed class Result {
@@ -547,10 +549,13 @@ object Importing {
             load.trashRaw?.let { live -> replaceContents(live, trashCandidate) }
         }
         val changed = updated > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
+        var earlierText = 0
         if (changed) {
             // Days a series' copy set aside -- an Update replacing another
-            // series' copy, a backup's note read -- notes of their own.
-            Notebook.settleAside(candidate)
+            // series' copy, a backup's note read -- notes of their own, and
+            // said: a 0.13.0 notebook moved in by a backup made them unsaid
+            // (the final audit's twenty-third round).
+            earlierText = Notebook.settleAside(candidate)
             Files.writeAtomic(notesFile, candidate.toString(2))?.let { return Result.Failed(it) }
             replaceContents(notebook, candidate)
         }
@@ -565,6 +570,7 @@ object Importing {
             addedTemplates = addedTemplates,
             addedTrash = addedTrash,
             firstId = firstId,
+            earlierText = earlierText,
         ))
     }
 

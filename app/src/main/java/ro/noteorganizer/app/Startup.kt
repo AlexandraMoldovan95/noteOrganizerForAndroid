@@ -59,10 +59,12 @@ object Startup {
         // them again under new identities and said so again (round 16).
         if (load.setAside > 0) {
             val many = load.setAside != 1
-            lines.add("Some days of a repeating note had earlier text kept aside, where those days now hold " +
-                "text of their own. It is kept as ${load.setAside} note${if (many) "s" else ""} of " +
-                "${if (many) "their" else "its"} own, each on its day, titled with the day's or the series' name " +
-                "and \"(earlier text)\".")
+            // Both reasons said, as on the desktop: a day the note deleted is
+            // one (round 21), and the line once named only the other.
+            lines.add("Some days of a repeating note had earlier text that only an older copy of it kept: " +
+                "those days now show other text, or were deleted. It is kept as ${load.setAside} " +
+                "note${if (many) "s" else ""} of ${if (many) "their" else "its"} own, each on its day, titled " +
+                "with the day's or the series' name and \"(earlier text)\".")
             // Notes read, as any made means: a Trash or settings file that
             // could not be read does not hold this write (as on the desktop).
             load.file?.let { file -> load.raw?.let { Organizing.write(file, it) } }
