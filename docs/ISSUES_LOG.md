@@ -7,11 +7,12 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-two of the ninety-seven are
+**the code**, or in **the design**. Twenty-two of the ninety-eight are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-02](#a-mark-held-in-a-cell-and-the-roads-that-changed-the-table-first) | code | The final audit's third wave: a cell left on "[x]" kept "[x" -- the held mark was written before the table's bar, Undo and the calculator, not before Caption, Line above, Delete or Insert table; and the Duplicates clean-up merged a Duplicate's files twice | A value held back must be written by every road that can replace what it belongs to; find the roads by what they change |
 | [2026-11-02](#a-paste-meeting-a-list-one-road-at-a-time) | code | The lows wave's verification, rounds 5 to 11: one class found a road a round -- a pasted line read as a corrected word, a paste with no list handling, a copy carrying the next line's or its first line's looks, a whole item pasted over another keeping the covered marker ("2. 3. Bread", "3. 1. Kiwi") -- until round 9 tested the rule's whole matrix | When each fix of a rule leaves the case beside it, write the rule down and test its whole matrix on both apps at once; a fix by road is a fix of one cell |
 | [2026-11-01](#a-days-lists-read-by-line) | design | The lows wave's verification, rounds 1 to 4: a day of its own text took its lists' depth from the series by line, and Enter renumbered and stored it; the owner chose that a day keeps its own lists | What a copy can change, the copy keeps; structure borrowed by line number holds only until the first line moves |
 | [2026-11-01](#a-fuzz-that-never-took-the-road-it-guarded) | checking | The lows wave: the fuzz of a series' days passed on its seeds, never reached round 21's road in thousands of roads, excused a spent copy as a replaced one, and the gate let 26 of 31 test classes vanish one at a time | A random test proves only the roads it takes: count that it reaches the branch it guards, and take that branch's fix out to watch it fail alone |
@@ -112,6 +113,37 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A mark held in a cell, and the roads that changed the table first
+
+**2026-11-02.** The final audit's third wave, a read of the code and the
+documents for what was written by rote; rounds 7 and 8. A table cell's
+field holds its words back while they read as a merge's marker or a box
+("[x]", "^"): written at once, the cell would turn into a box under the
+finger. Only the next letter wrote them, so a cell left on "[x]" kept "[x".
+Round 7 held them in the editor and wrote them when the cell was left --
+before the table's bar, Undo, Redo and the calculator changed the note.
+Round 8 found four more doors that changed the table first: More → Caption
+and Line above, Delete table, Insert table. Each dropped the held mark as
+stale, and the cell kept "[x" again.
+
+**The mechanism.** The roads were listed by the ones that came to mind. What
+they share is a function -- each changes the table's lines -- and a held
+value must be written by every caller of that function, not by every button
+remembered.
+
+**The fix.** `EditorModel.writeHeldCell` runs first in every operation that
+changes a table, and in `write()`; `EditorTableTest` walks each one. The
+same wave found the Duplicates clean-up merging the app's own Duplicate's
+files a second time: it told a file the kept note already had by its stored
+name, which a Duplicate always changes. It now compares the shown name and
+the bytes, as the desktop does (AS469-AS476).
+
+**The lesson:** a value held back must be written by every road that can
+replace what it belongs to; find the roads by what they change, not by
+the buttons that come to mind.
 
 ---
 
