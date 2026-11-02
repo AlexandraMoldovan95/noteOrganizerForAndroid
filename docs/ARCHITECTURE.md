@@ -39,7 +39,7 @@ where feedback is a review. Both addresses live in `Links.kt`; the app
 sends nothing with either. And one the person does not open: while the
 phone's own backup to a Google account is on, Android copies the app's
 files there (and to a new phone), unless Settings → Backup turns the
-app's part off (`GoogleBackup.kt`).
+app's part off (`NotesBackupAgent.kt`).
 
 Words follow the desktop's: a **popup** is anchored to what opened it (a
 menu, a bottom sheet), a **dialog** holds the screen until it is
@@ -106,7 +106,7 @@ About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
 | `ShareFlow.kt` | 310 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |
 | `ExportFlow.kt` | 180 | Export as file through Android's "save as" |
 | `ReminderAlarm.kt` | 120 | The day's notification: the alarm set for the chosen hour, the receiver that counts the day's notes with the app closed, set again after a restart or an update ([why it only reads](#decision-the-reminders-alarm-reads-inexactly-and-asks-late)) |
-| `GoogleBackup.kt` | 50 | The app's part in Android's own backup, to a Google account or a new phone: the notebook by the rules in `data_extraction_rules.xml`, or, with Settings → Backup's switch off, one small file saying so |
+| `NotesBackupAgent.kt` | 50 | The app's part in Android's own backup, to a Google account or a new phone: the notebook by the rules in `data_extraction_rules.xml`, or, with Settings → Backup's switch off, one small file saying so |
 | `RichText.kt` | 150 | A note plus its spans, turned into an `AnnotatedString` |
 | `ui/theme/` | 290 | A palette as Compose colours, Material 3 mapped onto it, and `ThemeVeil`, the picture a change of theme dissolves under |
 

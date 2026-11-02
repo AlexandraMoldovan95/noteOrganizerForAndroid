@@ -211,17 +211,19 @@ list and the Python's stop agreeing:
 }
 ```
 
-Three more keys travel beside these, though they are not defaults: `_prev`,
-the one-step rescue copy
-([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
-`_set_aside`, a series' days' words waiting to be notes of their own
-([below](#recurrence); read at most `MAX_OCCURRENCES` long, as moved
-days are), and `order`, the desktop's custom order. `order` is kept whole; `_prev` is
-shaped as the desktop's `normalize_note` shapes it — its words as text,
-its styles held to the line ceilings, and beside them only the fields an
-update from a backup replaces, each by the note's own rules — since a
-restore puts it straight back into the note
-([why](ISSUES_LOG.md#a-rescue-copy-let-in-whole)).
+Three more keys travel beside these, though they are not defaults:
+
+- `_prev`, the one-step rescue copy
+  ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)).
+  It is shaped as the desktop's `normalize_note` shapes it — its words as
+  text, its styles held to the line ceilings, and beside them only the
+  fields an update from a backup replaces, each by the note's own rules —
+  since a restore puts it straight back into the note
+  ([why](ISSUES_LOG.md#a-rescue-copy-let-in-whole)).
+- `_set_aside`, a series' days' words waiting to be notes of their own
+  ([below](#recurrence)), read at most `MAX_OCCURRENCES` long, as moved
+  days are.
+- `order`, the desktop's custom order, kept whole.
 
 Since Phase 3 the phone writes `order` too, as the desktop's arranging
 does: every note numbered by its place — the hidden ones too, so a
@@ -293,8 +295,8 @@ both apps. The desktop's reader (Python's `strptime`) also takes a few
 forms neither app writes -- a space before a one-digit day, full-width
 digits, a trailing NEL -- and the phone's does not: a
 day kept under such a key in a backup made by hand reads on the desktop
-and is left out on the phone. Nothing the apps write reaches it (the
-final audit's twenty-fourth and twenty-fifth rounds, kept as known).
+and is left out on the phone. Nothing the apps write reaches it, so it is
+left, as known.
 
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
@@ -303,7 +305,7 @@ Getting this wrong produces a note that looks edited and is not.
 Beside them an override may keep **`paragraphs`: the day's own list
 lines** -- `[{"line": int, "kind": "bullet"|"number", "indent": int}]`,
 one per line of the day's body that starts with a list marker, with no
-alignment (the owner's choice, the final audit's lows wave). A nested
+alignment (the owner's choice). A nested
 list's depth lives nowhere else: taken from the series by line number,
 an item added or removed on the day put the rest on the wrong level, and
 the next Enter renumbered them so. Both apps write it with every day they
@@ -334,45 +336,48 @@ writes them:
   repeat they hang on (the desktop's `days_to_rescue`). A copy of words is
   words alone: a series' days live in one place, the note, as the desktop
   keeps them -- kept only in the copy, the next copy over the single slot
-  erased them (the owner's choice, 2026-10-29).
+  erased them (the owner's choice;
+  [the story](ISSUES_LOG.md#a-days-text-in-a-copy-the-other-program-erased)).
 - **A notebook the phone's 0.12.0 wrote** kept a turned-off series' days
-  in its copy alone. They come back into the note as it is read from a
-  file -- at load, as a Trash entry is restored, at an import -- as the
-  desktop's `_days_back_from_copy` brings them: only from the series' own
-  copy, one that repeats and holds none of what only an update's copy
-  holds (`category`, `color`, `checklist`, `pinned`), into a note that
+  in its copy alone. They come back into the note whenever it is read from
+  a file -- at load, as a Trash entry is restored, at an import -- as the
+  desktop's `_days_back_from_copy` brings them. Only from the series' own
+  copy: one that repeats and holds none of what only an update's copy
+  holds (`category`, `color`, `checklist`, `pinned`). Only into a note that
   holds no days of its own and either no longer repeats or repeats again
-  as that same series, its date and rule the copy's -- and only when a day
-  there holds text of its own. Asked of the note as a load shapes it. An
-  update's comparison reads this side without its copy, and the arriving
-  note as a load reads it -- its copy's days taken back -- then compares
-  the two without their copies: taken in from an update's copy, the same
-  backup imported twice read as changed the second time (2026-10-29, the
-  final audit's seventh round, on both apps); read bare, an older backup of
-  a turned-off series read as edited elsewhere (its ninth). A backup whose
-  copy holds a day reset here since reads, truly, as changed.
+  as that same series, its date and rule the copy's. And only when a day
+  there holds text of its own. It is asked of the note as a load shapes it.
+
+  An update's comparison reads this side without its copy, and the
+  arriving note as a load reads it, its copy's days taken back; then it
+  compares the two without their copies. Taken in from an update's copy,
+  the same backup imported twice read as changed the second time; read
+  bare, an older backup of a turned-off series read as edited elsewhere
+  ([the story](ISSUES_LOG.md#a-rule-fixed-where-it-was-found-and-asked-again-beside-it)).
+  A backup whose copy holds a day reset here since reads, truly, as
+  changed.
 - **A series' own copy's days come back, then are spent,** once the note
-  repeats as that series again -- the same date and rule. The copy's deleted
-  days and moves go into the note only on dates the note's own days leave
-  free -- never onto a date the note holds (its edited, deleted and moved
-  days and the dates it moves days to) -- and moves only while the note
-  holds fewer moves than a series has days. Each of the copy's day edits
-  goes to the date the note draws that day on, as a move keys a day's edit:
-  where the note's edit there has no words, it takes the copy's, its colour
-  and category kept; where the day holds words of its own, or the note
-  deleted it, the copy's words are set aside (below); an edit the copy
-  draws on no day stays on its date (since the desktop's 04044ce, the
-  tenth round: asked by the date, a day the note had only moved or
-  coloured lost the copy's words). Then `exceptions`, `overrides` and `moved` are taken out
-  of the copy. At every read after the move, and in the save that turns the
-  series back on -- on the phone the Repeat sheet's write of the repeat,
-  never its write of the start before it. Kept in the copy, a day the person
-  then reset came back at every start (2026-10-30, the final audit's eighth
-  round); spent alone, days only the copy held -- 0.12.0's series turned
-  back on as it was, then another day touched; a series turned on from
-  another start, then put back -- were in no file (its ninth; the desktop's
-  `spend_series_days` since 8b5d6cc). A note that does not repeat keeps its
-  copy's days.
+  repeats as that series again -- the same date and rule. The copy's
+  deleted days and moves go into the note only on dates the note's own
+  days leave free -- never onto a date the note holds (its edited, deleted
+  and moved days and the dates it moves days to) -- and moves only while
+  the note holds fewer moves than a series has days.
+
+  Each of the copy's day edits goes to the date the note draws that day
+  on, as a move keys a day's edit. Where the note's edit there has no
+  words, it takes the copy's, its colour and category kept; where the day
+  holds words of its own, or the note deleted it, the copy's words are set
+  aside (below); an edit the copy draws on no day stays on its date (the
+  desktop's 04044ce).
+
+  Then `exceptions`, `overrides` and `moved` are taken out of the copy, at
+  every read after the move and in the save that turns the series back on
+  -- on the phone the Repeat sheet's write of the repeat, never its write
+  of the start before it (the desktop's `spend_series_days`, since
+  8b5d6cc). Kept in the copy, a day the person then reset came back at
+  every start; spent alone, days only the copy held were in no file
+  ([the story](ISSUES_LOG.md#every-place-a-change-made-and-every-date-a-note-holds)).
+  A note that does not repeat keeps its copy's days.
 - **A copy's words for a day that holds words of its own, or that the note
   deleted,** are not added to the day: they are set aside, in `_set_aside`, and become a note of
   their own on that date, titled with the series' name and "(earlier
@@ -381,16 +386,17 @@ writes them:
   five fields as text and its `day`; a read keeps the entries with a real
   date and a word. The desktop makes the notes at its start and at every
   save; the phone at its load and in the write that sets some aside (the
-  final audit's fifteenth round, the owner's choice).
+  owner's choice;
+  [the story](ISSUES_LOG.md#four-ways-of-adding-and-a-note-of-its-own)).
 - **A repeat turned off over an import's Update copy** the note does not
   hold again keeps that copy whole -- the note as it was before the Update
   -- given the series' date, rule and days only where it lacks them (the
-  desktop's `_turn_off_rescue_copy`, the eighth round). **Over an earlier
-  turn-off's copy of the same series** the note does not hold again, the
-  new copy takes that copy's words -- title, text, styles, lines and
-  comments -- as it takes a copy of words: replaced, a big delete's words,
-  or a long comment kept there, were in no file after the second turn-off
-  (the ninth round).
+  desktop's `_turn_off_rescue_copy`). **Over an earlier turn-off's copy of
+  the same series** the note does not hold again, the new copy takes that
+  copy's words -- title, text, styles, lines and comments -- as it takes a
+  copy of words. Replaced, a big delete's words, or a long comment kept
+  there, were in no file after the second turn-off
+  ([the story](ISSUES_LOG.md#kept-where-it-was-found-and-kept-on-after-it-moved)).
 
 Phase 3 writes the other two the day mode has:
 
@@ -398,12 +404,11 @@ Phase 3 writes the other two the day mode has:
   it — `{"2026-10-20": "2026-10-22"}` — and its own edit, if it has one,
   moves with it in `overrides`. Moved back home, the entry goes. A day
   may move only to a date the series has no day on and keeps no edit
-  for, and comes home only to one -- on both apps since the final
-  audit's eleventh round. A move onto a date its rule gives by itself --
-  the rule or its start changed since -- goes as a note is read, saved,
-  updated or restored, its edit staying on the date it showed on: a
-  day's words never move on their own (the seventeenth round, the
-  owner's choice). A move onto a date whose own day stays deleted or
+  for, and comes home only to one, on both apps. A move onto a date its
+  rule gives by itself -- the rule or its start changed since -- goes as a
+  note is read, saved, updated or restored, its edit staying on the date
+  it showed on: a day's words never move on their own (the owner's choice;
+  [the story](ISSUES_LOG.md#words-that-never-move-on-their-own)). A move onto a date whose own day stays deleted or
   moved away stays; another day moved onto the date of a move whose own
   date the rule no longer gives takes it, and that move goes.
 - **A day off the schedule** — an override on a date the rule no longer

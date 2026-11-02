@@ -69,15 +69,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
 
+/** A search box's words, handed to Android only while short ([Showing.searchKept]). */
+internal val SearchSaver = androidx.compose.runtime.saveable.Saver<String, String>(
+    save = { Showing.searchKept(it) }, restore = { it })
+
 /**
  * The list of notes: search, sort and show at the top, the desktop's cards,
  * the + for a new note. Touch and hold a card to select it; while anything
  * is selected, a tap selects too, and the bar at the top acts on them all.
  */
-/** A search box's words, handed to Android only while short ([Showing.searchKept]). */
-internal val SearchSaver = androidx.compose.runtime.saveable.Saver<String, String>(
-    save = { Showing.searchKept(it) }, restore = { it })
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun NotesScreen(state: AppState, onImportCode: () -> Unit) {

@@ -174,12 +174,8 @@ robot in a circle — and this section used to say so, because claiming
 authorship of a template is worse than having no icon at all. On
 **2026-09-14** it was replaced.
 
-`py tools/make_launcher_icon.py` draws it, by importing the DESKTOP app's
-`tools/make_icon.py` and asking for the same drawing at Android's sizes.
-Not a copy of it, and not a second icon that merely rhymes: the same
-code, so the two programs are one product rather than two that look
-related. It reads that file and never writes to it, like everything else
-here that touches the desktop.
+`py tools/make_launcher_icon.py` draws it with the desktop's own
+`tools/make_icon.py` ([how](README.md#the-icon-is-the-desktops-icon)).
 
 What it produces: `mipmap-*/ic_launcher*.webp` at five densities for
 older devices, plus the two adaptive layers and the `mipmap-anydpi-v26`
@@ -202,11 +198,8 @@ from anywhere else.
 
 ### The emulator runs without a window
 
-Start it with `-no-window`. The scripts see, tap and photograph it
-through `adb`, so a window adds nothing — and an emulator window, or a
-probe that moves windows around, can rearrange the desktop of the
-machine it runs on. Photographs are of the emulator's screen only, never
-of the computer's.
+Start it with `-no-window`, and photograph the emulator's screen only,
+never the computer's ([how](tools/emulator/README.md#the-five-tools)).
 
 ### One heavy job at a time, and nothing left running after it
 
@@ -222,11 +215,8 @@ nothing heavy outlives its job:
   the command line), and the Kotlin compiler run inside the build
   (`kotlin.compiler.execution.strategy=in-process`), not as a daemon of its
   own that outlived every build with its memory.
-- **Stop the emulator after a walk**: `adb emu kill`. Left running, it
-  holds two gigabytes and more for nothing.
-- **Every adb call has a time limit** (`tools/emulator/emulator_only.py`'s
-  `run`): an emulator that stops answering stops the script, naming the
-  call, rather than leaving it waiting for ever with the emulator up.
+- **The emulator is stopped after a walk**, and every adb call has a time
+  limit ([the emulator's side](tools/emulator/README.md#one-heavy-job-at-a-time-and-the-emulator-stopped-after-it)).
 - **The desktop's code runs under the desktop's memory ceiling.** The
   fixture makers import its core into their own process; they call its
   `tools/guest.py` first (`tools/desktop_guest.py`), and stop if it is
@@ -252,43 +242,12 @@ in order to understand this code. Carried over from the desktop project.
 Corrupted files five or more times in the desktop project. Write the file
 with a tool, parse it before believing it.
 
-### PowerShell redirection writes TEXT, never binary
+### Three traps on this machine, told where the emulator is driven
 
-`adb exec-out screencap -p > shot.png` produces a corrupt file on
-Windows: PowerShell's `>` is a text pipeline, so it prepends a UTF-8 BOM
-and rewrites line endings inside the PNG. The image opens as garbage and
-the failure looks like a broken screenshot rather than a broken pipe.
-
-Take the picture on the device and copy the finished file instead:
-
-    adb shell screencap -p /sdcard/shot.png
-    adb pull /sdcard/shot.png .
-
-Same trap for any binary a tool writes to stdout — an APK, a zip, a
-`logcat -b all --dump` in binary form. If the bytes must cross
-PowerShell, they arrive damaged; let the tool write its own file.
-
-### Git Bash rewrites Android paths into Windows paths
-
-`adb push file /sdcard/Android/data/...` from Git Bash silently becomes
-`C:/Programs/Git/Git/sdcard/Android/data/...`, and the push either fails
-with `secure_mkdirs()` or lands somewhere nobody looks. MSYS converts any
-argument that looks like a Unix path. Export `MSYS_NO_PATHCONV=1` for the
-whole script — every `adb shell`, `push` and `pull` in it needs it.
-
-### The emulator's stylus tutorial eats typed text
-
-A fresh emulator opens a full-screen *"Try out your stylus"* panel the
-first time a text field takes focus. It sits over the app and swallows
-`adb shell input text`, so the words land in the tutorial's own box while
-the app's field stays empty — and the app looks broken. Dismiss it once
-and turn it off:
-
-    adb shell settings put secure stylus_handwriting_enabled 0
-    adb shell settings put secure stylus_handwriting_default_value 0
-
-The general lesson: when scripted input seems ignored, photograph the
-screen before debugging the code. The first look answered it.
+PowerShell's `>` damages any binary it carries, Git Bash rewrites
+Android paths into Windows ones, and a fresh emulator's stylus tutorial
+eats typed text. Each, with its commands, is in
+[tools/emulator/README.md](tools/emulator/README.md#three-traps-these-tools-do-not-remove).
 
 ### An emulator just started is busy for a minute and more
 

@@ -131,15 +131,6 @@ object Importing {
         if (source == Source.BACKUP) Notebook.UPDATABLE_FROM_BACKUP else Notebook.UPDATABLE_FROM_SHARED
 
     /**
-     * Asked of no file: what arrived, sorted into the three kinds.
-     * [categories] are the ones the notebook will have -- its own, and a
-     * backup's it adds: a note filed under one it will not have is
-     * compared as the General note the import makes it, as the desktop's
-     * normalize_note compares it. Compared as it came, an unchanged note
-     * read as "edited elsewhere", and Update changed nothing but its rescue
-     * copy.
-     */
-    /**
      * [note] filed as this device files it: under General when its category
      * is not one here -- and each of its days' own categories too, as the
      * desktop's `clean_override` files a day under one it lacks. Only the
@@ -166,6 +157,15 @@ object Importing {
         }
     }
 
+    /**
+     * Asked of no file: what arrived, sorted into the three kinds.
+     * [categories] are the ones the notebook will have -- its own, and a
+     * backup's it adds: a note filed under one it will not have is
+     * compared as the General note the import makes it, as the desktop's
+     * normalize_note compares it. Compared as it came, an unchanged note
+     * read as "edited elsewhere", and Update changed nothing but its rescue
+     * copy.
+     */
     fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
              categories: Set<String>? = null): Plan {
         val asHere: (JSONObject) -> JSONObject = { note ->

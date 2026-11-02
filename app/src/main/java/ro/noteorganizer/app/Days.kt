@@ -367,17 +367,6 @@ object Days {
     // ---- a day held on another date ----
 
     /**
-     * Whether [note]'s day now on [day] may be held on [to]: a date no
-     * other day of the series is on -- two days on one date would be one.
-     *
-     * The desktop's `_day_is_free` also takes the day's own date as free,
-     * whatever is on it now. But while a day is away, another can be moved
-     * onto its date; the first one's return then hid the second -- its move
-     * still in the file, drawn nowhere, because a moved day is not drawn
-     * where the series already has one. So its own date is free here only
-     * when it is empty, as any other.
-     */
-    /**
      * Whether the series draws a day on [day] -- a day its rule gives, or one
      * moved there. A day off the schedule is not: moved or deleted, it went
      * where no calendar on either app would show it, its own text in the
@@ -391,6 +380,17 @@ object Days {
     private const val NOT_A_DAY =
         "This day is no longer one of the series' days. Open the series to settle the days off its schedule."
 
+    /**
+     * Whether [note]'s day now on [day] may be held on [to]: a date no
+     * other day of the series is on -- two days on one date would be one.
+     *
+     * The desktop's `_day_is_free` also takes the day's own date as free,
+     * whatever is on it now. But while a day is away, another can be moved
+     * onto its date; the first one's return then hid the second -- its move
+     * still in the file, drawn nowhere, because a moved day is not drawn
+     * where the series already has one. So its own date is free here only
+     * when it is empty, as any other.
+     */
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false
         return to == day || (Recurrence.expand(note, target, target) != listOf(to) && !keepsWordsOn(note, to))
@@ -569,8 +569,7 @@ object Days {
      * the desktop's next copy of words erased them. Days none of which holds
      * text of its own -- skipped days, a colour -- go, as the desktop's save
      * clears them, the copy aside.
-     */
-    /**
+     *
      * [startWas] is the series' start before the sheet's Save wrote a new
      * one, which it does first: the rescue copy keeps the series as it was,
      * as the desktop's `save_current_note` takes it before the new date --

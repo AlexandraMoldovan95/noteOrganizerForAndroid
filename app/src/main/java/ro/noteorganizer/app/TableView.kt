@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
 
-/**
+/*
  * A table, drawn as a grid.
  *
  * **Monospaced on purpose.** Column widths come out of the parser counted

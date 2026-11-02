@@ -57,7 +57,7 @@ DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
          "ReminderAlarm.kt",
          # And Android's own backup agent: whether it takes part is
          # Settings.googleBackupOn, tested on the computer.
-         "GoogleBackup.kt"]
+         "NotesBackupAgent.kt"]
 
 
 def every_kotlin_file():

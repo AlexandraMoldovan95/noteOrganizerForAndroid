@@ -212,9 +212,9 @@ object Organizing {
         return SaveResult.Ok(0, imported = moved)
     }
 
-    /** Pins or unpins several notes; one write. */
     /**
-     * Pinned or not, its "updated" time left alone, as the desktop's
+     * Pins or unpins several notes, in one write. Each keeps its "updated"
+     * time, as the desktop's
      * `toggle_pin` leaves it: a pin is where a note sits, not an edit, and
      * stamped, an unpinned note from last month jumped to the top of
      * "Recently updated" and said "Last updated: today".
@@ -890,12 +890,11 @@ object Organizing {
      * owns the purge there -- no longer holds. Files a note still uses are
      * spared, as the desktop's purge spares them.
      */
-    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, now: Date = Date(),
-                     days: Int = load.retentionDays): Int {
+    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, days: Int = load.retentionDays): Int {
         val trash = load.trashRaw ?: return 0
         val trashFile = load.trashFile ?: return 0
         val all = entriesOf(trash)
-        val gone = all.filter { isPast(it, days, now) }
+        val gone = all.filter { isPast(it, days) }
         if (gone.isEmpty()) return 0
         val kept = all.filter { it !in gone }
         val candidate = JSONArray().apply { kept.forEach { put(it) } }

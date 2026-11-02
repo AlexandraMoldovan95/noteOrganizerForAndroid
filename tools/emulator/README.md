@@ -79,24 +79,36 @@ beside whatever else ran (the final audit's ninth round). The screenshot
 script and the small helpers take no turn; keep them to one at a time by
 hand.
 
-## Before the first run on a fresh emulator
+## Three traps these tools do not remove
 
-A new Android image opens a full-screen *"Try out your stylus"* panel the
-first time a text field takes focus, and it swallows `adb shell input
-text` — the words land in the tutorial and the app looks broken:
+**A fresh emulator's stylus tutorial eats typed text.** A new Android
+image opens a full-screen *"Try out your stylus"* panel the first time a
+text field takes focus, and it swallows `adb shell input text` — the
+words land in the tutorial's own box and the app looks broken. Turn it
+off before the first run:
 
     adb shell settings put secure stylus_handwriting_enabled 0
     adb shell settings put secure stylus_handwriting_default_value 0
 
-## Two traps these tools do not remove
+When scripted input seems ignored, photograph the screen before
+debugging the code: the first look answered this one.
 
 **Git Bash rewrites Android paths.** `adb push file /sdcard/...` becomes
-`C:/Programs/Git/Git/sdcard/...` unless `MSYS_NO_PATHCONV=1` is exported
-for the whole script.
+`C:/Programs/Git/Git/sdcard/...`, and the push fails with
+`secure_mkdirs()` or lands where nobody looks: MSYS converts any argument
+that looks like a Unix path. Export `MSYS_NO_PATHCONV=1` for the whole
+script — every `adb shell`, `push` and `pull` in it needs it.
 
-**Take a picture on the device, not through PowerShell.** `adb exec-out
-screencap -p > shot.png` corrupts the file, because `>` is a text
-pipeline. Use `adb shell screencap -p /sdcard/shot.png` and pull it.
+**PowerShell's `>` writes text, never binary.** `adb exec-out screencap
+-p > shot.png` prepends a byte-order mark and rewrites line endings inside
+the PNG, and the failure looks like a broken screenshot rather than a
+broken pipe. Take the picture on the device and copy the finished file:
+
+    adb shell screencap -p /sdcard/shot.png
+    adb pull /sdcard/shot.png .
+
+The same goes for any binary a tool writes to standard output — an APK,
+a zip, a binary `logcat`: let the tool write its own file.
 
 ## Two things the UI dump does not say, and three the keyboard does
 
@@ -123,5 +135,5 @@ second on an emulator started that day. Ask until it says false before
 asking again, or the second Back leaves the screen
 ([the story](../../docs/ISSUES_LOG.md#a-check-that-held-by-one-frame)).
 
-Each of these, and the other environment traps met on this machine, is
-told in full in [CLAUDE.md](../../CLAUDE.md).
+The other traps met on this machine -- the Windows console, org.json on
+the computer -- are in [CLAUDE.md](../../CLAUDE.md).

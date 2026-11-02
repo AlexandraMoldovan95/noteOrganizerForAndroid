@@ -1496,18 +1496,9 @@ object Pasting {
             val cells = texts.map(::splitRow)
             val rows = cells.map { row -> row.map { it.codePointCount(0, it.length) } }
             val aligns = texts.map(::cellAlignments)
-            val widths = if (sepAt != null) {
-                val w = layoutWidths(cells.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
-                    .toMutableList()
-                // A width set by hand is kept, as the separator spells it.
-                for ((i, column) in parseSeparator(texts[sepAt]).withIndex()) {
-                    val set = column.width ?: continue
-                    if (i < w.size) w[i] = maxOf(w[i], set)
-                }
-                w
-            } else {
-                layoutWidths(cells, aligns)
-            }
+            // No separator here sets a width: [forgetWidths], which every
+            // paste passes first, has spelled each at markdown's minimum.
+            val widths = layoutWidths(cells.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
             // Weighed before it is built: past MAX_TABLE_PADDING the table is
             // left ragged, each cell padded only as its alignment needs. Padded
             // after the paste ceiling, one 60,000-character cell over 2,000 rows
@@ -1760,8 +1751,8 @@ object Pasting {
 
     /**
      * `shift_spans`: every offset judged against the span as it was, the
-     * shifts before it summed off sorted totals -- walked whole for every
-     * span, the shape the desktop measured at seconds on a large paste.
+     * shifts before it read off running totals of the sorted shifts. Walked
+     * whole for every span, the desktop measured seconds on a large paste.
      */
     private fun shiftSpans(spans: List<Span>, shifts: List<Pair<Int, Int>>): List<Span> {
         if (shifts.isEmpty()) return spans

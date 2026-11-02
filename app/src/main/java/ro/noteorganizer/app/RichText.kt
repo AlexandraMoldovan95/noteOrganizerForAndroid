@@ -10,7 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 
-/**
+/*
  * Turns a note's stored spans into text Compose can draw.
  *
  * This file is where Compose is allowed in and `Notebook.kt` is not --
@@ -128,11 +128,6 @@ private fun styleOf(span: FormatSpan, surface: Color): SpanStyle? = when (span.s
 }
 
 /**
- * Parsed by hand rather than through `android.graphics.Color.parseColor`,
- * which exists only on a device: on the computer it is a stub that throws,
- * so a test touching it fails for a reason unrelated to the colour.
- */
-/**
  * Fake transparency on a surface that has none: *top* at *opacity* over
  * *base*, channel by channel. The desktop's `_blend_hex`, in Compose's
  * floating-point colour channels rather than hex pairs.
@@ -143,6 +138,11 @@ fun blend(top: Color, base: Color, opacity: Float): Color = Color(
     blue = top.blue * opacity + base.blue * (1f - opacity),
 )
 
+/**
+ * Parsed by hand rather than through `android.graphics.Color.parseColor`,
+ * which exists only on a device: on the computer it is a stub that throws,
+ * so a test touching it fails for a reason unrelated to the colour.
+ */
 fun hexColor(value: String): Color? {
     // Expanded first: #f00 read as six digits drew a near-black green.
     val full = Notebook.sanitizeColor(value)

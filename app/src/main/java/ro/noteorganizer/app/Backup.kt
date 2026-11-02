@@ -115,18 +115,13 @@ object Backup {
         return "$ATTACHMENTS/$bare"
     }
 
-    /** Stopped part-way, when a caller's `stop` says so (the screens pass none: a backup runs to its end). */
-    class Stopped : IOException("The backup was stopped before it was finished.")
-
     /**
      * Writes the notebook in [dir] as a backup to [out]. Built in [scratch]
      * first and checked there by the import's own rules, so a backup that
-     * could not be restored is never handed over; [stop] is asked between
-     * files. Returns how many files went in; [out] is closed once written.
+     * could not be restored is never handed over. Returns how many files
+     * went in; [out] is closed once written.
      */
-    fun export(dir: File, scratch: File, out: OutputStream, stop: () -> Boolean = { false },
-               progress: (Int, Int) -> Unit = { _, _ -> }): Int =
-        export(dir, scratch, { out }, stop, progress)
+    fun export(dir: File, scratch: File, out: OutputStream): Int = export(dir, scratch, { out })
 
     /**
      * The same, the place it goes to [open]ed only once the backup is built
@@ -134,8 +129,7 @@ object Backup {
      * chosen to be written over was emptied before a full cache could stop
      * the new one, and then deleted as half-written: no backup at all.
      */
-    fun export(dir: File, scratch: File, open: () -> OutputStream?, stop: () -> Boolean = { false },
-               progress: (Int, Int) -> Unit = { _, _ -> }): Int {
+    fun export(dir: File, scratch: File, open: () -> OutputStream?): Int {
         val entries = ArrayList<Pair<File, String>>()
         for (name in listOf(NOTES, SETTINGS, TEMPLATES, TRASH)) {
             val file = File(dir, name)
@@ -155,13 +149,10 @@ object Backup {
         val tmp = File(scratch, "backup_export.zip.tmp")
         try {
             ZipOutputStream(FileOutputStream(tmp)).use { zip ->
-                for ((i, pair) in entries.withIndex()) {
-                    if (stop()) throw Stopped()
-                    val (file, name) = pair
+                for ((file, name) in entries) {
                     zip.putNextEntry(ZipEntry(name))
-                    file.inputStream().use { copyStopping(it, zip, stop) }
+                    file.inputStream().use { copyUpTo(it, zip) }
                     zip.closeEntry()
-                    progress(i + 1, entries.size)
                 }
             }
             ZipFile(tmp).use { written ->
@@ -171,7 +162,7 @@ object Backup {
             }
             val out = open() ?: throw IOException("The file could not be opened for writing.")
             out.use { stream ->
-                tmp.inputStream().use { copyStopping(it, stream, stop) }
+                tmp.inputStream().use { copyUpTo(it, stream) }
                 stream.flush()
             }
             return entries.size
@@ -206,11 +197,10 @@ object Backup {
      * refusal.
      */
     fun exportTo(dir: File, scratch: File, open: () -> OutputStream?, emptyPlace: () -> Boolean,
-                 discard: () -> Unit, heap: Long = Runtime.getRuntime().maxMemory(),
-                 stop: () -> Boolean = { false }, progress: (Int, Int) -> Unit = { _, _ -> }): Export {
+                 discard: () -> Unit, heap: Long = Runtime.getRuntime().maxMemory()): Export {
         var opened = false
         return try {
-            val files = export(dir, scratch, { open()?.also { opened = true } }, stop, progress)
+            val files = export(dir, scratch, { open()?.also { opened = true } })
             val sizes = listOf(NOTES, SETTINGS, TEMPLATES, TRASH).map { File(dir, it) }.filter { it.isFile }
                 .map { Entry(it.name, it.length(), it.length()) }
             Export.Saved(files, memoryProblem(sizes, heap))
@@ -320,8 +310,7 @@ object Backup {
      * it unpacks to, [heap] the memory the app may use. A failure says what
      * is wrong in words for a person.
      */
-    fun read(zip: File, into: File, free: Long, stop: () -> Boolean = { false },
-             heap: Long = Runtime.getRuntime().maxMemory()): Read {
+    fun read(zip: File, into: File, free: Long, heap: Long = Runtime.getRuntime().maxMemory()): Read {
         // Attached files unpacked under a shorter name: the name as stored -> the one here.
         val renamed = HashMap<String, String>()
         val file = try {
@@ -355,11 +344,9 @@ object Backup {
                     val claimed = if (entry.size >= 0) entry.size else BOMB_MIN_BYTES
                     val limit = if (place in JSON_FILES) minOf(claimed, jsonCeiling(heap)) else claimed
                     archive.getInputStream(entry).use { input ->
-                        FileOutputStream(target).use { copyStopping(input, it, stop, limit) }
+                        FileOutputStream(target).use { copyUpTo(input, it, limit) }
                     }
                 }
-            } catch (e: Stopped) {
-                return Read.Failed(e.message ?: "Stopped.")
             } catch (e: Exception) {
                 return Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
             }
@@ -417,13 +404,11 @@ object Backup {
         archive.entries().toList().filter { !it.isDirectory }
             .map { Entry(it.name, it.size, it.compressedSize) }
 
-    private fun copyStopping(
-        input: InputStream, output: OutputStream, stop: () -> Boolean, limit: Long = Long.MAX_VALUE,
-    ) {
+    /** [input] into [output], refusing past [limit] bytes: what an entry said it holds. */
+    private fun copyUpTo(input: InputStream, output: OutputStream, limit: Long = Long.MAX_VALUE) {
         val buffer = ByteArray(1 shl 16)
         var total = 0L
         while (true) {
-            if (stop()) throw Stopped()
             val n = input.read(buffer)
             if (n < 0) break
             total += n

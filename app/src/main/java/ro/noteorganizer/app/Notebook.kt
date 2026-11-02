@@ -37,16 +37,18 @@ data class Note(
     val order: Double? = null,
     val pinned: Boolean = false,
     val comments: String = "",
-    val attachments: Int = 0,
+    /** How many files, how many paragraph records: counts, where the file holds the lists. */
+    val attachmentCount: Int = 0,
     val formatting: List<FormatSpan> = emptyList(),
-    val paragraphs: Int = 0,
+    val paragraphCount: Int = 0,
     val checklist: List<ChecklistItem> = emptyList(),
     val recurrenceFreq: String = "",
     val recurrenceInterval: Int = 1,
     /** The rule in words, as the desktop's card says it: "Every 2 weeks on Mon, Thu". */
     val recurrenceLabel: String = "",
-    val exceptions: Int = 0,
-    val overrides: Int = 0,
+    /** How many days the series skips, and how many keep edits of their own. */
+    val exceptionCount: Int = 0,
+    val overrideCount: Int = 0,
     /** Only a trashed note carries this: "YYYY-MM-DD HH:MM:SS". */
     val deletedAt: String = "",
     /**
@@ -187,13 +189,13 @@ data class Note(
         val parts = StringBuilder(category)
         if (isRecurring) {
             parts.append("   🔁 ").append(recurrenceLabel)
-            if (exceptions > 0) parts.append("   ✕").append(exceptions)
-            if (overrides > 0) parts.append("   ✎").append(overrides)
+            if (exceptionCount > 0) parts.append("   ✕").append(exceptionCount)
+            if (overrideCount > 0) parts.append("   ✎").append(overrideCount)
         } else if (date.isNotEmpty()) {
             parts.append("   📅 ").append(Recurrence.showDate(date))
         }
         if (comments.isNotEmpty()) parts.append("   💬")
-        if (attachments > 0) parts.append("   📎×").append(attachments)
+        if (attachmentCount > 0) parts.append("   📎×").append(attachmentCount)
         val tables = tableCount
         if (tables > 0) {
             parts.append(if (tables == 1) "   ▦ 1 table" else "   ▦ $tables tables")
@@ -336,7 +338,7 @@ object Showing {
         ALL -> true
         REPEATING -> note.isRecurring
         DATED -> !note.isRecurring && note.date.isNotEmpty()
-        FILES -> note.attachments > 0
+        FILES -> note.attachmentCount > 0
         else -> note.category == selected
     }
 
@@ -2082,26 +2084,6 @@ object Notebook {
     }
 
     /**
-     * [daysBackFromCopy] for a note read from the file as it lies, [raw]:
-     * asked of the note as `normalize_note` shapes it -- its deleted days
-     * real dates, its copy shaped, a day's edit its text alone -- as the
-     * desktop asks it at the end of its load, and the days it takes put into
-     * the note as written, shaped. Asked of the file as it lay, a deleted
-     * day written another way stopped the move the desktop makes, and a copy
-     * with no date, or a day's edit under no date, made one the desktop does
-     * not (the final audit's seventh round). Then the copy's days are spent
-     * from the copy as written, when the note repeats as its series
-     * ([spendSeriesDays]): its days first taken back into the note on every
-     * date the note's own leave free, the note's days then written as the
-     * view holds them. Only a copy that can be a series' own copy holding a
-     * day is shaped to ask -- one with a repeat, none of an update's own
-     * fields, and a day's field: shaping takes a repeat away, never gives
-     * one, and keeps the fields a copy has. Asked of any copy with a day's
-     * field, every note an import's Update had made a copy of -- each holds
-     * all three -- was shaped twice at each start, for nothing (the final
-     * audit's ninth round).
-     */
-    /**
      * What the desktop's read does to a note from a file, done to the raw
      * note the calendar and every day's action read -- at the load and at a
      * restore from the Trash: a series' days back from its copy
@@ -2121,6 +2103,26 @@ object Notebook {
         Normalize.dropHiddenMoves(raw)
     }
 
+    /**
+     * [daysBackFromCopy] for a note read from the file as it lies, [raw]:
+     * asked of the note as `normalize_note` shapes it -- its deleted days
+     * real dates, its copy shaped, a day's edit its text alone -- as the
+     * desktop asks it at the end of its load, and the days it takes put into
+     * the note as written, shaped. Asked of the file as it lay, a deleted
+     * day written another way stopped the move the desktop makes, and a copy
+     * with no date, or a day's edit under no date, made one the desktop does
+     * not (the final audit's seventh round). Then the copy's days are spent
+     * from the copy as written, when the note repeats as its series
+     * ([spendSeriesDays]): its days first taken back into the note on every
+     * date the note's own leave free, the note's days then written as the
+     * view holds them. Only a copy that can be a series' own copy holding a
+     * day is shaped to ask -- one with a repeat, none of an update's own
+     * fields, and a day's field: shaping takes a repeat away, never gives
+     * one, and keeps the fields a copy has. Asked of any copy with a day's
+     * field, every note an import's Update had made a copy of -- each holds
+     * all three -- was shaped twice at each start, for nothing (the final
+     * audit's ninth round).
+     */
     internal fun daysBackAsRead(raw: JSONObject) {
         val held = raw.opt("_prev") as? JSONObject ?: return
         if (DAY_FIELDS.none { held.has(it) } || !Recurrence.isRecurring(held) || UPDATE_COPY_ONLY.any { held.has(it) }) return
@@ -2332,6 +2334,16 @@ object Notebook {
         (note.opt("_prev") as? JSONObject)?.let { !spent(note, it) } == true
 
     /**
+     * Whether a turn-off of [note] keeps its copy whole -- an import's
+     * Update copy not spent ([turnOffCopy]): its days stay in it, nothing
+     * set aside (the seventeenth round).
+     */
+    internal fun turnOffKeepsCopy(note: JSONObject): Boolean {
+        val existing = note.opt("_prev") as? JSONObject ?: return false
+        return !spent(note, existing) && updateCopy(existing)
+    }
+
+    /**
      * The copy a repeat's turn-off makes, [copy] -- the note whole, its
      * repeat and days as they are now -- given the words of any copy but an
      * Update's [note] holds whose words the note has lost ([wordsLostTo]:
@@ -2363,16 +2375,6 @@ object Notebook {
      * the older words at Restore previous (the tenth, the desktop's 04044ce).
      * The copy to keep: [copy], given words, or the update's.
      */
-    /**
-     * Whether a turn-off of [note] keeps its copy whole -- an import's
-     * Update copy not spent ([turnOffCopy]): its days stay in it, nothing
-     * set aside (the seventeenth round).
-     */
-    internal fun turnOffKeepsCopy(note: JSONObject): Boolean {
-        val existing = note.opt("_prev") as? JSONObject ?: return false
-        return !spent(note, existing) && updateCopy(existing)
-    }
-
     internal fun turnOffCopy(copy: JSONObject, note: JSONObject): JSONObject {
         val existing = note.opt("_prev") as? JSONObject ?: return copy
         if (spent(note, existing)) return copy
@@ -2796,15 +2798,15 @@ object Notebook {
             order = (o.opt("order") as? Number)?.toDouble()?.takeIf { it.isFinite() && o.opt("order") !is Boolean },
             pinned = o.opt("pinned") == true,
             comments = o.str("comments"),
-            attachments = o.arrayLength("attachments"),
+            attachmentCount = o.arrayLength("attachments"),
             formatting = readSpans(o.opt("formatting") as? JSONArray),
-            paragraphs = o.arrayLength("paragraphs"),
+            paragraphCount = o.arrayLength("paragraphs"),
             checklist = readChecklist(o.opt("checklist") as? JSONArray),
             recurrenceFreq = rule?.str("freq") ?: "",
             recurrenceInterval = rule?.intOr("interval", 1) ?: 1,
             recurrenceLabel = Recurrence.describe(o),
-            exceptions = o.arrayLength("exceptions"),
-            overrides = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
+            exceptionCount = o.arrayLength("exceptions"),
+            overrideCount = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
             deletedAt = o.str("deleted_at"),
             uid = o.str("uid"),
             hasPrevious = o.opt("_prev") is JSONObject,

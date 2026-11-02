@@ -311,17 +311,20 @@ object Themes {
         return if (dark > light) LETTERS_DARK else LETTERS_LIGHT
     }
 
+    /** What [legibleOn] asks of words: WCAG's 4.5 to 1, and a little over. */
+    private const val LEGIBLE = 4.6
+
     /**
      * [colour] as words on [ground]: itself when it reads there at
-     * [minimum], else the nearest shade of it that does -- darker in the
+     * [LEGIBLE], else the nearest shade of it that does -- darker in the
      * same hue on a light ground, mixed toward [ink] on a dark one. For a
      * colour a person picked (a category's, a note's own) shown as words;
      * the stripe beside it keeps the colour whole. The desktop's
      * `legible_on`.
      */
-    fun legibleOn(colour: String, ground: String, ink: String, minimum: Double = 4.6): String {
+    fun legibleOn(colour: String, ground: String, ink: String): String {
         val first = contrastRatio(colour, ground) ?: return ink
-        if (first >= minimum) return colour
+        if (first >= LEGIBLE) return colour
         val darkWins = (contrastRatio(LETTERS_DARK, ground) ?: 0.0) >=
             (contrastRatio(LETTERS_LIGHT, ground) ?: 0.0)
         if (darkWins) {
@@ -332,12 +335,12 @@ object Themes {
                                    hsv[2] * (1 - step / 100.0))
                 val darker = "#%02x%02x%02x".format(
                     pyRound(rgb[0] * 255), pyRound(rgb[1] * 255), pyRound(rgb[2] * 255))
-                if ((contrastRatio(darker, ground) ?: 0.0) >= minimum) return darker
+                if ((contrastRatio(darker, ground) ?: 0.0) >= LEGIBLE) return darker
             }
         } else {
             for (step in 1..20) {
                 val mixed = blend(colour, ink, step / 20.0)
-                if ((contrastRatio(mixed, ground) ?: 0.0) >= minimum) return mixed
+                if ((contrastRatio(mixed, ground) ?: 0.0) >= LEGIBLE) return mixed
             }
         }
         return ink

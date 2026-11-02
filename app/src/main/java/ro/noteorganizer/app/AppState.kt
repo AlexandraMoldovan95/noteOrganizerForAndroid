@@ -655,7 +655,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * seconds) -- the desktop's banner, as Android's snackbar. Undo restores
      * exactly those entries, and opens the note when it was the only one.
      */
-    fun trash(ids: Collection<Int>, openAfterUndo: Boolean = false) {
+    fun trash(ids: Collection<Int>) {
         // The open note goes to the Trash with its last words in it.
         val result = outside(ids, writes = false) { Organizing.trashNotes(load, ids) } ?: return
         if (!report(result)) return
@@ -664,7 +664,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         if (openId != null && openId in ids) closeNote()
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             report(Organizing.restore(load, keys)) { ok ->
-                if (openAfterUndo || count == 1) openNote(ok.id)
+                if (count == 1) openNote(ok.id)
             }
         }
     }

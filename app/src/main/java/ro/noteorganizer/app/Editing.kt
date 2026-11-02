@@ -1029,15 +1029,17 @@ object Editing {
     fun wordCount(body: String): Int =
         contentText(body).split(Regex("\\s+")).count { it.isNotEmpty() }
 
+    private const val WORDS_A_MINUTE = 200
+
     /**
-     * The desktop's `reading_time`: at 200 words a minute, the slow end of
+     * The desktop's `reading_time`: at [WORDS_A_MINUTE], the slow end of
      * adult reading -- a reader who finishes early has lost nothing. Python
      * rounds a half to the even neighbour, and so does this.
      */
-    fun readingTime(words: Int, wpm: Int = 200): String {
+    fun readingTime(words: Int): String {
         if (words <= 0) return ""
-        if (words < wpm) return "under a minute to read"
-        val minutes = Math.rint(words.toDouble() / wpm).toInt()
+        if (words < WORDS_A_MINUTE) return "under a minute to read"
+        val minutes = Math.rint(words.toDouble() / WORDS_A_MINUTE).toInt()
         return "about $minutes minute${if (minutes == 1) "" else "s"} to read"
     }
 

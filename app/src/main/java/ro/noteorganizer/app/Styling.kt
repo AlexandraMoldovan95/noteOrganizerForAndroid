@@ -1,6 +1,6 @@
 package ro.noteorganizer.app
 
-/**
+/*
  * Applying and removing styles over a range of a note's body.
  *
  * The hard part is not the button, it is what a style means where another

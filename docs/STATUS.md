@@ -562,7 +562,7 @@ the `.zip` through Google Drive is.
 
 **Since 2026-10-27 the person can turn it off** (the owner's call):
 Settings → Backup has a switch, on by default so nobody's backup stops
-without them knowing, and `NotesBackupAgent` (`GoogleBackup.kt`) hands
+without them knowing, and `NotesBackupAgent.kt` hands
 Android none of the notebook while it is off — the cloud backup and the
 transfer to a new phone alike — only a small file saying it is off. That
 file replaces the copy made while it was on, which a reinstall or a new
@@ -680,159 +680,12 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-70 parts ([how many checks](../qa/README.md#the-emulator-walk)). The final
-audit's tenth round added `limits_round10` (a message said while a
-checklist row is renamed stands above the row and its ✕, not over them),
-its lows wave `paste_at_marker`, and its third wave put in the full walk
-three parts written on 2026-10-28 and walked alone until then
-(`hostile_backups`, `code_read_away`, `long_lines`). Its eighth round added `limits_round8` (8
-checks: a category's name already
-used said over its sheet; a paste cut to Your name's and to Save as
-template's name said under the box; a title of 170 emoji counted 170 of
-200; a tap on a title holding a line break writing nothing, and letters
-typed after the break going into the title; on a phone on its side, the
-turn-off's word seen over the note's details, which scroll to their
-foot). The same round made the walk take the machine's one turn as it
-starts, read every frame check after a look at the screen -- "Read all"
-now on a row of five million letters -- and read back that Continue and
-Discard were pressed and that Android had stopped the app before it is
-ended behind a picker. The seventh round had added `limits_round7` (9
-checks: "Read all" on a checklist
-row of a million letters with no space, timed by the app's frames; a
-letter at the start of a title and of a template's name of 200 letters,
-refused and said; a full list's box told so as words begin; a second long
-paste into "A new item…" after Add said again; the reminder's own intent
-sent while a template is written, the draft kept and offered back; a
-draft whose change was taken back by hand gone at the next Home). The
-sixth round had added `days_in_the_note` (4
-checks: a notebook 0.12.0 left, its series' day back in the note at the
-next write; a turn-off from the Repeat sheet keeping a day's own text in
-the note; a big delete after it, a copy of words alone),
-`template_draft` (7 checks: a template being written kept aside at Home,
-the app ended, offered back, every field continued and saved, an edit
-discarded), and `limits_round6` (20
-checks: a letter and a paste at the start of a checklist row at the
-desktop's 2,000 letters, the row's own words kept and the cap said; rows
-moved and dragged across the line of rows not drawn, still in sight; a
-search for one of the last rows drawing no more; a row longer than one is
-written in, and one shown short, read whole and found; a template of
-1,000 rows of 2,000 letters opened and timed, and one full at 1,000
-refusing an Add and asking before its waiting words go; Insert table
-refused out of sight; Redo of a table row typed at the end). The fifth
-round had added `limits_round5` (20
-checks: fifty weekly tables and sixty sessions drawn to their ends and
-found there; a word in the read-only rest of a note of 60,000 lines
-found, its line shown, read on; Enter past what is drawn letting the
-keyboard go, nothing glued above; the calculator refusing to write out of
-sight; 1,000 checklist rows and 120 rows of 150,000 letters opened and
-timed; a table typed row by row by hand; a two-million-letter note typed
-in forty times, its heap read; a template's "A new item…" saved). The
-fourth round had added `limits_round4`
-(what one note draws — ten tables of 1,000 cells, 200,000 empty lines,
-3,000 tiny tables, a journal of 7,000 lines and a letter typed in it,
-timed by the app's frames; a Chinese note refused on Share → Text by
-what Android carries; a code too long greyed on its card; and the PDF's
-question, each answer walked) and changed `limits_round3`'s PDF step to
-the question; the third round had added `limits_round3` (19
-checks: text the layout cannot break, a template's long row, what a bar
-quotes, what Share hands over and what a PDF leaves out) and two to
-`google_backup` (a backup run on a restored phone before its first
-start). The final audit's rounds were walked part by part as they were
-fixed, and in full between rounds; the last full run is dated in
-[qa/README](../qa/README.md#the-emulator-walk). The last full run that
-passed whole (2026-10-27, for 0.13.0), with
-About's Open-source licenses read and Back from them landing on About,
-began on an emulator just started: it waited 42 seconds, then passed all
-353. The one before it (2026-10-27), with the Trash's
-Select all, two of its entries alike in id and moment, and duplicates
-moved while its window could not be read, began on an emulator already
-running: it waited 31 seconds, then passed all 351. The one before it
-(2026-10-26), with a paragraph
-pasted under a note's last table, the checklist and comments found by a
-search, and a merge down photographed, began on an emulator just started
-cold: it waited 31 seconds, then passed all 343. The one before it
-(2026-10-25), with a checklist
-row dragged at once, a note's sections folded and opened, a day marked
-and cells merged right and down, began on an emulator just started
-cold: it waited 31 seconds, then passed all 340. The one before it
-(2026-10-24, evening), with a
-note's whole text replaced by a new line and its words kept for Restore
-previous, began on an emulator just started cold: it waited 31 seconds,
-then passed all 333. The run before it that day, with the part for
-screens of every size and the walk's own files taken out of Downloads
-again, waited 31 seconds and passed all 332. The two before that
-lost six checks to Android's picker refusing a 33rd file of one name
-([the story](ISSUES_LOG.md#thirty-two-copies-and-a-save-that-did-nothing)),
-and then one to the calendar's row of the day read once, a moment before
-it was drawn; that check, and three more read once after the calendar
-opened, now wait for what they look for. The run before them
-(2026-10-23, late), with a
-markdown table pasted into a note and a template added, was begun on an
-emulator just started and alone on the computer: it waited 66 seconds,
-then passed all 313. Earlier that evening, with an
-empty last line put back to the left under a centred one added, it
-waited 69 seconds, then passed all 309. That afternoon, with the centred empty last
-line and Your name's Saved, all 308. That morning, with the day's reminder and the note's
-⋮ added, all 305, after a wait of 72 seconds. The
-two before that, on emulators just started too, lost four checks and then
-two, every one a check whose margin was the machine's speed and none the
-app — Undo tapped after its offer had gone, the theme's fade between two
-captures, the calculator looked for before the keyboard was down, the
-cursor's line looked for before the note had scrolled back to it; each
-check was changed, not run again until it passed
-([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)). Earlier that
-day, with the checks for what the owner's phone found that evening — the
-screen following the cursor in the text and the comments, the newest
-checklist row, the keyboard rising on its side, the list put aside,
-Settings' list and the month keeping their places — all 291; before them,
-on the first of those fixes, all 278. On 2026-10-22, with the two parts for what the owner's phone and
-an agent playing an ordinary user found, the checklist's box above the
-keyboard and the note in sight on its side, all 273, after a wait of 106
-seconds; the two before it, with fewer of those checks, all 271 and all
-269. A run before them, made while the
-computer also built the app and ran the desktop's suite, failed a
-hundred checks, the emulator's own home screen hung under the load ("Pixel
-Launcher isn't responding") — the walk wants the machine to itself. The
-first run on the walk's own fixes was begun the moment an emulator had
-started: the walk waited 93 seconds for it to settle, then passed all
-259. The one before it, the same but for
-`keyboard_down`, lost two checks in the sheet part to a Back pressed off
-a table cell ([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)).
-Before them, after a new search began to show its results from the top,
-all 259; with deletes across a numbered list fixed, all 258. On 0.10.0
-(2026-10-21) all 258 passed on an emulator given a minute and a half to
-settle after it started. A run on the same build less the WebView's
-opt-out lost one: a search typed after two blind flings up the list, which
-stopped anywhere from Card 14 to Card 16, so the results opened with
-"Card 15" above the screen — the setup now scrolls until the top card is
-seen, and the part passed six times running. The run before that, with
-257, after About gained the
-privacy policy, was the first on an emulator started a moment before: its first
-typing never reached the editor, so the first part failed in a chain —
-six of its checks — and the dissolve's shades jumped from light to dark
-between two frames. The first three parts, walked again on the same
-emulator once warm, passed every check, and the other 33 had passed in
-the full run. The walk now waits for a just-started emulator to settle,
-and watches the dissolve slowed fivefold
-([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). The run before, after Appearance became one
-Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before that,
-after the list learned to keep its place, all 253. Before them,
-the run after the desktop's old way was
-brought over, passed all 250 on its first try. The one before it, after
-the sheets were fixed, passed all 238 it then had; the parts written
-after it were walked on their own — once a photograph taken on the
-file's word, before the first start after an install had drawn the list,
-learned to wait for the screen. The run after Share passed 229 and failed two:
-a brand-new notebook read three seconds after the first start following
-an install, on an emulator short of memory, before the app had written
-it. Those reads now wait for the file, as every read of the autosave
-does. The run before that, after the table's audit, passed all 228 it
-then had on its first try. One earlier failed three — two at larger letters, where a cell's
-style built anew had lost the theme's line height, and one Redo read a
-moment too soon, which every read of the autosave now waits out
-(`settle`). The first run of Phase 3 had failed five steps — all the walk's own, in
-older parts the new screens had changed under them
-([the story](ISSUES_LOG.md#old-steps-walking-through-new-screens)).
+70 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+It takes the machine's one turn as it starts, waits for an emulator just
+started to settle, and reads every frame check after a look at the
+screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
+parts walk, in the order they came:
+
 Phase 1's four:
 
 * **A brand-new notebook**: the welcome note, written and remembered; a
@@ -1002,6 +855,64 @@ The first test on a real phone added eight parts and grew seven:
   moved day saying where it came from; one imported note opened from the
   line that says it came.
 
+The final audit (2026-10-27 to 2026-11-02) added a part for each round's
+limits, the same way:
+
+* **`limits_round3`** (19 checks): text the layout cannot break, a
+  template's long row, what a bar quotes, what Share hands over and what a
+  PDF leaves out; and two more in `google_backup`, a backup run on a
+  restored phone before its first start.
+* **`limits_round4`**: what one note draws — ten tables of 1,000 cells,
+  200,000 empty lines, 3,000 tiny tables, a journal of 7,000 lines and a
+  letter typed in it, timed by the app's frames; a Chinese note refused on
+  Share → Text by what Android carries; a code too long greyed on its
+  card; and the PDF's question, each answer walked.
+* **`limits_round5`** (20 checks): fifty weekly tables and sixty sessions
+  drawn to their ends and found there; a word in the read-only rest of a
+  note of 60,000 lines found, its line shown, read on; Enter past what is
+  drawn letting the keyboard go, nothing glued above; the calculator
+  refusing to write out of sight; 1,000 checklist rows and 120 rows of
+  150,000 letters opened and timed; a table typed row by row; a
+  two-million-letter note typed in forty times, its heap read; a
+  template's "A new item…" saved.
+* **`limits_round6`** (20 checks): a letter and a paste at the start of a
+  checklist row at the desktop's 2,000 letters, the row's own words kept
+  and the cap said; rows moved and dragged across the line of rows not
+  drawn, still in sight; a search for one of the last rows drawing no
+  more; a row longer than one is written in, and one shown short, read
+  whole and found; a template of 1,000 rows of 2,000 letters opened and
+  timed, and one full at 1,000 refusing an Add and asking before its
+  waiting words go; Insert table refused out of sight; Redo of a table row
+  typed at the end.
+* **`template_draft`** (7 checks): a template being written kept aside at
+  Home, the app ended, offered back, every field continued and saved, an
+  edit discarded.
+* **`days_in_the_note`** (4 checks): a notebook 0.12.0 left, its series'
+  day back in the note at the next write; a turn-off from the Repeat sheet
+  keeping a day's own text in the note; a big delete after it, a copy of
+  words alone.
+* **`limits_round7`** (9 checks): "Read all" on a checklist row of a
+  million letters with no space, timed by the app's frames; a letter at
+  the start of a title and of a template's name of 200 letters, refused
+  and said; a full list's box told so as words begin; a second long paste
+  into "A new item…" after Add said again; the reminder's own intent sent
+  while a template is written, the draft kept and offered back; a draft
+  whose change was taken back by hand gone at the next Home.
+* **`limits_round8`** (8 checks): a category's name already used said
+  over its sheet; a paste cut to Your name's and to Save as template's
+  name said under the box; a title of 170 emoji counted 170 of 200; a tap
+  on a title holding a line break writing nothing, and letters typed after
+  the break going into the title; on a phone on its side, the turn-off's
+  word seen over the note's details, which scroll to their foot. "Read
+  all" is checked on a row of five million letters, and that Continue and
+  Discard were pressed and Android had stopped the app before it is ended
+  behind a picker is read back.
+* **`limits_round10`**: a message said while a checklist row is renamed
+  stands above the row and its ✕, not over them.
+* **`hostile_backups`**, **`code_read_away`** and **`long_lines`**,
+  written on 2026-10-28 and walked alone until the audit's third wave put
+  them in the full walk; and **`paste_at_marker`**, above.
+
 The photographs it takes are looked at, not only saved: the walk is
 where the Settings switch that did not redraw, Back closing the app from
 Settings, an Undo that vanished before a thumb could reach it, a merged
@@ -1016,15 +927,15 @@ desktop's own Python, over cases generated for it — and the phone had to
 give every answer back exactly. The tools that write the fixtures read
 the desktop's source and never write to it.
 
-| Port | The desktop's own function | Cases ([kept up in qa/README](../qa/README.md#fixtures-the-desktop-wrote)) |
+| Port | The desktop's own function | Cases ([how many: qa/README](../qa/README.md#fixtures-the-desktop-wrote)) |
 |---|---|---|
-| Repeating notes | its recurrence engine, expanding and reading dates | 300 seeded notes expanded, 400 typed dates read |
-| The calculator | its evaluator and its display rounding | 661 sums, 378 shown values |
-| Export | `note_to_html`, `html_document` and the page around them | 409 notes, 815 files compared byte for byte |
-| Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
-| Lists | its renumbering | 300 bodies |
-| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts, 86 markdown tables |
-| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | 103 notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
+| Repeating notes | its recurrence engine, expanding and reading dates | seeded notes expanded, typed dates read |
+| The calculator | its evaluator and its display rounding | sums, shown values |
+| Export | `note_to_html`, `html_document` and the page around them | notes, every file compared byte for byte |
+| Templates | `normalize_template` | templates as a hand-edited or old file might hold them |
+| Lists | its renumbering | bodies |
+| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | fragments read -- the app's own copies with their HTML among them -- plain texts, markdown tables |
+| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
 
 Pasting is the one port where the phone answers differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's

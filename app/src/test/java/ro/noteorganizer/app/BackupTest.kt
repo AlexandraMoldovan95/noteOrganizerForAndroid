@@ -436,18 +436,17 @@ class BackupTest {
     }
 
     @Test
-    fun `a stopped export leaves nothing behind`() {
+    fun `an export whose place will not open leaves nothing behind`() {
         val dir = temp("notebook")
         File(dir, "notes_data.json").writeText("[]")
         val scratch = temp("scratch")
-        val out = ByteArrayOutputStream()
         try {
-            Backup.export(dir, scratch, out, stop = { true })
-        } catch (e: Backup.Stopped) {
-            // expected
+            Backup.export(dir, scratch, { null })
+            fail("an export with nowhere to go went through")
+        } catch (e: java.io.IOException) {
+            assertEquals("The file could not be opened for writing.", e.message)
         }
-        assertEquals(0, out.size())
-        assertEquals(0, scratch.listFiles()!!.size)
+        assertEquals("the scratch copy is gone", 0, scratch.listFiles()!!.size)
     }
 
     @Test

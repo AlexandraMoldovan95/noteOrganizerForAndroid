@@ -1,6 +1,6 @@
 package ro.noteorganizer.app
 
-/**
+/*
  * Turning a run of pipe-delimited lines into something a screen can draw.
  *
  * Nothing here imports Compose, so the rules can be tested on the computer
@@ -830,9 +830,9 @@ fun autofitAllColumns(lines: List<String>): List<String> = withColumnMechanics(l
     for (c in cols.indices) if (c in widths.indices && !cols[c].hidden) cols[c] = cols[c].copy(width = widths[c])
 }
 
-/** A column hidden, or shown again. */
-fun hideColumn(lines: List<String>, column: Int, hidden: Boolean = true): List<String> = withColumnMechanics(lines) { cols, _, _ ->
-    if (column in cols.indices) cols[column] = cols[column].copy(hidden = hidden)
+/** A column hidden; [unhideAllColumns] shows them again. */
+fun hideColumn(lines: List<String>, column: Int): List<String> = withColumnMechanics(lines) { cols, _, _ ->
+    if (column in cols.indices) cols[column] = cols[column].copy(hidden = true)
 }
 
 /** Every hidden column shown: "Unhide all columns". */
