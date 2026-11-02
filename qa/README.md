@@ -1,13 +1,13 @@
 # How this app is tested
 
-Five layers, and each one exists because the layer below it cannot see a
-certain kind of failure. Read this before adding a check, so the new one
+Each layer exists because the one below it cannot see a certain kind of
+failure. Read this before adding a check, so the new one
 lands where it can actually fail.
 
 | Layer | Where | What only it can catch |
 |---|---|---|
 | **Unit tests on the JVM** | `app/src/test/` | A rule ported from Python that does not match the Python — held, where the rule can be run on its own, to answers the desktop's own Python wrote |
-| **The cross-program gates** | `tools/check_note_shape.py`, `tools/check_palettes.py` | The two programs quietly disagreeing about what a note *is*, or what a theme looks like |
+| **The cross-program gates** | `tools/check_note_shape.py`, `tools/check_palettes.py`; `tools/check_interop.py` after the unit tests (not in CI) | The two programs quietly disagreeing about what a note *is*, or what a theme looks like, or the desktop reading a code made here differently |
 | **The release gate** | `tools/check_release_lookups.py`, on the built release APK | Code the shrinker renamed, still looking a file up by its old place |
 | **The licenses gate** | `tools/make_licenses.py --check`, on the built release APK | A library the app carries that its Open-source licenses page does not name |
 | **The emulator walk and tools** | `tools/emulator/` | A rule that is right and a screen that is wrong |
@@ -131,6 +131,7 @@ formatting while the screen showed it correctly.
 
     py tools/check_note_shape.py
     py tools/check_palettes.py
+    py tools/check_interop.py     # after the unit tests; not run in CI
 
 The premise of this whole project is that both programs read and write
 the same file, and nothing enforced it: the agreement lives in two

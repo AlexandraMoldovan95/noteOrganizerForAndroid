@@ -392,7 +392,7 @@ surprise rather than a feature. The deliberate exceptions, each with its
 reason, are in
 [STATUS.md](STATUS.md#where-it-differs-from-the-desktop-on-purpose).
 
-That agreement is not left to memory. Two gates read the desktop's source
+That agreement is not left to memory. Three gates read the desktop's source
 **as the specification**, and never write to it:
 
 - `tools/check_note_shape.py` compares what a note is: its fields, the
@@ -401,6 +401,8 @@ That agreement is not left to memory. Two gates read the desktop's source
 - `tools/check_palettes.py` compares the eight themes colour for colour,
   the category and note colours, the highlight palette, and the colours
   the contrast rules choose for words on a fill.
+- `tools/check_interop.py`, after the unit tests, reads a share code made
+  here as the desktop's import does and compares every field it carries.
 
 Where a rule can be run on its own, it is held to the Python's answers
 rather than to a reading of them: a tool in `tools/` runs the desktop's

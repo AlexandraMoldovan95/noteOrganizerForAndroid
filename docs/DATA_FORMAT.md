@@ -352,12 +352,18 @@ writes them:
   a turned-off series read as edited elsewhere (its ninth). A backup whose
   copy holds a day reset here since reads, truly, as changed.
 - **A series' own copy's days come back, then are spent,** once the note
-  repeats as that series again -- the same date and rule. First each of the
-  copy's days goes into the note on every date the note's own days leave
-  free: a day's edit, a deleted day, and a move, in the order of its date,
-  never onto a date the note holds -- its edited, deleted and moved days and
-  the dates it moves days to -- and while the note holds fewer moves than a
-  series has days. Then `exceptions`, `overrides` and `moved` are taken out
+  repeats as that series again -- the same date and rule. The copy's deleted
+  days and moves go into the note only on dates the note's own days leave
+  free -- never onto a date the note holds (its edited, deleted and moved
+  days and the dates it moves days to) -- and moves only while the note
+  holds fewer moves than a series has days. Each of the copy's day edits
+  goes to the date the note draws that day on, as a move keys a day's edit:
+  where the note's edit there has no words, it takes the copy's, its colour
+  and category kept; where the day holds words of its own, or the note
+  deleted it, the copy's words are set aside (below); an edit the copy
+  draws on no day stays on its date (since the desktop's 04044ce, the
+  tenth round: asked by the date, a day the note had only moved or
+  coloured lost the copy's words). Then `exceptions`, `overrides` and `moved` are taken out
   of the copy. At every read after the move, and in the save that turns the
   series back on -- on the phone the Repeat sheet's write of the repeat,
   never its write of the start before it. Kept in the copy, a day the person
@@ -367,8 +373,8 @@ writes them:
   another start, then put back -- were in no file (its ninth; the desktop's
   `spend_series_days` since 8b5d6cc). A note that does not repeat keeps its
   copy's days.
-- **A copy's words for a day that holds words of its own** are not added
-  to the day: they are set aside, in `_set_aside`, and become a note of
+- **A copy's words for a day that holds words of its own, or that the note
+  deleted,** are not added to the day: they are set aside, in `_set_aside`, and become a note of
   their own on that date, titled with the series' name and "(earlier
   text)". So are the days with words of another series' copy, before a
   turn-off, a big delete or an Update replaces it. Each entry is the day's
@@ -766,11 +772,12 @@ project through the SAME field list, so the boundary is symmetric.
 
 The check that matters is not the round trip — it is that the OTHER
 program can read it. `InteropTest` decodes a code produced by the Windows
-app's own `encode_share_code`, and writes one out, with the note it was
-made from; `tools/check_interop.py`, run after the tests, decodes that
-code with the desktop's own `decode_share_code` and compares every field.
-Both directions carry diacritics, an emoji, formatting spans and a
-checklist intact. (Until the final audit's third wave the second half was
+app's own `encode_share_code`, and writes one out, with what it meant to
+send -- a note through the phone's own `normalizeNote`, every field a code
+carries; `tools/check_interop.py`, run after the tests, reads that code as
+the desktop's import does (`decode_share_code`, then `normalize_note`) and
+compares every field. Both directions carry diacritics, an emoji,
+formatting spans and a checklist intact. (Until the final audit's third wave the second half was
 promised here and run by nobody.) A test that only encodes
 and decodes with itself proves nothing about the thing it exists for.
 

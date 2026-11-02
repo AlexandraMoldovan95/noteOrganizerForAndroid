@@ -159,7 +159,9 @@ replace: an uninstall deletes the notebook. The release build is signed
 with the debug key until the upload key exists, so the two install over
 each other.
 
-CI runs all of the first six ([tests.yml](.github/workflows/tests.yml) and
+CI runs the first list, all but `check_interop.py`, which needs the
+tests' output beside the desktop's code
+([tests.yml](.github/workflows/tests.yml) and
 [gates.yml](.github/workflows/gates.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what
 a five-second command would have said on this machine wastes the round
