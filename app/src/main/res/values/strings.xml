@@ -478,9 +478,9 @@
     <string name="q_add_copies">Add copies anyway</string>
     <string name="q_add_copy">Add a copy anyway</string>
     <string name="q_duplicates_title">Possible duplicates</string>
-    <string name="q_duplicates_text">%1$d of the %2$d new notes in this %3$s look identical to notes you already have (same title, text, comments, category, checklist and repeat rule).</string>
+    <string name="q_duplicates_text">%1$d of the %2$d new notes in this %3$s look identical to notes you already have (same title, text, comments, category, checklist, repeat rule and a series\' own days).</string>
     <string name="q_skip_duplicates">Skip the %1$d duplicates</string>
-    <string name="q_duplicates_one">1 of the %1$d new notes in this %2$s looks identical to a note you already have (same title, text, comments, category, checklist and repeat rule).</string>
+    <string name="q_duplicates_one">1 of the %1$d new notes in this %2$s looks identical to a note you already have (same title, text, comments, category, checklist, repeat rule and a series\' own days).</string>
     <string name="q_skip_duplicate">Skip the duplicate</string>
     <string name="q_import_all">Import all anyway</string>
     <string name="q_all_imported_title">All notes already imported</string>
@@ -502,10 +502,10 @@
     <string name="settings_duplicates">Duplicates</string>
     <string name="settings_duplicates_sub">The same note twice, cleaned up</string>
     <!-- Duplicates: the desktop's panel, in its words -->
-    <string name="dup_explain">Notes with the same title, text, comments, category, checklist and repeat rule (ignoring case, spacing, a “(copy)” after the title, the text\'s styling, date, colour and pin). Tick the copies you want to remove — the rest are kept.</string>
+    <string name="dup_explain">Notes with the same title, text, comments, category, checklist, repeat rule and a series\' own days (ignoring case, spacing, a “(copy)” after the title, the text\'s styling, date, colour and pin). Tick the copies you want to remove — the rest are kept.</string>
     <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
     <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
-    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>
+    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one, up to the 200 a note holds; the rest stay with their copy in the Trash.</string>
     <string name="dup_group">“%1$s” — %2$d copies</string>
     <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy</string>
     <string name="dup_delete_copy">Delete this copy (%1$s)</string>
@@ -584,7 +584,7 @@
     <string name="backup_where">Your phone asks where to keep it: Google Drive, the phone\'s own files, or any other place it offers.</string>
     <string name="backup_google_title">Android\'s backup to your Google account</string>
     <string name="backup_google_on">On: Android may copy this app\'s data there.</string>
-    <string name="backup_google_off">Off: Android\'s next backup replaces the copy in your Google account with one that holds none of your notes, only that it is off.</string>
+    <string name="backup_google_off">Off: Android\'s next backup, and a move to a new phone, carry none of your notes, only that it is off; the copy in your Google account is replaced at that next backup.</string>
     <string name="backup_google">If backup is turned on in your phone\'s settings, Android copies the app\'s data, notes and attached files included, to your Google account, about once a day while the phone charges on Wi-Fi. It puts it back when the app is installed again, or copies it straight to a new phone when you move to one. Google keeps that copy under its own privacy policy. Android copies nothing more once the app\'s data passes 25 MB. The file saved above is the one you can open, keep and move.</string>
     <string name="trash_backup">💾 Save a backup — the Trash too</string>
     <string name="backup_never">No backup file made yet.</string>

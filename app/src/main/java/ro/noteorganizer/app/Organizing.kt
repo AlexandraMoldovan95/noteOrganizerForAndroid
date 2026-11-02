@@ -227,7 +227,7 @@ object Organizing {
     /**
      * Notes that are the same note twice: equal in title -- a trailing
      * "(copy)" aside -- text and comments, case and spacing aside, and in
-     * category, checklist and repeat. Date, colour, pin and files do not
+     * category, checklist, repeat and a series' own days. Date, colour, pin and files do not
      * count. The desktop's `find_duplicate_groups`, on its own key, the one
      * the import's look-alike question asks too. Groups of two or more, each
      * in the notebook's order, by id.
@@ -245,9 +245,10 @@ object Organizing {
 
     /**
      * The ticked copies ([remove]) of each group to the Trash, and their
-     * files handed to the first copy of the group left. Each file is copied
-     * for it: the copy going to the Trash keeps its own, and the Trash's
-     * purge deletes those. A group ticked whole goes whole. The desktop's
+     * files handed to the first copy of the group left, up to the files a
+     * note holds. Each file is copied for it: the copy going to the Trash
+     * keeps its own, and the Trash's purge deletes those. A group ticked
+     * whole goes whole. The desktop's
      * `_cleanup_selected_duplicates`, after its question -- the files are
      * merged only once it is answered, or every No would copy them again.
      */
@@ -270,6 +271,10 @@ object Organizing {
                 val at = indexOfId(candidate, id).takeIf { it >= 0 } ?: continue
                 val atts = candidate.getJSONObject(at).opt("attachments") as? JSONArray ?: continue
                 for (j in 0 until atts.length()) {
+                    // A note holds MAX_ATTACHMENTS files, as the import's
+                    // adoptFiles stops: past them, the list hid the rest and
+                    // the purge took them. They stay with their copy, in the Trash.
+                    if (merged.length() >= Normalize.MAX_ATTACHMENTS) break
                     val att = atts.opt(j) as? JSONObject ?: continue
                     val stored = att.opt("stored_as") as? String ?: continue
                     if (!seen.add(stored)) continue

@@ -2155,7 +2155,7 @@ def google_backup(folder):
     tap("Android's backup to your Google account", wait=1.2)
     check_settled("turned off, the file says so", lambda: (read_file("settings.json") or {}).get("phone_google_backup"),
                   lambda value: value is False)
-    shot(folder, "88-google-backup-off", "Off: from now on")
+    shot(folder, "88-google-backup-off", "Off: Android's next backup")
     # Handed nothing, Android kept the copy made while on, and a restore
     # put it back -- notes and all, switch on. Off, the backup now holds
     # only the mark saying so; restored, it brings back the answer alone.

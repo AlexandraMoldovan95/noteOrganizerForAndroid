@@ -490,9 +490,10 @@ object Normalize {
     /**
      * The desktop's `_dup_key`: when two notes look like the same note to
      * a person. Title, body and comments compared without case or extra
-     * whitespace, a trailing "(copy)" ignored; the category, the checklist
-     * and the repeat rule exactly. The date, the colour, the files and the
-     * pin are not part of it, on purpose.
+     * whitespace, a trailing "(copy)" ignored; the category, the checklist,
+     * the repeat rule and a series' own days exactly -- the clean-up merges
+     * none of them, so copies that differ there must never group. The
+     * date, the colour, the files and the pin are not part of it, on purpose.
      */
     fun dupKey(note: JSONObject): String = listOf(
         squeeze(stripCopySuffix(str(note, "title"))).lowercase(),
@@ -501,7 +502,16 @@ object Normalize {
         str(note, "category"),
         checklistSignature(note.opt("checklist")),
         recurrenceSignature(note.opt("recurrence")),
+        seriesDaysSignature(note),
     ).joinToString("\u0001")
+
+    /** A series' deleted, edited and moved days, as the desktop's `_dup_key` signs them; none reads as empty. */
+    private fun seriesDaysSignature(note: JSONObject): String {
+        val exceptions = note.opt("exceptions") as? JSONArray
+        val deleted = (0 until (exceptions?.length() ?: 0)).map { exceptions!!.opt(it).toString() }.sorted()
+        return listOf(deleted.joinToString(","), stable(note.opt("overrides") as? JSONObject ?: JSONObject()),
+                      stable(note.opt("moved") as? JSONObject ?: JSONObject())).joinToString("\u0002")
+    }
 
     /**
      * The desktop's `content_signature`: THE identity of a note's content,

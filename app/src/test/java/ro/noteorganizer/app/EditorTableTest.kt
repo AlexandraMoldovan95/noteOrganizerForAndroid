@@ -47,6 +47,34 @@ class EditorTableTest {
         assertEquals(listOf(FormatSpan(gym, gym + 3, "bold")), model.spans)
     }
 
+    @Test
+    fun `a cell left on a box's or a merge's mark keeps it, as the desktop writes a cell when it is left`() {
+        // The field holds "[x]" back while typed -- written, the cell turns
+        // into a box under the finger -- and only the next letter wrote it:
+        // a cell left there kept "[x" (the final audit's wave 3).
+        val body = "Plan\n| Day | Task |\n| --- | --- |\n| Mon | gym |"
+        val model = editor(body)
+        fun type(at: CellAt, words: String) {
+            val segment = Editing.segments(model.body).first { it.table }
+            model.typeInCell(segment, parseTable(segment.text.split("\n")), at, words, words.length)
+        }
+        fun row(): String = model.body.split("\n")[3].replace(" ", "")
+        for (words in listOf("", "[", "[x", "[x]")) type(CellAt(1, 1), words)
+        assertEquals("held while typed", "|Mon|[x|", row())
+        assertEquals(null, model.write())
+        assertEquals("written by the save that leaving the note makes", "|Mon|[x]|", row())
+        for (words in listOf("", "^")) type(CellAt(1, 0), words)
+        model.writeHeldCell()                      // what leaving the cell does
+        assertEquals("written when the cell is left", "|^|[x]|", row())
+        // Undo after a held mark takes it back with the typing, and nothing
+        // writes it again afterwards.
+        for (words in listOf("", "<")) type(CellAt(1, 0), words)
+        model.undo()
+        assertEquals(null, model.cellHeld)
+        model.writeHeldCell()
+        assertTrue(row(), "<" !in row())
+    }
+
     /** A cell's words written as its field writes them, the cursor at [caret] in the words. */
     private fun EditorModel.typeInCell(fileRow: Int, column: Int, text: String, caret: Int) {
         cellWordsCaret = caret

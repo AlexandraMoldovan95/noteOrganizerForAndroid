@@ -270,6 +270,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     fun undo() {
+        writeHeldCell()
         val now = Step(snap())
         val back = history.undo(now) ?: return
         // Redo goes forward through the same edits.
@@ -278,6 +279,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     fun redo() {
+        writeHeldCell()
         val now = Step(snap())
         val ahead = history.redo(now) ?: return
         // ...and Undo back through them.
@@ -389,6 +391,44 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * words' styles move by the edit as made ([carryCellStyles]).
      */
     var cellWordsCaret: Int? = null
+
+    /**
+     * A cell's words as its field gives them, the cursor at [caret]: written,
+     * or -- while they read as a merge's marker or a box ([isCellToken]: "<"
+     * on its way to "<5 €", "[ ]" to "[ ] milk") -- held, since written the
+     * cell would turn into a merge or a box under the finger. Held words are
+     * written when the cell is left, before anything else changes the table,
+     * and by [write]: the desktop writes a cell when it is left. Only the next
+     * letter wrote them, and a cell left on "[x]" kept "[x" (the final audit's
+     * wave 3).
+     */
+    fun typeInCell(segment: Editing.Segment, table: TableBlock, at: CellAt, words: String, caret: Int) {
+        val stored = words.replace("\n", "<br>")
+        if (isCellToken(words)) {
+            cellHeld = HeldCell(segment.firstLine, at, stored, body)
+            return
+        }
+        cellHeld = null
+        val upTo = words.substring(0, caret.coerceIn(0, words.length)).replace("\n", "<br>")
+        cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) - (stored.length - stored.trimStart().length))
+        editTable(segment, Editing.History.TYPING + ":cell") { it.setCell(table.fileRow(at.row), at.column, stored) }
+        cellWordsCaret = null
+    }
+
+    /** Words [typeInCell] held: the table by its first line, the cell, the words as stored, the body they were typed over. */
+    class HeldCell(val firstLine: Int, val at: CellAt, val words: String, val over: String)
+
+    var cellHeld: HeldCell? = null
+
+    /** Writes [cellHeld], once -- not when the note has changed under it since. */
+    fun writeHeldCell() {
+        val held = cellHeld ?: return
+        cellHeld = null
+        if (body != held.over) return
+        val segment = Editing.segments(body).firstOrNull { it.table && it.firstLine == held.firstLine } ?: return
+        val table = parseTable(segment.text.split("\n"))
+        editTable(segment, Editing.History.TYPING + ":cell") { it.setCell(table.fileRow(held.at.row), held.at.column, held.words) }
+    }
 
     /**
      * The table cell being written in, by the line its table starts on --
@@ -666,6 +706,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * rewritten, or one put under the header row, placed as the table is.
      */
     fun editColumns(segment: Editing.Segment, change: (List<String>) -> List<String>) {
+        writeHeldCell()
         val lines = body.split("\n")
         val table = lines.subList(segment.firstLine, segment.lastLine + 1)
         val changedTable = change(table)
@@ -784,8 +825,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * app asks before the note is left or changed from outside
      * (AppState.flush), which says it in its own words.
      */
-    fun write(force: Boolean = false, scheduleFollows: Boolean = false): String? =
-        writeNote(force, scheduleFollows) ?: writeChecklist()
+    fun write(force: Boolean = false, scheduleFollows: Boolean = false): String? {
+        writeHeldCell()
+        return writeNote(force, scheduleFollows) ?: writeChecklist()
+    }
 
     /** A checklist row being renamed: the row at [index] read [was] when the change began. */
     data class Renaming(val index: Int, val was: String, val now: String)
@@ -1081,6 +1124,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * step, as typing in the note's text does.
      */
     fun editTable(segment: Editing.Segment, kind: String = "edit", change: (TableEdit) -> TableEdit) {
+        writeHeldCell()
         if (applyTable(segment, change(TableEdit(tableLines(segment))))) changed(kind)
     }
 
@@ -1210,6 +1254,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * cell kept, or null when there was nothing to merge with.
      */
     fun mergeCells(segment: Editing.Segment, at: CellAt, up: Boolean): CellAt? {
+        writeHeldCell()
         val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val plan = mergePlan(lines, at, up) ?: return null
         val table = parseTable(lines)
@@ -1269,6 +1314,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** A row made [lines] lines tall by a drag on its edge ([rowLinesPlan]); one step for Undo. */
     fun setRowLines(segment: Editing.Segment, row: Int, lines: Int) {
+        writeHeldCell()
         val table = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val writes = rowLinesPlan(table, row, lines)
         if (writes.isEmpty()) return
@@ -1285,6 +1331,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // A cell being written in takes the answer at its cursor, as the
         // desktop's _calc_insert_formula puts it in the open cell; the phone
         // put it on a line under the table.
+        writeHeldCell()
         val cell = activeCell
         val segment = cell?.let { c -> Editing.segments(body).firstOrNull { it.table && it.firstLine == c.firstLine } }
         if (cell != null && segment != null) {
@@ -3928,6 +3975,8 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     }
     val typing = remember(key) { FocusRequester() }
     LaunchedEffect(key) { typing.requestFocus() }
+    // The cell left: words it held back are written now ([EditorModel.typeInCell]).
+    DisposableEffect(key) { onDispose { model.writeHeldCell() } }
     val said = stringResource(R.string.cell)
     val following = rememberFollowing()
     BasicTextField(
@@ -3940,21 +3989,7 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
             following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)
             model.cellCaret = next.selection.end
-            // Not written while it is a merge's marker or a box's -- "<" on
-            // its way to "<5 €", "[ ]" to "[ ] milk": written, the cell would
-            // turn into a merge or a box under the finger, its field gone.
-            // The desktop writes a cell when it is left; the next letter
-            // writes this one.
-            if (!isCellToken(clean)) {
-                val stored = clean.replace("\n", "<br>")
-                val upTo = clean.substring(0, next.selection.end.coerceIn(0, clean.length)).replace("\n", "<br>")
-                model.cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) -
-                    (stored.length - stored.trimStart().length))
-                model.editTable(segment, Editing.History.TYPING + ":cell") {
-                    it.setCell(table.fileRow(at.row), at.column, stored)
-                }
-                model.cellWordsCaret = null
-            }
+            model.typeInCell(segment, table, at, clean, next.selection.end)
         },
         onTextLayout = following::laidOut,
         textStyle = style,

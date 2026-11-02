@@ -44,12 +44,13 @@ class OrganizingTest {
     fun `every text that says what a duplicate is names each part of the key`() {
         // Settings → Duplicates once named four of the six parts while the
         // import's questions named all six (the final audit's third wave).
-        val phrase = "same title, text, comments, category, checklist and repeat rule"
+        val phrase = "same title, text, comments, category, checklist, repeat rule and a series' own days"
         val parts = phrase.removePrefix("same ").replace(" and ", ", ").split(", ")
         assertEquals(Normalize.dupKey(JSONObject()).split("\u0001").size, parts.size)
         val strings = File("src/main/res/values/strings.xml").readText()
         for (name in listOf("dup_explain", "q_duplicates_text", "q_duplicates_one")) {
             val text = Regex("<string name=\"$name\">(.*?)</string>").find(strings)?.groupValues?.get(1)
+                ?.replace("\\'", "'")
             assertTrue("$name says: $text", text != null && phrase in text)
         }
     }
@@ -491,6 +492,21 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a series' own days keep two copies apart -- the clean-up merges none of them`() {
+        // A copy holding a deleted, an edited or a moved day grouped with one
+        // that did not, and the clean-up could drop it (the final audit's wave 3).
+        val series = """"title": "Gym", "body": "b", "date": "2026-01-05", "recurrence": {"freq": "weekly"}"""
+        val load = notebook("""
+            [{"id": 1, $series},
+             {"id": 2, $series, "exceptions": ["2026-01-12"]},
+             {"id": 3, $series, "overrides": {"2026-01-12": {"body": "legs"}}},
+             {"id": 4, $series, "moved": {"2026-01-12": "2026-01-13"}},
+             {"id": 5, $series, "overrides": {}}]
+        """.trimIndent())
+        assertEquals(listOf(listOf(1, 5)), Organizing.duplicateGroups(load))
+    }
+
+    @Test
     fun `a non-breaking space pasted from the web is a space to the duplicate check, as to the desktop's`() {
         // Python's split() parts words on every Unicode space; Java's \s on ASCII alone.
         val load = notebook("""
@@ -538,6 +554,23 @@ class OrganizingTest {
         assertEquals(1, left.length())
         assertEquals(2, left.getJSONObject(0).getInt("id"))
         assertEquals("the first copy's file went to the one kept", 1, left.getJSONObject(0).getJSONArray("attachments").length())
+    }
+
+    @Test
+    fun `the copy kept takes files up to the ones a note holds, the rest left with the copy in the Trash`() {
+        // Past them the list hid the rest, and the Trash's purge took them
+        // (the final audit's wave 3); the import's adoptFiles stops there too.
+        fun files(prefix: String, count: Int) = JSONArray((0 until count).map {
+            JSONObject().put("filename", "$prefix$it").put("stored_as", "$prefix$it.txt") })
+        val notes = JSONArray()
+            .put(JSONObject().put("id", 1).put("title", "Trip").put("body", "b")
+                .put("attachments", files("k", Normalize.MAX_ATTACHMENTS - 1)))
+            .put(JSONObject().put("id", 2).put("title", "Trip").put("body", "b").put("attachments", files("x", 3)))
+        val load = notebook(notes.toString())
+        for (i in 0 until 3) File(attachments(load), "x$i.txt").writeText("X$i")
+        assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Ok)
+        assertEquals(Normalize.MAX_ATTACHMENTS, notesOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+        assertEquals(3, trashOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
     }
 
     @Test
