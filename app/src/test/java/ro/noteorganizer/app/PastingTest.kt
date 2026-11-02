@@ -370,6 +370,19 @@ class PastingTest {
     }
 
     @Test
+    fun `a copy begun after a line's start carries none of its looks - a word from a nested item nests nothing`() {
+        // A line's looks travel with its start: the word set the level of the
+        // item it was pasted into, and the list renumbered (round 10).
+        val body = "1. Fruit\n1. Apple pie"
+        val props = mapOf(1 to Paragraphs.Props(indent = 1))
+        val from = body.indexOf("Apple")
+        assertEquals(emptyList<Exporting.Paragraph>(), Pasting.copyOut(body, emptyList(), props, from, from + 5)!!.paragraphs)
+        val moved = movedBy(body, props, from, from + 5, "1. Veg", emptyMap(), "1. Veg".length)
+        assertEquals("1. VegApple", moved.body)
+        assertEquals(emptyMap<Int, Paragraphs.Props>(), moved.props)
+    }
+
+    @Test
     fun `a whole item pasted over another takes its place whole, its marker and its break`() {
         // Kept as a letter typed over the selection keeps them, the paste read
         // "2. 3. Bread" (round 6).

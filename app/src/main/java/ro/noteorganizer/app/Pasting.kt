@@ -73,12 +73,13 @@ object Pasting {
             if (hi > lo) s.copy(start = lo - from, end = hi - from) else null
         }
         val firstLine = (0 until from).count { c[it] == '\n'.code }
-        // A copy ending in a line break holds nothing of the line after it,
-        // nor one begun at a line's end of that line: counted in, its looks
-        // went onto the line a paste landed in (the lows wave's verification,
-        // rounds 5 and 6).
+        // A line's looks travel with its start: a copy ending in a line break
+        // holds none of the next line's, one begun after a line's start none
+        // of that line's -- a word copied out of a nested item set the level
+        // of the item it was pasted into (the lows wave's verification,
+        // rounds 5, 6 and 10).
         val lineCount = text.count { it == '\n' } + if (text.endsWith("\n")) 0 else 1
-        val skipped = if (text.startsWith("\n") && from > 0 && c[from - 1] != '\n'.code) 1 else 0
+        val skipped = if (from > 0 && c[from - 1] != '\n'.code) 1 else 0
         val stored = Paragraphs.extract(body, props)
         val lines = JSONArray()
         // The lines the copy holds, as the desktop picks them. Both readers
