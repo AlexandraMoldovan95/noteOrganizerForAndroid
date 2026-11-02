@@ -75,6 +75,35 @@ class EditorTableTest {
         assertTrue(row(), "<" !in row())
     }
 
+    @Test
+    fun `a cell's held mark is written first by everything the table's bar, its More sheet, Redo and the calculator do`() {
+        // More → Caption and Line above changed the note before the cell was
+        // left, and the held "[x]" was dropped as stale (the final audit's
+        // wave 3, round 8).
+        val body = "Plan\n| Day | Task |\n| --- | --- |\n| Mon | gym |"
+        val changes: Map<String, (EditorModel, Editing.Segment) -> Unit> = linkedMapOf(
+            "Caption" to { m, s -> m.addCaption(s) },
+            "Line above" to { m, s -> m.addLineAbove(s) },
+            "a table edit" to { m, s -> m.editTable(s) { it } },
+            "a column's width" to { m, s -> m.editColumns(s) { it } },
+            "a row's height" to { m, s -> m.setRowLines(s, 1, 2) },
+            "a merge" to { m, s -> m.mergeCells(s, CellAt(1, 1), up = false) },
+            "Delete table" to { m, s -> m.deleteTable(s); m.undo() },
+            "a table put in" to { m, _ -> m.insertTable(2, 2) },
+            "the calculator" to { m, _ -> m.insertCalculation("1+1=2") },
+            "Redo" to { m, _ -> m.redo() },
+        )
+        for ((name, change) in changes) {
+            val model = editor(body)
+            for (words in listOf("", "[x]")) {
+                val segment = Editing.segments(model.body).first { it.table }
+                model.typeInCell(segment, parseTable(segment.text.split("\n")), CellAt(1, 1), words, words.length)
+            }
+            change(model, Editing.segments(model.body).first { it.table })
+            assertTrue("$name: ${model.body}", "[x]" in model.body)
+        }
+    }
+
     /** A cell's words written as its field writes them, the cursor at [caret] in the words. */
     private fun EditorModel.typeInCell(fileRow: Int, column: Int, text: String, caret: Int) {
         cellWordsCaret = caret

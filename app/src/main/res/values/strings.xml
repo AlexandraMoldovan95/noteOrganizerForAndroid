@@ -505,9 +505,9 @@
     <string name="dup_explain">Notes with the same title, text, comments, category, checklist, repeat rule and a series\' own days (ignoring case, spacing, a “(copy)” after the title, the text\'s styling, date, colour and pin). Tick the copies you want to remove — the rest are kept.</string>
     <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
     <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
-    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one, up to the 200 a note holds; the rest stay with their copy in the Trash.</string>
+    <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>
     <string name="dup_group">“%1$s” — %2$d copies</string>
-    <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy</string>
+    <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy, up to the %1$d a note holds; the rest stay with their copy in the Trash</string>
     <string name="dup_delete_copy">Delete this copy (%1$s)</string>
     <string name="dup_delete_copy_plain">Delete this copy</string>
     <string name="dup_all_but_first">Tick all but first</string>

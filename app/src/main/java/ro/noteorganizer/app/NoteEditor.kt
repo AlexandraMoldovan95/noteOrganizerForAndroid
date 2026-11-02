@@ -397,8 +397,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * or -- while they read as a merge's marker or a box ([isCellToken]: "<"
      * on its way to "<5 €", "[ ]" to "[ ] milk") -- held, since written the
      * cell would turn into a merge or a box under the finger. Held words are
-     * written when the cell is left, before anything else changes the table,
-     * and by [write]: the desktop writes a cell when it is left. Only the next
+     * written when the cell is left, first in everything the table's bar and
+     * More sheet, Undo, Redo and the calculator do, and by [write]: the
+     * desktop writes a cell when it is left. Only the next
      * letter wrote them, and a cell left on "[x]" kept "[x" (the final audit's
      * wave 3).
      */
@@ -657,6 +658,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * replaces it.
      */
     fun addCaption(segment: Editing.Segment) {
+        writeHeldCell()
         val made = Editing.addCaption(body, segment.lastLine)
         val tableAlign = props[segment.firstLine]?.align
         val lines = made.body.split("\n")
@@ -684,6 +686,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** "Add a line above the table": an empty line there, the cursor on it. */
     fun addLineAbove(segment: Editing.Segment) {
+        writeHeldCell()
         val lines = body.split("\n")
         val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
         val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
@@ -738,6 +741,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** The table taken out of the note. */
     fun deleteTable(segment: Editing.Segment) {
+        writeHeldCell()
         val next = Editing.deleteLines(body, segment.firstLine, segment.lastLine)
         // Taken out from its first line's start: the edit as made, the styles too.
         val at = body.split("\n").take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
@@ -758,6 +762,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * table at every tap (the final audit's sixth round).
      */
     fun insertTable(rows: Int, columns: Int): Int? {
+        writeHeldCell()
         val length = body.codePointCount(0, body.length)
         val made = Editing.insertTable(body, caret ?: length, rows, columns)
         if (Editing.segments(made.body).none { it.table && it.firstLine == made.firstLine }) {

@@ -207,7 +207,7 @@ private fun DuplicatesPage(state: AppState) {
                      fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 val withFiles = notes.map { (it.optJSONArray("attachments")?.length() ?: 0) > 0 }
                 if (withFiles.any { it } && withFiles.toSet().size > 1) {
-                    Text(stringResource(R.string.dup_files_differ), color = palette.accentText, fontSize = 12.sp,
+                    Text(stringResource(R.string.dup_files_differ, Normalize.MAX_ATTACHMENTS), color = palette.accentText, fontSize = 12.sp,
                          fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                 }
                 for (note in notes) {
