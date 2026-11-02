@@ -43,7 +43,7 @@ class StylingTest {
     @Test
     fun `bold and italic stored as two spans are read as one, so B takes the bold alone off`() {
         // A desktop file from before its normalize_formatting folded the two.
-        val note = Notebook.parseNotes("""[{"id": 1, "body": "Note it",
+        val note = notesFrom("""[{"id": 1, "body": "Note it",
             "formatting": [{"start": 0, "end": 4, "style": "bold"}, {"start": 0, "end": 7, "style": "italic"}]}]""").single()
         assertEquals(listOf("0-4:bold_italic", "4-7:italic"), shape(note.formatting))
         assertEquals("the italic stays where the bold goes", listOf("0-7:italic"), shape(toggleStyle(note.formatting, 0, 4, "bold")))

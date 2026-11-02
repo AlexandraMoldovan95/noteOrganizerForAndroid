@@ -21,17 +21,9 @@ import java.util.zip.ZipOutputStream
  */
 class ImportingTest {
 
-    private fun notebook(notes: String, trash: String? = null, settings: String? = null): Notebook.Load {
-        val dir = NioFiles.createTempDirectory("importing").toFile()
-        File(dir, "notes_data.json").writeText(notes)
-        if (trash != null) File(dir, "trash.json").writeText(trash)
-        if (settings != null) File(dir, "settings.json").writeText(settings)
-        File(dir, "attachments").mkdirs()
-        return Notebook.load(dir)
-    }
+    private fun notebook(notes: String, trash: String? = null, settings: String? = null) =
+        scratch(notes, trash, settings, attachments = true)
 
-    private fun dir(load: Notebook.Load) = load.file!!.parentFile!!
-    private fun onDisk(load: Notebook.Load) = JSONArray(load.file!!.readText())
     private fun notes(json: String) = JSONArray(json).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
     private fun backupPlan(load: Notebook.Load, incoming: String) =
@@ -101,11 +93,11 @@ class ImportingTest {
         val read = templates.getJSONObject(0).getJSONArray("checklist")
         assertEquals(listOf(JSONObject.NULL, JSONObject.NULL), listOf(read.opt(1), read.opt(2)))
         val load = notebook("[]")
-        File(dir(load), "templates.json").writeText("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
         val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
             Importing.Extras(templates = templates))
         assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
-        assertEquals(listOf("milk"), JSONArray(File(dir(load), "templates.json").readText()).getJSONObject(0)
+        assertEquals(listOf("milk"), JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0)
             .getJSONArray("checklist").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("text") } })
         // And whatever else a reading misses is refused, never the app stopped.
         val unreadable = object : JSONObject() {
@@ -253,7 +245,7 @@ class ImportingTest {
         """.trimIndent())
         assertEquals("the file is a difference", 1, plan.differing.size)
         assertEquals(0, plan.rescued)
-        val done = Importing.apply(load, plan, Importing.Answers(update = true), File(dir(load), "attachments"),
+        val done = Importing.apply(load, plan, Importing.Answers(update = true), File(dirOf(load), "attachments"),
             Importing.Extras(attachments = unpacked)) as Importing.Result.Done
         // Counted apart: "Updated 1 (Restore previous undoes each one)" was
         // said of files Restore previous does not take back (wave 3).
@@ -274,7 +266,7 @@ class ImportingTest {
             [{"id": 1, "uid": "a", "title": "Old", "pinned": false,
               "exceptions": [], "attachments": [{"filename": "mine.png", "stored_as": "mine.png"}]}]
         """.trimIndent())
-        File(dir(load), "attachments/mine.png").writeText("MINE")
+        File(dirOf(load), "attachments/mine.png").writeText("MINE")
         val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
         File(unpacked, "theirs.png").writeText("THEIRS")
         val plan = backupPlan(load, """
@@ -282,7 +274,7 @@ class ImportingTest {
               "attachments": [{"filename": "theirs.png", "stored_as": "theirs.png"}]}]
         """.trimIndent())
         val result = Importing.apply(load, plan, Importing.Answers(update = true),
-            File(dir(load), "attachments"), Importing.Extras(attachments = unpacked))
+            File(dirOf(load), "attachments"), Importing.Extras(attachments = unpacked))
         assertTrue(result is Importing.Result.Done)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("New", note.getString("title"))
@@ -291,7 +283,7 @@ class ImportingTest {
         val files = (0 until note.getJSONArray("attachments").length())
             .map { note.getJSONArray("attachments").getJSONObject(it).getString("stored_as") }
         assertEquals("a file here is never swapped out", listOf("mine.png", "theirs.png"), files)
-        assertEquals("THEIRS", File(dir(load), "attachments/theirs.png").readText())
+        assertEquals("THEIRS", File(dirOf(load), "attachments/theirs.png").readText())
         assertEquals("the rescue copy holds the old pin", false,
             note.getJSONObject("_prev").getBoolean("pinned"))
     }
@@ -307,14 +299,14 @@ class ImportingTest {
             [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]},
              {"uid": "p2", "title": "Two", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
         """.trimIndent())
-        assertTrue(Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"),
+        assertTrue(Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"),
             Importing.Extras(attachments = unpacked)) is Importing.Result.Done)
         assertFalse("moved out of the unpacked backup", File(unpacked, "photo.jpg").exists())
-        assertEquals("PHOTO", File(dir(load), "attachments/photo.jpg").readText())
+        assertEquals("PHOTO", File(dirOf(load), "attachments/photo.jpg").readText())
         // The second note naming it still gets a file of its own.
         val second = onDisk(load).getJSONObject(1).getJSONArray("attachments").getJSONObject(0).getString("stored_as")
         assertNotEquals("photo.jpg", second)
-        assertEquals("PHOTO", File(dir(load), "attachments/$second").readText())
+        assertEquals("PHOTO", File(dirOf(load), "attachments/$second").readText())
     }
 
     @Test
@@ -435,7 +427,7 @@ class ImportingTest {
         """.trimIndent()), Importing.Source.BACKUP)
         assertTrue(Organizing.trashNotes(load, listOf(1)) is SaveResult.Ok)
         val result = Importing.apply(load, plan, Importing.Answers(update = true, skipDuplicates = true),
-            File(dir(load), "attachments")) as Importing.Result.Done
+            File(dirOf(load), "attachments")) as Importing.Result.Done
         fun byUid(uid: String) = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
             .single { it.optString("uid") == uid }
         assertEquals("Bank PIN hint", byUid("u-pin").getString("title"))
@@ -469,7 +461,7 @@ class ImportingTest {
         assertEquals(1, plan.unchanged.size)
         assertTrue(Organizing.trashNotes(load, listOf(1, 3)) is SaveResult.Ok)
         val result = Importing.apply(load, plan, Importing.Answers(update = true),
-            File(dir(load), "attachments")) as Importing.Result.Done
+            File(dirOf(load), "attachments")) as Importing.Result.Done
         assertEquals(0, result.outcome.updated)
         assertEquals(2, result.outcome.added)
         assertEquals(0, result.outcome.unchangedSkipped)
@@ -494,7 +486,7 @@ class ImportingTest {
         assertEquals(1, plan.fresh.size)
         assertFalse(plan.fresh.single().has("uid"))
         val result = Importing.apply(load, plan, Importing.Answers(update = true),
-            File(dir(load), "attachments")) as Importing.Result.Done
+            File(dirOf(load), "attachments")) as Importing.Result.Done
         assertEquals(1, result.outcome.updated)
         assertEquals(1, result.outcome.added)
         val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
@@ -508,7 +500,7 @@ class ImportingTest {
         val pair = Importing.plan(fresh.raw!!, notes("""
             [{"uid": "dup2", "title": "First", "body": "1"}, {"uid": "dup2", "title": "Second", "body": "2"}]
         """.trimIndent()), Importing.Source.CODE)
-        Importing.apply(fresh, pair, Importing.Answers(), File(dir(fresh), "attachments"))
+        Importing.apply(fresh, pair, Importing.Answers(), File(dirOf(fresh), "attachments"))
         val uids = onDisk(fresh).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("uid") } }
         assertEquals(2, uids.toSet().size)
         assertEquals("dup2", uids[0])
@@ -525,7 +517,7 @@ class ImportingTest {
         """.trimIndent()), Importing.Source.BACKUP)
         assertEquals(1, plan.fresh.size)
         assertTrue(Organizing.restore(load, listOf(Organizing.TrashKey(2, "2026-10-28 10:00:00", "trip"))) is SaveResult.Ok)
-        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments")) as Importing.Result.Done
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments")) as Importing.Result.Done
         val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         assertEquals(listOf("Other", "Trip", "Trip"), after.map { it.getString("title") })
         assertEquals(3, after.map { it.getString("uid") }.toSet().size)
@@ -539,16 +531,16 @@ class ImportingTest {
         val load = notebook("""
             [{"id": 1, "uid": "a", "title": "Mine", "attachments": [{"filename": "p.png", "stored_as": "p.png"}]}]
         """.trimIndent())
-        File(dir(load), "attachments/p.png").writeText("PHOTO")
+        File(dirOf(load), "attachments/p.png").writeText("PHOTO")
         val plan = backupPlan(load, """
             [{"uid": "x", "title": "Theirs", "attachments": [{"filename": "p.png", "stored_as": "p.png"}]}]
         """.trimIndent())
-        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"))
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"))
         val theirs = onDisk(load).getJSONObject(1).getJSONArray("attachments").getJSONObject(0)
         val name = theirs.getString("stored_as")
         assertNotEquals("p.png", name)
         assertTrue(name.endsWith("_p.png"))
-        assertEquals("PHOTO", File(dir(load), "attachments/$name").readText())
+        assertEquals("PHOTO", File(dirOf(load), "attachments/$name").readText())
         assertEquals("the display name stays", "p.png", theirs.getString("filename"))
     }
 
@@ -561,7 +553,7 @@ class ImportingTest {
                {"filename": "b", "stored_as": "C:\\Windows\\system.ini"},
                {"filename": "", "stored_as": ""}]}]
         """.trimIndent())
-        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"))
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"))
         val atts = onDisk(load).getJSONObject(0).getJSONArray("attachments")
         assertEquals(listOf("evil.txt", "system.ini"),
             (0 until atts.length()).map { atts.getJSONObject(it).getString("stored_as") })
@@ -579,7 +571,7 @@ class ImportingTest {
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedCategories)
         assertEquals(1, result.outcome.refusedCategories)
-        val saved = JSONObject(File(dir(load), "settings.json").readText()).getJSONObject("categories")
+        val saved = JSONObject(File(dirOf(load), "settings.json").readText()).getJSONObject("categories")
         assertEquals("#222222", saved.getString("Work"))
         assertEquals("#333333", saved.getString("Trips"))
         assertEquals("the note keeps its category", "Trips", onDisk(load).getJSONObject(0).getString("category"))
@@ -588,14 +580,14 @@ class ImportingTest {
     @Test
     fun `a template comes in only when none here has its name`() {
         val load = notebook("[]")
-        File(dir(load), "templates.json").writeText("""[{"name": "Weekly", "title": "mine"}]""")
+        File(dirOf(load), "templates.json").writeText("""[{"name": "Weekly", "title": "mine"}]""")
         val plan = backupPlan(load, "[]")
         val extras = Importing.Extras(templates = JSONArray("""
             [{"name": "Weekly", "title": "theirs"}, {"name": "Trip", "title": "t"}, {"title": "nameless"}]
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedTemplates)
-        val saved = JSONArray(File(dir(load), "templates.json").readText())
+        val saved = JSONArray(File(dirOf(load), "templates.json").readText())
         assertEquals(2, saved.length())
         assertEquals("mine", saved.getJSONObject(0).getString("title"))
     }
@@ -612,7 +604,7 @@ class ImportingTest {
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedTrash)
-        val trash = JSONArray(File(dir(load), "trash.json").readText())
+        val trash = JSONArray(File(dirOf(load), "trash.json").readText())
         assertEquals(2, trash.length())
         assertEquals("2026-10-02 10:00:00", trash.getJSONObject(1).getString("deleted_at"))
     }
@@ -643,7 +635,7 @@ class ImportingTest {
         val window = { load: Notebook.Load ->
             Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
                 Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
-            File(dir(load), "settings.json").takeIf { it.isFile }
+            File(dirOf(load), "settings.json").takeIf { it.isFile }
                 ?.let { JSONObject(it.readText()).opt(Settings.RETENTION_DAYS) }
         }
         val fresh = notebook("[]")
@@ -665,7 +657,7 @@ class ImportingTest {
             val load = notebook("[]", trash = mine)
             Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
                 Importing.Extras(trashWindow = days, trash = trash?.let { JSONArray(it) }))
-            Settings.purgeWindow(Settings.load(dir(load)))
+            Settings.purgeWindow(Settings.load(dirOf(load)))
         }
         for (days in listOf(7, 14, 29, 30)) {
             // The phone's own entry, deleted 12 days ago, stays past the next start.
@@ -703,7 +695,7 @@ class ImportingTest {
         )
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(3, result.outcome.restoredDays)
-        val saved = JSONObject(File(dir(load), "settings.json").readText())
+        val saved = JSONObject(File(dirOf(load), "settings.json").readText())
         assertEquals("#111111", saved.getJSONObject("day_colors").getString("2026-10-12"))
         assertEquals("#222222", saved.getJSONObject("day_colors").getString("2026-10-13"))
         assertFalse(saved.getJSONObject("day_colors").has("2026-10-14"))

@@ -65,15 +65,24 @@ object PyText {
         return false
     }
 
-    /** `str.strip()`. */
-    fun strip(text: String): String {
+    /** Where [text]'s leading Python spaces end. */
+    private fun spacesEnd(text: String): Int {
         var from = 0
-        var to = text.length
-        while (from < to) {
+        while (from < text.length) {
             val cp = text.codePointAt(from)
             if (!isSpace(cp)) break
             from += Character.charCount(cp)
         }
+        return from
+    }
+
+    /** `str.lstrip()`. */
+    fun lstrip(text: String): String = text.substring(spacesEnd(text))
+
+    /** `str.strip()`. */
+    fun strip(text: String): String {
+        val from = spacesEnd(text)
+        var to = text.length
         while (to > from) {
             val cp = text.codePointBefore(to)
             if (!isSpace(cp)) break

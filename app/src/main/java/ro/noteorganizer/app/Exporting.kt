@@ -47,7 +47,6 @@ object Exporting {
     private val LIST_KINDS = setOf("bullet", "number")
     private val ALIGNMENTS = setOf("left", "center", "right")
     private const val MAX_INDENT = 8L
-    private const val LINE_BREAK = "<br>"
 
     /** A JSON whole number as Python's json reads one: never a true/false, never 1.0. */
     private fun whole(value: Any?): Long? = when (value) {
@@ -214,15 +213,15 @@ object Exporting {
 
     // ---- the desktop's table helpers, on code points ----
 
-    private fun lstripCount(cps: IntArray, from: Int, to: Int, spaceOnly: Boolean = false): Int {
+    private fun lstripCount(cps: IntArray, from: Int, to: Int): Int {
         var n = 0
-        while (from + n < to && (if (spaceOnly) cps[from + n] == ' '.code else PyText.isSpace(cps[from + n]))) n++
+        while (from + n < to && PyText.isSpace(cps[from + n])) n++
         return n
     }
 
-    private fun rstripCount(cps: IntArray, from: Int, to: Int, spaceOnly: Boolean = false): Int {
+    private fun rstripCount(cps: IntArray, from: Int, to: Int): Int {
         var n = 0
-        while (to - n > from && (if (spaceOnly) cps[to - n - 1] == ' '.code else PyText.isSpace(cps[to - n - 1]))) n++
+        while (to - n > from && PyText.isSpace(cps[to - n - 1])) n++
         return n
     }
 
@@ -265,28 +264,6 @@ object Exporting {
         return atMost(high - 1) - atMost(low)
     }
 
-    /** `cell_alignments`: read off the padding, as the desktop stores alignment. */
-    private fun cellAlignments(line: String, cps: IntArray): List<String> {
-        val pipes = pipePositions(line, cps)
-        val aligns = ArrayList<String>()
-        for (i in 0 until pipes.size - 1) {
-            val from = pipes[i] + 1
-            val to = pipes[i + 1]
-            val stripped = (to - from) - lstripCount(cps, from, to)
-            if (stripped <= 0) {
-                aligns.add("left")
-                continue
-            }
-            val lead = lstripCount(cps, from, to, spaceOnly = true)
-            val trail = rstripCount(cps, from, to, spaceOnly = true)
-            aligns.add(when {
-                lead >= 2 && trail >= 2 -> "center"
-                lead >= 2 -> "right"
-                else -> "left"
-            })
-        }
-        return aligns
-    }
 
     /**
      * Which cells of the table on lines [first]..[last] a highlight covers
@@ -578,7 +555,7 @@ object Exporting {
                 val (rowSpans, rowCovered) = mergeAt[number] ?: (emptyMap<Int, Pair<Int, Int>>() to emptySet())
                 val rowHidden = hiddenAt[number] ?: emptySet()
                 val rowHiddenInOrder = hiddenSortedAt[number] ?: IntArray(0)
-                val rowAligns = cellAlignments(lineText, line)
+                val rowAligns = cellAlignments(lineText).map { it.name.lowercase() }
                 // The row's pipes, found once for the row: found again for each
                 // empty cell, a row of 50,000 of them from a code of 186
                 // characters came to 7.5 billion steps.

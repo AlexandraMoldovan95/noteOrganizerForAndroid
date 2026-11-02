@@ -569,26 +569,15 @@ class RecurrenceTest {
     // ---- dates as the app shows them ----
 
     @Test
-    fun `a stored date, a moment and a day, as the app shows them`() {
+    fun `a stored date and a day, as the app shows them`() {
         assertEquals("17.10.2026", Recurrence.showDate("2026-10-17"))
         assertEquals("05.01.2026", Recurrence.showDate("2026-1-5"))
         assertEquals("17.10", Recurrence.showDate("17.10"))
         assertEquals("", Recurrence.showDate(""))
         assertEquals("", Recurrence.showDate(null))
-        assertEquals("01.09.2026 09:00", Recurrence.showStamp("2026-09-01 09:00"))
-        assertEquals("odd", Recurrence.showStamp("odd"))
         assertEquals("Saturday, 17 October 2026", Recurrence.showDay(oct17))
         assertEquals("Saturday, 17 October", Recurrence.showDay(oct17, year = false))
         assertEquals("Saturday, 17 Oct", Recurrence.showDay(oct17, year = false, shortMonth = true))
-    }
-
-    @Test
-    fun `a date and the field showing it are the same date, a half-typed one is not`() {
-        assertTrue(Recurrence.sameDate("17.10.2026", "2026-10-17"))
-        assertTrue(Recurrence.sameDate(" 30.09.2026 ", "30.09.2026"))
-        assertTrue(Recurrence.sameDate("", ""))
-        assertFalse(Recurrence.sameDate("17.10", "2026-10-17"))
-        assertFalse(Recurrence.sameDate("x", "y"))
     }
 
     @Test

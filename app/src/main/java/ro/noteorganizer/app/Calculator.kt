@@ -411,12 +411,7 @@ object Calculator {
         if (old == new) return null
         val a = old.codePoints().toArray()
         val b = new.codePoints().toArray()
-        var prefix = 0
-        while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-        var suffix = 0
-        while (suffix < a.size - prefix && suffix < b.size - prefix &&
-            a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-        ) suffix++
+        val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
         return Paragraphs.Edit(prefix, a.size - suffix - prefix, b.size - suffix - prefix)
     }
 

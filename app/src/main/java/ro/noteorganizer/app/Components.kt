@@ -235,7 +235,7 @@ fun rememberFollowing(cursor: Int? = null): Following {
         val laidOut = drawn ?: return@LaunchedEffect
         val laid = laidOut.layoutInput.text
         if (at > length || !(laid.length == length ||
-                laid.length == length + 1 && laid.text.endsWith('​'))) return@LaunchedEffect
+                laid.length == length + 1 && laid.text.endsWith(STAND_IN))) return@LaunchedEffect
         following.pending = null
         following.requester.bringIntoView(laidOut.getCursorRect(at))
     }

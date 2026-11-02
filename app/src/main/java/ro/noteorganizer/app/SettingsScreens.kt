@@ -202,7 +202,7 @@ private fun DuplicatesPage(state: AppState) {
                     .background(palette.card)
                     .padding(12.dp),
             ) {
-                val title = notes.firstOrNull()?.optString("title")?.trim()?.ifEmpty { null } ?: "(untitled)"
+                val title = shownTitle(notes.firstOrNull()?.optString("title"))
                 Text(stringResource(R.string.dup_group, Editing.firstLetters(title, 36), group.size), color = palette.text,
                      fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 // By the names shown, as the desktop's hint: copies that each

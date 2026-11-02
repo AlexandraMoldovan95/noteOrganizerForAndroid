@@ -121,8 +121,9 @@ fun CalendarScreen(state: AppState) {
     }
 }
 
+/** To the day the grid marks as today ([AppState.today]), and its month. */
 private fun goToday(state: AppState) {
-    val today = LocalDate.now()
+    val today = Recurrence.parseDate(state.today) ?: LocalDate.now()
     state.calendarMonth = YearMonth.from(today)
     state.selectedDay = Recurrence.formatDate(today)
 }
@@ -361,7 +362,7 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
     val cameFrom = Recurrence.movedFrom(raw, day)
     var menu by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
-    val title = (shown.opt("title") as? String)?.ifBlank { null } ?: "(untitled)"
+    val title = shownTitle(shown.opt("title") as? String)
     // A table is said, never drawn, in a row this small -- the desktop's
     // "▦ 1 table" chip, in this row's short form beside 📎×N.
     val body = shown.opt("body") as? String ?: ""
@@ -531,7 +532,7 @@ private fun History(state: AppState) {
         for (entry in entries) {
             when (entry) {
                 is Recurrence.HistoryEntry.Dated -> item(key = "d${entry.noteId}") {
-                    HistoryRow(Recurrence.showDate(entry.date), entry.title.ifBlank { "(untitled)" }, "", 0) {
+                    HistoryRow(Recurrence.showDate(entry.date), shownTitle(entry.title), "", 0) {
                         state.openNote(entry.noteId)
                     }
                 }
@@ -541,7 +542,7 @@ private fun History(state: AppState) {
                         val count = if (entry.days.isNotEmpty()) pluralStringResource(R.plurals.history_days, entry.days.size, entry.days.size) else ""
                         HistoryRow(
                             lead = if (entry.days.isEmpty()) "🔁" else if (expanded) "▾ 🔁" else "▸ 🔁",
-                            title = entry.title.ifBlank { "(untitled)" },
+                            title = shownTitle(entry.title),
                             // With no days of its own, the row opens the calendar: say so.
                             tail = listOf(entry.label, count.ifEmpty { stringResource(R.string.history_series_jump) })
                                 .filter { it.isNotEmpty() }.joinToString(" · "),
@@ -561,12 +562,14 @@ private fun History(state: AppState) {
                     if (expanded) {
                         for (day in entry.days) {
                             item(key = "s${entry.noteId}-${day.date}") {
+                                val movedFrom = day.movedFrom?.let { stringResource(R.string.history_moved_from, Recurrence.showDate(it)) }
+                                val offSchedule = stringResource(R.string.history_off_schedule)
                                 val marks = buildString {
                                     if (day.edited && !day.offSchedule) append("✎ ")
-                                    if (day.movedFrom != null) append("↷ from ${Recurrence.showDate(day.movedFrom)} ")
-                                    if (day.offSchedule) append("off the schedule")
+                                    if (movedFrom != null) append("$movedFrom ")
+                                    if (day.offSchedule) append(offSchedule)
                                 }.trim()
-                                HistoryRow(Recurrence.showDate(day.date), day.title.ifBlank { "(untitled)" }, marks, 1) {
+                                HistoryRow(Recurrence.showDate(day.date), shownTitle(day.title), marks, 1) {
                                     // A day off the schedule is no day of the series
                                     // to open: the series opens, its banner leading to
                                     // the questions that settle such days -- the

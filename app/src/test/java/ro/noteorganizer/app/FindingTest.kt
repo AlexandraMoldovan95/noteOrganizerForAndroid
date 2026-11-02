@@ -181,7 +181,7 @@ class FindingTest {
         val emoji = "👣".repeat(400)
         val cut = Finding.cutAround(emoji, 300, 501)
         assertTrue(!Character.isLowSurrogate(emoji[cut.from]) && !Character.isLowSurrogate(emoji[cut.to]))
-        val starts = Finding.lineStarts(listOf("ab", "", "cde"))
+        val starts = Finding.lineStartsUtf16(listOf("ab", "", "cde"))
         assertEquals(listOf(0, 3, 4), starts.toList())
         assertEquals(listOf(0, 0, 1, 2, 2, 2), listOf(0, 2, 3, 4, 6, 99).map { Finding.lineAt(starts, it) })
     }

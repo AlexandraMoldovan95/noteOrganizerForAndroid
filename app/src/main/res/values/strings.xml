@@ -46,6 +46,8 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="history_moved_from">↷ from %1$s</string>
+    <string name="history_off_schedule">off the schedule</string>
 
     <!-- One day of a repeating note -->
     <string name="day_edit_this">✏ Edit this day</string>
@@ -280,6 +282,10 @@
     <string name="no_date">No date</string>
     <string name="repeats_note">This note repeats. Its date can be changed, but not cleared: clearing it would delete the repeat too.</string>
     <string name="pin_to_top">📌 Pin to top</string>
+    <plurals name="note_words">
+        <item quantity="one">%d word</item>
+        <item quantity="other">%d words</item>
+    </plurals>
     <string name="cell">Cell</string>
 
     <!-- The format bar's line keys -->

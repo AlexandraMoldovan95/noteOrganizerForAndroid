@@ -238,29 +238,12 @@ object Recurrence {
         return String.format(Locale.US, "%02d.%02d.%04d", d.dayOfMonth, d.monthValue, d.year)
     }
 
-    /** A stored moment: 2026-10-17 09:30 -> 17.10.2026 09:30, the time kept as it is. */
-    fun showStamp(value: Any?): String {
-        val text = value as? String ?: return ""
-        val gap = text.indexOf(' ')
-        if (gap < 0) return showDate(text)
-        return showDate(text.substring(0, gap)) + text.substring(gap)
-    }
-
     /** A day written out, the day first: Saturday, 3 October 2026. */
     fun showDay(d: LocalDate, year: Boolean = true, shortMonth: Boolean = false): String {
         var month = LONG_MONTHS[d.monthValue - 1]
         if (shortMonth) month = month.take(3)
         val text = "${LONG_DAYS[d.dayOfWeek.value - 1]}, ${d.dayOfMonth} $month"
         return if (year) "$text ${d.year}" else text
-    }
-
-    /** Whether two date texts name the same day, or are the same text. */
-    fun sameDate(a: Any?, b: Any?): Boolean {
-        val first = (a as? String)?.trim() ?: ""
-        val second = (b as? String)?.trim() ?: ""
-        if (first == second) return true
-        val x = readDate(first)
-        return x != null && x == readDate(second)
     }
 
     // ---- the rule ----

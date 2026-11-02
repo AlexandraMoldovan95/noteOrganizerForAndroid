@@ -201,13 +201,13 @@ object Pasting {
         // its number, and no marker is left among the words -- "zz" over items
         // 2 and 3 gave "zz4. four".
         if (b > a && text.isNotEmpty()) {
-            val starts = ArrayList<Int>().apply { add(0) }
-            for (i in c.indices) if (c[i] == '\n'.code) starts.add(i + 1)
+            val lines = body.split("\n")
+            val starts = Paragraphs.lineStarts(lines)
             fun pos(x: Int): Paragraphs.Pos {
-                val n = starts.indexOfLast { it <= x }
+                val n = Finding.lineAt(starts, x)
                 return Paragraphs.Pos(n, x - starts[n])
             }
-            Paragraphs.deletionRange(body.split("\n"), pos(a), pos(b), typing = true, pasted = text)?.let { (s, e) ->
+            Paragraphs.deletionRange(lines, pos(a), pos(b), typing = true, pasted = text)?.let { (s, e) ->
                 a = starts[s.line] + s.column
                 b = starts[e.line] + e.column
             }
@@ -381,7 +381,7 @@ object Pasting {
         // A pasted table arrives with cells of whatever width they had;
         // padding them here keeps the offsets and the text in step, and
         // align() reports what it moved so the spans move with it.
-        if (findBlocks(text.split("\n").map(::cps)).isNotEmpty()) {
+        if (tableBlocks(text).isNotEmpty()) {
             // A page's own markdown brings its separator's dashes as whoever
             // typed them; the app's own copy is put back whole by [fromHtml].
             val (forgot, forgotten) = forgetWidths(text)
@@ -429,17 +429,17 @@ object Pasting {
         }
 
         fun lineMoved(n: Int): Int = n + lowerBound(breaks, n)
+    }
 
-        /** `bisect_left`: how many of the sorted [values] are below [key]. */
-        private fun lowerBound(values: IntArray, key: Int): Int {
-            var lo = 0
-            var hi = values.size
-            while (lo < hi) {
-                val mid = (lo + hi) ushr 1
-                if (values[mid] < key) lo = mid + 1 else hi = mid
-            }
-            return lo
+    /** `bisect_left`: how many of the sorted [values] are below [key]. */
+    private fun lowerBound(values: IntArray, key: Int): Int {
+        var lo = 0
+        var hi = values.size
+        while (lo < hi) {
+            val mid = (lo + hi) ushr 1
+            if (values[mid] < key) lo = mid + 1 else hi = mid
         }
+        return lo
     }
 
     /**
@@ -512,9 +512,6 @@ object Pasting {
     )
 
     private const val CELL = "|"
-    private const val LINE_BREAK = "<br>"
-    private const val MERGE_LEFT = "<"
-    private const val MERGE_UP = "^"
     private const val CHECKBOX_EMPTY = "[ ]"
     private const val CHECKBOX_DONE = "[x]"
 
@@ -1003,24 +1000,6 @@ object Pasting {
         return out
     }
 
-    /** `str.split()`: runs of Python's spaces, no empty pieces. */
-    private fun pySplit(s: String): List<String> {
-        val out = ArrayList<String>()
-        var i = 0
-        while (i < s.length) {
-            i = skipSpaces(s, i)
-            if (i >= s.length) break
-            var e = i
-            while (e < s.length) {
-                val cp = s.codePointAt(e)
-                if (PyText.isSpace(cp)) break
-                e += Character.charCount(cp)
-            }
-            out.add(s.substring(i, e))
-            i = e
-        }
-        return out
-    }
 
     /**
      * The ASCII Python's `int()` and `float()` read a string as: any
@@ -1105,7 +1084,7 @@ object Pasting {
         if (!font.isNullOrEmpty()) {
             bold = false
             italic = false
-            for (token in pySplit(font.split("/")[0])) {
+            for (token in PyText.split(font.split("/")[0])) {
                 if (token == "italic" || token.startsWith("oblique")) italic = true
                 else if (weightIsBold(token)) bold = true
             }
@@ -1430,9 +1409,12 @@ object Pasting {
     }
 
     // ---- tables, as `tables.align` lines them up ----
+    //
+    // Which lines are rows, their cells, alignments and widths are the
+    // editor's own rules (Notebook.kt, Tables.kt), asked of each line as
+    // text; only where the spaces go is worked out here, in code points.
 
     private const val PIPE = '|'.code
-    private const val MIN_COLUMN = 8
 
     private fun cps(s: String): IntArray = s.codePoints().toArray()
 
@@ -1443,17 +1425,6 @@ object Pasting {
         while (a < b && PyText.isSpace(c[a])) a++
         while (b > a && PyText.isSpace(c[b - 1])) b--
         return a to b
-    }
-
-    /** The editor's own answer (Notebook.kt's isTableRow), asked of the code points. */
-    private fun isTableRow(c: IntArray): Boolean = ro.noteorganizer.app.isTableRow(String(c, 0, c.size))
-
-    /** `split_row`: each cell as (first, end) of its stripped text. */
-    private fun splitRow(c: IntArray): List<Pair<Int, Int>> {
-        val (a, b) = stripped(c)
-        if (b == a || c[a] != PIPE) return emptyList()
-        val pipes = (a until b).filter { c[it] == PIPE }
-        return (0 until pipes.size - 1).map { stripped(c, pipes[it] + 1, pipes[it + 1]) }
     }
 
     /** `cell_bounds`: where each cell's text sits in the row, padding excluded. */
@@ -1472,82 +1443,8 @@ object Pasting {
         return bounds
     }
 
-    private enum class Align { LEFT, CENTER, RIGHT }
-
-    /** `cell_alignments`: the padding read as alignment. */
-    private fun cellAlignments(c: IntArray): List<Align> {
-        if (!isTableRow(c)) return emptyList()
-        val pipes = c.indices.filter { c[it] == PIPE }
-        return (0 until pipes.size - 1).map { k ->
-            val from = pipes[k] + 1
-            val to = pipes[k + 1]
-            val (ta, tb) = stripped(c, from, to)
-            if (tb == ta) return@map Align.LEFT
-            var lead = 0
-            while (from + lead < to && c[from + lead] == ' '.code) lead++
-            var trail = 0
-            while (to - 1 - trail >= from && c[to - 1 - trail] == ' '.code) trail++
-            when {
-                lead >= 2 && trail >= 2 -> Align.CENTER
-                lead >= 2 -> Align.RIGHT
-                else -> Align.LEFT
-            }
-        }
-    }
-
-    private fun need(align: Align) = when (align) {
-        Align.CENTER -> 2
-        Align.RIGHT -> 1
-        Align.LEFT -> 0
-    }
-
-    /** `layout_widths`. */
-    private fun layoutWidths(rows: List<List<Int>>, aligns: List<List<Align>>): MutableList<Int> {
-        val widths = ArrayList<Int>()
-        for ((r, row) in rows.withIndex()) {
-            for ((i, cell) in row.withIndex()) {
-                if (i >= widths.size) widths.add(0)
-                var want = cell
-                if (r < aligns.size && i < aligns[r].size) want += need(aligns[r][i])
-                widths[i] = maxOf(widths[i], want)
-            }
-        }
-        return widths.mapTo(ArrayList()) { maxOf(MIN_COLUMN, it) }
-    }
-
-    private fun isSeparatorRow(c: IntArray): Boolean {
-        if (!isTableRow(c)) return false
-        val cells = splitRow(c)
-        if (cells.isEmpty()) return false
-        for ((a, b) in cells) {
-            if (b - a == 1 && c[a] == '~'.code) continue
-            var from = a
-            var to = b
-            if (to > from && c[from] == ':'.code) from++
-            if (to > from && c[to - 1] == ':'.code) to--
-            if (to == from || (from until to).any { c[it] != '-'.code }) return false
-        }
-        return true
-    }
-
-    /** `find_blocks`: every run of table rows, as first and last line. */
-    private fun findBlocks(lines: List<IntArray>): List<Pair<Int, Int>> {
-        val blocks = ArrayList<Pair<Int, Int>>()
-        var start = -1
-        for ((i, line) in lines.withIndex()) {
-            if (isTableRow(line)) {
-                if (start < 0) start = i
-            } else if (start >= 0) {
-                blocks.add(start to i - 1)
-                start = -1
-            }
-        }
-        if (start >= 0) blocks.add(start to lines.size - 1)
-        return blocks
-    }
-
     /** `pad_ops`: the space edits that would line this row up, right to left. */
-    private fun padOps(c: IntArray, widths: List<Int>, aligns: List<Align>?): List<Pair<Int, Int>> {
+    private fun padOps(c: IntArray, widths: List<Int>, aligns: List<CellAlign>?): List<Pair<Int, Int>> {
         val bounds = cellBounds(c)
         if (bounds.isEmpty()) return emptyList()
         var rawEnd = c.size
@@ -1556,12 +1453,12 @@ object Pasting {
         for (i in bounds.indices.reversed()) {
             val (start, end) = bounds[i]
             val width = if (i < widths.size) widths[i] else end - start
-            val align = aligns?.getOrNull(i) ?: Align.LEFT
+            val align = aligns?.getOrNull(i) ?: CellAlign.LEFT
             val content = end - start
             val extra = maxOf(0, width - content)
             val (wantLead, wantTrail) = when {
-                align == Align.CENTER && content != 0 -> 1 + extra / 2 to 1 + extra - extra / 2
-                align == Align.RIGHT && content != 0 -> 1 + extra to 1
+                align == CellAlign.CENTER && content != 0 -> 1 + extra / 2 to 1 + extra - extra / 2
+                align == CellAlign.RIGHT && content != 0 -> 1 + extra to 1
                 else -> 1 to 1 + extra
             }
             var closing = end
@@ -1585,33 +1482,37 @@ object Pasting {
      * finding, not copied (ISSUES_LOG).
      */
     private fun align(text: String): Pair<String, List<Pair<Int, Int>>> {
-        val lines = text.split("\n").map(::cps).toMutableList()
+        val raw = text.split("\n")
+        val lines = raw.map(::cps).toMutableList()
         val asCame = lines.map { it.size }
         val shifts = ArrayList<Pair<Int, Int>>()
         var counted = 0
         var prefix = 0
-        for ((first, last) in findBlocks(lines)) {
-            val block = lines.subList(first, last + 1).toList()
-            val sepAt = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) }
-            val rows = block.map { row -> splitRow(row).map { (a, b) -> b - a } }
-            val aligns = block.map(::cellAlignments)
+        for (block in tableBlocks(text)) {
+            val first = block.first
+            val last = block.last
+            val texts = raw.subList(first, last + 1)
+            val sepAt = (0 until minOf(2, texts.size)).firstOrNull { isSeparatorRow(texts[it]) }
+            val cells = texts.map(::splitRow)
+            val rows = cells.map { row -> row.map { it.codePointCount(0, it.length) } }
+            val aligns = texts.map(::cellAlignments)
             val widths = if (sepAt != null) {
-                val w = layoutWidths(rows.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
-                val sep = block[sepAt]
-                for ((i, cell) in splitRow(sep).withIndex()) {
-                    val size = cell.second - cell.first
-                    val hidden = size == 1 && sep[cell.first] == '~'.code
-                    if (i < w.size && !hidden && size > 3) w[i] = maxOf(w[i], size)
+                val w = layoutWidths(cells.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
+                    .toMutableList()
+                // A width set by hand is kept, as the separator spells it.
+                for ((i, column) in parseSeparator(texts[sepAt]).withIndex()) {
+                    val set = column.width ?: continue
+                    if (i < w.size) w[i] = maxOf(w[i], set)
                 }
                 w
             } else {
-                layoutWidths(rows, aligns)
+                layoutWidths(cells, aligns)
             }
             // Weighed before it is built: past MAX_TABLE_PADDING the table is
             // left ragged, each cell padded only as its alignment needs. Padded
             // after the paste ceiling, one 60,000-character cell over 2,000 rows
             // became 120 million characters, and the app ran out of memory.
-            val perRow = rowWidths(rows, widths) { r, i -> need(aligns[r].getOrNull(i) ?: Align.LEFT) }
+            val perRow = rowWidths(rows, widths) { r, i -> paddingNeed(aligns[r].getOrNull(i) ?: CellAlign.LEFT) }
             // The lines before this block, as they came, summed once and kept
             // running: summed afresh per block, many small tables walked the
             // text once each.
@@ -1659,7 +1560,8 @@ object Pasting {
      * text as it came, for [shiftSpans].
      */
     fun forgetWidths(text: String): Pair<String, List<Pair<Int, Int>>> {
-        val lines = text.split("\n").map(::cps).toMutableList()
+        val raw = text.split("\n")
+        val lines = raw.map(::cps).toMutableList()
         val starts = IntArray(lines.size)
         var pos = 0
         for (i in lines.indices) {
@@ -1667,14 +1569,12 @@ object Pasting {
             pos += lines[i].size + 1
         }
         val shifts = ArrayList<Pair<Int, Int>>()
-        for ((first, last) in findBlocks(lines)) {
-            val block = lines.subList(first, last + 1).toList()
-            val at = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) } ?: continue
-            val n = first + at
+        for (block in tableBlocks(text)) {
+            val n = (block.first..minOf(block.last, block.first + 1)).firstOrNull { isSeparatorRow(raw[it]) } ?: continue
             val line = lines[n]
             var new = line
             var cut = 0
-            for ((bounds, column) in cellBounds(line).zip(parseSeparator(String(line, 0, line.size)))) {
+            for ((bounds, column) in cellBounds(line).zip(parseSeparator(raw[n]))) {
                 if (column.width == null) continue
                 val (a, b) = bounds
                 val short = cps(separatorCells(listOf(column.copy(width = null)))[0])
@@ -1766,7 +1666,7 @@ object Pasting {
         if (lines.size < MIN_WRAPPED_LINES) return false
         // A list's breaks are the list, and a table's rows are its rows.
         if (lines.any { Paragraphs.parseListMarker(String(it, 0, it.size).trimStart(' ', '\t')).kind != null }) return false
-        if (lines.any { isTableRow(it) }) return false
+        if (lines.any { isTableRow(String(it, 0, it.size)) }) return false
         val width = lines.maxOf { it.size }
         if (width < MIN_COLUMN_WIDTH) return false
         val breaks = lines.size - 1
@@ -1858,12 +1758,21 @@ object Pasting {
             if (marker.kind != null) marker.rest else line
         }
 
-    /** `shift_spans`: every offset judged against the span as it was. */
+    /**
+     * `shift_spans`: every offset judged against the span as it was, the
+     * shifts before it summed off sorted totals -- walked whole for every
+     * span, the shape the desktop measured at seconds on a large paste.
+     */
     private fun shiftSpans(spans: List<Span>, shifts: List<Pair<Int, Int>>): List<Span> {
         if (shifts.isEmpty()) return spans
+        val order = shifts.sortedBy { it.first }
+        val places = IntArray(order.size) { order[it].first }
+        val totals = IntArray(order.size + 1).also { t ->
+            for (i in order.indices) t[i + 1] = t[i] + order[i].second
+        }
         return spans.map { s ->
-            s.copy(start = s.start + shifts.filter { it.first < s.start }.sumOf { it.second },
-                   end = s.end + shifts.filter { it.first < s.end }.sumOf { it.second })
+            s.copy(start = s.start + totals[lowerBound(places, s.start)],
+                   end = s.end + totals[lowerBound(places, s.end)])
         }
     }
 }

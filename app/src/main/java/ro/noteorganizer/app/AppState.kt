@@ -516,11 +516,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         // Looked for in place: a list of every note was built per question,
         // and the editor asks at every drawing.
         val raw = load.raw ?: return null
-        for (i in 0 until raw.length()) {
-            val note = raw.opt(i) as? JSONObject ?: continue
-            if ((note.opt("id") as? Number)?.toInt() == id) return note
-        }
-        return null
+        return Organizing.noteById(raw, id)
     }
 
     /** How many templates the notebook keeps: the desktop's count, from templates.json. */

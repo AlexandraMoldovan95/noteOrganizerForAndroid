@@ -1,7 +1,5 @@
 package ro.noteorganizer.app
 
-import java.io.File
-import java.nio.file.Files
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -17,16 +15,6 @@ import org.junit.Test
 class SharingTest {
 
     private fun note(json: String) = JSONObject(json)
-
-    private fun scratch(contents: String?): Notebook.Load {
-        val dir = Files.createTempDirectory("notebook").toFile()
-        dir.deleteOnExit()
-        if (contents != null) File(dir, "notes_data.json").writeText(contents)
-        return Notebook.load(listOf(dir))
-    }
-
-    private fun onDisk(load: Notebook.Load): JSONArray =
-        JSONArray(load.file!!.readText())
 
     // ---- the round trip ----
 

@@ -219,8 +219,11 @@ object Paragraphs {
 
     private fun cpLength(text: String) = text.codePointCount(0, text.length)
 
-    /** Where each line starts, in code points. */
-    private fun lineStarts(lines: List<String>): IntArray {
+    /** Where line [n] of [lines] starts, in code points; [n] may be one past the last line. */
+    fun lineStart(lines: List<String>, n: Int): Int = lines.take(n).sumOf { cpLength(it) + 1 }
+
+    /** Where each line starts, in code points -- the stored note's offsets; [Finding.lineAt] reads them back. */
+    fun lineStarts(lines: List<String>): IntArray {
         val starts = IntArray(lines.size)
         var at = 0
         for ((n, line) in lines.withIndex()) {
@@ -342,10 +345,7 @@ object Paragraphs {
         }
         val a = old.split("\n")
         val b = new.split("\n")
-        var prefix = 0
-        while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-        var suffix = 0
-        while (suffix < a.size - prefix && suffix < b.size - prefix && a[a.size - 1 - suffix] == b[b.size - 1 - suffix]) suffix++
+        val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
         // Lines the edit leaves of its own -- not ones carried whole from below,
         // which keep their own looks (the remap's) -- begun inside its line.
         val end = b.size - suffix
@@ -598,11 +598,7 @@ object Paragraphs {
         val b = new.codePoints().toArray()
         val oldLines = old.split("\n")
         val starts = lineStarts(oldLines)
-        fun lineAt(offset: Int): Int {
-            var n = 0
-            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
-            return n
-        }
+        fun lineAt(offset: Int) = Finding.lineAt(starts, offset)
 
         // Enter: one line break, just before the cursor.
         if (caret >= 1 && oneMore(a, b, caret - 1) && b[caret - 1] == '\n'.code) {
@@ -734,8 +730,7 @@ object Paragraphs {
         val typed = String(b, p, caret - p)
         if (typed == "\n") return null
         fun pos(offset: Int): Pos {
-            var n = 0
-            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
+            val n = Finding.lineAt(starts, offset)
             return Pos(n, offset - starts[n])
         }
         val (from, to) = deletionRange(oldLines, pos(p), pos(end), typing = typed.isNotEmpty()) ?: return null

@@ -4,9 +4,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.text.Normalizer
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+
+/** The label a note without a title is listed by, as the desktop lists it. */
+const val UNTITLED = "(untitled)"
+
+/** A title as the lists show it: stripped as the desktop strips it, or [UNTITLED]. */
+fun shownTitle(title: String?): String = title?.let(PyText::strip)?.ifEmpty { null } ?: UNTITLED
 
 /**
  * One note, in the shape the Windows desktop app actually writes to disk.
@@ -109,9 +113,6 @@ data class Note(
         return searchText.contains(fold(query))
     }
 
-    /** What the desktop's list shows for a note with no title. */
-    val displayTitle: String get() = title.trim().ifEmpty { "(untitled)" }
-
     /**
      * The card's words and its table count, from the desktop's one pass
      * ([previewText]) -- worked out ONCE per note, not on every drawing:
@@ -148,7 +149,7 @@ data class Note(
             t.isNotEmpty() -> glimpse(t)
             spokenLines.isNotEmpty() -> glimpse(spokenLines.first())
             // Words only in a table: the note is not empty, it is untitled.
-            body.isNotBlank() -> "(untitled)"
+            body.isNotBlank() -> UNTITLED
             else -> "(empty)"
         }
     }
@@ -409,6 +410,19 @@ sealed class SaveResult {
  */
 internal fun codePointsOf(text: String): IntArray = text.codePoints().toArray()
 
+/**
+ * How many items two sequences of [aSize] and [bSize] share at their start,
+ * then at their end, no item counted twice -- where an edit sits, found by
+ * what did not change. [same] compares the first's i-th with the second's j-th.
+ */
+internal inline fun sharedEnds(aSize: Int, bSize: Int, same: (Int, Int) -> Boolean): Pair<Int, Int> {
+    var prefix = 0
+    while (prefix < aSize && prefix < bSize && same(prefix, prefix)) prefix++
+    var suffix = 0
+    while (suffix < aSize - prefix && suffix < bSize - prefix && same(aSize - 1 - suffix, bSize - 1 - suffix)) suffix++
+    return prefix to suffix
+}
+
 /** Spans that survived an edit, and how many did not. */
 data class Remapped(val spans: List<FormatSpan>, val lost: Int)
 
@@ -441,14 +455,7 @@ fun remapSpans(old: String, new: String, spans: List<FormatSpan>): Remapped {
 
     val a = codePointsOf(old)
     val b = codePointsOf(new)
-
-    var prefix = 0
-    while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-
-    var suffix = 0
-    while (suffix < a.size - prefix && suffix < b.size - prefix &&
-        a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-    ) suffix++
+    val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
 
     val oldSuffixStart = a.size - suffix
     val newSuffixStart = b.size - suffix
@@ -503,14 +510,7 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
 
     val a = old.split("\n")
     val b = new.split("\n")
-
-    var prefix = 0
-    while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-
-    var suffix = 0
-    while (suffix < a.size - prefix && suffix < b.size - prefix &&
-        a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-    ) suffix++
+    val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
 
     val oldSuffixStart = a.size - suffix
     val delta = b.size - a.size
@@ -787,22 +787,24 @@ fun previewText(body: String): Pair<String, Int> {
     return prose.joinToString("\n") to tables
 }
 
-/** A cell holding exactly one of these is a merge marker, not content. */
-private const val MERGE_LEFT = "<"
-private const val MERGE_UP = "^"
+// A table's marks, written once for the editor, the paste, the export and find.
 
-/** The marker a cell carries instead of text when its column is hidden. */
-private const val SEPARATOR_HIDDEN = "~"
+/** A cell holding exactly one of these is a merge marker, not content. */
+internal const val MERGE_LEFT = "<"
+internal const val MERGE_UP = "^"
+
+/** The separator's cell for a hidden column. */
+internal const val SEPARATOR_HIDDEN = "~"
 
 /** Inside a cell, this stands for the line break the table draws. */
-private const val LINE_BREAK = "<br>"
+internal const val LINE_BREAK = "<br>"
 
 /**
  * None when the cell is not a checkbox; false unchecked, true checked.
  * A capital X is tolerated, which hand-written markdown uses.
  */
 fun checkboxState(value: String): Boolean? {
-    val v = value.trim()
+    val v = PyText.strip(value)
     if (v == "[ ]") return false
     if (v.lowercase() == "[x]") return true
     return null
@@ -1072,7 +1074,7 @@ object Notebook {
         // owns its id, and reusing it would merge two notes.
         val newId = Organizing.ids(array).next()
 
-        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+        val now = Files.now()
         val note = JSONObject()
         note.put("id", newId)
         // Born here, so it is minted here. This is the only place this
@@ -1155,7 +1157,7 @@ object Notebook {
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
 
-        val index = indexById(array, id)
+        val index = Organizing.indexOfId(array, id)
         if (index < 0) return SaveResult.Failed(GONE)
         // Edited as a copy, put in place only once written. Changed in
         // place, a failed write left the new words in memory: the next save
@@ -1255,8 +1257,7 @@ object Notebook {
         // A pin alone is not an edit: the desktop's `toggle_pin` leaves the
         // time alone, and so does a pin from the note's details here.
         if (wordsChanged || otherChanged) {
-            note.put("updated",
-                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+            note.put("updated", Files.now())
         }
         // `created` is deliberately untouched: an edit is not a birth.
         // Repeating as the series its copy holds -- its date put back to the
@@ -1296,7 +1297,7 @@ object Notebook {
             ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
+        val note = Organizing.noteById(array, id)
             ?: return SaveResult.Failed(GONE)
 
         val checklist = note.opt("checklist") as? JSONArray
@@ -1306,8 +1307,7 @@ object Notebook {
         if (item.opt("done") == done) return SaveResult.Ok(id)
 
         item.put("done", done)
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        note.put("updated", Files.now())
 
         val problem = writeAtomic(file, array)
         if (problem != null) {
@@ -1422,7 +1422,7 @@ object Notebook {
             ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
+        val note = Organizing.noteById(array, id)
             ?: return SaveResult.Failed(GONE)
 
         val current = note.opt("checklist") as? JSONArray ?: JSONArray()
@@ -1441,8 +1441,7 @@ object Notebook {
         val before = note.opt("checklist")
         val stamp = note.opt("updated")
         note.put("checklist", candidate)
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        note.put("updated", Files.now())
 
         val problem = writeAtomic(file, array)
         if (problem != null) {
@@ -1451,19 +1450,6 @@ object Notebook {
             return SaveResult.Failed(problem)
         }
         return SaveResult.Ok(id)
-    }
-
-    /**
-     * By id, never by position: the list on screen is filtered and sorted,
-     * so an index taken from it means nothing in the file.
-     */
-    private fun findById(array: JSONArray, id: Int): JSONObject? {
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) return o
-        }
-        return null
     }
 
     /**
@@ -1647,7 +1633,7 @@ object Notebook {
         val y = pyText(b)
         return when (word) {
             "title" -> pyStrip(x) == pyStrip(y)
-            "body" -> Normalize.withCaretLine(x) == Normalize.withCaretLine(y)
+            "body" -> Normalize.sameBody(x, y)
             else -> x == y
         }
     }
@@ -2486,7 +2472,7 @@ object Notebook {
      */
     fun previousKeeps(load: Load, id: Int): Boolean {
         val array = load.raw ?: return false
-        val index = indexById(array, id)
+        val index = Organizing.indexOfId(array, id)
         if (index < 0) return false
         val live = array.get(index) as JSONObject
         val previous = live.opt("_prev") as? JSONObject ?: return false
@@ -2504,7 +2490,7 @@ object Notebook {
     fun restorePrevious(load: Load, id: Int): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val index = indexById(array, id)
+        val index = Organizing.indexOfId(array, id)
         if (index < 0) return SaveResult.Failed(GONE)
         val live = array.get(index) as JSONObject
         // Shaped again, held to the note's ceilings: a file written before
@@ -2542,14 +2528,6 @@ object Notebook {
         return SaveResult.Ok(id)
     }
 
-    private fun indexById(array: JSONArray, id: Int): Int {
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) return i
-        }
-        return -1
-    }
 
     /**
      * The desktop's rule for when an edit deserves a rescue copy

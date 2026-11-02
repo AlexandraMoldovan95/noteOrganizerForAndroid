@@ -195,11 +195,7 @@ class TemplatesTest {
 
     // ---- using one ----
 
-    private fun notebook(): Notebook.Load {
-        val d = dir()
-        File(d, "notes_data.json").writeText("[]")
-        return Notebook.load(listOf(d))
-    }
+    private fun notebook() = scratch("[]")
 
     @Test
     fun `a note from a template has its fields, ticks and all`() {

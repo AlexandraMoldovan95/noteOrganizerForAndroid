@@ -90,7 +90,7 @@ object Editing {
      * read-only that a field could have held, and never hands a field a line
      * it cannot break.
      */
-    private inline fun forEachRun(text: CharSequence, each: (Int) -> Unit) {
+    internal inline fun forEachRun(text: CharSequence, each: (Int) -> Unit) {
         var run = 0
         // The last character before the spaces now being read.
         var lastSeen = '\n'
@@ -121,7 +121,7 @@ object Editing {
      * between a letter, a digit or ,.;:!? and a letter or digit. Two
      * ideographs may always be broken between (LB31).
      */
-    private fun breaksBefore(before: Char, c: Char, lastSeen: Char): Boolean =
+    internal fun breaksBefore(before: Char, c: Char, lastSeen: Char): Boolean =
         if (before == ' ') c.isLetterOrDigit() && (lastSeen.isLetterOrDigit() || lastSeen in ENDS_A_WORD)
         else isIdeograph(before) && isIdeograph(c)
 
@@ -129,13 +129,6 @@ object Editing {
 
     private fun isIdeograph(c: Char): Boolean =
         c in '\u4E00'..'\u9FFF' || c in '\u3400'..'\u4DBF' || c in '\uF900'..'\uFAFF'
-
-    /** The longest run of [text] the layout cannot break ([forEachRun]), in UTF-16 units. */
-    fun longestUnbroken(text: String): Int {
-        var longest = 0
-        forEachRun(text) { if (it > longest) longest = it }
-        return longest
-    }
 
     /**
      * The letter-by-letter work laying out [text] costs ([MAX_LAYOUT_COST]),
@@ -1231,7 +1224,7 @@ object Editing {
         val n = 1 + lines.count { isCaptionLine(it) }
         val label = "Table $n: description"
         val out = lines.take(last + 1) + label + "Source: " + lines.drop(last + 1)
-        val lineStart = out.take(last + 1).sumOf { it.codePointCount(0, it.length) + 1 }
+        val lineStart = Paragraphs.lineStart(out, last + 1)
         val end = lineStart + label.length
         return Captioned(out.joinToString("\n"), last + 1, end - "description".length, end)
     }

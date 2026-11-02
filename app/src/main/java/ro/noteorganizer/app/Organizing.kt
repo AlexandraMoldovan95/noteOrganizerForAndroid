@@ -3,7 +3,6 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
@@ -23,8 +22,11 @@ object Organizing {
     private const val UNREADABLE = "Your notes file could not be read, so nothing will be written over it."
     private const val TRASH_UNREADABLE = "The Trash could not be read, so nothing was changed in it."
 
-    private fun now() = Files.now()
-
+    /**
+     * Where the note [id] is in the file's [array], or -1: by id, never by
+     * position -- the list on screen is filtered and sorted. The one lookup;
+     * three more were written beside it.
+     */
     internal fun indexOfId(array: JSONArray, id: Int): Int {
         for (i in 0 until array.length()) {
             val itsId = (array.opt(i) as? JSONObject)?.opt("id")
@@ -32,6 +34,10 @@ object Organizing {
         }
         return -1
     }
+
+    /** The note [id] in [array], or null ([indexOfId]). */
+    internal fun noteById(array: JSONArray, id: Int): JSONObject? =
+        indexOfId(array, id).takeIf { it >= 0 }?.let { array.opt(it) as? JSONObject }
 
     /** Where the first note wearing [uid] stands in [array], or -1. */
     internal fun indexOfUid(array: JSONArray, uid: String): Int {
@@ -145,7 +151,7 @@ object Organizing {
         clone.remove("_prev")
         val base = (original.opt("title") as? String ?: "").trim()
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
-        val stamp = now()
+        val stamp = Files.now()
         clone.put("updated", stamp)
         clone.put("id", ids(array).next())
         val atts = clone.getJSONArray("attachments")
@@ -180,7 +186,7 @@ object Organizing {
         if (trashFile.exists() && load.trashRaw == null) return SaveResult.Failed(TRASH_UNREADABLE)
         val trash = load.trashRaw ?: JSONArray()
         val wanted = ids.toSet()
-        val stamp = now()
+        val stamp = Files.now()
         val trashCandidate = JSONArray(trash.toString())
         val notesCandidate = JSONArray()
         var moved = 0
@@ -423,7 +429,7 @@ object Organizing {
         val note = candidate.getJSONObject(index)
         val atts = note.opt("attachments") as? JSONArray ?: JSONArray().also { note.put("attachments", it) }
         for ((display, stored) in copied) atts.put(JSONObject().put("filename", display).put("stored_as", stored))
-        note.put("updated", now())
+        note.put("updated", Files.now())
         write(file, candidate)?.let { problem ->
             copied.forEach { File(attachmentsDir, it.second).delete() }
             return Attached(SaveResult.Failed(problem), 0, failed)
@@ -450,7 +456,7 @@ object Organizing {
             ?: return SaveResult.Failed("That file is no longer attached.")
         val removed = atts.getJSONObject(at)
         atts.remove(at)
-        note.put("updated", now())
+        note.put("updated", Files.now())
         write(file, candidate)?.let { return SaveResult.Failed(it) }
         replace(array, candidate)
         deleteFiles(listOf(JSONObject().put("attachments", JSONArray().put(removed))),
@@ -585,7 +591,7 @@ object Organizing {
         val wanted = ids.toSet()
         val candidate = JSONArray(array.toString())
         var changed = 0
-        val at = now()
+        val at = Files.now()
         for (i in 0 until candidate.length()) {
             val note = candidate.opt(i) as? JSONObject ?: continue
             val itsId = note.opt("id")
@@ -844,19 +850,28 @@ object Organizing {
     }
 
     /**
-     * When an entry went to the Trash, read strictly: "2026-02-30" is no
-     * date, and neither is a stamp with more after its seconds -- the
-     * desktop's strptime refuses both. The purge and the row's "days left"
-     * both ask this, so they cannot disagree, as on the desktop.
+     * When an entry went to the Trash, read as the desktop's strptime reads
+     * "%Y-%m-%d %H:%M:%S": its own pattern ([DELETED_AT] -- four year
+     * digits, a space or tab between date and time), nothing before or
+     * after, and a real date ("2026-02-30" is none). SimpleDateFormat skipped
+     * a leading space and took a year of any length, and refused the tab.
+     * The purge and the row's "days left" both ask this, so they cannot
+     * disagree. ASCII digits and spaces only, where Python's also take other
+     * scripts': no app writes those into a stamp.
      */
     internal fun deletedAt(stamp: String?): Date? {
-        val text = stamp ?: return null
-        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-        format.isLenient = false
-        val at = java.text.ParsePosition(0)
-        val date = format.parse(text, at)
-        return if (date != null && at.index == text.length) date else null
+        val found = DELETED_AT.matchEntire(stamp ?: return null) ?: return null
+        val (year, month, day, hour, minute, second) = found.destructured
+        val calendar = java.util.Calendar.getInstance()
+        calendar.isLenient = false
+        calendar.clear()
+        calendar.set(year.toInt(), month.toInt() - 1, day.trim().toInt(), hour.toInt(), minute.toInt(), second.toInt())
+        return try { calendar.time } catch (e: IllegalArgumentException) { null }
     }
+
+    /** Python's _strptime pattern for "%Y-%m-%d %H:%M:%S", its space a run of whitespace. */
+    private val DELETED_AT = Regex(
+        """(\d{4})-(1[0-2]|0[1-9]|[1-9])-(3[01]|[12]\d|0[1-9]|[1-9]| [1-9])\s+(2[0-3]|[01]\d|\d):([0-5]\d|\d):(6[01]|[0-5]\d|\d)""")
 
     /** Whether an entry has outlived the window; an unreadable stamp never has. */
     internal fun isPast(entry: JSONObject, days: Int, now: Date = Date()): Boolean {

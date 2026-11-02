@@ -437,16 +437,6 @@ class TablesTest {
 
     private val grid = listOf("| A | B | C |", "| --- | --- | --- |", "| a | b | c |", "| d | e | f |")
 
-    @Test
-    fun `merging writes the desktop's marker into the cell`() {
-        val left = TableEdit(grid).setMarker(2, 1, "<").lines()
-        assertEquals(listOf("a", "<", "c"), splitRow(left[2]))
-        assertEquals("the merge is read back as one wide cell", 2, parseTable(left).rows[1][0]!!.colSpan)
-        val up = TableEdit(grid).setMarker(3, 0, "^").lines()
-        assertEquals("^", splitRow(up[3])[0])
-        assertEquals("the separator is never a cell", grid[1], TableEdit(grid).setMarker(1, 0, "<").lines()[1])
-    }
-
     /** A merge's writes applied as the editor applies them, one cell at a time. */
     private fun applied(lines: List<String>, plan: MergePlan): List<String> =
         plan.writes.fold(lines) { now, w -> TableEdit(now).setCell(parseTable(now).fileRow(w.at.row), w.at.column, w.text).lines() }
@@ -479,7 +469,7 @@ class TablesTest {
     @Test
     fun `a merge grows to take a merge it touches whole, and the box is written the desktop's way`() {
         // "a" already spans two columns; "d" merged up into it takes the whole box.
-        val wide = TableEdit(grid).setMarker(2, 1, "<").lines()
+        val wide = TableEdit(grid).setCell(2, 1, "<").lines()
         val plan = mergePlan(wide, CellAt(2, 0), up = true)!!
         assertEquals(CellWrite(CellAt(1, 0), "a d e"), plan.writes.first())
         assertEquals(setOf(CellWrite(CellAt(1, 1), "<"), CellWrite(CellAt(2, 0), "^"), CellWrite(CellAt(2, 1), "<")),
@@ -570,8 +560,15 @@ class TablesTest {
 
     @Test
     fun `a merge's marker or a box is mechanics, any other words are words`() {
-        for (token in listOf("<", "^", "[ ]", "[x]", " [X] ")) assertTrue(token, isCellToken(token))
+        for (token in listOf("<", "^", "[ ]", "[x]", " [X] ", "\u0085<")) assertTrue(token, isCellToken(token))
         for (words in listOf("<5 €", "^up", "[ ] milk", "", "x")) assertFalse(words, isCellToken(words))
+    }
+
+    @Test
+    fun `a cell is stored stripped as the desktop strips it`() {
+        val out = TableEdit(listOf("| A | B |", "| a | b |")).setCell(1, 0, "\u0085new\u0085").lines()
+        assertEquals("new", splitRow(out[1])[0])
+        assertFalse("no Python space is left in the row", out[1].contains('\u0085'))
     }
 
     @Test
@@ -613,14 +610,14 @@ class TablesTest {
 
     @Test
     fun `splitting empties every cell the merge swallowed, the anchor keeps its text`() {
-        val merged = TableEdit(grid).setMarker(2, 1, "<").lines().let { TableEdit(it).setMarker(2, 2, "<").lines() }
+        val merged = TableEdit(grid).setCell(2, 1, "<").lines().let { TableEdit(it).setCell(2, 2, "<").lines() }
         assertTrue(TableEdit(merged).isMerged(2, 0))
         assertFalse(TableEdit(merged).isMerged(3, 0))
         val split = TableEdit(merged).split(2, 2).lines()
         assertEquals("split from a swallowed cell, too", listOf("a", "", ""), splitRow(split[2]))
         assertFalse(TableEdit(split).isMerged(2, 0))
         // Another merge in the same table is left alone.
-        val two = TableEdit(merged).setMarker(3, 1, "<").lines()
+        val two = TableEdit(merged).setCell(3, 1, "<").lines()
         val one = TableEdit(two).split(2, 0).lines()
         assertEquals(listOf("d", "<", "f"), splitRow(one[3]))
         assertTrue(TableEdit(one).isMerged(3, 0))
@@ -632,7 +629,7 @@ class TablesTest {
         assertEquals(CellAlign.CENTER, cellAlignments(centred[2])[1])
         assertEquals(CellAlign.CENTER, parseTable(centred).rows[1][1]!!.align)
         assertEquals("the others stay left", CellAlign.LEFT, parseTable(centred).rows[1][0]!!.align)
-        val marker = TableEdit(grid).setMarker(2, 1, "<").lines()
+        val marker = TableEdit(grid).setCell(2, 1, "<").lines()
         assertEquals("a marker's padding says nothing", cellAlignments(marker[2]),
             cellAlignments(TableEdit(marker).setAlignment(2, 1, CellAlign.RIGHT).lines()[2]))
     }
@@ -652,7 +649,7 @@ class TablesTest {
     @Test
     fun `nothing changed is no change to the table's lines`() {
         val untidy = listOf("| a |b|", "|c| d |")
-        assertEquals(untidy, TableEdit(untidy).setMarker(5, 0, "<").lines())
+        assertEquals(untidy, TableEdit(untidy).setCell(5, 0, "<").lines())
         assertEquals(listOf("| a | b |"), TableEdit(listOf("| a | b |")).removeRow(0).lines())
     }
 

@@ -90,9 +90,6 @@ object Finding {
         else -> 4
     }
 
-    private const val MERGE_LEFT = "<"
-    private const val MERGE_UP = "^"
-
     /**
      * Every match of [query] in [body], top to bottom -- then in the
      * [checklist]'s rows and the [comments] under it, as the note reads
@@ -181,8 +178,12 @@ object Finding {
         return found
     }
 
-    /** Where each of [lines] starts, as one text joined by line breaks. */
-    fun lineStarts(lines: List<String>): IntArray {
+    /**
+     * Where each of [lines] starts, as one text joined by line breaks, in
+     * UTF-16 units -- the field's offsets; Paragraphs' lineStarts counts code
+     * points, the stored note's.
+     */
+    fun lineStartsUtf16(lines: List<String>): IntArray {
         val starts = IntArray(lines.size)
         var at = 0
         for (i in lines.indices) {
@@ -192,7 +193,10 @@ object Finding {
         return starts
     }
 
-    /** The line holding offset [at], by its [starts] ([lineStarts]). */
+    /**
+     * The line holding offset [at], by its [starts] -- in whichever unit they
+     * count: [lineStartsUtf16]'s, or Paragraphs.lineStarts' code points.
+     */
     fun lineAt(starts: IntArray, at: Int): Int {
         var i = java.util.Arrays.binarySearch(starts, at)
         if (i < 0) i = -i - 2

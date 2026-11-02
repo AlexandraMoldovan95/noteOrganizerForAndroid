@@ -87,9 +87,16 @@ class EditingTest {
         val short = "before\n$unbroken\nafter"
         assertEquals("before\n$unbroken\n1+1\nafter", Calculator.place(short, "1+1", null, 10).body)
         // A list's card gets a glimpse of such a title, never the whole of it.
-        val card = Notebook.parseNotes("""[{"id": 1, "title": "$unbroken"}]""").single()
+        val card = notesFrom("""[{"id": 1, "title": "$unbroken"}]""").single()
         assertEquals(unbroken, card.title)
         assertTrue(card.headline.length <= 300)
+    }
+
+    /** The longest run of [text] the layout cannot break, in UTF-16 units. */
+    private fun longestUnbroken(text: String): Int {
+        var longest = 0
+        Editing.forEachRun(text) { if (it > longest) longest = it }
+        return longest
     }
 
     @Test
@@ -99,7 +106,7 @@ class EditingTest {
         // which can break them nowhere.
         for (glue in listOf('\u00A0', '\u2007', '\u202F', '\u2060', '\uFEFF', '\u001C', '\u001F')) {
             val joined = "word$glue".repeat(30_000)
-            assertEquals("U+%04X".format(glue.code), 150_000, Editing.longestUnbroken(joined))
+            assertEquals("U+%04X".format(glue.code), 150_000, longestUnbroken(joined))
             assertTrue(Editing.tooLongToLayOut(joined))
             val parts = Editing.segments("Above\n$joined\nBelow")
             assertEquals(listOf(true, false, true), parts.map { it.field })
@@ -110,7 +117,7 @@ class EditingTest {
         assertTrue(Editing.tooLongToLayOut("( a".repeat(50_000)))
         // Words, and what ends a sentence or a list item, break as ever.
         for (spaced in listOf("word ".repeat(30_000), "a, ".repeat(50_000), "1. ".repeat(50_000), "Yes! No? ".repeat(20_000))) {
-            assertTrue(spaced.take(12), Editing.longestUnbroken(spaced) < 10)
+            assertTrue(spaced.take(12), longestUnbroken(spaced) < 10)
             assertFalse(Editing.runsTooLong(spaced))
         }
         // Ideographs break between any two; joined by a no-break space, not.

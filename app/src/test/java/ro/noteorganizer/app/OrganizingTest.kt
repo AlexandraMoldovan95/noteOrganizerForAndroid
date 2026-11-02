@@ -21,21 +21,10 @@ import java.nio.file.Files as NioFiles
  */
 class OrganizingTest {
 
-    private fun notebook(notes: String, trash: String? = null, settings: String? = null,
-                         templates: String? = null): Notebook.Load {
-        val dir = NioFiles.createTempDirectory("organizing").toFile()
-        File(dir, "notes_data.json").writeText(notes)
-        if (trash != null) File(dir, "trash.json").writeText(trash)
-        if (settings != null) File(dir, "settings.json").writeText(settings)
-        if (templates != null) File(dir, "templates.json").writeText(templates)
-        File(dir, "attachments").mkdirs()
-        return Notebook.load(dir)
-    }
+    private fun notebook(notes: String, trash: String? = null, settings: String? = null, templates: String? = null) =
+        scratch(notes, trash, settings, templates, attachments = true)
 
-    private fun dir(load: Notebook.Load) = load.file!!.parentFile!!
-    private fun attachments(load: Notebook.Load) = File(dir(load), "attachments")
-    private fun notesOnDisk(load: Notebook.Load) = JSONArray(load.file!!.readText())
-    private fun trashOnDisk(load: Notebook.Load) = JSONArray(load.trashFile!!.readText())
+    private fun attachments(load: Notebook.Load) = File(dirOf(load), "attachments")
     private fun titles(array: JSONArray) = (0 until array.length()).map { array.getJSONObject(it).optString("title") }
 
     // ---- duplicate ----
@@ -65,7 +54,7 @@ class OrganizingTest {
         File(attachments(load), "map.png").writeText("MAP")
         val result = Organizing.duplicate(load, 4, attachments(load)) as SaveResult.Ok
         assertEquals(5, result.id)
-        val copy = notesOnDisk(load).getJSONObject(1)
+        val copy = onDisk(load).getJSONObject(1)
         assertEquals("Trip (copy)", copy.getString("title"))
         assertNotEquals("u", copy.getString("uid"))
         assertFalse("a copy has no earlier version of its own", copy.has("_prev"))
@@ -78,7 +67,7 @@ class OrganizingTest {
     fun `an untitled note's duplicate is called (copy)`() {
         val load = notebook("""[{"id": 1, "title": "  "}]""")
         Organizing.duplicate(load, 1, null)
-        assertEquals("(copy)", notesOnDisk(load).getJSONObject(1).getString("title"))
+        assertEquals("(copy)", onDisk(load).getJSONObject(1).getString("title"))
     }
 
     // ---- several at once, and Undo ----
@@ -88,13 +77,13 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1, "title": "a"}, {"id": 2, "title": "b"}, {"id": 3, "title": "c"}]""")
         val result = Organizing.trashNotes(load, listOf(1, 3)) as SaveResult.Ok
         assertEquals(2, result.imported)
-        assertEquals(listOf("b"), titles(notesOnDisk(load)))
+        assertEquals(listOf("b"), titles(onDisk(load)))
         assertEquals(listOf("a", "c"), titles(trashOnDisk(load)))
 
-        val keys = Notebook.load(dir(load)).trash.map { Organizing.TrashKey(it.id, it.deletedAt) }
-        val back = Organizing.restore(Notebook.load(dir(load)), keys) as SaveResult.Ok
+        val keys = Notebook.load(dirOf(load)).trash.map { Organizing.TrashKey(it.id, it.deletedAt) }
+        val back = Organizing.restore(Notebook.load(dirOf(load)), keys) as SaveResult.Ok
         assertEquals(2, back.imported)
-        assertEquals(listOf("b", "a", "c"), titles(notesOnDisk(load)))
+        assertEquals(listOf("b", "a", "c"), titles(onDisk(load)))
         assertEquals(0, trashOnDisk(load).length())
     }
 
@@ -103,7 +92,7 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1, "title": "new 1"}]""",
             trash = """[{"id": 1, "title": "old 1", "deleted_at": "2026-10-01 10:00:00"}]""")
         Organizing.restore(load, listOf(Organizing.TrashKey(1, "2026-10-01 10:00:00")))
-        val ids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getInt("id") }
+        val ids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getInt("id") }
         assertEquals(listOf(1, 2), ids)
     }
 
@@ -115,7 +104,7 @@ class OrganizingTest {
                         {"id": 2, "uid": "y", "title": "other", "deleted_at": "2026-10-01 10:00:00"}]""")
         Organizing.restore(load, listOf(Organizing.TrashKey(1, "2026-10-01 10:00:00", "x"),
                                         Organizing.TrashKey(2, "2026-10-01 10:00:00", "y")))
-        val uids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getString("uid") }
+        val uids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getString("uid") }
         assertEquals("x", uids[0])
         assertNotEquals("the restored twin gets an identity of its own", "x", uids[1])
         assertEquals("a uid nobody else has is kept, so an older code still finds it", "y", uids[2])
@@ -131,7 +120,7 @@ class OrganizingTest {
         """.trimIndent())
         val second = load.trash.first { it.title == "second" }
         Organizing.restore(load, listOf(Organizing.keyOf(second)))
-        assertEquals(listOf("second"), titles(notesOnDisk(load)))
+        assertEquals(listOf("second"), titles(onDisk(load)))
         assertEquals(listOf("first"), titles(trashOnDisk(load)))
     }
 
@@ -155,8 +144,8 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1, "title": "a"}, {"id": 1, "title": "b"}, {"id": "3", "title": "c"},
                                 {"id": 0, "title": "d"}, {"id": true, "title": "e"}]""")
         assertTrue(Organizing.repairIds(load))
-        assertEquals(listOf(1, 4, 3, 5, 6), (0..4).map { notesOnDisk(load).getJSONObject(it).get("id") })
-        assertFalse("a notebook already right is not written", Organizing.repairIds(Notebook.load(dir(load))))
+        assertEquals(listOf(1, 4, 3, 5, 6), (0..4).map { onDisk(load).getJSONObject(it).get("id") })
+        assertFalse("a notebook already right is not written", Organizing.repairIds(Notebook.load(dirOf(load))))
     }
 
     @Test
@@ -170,14 +159,14 @@ class OrganizingTest {
                                 {"id": "\u001c7", "title": "c"}, {"id": 7.5, "title": "d"},
                                 {"id": "\u20285", "title": "e"}, {"id": " 2 ", "title": "f"}]""")
         assertTrue(Organizing.repairIds(load))
-        assertEquals(listOf(10, 3, 7, 11, 5, 2), (0..5).map { notesOnDisk(load).getJSONObject(it).get("id") })
+        assertEquals(listOf(10, 3, 7, 11, 5, 2), (0..5).map { onDisk(load).getJSONObject(it).get("id") })
         val float = notebook("""[{"id": 3, "title": "a"}, {"id": 7.5, "title": "b"}]""")
         assertTrue(Organizing.repairIds(float))
         assertEquals("a float is no id: the next free number", listOf(3, 4),
-                     (0..1).map { notesOnDisk(float).getJSONObject(it).get("id") })
+                     (0..1).map { onDisk(float).getJSONObject(it).get("id") })
         val whole = notebook("""[{"id": 6, "title": "a"}, {"id": 7.0, "title": "b"}]""")
         assertTrue("a float id is written again as the whole number it is given", Organizing.repairIds(whole))
-        assertEquals(listOf(6, 7), (0..1).map { notesOnDisk(whole).getJSONObject(it).get("id") })
+        assertEquals(listOf(6, 7), (0..1).map { onDisk(whole).getJSONObject(it).get("id") })
     }
 
     @Test
@@ -190,22 +179,22 @@ class OrganizingTest {
         val past = notebook("""[{"id": 1, "title": "a"}, {"id": "99999999999", "title": "b"},
                                 {"id": 4294967301, "title": "c"}, {"id": 5, "title": "d"}]""")
         assertTrue(Organizing.repairIds(past))
-        assertEquals(listOf(1, 6, 7, 5), (0..3).map { notesOnDisk(past).getJSONObject(it).get("id") })
+        assertEquals(listOf(1, 6, 7, 5), (0..3).map { onDisk(past).getJSONObject(it).get("id") })
         // A note at the edge keeps its number; every new one takes the lowest
         // number no note holds, never a negative one, never one in use.
         val edge = notebook("""[{"id": 2147483647, "title": "a"}, {"id": 1, "title": "b"}, {"id": "x", "title": "c"}]""")
         assertTrue(Organizing.repairIds(edge))
-        assertEquals(listOf(2147483647, 1, 2), (0..2).map { notesOnDisk(edge).getJSONObject(it).get("id") })
-        val load = Notebook.load(dir(edge))
+        assertEquals(listOf(2147483647, 1, 2), (0..2).map { onDisk(edge).getJSONObject(it).get("id") })
+        val load = Notebook.load(dirOf(edge))
         val made = listOf(
             (Notebook.createNote(load, "new", "one") as SaveResult.Ok).id,
             (Notebook.createNote(load, "new", "two") as SaveResult.Ok).id,
             (Organizing.duplicate(load, 1, attachments(load)) as SaveResult.Ok).id,
         )
         assertEquals(listOf(3, 4, 5), made)
-        val ids = (0 until notesOnDisk(load).length()).map { notesOnDisk(load).getJSONObject(it).getInt("id") }
+        val ids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getInt("id") }
         assertEquals("one id a note", ids.size, ids.toSet().size)
-        assertFalse(Organizing.repairIds(Notebook.load(dir(load))))
+        assertFalse(Organizing.repairIds(Notebook.load(dirOf(load))))
         // A note shaped as a load shapes it reads such an id as none, never cut down onto another's.
         assertEquals(0, Normalize.normalizeNote(JSONObject().put("id", 4_294_967_301L)).getInt("id"))
         assertEquals(5, Normalize.normalizeNote(JSONObject().put("id", 5)).getInt("id"))
@@ -216,12 +205,12 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1, "updated": "2026-01-01 00:00:00"}, {"id": 2, "updated": "2026-01-01 00:00:00"}]""")
         Organizing.setPinned(load, listOf(1, 2), true)
         assertEquals(listOf("2026-01-01 00:00:00", "2026-01-01 00:00:00"),
-                     (0..1).map { notesOnDisk(load).getJSONObject(it).getString("updated") })
+                     (0..1).map { onDisk(load).getJSONObject(it).getString("updated") })
         // A pin from the note's details, the same.
         val one = notebook("""[{"id": 1, "title": "t", "body": "b", "updated": "2026-01-01 00:00:00"}]""")
         Notebook.updateNote(one, 1, "t", "b", pinned = true)
-        assertEquals("2026-01-01 00:00:00", notesOnDisk(one).getJSONObject(0).getString("updated"))
-        assertTrue(notesOnDisk(one).getJSONObject(0).getBoolean("pinned"))
+        assertEquals("2026-01-01 00:00:00", onDisk(one).getJSONObject(0).getString("updated"))
+        assertTrue(onDisk(one).getJSONObject(0).getBoolean("pinned"))
     }
 
     @Test
@@ -229,7 +218,7 @@ class OrganizingTest {
         val load = notebook("""[{"id": 1}, {"id": 2}, {"id": 3}]""")
         Organizing.setPinned(load, listOf(1, 2), true)
         Organizing.moveToCategory(load, listOf(2, 3), "Work")
-        val all = notesOnDisk(load)
+        val all = onDisk(load)
         assertEquals(listOf(true, true, false), (0..2).map { all.getJSONObject(it).optBoolean("pinned") })
         assertEquals(listOf("", "Work", "Work"), (0..2).map { all.getJSONObject(it).optString("category") })
     }
@@ -247,13 +236,13 @@ class OrganizingTest {
             settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f"}}""",
             templates = """[{"name": "Weekly", "category": "Work"}]""")
         assertTrue(Organizing.renameCategory(load, "Work", "Job") is SaveResult.Ok)
-        val note = notesOnDisk(load).getJSONObject(0)
+        val note = onDisk(load).getJSONObject(0)
         assertEquals("Job", note.getString("category"))
         assertEquals("Job", note.getJSONObject("_prev").getString("category"))
         assertEquals("Job", note.getJSONObject("overrides").getJSONObject("2026-10-12").getString("category"))
         assertEquals("Job", trashOnDisk(load).getJSONObject(0).getString("category"))
-        assertEquals("Job", JSONArray(File(dir(load), "templates.json").readText()).getJSONObject(0).getString("category"))
-        val categories = JSONObject(File(dir(load), "settings.json").readText()).getJSONObject("categories")
+        assertEquals("Job", JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("category"))
+        val categories = JSONObject(File(dirOf(load), "settings.json").readText()).getJSONObject("categories")
         assertEquals("#4cc9f0", categories.getString("Job"))
         assertFalse(categories.has("Work"))
     }
@@ -276,7 +265,7 @@ class OrganizingTest {
         assertTrue(Organizing.addCategory(load, "Work", "#000000") is SaveResult.Failed)
         assertTrue(Organizing.addCategory(load, "z".repeat(81), "#000000") is SaveResult.Failed)
         assertTrue(Organizing.addCategory(load, "Trips", "#123456") is SaveResult.Ok)
-        assertTrue(Organizing.renameCategory(Notebook.load(dir(load)), "Trips", "Personal") is SaveResult.Failed)
+        assertTrue(Organizing.renameCategory(Notebook.load(dirOf(load)), "Trips", "Personal") is SaveResult.Failed)
     }
 
     @Test
@@ -284,8 +273,8 @@ class OrganizingTest {
         val settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}"""
         val keep = notebook("""[{"id": 1, "category": "Work"}]""", settings = settings)
         Organizing.deleteCategory(keep, "Work", trashNotes = false)
-        assertEquals("General", notesOnDisk(keep).getJSONObject(0).getString("category"))
-        assertFalse(JSONObject(File(dir(keep), "settings.json").readText()).getJSONObject("categories").has("Work"))
+        assertEquals("General", onDisk(keep).getJSONObject(0).getString("category"))
+        assertFalse(JSONObject(File(dirOf(keep), "settings.json").readText()).getJSONObject("categories").has("Work"))
 
         val trash = notebook("""
             [{"id": 1, "category": "Work"},
@@ -294,8 +283,8 @@ class OrganizingTest {
         """.trimIndent(), settings = settings)
         assertEquals(1 to 1, Organizing.categoryCounts(trash, "Work"))
         Organizing.deleteCategory(trash, "Work", trashNotes = true)
-        assertEquals("only the note filed there went", 1, notesOnDisk(trash).length())
-        val series = notesOnDisk(trash).getJSONObject(0)
+        assertEquals("only the note filed there went", 1, onDisk(trash).length())
+        val series = onDisk(trash).getJSONObject(0)
         assertEquals("the series' day moved to General instead",
             "General", series.getJSONObject("overrides").getJSONObject("2026-10-12").getString("category"))
         assertEquals("the trashed note no longer names the deleted category",
@@ -393,13 +382,13 @@ class OrganizingTest {
                                      {"text": "c", "done": false}]}]
         """.trimIndent())
         assertTrue(Notebook.moveChecklistItem(load, 1, 1, 0) is SaveResult.Ok)
-        var rows = notesOnDisk(load).getJSONObject(0).getJSONArray("checklist")
+        var rows = onDisk(load).getJSONObject(0).getJSONArray("checklist")
         assertEquals(listOf("b", "a", "c"), (0..2).map { rows.getJSONObject(it).getString("text") })
         assertTrue(rows.getJSONObject(0).getBoolean("done"))
         // Dragged two places down, a row SLIDES: the ones it passes move up
         // one each, rather than the first and last trading places.
         assertTrue(Notebook.moveChecklistItem(load, 1, 0, 2) is SaveResult.Ok)
-        rows = notesOnDisk(load).getJSONObject(0).getJSONArray("checklist")
+        rows = onDisk(load).getJSONObject(0).getJSONArray("checklist")
         assertEquals(listOf("a", "c", "b"), (0..2).map { rows.getJSONObject(it).getString("text") })
         assertTrue(Notebook.moveChecklistItem(load, 1, 0, 9) is SaveResult.Failed)
     }
@@ -460,7 +449,7 @@ class OrganizingTest {
                 .map { FormatSpan(it.getInt("start"), it.getInt("end"), it.getString("style")) },
             paragraphs = paragraphs) is SaveResult.Ok)
         assertEquals(paragraphs.length(),
-            notesOnDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
+            onDisk(load).getJSONObject(0).getJSONArray("paragraphs").length())
     }
 
     @Test
@@ -529,7 +518,7 @@ class OrganizingTest {
         val groups = Organizing.duplicateGroups(load)
         assertEquals(listOf(listOf(1, 2, 3), listOf(4, 5)), groups)
         assertTrue(Organizing.cleanUpDuplicates(load, groups, setOf(2, 3, 4, 5), attachments(load)) is SaveResult.Ok)
-        val left = notesOnDisk(load)
+        val left = onDisk(load)
         assertEquals("a group ticked whole goes whole", listOf(1), (0 until left.length()).map { left.getJSONObject(it).getInt("id") })
         val merged = left.getJSONObject(0).getJSONArray("attachments")
         assertEquals("one file, though two copies listed it", 1, merged.length())
@@ -550,7 +539,7 @@ class OrganizingTest {
         """.trimIndent())
         File(attachments(load), "a.png").writeText("A")
         assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2, 3)), setOf(1, 3), attachments(load)) is SaveResult.Ok)
-        val left = notesOnDisk(load)
+        val left = onDisk(load)
         assertEquals(1, left.length())
         assertEquals(2, left.getJSONObject(0).getInt("id"))
         assertEquals("the first copy's file went to the one kept", 1, left.getJSONObject(0).getJSONArray("attachments").length())
@@ -569,7 +558,7 @@ class OrganizingTest {
         val load = notebook(notes.toString())
         for (i in 0 until 3) File(attachments(load), "x$i.txt").writeText("X$i")
         assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Ok)
-        assertEquals(Normalize.MAX_ATTACHMENTS, notesOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+        assertEquals(Normalize.MAX_ATTACHMENTS, onDisk(load).getJSONObject(0).getJSONArray("attachments").length())
         assertEquals(3, trashOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
     }
 
@@ -586,7 +575,7 @@ class OrganizingTest {
         File(attachments(load), "b_map.png").writeText("MAP")
         File(attachments(load), "c_map.png").writeText("PAM")      // as long, other bytes
         assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Ok)
-        val kept = notesOnDisk(load).getJSONObject(0).getJSONArray("attachments")
+        val kept = onDisk(load).getJSONObject(0).getJSONArray("attachments")
         assertEquals("the same bytes once; the same name with other bytes is another file",
                      listOf("MAP", "PAM"),
                      (0 until kept.length()).map { File(attachments(load), kept.getJSONObject(it).getString("stored_as")).readText() })
@@ -599,7 +588,7 @@ class OrganizingTest {
              {"id": 3, "title": "Plan", "body": "p"}]
         """.trimIndent())
         assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2, 3), attachments(load)) is SaveResult.Ok)
-        val left = notesOnDisk(load)
+        val left = onDisk(load)
         assertEquals(listOf(1, 3), (0 until left.length()).map { left.getJSONObject(it).getInt("id") })
     }
 
@@ -652,13 +641,13 @@ class OrganizingTest {
             listOf(incoming("map.png", "MAP"), incoming("map.png", "MAP 2")), clock = { moment })
         assertTrue(done.result is SaveResult.Ok)
         assertEquals(2, done.added)
-        val atts = notesOnDisk(load).getJSONObject(0).getJSONArray("attachments")
+        val atts = onDisk(load).getJSONObject(0).getJSONArray("attachments")
         assertEquals(2, atts.length())
         val stored = (0 until 2).map { atts.getJSONObject(it).getString("stored_as") }
         assertNotEquals(stored[0], stored[1])
         assertEquals(listOf("MAP", "MAP 2"), stored.map { File(attachments(load), it).readText() })
         assertEquals("map.png", atts.getJSONObject(0).getString("filename"))
-        assertNotEquals("2026-10-01 09:00:00", notesOnDisk(load).getJSONObject(0).getString("updated"))
+        assertNotEquals("2026-10-01 09:00:00", onDisk(load).getJSONObject(0).getString("updated"))
     }
 
     @Test
@@ -686,7 +675,7 @@ class OrganizingTest {
         val load = notebook("""[{"id": 4, "uid": "new-note", "title": "Other"}]""")
         val refused = Organizing.attach(load, 4, attachments(load), listOf(incoming("scan.pdf", "PDF")), uid = "holder").result
         assertTrue(refused is SaveResult.Failed && refused.reason.contains("no longer here"))
-        assertEquals(0, notesOnDisk(load).getJSONObject(0).optJSONArray("attachments")?.length() ?: 0)
+        assertEquals(0, onDisk(load).getJSONObject(0).optJSONArray("attachments")?.length() ?: 0)
         assertTrue(attachments(load).listFiles().isNullOrEmpty())
         // The note itself, by its uid, takes them.
         assertTrue(Organizing.attach(load, 4, attachments(load), listOf(incoming("scan.pdf", "PDF")), uid = "new-note").result is SaveResult.Ok)
@@ -701,13 +690,13 @@ class OrganizingTest {
             {"id": 2, "uid": "house", "title": "House papers"}, {"id": 3, "uid": "todo", "title": "To do"}]""",
             trash = "[]")
         assertTrue(Organizing.trashNotes(load, listOf(2)) is SaveResult.Ok)
-        val entry = JSONArray(File(dir(load), "trash.json").readText()).getJSONObject(0)
+        val entry = JSONArray(File(dirOf(load), "trash.json").readText()).getJSONObject(0)
         assertTrue(Organizing.restore(load, listOf(Organizing.TrashKey(2, entry.getString("deleted_at"), "house"))) is SaveResult.Ok)
-        val back = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.single { it.optString("uid") == "house" }
+        val back = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.single { it.optString("uid") == "house" }
         assertEquals("a new id", 4, back.getInt("id"))
         val done = Organizing.attach(load, 2, attachments(load), listOf(incoming("deed.pdf", "PDF")), uid = "house")
         assertEquals(SaveResult.Ok(4), done.result)
-        val after = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         assertEquals("deed.pdf", after.single { it.optString("uid") == "house" }.getJSONArray("attachments").getJSONObject(0).getString("filename"))
         assertTrue("no other note took them", after.filter { it.optString("uid") != "house" }.all { (it.optJSONArray("attachments")?.length() ?: 0) == 0 })
     }
@@ -719,7 +708,7 @@ class OrganizingTest {
         // first, unsaid. A day's Undo looked its note up the same way.
         val load = notebook("""[{"id": 2, "uid": "dup", "title": "First"}, {"id": 3, "uid": "dup", "title": "Second"}]""")
         assertEquals(SaveResult.Ok(3), Organizing.attach(load, 3, attachments(load), listOf(incoming("pic.png", "PNG")), uid = "dup").result)
-        val after = notesOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
         assertEquals(listOf(0, 1), after.map { it.optJSONArray("attachments")?.length() ?: 0 })
         assertEquals(1, Organizing.indexOfNote(load.raw!!, 3, "dup"))
         assertEquals("its id gone, the first wearing it", 0, Organizing.indexOfNote(load.raw!!, 9, "dup"))
@@ -741,7 +730,7 @@ class OrganizingTest {
         assertTrue("note 2 still shows it", File(attachments(load), "b.png").exists())
         assertTrue(Organizing.detach(load, 1, "c.png", attachments(load)) is SaveResult.Ok)
         assertTrue("a note in the Trash still has it", File(attachments(load), "c.png").exists())
-        assertEquals(0, notesOnDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+        assertEquals(0, onDisk(load).getJSONObject(0).getJSONArray("attachments").length())
         assertTrue(Organizing.detach(load, 1, "b.png", attachments(load)) is SaveResult.Failed)
     }
 
@@ -755,7 +744,7 @@ class OrganizingTest {
     """.trimIndent()
 
     private fun orders(load: Notebook.Load): Map<Int, Int> {
-        val a = notesOnDisk(load)
+        val a = onDisk(load)
         return (0 until a.length()).map { a.getJSONObject(it) }.associate { it.getInt("id") to it.optInt("order", -1) }
     }
 
@@ -766,11 +755,11 @@ class OrganizingTest {
         assertEquals(listOf(4, 1, 2, 3), sortNotes(load.notes, SortOrder.CUSTOM).map { it.id })
         assertTrue(Organizing.moveNote(load, 3, anchor = 1, before = true, grouped = false) is SaveResult.Ok)
         assertEquals(mapOf(4 to 0, 3 to 1, 1 to 2, 2 to 3), orders(load))
-        assertEquals(listOf(4, 3, 1, 2), sortNotes(Notebook.load(dir(load)).notes, SortOrder.CUSTOM).map { it.id })
+        assertEquals(listOf(4, 3, 1, 2), sortNotes(Notebook.load(dirOf(load)).notes, SortOrder.CUSTOM).map { it.id })
         assertTrue(Organizing.moveNote(load, 3, anchor = 2, before = false, grouped = false) is SaveResult.Ok)
         assertEquals(mapOf(4 to 0, 1 to 1, 2 to 2, 3 to 3), orders(load))
         // A move is not an edit.
-        assertEquals("2026-10-03 09:00:00", notesOnDisk(load).getJSONObject(2).getString("updated"))
+        assertEquals("2026-10-03 09:00:00", onDisk(load).getJSONObject(2).getString("updated"))
     }
 
     @Test
@@ -794,7 +783,7 @@ class OrganizingTest {
         assertTrue(Organizing.placeAsSorted(load, SortOrder.TITLE_AZ) is SaveResult.Ok)
         // As Title A-Z showed them: the pinned note first, the untitled last.
         assertEquals(mapOf(4 to 0, 2 to 1, 1 to 2, 3 to 3), orders(load))
-        assertEquals(listOf(4, 2, 1, 3), sortNotes(Notebook.load(dir(load)).notes, SortOrder.CUSTOM).map { it.id })
+        assertEquals(listOf(4, 2, 1, 3), sortNotes(Notebook.load(dirOf(load)).notes, SortOrder.CUSTOM).map { it.id })
     }
 
     @Test

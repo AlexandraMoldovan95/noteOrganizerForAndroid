@@ -1,6 +1,7 @@
 package ro.noteorganizer.app
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isShiftPressed
@@ -249,8 +250,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** The step last kept, which typing joins. */
     private var newest: Step? = null
 
-    /** How many steps Undo can take now. */
-    val undoSteps: Int get() = history.steps
+    /** How many steps Undo can take now: the tests' window on [history]'s budget. */
+    @VisibleForTesting
+    internal val undoSteps: Int get() = history.steps
 
     /** The note as the last change left it: what the next change records as "before". */
     private var settled: Snap? = null
@@ -404,14 +406,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * wave 3).
      */
     fun typeInCell(segment: Editing.Segment, table: TableBlock, at: CellAt, words: String, caret: Int) {
-        val stored = words.replace("\n", "<br>")
+        val stored = words.replace("\n", LINE_BREAK)
         if (isCellToken(words)) {
             cellHeld = HeldCell(segment.firstLine, at, stored, body)
             return
         }
         cellHeld = null
-        val upTo = words.substring(0, caret.coerceIn(0, words.length)).replace("\n", "<br>")
-        cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) - (stored.length - stored.trimStart().length))
+        val upTo = words.substring(0, caret.coerceIn(0, words.length)).replace("\n", LINE_BREAK)
+        cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) - (stored.length - PyText.lstrip(stored).length))
         editTable(segment, Editing.History.TYPING + ":cell") { it.setCell(table.fileRow(at.row), at.column, stored) }
         cellWordsCaret = null
     }
@@ -662,7 +664,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val made = Editing.addCaption(body, segment.lastLine)
         val tableAlign = props[segment.firstLine]?.align
         val lines = made.body.split("\n")
-        val from = lines.take(made.line).sumOf { it.codePointCount(0, it.length) + 1 }
+        val from = Paragraphs.lineStart(lines, made.line)
         // The Source line's own line break too, as the desktop's clears to
         // "{cap_line + 2}.0": a style past the table's end kept it, and its bar
         // ran to the margin there (the final audit's thirteenth round).
@@ -688,7 +690,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun addLineAbove(segment: Editing.Segment) {
         writeHeldCell()
         val lines = body.split("\n")
-        val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
+        val at = Paragraphs.lineStart(lines, segment.firstLine)
         val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
         // One line break at the table's first line's start, as the desktop's insert at "{first}.0".
         val edit = putIn(next, at)
@@ -722,7 +724,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // at the next row added (the final audit's thirteenth round).
         fun width(line: String) = line.codePointCount(0, line.length)
         fun startOf(line: Int) =
-            if (line < lines.size) lines.take(line).sumOf { width(it) + 1 } else width(body)
+            if (line < lines.size) Paragraphs.lineStart(lines, line) else width(body)
         val edit = if (changedTable.size == table.size + 1) {
             Paragraphs.Edit(startOf(segment.firstLine + 1), 0, width(changedTable[1]) + 1)
         } else {
@@ -744,7 +746,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         writeHeldCell()
         val next = Editing.deleteLines(body, segment.firstLine, segment.lastLine)
         // Taken out from its first line's start: the edit as made, the styles too.
-        val at = body.split("\n").take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
+        val at = Paragraphs.lineStart(body.split("\n"), segment.firstLine)
         val edit = Paragraphs.Edit(at, body.codePointCount(0, body.length) - next.codePointCount(0, next.length), 0)
         spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
         follow(next, edit)
@@ -1188,8 +1190,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val typedWords = typedIn?.let { words(oldPoints, before.getValue(it.key)) }
         val typed = cellWordsCaret?.let { caret ->
             typedIn?.let { cellEdit(typedWords!!, words(newPoints, it.value.first), caret) } }
-        val afterBreak = typed != null && typed.at >= 4 &&
-            String(codePointsOf(typedWords!!), typed.at - 4, 4) == "<br>"
+        val afterBreak = typed != null && typed.at >= LINE_BREAK.length &&
+            String(codePointsOf(typedWords!!), typed.at - LINE_BREAK.length, LINE_BREAK.length) == LINE_BREAK
         val carried = ArrayList<FormatSpan>()
         val rest = ArrayList<FormatSpan>()
         // Only a style inside the table is looked for among its cells: this
@@ -1349,10 +1351,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val segment = cell?.let { c -> Editing.segments(body).firstOrNull { it.table && it.firstLine == c.firstLine } }
         if (cell != null && segment != null) {
             val table = parseTable(segment.text.split("\n"))
-            val words = cellTextAt(table, cell.at).replace("<br>", "\n")
+            val words = cellTextAt(table, cell.at).replace(LINE_BREAK, "\n")
             val at = (cellCaret ?: words.trimEnd('\n').length).coerceIn(0, words.length)
             val now = (words.substring(0, at) + formula + words.substring(at)).replace("|", "/")
-            editTable(segment, "calculation") { it.setCell(table.fileRow(cell.at.row), cell.at.column, now.replace("\n", "<br>")) }
+            editTable(segment, "calculation") { it.setCell(table.fileRow(cell.at.row), cell.at.column, now.replace("\n", LINE_BREAK)) }
             cellCaretNext = at + formula.length
             cellEpoch += 1
             return
@@ -2449,6 +2451,9 @@ private const val INDENT_STEP = 24
 private const val BODY_SIZE = 16
 private const val BODY_LINE_HEIGHT = 24
 
+/** What a painted line break, and an empty last line, are drawn as: a zero-width space. */
+const val STAND_IN = '​'
+
 /**
  * The lines of one field with their indent and alignment, and a list
  * item's wrapped lines hanging after its marker, as the desktop's margins
@@ -2499,7 +2504,7 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
         if (end > at || last) paragraphs.add(AnnotatedString.Range(style, at, if (last) end + 1 else end))
         at = end
     }
-    val drawn = text.text.replace('\n', '​') + if (standIn) "​" else ""
+    val drawn = text.text.replace('\n', STAND_IN) + if (standIn) STAND_IN.toString() else ""
     return AnnotatedString(drawn, text.spanStyles, paragraphs)
 }
 
@@ -2903,6 +2908,14 @@ private fun FormatKey(
     }
 }
 
+/** "… N more rows here", in a long checklist's gap: [onShow] draws the next of them. */
+@Composable
+internal fun HiddenRowsLink(hidden: Int, onShow: () -> Unit) {
+    Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
+         color = LocalPalette.current.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+         modifier = Modifier.fillMaxWidth().clickable(onClick = onShow).padding(vertical = 10.dp))
+}
+
 /**
  * The checklist, under the text, when [shown]. Ticking, adding, renaming
  * and removing each write at once, as the desktop's do; the handle ⠿ drags
@@ -3025,12 +3038,8 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     for (index in shownRows) key(rowKeys[index]) {
         val item = items[index]
         if (index > drawnUpTo + 1) {
-            val hidden = index - drawnUpTo - 1
             val upTo = drawnUpTo
-            Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
-                 color = palette.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                 modifier = Modifier.fillMaxWidth().clickable { head = upTo + 1 + Editing.CHECKLIST_ROWS }
-                     .padding(vertical = 10.dp))
+            HiddenRowsLink(index - drawnUpTo - 1) { head = upTo + 1 + Editing.CHECKLIST_ROWS }
         }
         drawnUpTo = index
         if (index == firstShort) {
@@ -3349,7 +3358,7 @@ private const val READ_ON_LINES = 40
 private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int, Int>>, current: Pair<Int, Int>?,
                           reveal: Int, parts: IntArray? = null, header: @Composable () -> Unit) {
     val palette = LocalPalette.current
-    val starts = remember(lines, parts) { parts ?: Finding.lineStarts(lines) }
+    val starts = remember(lines, parts) { parts ?: Finding.lineStartsUtf16(lines) }
     var first by remember(lines) { mutableIntStateOf(0) }
     var count by remember(lines) { mutableIntStateOf(shown) }
     val sight = remember { BringIntoViewRequester() }
@@ -3798,7 +3807,8 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
             }
             val words = Editing.wordCount(model.body)
             Text(
-                listOf(pluralWords(words), Editing.readingTime(words)).filter { it.isNotEmpty() }.joinToString(" · "),
+                listOf(pluralStringResource(R.plurals.note_words, words, words), Editing.readingTime(words))
+                    .filter { it.isNotEmpty() }.joinToString(" · "),
                 color = palette.subtext,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 12.dp),
@@ -3815,8 +3825,6 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     if (dating) DateDialog(model.date, onPick = { model.date = it; model.changed(); dating = false }) { dating = false }
     if (repeating) RepeatSheet(state, model) { repeating = false }
 }
-
-private fun pluralWords(n: Int) = if (n == 1) "1 word" else "$n words"
 
 @Composable
 internal fun DetailRow(label: String, content: @Composable () -> Unit) {
@@ -3935,7 +3943,7 @@ private fun cellTextAt(table: TableBlock, at: CellAt): String {
         // it can be turned back into words by changing the marker.
         true -> "[x]"
         false -> "[ ]"
-        null -> cell.lines.joinToString("<br>")
+        null -> cell.lines.joinToString(LINE_BREAK)
     }
 }
 
@@ -3976,7 +3984,7 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val palette = LocalPalette.current
     val key = Triple(segment.firstLine, at, model.cellEpoch)
     var draft by remember(key) {
-        val text = cellTextAt(table, at).replace("<br>", "\n")
+        val text = cellTextAt(table, at).replace(LINE_BREAK, "\n")
         // At the end of the words, not under the empty lines a row made
         // taller keeps: typed there, the words went to its last line. After
         // the calculator wrote in, after what it wrote.

@@ -113,11 +113,10 @@ fun TemplatePicker(templates: List<JSONObject>, onPick: (JSONObject) -> Unit, on
 @Composable
 fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: String, onDone: () -> Unit) {
     val palette = LocalPalette.current
-    var name by remember { mutableStateOf(defaultName) }
     // Kept to the desktop's 200 letters as its box is, the words already
     // there whole; said under the box, as this dialog stands over the
     // window the app's messages are drawn in.
-    var nameField by remember { mutableStateOf(TextFieldValue(name, TextRange(name.length))) }
+    var nameField by remember { mutableStateOf(TextFieldValue(defaultName, TextRange(defaultName.length))) }
     var capSaid by remember { mutableStateOf<String?>(null) }
     val nameCap = remember { Editing.BoxCap({ capSaid = it }, Editing.TITLE_CHARS, "A template name") }
     var askReplace by remember { mutableStateOf(false) }
@@ -126,7 +125,7 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
     val fullSaid = stringResource(R.string.templates_full, Templates.MAX_TEMPLATES)
 
     fun write() {
-        val chosen = PyText.strip(name)
+        val chosen = PyText.strip(nameField.text)
         val tpl = Templates.normalize(JSONObject(template.toString()).put("name", chosen))
         val list = Templates.load(state.dir)
         if (Templates.full(list, chosen)) {
@@ -153,7 +152,6 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
                         // An edit that fits takes the words away: they were about the last cut.
                         if (kept.text != nameField.text && kept.text == next.text) capSaid = null
                         nameField = kept
-                        name = kept.text
                     },
                     singleLine = true,
                     label = { Text(stringResource(R.string.template_field_name)) },
@@ -167,9 +165,9 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
         },
         confirmButton = {
             TextButton(
-                enabled = PyText.strip(name).isNotEmpty(),
+                enabled = PyText.strip(nameField.text).isNotEmpty(),
                 onClick = {
-                    if (Templates.nameTaken(Templates.load(state.dir), PyText.strip(name))) askReplace = true else write()
+                    if (Templates.nameTaken(Templates.load(state.dir), PyText.strip(nameField.text))) askReplace = true else write()
                 },
             ) { Text(stringResource(R.string.save), color = palette.accentText) }
         },
@@ -178,7 +176,7 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
         titleContentColor = palette.text,
     )
     if (askReplace) {
-        NameTakenQuestion(PyText.strip(name), onReplace = { askReplace = false; write() }, onAnother = { askReplace = false })
+        NameTakenQuestion(PyText.strip(nameField.text), onReplace = { askReplace = false; write() }, onAnother = { askReplace = false })
     }
 }
 
@@ -436,8 +434,6 @@ private fun TemplateEditor(
     // a change is measured from, so Save and ✕ still ask about the draft.
     val held = remember { Templates.normalize(original ?: JSONObject()) }
     val start = remember { draft?.fields ?: held }
-    var name by remember { mutableStateOf(if (draft != null) start.optString("name") else if (original == null) "" else start.optString("name")) }
-    var title by remember { mutableStateOf(start.optString("title")) }
     var body by remember { mutableStateOf(start.optString("body")) }
     // Held by the field itself: a field over a TextFieldState keeps its
     // cursor in sight as it is typed into, where one over a String does not
@@ -465,9 +461,13 @@ private fun TemplateEditor(
     // The name and the title with their cursors, kept to the desktop's 200
     // letters as its boxes are -- the words already there whole, what came
     // in cut, said in its words. `take(200)` of each new value cut their own
-    // end, in UTF-16 units (the final audit's seventh round).
-    var nameField by remember { mutableStateOf(TextFieldValue(name, TextRange(name.length))) }
-    var titleField by remember { mutableStateOf(TextFieldValue(title, TextRange(title.length))) }
+    // end, in UTF-16 units (the final audit's seventh round). A new
+    // template's name starts empty, not normalize's "(untitled)".
+    var nameField by remember {
+        val name = if (draft == null && original == null) "" else start.optString("name")
+        mutableStateOf(TextFieldValue(name, TextRange(name.length)))
+    }
+    var titleField by remember { start.optString("title").let { mutableStateOf(TextFieldValue(it, TextRange(it.length))) } }
     val nameCap = remember { Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A template name") }
     val titleCap = remember { Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A note title") }
     var askName by remember { mutableStateOf(false) }
@@ -486,7 +486,7 @@ private fun TemplateEditor(
         body = new
     }
 
-    fun collect(): JSONObject = Templates.collected(name, title, body, comments.text.toString(), category,
+    fun collect(): JSONObject = Templates.collected(nameField.text, titleField.text, body, comments.text.toString(), category,
         checklist, newItemField.text, formatting, paragraphs)
 
     // What the editor opened on, the template as it is saved -- never the
@@ -508,7 +508,7 @@ private fun TemplateEditor(
     }
 
     fun save() {
-        if (PyText.strip(name).isEmpty()) {
+        if (PyText.strip(nameField.text).isEmpty()) {
             askName = true
             return
         }
@@ -538,7 +538,7 @@ private fun TemplateEditor(
     // stays behind ([Templates.keepDraft]).
     fun keep() = Templates.keepDraft(state.draftDir, changed()) {
         Templates.Draft(original?.optString("name"),
-            Templates.draftFields(name, title, body, comments.text.toString(), category, checklist.toList(),
+            Templates.draftFields(nameField.text, titleField.text, body, comments.text.toString(), category, checklist.toList(),
                 formatting, paragraphs), newItemField.text)
     }
     DisposableEffect(Unit) {
@@ -580,12 +580,10 @@ private fun TemplateEditor(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 OutlinedTextField(nameField, { next ->
                         nameField = keptBy(nameCap, nameField, next)
-                        name = nameField.text
                     }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_name)) }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(titleField, { next ->
                         titleField = keptBy(titleCap, titleField, next)
-                        title = titleField.text
                     }, singleLine = true,
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
@@ -676,7 +674,7 @@ private fun TemplateEditor(
             )
         }
         if (askReplace) {
-            NameTakenQuestion(PyText.strip(name),
+            NameTakenQuestion(PyText.strip(nameField.text),
                 onReplace = { askReplace = false; if (onSave(collect())) leave() },
                 onAnother = { askReplace = false })
         }
@@ -726,12 +724,8 @@ private fun TemplateRows(checklist: SnapshotStateList<Pair<String, Boolean>>) {
     for (k in shown) key(keys[k]) {
         val item = checklist[k]
         if (k > drawnUpTo + 1) {
-            val hidden = k - drawnUpTo - 1
             val upTo = drawnUpTo
-            Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
-                 color = palette.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                 modifier = Modifier.fillMaxWidth().clickable { head = upTo + 1 + Editing.CHECKLIST_ROWS }
-                     .padding(vertical = 10.dp))
+            HiddenRowsLink(k - drawnUpTo - 1) { head = upTo + 1 + Editing.CHECKLIST_ROWS }
         }
         drawnUpTo = k
         // Each control says what it does to which row: read by their

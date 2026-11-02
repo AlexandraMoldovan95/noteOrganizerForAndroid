@@ -6,13 +6,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.nio.file.Files as NioFiles
 
 /** The list's sorts, its "Show", and its groups: the desktop's note_list rules. */
 class ListingTest {
 
-    private fun notes(vararg json: String): List<Note> = Notebook.parseNotes("[" + json.joinToString(",") + "]")
+    private fun notes(vararg json: String): List<Note> = notesFrom("[" + json.joinToString(",") + "]")
     private fun ids(list: List<Note>) = list.map { it.id }
 
     @Test
@@ -125,16 +123,11 @@ class ListingTest {
 
     // ---- a category's name, wherever settings hold it ----
 
-    private fun scratch(settings: String): Notebook.Load {
-        val dir = NioFiles.createTempDirectory("listing").toFile()
-        File(dir, "notes_data.json").writeText("""[{"id": 1, "category": "Work"}]""")
-        File(dir, "settings.json").writeText(settings)
-        return Notebook.load(dir)
-    }
+    private fun workNotebook(settings: String) = scratch("""[{"id": 1, "category": "Work"}]""", settings = settings)
 
     @Test
     fun `renaming a category carries the folded group and the chosen Show along`() {
-        val load = scratch("""{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"},
+        val load = workNotebook("""{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"},
             "collapsed_groups": ["Work"], "note_filter": "Work"}""")
         assertTrue(Organizing.renameCategory(load, "Work", "Job") is SaveResult.Ok)
         val saved = JSONObject(load.settings!!.file.readText())
@@ -144,7 +137,7 @@ class ListingTest {
 
     @Test
     fun `deleting a category drops its folded group and returns Show to All`() {
-        val load = scratch("""{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"},
+        val load = workNotebook("""{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"},
             "collapsed_groups": ["Work", "General"], "note_filter": "Work"}""")
         assertTrue(Organizing.deleteCategory(load, "Work", trashNotes = false) is SaveResult.Ok)
         val saved = JSONObject(load.settings!!.file.readText())

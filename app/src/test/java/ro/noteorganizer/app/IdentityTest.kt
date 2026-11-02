@@ -22,16 +22,6 @@ import org.junit.Test
  */
 class IdentityTest {
 
-    private fun scratch(contents: String?): Notebook.Load {
-        val dir = Files.createTempDirectory("notebook").toFile()
-        dir.deleteOnExit()
-        if (contents != null) File(dir, "notes_data.json").writeText(contents)
-        return Notebook.load(listOf(dir))
-    }
-
-    private fun onDisk(load: Notebook.Load): JSONArray =
-        JSONArray(load.file!!.readText())
-
     private fun ready(load: Notebook.Load, code: String) =
         Notebook.inspectShareCode(load, code) as Notebook.Inspection.Ready
 
@@ -235,7 +225,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(JSONObject().put("title", "A stranger")))
         Shares.apply(load, ready(load, code).notes, update = false)
         assertEquals(listOf("Here", "A stranger"),
-            Notebook.parseNotes(load.raw!!.toString()).map { it.title })
+            notesFrom(load.raw!!.toString()).map { it.title })
     }
 
     @Test
@@ -255,7 +245,7 @@ class IdentityTest {
 
         assertTrue("the write must fail", result is SaveResult.Failed)
         assertEquals("the screen stays on the version on disk",
-            "Old", Notebook.parseNotes(load.raw!!.toString()).single().title)
+            "Old", notesFrom(load.raw!!.toString()).single().title)
         assertEquals("and the real file is untouched",
             "Old", onDisk(load).getJSONObject(0).getString("title"))
     }
@@ -269,7 +259,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
         Shares.apply(load, ready(load, code).notes, update = true)
-        assertEquals("New", Notebook.parseNotes(load.raw!!.toString()).single().title)
+        assertEquals("New", notesFrom(load.raw!!.toString()).single().title)
     }
 
     // ---- adding beside it instead ----
