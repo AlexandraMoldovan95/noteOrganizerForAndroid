@@ -19,8 +19,8 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-932 tests across thirty-one suites on 2 November 2026 — `NotebookTest` (138),
-`DaysTest` (75), `TablesTest` (71), `RecurrenceTest` (51), `EditingTest` (49),
+933 tests across thirty-one suites on 2 November 2026 — `NotebookTest` (138),
+`DaysTest` (75), `TablesTest` (72), `RecurrenceTest` (51), `EditingTest` (49),
 `PastingTest` (46), `OrganizingTest` (43), `IdentityTest` (40), `AppStateTest` (37),
 `StylingTest` (34), `ImportingTest` (34), `CalculatorTest` (34), `ParagraphsTest` (33),
 `EditorTypingTest` (32), `SharingTest` (25), `SettingsTest` (24), `BackupTest` (23),
@@ -139,14 +139,15 @@ the tests pass, and the damage shows up on a real notebook that has
 travelled. It has already happened twice.
 
 So the gate reads the desktop's Python **as the specification** and
-compares four things: that a note here has the same fields the desktop
+compares five things: that a note here has the same fields the desktop
 gives one, that the two places building a new note agree with each other,
-that a share code carries what the desktop's codes carry, and that an
+that a share code carries what the desktop's codes carry, that an
 arriving note — from a code or from a backup — replaces what the desktop
-lets one replace. It reads that source and never writes to it.
+lets one replace, and that `docs/DATA_FORMAT.md`'s field list is the
+desktop's. It reads that source and never writes to it.
 
-All four of its own kinds of drift were tried against it and all four
-turned it red. Run it before calling anything about the note format done.
+All five of its own kinds of drift were tried against it and all five
+turned it red (the fifth with "pinned" taken out of the document's list). Run it before calling anything about the note format done.
 
 The palette gate does the same for the look: the eight themes, every
 role and colour; the category, note and highlight colours, in order; and

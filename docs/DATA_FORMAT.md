@@ -575,8 +575,9 @@ written, then caught by a test, then fixed.
 
 The stored colour is a palette swatch chosen against a white page. Paint
 it solid on a dark one and it becomes a pale wash that buries the text.
-The desktop hit this and fixed it by blending the paint 45% toward the
-current theme's surface while the **data keeps the pure colour**; its own
+The desktop hit this and fixed it by painting the colour at 45% over the
+current theme's surface (`_blend_hex(colour, surface, 0.45)`; the phone's
+`blend` in `RichText.kt`) while the **data keeps the pure colour**; its own
 comment is blunt: *"the solid palette fill buried the text under it."*
 Re-blend per theme, never rewrite the note.
 

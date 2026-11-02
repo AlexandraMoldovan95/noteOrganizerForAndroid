@@ -36,7 +36,10 @@ Android's own: the file picker for a backup, the share sheet for a note
 or a code, a temporary grant for an attached file, and the browser for
 the privacy policy — and, once the app is published, its Google Play page,
 where feedback is a review. Both addresses live in `Links.kt`; the app
-sends nothing with either.
+sends nothing with either. And one the person does not open: while the
+phone's own backup to a Google account is on, Android copies the app's
+files there (and to a new phone), unless Settings → Backup turns the
+app's part off (`GoogleBackup.kt`).
 
 Words follow the desktop's: a **popup** is anchored to what opened it (a
 menu, a bottom sheet), a **dialog** holds the screen until it is
@@ -54,7 +57,7 @@ About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
-| `Notebook.kt` | 2,970 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Notebook.kt` | 2,900 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,870 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 1,020 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
 | `Organizing.kt` | 920 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
@@ -175,8 +178,8 @@ by good intentions; it is the same rule the desktop keeps between its
 `core/` layer and tkinter, and it buys two things:
 
 - the tests for those files run on the JVM, with no device and no
-  emulator — which is why there are 683 of them and why running them
-  costs seconds;
+  emulator — which is why there are [over 900 of them](../qa/README.md#the-unit-tests)
+  and why running them costs seconds;
 - the rules can be read, and compared against the Python they were ported
   from, without Compose in the way.
 
@@ -282,8 +285,9 @@ when the reminder is turned on) and `RECEIVE_BOOT_COMPLETED` (to set its
 alarm again after a restart): the file picker (`CreateDocument` / `OpenDocument`) for a backup,
 the share sheet for a note or a code, an intent filter for text shared in,
 the browser, opened on the privacy policy's page, and a `FileProvider` that grants one attached file, or the PDF or page
-being shared, to the app that opens it, for as long as it is open. The
-share sheet lists the apps itself, so the app declares no `<queries>`
+being shared, to the app that opens it, for as long as it is open; and
+Android's own backup, which takes the app's files while it is on (above).
+The share sheet lists the apps itself, so the app declares no `<queries>`
 and never looks at what is installed. A backup is written and read on
 `Dispatchers.IO`, and so is a shared PDF's file — forty pages written on
 the main thread held it 1.2 s
@@ -437,7 +441,7 @@ Named here so nobody has to discover them by surprise:
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.
-- **`Notebook.kt` is about 2,970 lines, `NoteEditor.kt` 4,220 (2 November 2026).** The first is
+- **`Notebook.kt` is about 2,900 lines, `NoteEditor.kt` 4,220 (2 November 2026).** The first is
   the note model and every write to a note; the seam to split on is the
   day a group of writes needs state the others do not — not before, and
   not by line count. The second holds the editor's model, its clipboard

@@ -37,6 +37,8 @@ WHAT IT CHECKS
 4. The fields an arriving shared note may replace match the desktop's
    `UPDATABLE_FROM_SHARED`, and the ones a note from a backup may replace
    match `UPDATABLE_FROM_BACKUP`.
+5. docs/DATA_FORMAT.md's field list (the jsonc block under "A note") is the
+   desktop's `NOTE_DEFAULTS`.
 
 It reads the desktop's source. It never writes there -- that is the hard
 rule of this project, and a gate is no exception.

@@ -3939,7 +3939,9 @@ whether that is what the dialog should show.
   reached by tests alone. Both take a 0.12.0 series' days back now; the
   older one is a second copy of a rule, [the kind that
   rots](#a-dead-route-carrying-a-second-copy-of-the-rules), left for a
-  round that may remove it.
+  round that may remove it. **Closed 2026-11-02** by ecdbe34:
+  `Notebook.restoreFromTrash` is gone, and the restore tests and the days
+  fuzz run on `Organizing.restore`.
 - **A word a keyboard commits past a cap is cut as a paste is**, the
   sixth round's, now in the title and the template's boxes too: a
   suggestion or a swiped word that does not fit is cut to the room left,
