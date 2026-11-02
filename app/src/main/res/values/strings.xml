@@ -40,7 +40,8 @@
     <string name="cal_open">Open</string>
     <string name="history_search">Search the History…</string>
     <string name="history_empty">Nothing here yet. Dated notes, and the days of repeating notes edited on their own, appear here.</string>
-    <string name="history_series_jump">No days of its own — tap to see it on the calendar</string>
+    <string name="history_series_jump">tap to see it on the calendar</string>
+    <string name="history_no_match">No calendar entries match.</string>
     <plurals name="history_days">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
@@ -298,7 +299,7 @@
     <string name="tb_row">Row</string>
     <string name="tb_column">Column</string>
     <string name="tb_merge">Merge</string>
-    <string name="tb_color">Color</string>
+    <string name="tb_color">Colour</string>
     <string name="tb_align">Align</string>
     <string name="tb_box">Box</string>
     <string name="tb_delete">Delete</string>
@@ -308,7 +309,7 @@
     <string name="tb_above">Above</string>
     <string name="tb_below">Below</string>
     <string name="tb_left">Left</string>
-    <string name="tb_center">Center</string>
+    <string name="tb_center">Centre</string>
     <string name="tb_right">Right</string>
     <string name="tb_merge_left">With the cell on the left</string>
     <string name="tb_merge_up">With the cell above</string>
@@ -404,9 +405,9 @@
     <string name="share_text_too_long">Too long for a message: %1$,d characters, and another app can be handed about %2$,d of them at most. Send it as a web page, which carries all of it.</string>
     <string name="share_handed_failed">Android couldn\'t hand it to another app: it may be too long. Send it as a web page, or a backup.</string>
     <string name="pdf_ask_title">Not all of this note fits a PDF</string>
-    <string name="pdf_ask_pages">This note is longer than a PDF can hold: it would have only its first %1$d pages. The web page carries all of it.</string>
+    <string name="pdf_ask_pages">This note is longer than this app puts in a PDF: it would have only its first %1$d pages. The web page carries all of it.</string>
     <string name="pdf_ask_edge">Something in this note is wider than a PDF\'s page: it would be cut at the page\'s edge. The web page carries all of it.</string>
-    <string name="pdf_ask_both">This note is longer than a PDF can hold, and something in it is wider than the page: the PDF would have only its first %1$d pages, cut at the page\'s edge. The web page carries all of it.</string>
+    <string name="pdf_ask_both">This note is longer than this app puts in a PDF, and something in it is wider than the page: the PDF would have only its first %1$d pages, cut at the page\'s edge. The web page carries all of it.</string>
     <string name="pdf_ask_page">Web page</string>
     <string name="pdf_ask_pdf_pages">PDF, first %1$d pages</string>
     <string name="pdf_ask_pdf_edge">PDF, cut at the edge</string>
@@ -570,7 +571,10 @@
         <item quantity="one">“%1$s” has %2$d note. What should happen to it?</item>
         <item quantity="other">“%1$s” has %2$d notes. What should happen to them?</item>
     </plurals>
-    <string name="category_days_move">%1$d repeating notes have a day filed under “%2$s”; those days move to “General” either way.</string>
+    <plurals name="category_days_move">
+        <item quantity="one">%1$d repeating note has a day filed under “%2$s”; that day moves to “General” either way.</item>
+        <item quantity="other">%1$d repeating notes have a day filed under “%2$s”; those days move to “General” either way.</item>
+    </plurals>
     <string name="move_them_general">Move them to “General” (keep the notes)</string>
     <string name="delete_notes_too">Delete the notes too (restorable for %1$d days)</string>
     <string name="delete_notes_too_unknown">Delete the notes too (restorable from the Trash)</string>
@@ -642,7 +646,7 @@
     <string name="feedback_sub">Something not working, slow, or an idea? Write a review on Google Play — I read each one and answer there.</string>
     <string name="write_review">Write a review</string>
     <string name="privacy_policy">Privacy policy</string>
-    <string name="privacy_policy_sub">Your notes stay on this phone. The policy says what leaves it, and when.</string>
+    <string name="privacy_policy_sub">Your notes are kept on this phone; Android\'s backup to your Google account copies them while it is on. The policy says what leaves it, and when.</string>
     <string name="read_policy">Read</string>
     <string name="licenses">Open-source licenses</string>
     <string name="view_licenses">View</string>

@@ -2897,14 +2897,14 @@ def cell_menu(folder):
         return (read_file("notes_data.json") or [{}])[0]
 
     choose_cell("Cells", "120")
-    tap("Color", exact=True, wait=0.8)
+    tap("Colour", exact=True, wait=0.8)
     tap("Highlight colour 1", wait=1.2)
     choose_cell("Cells", "45")
     tap("Merge", exact=True, wait=0.8)
     tap("With the cell on the left", exact=True, wait=1.2)
     choose_cell("Cells", "fuel")
     tap("More", exact=True, wait=1.2)
-    tap("Center", exact=True, wait=1.2)
+    tap("Centre", exact=True, wait=1.2)
     shot(folder, "43-cell-menu", "Item")
     back_to("Search notes")
     saved = note()

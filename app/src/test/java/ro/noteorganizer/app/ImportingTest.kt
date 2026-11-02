@@ -253,8 +253,13 @@ class ImportingTest {
         """.trimIndent())
         assertEquals("the file is a difference", 1, plan.differing.size)
         assertEquals(0, plan.rescued)
-        assertTrue(Importing.apply(load, plan, Importing.Answers(update = true), File(dir(load), "attachments"),
-            Importing.Extras(attachments = unpacked)) is Importing.Result.Done)
+        val done = Importing.apply(load, plan, Importing.Answers(update = true), File(dir(load), "attachments"),
+            Importing.Extras(attachments = unpacked)) as Importing.Result.Done
+        // Counted apart: "Updated 1 (Restore previous undoes each one)" was
+        // said of files Restore previous does not take back (wave 3).
+        assertEquals(0, done.outcome.updated)
+        assertEquals(1, done.outcome.filesOnly)
+        assertTrue(importMessage(done.outcome), "took attached files" in importMessage(done.outcome))
         val note = onDisk(load).getJSONObject(0)
         assertEquals("the copy left as it was", "passport, tickets and 370 more letters",
             note.getJSONObject("_prev").getString("body"))

@@ -807,6 +807,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     val unsaved: Boolean get() = edits != saved
 
     /**
+     * Nothing written in this note: no title, words, comments or checklist --
+     * one answer for Share and Move to Trash. Move to Trash asked of the title
+     * and words alone, and a new note of comments closed with no save.
+     */
+    val blank: Boolean get() = title.isBlank() && body.isBlank() && comments.isBlank() && adding.isBlank() &&
+        ((state.rawNote(id)?.opt("checklist") as? org.json.JSONArray)?.length() ?: 0) == 0
+
+    /**
      * Writes what is on screen. True when the file now holds it. A failure
      * is said as well as drawn in red, which a screen reader never reads
      * out: every time when a tap asked for the save -- it is why the tap did
@@ -1673,9 +1681,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             val shareSaid = stringResource(R.string.share_title)
             val nothingYet = stringResource(R.string.share_nothing_yet)
             IconButton(onClick = {
-                val empty = model.title.isBlank() && model.body.isBlank() && model.comments.isBlank() &&
-                    ((state.rawNote(model.id)?.opt("checklist") as? org.json.JSONArray)?.length() ?: 0) == 0
-                if (empty) state.say(nothingYet)
+                if (model.blank) state.say(nothingYet)
                 else if (model.save(force = model.id == 0)) shareAsk = true
             }, modifier = Modifier.semantics { contentDescription = shareSaid }) { ShareMark(palette.text) }
             IconButton(onClick = { details = true }, modifier = Modifier.said(R.string.note_details_said)) {
@@ -1798,7 +1804,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             text = { Text(stringResource(R.string.menu_trash), color = palette.dangerText) },
                             onClick = {
                                 menu = false
-                                if (model.id == 0 && model.title.isBlank() && model.body.isBlank()) {
+                                if (model.id == 0 && model.blank) {
                                     state.closeNote()
                                 } else if (model.save(force = model.id == 0)) {
                                     state.trash(listOf(model.id))

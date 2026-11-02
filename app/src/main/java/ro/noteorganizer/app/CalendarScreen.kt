@@ -91,7 +91,8 @@ fun CalendarScreen(state: AppState) {
                 Text(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
-                    modifier = Modifier.clickable(enabled = !state.showHistory) { goToday(state) },
+                    modifier = Modifier.clickable(enabled = !state.showHistory,
+                        onClickLabel = stringResource(R.string.cal_today)) { goToday(state) },
                 )
             },
             actions = {
@@ -522,7 +523,10 @@ private fun History(state: AppState) {
             }
         }
         if (entries.isEmpty()) {
-            item { Text(stringResource(R.string.history_empty), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(12.dp)) }
+            // A search or a chip that hides everything is not an empty calendar (the desktop's two texts).
+            val filtered = query.isNotBlank() || bucket != "All"
+            item { Text(stringResource(if (filtered) R.string.history_no_match else R.string.history_empty), color = palette.subtext,
+                        fontSize = 14.sp, modifier = Modifier.padding(12.dp)) }
         }
         for (entry in entries) {
             when (entry) {
@@ -538,8 +542,9 @@ private fun History(state: AppState) {
                         HistoryRow(
                             lead = if (entry.days.isEmpty()) "🔁" else if (expanded) "▾ 🔁" else "▸ 🔁",
                             title = entry.title.ifBlank { "(untitled)" },
-                            tail = listOf(entry.label, count).filter { it.isNotEmpty() }.joinToString(" · ")
-                                .ifEmpty { stringResource(R.string.history_series_jump) },
+                            // With no days of its own, the row opens the calendar: say so.
+                            tail = listOf(entry.label, count.ifEmpty { stringResource(R.string.history_series_jump) })
+                                .filter { it.isNotEmpty() }.joinToString(" · "),
                             indent = 0,
                         ) {
                             if (entry.days.isEmpty()) {

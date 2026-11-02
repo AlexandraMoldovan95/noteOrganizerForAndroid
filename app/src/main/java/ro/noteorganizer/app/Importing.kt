@@ -118,6 +118,8 @@ object Importing {
         val firstId: Int = 0,
         /** Notes '(earlier text)' made of a series' copy as it was read. */
         val earlierText: Int = 0,
+        /** Notes here that only took files the backup had and this device lacked: no rescue copy undoes them. */
+        val filesOnly: Int = 0,
     )
 
     sealed class Result {
@@ -396,6 +398,7 @@ object Importing {
 
         // 2. The updates agreed to.
         var updated = 0
+        var filesOnly = 0
         var firstId = 0
         if (answers.update) {
             for (known in plan.differing) {
@@ -407,13 +410,19 @@ object Importing {
                 val claimedElsewhere = HashSet(claimed).apply { removeAll(storedNames(mine)) }
                 // Counted only when the note changed: "Updated 1" was said
                 // of an update that changed nothing.
-                var changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
+                val changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
+                var gotFiles = false
                 if (plan.source == Source.BACKUP) {
-                    changed = changed || filesToAdopt(mine, known.theirs).isNotEmpty()
+                    gotFiles = filesToAdopt(mine, known.theirs).isNotEmpty()
                     adoptFiles(mine, known.theirs, claimedElsewhere, attachmentsDir, extras.attachments)
                     claimed += storedNames(mine)
                 }
-                if (!changed) continue
+                // Files alone make no rescue copy, so Restore previous does
+                // not undo them: they are counted apart, not as "Updated".
+                if (!changed) {
+                    if (gotFiles) filesOnly += 1
+                    continue
+                }
                 updated += 1
                 if (firstId == 0) firstId = mine.optInt("id")
             }
@@ -548,7 +557,7 @@ object Importing {
             }
             load.trashRaw?.let { live -> replaceContents(live, trashCandidate) }
         }
-        val changed = updated > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
+        val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         var earlierText = 0
         if (changed) {
             // Days a series' copy set aside -- an Update replacing another
@@ -571,6 +580,7 @@ object Importing {
             addedTrash = addedTrash,
             firstId = firstId,
             earlierText = earlierText,
+            filesOnly = filesOnly,
         ))
     }
 

@@ -627,7 +627,7 @@ private fun CategoryEditor(
 @Composable
 private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days: Int?, onAnswer: (Boolean?) -> Unit) {
     val palette = LocalPalette.current
-    val dayLine = if (daysOnly > 0) "\n\n" + stringResource(R.string.category_days_move, daysOnly, name) else ""
+    val dayLine = if (daysOnly > 0) "\n\n" + pluralStringResource(R.plurals.category_days_move, daysOnly, daysOnly, name) else ""
     androidx.compose.material3.AlertDialog(
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(R.string.delete_category)) },

@@ -379,6 +379,9 @@ fun importMessage(o: Importing.Outcome): String {
     if (o.updated > 0) {
         parts.add("Updated ${o.updated} you already had (“↩ Restore previous” undoes each one).")
     }
+    if (o.filesOnly > 0) {
+        parts.add("${o.filesOnly} you already had took attached files this device lacked.")
+    }
     if (o.unchangedSkipped > 0) parts.add("${o.unchangedSkipped} were already here, unchanged, and were skipped.")
     if (o.duplicatesSkipped > 0) parts.add("${o.duplicatesSkipped} duplicates skipped.")
     val also = ArrayList<String>()
