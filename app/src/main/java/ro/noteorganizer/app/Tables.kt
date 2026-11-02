@@ -128,7 +128,7 @@ fun cellAlignments(line: String): List<CellAlign> {
     val out = ArrayList<CellAlign>()
     for (i in 0 until pipes.size - 1) {
         val segment = line.substring(pipes[i] + 1, pipes[i + 1])
-        if (segment.isBlank()) {
+        if (PyText.strip(segment).isEmpty()) {
             out.add(CellAlign.LEFT)
             continue
         }

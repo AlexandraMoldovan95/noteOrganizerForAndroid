@@ -17,6 +17,16 @@ class TablesTest {
     // ---- finding the blocks ----
 
     @Test
+    fun `a row is a row by Python's spaces, for the editor and the paste alike`() {
+        // U+0085 is a space to Python's strip() and not to Kotlin's trim():
+        // the editor's test and the paste's once answered this line apart.
+        val line = "| a | b |\u0085"
+        assertTrue(isTableRow(line))
+        assertTrue(Pasting.isRow(line))
+        assertEquals(listOf("a", "b"), splitRow("\u0085| a\u0085 | b |"))
+    }
+
+    @Test
     fun `a run of rows is one block, and a gap starts another`() {
         val body = "text\n| a | b |\n| c | d |\ntext\n| e | f |"
         assertEquals(listOf(1..2, 4..4), tableBlocks(body))

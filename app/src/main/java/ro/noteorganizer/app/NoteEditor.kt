@@ -168,11 +168,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /**
      * Each line's indent and alignment, kept in step with the text as it
      * changes; a list item's kind is its marker, in the text itself. A day
-     * of a series has none of its own -- the desktop keeps them with the
-     * series -- so a day shows the series' while it shows the series' words,
-     * and none once it has text of its own: a centred or indented line read
-     * flat on every day, where the whole series and the desktop's day showed
-     * it (the final audit's twenty-fifth round).
+     * of a series shows the series' while it shows the series' words, and
+     * once it has text of its own, only its list lines' depth, which it
+     * keeps in its own paragraphs ([Paragraphs.dayProps]).
      */
     var props by mutableStateOf(linesOf(note))
 

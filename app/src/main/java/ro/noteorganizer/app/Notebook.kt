@@ -641,10 +641,11 @@ fun utf16Offsets(text: String, wanted: Collection<Int>): Map<Int, Int> {
  * A line reads as a table row when BOTH ends are a pipe and it holds at
  * least two cells. A sentence that merely contains one -- "a | b" in
  * prose, a maths expression -- is not a row, and neither is a line that
- * only opens with one. Mirrors `is_table_row` in core/tables.py.
+ * only opens with one. Mirrors `is_table_row` in core/tables.py, with
+ * Python's spaces: the one answer the editor, the paste and the export ask.
  */
 internal fun isTableRow(line: String): Boolean {
-    val s = line.trim()
+    val s = PyText.strip(line)
     if (s.length < 3 || !s.startsWith("|") || !s.endsWith("|")) return false
     return splitRow(s).size >= 2
 }
@@ -856,12 +857,12 @@ fun contentText(text: String): String {
 
 /** `"| Milk |   2 |"` gives `["Milk", "2"]`, as `split_row` does. */
 internal fun splitRow(line: String): List<String> {
-    val s = line.trim()
+    val s = PyText.strip(line)
     if (!s.startsWith("|")) return emptyList()
     val parts = s.split("|")
     if (parts.size < 2) return emptyList()
     // First and last are what sits outside the outer pipes: nothing.
-    return parts.subList(1, parts.size - 1).map { it.trim() }
+    return parts.subList(1, parts.size - 1).map { PyText.strip(it) }
 }
 
 /**

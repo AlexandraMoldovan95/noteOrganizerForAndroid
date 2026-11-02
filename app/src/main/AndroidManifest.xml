@@ -11,8 +11,8 @@
 
     <!-- Android's own backup: on, as the owner chose, and the person's to
          turn off at Settings -> Backup. NotesBackupAgent hands Android the
-         app's files by the rules files while that is on, and nothing when
-         it is off; fullBackupOnly keeps it Android's full backup, the one
+         app's files by the rules files while that is on, and only a mark
+         saying it is off when it is off; fullBackupOnly keeps it Android's full backup, the one
          the rules describe, on every version. -->
     <application
         android:allowBackup="true"

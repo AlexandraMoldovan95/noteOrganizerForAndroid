@@ -139,8 +139,8 @@ object Pasting {
         return text
     }
 
-    /** `is_table_row`, with Python's spaces. */
-    fun isRow(line: String): Boolean = isTableRow(cps(line))
+    /** `is_table_row`: the one the editor asks (Notebook.kt's), not a copy. */
+    fun isRow(line: String): Boolean = ro.noteorganizer.app.isTableRow(line)
 
     /**
      * Words pasted into the comments, which are plain text and draw no
