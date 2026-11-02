@@ -14,19 +14,12 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import command, fresh_tree, run  # noqa: E402 -- the emulator, never a phone
+from emulator_only import adb, adb_bytes, fresh_tree  # noqa: E402 -- the emulator, never a phone
 
 CHUNK = 100
 
 code = io.open(sys.argv[1], encoding="utf-8").read().strip()
 x, y = int(sys.argv[2]), int(sys.argv[3])
-
-
-def adb(*args):
-    # Held to a time limit (emulator_only.run): a stuck emulator stops the script.
-    return run(command(*args), capture_output=True, text=True,
-               encoding="utf-8", errors="replace").stdout
-
 
 adb("shell", "input", "tap", str(x), str(y))
 for i in range(0, len(code), CHUNK):
@@ -34,7 +27,7 @@ for i in range(0, len(code), CHUNK):
 
 # Read fresh: a dump that wrote nothing left the last run's screen in the
 # file, and a code typed then read "in full" from it.
-xml = fresh_tree(lambda *args: run(command(*args), capture_output=True).stdout)
+xml = fresh_tree(adb_bytes)
 got = None
 for m in re.finditer(r'text="([^"]*)"', xml):
     if m.group(1).startswith("NOTE1"):

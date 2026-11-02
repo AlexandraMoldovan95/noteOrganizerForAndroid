@@ -9,17 +9,11 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import command, fresh_tree, run  # noqa: E402 -- the emulator, never a phone
+from emulator_only import adb, adb_bytes, fresh_tree  # noqa: E402 -- the emulator, never a phone
 
 NEEDLE = sys.argv[1]
 
-
-def adb(*args):
-    # Held to a time limit (emulator_only.run): a stuck emulator stops the script.
-    return run(command(*args), capture_output=True).stdout
-
-
-xml = fresh_tree(adb)
+xml = fresh_tree(adb_bytes)
 if not xml:
     print("the screen could not be read: uiautomator wrote no tree")
     sys.exit(1)

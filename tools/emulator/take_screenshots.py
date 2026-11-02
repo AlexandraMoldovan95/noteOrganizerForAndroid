@@ -40,7 +40,7 @@ from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, adb, adb_bytes, fresh_tree  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
@@ -176,13 +176,6 @@ SHOTS = [
 ]
 
 
-def adb(*args, binary=False):
-    env = dict(os.environ)
-    env["MSYS_NO_PATHCONV"] = "1"   # or a bash shell rewrites /sdcard/...
-    out = run(command(*args), capture_output=True, env=env)   # held to a time limit
-    return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
-
-
 def put(name, value):
     """A file written straight into the app's own notebook folder."""
     fd, local = tempfile.mkstemp(suffix=".json")
@@ -255,7 +248,7 @@ def demo_status_bar(on):
 
 def nodes():
     """The screen's UI tree, fresh: (text, description, centre, class)."""
-    raw = fresh_tree(lambda *args: adb(*args, binary=True))
+    raw = fresh_tree(adb_bytes)
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:

@@ -89,10 +89,24 @@ def command(*args):
     return [ADB, "-s", device(), *args]
 
 
+def adb(*args, binary=False, timeout=None):
+    """One adb call to the emulator, held to a time limit ([run]): its output
+    as text, or as bytes when [binary]. Path rewriting is off, which in a
+    bash shell turned /sdcard/... into a Windows path."""
+    out = run(command(*args), timeout=timeout, capture_output=True,
+              env=dict(os.environ, MSYS_NO_PATHCONV="1"))
+    return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
+
+
+def adb_bytes(*args):
+    """[adb], its output as bytes: what [fresh_tree] asks through."""
+    return adb(*args, binary=True)
+
+
 def fresh_tree(adb_bytes, tries=3):
     """The screen's UI tree as uiautomator dumps it, fresh, asked through
-    [adb_bytes] (a tool's own adb call, returning bytes), or "" when no tree
-    was written in [tries] asks. The last dump's file goes first: a dump that
+    [adb_bytes] (an adb call returning bytes -- this file's, or a tool's own),
+    or "" when no tree was written in [tries] asks. The last dump's file goes first: a dump that
     writes nothing -- the app's thread held past uiautomator's patience --
     left the screen before it in the file, and a tool that read it judged,
     or tapped, a screen that was gone (the final audit's ninth round)."""
