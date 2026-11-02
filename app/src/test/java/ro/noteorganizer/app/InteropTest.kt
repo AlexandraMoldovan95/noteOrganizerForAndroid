@@ -52,31 +52,46 @@ class InteropTest {
         assertEquals(8, note.getJSONArray("checklist").length())
         assertEquals("a comment, so there is one of those to carry too",
             note.getString("comments"))
-        // And the body's maths characters and diacritics came through unharmed.
+        // And the body's maths characters, diacritics and emoji came through
+        // unharmed -- the emoji written by the desktop as four raw bytes.
         assertTrue(note.getString("body").contains("√"))   // the root sign
         assertTrue(note.getString("body").contains("ștefan, mașină, țara"))
+        assertTrue(note.getString("body").contains("Steps 👣 counted"))
     }
 
     @Test
     fun `a code made HERE is written out for the desktop to check`() {
         // Not an assertion about the desktop -- a hand-off: the code, and
-        // the note it was made from, for tools/check_interop.py to decode
-        // with the desktop's own function and compare.
-        val note = org.json.JSONObject()
-        note.put("title", "From the phone")
-        note.put("body", "Mașină 👣 și ștefan\nthe second line")
-        note.put("category", "Work")
-        note.put("comments", "a comment")
-        note.put("formatting", org.json.JSONArray().put(
-            org.json.JSONObject().put("start", 0).put("end", 7).put("style", "bold")))
-        note.put("checklist", org.json.JSONArray().put(
-            org.json.JSONObject().put("text", "a row").put("done", true)))
+        // what the phone meant to send, for tools/check_interop.py to read
+        // as the desktop reads a note (decode, then normalize_note) and
+        // compare. The note is shaped by the phone's own choke point and
+        // carries every field a code does.
+        val note = Normalize.normalizeNote(org.json.JSONObject()
+            .put("uid", "11111111-2222-4333-8444-555555555555")
+            .put("title", "From the phone")
+            .put("body", "Mașină 👣 și ștefan\n• a bullet\nthe third line")
+            .put("category", "Work")
+            .put("comments", "a comment")
+            .put("date", "2026-11-02")
+            .put("color", "#7c5cff")
+            .put("recurrence", org.json.JSONObject().put("freq", "weekly").put("interval", 1)
+                .put("weekdays", org.json.JSONArray().put(0)))
+            .put("formatting", org.json.JSONArray().put(
+                org.json.JSONObject().put("start", 0).put("end", 7).put("style", "bold")))
+            .put("paragraphs", org.json.JSONArray().put(
+                org.json.JSONObject().put("line", 1).put("kind", "bullet")))
+            .put("checklist", org.json.JSONArray().put(
+                org.json.JSONObject().put("text", "a row").put("done", true))))
+        val sent = org.json.JSONObject()
+        for (field in Sharing.SHAREABLE_FIELDS) if (note.has(field)) sent.put(field, note.get(field))
+        assertEquals("every field a code carries is in the note sent",
+            Sharing.SHAREABLE_FIELDS.size, sent.length())
 
         val code = Sharing.encode(listOf(note))
         val out = File("build/interop")
         out.mkdirs()
         File(out, "phone_code.txt").writeText(code)
-        File(out, "phone_note.json").writeText(note.toString())
+        File(out, "phone_note.json").writeText(sent.toString())
 
         // It must at least survive its own round trip before being handed on.
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()

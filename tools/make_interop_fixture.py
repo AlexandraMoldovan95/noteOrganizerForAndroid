@@ -30,13 +30,15 @@ DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
                        "desktop_code.txt")
 
-# Written for the test. The root and multiplication signs and the
-# Romanian diacritics are the point of the body: they are the characters
-# that break first when an encoding is wrong anywhere along the trip.
+# Written for the test. The root and multiplication signs, the Romanian
+# diacritics and the emoji are the point of the body: they are the
+# characters that break first when an encoding is wrong anywhere along the
+# trip, and the emoji is the one the desktop writes as four raw bytes.
 NOTE = {
     "title": "Sums for the test",
     "body": "2 \u00d7 3 = 6\n\u221a16 = 4\n\u03c0 \u2248 3,14\n"
-            "Diacritics: \u0219tefan, ma\u0219in\u0103, \u021bara",
+            "Diacritics: \u0219tefan, ma\u0219in\u0103, \u021bara\n"
+            "Steps \U0001f463 counted",
     "category": "General",
     "comments": "a comment, so there is one of those to carry too",
     "checklist": [

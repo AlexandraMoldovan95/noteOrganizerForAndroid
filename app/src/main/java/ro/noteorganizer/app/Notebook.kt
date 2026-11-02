@@ -1746,8 +1746,9 @@ object Notebook {
 
     /**
      * [previous]'s days put into [note] -- the desktop's `spend_series_days`
-     * since its 04044ce: a copy's day is dropped only where the note deleted
-     * that day or wrote words of its own for it. The copy's deleted days and
+     * since its 04044ce: a copy's day stays out of the note only where the
+     * note deleted that day or wrote words of its own for it, and its words
+     * are set aside there ([copyDaysPlaced]). The copy's deleted days and
      * its moves still ask [datesHeld] (asked before any is put in): a deleted
      * day on every date the note's own leave free, a move as
      * [copyMovesTaken] takes it. Its days' edits no longer do: each goes to
