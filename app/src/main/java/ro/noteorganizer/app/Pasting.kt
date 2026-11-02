@@ -213,20 +213,36 @@ object Pasting {
         }
         // With nothing selected, at an item's marker end -- where Enter in a
         // list and a tap on a marker leave the cursor -- a paste bringing its
-        // own marker takes that one's place, or, with words after it and a
-        // line break of its own, goes in before the item. Kept, a copied item
-        // pasted into a new one read "3. 1. Kiwi" (the lows wave's
-        // verification, round 8).
+        // own marker loses it: the item keeps its marker, its kind and its
+        // looks, as Word keeps a paragraph's list when a paste brings no
+        // paragraph mark, and as the desktop keeps the line's tags. With words
+        // after it and a line break of its own, the paste goes in before the
+        // item. Kept, a copied item pasted into a new one read "3. 1. Kiwi"
+        // (the lows wave's verification, rounds 8 and 9).
+        var put = text
+        var putSpans = pastedSpans
+        var putLines = pastedLines
         val head = text.substringBefore('\n')
-        if (a == b && Paragraphs.parseListMarker(head).kind != null && !isRow(head)) {
+        val headMarker = Paragraphs.parseListMarker(head)
+        if (a == b && headMarker.kind != null && !isRow(head)) {
             var ls = a
             while (ls > 0 && c[ls - 1] != '\n'.code) ls--
             var le = a
             while (le < c.size && c[le] != '\n'.code) le++
             val item = Paragraphs.parseListMarker(String(c, ls, le - ls))
             if (item.kind != null && a - ls == item.marker.codePointCount(0, item.marker.length)) {
-                if (PyText.strip(item.rest).isNotEmpty() && text.endsWith("\n")) b = ls
-                a = ls
+                if (PyText.strip(item.rest).isNotEmpty() && text.endsWith("\n")) {
+                    a = ls
+                    b = ls
+                } else {
+                    val own = headMarker.marker.codePointCount(0, headMarker.marker.length)
+                    put = String(cps(text), own, cps(text).size - own)
+                    putSpans = pastedSpans.mapNotNull { s ->
+                        val start = maxOf(s.start - own, 0)
+                        if (s.end - own > start) s.copy(start = start, end = s.end - own) else null
+                    }
+                    putLines = pastedLines.map { if (it.line == 0) it.copy(kind = null, indent = 0) else it }
+                }
             }
         }
         val firstLine = (0 until a).count { c[it] == '\n'.code }
@@ -244,7 +260,7 @@ object Pasting {
         val after = String(kept, a, lineEnd - a)
         val above = if (firstLine > 0) keptLines[firstLine - 1] else ""
         val below = keptLines.getOrElse(firstLine + 1) { "" }
-        val pasted = text.split("\n")
+        val pasted = put.split("\n")
         // Words pasted at a table row's end or start take a line of their
         // own: the place to write after a note's last table pastes at that
         // row's end, and a paragraph pasted there was glued onto it -- the
@@ -255,12 +271,12 @@ object Pasting {
         val lead = if ((isRow(pasted.first()) && (PyText.strip(before).isNotEmpty() || isRow(above))) ||
                        (onRow && after.isEmpty() && !isRow(pasted.first()))) "\n" else ""
 
-        val whole = cps(lead + text + trail)
+        val whole = cps(lead + put + trail)
         val newBody = String(kept, 0, a) + String(whole, 0, whole.size) + String(kept, a, kept.size - a)
         moved = Paragraphs.moveSpans(moved, listOf(Paragraphs.Edit(a, 0, whole.size)))
         val at = a + lead.length
         val bodyCps = cps(newBody)
-        for (s in pastedSpans) {
+        for (s in putSpans) {
             var start = s.start + at
             val end = s.end + at
             if (s.style == "highlight") {
@@ -297,7 +313,7 @@ object Pasting {
         if (pushed) props[lastLine]?.let { lines[firstLine + added] = it }
         val texts = newBody.split("\n")
         val base = firstLine + if (lead.isNotEmpty()) 1 else 0
-        for (p in pastedLines) {
+        for (p in putLines) {
             val n = p.line + base
             if (n >= texts.size) continue
             var align = p.align ?: "left"

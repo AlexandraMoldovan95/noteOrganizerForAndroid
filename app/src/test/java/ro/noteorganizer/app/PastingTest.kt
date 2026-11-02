@@ -418,6 +418,22 @@ class PastingTest {
                      Pasting.insert(jam, emptyList(), emptyMap(), at, at, "1. Kiwi\n").body)
         // Words with no marker still go in after the item's.
         assertEquals("Shopping\n1. Milk\n2. KiwiJam\n3. Tea", Pasting.insert(jam, emptyList(), emptyMap(), at, at, "Kiwi").body)
+        // The item keeps its kind and its level whatever the paste brings, as
+        // the desktop keeps the line's tags: another kind, our own copy at
+        // another level, several lines with words after (round 9).
+        val nestedProps = mapOf(2 to Paragraphs.Props(indent = 1))
+        val bullet = Pasting.insert(nested, emptyList(), nestedProps, nested.length, nested.length, "• Kiwi")
+        assertEquals("Plan\n1. Fruit\n1. Kiwi", bullet.body)
+        assertEquals(Paragraphs.Props(indent = 1), bullet.props[2])
+        val ownTop = Pasting.insert(nested, emptyList(), nestedProps, nested.length, nested.length, "3. three",
+                                    pastedLines = listOf(Exporting.Paragraph(0, "number", 0, null)))
+        assertEquals("Plan\n1. Fruit\n1. three", ownTop.body)
+        assertEquals(Paragraphs.Props(indent = 1), ownTop.props[2])
+        val fruit = "1. Fruit\n1. Apple\n2. Pear\n2. Veg"
+        val sub = mapOf(1 to Paragraphs.Props(indent = 1), 2 to Paragraphs.Props(indent = 1))
+        val two = Pasting.insert(fruit, emptyList(), sub, 12, 12, "1. Kiwi\n2. Plum")
+        assertEquals("1. Fruit\n1. Kiwi\n2. PlumApple\n3. Pear\n2. Veg", two.body)
+        assertEquals((1..3).associateWith { Paragraphs.Props(indent = 1) }, two.props)
     }
 
     @Test
