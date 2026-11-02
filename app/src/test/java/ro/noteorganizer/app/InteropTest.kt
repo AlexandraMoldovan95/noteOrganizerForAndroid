@@ -12,7 +12,8 @@ import org.junit.Test
  *
  * Both halves are real, not simulated. `desktop_code.txt` was produced by
  * the Windows app's own `encode_share_code`. The code this test writes
- * back out is then decoded by that same Python. Neither side is asked to
+ * back out is decoded by that same Python's `decode_share_code` in
+ * `tools/check_interop.py`, run after the tests. Neither side is asked to
  * trust the other's word.
  *
  * The note inside the fixture is invented, on purpose. What gives this
@@ -58,9 +59,9 @@ class InteropTest {
 
     @Test
     fun `a code made HERE is written out for the desktop to check`() {
-        // Not an assertion about the desktop -- a hand-off. The Python
-        // side reads this file and decodes it with its own function; that
-        // check is run beside the suite, not inside it.
+        // Not an assertion about the desktop -- a hand-off: the code, and
+        // the note it was made from, for tools/check_interop.py to decode
+        // with the desktop's own function and compare.
         val note = org.json.JSONObject()
         note.put("title", "From the phone")
         note.put("body", "Mașină 👣 și ștefan\nthe second line")
@@ -75,6 +76,7 @@ class InteropTest {
         val out = File("build/interop")
         out.mkdirs()
         File(out, "phone_code.txt").writeText(code)
+        File(out, "phone_note.json").writeText(note.toString())
 
         // It must at least survive its own round trip before being handed on.
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()

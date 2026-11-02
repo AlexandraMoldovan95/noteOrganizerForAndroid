@@ -1442,11 +1442,8 @@ object Pasting {
         return a to b
     }
 
-    private fun isTableRow(c: IntArray): Boolean {
-        val (a, b) = stripped(c)
-        if (b - a < 3 || c[a] != PIPE || c[b - 1] != PIPE) return false
-        return splitRow(c).size >= 2
-    }
+    /** The editor's own answer (Notebook.kt's isTableRow), asked of the code points. */
+    private fun isTableRow(c: IntArray): Boolean = ro.noteorganizer.app.isTableRow(String(c, 0, c.size))
 
     /** `split_row`: each cell as (first, end) of its stripped text. */
     private fun splitRow(c: IntArray): List<Pair<Int, Int>> {

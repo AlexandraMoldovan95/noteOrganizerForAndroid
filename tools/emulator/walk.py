@@ -2126,7 +2126,7 @@ def symbol_labels(folder):
 def google_backup(folder):
     """Settings -> Backup's switch for Android's own backup: on by default,
     written to the file when turned off, and then Android's backup takes
-    nothing of the app -- read from what the emulator's local transport is
+    only a mark saying so, none of the notes -- read from what the emulator's local transport is
     handed, with the app's switch on and off (NotesBackupAgent). Points the
     emulator's backup at its local transport; a phone never runs this."""
     print("\n-- Android's backup, and the app's switch for it --")

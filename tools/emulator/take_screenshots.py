@@ -25,7 +25,8 @@ looking like proof.
     py tools/emulator/take_screenshots.py
 
 Needs: a running emulator with the debug app installed, and adb on the
-SDK path. Writes only inside the app's own storage on the emulator.
+SDK path. Writes the app's own storage and scratch files on the emulator,
+and on the computer rewrites docs/screenshots/; never a real notebook.
 """
 import io
 import json

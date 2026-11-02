@@ -688,7 +688,7 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         // Android's own backup: on, as it always was (the owner's call,
         // 2026-10-27), said here so a person knows where else a copy may
         // be, and theirs to turn off -- NotesBackupAgent then hands Android
-        // nothing of the app's.
+        // only a mark saying it is off, none of the notes.
         val google = state.load.settings?.let { Settings.googleBackupOn(it) } ?: true
         // The whole row is the switch: its words are what a finger, and a
         // screen reader, find.

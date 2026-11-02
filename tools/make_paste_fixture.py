@@ -247,8 +247,8 @@ def long_cases():
 # counts them in the text as it came (ISSUES_LOG, desktop findings). Its
 # answers are made here by that same two-line change to the desktop's own
 # function, run in this process only; the desktop's file is not touched.
-ALIGN_FAULT = "pos = sum(len(line) + 1 for line in lines[:first])"
-ALIGN_FIX = "pos = sum(len(line) + 1 for line in as_came[:first])"
+ALIGN_FAULT = "prefix += sum(len(line) + 1 for line in lines[counted:first])"
+ALIGN_FIX = "prefix += sum(len(line) + 1 for line in as_came[counted:first])"
 ALIGN_LINES = 'lines = (text or "").split("\\n")'
 
 
