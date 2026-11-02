@@ -145,6 +145,9 @@ def check():
     with zipfile.ZipFile(APK) as apk:
         carried = {"%s:%s" % m.groups() for name in apk.namelist()
                    for m in [re.match(r"META-INF/(androidx\.[\w.-]+?)_([\w.-]+)\.version$", name)] if m}
+    if not carried:
+        print("the APK names no AndroidX library: it was not read as this check expects")
+        return 1
     missing = sorted(carried - listed)
     for lib in missing:
         print("  not in the licenses: %s" % lib)

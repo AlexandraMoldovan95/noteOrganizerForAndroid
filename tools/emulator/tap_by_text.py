@@ -9,22 +9,20 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import command, run  # noqa: E402 -- the emulator, never a phone
+from emulator_only import command, fresh_tree, run  # noqa: E402 -- the emulator, never a phone
 
 NEEDLE = sys.argv[1]
-XML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui.xml")
 
 
 def adb(*args):
     # Held to a time limit (emulator_only.run): a stuck emulator stops the script.
-    return run(command(*args), capture_output=True, text=True,
-               encoding="utf-8", errors="replace").stdout
+    return run(command(*args), capture_output=True).stdout
 
 
-adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-adb("pull", "/sdcard/ui.xml", XML)
-
-xml = open(XML, encoding="utf-8", errors="replace").read()
+xml = fresh_tree(adb)
+if not xml:
+    print("the screen could not be read: uiautomator wrote no tree")
+    sys.exit(1)
 
 # Each node carries text="..." and bounds="[l,t][r,b]" in the same tag, so
 # one pattern over the whole tag keeps them together.

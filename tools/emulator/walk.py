@@ -35,7 +35,7 @@ import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, AdbTimeout, command, run  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, AdbTimeout, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -118,14 +118,20 @@ def screen_xml(tries=3):
     audit's ninth round). Asked [tries] times; a screen that never reads is
     a failure of its own, so no check passes on a tree that is not there."""
     global unreadable
-    said = ""
-    for _ in range(tries):
-        said = adb("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
-        raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-        if "<?xml" in raw:
-            return raw[raw.find("<?xml"):]
+    said = []
+
+    def asked(*args):
+        out = adb(*args, binary=True)
+        if args[0] == "shell":
+            said.append(out.decode("utf-8", errors="replace"))
+        return out
+
+    raw = fresh_tree(asked, tries)
+    if raw:
+        return raw
     unreadable += 1
-    fail("the screen could not be read: uiautomator wrote no tree (%s)" % said.strip()[:160])
+    fail("the screen could not be read: uiautomator wrote no tree (%s)"
+         % (said[-1] if said else "").strip()[:160])
     return ""
 
 
@@ -743,6 +749,11 @@ def main():
     limits_round7(folder)
     limits_round8(folder)
     limits_round10(folder)
+    # Written with their fixes on 2026-10-28 and walked alone then; the full
+    # walk is the check before an install, so they belong in it.
+    hostile_backups(folder)
+    code_read_away(folder)
+    long_lines(folder)
 
     print()
     if failures:

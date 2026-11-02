@@ -399,8 +399,8 @@ Grouped by what the app does; when each item arrived is in the
     against the desktop's Python, the rules layer free of Android, the
     repository in English, test results no older than the code) and two on
     the built release APK (every file its code looks up by name, found
-    where the shrunk code will look; every library in it named in its
-    licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
+    where the shrunk code will look; every AndroidX library in it named
+    in its licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
     that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -673,11 +673,13 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-67 parts ([how many checks](../qa/README.md#the-emulator-walk)). The final
+70 parts ([how many checks](../qa/README.md#the-emulator-walk)). The final
 audit's tenth round added `limits_round10` (a message said while a
 checklist row is renamed stands above the row and its ✕, not over them),
-and its lows wave `paste_at_marker`. Its eighth round added `limits_round8` (8
-checks, written with the round and not yet run: a category's name already
+its lows wave `paste_at_marker`, and its third wave put in the full walk
+three parts written on 2026-10-28 and walked alone until then
+(`hostile_backups`, `code_read_away`, `long_lines`). Its eighth round added `limits_round8` (8
+checks: a category's name already
 used said over its sheet; a paste cut to Your name's and to Save as
 template's name said under the box; a title of 170 emoji counted 170 of
 200; a tap on a title holding a line break writing nothing, and letters
@@ -728,9 +730,10 @@ the question; the third round had added `limits_round3` (19
 checks: text the layout cannot break, a template's long row, what a bar
 quotes, what Share hands over and what a PDF leaves out) and two to
 `google_backup` (a backup run on a restored phone before its first
-start). The final audit's rounds were walked part by part, alone; the
-last full run that passed whole, and its count, is the one below. The
-last full run (2026-10-27, for 0.13.0), with
+start). The final audit's rounds were walked part by part as they were
+fixed, and in full between rounds; the last full run is dated in
+[qa/README](../qa/README.md#the-emulator-walk). The last full run that
+passed whole (2026-10-27, for 0.13.0), with
 About's Open-source licenses read and Back from them landing on About,
 began on an emulator just started: it waited 42 seconds, then passed all
 353. The one before it (2026-10-27), with the Trash's

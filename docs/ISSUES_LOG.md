@@ -7,7 +7,7 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-two of the ninety-five are
+**the code**, or in **the design**. Twenty-two of the ninety-seven are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
@@ -3766,9 +3766,9 @@ example notebook always has titles; that is what makes it an example.
 
 ## Still open
 
-Findings, not failures. Most wait on a change in the desktop repository
-rather than here; the first section is what the phone still owes from
-the audit of 2026-10-19.
+Findings, not failures: what the audits left on the phone, round by
+round, then what waits on the desktop repository. An item settled since
+says **Closed**, with the change that closed it, where it stands.
 
 ### A very long code shared to the app holds it still
 
@@ -3960,6 +3960,8 @@ whether that is what the dialog should show.
   desktop's title says it so since its 737efe7, but its other boxes
   (`_limit_entry`) still say "Pasted text shortened" when a paste's own
   trailing space was all the cap took. The desktop's to change.
+  **Closed 2026-10-30** by the desktop's 491e942: those boxes say nothing
+  when only the paste's own spaces were left out.
 - **An id past an Int is given a new number on the phone, and kept on the
   desktop.** Python's numbers hold it; the phone's cannot. A note's id is
   this notebook's own -- a note's identity between the two programs is its
@@ -4048,12 +4050,15 @@ whether that is what the dialog should show.
   (neither is scripted), a CR LF paste (the emulator's clipboard cannot be
   given one by a script), and TalkBack's reading of the words under a box.
   `limits_round8` was written with the round and left for the emulator.
+  **Closed 2026-10-30**: the full walk after the round ran it, and its ten
+  failures were the round's own, fixed.
 - **PASS after a failed premise.** The two named in the walk read their
   premise now; the class -- a check whose state already held before its tap
   -- was swept only where a process ends, not through all 6,400 lines.
 - **The desktop's CLAUDE.md** says the Android build and its emulator take
   no turn; the walk takes it now, as it starts. That line is the desktop
-  repository's to change.
+  repository's to change. **Closed 2026-10-30** by the desktop's 3e4200b:
+  its CLAUDE.md says the Android walk takes the turn as it starts.
 
 ### The phone's, from the audit of 2026-10-19
 
@@ -4086,7 +4091,8 @@ empty note went with 🔗, Share refusing an empty note.
 Left, each small and none losing anything: the History's search worked
 out again on every letter (not measured on a large notebook), its rows
 showing fewer counts than the desktop's, and the desktop's "notes for
-today" reminder, not built.
+today" reminder, not built. **The reminder closed** in 0.11.0: the day's
+reminder bar, the desktop's, and its notification.
 
 ### Seven DESKTOP findings from the audit of 2026-10-19
 
@@ -4166,7 +4172,8 @@ phone matches the desktop wherever the difference is not a fault.
   ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
 * **The calculator raises `RecursionError` at about 190 nested
   brackets** instead of returning `None` like every other failure. The
-  phone shows Error there.
+  phone shows Error there. **Closed 2026-10-27** by the desktop's
+  fface5e: its calculator catches it and answers `None`.
 * **The calculator's display refuses `-`, `*` and `/` typed on a
   keyboard**, taking only its own `−`, `×` and `÷`.
 * **Find steps through a table's matches column by column** — a side
@@ -4174,7 +4181,8 @@ phone matches the desktop wherever the difference is not a fault.
   read.
 * **The export raises `IndexError` on a `^` merge under a shorter row**
   (`merge_map` reads a cell without asking whether it exists): 3 of the
-  400 fixture notes. The phone writes those notes.
+  400 fixture notes. The phone writes those notes. **Closed 2026-10-28**
+  by the desktop's f8818dd: `merge_map` asks first.
 * **The table size grid lights a single column for a two-column table**,
   because it starts at its second column. The phone's grid draws every
   column.

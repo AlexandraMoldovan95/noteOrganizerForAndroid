@@ -87,3 +87,18 @@ def device():
 def command(*args):
     """`adb -s <the emulator> ...` as a list, for subprocess."""
     return [ADB, "-s", device(), *args]
+
+
+def fresh_tree(adb_bytes, tries=3):
+    """The screen's UI tree as uiautomator dumps it, fresh, asked through
+    [adb_bytes] (a tool's own adb call, returning bytes), or "" when no tree
+    was written in [tries] asks. The last dump's file goes first: a dump that
+    writes nothing -- the app's thread held past uiautomator's patience --
+    left the screen before it in the file, and a tool that read it judged,
+    or tapped, a screen that was gone (the final audit's ninth round)."""
+    for _ in range(tries):
+        adb_bytes("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
+        raw = adb_bytes("exec-out", "cat", "/sdcard/ui.xml").decode("utf-8", errors="replace")
+        if "<?xml" in raw:
+            return raw[raw.find("<?xml"):]
+    return ""

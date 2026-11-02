@@ -39,6 +39,11 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
+Kept change by change through the final audit's fifth round. The rounds
+after it (six to twenty-five) and the lows wave are written in at the
+release cut, from their stories in the [issues log](docs/ISSUES_LOG.md);
+until then this section is not the whole of what the next release carries.
+
 ### Added
 
 - **Settings → Backup turns off the app's part in Android's own

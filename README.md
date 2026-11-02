@@ -7,7 +7,10 @@ note or a whole notebook moves between the two whenever you send it.
 
 No account, no server, no sync: like the desktop, it works entirely
 offline, and nothing that arrives from the other device is ever written
-over a note without asking.
+over a note without asking. One difference: while the phone's own backup
+to a Google account is on, Android copies the app's notes there too;
+Settings → Backup turns the app's part off, and the privacy policy
+(Settings → About) says more.
 
 ---
 

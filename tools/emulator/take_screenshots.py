@@ -39,7 +39,7 @@ from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command, run  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
@@ -252,10 +252,7 @@ def demo_status_bar(on):
 
 def nodes():
     """The screen's UI tree, fresh: (text, description, centre, class)."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode(
-        "utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = fresh_tree(lambda *args: adb(*args, binary=True))
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
