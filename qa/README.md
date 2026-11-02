@@ -214,9 +214,10 @@ doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for
 it, a wide window with the phone on its side, screens of every size
 (a small phone, tablets of 7, 10 and 14 inches), and the phone changing
-under an open note (dark mode, larger letters, turned on its side). The list of parts,
-and what each one checks, is in
-[STATUS](../docs/STATUS.md#an-emulator-walk-that-reads-the-files). The
+under an open note (dark mode, larger letters, turned on its side). The list of parts
+is `main()` in `tools/emulator/walk.py`, and what each one checks is its
+docstring there; [STATUS](../docs/STATUS.md#an-emulator-walk-that-reads-the-files)
+tells how they came, phase by phase and round by round. The
 photographs are looked at, not only saved: several bugs the checks
 passed over were found in them ([the stories](../docs/ISSUES_LOG.md)).
 

@@ -29,8 +29,13 @@ pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
 
 All five need the SDK's `adb` on the machine
 (`%LOCALAPPDATA%\Android\Sdk\platform-tools`), and all five are
-Windows-flavoured. They write only inside the app's own storage on the
-emulator, never anywhere a real notebook lives.
+Windows-flavoured. None of them reads or writes a real notebook. On the
+emulator they write to the app's own storage and to scratch places
+(`/sdcard/Download`, `/data/local/tmp`); the walk also switches the
+emulator's backup transport for its Google-backup part. On the computer,
+`take_screenshots.py` rewrites `docs/screenshots/`, and `walk.py` writes
+its photographs into the folder it is given and its temporary files under
+`%TEMP%`.
 
 **Start the emulator without a window.** `emulator -avd <name> -no-window`
 runs it headless: the scripts see and photograph its screen through

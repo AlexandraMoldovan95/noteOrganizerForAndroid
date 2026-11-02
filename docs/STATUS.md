@@ -397,10 +397,11 @@ Grouped by what the app does; when each item arrived is in the
     mutation-tested; seven ports held to fixtures the desktop's own Python
     wrote; five gates against drift (the note's shape and the palettes
     against the desktop's Python, the rules layer free of Android, the
-    repository in English, test results no older than the code) and two on
-    the built release APK (every file its code looks up by name, found
-    where the shrunk code will look; every AndroidX library in it named
-    in its licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
+    repository in English, test results no older than the code), one on
+    what the tests write out (a share code made here, read back by the
+    desktop's own Python), and two on the built release APK (every file
+    its code looks up by name, found where the shrunk code will look;
+    every AndroidX library in it named in its licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
     that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
@@ -476,14 +477,17 @@ effect or a fault rather than a rule — all five are
   the top of Z–A, against the comment that says they sink.
 * **Find steps through a table row by row**, as a table is read; the
   desktop goes column by column, because of how it sorts its matches.
-* **A sum nested past about 190 brackets shows Error.** The desktop's
-  parser raises `RecursionError` there instead of failing as it fails
-  everywhere else.
+* **A sum nested past about 190 brackets shows Error** -- no longer a
+  difference: the desktop's parser raised `RecursionError` there, and
+  since its fface5e (2026-10-27) answers nothing, which it shows as Error
+  too.
 * **The table size grid draws every column**, so the squares lit are the
   table's shape. The desktop's starts at its second column and lights a
   single one for a two-column table.
-* **The export writes a note with a `^` merge under a shorter row.** The
-  desktop's renderer raises `IndexError` on it.
+* **The export writes a note with a `^` merge under a shorter row** -- no
+  longer a difference: the desktop's renderer raised `IndexError` on it,
+  and since its f8818dd (2026-10-28) reads the marker as content, as the
+  phone does.
 
 Phase 3 added three, for the same reason —
 [desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3):
@@ -496,7 +500,8 @@ Phase 3 added three, for the same reason —
   onto the date it would return to; the desktop brought it back on top,
   and the other day is drawn nowhere.
 * **Taking a file off a note keeps the stored file while another note
-  uses it**, as the phone's Trash already does.
+  uses it** -- no longer a difference: the desktop spares it too since
+  its 0.95.391.
 * **A pasted page's second table keeps its styles on their words.** The
   desktop counts that table's padding in text the first table has
   already changed, and its styles land beside their words.

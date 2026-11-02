@@ -152,6 +152,7 @@ at 47% of the canvas is in the
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
 | The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
 | The licenses gate | `py tools/make_licenses.py --check`, after `gradlew.bat assembleRelease` | A library in the APK that Settings → About → Open-source licenses does not name |
+| The interop gate | `py tools/check_interop.py`, after the unit tests | A share code made on the phone that the desktop's own Python reads differently |
 | The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — [its parts and checks](qa/README.md#the-emulator-walk), each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 

@@ -766,9 +766,12 @@ project through the SAME field list, so the boundary is symmetric.
 
 The check that matters is not the round trip — it is that the OTHER
 program can read it. `InteropTest` decodes a code produced by the Windows
-app's own `encode_share_code`, and writes one out for that Python to
-decode in turn. Both were run and both passed, carrying diacritics, an
-emoji, formatting spans and a checklist intact. A test that only encodes
+app's own `encode_share_code`, and writes one out, with the note it was
+made from; `tools/check_interop.py`, run after the tests, decodes that
+code with the desktop's own `decode_share_code` and compares every field.
+Both directions carry diacritics, an emoji, formatting spans and a
+checklist intact. (Until the final audit's third wave the second half was
+promised here and run by nobody.) A test that only encodes
 and decodes with itself proves nothing about the thing it exists for.
 
 ### Why a code carries the note's identity

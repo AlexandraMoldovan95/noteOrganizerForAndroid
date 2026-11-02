@@ -138,6 +138,7 @@ past the others:
 
     gradlew.bat testDebugUnitTest      # then:
     py tools/check_test_results.py     # the XML, refused if older than the code
+    py tools/check_interop.py          # the desktop reads a code made here
     py tools/check_layering.py         # Android has not leaked into the rules
     py tools/check_note_shape.py       # the two programs agree on a note
     py tools/check_palettes.py         # ... and on the themes and colours
