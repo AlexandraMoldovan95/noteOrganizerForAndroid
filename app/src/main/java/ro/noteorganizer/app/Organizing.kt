@@ -163,9 +163,15 @@ object Organizing {
     }
 
     /**
-     * Several notes to the Trash in one go -- the Trash written first, as
-     * a single delete writes it. The entries keep their ids, so [restore]
-     * can bring exactly these back: the Undo after a delete.
+     * Notes to the Trash, one or several -- every delete in the app. The
+     * entries keep their ids, so [restore] can bring exactly these back:
+     * the Undo after a delete.
+     *
+     * The Trash is written FIRST, and that order is the safety argument: a
+     * phone killed between the two writes leaves the notes in both files,
+     * a duplicate a person can see, never in neither. The desktop writes
+     * them in this order too. If the Trash cannot be written, the notes
+     * file is not touched.
      */
     fun trashNotes(load: Notebook.Load, ids: Collection<Int>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -797,15 +803,24 @@ object Organizing {
         }
     }
 
-    /** Whether an entry has outlived the window; an unreadable stamp never has. */
-    internal fun isPast(entry: JSONObject, days: Int, now: Date = Date()): Boolean {
+    /**
+     * When an entry went to the Trash, read strictly: "2026-02-30" is no
+     * date. The purge and the row's "days left" both ask this, so they
+     * cannot disagree, as on the desktop.
+     */
+    internal fun deletedAt(stamp: String?): Date? {
         val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         format.isLenient = false
-        val deleted = try {
-            format.parse(entry.opt("deleted_at") as? String ?: "")
-        } catch (e: Exception) {
+        return try {
+            format.parse(stamp ?: "")
+        } catch (e: java.text.ParseException) {
             null
-        } ?: return false
+        }
+    }
+
+    /** Whether an entry has outlived the window; an unreadable stamp never has. */
+    internal fun isPast(entry: JSONObject, days: Int, now: Date = Date()): Boolean {
+        val deleted = deletedAt(entry.opt("deleted_at") as? String) ?: return false
         val window = days.coerceIn(1, 365).toLong() * 24 * 60 * 60 * 1000
         return deleted.time < now.time - window
     }

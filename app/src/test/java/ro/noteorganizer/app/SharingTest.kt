@@ -279,7 +279,7 @@ class SharingTest {
                       update: Boolean = false): SaveResult {
         val found = Notebook.inspectShareCode(load, code)
         if (found is Notebook.Inspection.Failed) return SaveResult.Failed(found.reason)
-        return Notebook.applyShareCode(
+        return Shares.apply(
             load, (found as Notebook.Inspection.Ready).notes, update)
     }
 
@@ -335,11 +335,11 @@ class SharingTest {
         // rather than guessed at -- which is the whole point of the
         // field. Importing it still leaves two notes here, but now
         // because that answer was chosen, not because nothing could tell.
-        val mine = Notebook.shareCodeFor(load, 1)!!
+        val mine = Shares.codeFor(load, 1)!!
         val found = Notebook.inspectShareCode(load, mine) as Notebook.Inspection.Ready
         assertEquals("a code made here is recognised when it comes back",
             1, found.known)
-        Notebook.applyShareCode(load, found.notes, update = false)
+        Shares.apply(load, found.notes, update = false)
         assertEquals(3, onDisk(load).length())
         assertEquals("the copy cannot wear the original's identity",
             onDisk(load).getJSONObject(0).getString("uid") ==
@@ -384,7 +384,7 @@ class SharingTest {
             [{"id": 3, "title": "x", "comments": "footnotes",
               "paragraphs": [{"line": 0, "kind": "bullet"}]}]
         """.trimIndent())
-        val code = Notebook.shareCodeFor(load, 3)!!
+        val code = Shares.codeFor(load, 3)!!
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals("footnotes", back.getString("comments"))
         assertEquals(1, back.getJSONArray("paragraphs").length())
@@ -393,6 +393,6 @@ class SharingTest {
     @Test
     fun `asking for a code for a note that is gone gives nothing, not a crash`() {
         val load = scratch("""[{"id": 1}]""")
-        assertEquals(null, Notebook.shareCodeFor(load, 99))
+        assertEquals(null, Shares.codeFor(load, 99))
     }
 }

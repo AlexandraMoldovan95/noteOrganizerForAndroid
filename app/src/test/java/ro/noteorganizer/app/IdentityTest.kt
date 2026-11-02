@@ -76,7 +76,7 @@ class IdentityTest {
         val load = scratch("[]")
         Notebook.createNote(load, "t", "b")
         val id = onDisk(load).getJSONObject(0).getInt("id")
-        val code = Notebook.shareCodeFor(load, id)!!
+        val code = Shares.codeFor(load, id)!!
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals(onDisk(load).getJSONObject(0).getString("uid"),
                      back.getString("uid"))
@@ -122,7 +122,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New").put("body", "new body")))
         val found = ready(load, code)
-        val result = Notebook.applyShareCode(load, found.notes, update = true)
+        val result = Shares.apply(load, found.notes, update = true)
         assertTrue(result is SaveResult.Ok)
 
         val all = onDisk(load)
@@ -146,7 +146,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New").put("body", "new body")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val prev = onDisk(load).getJSONObject(0).getJSONObject("_prev")
         assertEquals("Old", prev.getString("title"))
         assertEquals("old body", prev.getString("body"))
@@ -179,7 +179,7 @@ class IdentityTest {
                 .put("line", 0).put("kind", "bullet")))
             .put("checklist", JSONArray().put(JSONObject()
                 .put("text", "to do").put("done", false)))))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
 
         val note = onDisk(load).getJSONObject(0)
         assertEquals("a comment that came along", note.getString("comments"))
@@ -200,7 +200,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         assertNotEquals("2020-01-01 00:00:00",
             onDisk(load).getJSONObject(0).getString("updated"))
     }
@@ -221,7 +221,7 @@ class IdentityTest {
             JSONObject().put("uid", "").put("title", "Arrived")))
         val found = ready(load, code)
         assertEquals("none is recognised", 0, found.known)
-        Notebook.applyShareCode(load, found.notes, update = true)
+        Shares.apply(load, found.notes, update = true)
         val all = onDisk(load)
         assertEquals("added, not written over", 3, all.length())
         assertEquals("No identity", all.getJSONObject(0).getString("title"))
@@ -233,7 +233,7 @@ class IdentityTest {
     fun `a note that was added shows up on the screen, not only on disk`() {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Here"}]""")
         val code = Sharing.encode(listOf(JSONObject().put("title", "A stranger")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
         assertEquals(listOf("Here", "A stranger"),
             Notebook.parseNotes(load.raw!!.toString()).map { it.title })
     }
@@ -250,7 +250,7 @@ class IdentityTest {
             "no/such/notes_data.json"))
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        val result = Notebook.applyShareCode(
+        val result = Shares.apply(
             nowhere, ready(load, code).notes, update = true)
 
         assertTrue("the write must fail", result is SaveResult.Failed)
@@ -268,7 +268,7 @@ class IdentityTest {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         assertEquals("New", Notebook.parseNotes(load.raw!!.toString()).single().title)
     }
 
@@ -279,7 +279,7 @@ class IdentityTest {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "Another version")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
 
         val all = onDisk(load)
         assertEquals(2, all.length())
@@ -295,7 +295,7 @@ class IdentityTest {
         for (update in listOf(true, false)) {
             val load = scratch("""[{"id": 1, "uid": "abc"}]""")
             val code = Sharing.encode(listOf(JSONObject().put("title", "A stranger")))
-            Notebook.applyShareCode(load, ready(load, code).notes, update)
+            Shares.apply(load, ready(load, code).notes, update)
             assertEquals("update=$update", 2, onDisk(load).length())
         }
     }
@@ -309,7 +309,7 @@ class IdentityTest {
         ))
         val found = ready(load, code)
         assertEquals(1, found.known)
-        Notebook.applyShareCode(load, found.notes, update = true)
+        Shares.apply(load, found.notes, update = true)
         val all = onDisk(load)
         assertEquals(2, all.length())
         assertEquals("Here, edited", all.getJSONObject(0).getString("title"))
@@ -320,7 +320,7 @@ class IdentityTest {
     fun `an imported note arrives with the whole shape a note needs`() {
         val load = scratch("[]")
         val code = Sharing.encode(listOf(JSONObject().put("title", "x")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
         val note = onDisk(load).getJSONObject(0)
         for (field in listOf("id", "uid", "title", "body", "formatting", "comments",
                              "category", "date", "color", "attachments", "updated",
@@ -337,7 +337,7 @@ class IdentityTest {
             .single { it.name.startsWith("notes_data_corrupt_") }
         val code = Sharing.encode(listOf(JSONObject().put("title", "x")))
         assertTrue(Notebook.inspectShareCode(load, code) is Notebook.Inspection.Ready)
-        assertTrue(Notebook.applyShareCode(load, listOf(JSONObject().put("title", "x")), false)
+        assertTrue(Shares.apply(load, listOf(JSONObject().put("title", "x")), false)
             is SaveResult.Ok)
         assertEquals("the unreadable bytes are still kept", "{ not json", kept.readText())
     }
@@ -351,7 +351,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(
             JSONObject().put("uid", "abc").put("title", "New").put("category", "Nowhere"),
             JSONObject().put("uid", "fresh").put("title", "Other").put("category", "Nowhere")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val all = onDisk(load)
         assertEquals("General", all.getJSONObject(0).getString("category"))
         assertEquals("General", all.getJSONObject(1).getString("category"))
@@ -373,7 +373,7 @@ class IdentityTest {
             .put("uid", "abc").put("title", "New").put("body", "new body")
             .put("category", "General").put("date", "").put("color", "")
             .put("checklist", JSONArray())))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val prev = onDisk(load).getJSONObject(0).getJSONObject("_prev")
         assertEquals("Work", prev.getString("category"))
         assertEquals("2026-01-02", prev.getString("date"))
@@ -393,7 +393,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "Same").put("body", "same")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("The real earlier version", note.getJSONObject("_prev").getString("title"))
         assertEquals("2020-01-01 00:00:00", note.getString("updated"))
@@ -638,7 +638,7 @@ class IdentityTest {
         val load = scratch("[]")
         val stuck = Notebook.Load(emptyList(), load.categories, "x", file = load.file, raw = null)
         load.file!!.writeText("{ unreadable")
-        val result = Notebook.applyShareCode(stuck, listOf(JSONObject().put("title", "x")), false)
+        val result = Shares.apply(stuck, listOf(JSONObject().put("title", "x")), false)
         assertTrue(result is SaveResult.Failed)
         assertEquals("{ unreadable", load.file!!.readText())
     }

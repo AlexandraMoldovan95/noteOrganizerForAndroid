@@ -51,11 +51,9 @@ data class Note(
      * invent 87 and nothing can tell the two apart afterwards.
      *
      * Empty for a note written before the desktop app learned to mint
-     * these -- and left empty ON PURPOSE. The desktop fills them in at
-     * its own door, for every note, once; if this app filled them in too,
-     * a notebook copied here before the desktop had seen it would end up
-     * with two different identities for each note, which is the exact
-     * problem the field exists to prevent.
+     * these, and left so when the file is read: this app mints one only
+     * for a note it adds -- created here, or brought by an import without
+     * one ([Normalize.normalizeNote]), as the desktop mints at its own door.
      */
     val uid: String = "",
     /** Whether a rescue copy ("↩ Restore previous") is waiting. */
@@ -909,18 +907,14 @@ object Notebook {
     )
 
     /**
-     * How many days this entry has left before the DESKTOP purges it.
+     * How many days this entry has left before the purge at the app's
+     * start removes it ([Organizing.purgeExpired]).
      *
      * An unreadable stamp counts as "keep it", never as "it is due" —
-     * the desktop's fail-safe, and the only sane direction for a guess
-     * about deleting someone's note. Null means no answer.
+     * the purge keeps it too. Null means no answer.
      */
     fun daysLeftInTrash(deletedAt: String, retentionDays: Int): Int? {
-        val when_ = try {
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(deletedAt)
-        } catch (e: Exception) {
-            null
-        } ?: return null
+        val when_ = Organizing.deletedAt(deletedAt) ?: return null
         val elapsed = (Date().time - when_.time) / (1000L * 60 * 60 * 24)
         return maxOf(0, retentionDays - elapsed.toInt())
     }
@@ -1322,76 +1316,6 @@ object Notebook {
         return SaveResult.Ok(id)
     }
 
-    /**
-     * Moves a note to the Trash. Nothing is destroyed.
-     *
-     * **The order of the two writes is the whole safety argument.** A
-     * delete touches two files, and a phone can be killed between them.
-     * The trash copy is written FIRST: interrupted there, the note is
-     * still in the notebook and nothing happened. Interrupted after it,
-     * the note exists in BOTH files — a duplicate, which is visible and
-     * fixable. Written the other way round, the same interruption would
-     * leave the note in neither, which is the one outcome that cannot be
-     * undone. The desktop writes them in this order too.
-     *
-     * If the trash write fails, the notebook is not touched at all.
-     */
-    fun deleteNote(load: Load, id: Int): SaveResult {
-        val file = load.file
-            ?: return SaveResult.Failed(NOWHERE)
-        val array = load.raw
-            ?: return SaveResult.Failed(UNREADABLE)
-        val trashFile = load.trashFile
-            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
-        if (trashFile.exists() && load.trashRaw == null) {
-            return SaveResult.Failed("The Trash could not be read, so nothing was deleted.")
-        }
-
-        var index = -1
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) {
-                index = i
-                break
-            }
-        }
-        if (index < 0) return SaveResult.Failed(GONE)
-        val note = array.get(index) as JSONObject
-
-        // A deep copy, so a failure below leaves the original note whole.
-        val entry = JSONObject(note.toString())
-        entry.put("deleted_at",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
-
-        // Each write is prepared as a CANDIDATE array and the shared one is
-        // only changed once the bytes are on the disk. Undoing a failed
-        // change in place is where the bugs live: JSONArray.remove shifts
-        // everything left, so putting the note back at its old index
-        // overwrites whatever slid into that slot -- a rollback that
-        // deletes a different note.
-        val trash = load.trashRaw ?: JSONArray()
-        val trashCandidate = copyOf(trash)
-        trashCandidate.put(entry)
-        val trashProblem = writeAtomic(trashFile, trashCandidate)
-        if (trashProblem != null) {
-            return SaveResult.Failed("The Trash could not be written ($trashProblem), " +
-                "so nothing was deleted.")
-        }
-        trash.put(entry)
-
-        val candidate = copyWithout(array, index)
-        val problem = writeAtomic(file, candidate)
-        if (problem != null) {
-            // The copy in the trash stays. Say so plainly -- a duplicate the
-            // user can see beats a silent half-delete.
-            return SaveResult.Failed(
-                "$problem — the note is in the Trash and still in the list; nothing was lost.")
-        }
-        array.remove(index)
-        return SaveResult.Ok(id)
-    }
-
     private fun copyOf(array: JSONArray): JSONArray {
         val out = JSONArray()
         for (i in 0 until array.length()) out.put(array.get(i))
@@ -1608,45 +1532,6 @@ object Notebook {
     }
 
     /**
-     * Replaces one table inside a note's body.
-     *
-     * Deliberately a thin wrapper over [updateNote] rather than its own
-     * write: a table's lines change length, so every formatting span and
-     * every bullet marker after it slides, and that is exactly what
-     * `updateNote` already knows how to do. A second copy of that logic
-     * is how the desktop's search rules drifted apart.
-     */
-    fun updateTable(
-        load: Load,
-        id: Int,
-        blockIndex: Int,
-        newLines: List<String>,
-    ): SaveResult {
-        val array = load.raw
-            ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
-            ?: return SaveResult.Failed(GONE)
-        val body = (note.opt("body") as? String) ?: ""
-        val blocks = tableBlocks(body)
-        if (blockIndex !in blocks.indices) {
-            return SaveResult.Failed("That table is no longer there.")
-        }
-        val title = (note.opt("title") as? String) ?: ""
-        return updateNote(load, id, title, replaceTable(body, blocks[blockIndex], newLines))
-    }
-
-    /**
-     * A share code for one note, taken from the array as it sits on disk
-     * rather than from the [Note] model -- the model drops fields a code
-     * is supposed to carry.
-     */
-    fun shareCodeFor(load: Load, id: Int): String? {
-        val array = load.raw ?: return null
-        val note = findById(array, id) ?: return null
-        return Sharing.encode(listOf(note))
-    }
-
-    /**
      * What a pasted code turns out to hold, before anything is written.
      *
      * Split out from the import so the screen can ASK before acting: a
@@ -1683,30 +1568,6 @@ object Notebook {
         val notes = (decoded as Sharing.Decoded.Notes).notes
         val plan = Importing.plan(notebook, notes, Importing.Source.CODE, categories)
         return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
-    }
-
-    /**
-     * Writes a code's notes. [update] answers the one question the old
-     * panel asked: true replaces the notes this device already has, false
-     * adds them beside the originals without their identity. Notes nothing
-     * here matches are added either way. The screen now asks every
-     * question through [Importing]; this is that route with one answer.
-     */
-    fun applyShareCode(
-        load: Load,
-        notes: List<JSONObject>,
-        update: Boolean,
-    ): SaveResult {
-        val file = load.file ?: return SaveResult.Failed(NOWHERE)
-        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
-        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
-        val answers = Importing.Answers(update = update, copyUnchanged = !update)
-        return when (val result = Importing.apply(load, plan, answers, attachmentsDir = null)) {
-            is Importing.Result.Failed -> SaveResult.Failed(result.reason)
-            is Importing.Result.Done ->
-                SaveResult.Ok(result.outcome.firstId,
-                              imported = result.outcome.added + result.outcome.updated)
-        }
     }
 
     /**

@@ -32,63 +32,6 @@ class TablesTest {
         assertEquals(listOf(1..2), tableBlocks("text\n| a | b |\n| c | d |"))
     }
 
-    // ---- cutting the body into pieces ----
-
-    @Test
-    fun `prose before and after a table comes back as its own pieces`() {
-        val body = "before\n| a | b |\n| c | d |\nafter"
-        val parts = splitBody(body)
-        assertEquals(3, parts.size)
-
-        val first = parts[0] as BodyPart.Prose
-        assertEquals("before", body.substring(first.from, first.to))
-        assertTrue(parts[1] is BodyPart.Grid)
-        val last = parts[2] as BodyPart.Prose
-        assertEquals("after", body.substring(last.from, last.to))
-    }
-
-    @Test
-    fun `a body that is only a table has no prose pieces`() {
-        val parts = splitBody("| a | b |")
-        assertEquals(1, parts.size)
-        assertTrue(parts[0] is BodyPart.Grid)
-    }
-
-    @Test
-    fun `a body with no table is one piece covering all of it`() {
-        val body = "only text\non two lines"
-        val parts = splitBody(body)
-        assertEquals(1, parts.size)
-        val prose = parts[0] as BodyPart.Prose
-        assertEquals(body, body.substring(prose.from, prose.to))
-    }
-
-    @Test
-    fun `two tables with prose between them come back in order`() {
-        val body = "one\n| a | b |\ntwo\n| c | d |\nthree"
-        val kinds = splitBody(body).map { if (it is BodyPart.Grid) "T" else "P" }
-        assertEquals(listOf("P", "T", "P", "T", "P"), kinds)
-    }
-
-    @Test
-    fun `the offsets stay valid on a body holding an emoji`() {
-        // The slices index a rendered AnnotatedString, which is UTF-16 --
-        // so these offsets must be UTF-16 too, unlike the formatting
-        // spans, which are code points. Getting the two mixed up would
-        // cut a surrogate pair in half.
-        val body = "👣 before\n| a | b |\n👣 after"
-        val parts = splitBody(body)
-        val first = parts[0] as BodyPart.Prose
-        val last = parts[2] as BodyPart.Prose
-        assertEquals("👣 before", body.substring(first.from, first.to))
-        assertEquals("👣 after", body.substring(last.from, last.to))
-    }
-
-    @Test
-    fun `an empty body yields nothing to draw`() {
-        assertEquals(emptyList<BodyPart>(), splitBody(""))
-    }
-
     // ---- the grid ----
 
     @Test

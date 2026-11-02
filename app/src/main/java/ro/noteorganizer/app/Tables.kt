@@ -105,51 +105,6 @@ private const val MERGE_LEFT_MARK = "<"
 private const val MERGE_UP_MARK = "^"
 private const val BREAK_MARK = "<br>"
 
-/**
- * A note's body, cut into the pieces a screen draws differently.
- *
- * [Prose] carries UTF-16 indices into the body rather than the text
- * itself, so the caller can slice the already-styled text with them and
- * keep every span — re-rendering each piece separately would need the
- * formatting offsets recomputed per piece, and that is exactly the sort
- * of second copy of a rule that drifts.
- */
-sealed class BodyPart {
-    data class Prose(val from: Int, val to: Int) : BodyPart()
-    data class Grid(val table: TableBlock) : BodyPart()
-}
-
-fun splitBody(body: String): List<BodyPart> {
-    val lines = body.split("\n")
-    // Where each line starts, in the same UTF-16 indices a rendered
-    // AnnotatedString uses.
-    val starts = IntArray(lines.size)
-    var at = 0
-    for (i in lines.indices) {
-        starts[i] = at
-        at += lines[i].length + 1
-    }
-
-    val parts = ArrayList<BodyPart>()
-    var line = 0
-    for (block in tableBlocks(body)) {
-        if (block.first > line) {
-            val from = starts[line]
-            // Stop before the newline that introduces the table, so the
-            // prose does not end with a blank line the table replaces.
-            val to = (starts[block.first] - 1).coerceIn(from, body.length)
-            if (to > from) parts.add(BodyPart.Prose(from, to))
-        }
-        parts.add(BodyPart.Grid(parseTable(lines.subList(block.first, block.last + 1))))
-        line = block.last + 1
-    }
-    if (line < lines.size) {
-        val from = starts[line]
-        if (from < body.length) parts.add(BodyPart.Prose(from, body.length))
-    }
-    return parts
-}
-
 // ---- writing a table back out --------------------------------------
 //
 // A table is stored as its drawn text: the padding IS the alignment, and

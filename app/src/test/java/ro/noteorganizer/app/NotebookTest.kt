@@ -1326,7 +1326,7 @@ class NotebookTest {
     fun `deleting moves the note to the trash instead of destroying it`() {
         val load = scratchWithTrash(
             """[{"id": 1, "title": "a"}, {"id": 2, "title": "to delete"}]""", "[]")
-        assertTrue(Notebook.deleteNote(load, 2) is SaveResult.Ok)
+        assertTrue(Organizing.trashNotes(load, listOf(2)) is SaveResult.Ok)
 
         // Gone from the notebook...
         assertEquals(listOf(1), (0 until onDisk(load).length())
@@ -1344,7 +1344,7 @@ class NotebookTest {
               "checklist": [{"text": "t", "done": true}],
               "a_future_field": "keep-me"}]
         """.trimIndent(), "[]")
-        Notebook.deleteNote(load, 1)
+        Organizing.trashNotes(load, listOf(1))
         val trashed = trashOnDisk(load).getJSONObject(0)
         assertEquals("p.png",
             trashed.getJSONArray("attachments").getJSONObject(0).getString("filename"))
@@ -1364,7 +1364,7 @@ class NotebookTest {
             raw = load.raw, trash = load.trash,
             trashFile = load.trashFile, trashRaw = load.trashRaw,
         )
-        val result = Notebook.deleteNote(doomed, 1)
+        val result = Organizing.trashNotes(doomed, listOf(1))
         assertTrue(result is SaveResult.Failed)
         assertEquals("precious", trashOnDisk(load).getJSONObject(0).getString("title"))
         assertTrue("the message must say nothing was lost",
@@ -1377,7 +1377,7 @@ class NotebookTest {
         val kept = load.file!!.parentFile!!.listFiles()!!
             .single { it.name.startsWith("trash_corrupt_") }
         assertEquals("{ not a trash", kept.readText())
-        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Ok)
+        assertTrue(Organizing.trashNotes(load, listOf(1)) is SaveResult.Ok)
         assertEquals("kept", trashOnDisk(load).getJSONObject(0).getString("title"))
     }
 
@@ -1389,7 +1389,7 @@ class NotebookTest {
             file = load.file, raw = load.raw, trashFile = load.trashFile, trashRaw = null,
         )
         load.trashFile!!.writeText("{ unreadable")
-        assertTrue(Notebook.deleteNote(stuck, 1) is SaveResult.Failed)
+        assertTrue(Organizing.trashNotes(stuck, listOf(1)) is SaveResult.Failed)
         // The notebook is untouched: the note is still there.
         assertEquals(1, onDisk(load).length())
     }
@@ -1397,7 +1397,7 @@ class NotebookTest {
     @Test
     fun `the first delete creates the trash file`() {
         val load = scratchWithTrash("""[{"id": 1, "title": "x"}]""", null)
-        assertTrue(Notebook.deleteNote(load, 1) is SaveResult.Ok)
+        assertTrue(Organizing.trashNotes(load, listOf(1)) is SaveResult.Ok)
         assertEquals(1, trashOnDisk(load).length())
     }
 
@@ -1462,7 +1462,7 @@ class NotebookTest {
     @Test
     fun `deleting a note that is already gone says so`() {
         val load = scratchWithTrash("""[{"id": 1}]""", "[]")
-        assertTrue(Notebook.deleteNote(load, 99) is SaveResult.Failed)
+        assertTrue(Organizing.trashNotes(load, listOf(99)) is SaveResult.Failed)
         assertTrue(Notebook.restoreFromTrash(load, 99) is SaveResult.Failed)
     }
 
@@ -1480,6 +1480,17 @@ class NotebookTest {
         // about to go.
         assertNull(Notebook.daysLeftInTrash("", 30))
         assertNull(Notebook.daysLeftInTrash("yesterday", 30))
+    }
+
+    @Test
+    fun `a stamp the purge cannot read counts no days down on the row`() {
+        // The row once read "2020-02-30" leniently and counted down to
+        // "0 days left" for an entry the purge, reading strictly, keeps.
+        for (stamp in listOf("2020-02-30 10:00:00", "2020-10-05 25:00:00")) {
+            val entry = JSONObject().put("deleted_at", stamp)
+            assertFalse(Organizing.isPast(entry, 30))
+            assertNull(Notebook.daysLeftInTrash(stamp, 30))
+        }
     }
 
     @Test
