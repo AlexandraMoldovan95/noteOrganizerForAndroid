@@ -584,11 +584,11 @@ class OrganizingTest {
         """.trimIndent())
         File(attachments(load), "a_map.png").writeText("MAP")
         File(attachments(load), "b_map.png").writeText("MAP")
-        File(attachments(load), "c_map.png").writeText("ANOTHER MAP")
+        File(attachments(load), "c_map.png").writeText("PAM")      // as long, other bytes
         assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Ok)
         val kept = notesOnDisk(load).getJSONObject(0).getJSONArray("attachments")
         assertEquals("the same bytes once; the same name with other bytes is another file",
-                     listOf("MAP", "ANOTHER MAP"),
+                     listOf("MAP", "PAM"),
                      (0 until kept.length()).map { File(attachments(load), kept.getJSONObject(it).getString("stored_as")).readText() })
     }
 
