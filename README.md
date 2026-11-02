@@ -175,7 +175,7 @@ The test plan marks which cases a unit test or the emulator already
 walks, and which need a person with a real phone: whether a tap lands,
 whether the keyboard covers what you are typing, whether it reads well at
 arm's length — and whether the words say what they mean. A script cannot
-answer one of those. The full map, and what runs in CI on every push:
+answer one of those. The full map, and what runs in CI (on `main` and on pull requests):
 [qa/README.md](qa/README.md).
 
 ## License

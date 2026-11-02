@@ -115,7 +115,7 @@ object Backup {
         return "$ATTACHMENTS/$bare"
     }
 
-    /** Stopped part-way, by the person or by the app closing. */
+    /** Stopped part-way, when a caller's `stop` says so (the screens pass none: a backup runs to its end). */
     class Stopped : IOException("The backup was stopped before it was finished.")
 
     /**

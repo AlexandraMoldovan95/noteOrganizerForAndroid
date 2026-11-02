@@ -20,12 +20,16 @@ is nothing fresh to read (the tests not run since the code changed, or the
 desktop not found): a cross-program check that could not run must not
 read as one that passed.
 """
+import glob
 import io
 import json
 import os
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
+# Its import of the desktop's code writes no __pycache__ there, as the
+# fixture makers' imports do not.
+sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
@@ -33,9 +37,11 @@ DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
 OUT = os.path.join(ANDROID, "app", "build", "interop")
 CODE = os.path.join(OUT, "phone_code.txt")
 NOTE = os.path.join(OUT, "phone_note.json")
-# What makes the code: newer than the hand-off means the tests have not run since.
-SOURCES = [os.path.join(ANDROID, "app", "src", "main", "java", "ro", "noteorganizer", "app", name)
-           for name in ("Sharing.kt", "Normalize.kt", "Notebook.kt")] + \
+# What makes the code: newer than the hand-off means the tests have not run
+# since. Every file of the app's code, not the four first named: the note is
+# shaped through Recurrence, Exporting, Templates and more besides.
+SOURCES = sorted(glob.glob(os.path.join(ANDROID, "app", "src", "main", "java", "**", "*.kt"),
+                           recursive=True)) + \
           [os.path.join(ANDROID, "app", "src", "test", "java", "ro", "noteorganizer", "app",
                         "InteropTest.kt")]
 

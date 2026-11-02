@@ -2547,8 +2547,9 @@ private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
 }
 
 /**
- * Bold, italic, underline, strike, a text colour and a highlight, over
- * what is selected in the field that has the cursor -- sitting above the
+ * The styles, colours, lists, depth, alignment, face, size, a table and
+ * Undo/Redo, over what is selected in the field that has the cursor or its
+ * lines -- sitting above the
  * keyboard, where the thumb already is and where Android's own selection
  * menu does not reach.
  */

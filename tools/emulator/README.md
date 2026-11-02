@@ -30,8 +30,8 @@ pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
 All five need the SDK's `adb` on the machine
 (`%LOCALAPPDATA%\Android\Sdk\platform-tools`), and all five are
 Windows-flavoured. None of them reads or writes a real notebook. On the
-emulator they write to the app's own storage and to scratch places
-(`/sdcard/Download`, `/data/local/tmp`); the walk also switches the
+emulator they write to the app's own storage and to scratch files under
+`/sdcard` (its `Download` folder, `ui.xml`, `shot.png`) and `/data/local/tmp`; the walk also switches the
 emulator's backup transport for its Google-backup part. On the computer,
 `take_screenshots.py` rewrites `docs/screenshots/`, and `walk.py` writes
 its photographs into the folder it is given and its temporary files under
@@ -98,7 +98,7 @@ for the whole script.
 screencap -p > shot.png` corrupts the file, because `>` is a text
 pipeline. Use `adb shell screencap -p /sdcard/shot.png` and pull it.
 
-## Three things the UI dump does not say, and two the keyboard does
+## Two things the UI dump does not say, and three the keyboard does
 
 **A node scrolled out of sight is still in the tree.** Only its box, cut
 to what shows, says it is hidden — a title scrolled above its pane was

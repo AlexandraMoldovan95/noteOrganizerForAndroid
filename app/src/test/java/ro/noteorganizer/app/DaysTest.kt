@@ -1753,7 +1753,7 @@ class DaysTest {
         val stream = javaClass.classLoader?.getResourceAsStream("days_cases.json")
         assertNotNull("days_cases.json is missing - rebuild it with tools/make_days_fixture.py", stream)
         val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
-        assertTrue(cases.length() >= 62)
+        assertTrue("the fixture holds ${cases.length()} cases, fewer than it was made with", cases.length() >= 100)
         for (c in 0 until cases.length()) {
             val case = cases.getJSONObject(c)
             val name = case.getString("name")

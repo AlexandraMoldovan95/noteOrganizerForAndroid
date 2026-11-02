@@ -23,6 +23,7 @@ import os
 import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.dont_write_bytecode = True      # no __pycache__ left in the desktop's tree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
@@ -34,12 +35,16 @@ FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
 # diacritics and the emoji are the point of the body: they are the
 # characters that break first when an encoding is wrong anywhere along the
 # trip, and the emoji is the one the desktop writes as four raw bytes.
+# Every field a code carries has a value of its own, none a default, so the
+# test can hold each one -- and the note goes through the desktop's own
+# normalize_note first, as a note the desktop app shares does.
 NOTE = {
+    "uid": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
     "title": "Sums for the test",
     "body": "2 \u00d7 3 = 6\n\u221a16 = 4\n\u03c0 \u2248 3,14\n"
             "Diacritics: \u0219tefan, ma\u0219in\u0103, \u021bara\n"
-            "Steps \U0001f463 counted",
-    "category": "General",
+            "Steps \U0001f463 counted\n\u2022 a bullet",
+    "category": "Work",
     "comments": "a comment, so there is one of those to carry too",
     "checklist": [
         {"text": "first row", "done": True},
@@ -56,10 +61,10 @@ NOTE = {
         {"start": 10, "end": 16, "style": "italic"},
         {"start": 17, "end": 26, "style": "underline"},
     ],
-    "color": "",
-    "date": "",
-    "recurrence": None,
-    "paragraphs": {},
+    "color": "#4cc9f0",
+    "date": "2026-11-02",
+    "recurrence": {"freq": "weekly", "interval": 2, "weekdays": [0]},
+    "paragraphs": [{"line": 5, "kind": "bullet"}],
 }
 
 
@@ -73,32 +78,35 @@ def main():
     settle(DESKTOP)      # the desktop's memory ceiling, before its code runs here
     sys.path.insert(0, DESKTOP)
     try:
-        from noteorganizer.core.sharing import (encode_share_code,
+        from noteorganizer.core.model import normalize_note
+        from noteorganizer.core.sharing import (SHAREABLE_FIELDS, encode_share_code,
                                                 decode_share_code)
     except ImportError as problem:
         print("cannot import the desktop encoder: %s" % problem)
         return 2
 
-    code = encode_share_code([NOTE])
+    def kept(made, meant):
+        """What NOTE set is there as set; a dict may gain the desktop's defaults."""
+        if isinstance(meant, dict):
+            return isinstance(made, dict) and all(kept(made.get(k), v) for k, v in meant.items())
+        return made == meant
+
+    shaped = normalize_note(dict(NOTE))
+    lost = sorted(f for f in SHAREABLE_FIELDS if not kept(shaped.get(f), NOTE.get(f)))
+    if lost:
+        # The test holds each field to NOTE: one the desktop reshapes would
+        # be held to a value it never sends.
+        print("normalize_note changed %s: write NOTE as the desktop keeps it" % lost)
+        return 1
+    code = encode_share_code([shaped])
 
     # Decoded by the same Python that made it, before anything is written:
     # a fixture nobody has read back is a guess.
     back = decode_share_code(code)
     note = (back["notes"] if isinstance(back, dict) else back)[0]
-
-    print("code produced by the desktop's own Python: %d characters"
-          % len(code))
-    print()
-    print("What InteropTest must say about it:")
-    print('    assertEquals("%s", note.getString("title"))' % note["title"])
-    print('    assertEquals(%d, note.getJSONArray("formatting").length())'
-          % len(note.get("formatting") or []))
-    print('    assertEquals(%d, note.getJSONArray("checklist").length())'
-          % len(note.get("checklist") or []))
-    print('    assertEquals("%s", note.getString("comments"))'
-          % note.get("comments", ""))
-    print('    assertTrue(note.getString("body").contains("\u221a"))  -> %s'
-          % ("\u221a" in note.get("body", "")))
+    print("code produced by the desktop's own Python: %d characters, "
+          "every field as NOTE says: %s"
+          % (len(code), all(kept(note.get(f), NOTE[f]) for f in SHAREABLE_FIELDS)))
 
     io.open(FIXTURE, "w", encoding="utf-8", newline="\n").write(code)
     print()

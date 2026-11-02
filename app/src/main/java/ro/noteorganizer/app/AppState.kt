@@ -655,9 +655,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * Moves notes to the Trash and offers them back for eight seconds --
-     * the desktop's banner, as Android's snackbar. Undo restores exactly
-     * those entries and opens the first, as the desktop's does.
+     * Moves notes to the Trash and offers them back ([offerUndo]'s ten
+     * seconds) -- the desktop's banner, as Android's snackbar. Undo restores
+     * exactly those entries, and opens the note when it was the only one.
      */
     fun trash(ids: Collection<Int>, openAfterUndo: Boolean = false) {
         // The open note goes to the Trash with its last words in it.

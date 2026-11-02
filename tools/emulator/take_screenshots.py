@@ -94,8 +94,10 @@ NOTES = [
      "created": "2026-10-10 08:00:00", "updated": "2026-10-11 07:30:00"},
 ]
 
-# Ana's birthday, from the idea above: a painted day with its marker.
-BIRTHDAY = (TODAY + timedelta(days=7)).isoformat()
+# Ana's birthday, from the idea above: a painted day with its marker -- in
+# the month the calendar opens on, or the photo shows a grid without it.
+_MONTH_END = (TODAY.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+BIRTHDAY = min(TODAY + timedelta(days=7), _MONTH_END).isoformat()
 
 # The bread's day as the calendar's cell names it ("Monday, 26 October"),
 # for the shot of the calendar with the note open beside it.
@@ -152,7 +154,7 @@ SHOTS = [
      ["Light", "Dark", "Soft Lavender", "Warm Cream"], ["Midnight Purple", "Follow the phone"]),
     ("07-calendar", "The calendar: a series' days, a dated note, a painted day",
      [("back_to", "Your name"), ("tap_exact", "Calendar")],
-     ["📋 History", "Mon", "Sun"], []),
+     ["📋 History", "Mon", "Sun", "🎂"], []),
     ("08-wide", "On its side: the note beside the list, the rail at the left",
      [("tap_exact", "Notes"), ("turn", 1), ("tap", "Home-made bread")],
      ["Search notes", "Home-made bread", "500 g flour", "Calendar"], []),

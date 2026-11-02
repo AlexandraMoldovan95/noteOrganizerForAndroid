@@ -44,9 +44,6 @@ object Recurrence {
     /** "Every 1000 years" is past any real use, and far from any overflow. */
     const val MAX_INTERVAL = 1000
 
-    /** What the empty date field shows: the order a typed date is read in. */
-    const val DATE_FORM = "DD.MM.YYYY"
-
     // ---- the stored form ----
 
     private val STORED = Regex("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})$")

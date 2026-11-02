@@ -72,8 +72,8 @@ Grouped by what the app does; when each item arrived is in the
 
 1. **Kept in the app's own storage**, where no other app can read it. A
    notebook left in the older shared folder by an earlier build is
-   copied in once, on the first start that finds none — copied, never
-   moved, so nothing is deleted on the way.
+   copied in once, on the first start that finds none, on a development
+   build only — copied, never moved, so nothing is deleted on the way.
 2. **A brand-new notebook opens on a welcome note**, once, as the
    desktop's does; one that was copied in or emptied by hand never gets
    one. Settings → About brings it back.
@@ -381,7 +381,8 @@ Grouped by what the app does; when each item arrived is in the
     reach, its card outlined. What the list does to the note beside it —
     a pin, a category — the note shows at once and keeps. « in the note's
     top bar puts the list (or the calendar) aside for a wider note, »
-    brings it back; the choice holds until the app is closed. Walked on a
+    brings it back; the choice holds until the app is closed or a tab is
+    chosen. Walked on a
     small phone and on tablets of 7, 10 and 14 inches (2026-10-24).
 37. Settings: your name, appearance, categories, templates,
     **Reminders**, backup, the
@@ -468,7 +469,7 @@ the two now agree.
 tour that is itself a note — but written for a phone: tap, long press,
 the share sheet, Settings at the bottom.
 
-Phase 2 added five more, each where the desktop's answer is a side
+Phase 2 added five more (two since closed by the desktop, marked below), each where the desktop's answer is a side
 effect or a fault rather than a rule — all five are
 [desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2):
 
@@ -523,8 +524,9 @@ simplifications of the table:
 
 What is left after Phase 3, as a list, so nothing is pretended:
 
-* Styling inside a table's cells is not drawn (it is kept, and carried
-  with the cells through every edit).
+* A word's styling inside a cell (bold, italic, colour, size, face, or a
+  highlight over part of a cell) is not drawn; a whole-cell highlight is.
+  All of it is kept, and carried with the cells through every edit.
 * **Tab-separated text pasted as a table.** The desktop turns a
   spreadsheet's plain-text copy into a table; on the phone a spreadsheet
   is pasted from the HTML it also offers, and plain tab-separated text
@@ -866,7 +868,8 @@ it and read back from the file:
   History; a repeat chosen on the sheet.
 * **The list**: Show 📅 Dated, grouping, a folded group — the choices kept
   under the desktop's own keys.
-* **Statistics** over a notebook whose figures are known.
+* **Statistics** over a notebook whose figures are known: the page and its
+  first-use date are read; its counts are the unit tests' (`StatsTest`).
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
@@ -1172,7 +1175,7 @@ measured ([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-wo
 Two commit messages carry counts that were wrong when written and are
 corrected here, the history left as it is: the recurrence engine's
 (`e29e9a1`) says 26 tried, 23 killed, 3 equivalent — it was 24, 22 and
-2; the calendar days' (`314e89a`) says `DaysTest` has 17 cases — it has
+2; the calendar days' (`314e89a`) says `DaysTest` has 17 cases — it had
 16.
 
 Two lessons from running them, each with its full story in the issues

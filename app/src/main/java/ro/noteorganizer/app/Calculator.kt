@@ -43,10 +43,11 @@ object Calculator {
 
     /**
      * How deep a sum may nest before it is refused. The desktop's parser is
-     * recursive, and Python stops it at about a thousand calls -- some 190
-     * brackets inside each other -- where the desktop answers nothing (it
-     * catches the RecursionError). The phone counts the same calls, one per parsing step as Python makes
-     * them, and says Error a little before that, so the deepest sum anyone
+     * recursive, and Python stops it at about a thousand calls -- some
+     * two hundred brackets inside each other -- where the desktop answers
+     * nothing (it catches the RecursionError). The phone counts the same
+     * calls, one per parsing step as Python makes them, and says Error a
+     * little before that, so the deepest sum anyone
      * will paste is refused rather than taking the app down with a stack
      * overflow. Every sum the desktop answers below this depth, the phone
      * answers the same.

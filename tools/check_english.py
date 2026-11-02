@@ -144,8 +144,9 @@ def hits_in(relative, marks_allowed=False):
     path = os.path.join(ROOT, relative)
     try:
         text = io.open(path, encoding="utf-8", errors="replace").read()
-    except OSError:
-        return []
+    except OSError as exc:
+        # A tracked file not read is not a clean one.
+        return [(0, "(unread)", "the file could not be read: %s" % exc)]
     found = []
     for number, line in enumerate(text.splitlines(), start=1):
         word = ROMANIAN.search(line)

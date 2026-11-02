@@ -96,7 +96,7 @@ def main():
         # The app looks a file up by name (Pasting.kt's entity table): none
         # found means the reading failed, not that all is well.
         print("\nNo lookup found in the release build: the code that makes one was not read.")
-        return 1
+        return 2
     print("\nEvery lookup in the release build finds its file (%d)." % lookups)
     return 0
 

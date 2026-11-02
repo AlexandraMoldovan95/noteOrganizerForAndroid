@@ -25,11 +25,11 @@ about the checking.
 | [2026-10-31](#a-days-words-added-twice-and-slowly-a-tables-line-the-phone-never-wrote) | code | The audit's thirteenth round: round twelve's added words came twice where a day had grown from the copy's text, and were read off a copy of the whole note for each day -- a year of days froze the turn-on; a day ending in a table typed on the phone lacked the line under it, and an import read it as changed; a column's width spread a cell's colour | A rule that adds asks what is already there, as lines; a cost per item never carries the whole |
 | [2026-10-31](#words-kept-where-nothing-looked-a-days-undo-over-another-styles-read-off-the-texts) | code | The audit's twelfth round: the words round eleven kept in the copy were read again by date at every start, lost or put on the wrong day; a deleted day's Undo came back over a day moved onto its date; a table or an answer inserted where a styled run began took its style | A place the next read looks at again is not a place to keep things; a change that knows where it was made says so to everything it moves |
 | [2026-10-31](#a-day-moved-onto-words-no-calendar-showed-a-copys-words-no-day-could-take) | code | The audit's eleventh round, on both apps at once: a day moved onto a date that kept the words of a day the calendar no longer showed wrote over them; a day coloured before its series' words changed read as words of its own, and the copy's for that day were dropped | Ask a date what it holds, not only what it draws; a day's words are its own only where they are not its series' |
-| [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a second turn-off giving back older words over a line added, and none of another series' copy after a big delete; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts, the calculator's place left behind and words glued at a cap; ids wrapping past an Int; two letters folded the desktop keeps; a message over a row being renamed, and drawn by two sheets; the walk timing an opening by its own look, and racing a four-second message | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
-| [2026-10-30](#every-place-a-change-made-and-every-date-a-note-holds) | code | The audit's ninth round: the calculator's place followed as one change through a list's markers, Enter in a numbered list, a paste that renumbered and an Undo of two places; a series' copy's days spent that the note never took; a second turn-off over the first one's copy; the Repeat sheet spending between its two writes; the desktop's old title paste; `int()` and CR LF read otherwise; messages over the bar being typed at; a frozen look read as the screen before | A change is the edits that made it, and a copy is not the note: ask what each edit did, and of each date whether the note holds it |
-| [2026-10-30](#kept-where-it-was-found-and-kept-on-after-it-moved) | code | The audit's eighth round: the calculator's place kept through an Undo that changed nothing and dropped by one that changed the words; a series' days kept in its copy after the note took them back, so a day reset came back at every start; comments always taken into a waiting copy, two letters over a long comment; a turn-off over an import's Update copy; a title's Enter told by its length; refusals said under the sheet that stayed open; the walk's frames read before they ended, its turn taken halfway | What a fix keeps it must also let go of, and say when: ask of each thing kept what makes it stop being the one to keep |
+| [2026-10-30](#a-day-read-by-its-date-a-change-read-by-its-texts) | code | The audit's tenth round: a series' copy's words for a day spent where the note had only moved or coloured that day, on the desktop too; a turn-off promising a Restore previous its own save dropped; Enter and a paste read off the two texts; the smaller findings are in the story | Read a thing by what it is: a day by what it holds, a change by where it was made, a copy's words by what the note lost |
+| [2026-10-30](#every-place-a-change-made-and-every-date-a-note-holds) | code | The audit's ninth round: the calculator's place followed as one change through a list's markers, a paste and an Undo; a series' copy's days spent that the note never took; a second turn-off over the first one's copy; the smaller findings are in the story | A change is the edits that made it, and a copy is not the note: ask what each edit did, and of each date whether the note holds it |
+| [2026-10-30](#kept-where-it-was-found-and-kept-on-after-it-moved) | code | The audit's eighth round: a series' days kept in its copy after the note took them back, so a day reset came back at every start; the calculator's place kept through an Undo that changed nothing; the smaller findings are in the story | What a fix keeps it must also let go of, and say when: ask of each thing kept what makes it stop being the one to keep |
 | [2026-10-30](#a-stop-android-made-ten-seconds-late) | checking | The first full walk since round five failed 16 steps: Android stopped an app sent Home ten seconds later on an emulator drawing in software, and the walk read the save, and ended the app, before it was stopped; round seven's checks, never run, looked below the screen; and an Undo in a table cell, broken since round six, sent the next letter under the table | A wait for a fixed time is a guess about the machine: wait for the state the check is about, and read that the act happened before judging what follows from it |
-| [2026-10-29](#a-rule-fixed-where-it-was-found-and-asked-again-beside-it) | code | The audit's seventh round: "Read all" looked for a space back to a row's start for every part, seconds on a row of no space; the title and a template's name kept take(200) of each new value; Undo forgot where the cursor wrote; the app itself took a template being written off the screen with no draft; the rescue rule counted UTF-16 units; the days' move asked the raw file, skipped the Trash, and took an update's days; a copy for the comments replaced a body's, and the restore weighed no comments | A rule put right where it was found is still asked the old way next door: sweep for the fix's question, not its line |
+| [2026-10-29](#a-rule-fixed-where-it-was-found-and-asked-again-beside-it) | code | The audit's seventh round: "Read all" took seconds on a row with no space; the app took a template being written off the screen with no draft; the days' move asked the raw file and skipped the Trash; the smaller findings are in the story | A rule put right where it was found is still asked the old way next door: sweep for the fix's question, not its line |
 | [2026-10-29](#a-days-text-in-a-copy-the-other-program-erased) | design | A turned-off series' days lived in the note on the desktop and in the series' copy alone on the phone: the desktop's next copy of words erased the phone's, and the phone's way of carrying days into every copy put a restarted series' old deleted day back; and a template being written was lost when Android ended the app behind Home | A thing kept in two places is kept by neither: where a value lives is part of the format, proved by running both programs on the same note |
 | [2026-10-29](#a-cap-that-cut-what-it-was-meant-to-keep) | code | The audit's sixth round: a row's 2,000-letter cap cut the row's own end when a letter or a paste went in at its start; a row moved across the line of rows not drawn vanished among them; a row past the limit showed no word of itself, Find stopping on words nobody saw; the template editor drew 1,000 rows at once; Redo left the cursor above a table typed at the end; comments wiped kept no rescue copy | A cap is put on what comes in, never on what is already there; and a window drawn in part follows the row a person moves, as it follows the one a search steps to |
 | [2026-10-29](#a-word-in-the-log-written-by-another-program) | checking | The full walk failed "99,000 characters of words reach the share sheet" with the sheet up: the log held "TransactionTooLargeException", written by Play services about a service of its own; three more checks read every process's log the same way | A check of the log reads the lines of the processes it is about, named by their pid before the act |
@@ -4098,7 +4098,7 @@ reminder bar, the desktop's, and its notification.
 
 ### Seven DESKTOP findings from the audit of 2026-10-19
 
-**All seven fixed in the desktop's 0.95.391** (2026-10-20, its issue
+**Closed**, all seven, in the desktop's 0.95.391 (2026-10-20, its issue
 #287), each with a test and its mutant; kept here as found.
 
 * **Right-click → Merge with the cell to the left, or above, loses the
@@ -4123,7 +4123,7 @@ the desktop dissolves it. The phone's is kept, as losing less.
 
 ### The DESKTOP's startup purge goes by a window it could not read
 
-**Fixed in the desktop's 0.95.391** (2026-10-20): it keeps the lost
+**Closed** in the desktop's 0.95.391 (2026-10-20): it keeps the lost
 window as a marker of its own, `desktop_trash_window_unknown`, as the
 phone does, and purges nothing by a window it cannot read.
 
@@ -4140,7 +4140,7 @@ process (the interaction pass, a plan, approval).
 
 ### The DESKTOP's automatic Trash purge can delete a file a living note uses
 
-**Fixed in the desktop's 0.95.391** (2026-10-20): the startup purge and
+**Closed** in the desktop's 0.95.391 (2026-10-20): the startup purge and
 removing one attachment both spare a file still in use, as suggested
 below.
 
@@ -4200,8 +4200,9 @@ phone matches the desktop wherever the difference is not a fault.
   one of them where there were two. Confirmed with the desktop's own
   recurrence code. The phone refuses that return and says why
   ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
-  *Fixed on the desktop in the final audit's eleventh round*, where "Only
-  the date" was found to write over the other day's words too.
+  **Closed** on the desktop in the final audit's eleventh round
+  (`c55a9dd`), where "Only the date" was found to write over the other
+  day's words too.
 * **A pasted page's second table puts its styles beside their words.**
   `tables.align` re-pads every table in a paste and reports where it put
   spaces in or took them out; `shift_spans` judges those places against
@@ -4215,9 +4216,9 @@ phone matches the desktop wherever the difference is not a fault.
   own process, and keeps the desktop's answer beside each of the 20.
 
 The desktop's `remove_attachment` deleting a file another note still
-uses is the second half of
-[the Trash purge finding above](#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses);
-the phone's "take off" spares such a file, as its purge does.
+uses was the second half of
+[the Trash purge finding above](#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses),
+**Closed** with it in 0.95.391; the phone's "take off" spares such a file, as its purge does.
 
 ### On the phone: a highlight from the format bar covers a line's end
 

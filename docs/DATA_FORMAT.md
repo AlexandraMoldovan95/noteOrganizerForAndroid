@@ -962,8 +962,9 @@ desktop's automatic purge spares them too, since its 0.95.391
 A rollback must never edit the shared array in place: `JSONArray.remove`
 shifts everything left, so putting a note back at its old index
 overwrites whatever slid into that slot — a rollback that deletes a
-different note. Every write here builds a candidate array, writes it, and
-only then changes the shared one.
+different note. Every write here that replaces or removes builds a candidate
+array, writes it, and only then changes the shared one; an append is undone by
+removing the last entry, which moves nothing.
 
 **A mutant that proves nothing looks exactly like one that passed.** The
 first attempt at the ordering mutant moved the notebook write earlier but

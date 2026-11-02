@@ -44,14 +44,28 @@ class InteropTest {
             decoded is Sharing.Decoded.Notes)
         val note = (decoded as Sharing.Decoded.Notes).notes.single()
 
-        // What the fixture's note carries: 3 formatting spans, 8 checklist
-        // rows, a comment. Regenerate it with the script in the desktop's
-        // own Python if it ever has to change.
+        // Every field a code carries, as tools/make_interop_fixture.py's NOTE
+        // set it and the desktop's normalize_note kept it -- the uid decides
+        // Update or Add, so it is held too. Regenerate the fixture with that
+        // script if it ever has to change.
+        assertEquals("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", note.getString("uid"))
         assertEquals("Sums for the test", note.getString("title"))
+        assertEquals("Work", note.getString("category"))
+        assertEquals("2026-11-02", note.getString("date"))
+        assertEquals("#4cc9f0", note.getString("color"))
+        val rule = note.getJSONObject("recurrence")
+        assertEquals("weekly", rule.getString("freq"))
+        assertEquals(2, rule.getInt("interval"))
+        assertEquals(listOf(0), (0 until rule.getJSONArray("weekdays").length()).map { rule.getJSONArray("weekdays").getInt(it) })
+        val paragraphs = note.getJSONArray("paragraphs")
+        assertEquals(1, paragraphs.length())
+        assertEquals(5, paragraphs.getJSONObject(0).getInt("line"))
+        assertEquals("bullet", paragraphs.getJSONObject(0).getString("kind"))
         assertEquals(3, note.getJSONArray("formatting").length())
         assertEquals(8, note.getJSONArray("checklist").length())
         assertEquals("a comment, so there is one of those to carry too",
             note.getString("comments"))
+        assertTrue(note.getString("body").endsWith("\n• a bullet"))
         // And the body's maths characters, diacritics and emoji came through
         // unharmed -- the emoji written by the desktop as four raw bytes.
         assertTrue(note.getString("body").contains("√"))   // the root sign

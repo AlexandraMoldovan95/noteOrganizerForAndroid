@@ -356,6 +356,9 @@ object Pasting {
             // A pasted page is arbitrary input, and a failed paste must never
             // take the editor with it. Python fails here too, on the same
             // inputs: a number of more than 4,300 digits is a ValueError.
+            // It also hides the app's own html_entities.json gone missing --
+            // every web paste then comes in as plain words -- which is why
+            // tools/check_release_lookups.py holds the release build to it.
             return NOTHING
         }
         for (open in reader.open.toList()) reader.close(open.style)

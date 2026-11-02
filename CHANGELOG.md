@@ -35,6 +35,25 @@ first build used on a phone is `0.9.0`, which carries all three. They
 are numbered as the steps they were, each adding what the app could not
 do before, not as releases anyone ran.
 
+| Version | Date | In one line |
+|---|---|---|
+| [0.13.0](#0130--2026-10-27--open-source-licenses) | 2026-10-27 | Open-source licenses |
+| [0.12.0](#0120--2026-10-27--sections-fold-and-the-trash-picks-all) | 2026-10-27 | Sections fold, and the Trash picks all |
+| [0.11.1](#0111--2026-10-24--a-pasted-table-fits-its-words) | 2026-10-24 | A pasted table fits its words |
+| [0.11.0](#0110--2026-10-23--the-days-reminder-and-the-notes-menu) | 2026-10-23 | The day's reminder, and the note's menu |
+| [0.10.1](#0101--2026-10-22--numbered-lists-and-a-search-from-the-top) | 2026-10-22 | Numbered lists, and a search from the top |
+| [0.10.0](#0100--2026-10-21--the-privacy-policy) | 2026-10-21 | The privacy policy |
+| [0.9.1](#091--2026-10-20--light--dark) | 2026-10-20 | Light \| Dark |
+| [0.9.0](#090--2026-10-20--the-first-test-on-a-real-phone) | 2026-10-20 | The first test on a real phone |
+| [0.8.0](#080--2026-10-16--phase-3) | 2026-10-16 | Phase 3 |
+| [0.7.0](#070--2026-10-16--phase-2) | 2026-10-16 | Phase 2 |
+| [0.6.0](#060--2026-10-15--phase-1) | 2026-10-15 | Phase 1 |
+| [0.5.0](#050--2026-09-14) | 2026-09-14 | The app wears the desktop's icon |
+| [0.4.0](#040--2026-09-13) | 2026-09-13 | A note keeps one identity wherever it goes |
+| [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
+| [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
+| [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
 ---
 
 ## [Unreleased]

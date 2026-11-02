@@ -18,6 +18,8 @@ import importlib.util
 import os
 import sys
 
+sys.dont_write_bytecode = True      # loading the desktop's guest.py leaves nothing there
+
 # Ceilings for a fixture maker: what one needs is a few tens of MB.
 PER_PROCESS_MB = 2048
 ALL_TOGETHER_MB = 2048

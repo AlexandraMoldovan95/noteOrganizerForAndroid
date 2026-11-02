@@ -651,7 +651,11 @@ def main():
     # Parts named after the folder are walked alone, on the same road as the
     # whole walk: the turn, the wait for the emulator, the install.
     parts = sys.argv[2:]
-    unknown = [p for p in parts if p.startswith("_") or not callable(globals().get(p))]
+    # A part is what the whole walk calls below, not any function here:
+    # "run" or "adb" passed as one and was run with the folder.
+    import inspect
+    known = set(re.findall(r"^    (\w+)\(folder\)$", inspect.getsource(main), re.M))
+    unknown = [p for p in parts if p not in known]
     if unknown:
         print("no such part of the walk: %s" % ", ".join(unknown))
         return 2
@@ -985,6 +989,8 @@ def note_by_uid(uid):
 
 
 def seeded(folder):
+    """A notebook copied in from the older folder, written for the camera:
+    it is read whole, and its notes, list and calendar are photographed."""
     print("\n-- a notebook copied in, written for the camera --")
     adb("shell", "pm", "clear", PACKAGE)
     adb("shell", "mkdir", "-p", "/sdcard/Android/data/%s/files" % PACKAGE)
@@ -1803,8 +1809,10 @@ def failed_save(folder):
         check("Leave anyway leaves it", not says_soon("Search notes"))
     finally:
         writes_fail(False)
+    # Read first: a file not read passed as one that holds nothing.
+    after = read_file("notes_data.json")
     check("... and nothing was written for it",
-          not any("dentist" in n.get("body", "") for n in read_file("notes_data.json") or []))
+          after is not None and not any("dentist" in n.get("body", "") for n in after))
 
 
 def checklist_words_kept(folder):
@@ -2192,7 +2200,9 @@ def google_backup(folder):
     start_app()
     check_settled("... and the app restored starts with the switch off",
                   lambda: (read_file("settings.json") or {}).get("phone_google_backup"), lambda value: value is False)
-    check("... without the note the earlier backup held", bool(screen_says("Backed up")))
+    restored = read_file("notes_data.json")
+    check("... without the note the earlier backup held",
+          restored is not None and not any(n.get("title") == "Backed up" for n in restored), repr(restored)[:200])
     put_inside("settings.json", {"welcome_offered": True, "phone_google_backup": True})
     ok, out = backed_up()
     check("turned on again, it takes the app again", ok, out[-200:])
@@ -2276,7 +2286,10 @@ def calculator(folder):
     # The note's own field takes the keyboard: the panel steps aside, and
     # comes back when the keyboard goes down.
     tap("Fuel and tolls:", wait=1.5)
-    check("the panel stands aside while the keyboard is up for the note", bool(screen_says(insert)))
+    # The keyboard up is the premise: on any screen without it, the button
+    # missing passed.
+    check("the panel stands aside while the keyboard is up for the note",
+          keyboard_shown() and bool(screen_says(insert)) and not screen_says("Fuel and tolls:"))
     # Down for certain, then looked for until it is there: one look 1.5 s
     # after Back, on an emulator just started, came before the keyboard
     # had gone (2026-10-23).
@@ -2506,7 +2519,10 @@ def templates(folder):
               and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}] and t.get("comments") == "every Sunday"
               and t.get("category") == "Work" and t.get("checklist") == [{"text": "groceries", "done": False}],
               repr(t))
-        if normalize is not None:
+        if normalize is None:
+            # Skipped with a print, this passed unread, while its siblings fail().
+            fail("the desktop's normalize_template could be read, to check the file's shape")
+        else:
             check("the file is already in the shape the desktop keeps", normalize(t) == t, repr(normalize(t)))
 
     # The same name again: asked, never replaced silently.
@@ -5259,6 +5275,8 @@ def arrange_without_drag(folder):
                       lambda rows: rows == ["yeast", "flour"])
         # A row's ✕ says what it took, and Undo puts it back where it was.
         tap("Remove yeast from the checklist", wait=0.5)
+        # The row gone first: an Undo that came back to an unchanged list passed.
+        check("... the ✕ takes the row off", not find("Remove yeast from the checklist"))
         tap_last("Undo", wait=1.5)       # the bar's, not the editor's ↶, also called Undo
         check_settled("a row taken off by its ✕ comes back with Undo, in its place",
                       lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],

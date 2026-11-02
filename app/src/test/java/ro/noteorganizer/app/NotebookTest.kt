@@ -581,7 +581,7 @@ class NotebookTest {
      * nothing, and an edit at the end rightly moves them.)
      */
     @Test
-    fun `whatever styling the desktop would keep survives a save on the phone`() {
+    fun `a save keeps every span the phone's normalizer keeps, over the desktop's export cases`() {
         val stream = javaClass.classLoader?.getResourceAsStream("export_cases.json")
         val cases = JSONObject(stream!!.readBytes().toString(Charsets.UTF_8)).getJSONArray("cases")
         var compared = 0

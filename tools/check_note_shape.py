@@ -359,10 +359,13 @@ if model_py is not None:
 # nothing read it (the final audit's third wave).
 
 data_format = read(os.path.join(ANDROID, "docs", "DATA_FORMAT.md"))
-if model_py is not None and data_format is not None:
-    note_section = data_format.split("\n## A note\n", 1)[-1]
-    block = re.search(r"```jsonc\n(.*?)\n```", note_section, re.S)
-    documented = set(re.findall(r'^  "(\w+)":', block.group(1), re.M)) if block else set()
+parts = data_format.split("\n## A note\n", 1) if data_format is not None else []
+block = re.search(r"```jsonc\n(.*?)\n```", parts[1], re.S) if len(parts) == 2 else None
+if block is None:
+    # Quiet here, the gate ended "the two programs agree" having read no list.
+    fail("DATA_FORMAT.md has its \"A note\" section with the jsonc field list")
+elif model_py is not None:
+    documented = set(re.findall(r'^  "(\w+)":', block.group(1), re.M))
     desktop_fields = (set(python_dict_keys(model_py, "NOTE_DEFAULTS") or [])
                       - set(NOT_A_DEFAULT))
     if documented - {"id"} == desktop_fields:

@@ -156,7 +156,7 @@ the colours the contrast rules pick for words on a fill. A theme that is
 "close enough" is how two apps that are meant to be one product start to
 look like two.
 
-## What runs on every push
+## What runs in CI
 
 Two workflows, three jobs, answering three different questions: do the
 rules still hold ([tests.yml](../.github/workflows/tests.yml)); is the
@@ -269,7 +269,7 @@ Phase 3 added three more:
   through the copy and paste its buttons call, and the menu is
   photographed for a person's eye
   ([the story](../docs/ISSUES_LOG.md#a-menu-the-phones-own-tree-leaves-out)).
-- **Read a passing message once, and act at once.** An eight-second
+- **Read a passing message once, and act at once.** A ten-second
   offer does not wait for three screen dumps
   ([the story](../docs/ISSUES_LOG.md#an-offer-read-after-it-had-gone)).
 

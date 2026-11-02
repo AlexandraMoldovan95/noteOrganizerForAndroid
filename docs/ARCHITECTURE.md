@@ -110,7 +110,7 @@ About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
 | `RichText.kt` | 150 | A note plus its spans, turned into an `AnnotatedString` |
 | `ui/theme/` | 290 | A palette as Compose colours, Material 3 mapped onto it, and `ThemeVeil`, the picture a change of theme dissolves under |
 
-The tests mirror the rules, a suite for each file of them; the suites
+The tests mirror the rules, a suite for most files of them; the suites
 and their counts are listed in [qa/README](../qa/README.md#the-unit-tests).
 Four hold drawing-side classes: `AppStateTest`, the order of the saves
 around the open note, which no emulator tap can time
@@ -211,7 +211,7 @@ At this size those layers would be ceremony: every one of them exists to
 decouple things that are not currently coupled. One class does what they
 would, and is short enough to read in one sitting.
 
-Two things it does on purpose:
+Three things it does on purpose:
 
 - **The notebook is held with `neverEqualPolicy()`.** A setting is saved
   inside the object that was read, so the refreshed notebook compares
@@ -277,7 +277,9 @@ which is why Settings → Backup says it is the way to keep a copy.
 3. The Trash is emptied of what has outlived its window, sparing files a
    note still uses.
 
-It returns one line worth saying at the top of the list, or nothing.
+Beside these it repairs duplicate ids, makes the notes a series' copy set aside, marks the
+Trash's window lost when the settings could not be read, honours the backup's off mark, and
+stamps the first launch. It returns the lines worth saying at the top of the list, or nothing.
 
 The doors out are all the system's, so they need no permission — the only
 two the app asks for are the day's reminder's, `POST_NOTIFICATIONS` (asked
@@ -422,13 +424,13 @@ process — the paste fixture's second-table rule is two lines — and stops
 when the line it changes is no longer there. Reading the spec by hand
 instead was [wrong twice](ISSUES_LOG.md#the-answer-written-by-hand-wrong-twice).
 
-Both gates run in CI, in [gates.yml](../.github/workflows/gates.yml), kept apart
+The first two run in CI (`check_interop.py` does not: it reads the unit tests' output), in [gates.yml](../.github/workflows/gates.yml), kept apart
 from the unit tests in [tests.yml](../.github/workflows/tests.yml) so a
 change to a gate does not drag a five-minute build along with it. There
 they fetch the desktop app and are run with `--require-desktop`, because
 a check that quietly could not run reads exactly like a check that
 passed. Reading a private repository from another one needs a token:
-[qa/README.md](../qa/README.md#what-runs-on-every-push) says which, and
+[qa/README.md](../qa/README.md#what-runs-in-ci) says which, and
 where it goes.
 
 ## Where this will hurt next

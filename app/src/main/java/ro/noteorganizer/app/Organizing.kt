@@ -873,7 +873,7 @@ object Organizing {
      * the app. With a notebook of its own, the phone runs this itself; the
      * reason it once did not -- a folder shared with the desktop, which
      * owns the purge there -- no longer holds. Files a note still uses are
-     * spared, a step safer than the desktop's own startup purge.
+     * spared, as the desktop's purge spares them.
      */
     fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, now: Date = Date(),
                      days: Int = load.retentionDays): Int {
