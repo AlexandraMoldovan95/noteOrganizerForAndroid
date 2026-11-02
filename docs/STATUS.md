@@ -393,16 +393,21 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 896 JVM unit tests in 31 suites, mutation-tested; seven ports held to
-    fixtures the desktop's own Python wrote; four gates against drift
-    (the note's shape and the palettes against the desktop's Python, the
-    rules layer free of Android, the repository in English) and a fifth
-    on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 351
-    checks that reads the files the app wrote.
+39. The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests)),
+    mutation-tested; seven ports held to fixtures the desktop's own Python
+    wrote; five gates against drift (the note's shape and the palettes
+    against the desktop's Python, the rules layer free of Android, the
+    repository in English, test results no older than the code) and two on
+    the built release APK (every file its code looks up by name, found
+    where the shrunk code will look; every library in it named in its
+    licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
+    that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
-    no permission beyond one Android adds for its own receivers, its one
+    no permission beyond the day's reminder's two (`POST_NOTIFICATIONS`,
+    asked when the reminder is turned on; `RECEIVE_BOOT_COMPLETED`, to set
+    its alarm again after a restart) and one Android adds for its own
+    receivers, its one
     native library 16 KB-aligned as Play requires, and an app bundle
     (`bundleRelease`) beside the APK. Signed for now with this machine's
     debug key, so it installs over a debug build and keeps the notebook
@@ -653,14 +658,14 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 353 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
-| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | About 550 checks on the built app ([how many, and the last full run](../qa/README.md#the-emulator-walk)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Seven fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML, a series' days — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 896 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | The JVM unit tests ([how many](../qa/README.md#the-unit-tests)), each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
 
 ### An emulator walk that reads the files
@@ -668,7 +673,10 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-65 parts since the final audit's eighth round added `limits_round8` (8
+67 parts ([how many checks](../qa/README.md#the-emulator-walk)). The final
+audit's tenth round added `limits_round10` (a message said while a
+checklist row is renamed stands above the row and its ✕, not over them),
+and its lows wave `paste_at_marker`. Its eighth round added `limits_round8` (8
 checks, written with the round and not yet run: a category's name already
 used said over its sheet; a paste cut to Your name's and to Save as
 template's name said under the box; a title of 170 emoji counted 170 of
@@ -997,15 +1005,15 @@ desktop's own Python, over cases generated for it — and the phone had to
 give every answer back exactly. The tools that write the fixtures read
 the desktop's source and never write to it.
 
-| Port | The desktop's own function | Cases |
+| Port | The desktop's own function | Cases ([kept up in qa/README](../qa/README.md#fixtures-the-desktop-wrote)) |
 |---|---|---|
 | Repeating notes | its recurrence engine, expanding and reading dates | 300 seeded notes expanded, 400 typed dates read |
 | The calculator | its evaluator and its display rounding | 661 sums, 378 shown values |
-| Export | `note_to_html`, `html_document` and the page around them | 400 notes, 794 files compared byte for byte |
+| Export | `note_to_html`, `html_document` and the page around them | 409 notes, 815 files compared byte for byte |
 | Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
 | Lists | its renumbering | 300 bodies |
 | Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts, 86 markdown tables |
-| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | 31 notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
+| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | 103 notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
 
 Pasting is the one port where the phone answers differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
@@ -1077,8 +1085,9 @@ the circle inscribed in that square
 
 A release build cannot be read through `run-as`, so it was judged by
 what it is and by what it shows. Read from the APK: the certificate is
-the debug build's (`apksigner`), it is not debuggable and asks for no
-permission beyond one Android adds itself (`aapt2`), its native library
+the debug build's (`apksigner`), it is not debuggable and asked, when this
+was read (before the day's reminder brought its two), for no permission
+beyond one Android adds itself (`aapt2`), its native library
 is 16 KB-aligned in all four ABIs (`zipalign -P 16`, and the ELF's own
 segments), and every file its code looks up is where the renamed code
 will look (`tools/check_release_lookups.py`). On the emulator: a new
@@ -1091,7 +1100,8 @@ the notebook's files had the same checksums as before.
 
 ### The unit tests, and their mutants
 
-896 JVM unit tests in 31 suites pin the rules ported from Python, and
+The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests))
+pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy

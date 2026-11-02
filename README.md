@@ -113,7 +113,7 @@ inside Android Studio:
     set JAVA_HOME=C:\Programs\android_studio\jbr
 
     gradlew.bat assembleDebug          # build the APK
-    gradlew.bat testDebugUnitTest      # 896 JVM unit tests, no device needed
+    gradlew.bat testDebugUnitTest      # the JVM unit tests, no device needed
     adb install -r app\build\outputs\apk\debug\app-debug.apk
 
 The test task prints nothing useful when it fails; the results are XML in
@@ -142,14 +142,14 @@ at 47% of the canvas is in the
 
 | Check | Run it with | What it catches |
 |---|---|---|
-| Unit tests, on the JVM | `gradlew.bat testDebugUnitTest` | A rule ported from Python that does not match the Python |
+| Unit tests, on the JVM ([how many, by suite](qa/README.md#the-unit-tests)) | `gradlew.bat testDebugUnitTest` | A rule ported from Python that does not match the Python |
 | The note-shape gate | `py tools/check_note_shape.py` | The two programs quietly disagreeing about what a note *is* |
 | The palette gate | `py tools/check_palettes.py` | A theme or a colour drifting from the desktop's |
 | The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
 | The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
 | The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
 | The licenses gate | `py tools/make_licenses.py --check`, after `gradlew.bat assembleRelease` | A library in the APK that Settings → About → Open-source licenses does not name |
-| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — 353 checks, each reading the file the app wrote |
+| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — [its parts and checks](qa/README.md#the-emulator-walk), each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
 The unit tests pin the rules ported from Python rather than the screens,

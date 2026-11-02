@@ -36,15 +36,17 @@ matter for anything planned here:
 
 | layer | lines | what it is |
 |---|---|---|
-| `noteorganizer/core/` | ~8,400 in 18 modules | data and rules — **never imports tkinter** |
-| `noteorganizer/ui/` + the entry file | ~32,500 | the desktop interface |
+| `noteorganizer/core/` | ~10,400 in 18 modules | data and rules — **never imports tkinter** |
+| `noteorganizer/ui/` + the entry file | ~37,500 | the desktop interface |
+
+(Measured on 2 November 2026.)
 
 So there is no "port". Four fifths of that app *is* the desktop
 interface, and any Android version rewrites the interface whatever the
 technology. What is portable is the rules: recurrence, rich text,
 tables, the note model, share codes, backups, themes. The rest of
 `core/` — filesystem paths, the single-instance lock, the clipboard — is
-desktop too. Here the rules are twenty-six Kotlin files with no Android in
+desktop too. Here the rules are twenty-seven Kotlin files with no Android in
 them ([the map](docs/ARCHITECTURE.md#the-map)).
 
 **The Python is the specification.** When a rule is re-implemented here,
@@ -178,10 +180,11 @@ here that touches the desktop.
 
 What it produces: `mipmap-*/ic_launcher*.webp` at five densities for
 older devices, plus the two adaptive layers and the `mipmap-anydpi-v26`
-XML for Android 8 and later. The foreground is drawn at 66% and centred
-because the launcher crops to the middle 72 of 108 units — our mark is a
-square with a border, and a circle mask eats the corners of anything
-larger.
+XML for Android 8 and later. The mark is drawn at 72/108 ÷ √2, 47% of
+the canvas, and centred: the launcher keeps the middle 72 of 108 units and
+then masks that into a circle, and our mark is a square with a border, so
+only a square of 72/√2 keeps its corners whole
+([the story](docs/ISSUES_LOG.md#the-preview-that-flattered-the-icon)).
 
 Two things that cost a run each, both written into the script: the
 design draws no tile, so **its corner pixel is transparent** and reading

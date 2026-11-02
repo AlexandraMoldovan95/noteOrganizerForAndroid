@@ -352,6 +352,27 @@ if model_py is not None:
                  % (sorted(set(theirs) - set(ours)) or "-",
                     sorted(set(ours) - set(theirs)) or "-"))
 
+# ---- 5: the field list a reader is shown -----------------------------
+# docs/DATA_FORMAT.md said this gate held its list to the Python's, and
+# nothing read it (the final audit's third wave).
+
+data_format = read(os.path.join(ANDROID, "docs", "DATA_FORMAT.md"))
+if model_py is not None and data_format is not None:
+    note_section = data_format.split("\n## A note\n", 1)[-1]
+    block = re.search(r"```jsonc\n(.*?)\n```", note_section, re.S)
+    documented = set(re.findall(r'^  "(\w+)":', block.group(1), re.M)) if block else set()
+    desktop_fields = (set(python_dict_keys(model_py, "NOTE_DEFAULTS") or [])
+                      - set(NOT_A_DEFAULT))
+    if documented - {"id"} == desktop_fields:
+        ok("DATA_FORMAT.md lists the note's fields the desktop has (%d)"
+           % len(desktop_fields))
+    else:
+        fail("DATA_FORMAT.md lists the note's fields the desktop has",
+             "the desktop has and the document does not: %s\n"
+             "the document has and the desktop does not: %s"
+             % (sorted(desktop_fields - documented) or "-",
+                sorted(documented - {"id"} - desktop_fields) or "-"))
+
 print()
 if failures:
     print("THE NOTE'S SHAPE: %d disagreement(s)." % len(failures))

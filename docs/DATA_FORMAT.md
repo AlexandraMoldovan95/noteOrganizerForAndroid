@@ -62,7 +62,9 @@ that reads or writes what it covers.
 ## The data contract
 
 Plain JSON, no database. When the desktop app runs as its packaged
-`.exe`, its files are in `%APPDATA%\NoteOrganizer\`; this app keeps its
+`.exe`, its files are in the profile's `Note Organizer` folder
+(`C:\Users\<name>\Note Organizer`; `%APPDATA%\NoteOrganizer` until
+2026-10-27); this app keeps its
 own notebook in its private storage, in `files/notebook/`, where no other
 app can read it. The files are the same files, byte for byte in shape;
 a notebook moves between the two as a [backup](#backups), and single
@@ -164,9 +166,8 @@ are adopted with a colour, as the desktop's `load_categories` does.
 
 Every note passes through one choke point in the desktop app
 (`normalize_note`), which coerces anything malformed into these defaults.
-Field for field, as of the desktop's `0.95.382` — and
-`tools/check_note_shape.py` fails the day this list and the Python's
-stop agreeing:
+Field for field — and `tools/check_note_shape.py` fails the day this
+list and the Python's stop agreeing:
 
 ```jsonc
 {
@@ -244,10 +245,14 @@ existed only in the desktop's memory until something saved, so a notebook
 copied to a phone could carry a set of identities the desktop itself would
 not recognise after a restart.
 
-**This app mints only for notes IT creates.** A note that arrives without
-an identity is left exactly as it is. If both programs minted, the same
-note would end up with two different names — the collision the field
-exists to prevent, manufactured by the fix for it.
+**This app mints for the notes it adds:** the ones it creates, and the ones
+an import — a backup or a share code — brings without an identity, which
+`Normalize.normalizeNote` gives one as the desktop's `normalize_note` does.
+A note already in the file is not given one when it is read. Minting on
+reading was the danger while the two programs shared one folder: each would
+have named the same note differently, the collision the field exists to
+prevent. Each now keeps a notebook of its own, and a note crosses between
+them only through an import.
 
 ### Recurrence
 
@@ -633,13 +638,10 @@ Three decisions follow from that:
 * **A cell spanning several columns is left out of the width
   calculation**, or it would widen a column to fit text that is not in it.
 
-`splitBody` cuts the note into prose runs and tables and hands back
-UTF-16 offsets so the caller SLICES the already-styled text. Re-rendering
-each run on its own would need the formatting offsets recomputed per
-piece — a second copy of a rule, which is how they drift. Note the two
-coordinate systems living side by side: formatting spans are code points,
-these slices are UTF-16
-([why that matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
+`Editing.segments` cuts the note into prose runs and tables, each with
+its text and where it starts, counted in code points as the formatting
+spans are, so a run's spans are the note's own, shifted by its start
+([why the counting matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
 
 Cell text is drawn plain: a cell is not a slice of the body once the row
 has been taken apart, so styling inside a table is not shown. The screen
@@ -782,7 +784,7 @@ you already have" — and asks. See
 
 ### Build the code from the stored note, never from what is on screen
 
-`shareCodeFor` reads the note out of the array and encodes that. The
+`AppState.shareCode` reads the notes out of the array and encodes those. The
 desktop's editor did the opposite — it assembled a code from its editor
 snapshot — and so its codes silently went out without the identity,
 because identity is not something the screen holds. Fixed there in

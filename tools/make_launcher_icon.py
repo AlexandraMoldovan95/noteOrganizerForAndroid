@@ -16,9 +16,9 @@ WHAT ANDROID NEEDS, AND WHY THERE ARE TWO KINDS OF FILE
 -------------------------------------------------------
 Android 8 and later draw an ADAPTIVE icon: two layers, background and
 foreground, which the launcher masks into whatever shape the phone
-prefers -- circle, squircle, rounded square. The system crops to the
-middle 72 of 108 units, so the foreground is drawn at 66% and centred,
-or the launcher eats its edges.
+prefers -- circle, squircle, rounded square. The system keeps the
+middle 72 of 108 units and masks that, so the foreground is drawn at
+72/108 / sqrt(2), 47%, and centred, or a circle eats its corners.
 
 Older phones get the flat `mipmap-*/ic_launcher.webp` instead, at five
 densities. Both are produced here.
