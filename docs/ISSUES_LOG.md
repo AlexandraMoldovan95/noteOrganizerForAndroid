@@ -12,6 +12,8 @@ about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-02](#a-paste-meeting-a-list-one-road-at-a-time) | code | The lows wave's verification, rounds 5 to 11: one class found a road a round -- a pasted line read as a corrected word, a paste with no list handling, a copy carrying the next line's or its first line's looks, a whole item pasted over another keeping the covered marker ("2. 3. Bread", "3. 1. Kiwi") -- until round 9 tested the rule's whole matrix | When each fix of a rule leaves the case beside it, write the rule down and test its whole matrix on both apps at once; a fix by road is a fix of one cell |
+| [2026-11-01](#a-days-lists-read-by-line) | design | The lows wave's verification, rounds 1 to 4: a day of its own text took its lists' depth from the series by line, and Enter renumbered and stored it; the owner chose that a day keeps its own lists | What a copy can change, the copy keeps; structure borrowed by line number holds only until the first line moves |
 | [2026-11-01](#a-fuzz-that-never-took-the-road-it-guarded) | checking | The lows wave: the fuzz of a series' days passed on its seeds, never reached round 21's road in thousands of roads, excused a spent copy as a replaced one, and the gate let 26 of 31 test classes vanish one at a time | A random test proves only the roads it takes: count that it reaches the branch it guards, and take that branch's fix out to watch it fail alone |
 | [2026-11-01](#the-day-the-editor-stayed-on) | code | The audit's twenty-third round: Restore previous tapped on a day brought back a version with that day deleted, and the editor stayed on it; what was typed there was "Saved for this day only" to a day no screen showed and no search found | A guard written for one way a day stops being drawn is a question about every way: ask whether the day is drawn, not why it might not be |
 | [2026-11-01](#two-moves-onto-one-date-and-a-list-that-threw) | code | The audit's nineteenth round: a series holding two moves onto one date -- 0.13.0 after three ordinary taps, or an Undo beside a dead move -- gave History two rows of one key, and the list threw at every unfolding; graded low by the finder, taken as a crash by the session | A grade is about the road a person takes: a crash an upgrade can reach is not low because this build alone makes it rarely |
@@ -110,6 +112,82 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A paste meeting a list, one road at a time
+
+**2026-11-02.** The lows wave's verification, rounds 5 to 11, one agent a
+round at the last fix by name. Each found the next case of one class --
+what a copy carries and where a paste puts it, at a list. A list line cut
+and pasted back on a day read "• • Bread": the rule for Gboard's
+autocorrect sending a word and Enter in one edit took the paste for
+one. Kept from that rule, the field's paste got no list handling at all: a
+numbered line pasted back read 1, 2, 2, a nested one went to the margin, a
+day was stored apart from its series. A copy ending in a line break carried
+the next line's looks, one begun at a line's end that line's, one begun on
+a word the level of the item it came from. A whole item pasted over
+another kept the covered marker, "2. 3. Bread" -- over a selection ending
+at the next item, then over the last item, then into a new empty item,
+"3. 1. Kiwi".
+
+**The mechanism.** Two rules were never written down, so each road answered
+for itself: what of a line's looks a copy holds, and what a paste bringing
+its own marker does at an item's marker. Each fix covered the road it was
+found on, and the next round found the branch beside it; three times the
+fix itself had opened it (the corrected-word rule kept off the paste took
+the list rules with it; a fix moving the paste to the line's start made the
+landing-line rules read it as made there).
+
+**The fix.** The rules as they now stand, on both apps. Every paste the
+editor recognises is made by `Pasting.insert`, on a day too, which
+renumbers and gives depth as the desktop's paste does; a day's copy carries
+its lists' depth. A line's looks travel with its start: a copy holds the
+looks only of lines it has from their start. A paste over a list deletes as
+typing over it would, except that what the paste brings counts: its own
+marker takes the covered one's place when the selection begins at an
+item's marker, its own break the covered break's. With nothing selected at
+an item's marker end, the item keeps its marker, kind and looks, and the
+paste's own marker goes, as Word keeps a paragraph's list when a paste
+brings no paragraph mark. Round 9 gave the agent the rule written out and
+asked for its whole matrix -- 84,138 cases replayed, the two apps' deletion
+rules agreeing on all 6,146 compared -- rather than one road; rounds 10 and
+11 found one more case, on the desktop's side, then none. AS441-AS460.
+
+**The lesson:** when each fix of a rule leaves the case beside it, write
+the rule down and test its whole matrix on both apps at once; a fix by road
+is a fix of one cell.
+
+---
+
+## A day's lists, read by line
+
+**2026-11-01.** The lows wave's verification, rounds 1 to 4. The wave
+stopped a day of its own text from wearing the series' looks, and the
+first round found what that took away: a nested numbered list on such a day
+showed flat, and the next Enter renumbered it and stored it. Given its depth
+back from the series, the second round found the older form of it: add an
+item on the day, or a line above its list, and the items below took the
+depth of whatever stood on their line in the series. Then a day lacked the
+whole note's list rules, so Enter then Backspace at a nested item's start
+put it at the margin, stored; and a paste through the field, which the line
+remap reads as lines taken away, dropped a nested item's depth.
+
+**The mechanism.** A day's override kept its words and nothing of its
+lists, and a list's depth lives in the paragraph entries, which only the
+series had, numbered by line: every read of a day's lists asked the series
+what stood on the same line.
+
+**The fix.** The owner's call, "a day keeps its own lists": an override
+stores `paragraphs`, its own list lines (kind and depth, never alignment),
+at every save of the day; a day saved before falls back to the series by
+line; it follows the series again only when its lists match too
+(DATA_FORMAT). A day runs the list rules the whole note runs, and the lines
+an edit leaves take the looks of the line it began in, as the desktop's
+text gives inserted text the tags around it. AS431-AS440.
+
+**The lesson:** what a copy can change, the copy keeps; structure borrowed
+by line number holds only until the first line moves.
 
 ---
 
