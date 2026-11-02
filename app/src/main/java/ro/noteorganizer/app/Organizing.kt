@@ -278,6 +278,11 @@ object Organizing {
                     val att = atts.opt(j) as? JSONObject ?: continue
                     val stored = att.opt("stored_as") as? String ?: continue
                     if (!seen.add(stored)) continue
+                    // Duplicate gave the copy each file again under a new
+                    // name: the kept note holds it already, and merged, it
+                    // listed every file twice (the final audit's wave 3).
+                    if (attachmentsDir != null && (0 until merged.length()).any { k ->
+                            (merged.opt(k) as? JSONObject)?.let { sameFile(attachmentsDir, att, it) } == true }) continue
                     // A file that cannot be copied is left with the copy in
                     // the Trash, never shared with one the purge will empty.
                     val copy = attachmentsDir?.let { Importing.copyAttachment(it, stored) } ?: continue
@@ -291,6 +296,36 @@ object Organizing {
             replace(array, candidate)
         }
         return trashNotes(load, going)
+    }
+
+    /** Whether two attachments are one file twice: the same name shown and the same bytes, under two stored names. */
+    private fun sameFile(dir: File, one: JSONObject, other: JSONObject): Boolean {
+        if ((one.opt("filename") as? String ?: "") != (other.opt("filename") as? String ?: "")) return false
+        val first = Normalize.bareFileName(one.opt("stored_as") as? String ?: "")
+        val second = Normalize.bareFileName(other.opt("stored_as") as? String ?: "")
+        if (first.isEmpty() || second.isEmpty()) return false
+        val a = File(dir, first)
+        val b = File(dir, second)
+        if (!a.isFile || !b.isFile || a.length() != b.length()) return false
+        return try {
+            java.io.DataInputStream(a.inputStream().buffered()).use { x ->
+                java.io.DataInputStream(b.inputStream().buffered()).use { y ->
+                    val p = ByteArray(65536)
+                    val q = ByteArray(65536)
+                    var left = a.length()
+                    while (left > 0) {
+                        val n = minOf(left, p.size.toLong()).toInt()
+                        x.readFully(p, 0, n)
+                        y.readFully(q, 0, n)
+                        for (i in 0 until n) if (p[i] != q[i]) return false
+                        left -= n
+                    }
+                    true
+                }
+            }
+        } catch (e: java.io.IOException) {
+            false
+        }
     }
 
     // ---- attached files ----

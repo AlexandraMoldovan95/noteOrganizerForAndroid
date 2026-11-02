@@ -205,8 +205,13 @@ private fun DuplicatesPage(state: AppState) {
                 val title = notes.firstOrNull()?.optString("title")?.trim()?.ifEmpty { null } ?: "(untitled)"
                 Text(stringResource(R.string.dup_group, Editing.firstLetters(title, 36), group.size), color = palette.text,
                      fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                val withFiles = notes.map { (it.optJSONArray("attachments")?.length() ?: 0) > 0 }
-                if (withFiles.any { it } && withFiles.toSet().size > 1) {
+                // By the names shown, as the desktop's hint: copies that each
+                // hold files, but not the same ones, got no word of the merge.
+                val files = notes.map { note ->
+                    val list = note.optJSONArray("attachments")
+                    (0 until (list?.length() ?: 0)).map { list!!.optJSONObject(it)?.optString("filename") ?: "" }.sorted()
+                }
+                if (files.toSet().size > 1) {
                     Text(stringResource(R.string.dup_files_differ, Normalize.MAX_ATTACHMENTS), color = palette.accentText, fontSize = 12.sp,
                          fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                 }

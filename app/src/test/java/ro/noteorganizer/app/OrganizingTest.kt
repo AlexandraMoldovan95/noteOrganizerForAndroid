@@ -574,6 +574,25 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a file the copy kept already holds is not merged again, as Duplicate copies it under a new name`() {
+        // Cleaning up the app's own Duplicate gave the kept note every file
+        // twice (the final audit's wave 3, round 8).
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "b", "attachments": [{"filename": "map.png", "stored_as": "a_map.png"}]},
+             {"id": 2, "title": "Trip (copy)", "body": "b", "attachments": [
+               {"filename": "map.png", "stored_as": "b_map.png"}, {"filename": "map.png", "stored_as": "c_map.png"}]}]
+        """.trimIndent())
+        File(attachments(load), "a_map.png").writeText("MAP")
+        File(attachments(load), "b_map.png").writeText("MAP")
+        File(attachments(load), "c_map.png").writeText("ANOTHER MAP")
+        assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Ok)
+        val kept = notesOnDisk(load).getJSONObject(0).getJSONArray("attachments")
+        assertEquals("the same bytes once; the same name with other bytes is another file",
+                     listOf("MAP", "ANOTHER MAP"),
+                     (0 until kept.length()).map { File(attachments(load), kept.getJSONObject(it).getString("stored_as")).readText() })
+    }
+
+    @Test
     fun `only a copy in a group goes -- a tick left on a note no longer one is ignored`() {
         val load = notebook("""
             [{"id": 1, "title": "Trip", "body": "b"}, {"id": 2, "title": "Trip", "body": "b"},
