@@ -41,6 +41,20 @@ class OrganizingTest {
     // ---- duplicate ----
 
     @Test
+    fun `every text that says what a duplicate is names each part of the key`() {
+        // Settings → Duplicates once named four of the six parts while the
+        // import's questions named all six (the final audit's third wave).
+        val phrase = "same title, text, comments, category, checklist and repeat rule"
+        val parts = phrase.removePrefix("same ").replace(" and ", ", ").split(", ")
+        assertEquals(Normalize.dupKey(JSONObject()).split("\u0001").size, parts.size)
+        val strings = File("src/main/res/values/strings.xml").readText()
+        for (name in listOf("dup_explain", "q_duplicates_text", "q_duplicates_one")) {
+            val text = Regex("<string name=\"$name\">(.*?)</string>").find(strings)?.groupValues?.get(1)
+            assertTrue("$name says: $text", text != null && phrase in text)
+        }
+    }
+
+    @Test
     fun `a duplicate is a separate note, with files of its own`() {
         val load = notebook("""
             [{"id": 4, "uid": "u", "title": "Trip", "body": "b",

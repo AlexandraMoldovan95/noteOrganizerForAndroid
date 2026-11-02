@@ -860,7 +860,7 @@ class DaysTest {
                     }
                     op == "trash" -> {
                         val was = id()
-                        if (Organizing.trashNotes(load, listOf(was)) is SaveResult.Ok && Notebook.restoreFromTrash(load, was) !is SaveResult.Ok) {
+                        if (Organizing.trashNotes(load, listOf(was)) is SaveResult.Ok && Trashed.restore(load, was) !is SaveResult.Ok) {
                             failures.add("seed $seed $road the Trash did not give the series back")
                             break
                         }
@@ -1705,7 +1705,7 @@ class DaysTest {
         val entry = JSONArray(dayAndCopyDiffer()).getJSONObject(0).put("deleted_at", "2026-10-27 10:00:00")
         File(dir, "trash.json").writeText(JSONArray().put(entry).toString())
         val load = Notebook.load(dir)
-        assertTrue(Notebook.restoreFromTrash(load, 1) is SaveResult.Ok)
+        assertTrue(Trashed.restore(load, 1) is SaveResult.Ok)
         val disk = JSONArray(load.file!!.readText())
         assertEquals(listOf("Standup", "Standup (earlier text)"), (0 until disk.length()).map { disk.getJSONObject(it).getString("title") })
         assertEquals(2, load.raw!!.length())

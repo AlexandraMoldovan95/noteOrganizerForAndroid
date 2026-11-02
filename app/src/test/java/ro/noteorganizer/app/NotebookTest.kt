@@ -1405,7 +1405,7 @@ class NotebookTest {
     fun `restoring brings the note back and takes it out of the trash`() {
         val load = scratchWithTrash("""[{"id": 1}]""",
             """[{"id": 5, "title": "coming back", "deleted_at": "2026-01-01 10:00:00"}]""")
-        assertTrue(Notebook.restoreFromTrash(load, 5) is SaveResult.Ok)
+        assertTrue(Trashed.restore(load, 5) is SaveResult.Ok)
 
         val back = onDisk(load).getJSONObject(1)
         assertEquals("coming back", back.getString("title"))
@@ -1420,7 +1420,7 @@ class NotebookTest {
         // with the old id would put two notes under one id.
         val load = scratchWithTrash("""[{"id": 5, "title": "the new one"}]""",
             """[{"id": 5, "title": "the old one", "deleted_at": "2026-01-01 10:00:00"}]""")
-        val result = Notebook.restoreFromTrash(load, 5) as SaveResult.Ok
+        val result = Trashed.restore(load, 5) as SaveResult.Ok
         assertEquals(6, result.id)
         val ids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).getInt("id") }
         assertEquals(ids.size, ids.distinct().size)
@@ -1437,7 +1437,7 @@ class NotebookTest {
             trashFile = File(load.trashFile!!.parentFile, "no/such/trash.json"),
             trashRaw = load.trashRaw,
         )
-        assertTrue(Notebook.restoreFromTrash(doomed, 5) is SaveResult.Failed)
+        assertTrue(Trashed.restore(doomed, 5) is SaveResult.Failed)
         // The note is already safely back in the notebook.
         assertEquals("coming back", onDisk(load).getJSONObject(1).getString("title"))
     }
@@ -1453,7 +1453,7 @@ class NotebookTest {
                 "_prev": {"title": "Gym", "body": "Warm up.", "comments": "", "formatting": [], "paragraphs": [],
                           "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1},
                           "exceptions": [], "overrides": {"2026-11-09": {"body": "Leg day"}}, "moved": {}}}]""")
-        val back = Notebook.restoreFromTrash(load, 5) as SaveResult.Ok
+        val back = Trashed.restore(load, 5) as SaveResult.Ok
         assertTrue(Notebook.updateNote(load, back.id, "Gym", "Rowing only, the whole plan written again from nothing at all.") is SaveResult.Ok)
         val note = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it) }.single { it.getInt("id") == back.id }
         assertEquals("Leg day", note.getJSONObject("overrides").getJSONObject("2026-11-09").getString("body"))
@@ -1463,7 +1463,7 @@ class NotebookTest {
     fun `deleting a note that is already gone says so`() {
         val load = scratchWithTrash("""[{"id": 1}]""", "[]")
         assertTrue(Organizing.trashNotes(load, listOf(99)) is SaveResult.Failed)
-        assertTrue(Notebook.restoreFromTrash(load, 99) is SaveResult.Failed)
+        assertTrue(Trashed.restore(load, 99) is SaveResult.Failed)
     }
 
     // ---- how long a trashed note has ----
@@ -1486,7 +1486,7 @@ class NotebookTest {
     fun `a stamp the purge cannot read counts no days down on the row`() {
         // The row once read "2020-02-30" leniently and counted down to
         // "0 days left" for an entry the purge, reading strictly, keeps.
-        for (stamp in listOf("2020-02-30 10:00:00", "2020-10-05 25:00:00")) {
+        for (stamp in listOf("2020-02-30 10:00:00", "2020-10-05 25:00:00", "2020-10-05 10:00:00.5")) {
             val entry = JSONObject().put("deleted_at", stamp)
             assertFalse(Organizing.isPast(entry, 30))
             assertNull(Notebook.daysLeftInTrash(stamp, 30))

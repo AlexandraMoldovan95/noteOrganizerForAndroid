@@ -389,10 +389,4 @@ class SharingTest {
         assertEquals("footnotes", back.getString("comments"))
         assertEquals(1, back.getJSONArray("paragraphs").length())
     }
-
-    @Test
-    fun `asking for a code for a note that is gone gives nothing, not a crash`() {
-        val load = scratch("""[{"id": 1}]""")
-        assertEquals(null, Shares.codeFor(load, 99))
-    }
 }

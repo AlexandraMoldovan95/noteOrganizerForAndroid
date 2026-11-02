@@ -502,7 +502,7 @@
     <string name="settings_duplicates">Duplicates</string>
     <string name="settings_duplicates_sub">The same note twice, cleaned up</string>
     <!-- Duplicates: the desktop's panel, in its words -->
-    <string name="dup_explain">Notes with the same title, text, comments and category (ignoring case, spacing, date and colour). Tick the copies you want to remove — the rest are kept.</string>
+    <string name="dup_explain">Notes with the same title, text, comments, category, checklist and repeat rule (ignoring case, spacing, date and colour). Tick the copies you want to remove — the rest are kept.</string>
     <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
     <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
     <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>

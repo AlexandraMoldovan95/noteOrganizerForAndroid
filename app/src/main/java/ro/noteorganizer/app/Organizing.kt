@@ -805,17 +805,17 @@ object Organizing {
 
     /**
      * When an entry went to the Trash, read strictly: "2026-02-30" is no
-     * date. The purge and the row's "days left" both ask this, so they
-     * cannot disagree, as on the desktop.
+     * date, and neither is a stamp with more after its seconds -- the
+     * desktop's strptime refuses both. The purge and the row's "days left"
+     * both ask this, so they cannot disagree, as on the desktop.
      */
     internal fun deletedAt(stamp: String?): Date? {
+        val text = stamp ?: return null
         val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         format.isLenient = false
-        return try {
-            format.parse(stamp ?: "")
-        } catch (e: java.text.ParseException) {
-            null
-        }
+        val at = java.text.ParsePosition(0)
+        val date = format.parse(text, at)
+        return if (date != null && at.index == text.length) date else null
     }
 
     /** Whether an entry has outlived the window; an unreadable stamp never has. */
