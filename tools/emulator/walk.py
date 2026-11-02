@@ -403,7 +403,12 @@ def shot(folder, name, *must_say, patience=6.0):
         time.sleep(0.5)
         missing = screen_says(*must_say)
     if missing:
-        fail("photo %s: the screen does not say %s" % (name, missing))
+        # What was there instead, kept: the first look after a slow cold
+        # start found something else on the screen for twenty seconds, and
+        # a failure that kept nothing could not say what (2026-11-02).
+        seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+        fail("photo %s: the screen does not say %s -- it says %r" % (name, missing, seen[:200]))
+        photograph(folder, name + "-FAILED")
         return False
     photograph(folder, name)
     return True
@@ -708,6 +713,7 @@ def main():
     typing_styles(folder)
     comments_paste(folder)
     pasted_tables(folder)
+    paste_at_marker(folder)
     reminders(folder)
     wide(folder)
     screen_sizes(folder)
@@ -5852,6 +5858,74 @@ def pasted_tables(folder):
           repr(ended.get("body")))
     keyboard_down()
     shot(folder, "72b-pasted-after-table", "A new paragraph", "fuel")
+    back_to("Search notes")
+
+
+def paste_at_marker(folder):
+    """Copied items pasted where Enter in a list leaves the cursor -- a new
+    empty item -- and a whole item with its line break pasted right after an
+    item's number: the item kept its number and the paste brought its own,
+    "3. 1. Kiwi" (the lows wave's verification, rounds 8 and 9). The items
+    are copied as words from a note's comments, the plain field a walk can
+    fill. The cursor is placed by Ctrl+A and Left or Right, which close the
+    selection at the start or the end, then Right a counted number of times:
+    Up and Down, sent by adb, did not move it at all, Ctrl+Home neither, and
+    where a tap lands depends on the screen (the lows wave's walk, 2026-11-02)."""
+    print("\n-- items pasted at an item's number --")
+    if not seed_inside([
+        {"id": 1, "uid": "pm-two", "title": "Two items", "body": "words", "comments": "1. Kiwi\n2. Plum",
+         "created": "2026-11-02 09:00:00", "updated": "2026-11-02 09:00:00"},
+        {"id": 2, "uid": "pm-one", "title": "One item", "body": "words", "comments": "1. Fig\n",
+         "created": "2026-11-02 09:00:01", "updated": "2026-11-02 09:00:01"},
+        {"id": 3, "uid": "pm-list", "title": "Shop list", "body": "Shop\n1. Milk\n2. Bread",
+         "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number"}],
+         "created": "2026-11-02 09:00:02", "updated": "2026-11-02 09:00:02"},
+    ], {"welcome_offered": True}, "Two items"):
+        return
+
+    def keys(*codes):
+        adb("shell", "input", "keycombination", *map(str, codes))
+        time.sleep(1.0)
+
+    def copy_comments(title, words):
+        open_note(title)
+        tap(words, wait=0.8)
+        keys(113, 29)                              # Ctrl+A: the comments' words
+        keys(113, 31)                              # Ctrl+C
+        keyboard_down()
+        back_to("Search notes")
+
+    def body():
+        return (note_by_uid("pm-list") or {}).get("body") or ""
+
+    copy_comments("Two items", "Plum")
+    open_note("Shop list")
+    tap("Bread", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    adb("shell", "input", "keyevent", "22")        # Right: the note's end
+    time.sleep(0.4)
+    adb("shell", "input", "keyevent", "66")        # Enter: a new empty item
+    time.sleep(0.8)
+    keys(113, 50)                                  # Ctrl+V
+    keyboard_down()
+    check_settled("copied items pasted into the new empty item fill it, one number each",
+                  body, lambda b: b == "Shop\n1. Milk\n2. Bread\n3. Kiwi\n4. Plum")
+    shot(folder, "72c-pasted-into-new-item", "Kiwi", "Plum")
+    back_to("Search notes")
+
+    copy_comments("One item", "Fig")
+    open_note("Shop list")
+    tap("Milk", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    adb("shell", "input", "keyevent", "21")        # Left: the note's start
+    for _ in range(len("Shop\n1. ")):
+        adb("shell", "input", "keyevent", "22")    # Right, past "1. Milk"'s number
+    time.sleep(0.4)
+    keys(113, 50)                                  # Ctrl+V
+    keyboard_down()
+    check_settled("a whole item with its line break pasted right after an item's number goes in before it",
+                  body, lambda b: b == "Shop\n1. Fig\n2. Milk\n3. Bread\n4. Kiwi\n5. Plum")
+    shot(folder, "72d-pasted-before-item", "Fig", "Milk")
     back_to("Search notes")
 
 

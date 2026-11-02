@@ -205,7 +205,7 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 63 parts, and
+notebook the app wrote is read back through `run-as`. 67 parts, and
 353 checks in the last full run that passed whole: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for

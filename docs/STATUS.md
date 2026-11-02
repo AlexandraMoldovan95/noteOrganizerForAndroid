@@ -953,6 +953,10 @@ The first test on a real phone added eight parts and grew seven:
   table no longer.
 * **A table pasted into the comments**: a row copied and pasted there,
   left out, and the line at the foot saying so.
+* **Items pasted at an item's number** (2026-11-02, the final audit's lows
+  wave): two copied items pasted into the new empty item Enter leaves,
+  one number each; a whole item with its line break pasted right after
+  an item's number, going in before that item, the numbers counted again.
 * **A tap past a line's end** (2026-10-22, the owner's phone): past an
   item's end and a letter, past a plain line's end, past an item's end and
   Enter — each landing on the line tapped.
