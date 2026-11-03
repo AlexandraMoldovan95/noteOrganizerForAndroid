@@ -2147,7 +2147,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             // letter typed in the text above it.
             val inChecklist = remember(matches) { matches.filterIsInstance<Finding.InChecklist>() }
             val inComments = remember(matches) { matches.filterIsInstance<Finding.InComments>() }
-            Box(Modifier.onFocusChanged { rowsHaveKeys = it.hasFocus }) {
+            // A Column: the section draws its label, rows and box one under
+            // another, and a Box laid them over each other.
+            Column(Modifier.onFocusChanged { rowsHaveKeys = it.hasFocus }) {
                 ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
                                  found = inChecklist,
                                  current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
