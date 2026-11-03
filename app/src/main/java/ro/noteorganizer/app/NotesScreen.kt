@@ -145,6 +145,17 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // and the notes Show had hidden came in above it, out of view -- the new
     // note Show all was pressed for among them.
     var reveal by remember { mutableStateOf<Int?>(null) }
+    // Another sort, Show or grouping starts at the top, as a new search does:
+    // kept on its first card, Title A–Z seemed to begin there, the notes
+    // before it above the screen (wave 2, round 8). Before the effect below.
+    var arrangedFor by remember { mutableStateOf(Triple(order, show, grouped)) }
+    LaunchedEffect(order, show, grouped) {
+        val now = Triple(order, show, grouped)
+        if (now != arrangedFor) {
+            arrangedFor = now
+            if (reveal == null) reveal = -1
+        }
+    }
     LaunchedEffect(reveal, laidOut) {
         val id = reveal ?: return@LaunchedEffect
         val at = if (id == -1) 0 else laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
@@ -293,7 +304,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         }
                     },
                     actions = {
-                        IconButton(onClick = { state.setPinned(selected, !allPinned); selected = emptySet() },
+                        // Pinned, they go to the top: shown there, not above the screen.
+                        IconButton(onClick = { state.setPinned(selected, !allPinned); if (!allPinned) reveal = -1; selected = emptySet() },
                                    modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
                             Text("📌", fontSize = 18.sp)
                         }
@@ -310,12 +322,18 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (allPinned) R.string.unpin else R.string.pin)) },
-                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); selected = emptySet() },
+                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); if (!allPinned) reveal = -1; selected = emptySet() },
                             )
                             if (selected.size == 1) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.duplicate)) },
-                                    onClick = { moreMenu = false; state.duplicate(selected.single()); selected = emptySet() },
+                                    onClick = {
+                                        moreMenu = false
+                                        state.duplicate(selected.single())
+                                        // Stamped now, the copy goes to the top of Recently updated.
+                                        if (order == SortOrder.UPDATED_NEW) reveal = -1
+                                        selected = emptySet()
+                                    },
                                 )
                             }
                             DropdownMenuItem(
@@ -639,6 +657,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             onPick = { name ->
                 choosingCategory = false
                 state.moveToCategory(selected, name)
+                if (order == SortOrder.UPDATED_NEW) reveal = -1
                 selected = emptySet()
             },
             onDismiss = { choosingCategory = false },

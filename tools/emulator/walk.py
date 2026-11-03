@@ -695,6 +695,7 @@ def main():
     listing(folder)
     list_keeps_place(folder)
     what_hides_the_list(folder)
+    arranged_from_the_top(folder)
     previews(folder)
     arranging(folder)
     attaching(folder)
@@ -3590,6 +3591,28 @@ def code_read_away(folder):
     check("... and the screen is never held a second while it is read",
           longest < 1.0 and max(skipped or [0]) < 60, "longest frame %.2f s, frames skipped %s" % (longest, skipped))
     tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def arranged_from_the_top(folder):
+    """Another sort, or a first pin, with the list at its top: the list
+    starts at its new top. Keyed by note, it kept the card it had in sight,
+    and Title A–Z seemed to begin there, a pinned note above the screen
+    (wave 2, round 8)."""
+    print("\n-- a new order starts at the list's top --")
+    fruit = ["Apple", "Banana", "Cherry", "Damson", "Elder", "Fig", "Grape", "Hazel",
+             "Kiwi", "Lemon", "Mango", "Nectarine"]
+    if not seed_inside([{"id": i + 1, "uid": "walk-o%d" % i, "title": name, "body": "x",
+                         "category": "General", "created": "2026-10-%02d 09:00" % (i + 1),
+                         "updated": "2026-10-%02d 09:00" % (i + 1)} for i, name in enumerate(fruit)],
+                       {"welcome_offered": True}, "Nectarine"):
+        return
+    tap("Sort: Recently updated", wait=1.0)
+    tap("Title A–Z", exact=True, wait=1.5)
+    check("Title A–Z chosen at the list's top shows its first note", not says_soon("Apple"))
+    if long_press("Cherry"):
+        tap("📌", wait=1.5)
+        check("a note pinned from the list's top is shown at its new place", not says_soon("Cherry", "Apple"))
     back_to("Search notes")
 
 

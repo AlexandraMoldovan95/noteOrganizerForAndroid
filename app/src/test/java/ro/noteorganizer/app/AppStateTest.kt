@@ -332,6 +332,25 @@ class AppStateTest {
     }
 
     @Test
+    fun `a change that takes the editor to another day or closes it writes the words in A new item first`() {
+        // A day moved with them left in the box built the editor anew, the
+        // box empty, the words kept nowhere (wave 2, round 8).
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1, "2026-10-12")
+        val seen = ArrayList<String>()
+        s.flush = { seen.add("whole"); null }
+        s.flushStaying = { seen.add("staying"); null }
+        s.moveDay(1, "2026-10-12", "2026-10-13")
+        assertEquals("2026-10-13", s.openDay)
+        s.snackbar.currentSnackbarData!!.performAction()
+        s.resetDay(1, "2026-10-19")
+        s.deleteDay(1, "2026-10-26")
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "daily"}""")))
+        assertEquals(listOf("whole", "whole", "whole", "whole", "whole"), seen)
+    }
+
+    @Test
     fun anImportReadsTheOpenNoteBackAndOnlyAnOpenOne() {
         val s = state()
         val rewritten = s.openNoteRewritten

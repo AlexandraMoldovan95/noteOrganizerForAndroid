@@ -505,9 +505,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * carries the last words typed -- and, when the change [writes] it,
      * the editor reads it back after. Null, the change not made, when the
      * editor's words cannot be saved: read back, or the note sent to the
-     * Trash, they would be gone. A change that [closes] the note takes the
-     * words in "A new item…" with it as a row; any other leaves them in the
-     * box ([saveStaying]).
+     * Trash, they would be gone. A change that [closes] the editor -- or can
+     * take it to another day, which builds it anew -- takes the words in "A
+     * new item…" with it as a row; any other leaves them in the box
+     * ([saveStaying]). A day moved with them left there lost them (round 8).
      */
     private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, closes: Boolean = false,
                             change: () -> T): T? {
@@ -650,7 +651,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** One day out of its series, with the Undo the desktop's toast offers. */
     fun deleteDay(id: Int, day: String) {
-        val (result, gone) = outside(listOf(id)) { Days.deleteDay(load, id, day) } ?: return
+        val (result, gone) = outside(listOf(id), closes = true) { Days.deleteDay(load, id, day) } ?: return
         if (!report(result) || gone == null) return
         if (openId == id && openDay == day) closeNote()
         offerUndo("Day removed") { report(Days.undoDeleteDay(load, gone)) }
@@ -658,7 +659,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     fun resetDay(id: Int, day: String, dropText: Boolean = true, sendHome: Boolean = true) {
         val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
-        report(outside(listOf(id)) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
+        report(outside(listOf(id), closes = true) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
             // The editor open on the day goes with it, to where it is now.
             if (sendHome && home != null && openId == id && openDay == day) openDay = home
             say(if (dropText) "This day follows the series again" else "This day is back on its own date")
@@ -672,11 +673,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * puts it back while it still can.
      */
     fun moveDay(id: Int, day: String, to: String) {
-        val (result, move) = outside(listOf(id)) { Days.moveDay(load, id, day, to) } ?: return
+        val (result, move) = outside(listOf(id), closes = true) { Days.moveDay(load, id, day, to) } ?: return
         if (!report(result) || move == null) return
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
-            report(outside(listOf(move.id)) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
+            report(outside(listOf(move.id), closes = true) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
                 if (openId == move.id && openDay == move.to) openDay = move.from
                 say("Moved back to ${shownDay(move.from)}")
             }
@@ -685,14 +686,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** A day off its series' schedule made a note of its own, or that note sent to the Trash. */
     fun settleOffScheduleDay(id: Int, day: String, how: Days.Settle): Boolean {
-        val result = outside(listOf(id)) { Days.settleOffScheduleDay(load, id, day, how) } ?: return false
+        val result = outside(listOf(id), closes = true) { Days.settleOffScheduleDay(load, id, day, how) } ?: return false
         return report(result)
     }
 
     private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun setRepeat(id: Int, rule: JSONObject?, startWas: Any? = null): Boolean {
-        val result = outside(listOf(id)) { Days.setRepeat(load, id, rule, startWas) } ?: return false
+        val result = outside(listOf(id), closes = true) { Days.setRepeat(load, id, rule, startWas) } ?: return false
         return report(result)
     }
 
