@@ -152,16 +152,19 @@ class MainActivity : ComponentActivity() {
                 state.sendText = { text -> share(text) }
                 state.openFile = { file, name -> open(file, name) }
                 flush = {
-                    state.flush?.invoke()
+                    (state.flushAway ?: state.flush)?.invoke()
                     state.keepTemplateDraft?.invoke()
                 }
             }
             val waiting by incoming
+            val sharedNoteSaid = stringResource(R.string.shared_text_note)
             LaunchedEffect(waiting) {
-                if (waiting != null) {
-                    state.incomingCode = waiting
-                    incoming.value = null
-                }
+                val text = waiting ?: return@LaunchedEffect
+                // A code, with words around it or not, is imported; any other
+                // text becomes a note of its own (the owner's choice, wave 2).
+                if (text.contains(Sharing.PREFIX)) state.incomingCode = text
+                else state.noteFromShared(text, sharedNoteSaid)
+                incoming.value = null
             }
             val tapped by todayTapped
             LaunchedEffect(tapped) { if (tapped > 0) state.todayAsked += 1 }
@@ -170,6 +173,7 @@ class MainActivity : ComponentActivity() {
             // update, and the setting may have changed on another device.
             val resumed by resumes
             LaunchedEffect(resumed) {
+                state.backAgain?.invoke()
                 state.dayIs(Recurrence.formatDate(LocalDate.now()))
                 ReminderAlarm.schedule(this@MainActivity, state.settings)
             }

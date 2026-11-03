@@ -385,6 +385,11 @@ private fun NamePage(state: AppState) {
     fun save() {
         saved = state.putSetting(Settings.USERNAME, draft.trim())
     }
+    // Kept when the page is left by Back too, as the desktop's box keeps it
+    // as it is typed: the name went with the page, unsaid (wave 2).
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { if (draft.trim() != Settings.username(state.settings)) save() }
+    }
     PageColumn {
         Text(stringResource(R.string.name_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
         OutlinedTextField(value = nameField, onValueChange = { next ->

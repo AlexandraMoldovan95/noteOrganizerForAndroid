@@ -551,6 +551,20 @@ class AppStateTest {
     }
 
     @Test
+    fun `two deletes in a row, and the Undo on screen brings back the second`() {
+        // The second bar waited behind the first, so the Undo a thumb reached
+        // took back the note deleted before (wave 2).
+        val dir = dirOf(scratch("""[{"id": 1, "uid": "a", "title": "One"}, {"id": 2, "uid": "b", "title": "Two"}]""",
+                                attachments = true))
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        s.trash(listOf(1))
+        s.trash(listOf(2))
+        s.snackbar.currentSnackbarData!!.performAction()
+        // By title: a note back from the Trash takes the next free id.
+        assertEquals(listOf("Two"), s.load.notes.map { it.title })
+    }
+
+    @Test
     fun `an Undo bar lasts from when it shows, for as long as the phone asks`() {
         // Its own eight seconds counted from the asking: queued behind another
         // message it flashed for a second, or stayed for good. Android's long
@@ -561,6 +575,29 @@ class AppStateTest {
         val offer = s.snackbar.currentSnackbarData!!
         assertEquals("Undo", offer.visuals.actionLabel)
         assertEquals(androidx.compose.material3.SnackbarDuration.Long, offer.visuals.duration)
+    }
+
+    @Test
+    fun `half-typed words written as a row on the way to the background are back in the box on return`() {
+        // Kept as a row in case Android ends the app; left so, the person
+        // came back to a finished item and an empty box (wave 2).
+        val (s, editor) = checklist("flour")
+        editor.adding = "bre"
+        assertNull(editor.writeAway())
+        assertEquals(listOf("flour", "bre"), s.rowsOnDisk())
+        assertEquals("", editor.adding)
+        editor.backAgain()
+        assertEquals(listOf("flour"), s.rowsOnDisk())
+        assertEquals("bre", editor.adding)
+        // Once only, and never over a row changed since.
+        editor.backAgain()
+        assertEquals(listOf("flour"), s.rowsOnDisk())
+        editor.adding = "milk"
+        assertNull(editor.writeAway())
+        assertTrue(Notebook.addChecklistItem(s.load, editor.id, "eggs") is SaveResult.Ok)
+        editor.backAgain()
+        assertEquals(listOf("flour", "milk", "eggs"), s.rowsOnDisk())
+        assertEquals("", editor.adding)
     }
 
     @Test

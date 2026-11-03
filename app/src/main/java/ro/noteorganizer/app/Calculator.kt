@@ -59,6 +59,30 @@ object Calculator {
     /** Python's spaces, which the JVM's whitespace does not quite match. */
     private fun isSpace(cp: Int): Boolean = PyText.isSpace(cp)
 
+    /** What a keyboard types for the keys' symbols: typed sums said Error. */
+    private val TYPED = mapOf('-'.code to '−'.code, '*'.code to '×'.code, 'x'.code to '×'.code,
+                              'X'.code to '×'.code, '/'.code to '÷'.code, ':'.code to '÷'.code)
+
+    /**
+     * [cps] with what a keyboard types read as the keys' symbols, and a comma
+     * between two digits as the decimal point, as Romanian writes 2,5 --
+     * unless exactly three digits follow it: 1,000 is a thousand in English
+     * and one in Romanian, so it stays a comma and the sum says Error, never
+     * a number nobody meant. The desktop's `_as_buttons_spell`.
+     */
+    private fun asKeysSpell(cps: IntArray): IntArray = IntArray(cps.size) { k ->
+        val cp = cps[k]
+        if (cp == ','.code && k > 0 && Character.isDigit(cps[k - 1]) && digitsAfter(cps, k).let { it != 0 && it != 3 }) '.'.code
+        else TYPED[cp] ?: cp
+    }
+
+    /** How many digits follow [cps]' [at] in a row. */
+    private fun digitsAfter(cps: IntArray, at: Int): Int {
+        var run = 0
+        while (at + 1 + run < cps.size && Character.isDigit(cps[at + 1 + run])) run++
+        return run
+    }
+
     /**
      * The text cut into numbers and one-character symbols. A digit is any
      * decimal digit, in any script -- Python's `isdecimal()`, which a pasted
@@ -66,7 +90,7 @@ object Calculator {
      * value, since the JVM's number parser knows only 0-9.
      */
     private fun tokenize(expr: String): List<Any> {
-        val cps = expr.codePoints().toArray()
+        val cps = asKeysSpell(expr.codePoints().toArray())
         val tokens = ArrayList<Any>()
         var i = 0
         while (i < cps.size) {

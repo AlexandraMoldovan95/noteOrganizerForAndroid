@@ -1,7 +1,5 @@
 package ro.noteorganizer.app
 
-import java.util.Locale
-
 /**
  * Find in note: the desktop's find bar, as rules.
  *
@@ -12,9 +10,8 @@ import java.util.Locale
  *
  * The desktop's own rules, kept:
  *
- *  - Case does not count unless asked ("Aa"). Prose compares letter by
- *    letter, as Tk's own search does; a cell compares its lower-cased text,
- *    as the desktop's cell scan does.
+ *  - Case and diacritics do not count unless asked ("Aa"): "creme" finds
+ *    "Crème", in prose and in a cell alike ([searchFold]).
  *  - Matches may overlap: "aa" is found twice in "aaa", because each search
  *    starts one character after the last match began.
  *  - A cell is one match however often its words occur in it, and is
@@ -56,41 +53,6 @@ object Finding {
     const val OUTSIDE = -1
 
     /**
-     * Letter by letter, so every position in the text stays where it was --
-     * each lowered as Tk's -nocase search lowers it, the desktop's
-     * `_tcl_lower` (098d5a8): one for one, by its simple case mapping, in
-     * the basic plane only, and left as it is when its lower case takes more
-     * bytes in UTF-8, as Tcl_UtfToLower leaves it. Lowered whole, Ⱥ and Ⱦ
-     * (two bytes, their lower case three) and every letter past the basic
-     * plane were found here and not on the desktop (the final audit's tenth
-     * round).
-     */
-    private fun foldEach(text: String): String {
-        val out = StringBuilder(text.length)
-        var i = 0
-        while (i < text.length) {
-            val cp = text.codePointAt(i)
-            out.appendCodePoint(tclLower(cp))
-            i += Character.charCount(cp)
-        }
-        return out.toString()
-    }
-
-    /** One letter as Tcl lowers it on its own: [foldEach]'s rule. */
-    private fun tclLower(cp: Int): Int {
-        if (cp > 0xFFFF) return cp
-        val low = Character.toLowerCase(cp)
-        return if (low != cp && utf8Length(low) <= utf8Length(cp)) low else cp
-    }
-
-    private fun utf8Length(cp: Int): Int = when {
-        cp < 0x80 -> 1
-        cp < 0x800 -> 2
-        cp < 0x10000 -> 3
-        else -> 4
-    }
-
-    /**
      * Every match of [query] in [body], top to bottom -- then in the
      * [checklist]'s rows and the [comments] under it, as the note reads
      * on the screen. Those two are searched as prose is. The desktop's bar
@@ -102,12 +64,11 @@ object Finding {
              checklist: List<String> = emptyList(), comments: String = ""): List<Match> {
         if (query.isEmpty()) return emptyList()
         val found = ArrayList<Match>()
-        val needle = if (matchCase) query else foldEach(query)
-        val cellNeedle = if (matchCase) query else query.lowercase(Locale.ROOT)
+        val needle = if (matchCase) query else searchFold(query)
 
         // Letter by letter, each search one character after the last match began.
         fun inText(text: String, add: (Int, Int) -> Match) {
-            val hay = if (matchCase) text else foldEach(text)
+            val hay = if (matchCase) text else searchFold(text)
             var at = hay.indexOf(needle)
             while (at >= 0 && found.size < CAP) {
                 found.add(add(at, at + needle.length))
@@ -117,7 +78,7 @@ object Finding {
 
         // Read-only text: the first match on each line, its line one stop.
         fun inLines(text: String, add: (Int, Int) -> Match) {
-            val hay = if (matchCase) text else foldEach(text)
+            val hay = if (matchCase) text else searchFold(text)
             var at = hay.indexOf(needle)
             while (at >= 0 && found.size < CAP) {
                 found.add(add(at, at + needle.length))
@@ -157,8 +118,8 @@ object Finding {
                     if (cell.checked != null) continue
                     val text = cell.lines.joinToString(" ")
                     if (text == MERGE_LEFT || text == MERGE_UP) continue
-                    val hay = if (matchCase) text else text.lowercase(Locale.ROOT)
-                    if (cellNeedle in hay) found.add(InCell(index, r, c))
+                    val hay = if (matchCase) text else searchFold(text)
+                    if (needle in hay) found.add(InCell(index, r, c))
                 }
             }
         }

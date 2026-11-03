@@ -88,6 +88,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var newNoteDate: String = ""
         private set
 
+    /**
+     * A new note written since the list last looked: the list asks, once the
+     * note is closed, whether it can show it ([NotesScreen]).
+     */
+    var newNoteMade by mutableStateOf<Int?>(null)
+
     // ---- the calendar ----
 
     /**
@@ -265,6 +271,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * most notes are left -- not by Back.
      */
     var flush: (() -> String?)? = null
+
+    /** [flush] as the app goes to the background, and its undoing when the app is back in front (EditorModel.writeAway). */
+    var flushAway: (() -> String?)? = null
+    var backAgain: (() -> Unit)? = null
 
     /**
      * Keeps aside the template being written, when it holds changes nobody
@@ -450,6 +460,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     fun newNoteSaved(id: Int) {
         if (openId == 0) openId = id
+        // Made from a calendar day, it stands on that day, where it was made.
+        if (tab == Tab.NOTES) newNoteMade = id
     }
 
     fun closeNote() {
@@ -643,6 +655,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * was showing, not itself.
      */
     private fun offerUndo(message: String, undo: () -> Unit) {
+        // The newest takes the bar, as the desktop's banner is replaced: two
+        // deletes in a row, and the Undo on screen brought back the first.
+        snackbar.currentSnackbarData?.dismiss()
         scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = "Undo",
                 duration = SnackbarDuration.Long, withDismissAction = false)
@@ -677,6 +692,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun useTemplate(template: JSONObject, said: String) {
         report(Templates.newNote(load, template, load.categories.keys)) { ok ->
             openNote(ok.id)
+            newNoteMade = ok.id
+            say(said)
+        }
+    }
+
+    /**
+     * Text shared from another app that holds no code becomes a note: its
+     * first line the title, kept to a title's length, the rest its text.
+     * The app is in every share sheet for text, and a link or a paragraph
+     * sent to it ended at "This isn't a Note Organizer share code" (wave 2,
+     * the owner's choice).
+     */
+    fun noteFromShared(text: String, said: String) = leaving {
+        val lines = text.replace("\r\n", "\n").trim().split("\n", limit = 2)
+        val title = Editing.firstLetters(lines[0].trim(), Editing.TITLE_CHARS)
+        report(Notebook.createNote(load, title, lines.getOrElse(1) { "" }.trim('\n'))) { ok ->
+            openNote(ok.id)
+            newNoteMade = ok.id
             say(said)
         }
     }

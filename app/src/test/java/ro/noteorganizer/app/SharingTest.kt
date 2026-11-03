@@ -178,10 +178,27 @@ class SharingTest {
         // phone. (Before the code, either device reads it as no code.)
         val code = Sharing.encode(listOf(note("""{"title": "Lista de cumpărături"}""")))
         val middle = Sharing.PREFIX.length + 8
-        for (pasted in listOf("$code.", "$code\"", "$code)", "$code>", code.take(middle) + "*" + code.drop(middle))) {
+        // And the invisible break marks a chat app puts into a long word.
+        for (pasted in listOf("$code.", "$code\"", "$code)", "$code>", code.take(middle) + "​" + code.drop(middle),
+                              code.take(middle) + "­" + code.drop(middle))) {
             val result = Sharing.decode(pasted)
             assertTrue(pasted.takeLast(3), result is Sharing.Decoded.Notes)
             assertEquals("Lista de cumpărături", (result as Sharing.Decoded.Notes).notes.single().getString("title"))
+        }
+    }
+
+    @Test
+    fun `a code is found among the words around it, padded or not, as the desktop's code_in finds it`() {
+        // A greeting before it, a mail signature or "Thanks" after it: read
+        // only now and then, as the code's padding happened to fall (wave 2).
+        for (title in listOf("x", "xy", "xyz", "wxyz")) {
+            val code = Sharing.encode(listOf(note("""{"title": "$title"}""")))
+            for (pasted in listOf("Hi Ana!\n$code\nThanks", "$code Sent from my phone",
+                                  "Here: ${code.take(30)}\n${code.drop(30)}", "$code and NOTE1:another")) {
+                val result = Sharing.decode(pasted)
+                assertTrue("$title in ${pasted.take(12)}…", result is Sharing.Decoded.Notes)
+                assertEquals(title, (result as Sharing.Decoded.Notes).notes.single().getString("title"))
+            }
         }
     }
 

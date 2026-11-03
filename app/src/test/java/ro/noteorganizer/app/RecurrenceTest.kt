@@ -292,6 +292,13 @@ class RecurrenceTest {
     }
 
     @Test
+    fun `the History's search folds case and diacritics, as the list's does`() {
+        val note = JSONObject("""{"id": 9, "title": "Crème brûlée night", "body": "x", "comments": "", "date": "2026-05-04"}""")
+        assertEquals(listOf(9), Recurrence.history(listOf(note), query = "CREME BRULEE", today = today).map { it.noteId })
+        assertEquals(listOf(9), Recurrence.history(listOf(note), query = "crême", today = today).map { it.noteId })
+    }
+
+    @Test
     fun `the year filter keeps only that year's activity`() {
         val last = Recurrence.history(historyNotes, yearBucket = "Last year", today = today)
         assertEquals(listOf(3), last.map { it.noteId })

@@ -86,7 +86,7 @@ data class Note(
     val checklistDone: Int get() = checklist.count { it.done }
 
     /**
-     * Everything this note can be found by, lowercased, computed once.
+     * Everything this note can be found by, folded ([searchFold]), computed once.
      *
      * Once, because the alternative is stripping a 107,000-character
      * body's table plumbing on every keystroke for every note. The
@@ -95,7 +95,7 @@ data class Note(
      */
     private val searchText: String by lazy {
         val bodyText = if (body.contains('|')) contentText(body) else body
-        fold(title + "\n" + bodyText + "\n" + comments)
+        searchFold(title + "\n" + bodyText + "\n" + comments + "\n" + checklist.joinToString("\n") { it.text })
     }
 
     /**
@@ -106,13 +106,15 @@ data class Note(
      * and "select all" quietly selected notes the filter had hidden --
      * then bulk actions hit them. One definition, every caller.
      *
-     * Title, body and comments. Not the category, not the checklist --
-     * matching the desktop rather than improving on it, because a
-     * difference here is a surprise, not a feature.
+     * Title, body, comments and the checklist's rows -- the desktop's rule,
+     * since a difference here is a surprise, not a feature. The query's ends
+     * are not part of it: a word picked from the keyboard's suggestions comes
+     * with a space after it, and missed every word ending a line.
      */
     fun matches(query: String): Boolean {
-        if (query.isEmpty()) return true
-        return searchText.contains(fold(query))
+        val q = searchFold(PyText.strip(query))
+        if (q.isEmpty()) return true
+        return searchText.contains(q)
     }
 
     /**
@@ -208,30 +210,43 @@ data class Note(
 }
 
 /**
- * Folds a string so that `si` finds `și` and `masina` finds `mașină`.
- *
- * **This is the first deliberate difference from the desktop**, which
- * compares the letters as typed. It is a one-way widening — a folded
- * search finds everything the strict one would and more — so it can
- * surprise by finding too much, never by finding too little.
- *
- * The reason is the language. Romanian diacritics are routinely dropped
- * when typing quickly, especially on a phone keyboard, and a notebook
- * written half with them and half without is unsearchable under a strict
- * rule. It is worth porting back to the desktop rather than leaving the
- * two apps disagreeing.
- *
- * Decomposing and dropping the combining marks handles the whole set at
- * once: ă â î ș ț, and the cedilla spellings ş ţ that older Windows
- * keyboards produce, which are a different character from the comma-below
- * ones and would otherwise not match them either.
+ * Each character of the basic plane as a search compares it: its base
+ * letter, the diacritic dropped, then lowered -- always one for one, so a
+ * match's place in the text is its place in the folded text. Only marks are
+ * dropped: a Korean syllable comes apart into letters, and cut to its first it
+ * found every syllable that starts with the same one. The desktop's
+ * `_search_fold_table`.
  */
-fun fold(text: String): String {
-    val decomposed = Normalizer.normalize(text, Normalizer.Form.NFD)
-    return COMBINING_MARKS.replace(decomposed, "").lowercase()
+private val SEARCH_FOLD: CharArray by lazy {
+    CharArray(0x10000) { code ->
+        val ch = code.toChar()
+        if (ch.isSurrogate()) ch
+        else {
+            val parts = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD)
+            val marks = (1 until parts.length).all { Character.getType(parts[it]) == Character.NON_SPACING_MARK.toInt() }
+            val base = if (marks) parts[0] else ch
+            val low = base.toString().lowercase(java.util.Locale.ROOT)
+            if (low.length == 1) low[0] else base
+        }
+    }
 }
 
-private val COMBINING_MARKS = Regex("\\p{Mn}+")
+/**
+ * [text] as every search compares it -- the list, Find in note, the
+ * History: case and diacritics gone, so "sedinta" finds "Ședință" and ș with
+ * a comma finds ş with a cedilla. The desktop's `fold_for_search`; a
+ * character beyond the basic plane stays as it is.
+ *
+ * The phone folded the list's search first, and the reason is the language:
+ * Romanian diacritics are routinely dropped when typing quickly, and a
+ * notebook written half with them and half without is unsearchable under a
+ * strict rule. The owner chose it for every search on both apps (2026-11-03).
+ */
+fun searchFold(text: String): String {
+    val out = CharArray(text.length)
+    for (i in text.indices) out[i] = SEARCH_FOLD[text[i].code]
+    return String(out)
+}
 
 /**
  * How the list is ordered. The desktop's options, same rules -- and the
@@ -270,13 +285,14 @@ fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.fo
     val sorted = when (order) {
         SortOrder.UPDATED_NEW -> notes.sortedByDescending { it.updated }
         SortOrder.UPDATED_OLD -> notes.sortedBy { it.updated }
+        // Folded as a search folds: by code point, Ă Î Ș Ț came after Z.
         SortOrder.TITLE_AZ -> notes.sortedWith(
-            compareBy({ it.title.isBlank() }, { it.title.lowercase() }))
+            compareBy({ it.title.isBlank() }, { searchFold(it.title) }, { it.title }))
         SortOrder.TITLE_ZA -> notes.sortedWith(
             compareBy<Note> { it.title.isBlank() }
-                .thenByDescending { it.title.lowercase() })
+                .thenByDescending { searchFold(it.title) }.thenByDescending { it.title })
         SortOrder.CATEGORY -> notes.sortedWith(
-            compareBy({ it.category }, { it.updated }))
+            compareBy({ searchFold(it.category) }, { it.category }, { it.updated }))
         SortOrder.SOONEST -> {
             // Each note's NEXT date from today, a series by its next day:
             // what is coming first, then the past newest first, then the

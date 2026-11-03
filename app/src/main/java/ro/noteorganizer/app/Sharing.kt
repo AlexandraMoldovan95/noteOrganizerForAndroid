@@ -171,27 +171,46 @@ object Sharing {
     private fun tooMuchForOneCode() = TooLarge("That is too much for one code. Share fewer notes at a time, " +
                                                "or send a backup instead: Settings → Backup.")
 
+    /** What a chat app wraps a code with: whitespace, and the invisible break marks. */
+    private fun wrapping(c: Char) =
+        c.isWhitespace() || c == '­' || c in '​'..'‍' || c == '⁠' || c == '﻿'
+
     /**
-     * A code's letters as the desktop's `base64.urlsafe_b64decode` reads
-     * them: its alphabet kept -- `+` and `/` being `-` and `_` in the other
-     * spelling -- and every other character dropped. A code that ended a
-     * sentence in a mail ("…AbC.") or was wrapped in quotes or brackets
-     * imported on the computer and was called damaged here. A code missing
-     * its `=` padding the phone already reads, and goes on reading.
+     * The share code inside [text], its wrapping taken out -- the desktop's
+     * `code_in`: from its prefix to its padding, or to the first character a
+     * code is not written in (`+` and `/` read as `-` and `_`, the other
+     * spelling), so "Hi! NOTE1:… Thanks" reads, where every word around a
+     * code made it unreadable now and then. Without padding, the letters past
+     * the last whole group of four are left (a word after it). [text] itself,
+     * whitespace out, when it holds no prefix.
      */
-    private fun base64Letters(body: String): String = buildString(body.length) {
-        for (c in body) {
+    internal fun codeIn(text: String): String {
+        val at = text.indexOf(PREFIX)
+        if (at < 0) return text.filterNot { it.isWhitespace() }
+        val body = StringBuilder()
+        var padded = false
+        for (i in at + PREFIX.length until text.length) {
+            val c = text[i]
+            if (wrapping(c)) continue
+            if (c == '=') {
+                padded = true
+                body.append(c)
+                continue
+            }
+            if (padded) break
             when {
-                c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c == '-' || c == '_' || c == '=' -> append(c)
-                c == '+' -> append('-')
-                c == '/' -> append('_')
+                c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c == '-' || c == '_' -> body.append(c)
+                c == '+' -> body.append('-')
+                c == '/' -> body.append('_')
+                else -> break
             }
         }
+        if (!padded) body.setLength(body.length - body.length % 4)
+        return PREFIX + body
     }
 
     fun decode(code: String): Decoded {
-        // Chat apps wrap long codes; whitespace anywhere is not damage.
-        val cleaned = code.filterNot { it.isWhitespace() }
+        val cleaned = codeIn(code)
         // The desktop's words, from decode_share_code, so the same damaged
         // code is described the same way on both devices.
         if (cleaned.isEmpty()) return Decoded.Failed("No code was pasted.")
@@ -206,7 +225,7 @@ object Sharing {
                 "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
         }
         val compressed = try {
-            Base64.getUrlDecoder().decode(base64Letters(cleaned.substring(PREFIX.length)))
+            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length))
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +

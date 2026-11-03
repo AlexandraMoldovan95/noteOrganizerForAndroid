@@ -102,6 +102,8 @@ MARKS_ONLY = {
         "the doc comment on the search fold shows what it folds",
     "app/src/test/java/ro/noteorganizer/app/NotebookTest.kt":
         "the tests that search with and without diacritics",
+    "app/src/test/java/ro/noteorganizer/app/FindingTest.kt":
+        "the tests that Find in note matches both Romanian spellings of a letter",
     "app/src/test/java/ro/noteorganizer/app/SharingTest.kt":
         "a share code must carry diacritics through untouched",
     "app/src/test/java/ro/noteorganizer/app/InteropTest.kt":

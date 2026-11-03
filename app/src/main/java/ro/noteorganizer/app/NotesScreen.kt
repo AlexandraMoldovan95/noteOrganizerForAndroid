@@ -130,6 +130,55 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             listState.scrollToItem(0)
         }
     }
+
+    /** In words, what keeps [note] off the list -- or, with none, what keeps notes off it; "" for nothing. */
+    fun hiding(note: Note?): String = listOfNotNull(
+        "your search".takeIf { PyText.strip(query).isNotEmpty() && (note == null || !note.matches(query)) },
+        "Show: $show".takeIf { show != Showing.ALL && (note == null || !Showing.passes(note, show)) },
+        "its folded group".takeIf { note != null && grouped && note.category.ifEmpty { Themes.PROTECTED_CATEGORY } in collapsed },
+    ).joinToString(" and ")
+
+    // The row Show all scrolls to once the list holds it: [note]'s card, or
+    // the top (-1). Left to itself the list keeps the card it had in sight,
+    // and the notes Show had hidden came in above it, out of view -- the new
+    // note Show all was pressed for among them.
+    var reveal by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(reveal, laidOut) {
+        val id = reveal ?: return@LaunchedEffect
+        val at = if (id == -1) 0 else laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
+        if (at < 0) return@LaunchedEffect
+        reveal = null
+        listState.scrollToItem(at)
+    }
+
+    /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
+    fun showAll(note: Note?) {
+        query = ""
+        listedFor = ""
+        reveal = note?.id ?: -1
+        if (show != Showing.ALL) state.putSetting(Settings.NOTE_FILTER, Showing.ALL)
+        val group = note?.category?.ifEmpty { Themes.PROTECTED_CATEGORY }
+        if (group != null && group in collapsed) {
+            state.putSetting(Settings.COLLAPSED_GROUPS, org.json.JSONArray((collapsed - group).sorted()))
+        }
+    }
+
+    // A new note the list cannot show -- filed under General with Show at
+    // Work, or not what the search looks for -- said once it is closed, with
+    // the way back: it vanished from the list as it was written (the desktop
+    // says it as the note is made).
+    val madeNew = state.newNoteMade
+    LaunchedEffect(madeNew, state.openId) {
+        val id = madeNew ?: return@LaunchedEffect
+        if (state.openId == id) return@LaunchedEffect
+        state.newNoteMade = null
+        val note = state.load.notes.firstOrNull { it.id == id } ?: return@LaunchedEffect
+        val hides = hiding(note)
+        if (hides.isNotEmpty()) {
+            state.offer("Saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}, hidden by $hides",
+                "Show all") { showAll(note) }
+        }
+    }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }
     var dragBy by remember { mutableFloatStateOf(0f) }
@@ -398,17 +447,18 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 load.notes.isEmpty() -> EmptyLine(stringResource(R.string.no_notes))
                 shown.isEmpty() -> Column(Modifier.padding(16.dp)) {
                     // The desktop separates "nothing matches" from "no notes":
-                    // they ask the reader to do different things.
-                    Text(stringResource(R.string.no_match), color = palette.subtext, fontSize = 14.sp)
-                    if (query.isNotEmpty()) {
-                        Text(
-                            stringResource(R.string.clear_search),
-                            color = palette.accentText,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 10.dp).clickable { query = "" },
-                        )
-                    }
+                    // they ask the reader to do different things. And it
+                    // names what is hiding them: with Show picked once and
+                    // forgotten, "your search" blamed a search nobody had typed.
+                    val hides = hiding(null).ifEmpty { "the list's choices" }
+                    Text(stringResource(R.string.no_match, hides), color = palette.subtext, fontSize = 14.sp)
+                    Text(
+                        stringResource(R.string.show_all_notes),
+                        color = palette.accentText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 10.dp).clickable { showAll(null) },
+                    )
                 }
                 else -> LazyColumn(state = listState,
                                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {

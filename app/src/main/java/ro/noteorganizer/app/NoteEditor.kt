@@ -845,6 +845,35 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return writeNote(force, scheduleFollows) ?: writeChecklist()
     }
 
+    /** The box's words a trip to the background wrote as a row: the note, the row, the words. */
+    private var awayRow: Triple<Int, Int, String>? = null
+
+    /**
+     * [write], as the app goes to the background: the words in "A new
+     * item…" go in as a row, kept if Android ends the app -- and given back
+     * to the box when the person returns ([backAgain]). Left as a row, a
+     * half-typed item came back finished and the box empty (wave 2).
+     */
+    fun writeAway(): String? {
+        val words = adding
+        val why = write()
+        val rows = if (why == null && words.isNotBlank() && adding.isEmpty()) {
+            state.rawNote(id)?.optJSONArray("checklist")
+        } else null
+        awayRow = if (rows != null && rows.length() > 0) Triple(id, rows.length() - 1, words) else null
+        return why
+    }
+
+    /** Back in front: the row [writeAway] made, if it is still the last and as written, back in the box. */
+    fun backAgain() {
+        val (noteId, index, words) = awayRow ?: return
+        awayRow = null
+        if (noteId != id || adding.isNotEmpty()) return
+        val rows = state.rawNote(id)?.optJSONArray("checklist") ?: return
+        if (rows.length() != index + 1 || rows.optJSONObject(index)?.optString("text") != words.trim()) return
+        if (state.report(Notebook.removeChecklistItem(state.load, id, index))) adding = words
+    }
+
     /** A checklist row being renamed: the row at [index] read [was] when the change began. */
     data class Renaming(val index: Int, val was: String, val now: String)
 
@@ -1599,7 +1628,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     DisposableEffect(model) {
         state.flush = { model.write() }
-        onDispose { state.flush = null }
+        state.flushAway = { model.writeAway() }
+        state.backAgain = { model.backAgain() }
+        onDispose {
+            state.flush = null
+            state.flushAway = null
+            state.backAgain = null
+        }
     }
     // The line being written went where no field is: the keyboard goes
     // with it, rather than writing on the line above (EditorModel.placeCaret).
@@ -3922,7 +3957,11 @@ internal fun DateDialog(current: String, onPick: (String) -> Unit, onDismiss: ()
     // Every year the desktop reads, 1 to 9999: the picker's own 1900 to
     // 2100 refuses a date outside it, and a note dated 1026 by a slip on
     // the desktop would have stopped the app the moment its date was tapped.
-    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: System.currentTimeMillis(),
+    // The picker reads a day as UTC's: today is the phone's own today, at
+    // UTC midnight -- the moment itself opened on tomorrow on an American
+    // evening and on yesterday just after midnight here.
+    val today = java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: today,
                                          yearRange = 1..9999)
     DatePickerDialog(
         onDismissRequest = onDismiss,

@@ -102,10 +102,14 @@ Grouped by what the app does; when each item arrived is in the
    list scrolls smoothly however long the notes
    ([measured](ISSUES_LOG.md#two-lines-of-text-that-cost-a-whole-note)).
 6. A greeting with the person's name, as the desktop's header has.
-7. Search by the desktop's own rule — title, body and comments, a
-   table's plumbing stripped — with diacritics folded
-   ([the one difference](#where-it-differs-from-the-desktop-on-purpose)).
-   A new search shows its results from the top, as on the desktop.
+7. Search by the desktop's own rule — title, body, comments and the
+   checklist's rows, a table's plumbing stripped — case and diacritics
+   folded, `sedinta` finding `Ședință`, on both apps since the desktop
+   took the phone's folding ([its story](ISSUES_LOG.md#a-deliberate-difference-worth-porting-back)).
+   A new search shows its results from the top, as on the desktop. A list
+   left empty says what hides its notes — the search, Show — and offers
+   Show all notes; a new note they would hide is said as it closes, with
+   Show all.
 8. **The desktop's whole Sort and Show**, remembered under its own setting
    keys: updated, title, category, Calendar: soonest and oldest, and
    Custom order; and Show by category, 🔁 Repeating, 📅 Dated or 📎 With
@@ -420,16 +424,9 @@ Grouped by what the app does; when each item arrived is in the
 
 Every rule here matches the Python deliberately, including where the
 Python is arguably worse, because a difference is a surprise, not a
-feature. These are the exceptions, each with its reason.
-
-**Search folds diacritics.** `si` finds `și`, `masina` finds `mașină`, and
-the cedilla spellings older Windows keyboards produce (`ş`, `ţ`) match
-the comma-below ones. The desktop compares the letters as typed. This is
-a one-way widening — the folded search finds everything the strict one
-finds and more — and the reason is the phone: diacritics get dropped
-constantly when typing on one, and a notebook written half with them is
-unsearchable under a strict rule. **Worth porting back to the desktop**
-([open finding](ISSUES_LOG.md#still-open)).
+feature. These are the exceptions, each with its reason. (Search folding
+diacritics was one, until the desktop took it:
+[its story](ISSUES_LOG.md#a-deliberate-difference-worth-porting-back).)
 
 **Light | Dark remembers a theme for each mode.** The desktop's quick
 toggle goes between the last dark and the last light theme of a session;

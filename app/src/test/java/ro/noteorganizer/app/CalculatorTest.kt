@@ -149,11 +149,22 @@ class CalculatorTest {
     }
 
     @Test
-    fun `the spaces Python counts are spaces, and keyboard signs are not keys`() {
+    fun `the spaces Python counts are spaces, and a keyboard's signs are the keys'`() {
         assertEquals(8.0, ev("5 + 3"))
         assertEquals(8.0, ev("5\u0085+3"))
-        assertNull("the desktop takes its own − only", ev("5-3"))
-        assertNull(ev("5*3"))
+        // Typed on a keyboard, a sum said Error (wave 2): - * x / : are the
+        // keys' − × ÷, and a comma between digits is the decimal point.
+        assertEquals(2.0, ev("5-3"))
+        assertEquals(15.0, ev("5*3"))
+        assertEquals(15.0, ev("5x3"))
+        assertEquals(2.5, ev("5/2"))
+        assertEquals(2.5, ev("5:2"))
+        assertEquals(5.0, ev("2,5+2,5"))
+        assertNull("a comma not between digits is no number", ev("2,+3"))
+        assertEquals(1.2345, ev("1,2345"))
+        // ...but not before exactly three digits: 1,000 is a thousand in English.
+        assertNull(ev("1,000+5"))
+        assertNull(ev("2,500"))
     }
 
     @Test

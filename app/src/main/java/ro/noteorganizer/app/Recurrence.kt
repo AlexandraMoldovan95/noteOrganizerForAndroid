@@ -860,11 +860,11 @@ object Recurrence {
         }
     }
 
-    /** The sidebar search's plain judgement: case-insensitive "contains", as typed. */
+    /** Whether [query] is in any of [texts], folded as the list's search folds ([searchFold]). */
     private fun matches(query: String, vararg texts: Any?): Boolean {
         if (query.isEmpty()) return true
-        val q = query.lowercase(Locale.ROOT)
-        return texts.any { ((it as? String) ?: "").lowercase(Locale.ROOT).contains(q) }
+        val q = searchFold(query)
+        return texts.any { searchFold((it as? String) ?: "").contains(q) }
     }
 
     /**

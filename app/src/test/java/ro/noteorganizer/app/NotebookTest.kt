@@ -1193,8 +1193,8 @@ class NotebookTest {
         // Older Windows keyboards produce ş (cedilla, U+015F); the correct
         // Romanian letter is ș (comma below, U+0219). A notebook typed on
         // two machines holds both, and they are different characters.
-        assertEquals(fold("ş"), fold("ș"))
-        assertEquals(fold("ţ"), fold("ț"))
+        assertEquals(searchFold("ş"), searchFold("ș"))
+        assertEquals(searchFold("ţ"), searchFold("ț"))
     }
 
     @Test
@@ -1202,6 +1202,32 @@ class NotebookTest {
         val note = notesFrom("""[{"id": 1, "title": "casa"}]""").single()
         assertFalse(note.matches("cosa"))
         assertFalse(note.matches("caza"))
+        // A Korean syllable is letters, not a letter and a mark: cut to its
+        // first, 한 found 할 and 함.
+        assertEquals("한", searchFold("한"))
+        assertFalse(notesFrom("""[{"id": 1, "title": "할머니"}]""").single().matches("한"))
+        // One for one, so a match's place in the text is its place in the fold.
+        assertEquals("ŞEDINŢĂ".length, searchFold("ŞEDINŢĂ").length)
+        assertEquals("sedinta", searchFold("ŞEDINŢĂ"))
+    }
+
+    @Test
+    fun `the list's search looks in the checklist's rows, and not at the ends of the query`() {
+        val note = notesFrom("""[{"id": 1, "title": "Shop", "checklist": [{"text": "Gruyère", "done": false}]}]""").single()
+        assertTrue(note.matches("gruyere"))
+        assertTrue(note.matches("gruyere "))
+        assertTrue(note.matches("   "))
+        assertFalse(note.matches("emmental"))
+    }
+
+    @Test
+    fun `Title A-Z puts the Romanian letters beside the letters they carry marks on`() {
+        val notes = listOfNotes("""{"id": 1, "title": "Zebra"}""", """{"id": 2, "title": "Ăla"}""",
+            """{"id": 3, "title": "Ștefan"}""", """{"id": 4, "title": "Bob"}""", """{"id": 5, "title": "Tudor"}""")
+        assertEquals(listOf("Ăla", "Bob", "Ștefan", "Tudor", "Zebra"),
+            sortNotes(notes, SortOrder.TITLE_AZ).map { it.title })
+        assertEquals(listOf("Zebra", "Tudor", "Ștefan", "Bob", "Ăla"),
+            sortNotes(notes, SortOrder.TITLE_ZA).map { it.title })
     }
 
     // ---- sorting ----

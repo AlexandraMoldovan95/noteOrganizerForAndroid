@@ -4276,16 +4276,28 @@ not drawn yet. The step now looks for the notebook for up to ten
 seconds instead of once. The first sighting — the welcome note shown
 over the seed — is still unexplained, and this entry stays open for it.
 
+## Closed since
+
 ### A deliberate difference worth porting back
 
-Search here folds diacritics; the desktop compares the letters as typed.
-What the folding does, and why it is worth having, is in
-[STATUS.md](STATUS.md#where-it-differs-from-the-desktop-on-purpose),
-beside the other places this app's rules knowingly differ from the
-Python's. This one should stop being a difference by the desktop
-adopting it.
+Opened when the list's search was built: search here folded diacritics,
+`si` finding `și` and `masina` finding `mașină`, the cedilla spellings
+older Windows keyboards produce (`ş`, `ţ`) matching the comma-below ones,
+while the desktop compared the letters as typed. A one-way widening — the
+folded search finds everything the strict one finds and more — and the
+reason was the phone: diacritics get dropped constantly when typing on
+one, and a notebook written half with them is unsearchable under a strict
+rule. It was to stop being a difference by the desktop adopting it.
 
-## Closed since
+**Closed** in the final audit's second wave (2026-11-03), by the owner's
+choice: every search on both apps — the list, Find in note, the
+Calendar's History — folds case and diacritics by one rule, the
+desktop's `fold_for_search` and this app's `searchFold`, a letter always
+into one letter so a match's place in the text is its place in the fold;
+Title A–Z sorts Ă Î Ș Ț beside A I S T. Written for both, the rule first
+cut every character to the first letter of its decomposition, and a
+Korean syllable — letters, not a letter and a mark — found every syllable
+starting with the same one; only marks are dropped now, on both.
 
 ### A mismatch in the DESKTOP's retention docstring
 

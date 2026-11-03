@@ -45,26 +45,37 @@ class FindingTest {
     }
 
     @Test
-    fun `prose folds a letter as Tk's search does - one for one, never into more bytes, the basic plane alone`() {
-        // The desktop's _tcl_lower (098d5a8): Tcl lowers a letter only into
-        // as many UTF-8 bytes or fewer, and only in the basic plane. The
-        // phone folded U+023A and U+023E (two bytes, their lower case three)
-        // and letters past the plane (the final audit's tenth round).
+    fun `prose and cells fold a letter as the list's search does - one for one, the basic plane alone`() {
+        // The desktop's fold_for_search, one rule for every search on both
+        // apps (the owner's choice, 2026-11-03): the diacritic dropped, then
+        // lowered, a letter only into one letter, past the basic plane kept.
         fun hits(body: String, query: String) = scan(body, query).size
+        // Diacritics, both Romanian spellings of ș (a comma below, a cedilla), in prose and in a cell.
+        assertEquals(1, hits("Brașov at 10", "brasov"))
+        assertEquals(1, hits("Braşov", "brașov"))
+        assertEquals(1, hits("Crème brûlée", "creme brulee"))
+        assertEquals(listOf(Finding.InCell(0, 1, 0)),
+                     scan(listOf(row("What", "When"), sep, row("Brașov", "Monday")).joinToString("\n"), "brasov"))
+        assertEquals(0, scan("Brașov", "Brasov", matchCase = true).size)
         // Lowered: the dotted capital I, the Kelvin sign, capital sharp s, sigma, the ohm sign.
         assertEquals(1, hits("İstanbul", "istanbul"))
         assertEquals(1, hits("5 K", "k"))
         assertEquals(1, hits("Straẞe", "straße"))
         assertEquals(1, hits("Σ", "σ"))
         assertEquals(1, hits("Ω", "ω"))
-        // Never sharp s as "ss", nor sigma as the final sigma.
+        // A and T with a stroke, whose lower case takes a byte more: Tk's
+        // own search kept them as they were, and the desktop's Find with it,
+        // until both apps' searches came to fold alike.
+        assertEquals(1, hits("Ⱥ", "ⱥ"))
+        assertEquals(1, hits("ⱥ", "Ⱥ"))
+        assertEquals(1, hits("Ⱦ", "ⱦ"))
+        assertEquals(listOf(Finding.InText(0, 0, 3)), scan("Ⱥ x Ⱥ", "Ⱥ x"))
+        // Never sharp s as "ss", nor sigma as the final sigma, nor a Korean
+        // syllable as its first letter: 한 is not 할.
         assertEquals(0, hits("Straße", "strasse"))
         assertEquals(0, hits("Σ", "ς"))
-        // Kept: A and T with a stroke, and a letter past the basic plane (Deseret).
-        assertEquals(0, hits("Ⱥ", "ⱥ"))
-        assertEquals(0, hits("ⱥ", "Ⱥ"))
-        assertEquals(0, hits("Ⱦ", "ⱦ"))
-        assertEquals(1, hits("Ⱥ x Ⱥ", "Ⱥ x"))
+        assertEquals(0, hits("할머니", "한"))
+        // Kept: a letter past the basic plane (Deseret).
         assertEquals(0, hits("𐐀", "𐐨"))
         // With case asked, exact.
         assertEquals(0, scan("K", "k", matchCase = true).size)

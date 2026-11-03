@@ -694,6 +694,7 @@ def main():
     off_schedule(folder)
     listing(folder)
     list_keeps_place(folder)
+    what_hides_the_list(folder)
     previews(folder)
     arranging(folder)
     attaching(folder)
@@ -3590,6 +3591,79 @@ def code_read_away(folder):
     back_to("Search notes")
 
 
+def what_hides_the_list(folder):
+    """The final audit's second wave, on the list, by the owner's choices:
+    a list Show leaves empty says so and offers Show all notes; the search
+    finds "Crème brûlée" by "creme" and a note by its checklist's row; a new
+    note Show hides is said as it closes, with Show all; text shared to the
+    app that holds no code is a new note, and a code with words around it is
+    still a code."""
+    print("\n-- what hides the list's notes --")
+    import base64
+    import zlib
+    stamp = {"created": "2026-11-01 09:00", "updated": "2026-11-01 09:00"}
+    older = {"created": "2026-10-01 09:00", "updated": "2026-10-01 09:00"}
+    if not seed_inside([
+            dict(stamp, id=1, uid="w2-1", title="Crème brûlée night", body="x", category="General"),
+            dict(stamp, id=2, uid="w2-2", title="Shopping", body="", category="General",
+                 checklist=[{"text": "Gruyère", "done": False}])]
+            + [dict(older, id=10 + i, uid="w2-w%d" % i, title="Work item %d" % i, body="x", category="Work")
+               for i in range(30)],
+            {"welcome_offered": True, "note_filter": "Home",
+             "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Home": "#f9c74f"}},
+            "No notes match Show: Home."):
+        return
+    shot(folder, "130-empty-list-names-show", "No notes match Show: Home.", "Show all notes")
+    tap("Show all notes", exact=True, wait=1.5)
+    check("a list Show leaves empty names it, and Show all notes brings the notes back",
+          not says_soon("Crème brûlée night", "Shopping", "Show: All"))
+
+    def search(words):
+        tap("Search notes", wait=0.8)
+        type_text(words)
+        time.sleep(1.0)
+        on = [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)]
+        tap("Clear search", exact=True, wait=1.0)
+        keyboard_down()
+        return on
+    check("the search finds Crème brûlée by creme, and a note by its checklist's row",
+          search("creme") == ["Crème brûlée night"] and search("gruyere") == ["Shopping"])
+
+    # A new note filed under General while Show is at Work, the list
+    # scrolled down: Show all brings the new note's card into sight, where
+    # the list kept the card it had and the new note came in above it.
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    for _ in range(2):
+        adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
+        time.sleep(0.8)
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Call the dentist")
+    back_to("Search notes")
+    said = not says_soon("Saved in General, hidden by Show: Work", "Show all", within=8.0)
+    shot(folder, "131-new-note-hidden-said", "hidden by Show: Work")
+    tap("Show all", exact=True, wait=1.5)
+    check("a new note Show hides is said as it closes, and Show all puts it on the list",
+          said and not says_soon("Call the dentist", "Show: All"))
+
+    # Text shared to the app: a new note; a code among words: a code.
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"Buy milk and bread\" -n %s/.MainActivity" % PACKAGE)
+    made = not says_soon("Saved as a new note", within=8.0)
+    back_to("Search notes")
+    titles = [n.get("title") for n in read_file("notes_data.json") or []]
+    check("text shared to the app that holds no code is a new note, its first line the title",
+          made and "Buy milk and bread" in titles, repr(titles))
+    payload = json.dumps({"v": 1, "notes": [{"title": "From Ana", "body": "hello", "category": "General"}]})
+    code = "NOTE1:" + base64.urlsafe_b64encode(zlib.compress(payload.encode("utf-8"), 9)).decode("ascii")
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"Hi! Here it is: %s Thanks\" -n %s/.MainActivity" % (code, PACKAGE))
+    check("a code shared with words around it is still a code", not says_soon("Import a code", within=10.0))
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
 def long_lines(folder):
     """Text with a run of 150,000 letters and no space -- a share code of a
     few hundred characters brings one -- in a body, a title, comments and a
@@ -3608,12 +3682,24 @@ def long_lines(folder):
     notes = [note(1, "Long body", body="Words before\n" + w + "\nwords after"),
              note(2, "T" * 150_000),
              note(3, "Long comments", comments=w),
-             note(4, "Long row", checklist=[{"text": w, "done": False}])]
+             note(4, "Long row", checklist=[{"text": w, "done": False}]),
+             # Pinned, so it stays the top card as the rest come in: the
+             # list keeps the card it has in sight, and they came in above it.
+             note(5, "Warm start", category="Work", pinned=True)]
     adb("shell", "pm", "clear", PACKAGE)
     put_inside("notes_data.json", notes)
-    put_inside("settings.json", {"welcome_offered": True})
-    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    # Started on Show: Work, the long notes off the list, and timed as Show
+    # goes back to All: timed from the start, the app's own first frames
+    # were counted as the title's -- 1.3 to 3.75 s on the emulator, the most
+    # when this part ran first after the install, the title's fix in place.
+    put_inside("settings.json", {"welcome_offered": True, "note_filter": "Work",
+                                 "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}})
     start_app()
+    says_soon("Warm start", within=20.0)
+    time.sleep(1.5)
+    tap("Show: Work", wait=1.0)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("All", exact=True, wait=0.2)
     says_soon("Long body", within=20.0)
     longest = max(frames_since_reset() or [0.0])
     check("the list with a title of 150,000 letters is drawn within a second (3.8 s before)", longest < 1.0,
