@@ -58,7 +58,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -168,16 +167,24 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // into sight where the list now has it, when it is out of sight: the top
     // was wrong under grouping, where a pin rises only within its group
     // (round 9). Let go when the list does not hold it, unlike Show all's.
-    var revealCard by remember { mutableStateOf<Int?>(null) }
+    // In sight is judged from the cards in sight when the action was taken:
+    // the list keeps the first of them, and the layout read after the change
+    // was still the one before it.
+    var revealCard by remember { mutableStateOf<Pair<Int, List<Any>>?>(null) }
+    fun revealLater(id: Int?) {
+        if (id != null) revealCard = id to listState.layoutInfo.visibleItemsInfo.map { it.key }
+    }
     fun firstOf(ids: Set<Int>): Int? = shown.firstOrNull { it.id in ids }?.id
     LaunchedEffect(revealCard, laidOut) {
-        val id = revealCard ?: return@LaunchedEffect
-        revealCard = null
+        val (id, seen) = revealCard ?: return@LaunchedEffect
         val at = laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
-        if (at < 0) return@LaunchedEffect
-        withFrameNanos { }
-        if (listState.layoutInfo.visibleItemsInfo.any { it.key == id }) return@LaunchedEffect
+        val first = seen.firstOrNull()?.let { key -> laidOut.indexOfFirst { rowKey(it) == key } } ?: -1
+        if (at < 0 || (first >= 0 && at in first until first + seen.size)) {
+            revealCard = null
+            return@LaunchedEffect
+        }
         listState.scrollToItem(if (at > 0 && laidOut[at - 1] is Showing.Row.Header) at - 1 else at)
+        revealCard = null
     }
 
     /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
@@ -321,7 +328,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     },
                     actions = {
                         // Pinned, the first goes to the top of the list or of its group: shown there.
-                        IconButton(onClick = { state.setPinned(selected, !allPinned); if (!allPinned) revealCard = firstOf(selected); selected = emptySet() },
+                        IconButton(onClick = { state.setPinned(selected, !allPinned); if (!allPinned) revealLater(firstOf(selected)); selected = emptySet() },
                                    modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
                             Text("📌", fontSize = 18.sp)
                         }
@@ -338,7 +345,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (allPinned) R.string.unpin else R.string.pin)) },
-                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); if (!allPinned) revealCard = firstOf(selected); selected = emptySet() },
+                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); if (!allPinned) revealLater(firstOf(selected)); selected = emptySet() },
                             )
                             if (selected.size == 1) {
                                 DropdownMenuItem(
@@ -346,7 +353,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                     onClick = {
                                         moreMenu = false
                                         // The copy, shown where the sort puts it.
-                                        revealCard = state.duplicate(selected.single())
+                                        revealLater(state.duplicate(selected.single()))
                                         selected = emptySet()
                                     },
                                 )
@@ -529,12 +536,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 }
                 else -> LazyColumn(state = listState,
                                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
-                    items(rows, key = { row ->
-                        when (row) {
-                            is Showing.Row.Header -> "h:" + row.category
-                            is Showing.Row.Item -> row.note.id
-                        }
-                    }) { row ->
+                    items(rows, key = ::rowKey) { row ->
                         when (row) {
                             is Showing.Row.Header -> GroupHeader(row, load.categories[row.category]) {
                                 // Folded and unfolded under the desktop's own key.
@@ -672,7 +674,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             onPick = { name ->
                 choosingCategory = false
                 state.moveToCategory(selected, name)
-                revealCard = firstOf(selected)
+                revealLater(firstOf(selected))
                 selected = emptySet()
             },
             onDismiss = { choosingCategory = false },
@@ -808,4 +810,10 @@ fun CategorySheet(
 /** Android's own share sheet: WhatsApp, email, Messages, anything that takes text. */
 fun sendText(state: AppState, text: String) {
     state.sendText?.invoke(text)
+}
+
+/** A list row's key: the list keeps the card it has in sight by it, and a reveal finds that card by it. */
+private fun rowKey(row: Showing.Row): Any = when (row) {
+    is Showing.Row.Header -> "h:" + row.category
+    is Showing.Row.Item -> row.note.id
 }
