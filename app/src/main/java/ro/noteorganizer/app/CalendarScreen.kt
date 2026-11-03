@@ -489,6 +489,10 @@ private fun History(state: AppState) {
     val palette = LocalPalette.current
     // Handed to Android only while short, as the list's search is ([SearchSaver]).
     var query by rememberSaveable(stateSaver = SearchSaver) { mutableStateOf("") }
+    // A search handed over by the list, which does not read a day's own words.
+    androidx.compose.runtime.LaunchedEffect(state.historyQuery) {
+        state.historyQuery?.let { query = it; state.historyQuery = null }
+    }
     var bucket by rememberSaveable { mutableStateOf("All") }
     val open = remember { mutableStateListOf<Int>() }
     val entries = remember(state.revision, query, bucket) {

@@ -470,6 +470,24 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 10.dp).clickable { showAll(null) },
                     )
+                    // The list does not read a day's own words; the History
+                    // does. When a day of a repeating note holds them, said,
+                    // with the way there (the owner's choice, wave 2).
+                    val words = PyText.strip(query)
+                    val inADay = remember(state.revision, words) {
+                        words.isNotEmpty() && Recurrence.history(state.rawNotes(), words).isNotEmpty()
+                    }
+                    if (inADay) {
+                        Text(stringResource(R.string.no_match_in_a_day), color = palette.subtext, fontSize = 14.sp,
+                             modifier = Modifier.padding(top = 18.dp))
+                        Text(
+                            stringResource(R.string.search_the_history),
+                            color = palette.accentText,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(top = 10.dp).clickable { state.searchHistoryFor(words) },
+                        )
+                    }
                 }
                 else -> LazyColumn(state = listState,
                                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {

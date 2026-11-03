@@ -111,6 +111,19 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** The History in place of the month, as the desktop's toggle swaps them. */
     var showHistory by mutableStateOf(false)
 
+    /** A search for the History to take up, handed over by the list ([searchHistoryFor]). */
+    var historyQuery by mutableStateOf<String?>(null)
+
+    /**
+     * The Calendar's History, searching for [query]: it reads a day's own
+     * words, which the list's search does not (the empty list's link).
+     */
+    fun searchHistoryFor(query: String) {
+        historyQuery = query
+        showHistory = true
+        tab = Tab.CALENDAR
+    }
+
     /**
      * A note's sections folded away to make room for the others -- its text,
      * checklist, comments -- keyed "<note id>:<section>". Kept while the app

@@ -161,6 +161,8 @@
     <string name="no_notes">No notes yet. Tap + to write your first.</string>
     <!-- What hides them: "your search", "Show: Work", or both joined by "and" -->
     <string name="no_match">No notes match %1$s.</string>
+    <string name="no_match_in_a_day">A day of a repeating note holds these words.</string>
+    <string name="search_the_history">Search the Calendar\'s History</string>
     <string name="import_code">Import a code</string>
     <string name="group_by_category">Group by category</string>
     <string name="pin">Pin</string>
