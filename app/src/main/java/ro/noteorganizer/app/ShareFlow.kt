@@ -60,7 +60,9 @@ fun ShareSheet(state: AppState, noteId: Int, day: String? = null, onDismiss: () 
     val palette = LocalPalette.current
     // The note as saved -- the button saved it before opening this -- or
     // the one [day] of it the editor is on ([AppState.outgoingNote]).
-    val note = remember(noteId, day, state.revision) { state.outgoingNote(noteId, day) }
+    // A copy only for a day: a note of some megabytes copied at every opening
+    // held the screen (the fifth round's lesson, kept).
+    val note = remember(noteId, day, state.revision) { if (day == null) state.rawNote(noteId) else state.outgoingNote(noteId, day) }
     val table = note != null && Outgoing.hasTable(note)
     // Said before the tap, as a table is: past what may be handed over as
     // words, the note goes as a page. And the code, said before the tap as

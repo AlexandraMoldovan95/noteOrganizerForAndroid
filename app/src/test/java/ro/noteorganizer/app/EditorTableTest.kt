@@ -215,6 +215,19 @@ class EditorTableTest {
         assertTrue(model.body, model.body.contains("1+1=2"))
     }
 
+    @Test
+    fun `the calculator's answer never goes into a box`() {
+        // A ticked box chosen, a caret left from a cell with words: the box
+        // became the words "[x]12×3=36" (wave 2, round 3).
+        val body = "| Item | Done |\n| --- | --- |\n| milk | [x] |"
+        val model = editor(body)
+        val table = Editing.segments(model.body).first { it.table }
+        model.activeCell = ActiveCell(table.firstLine, CellAt(1, 1))
+        model.cellCaret = 3
+        model.insertCalculation("12×3=36")
+        assertEquals(body, model.body)
+    }
+
     /** A table whose middle cell is filled yellow pipe to pipe and whose "gym" is bold. */
     private fun styledTable(): EditorModel {
         val body = "| Day | Task | Time |\n| --- | --- | --- |\n| Mon | gym | 7am |\n| Tue | run | 8am |"

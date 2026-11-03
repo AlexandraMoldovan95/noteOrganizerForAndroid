@@ -230,6 +230,16 @@ class TemplatesTest {
     }
 
     @Test
+    fun `a template used on a new note started from a calendar day keeps the day`() {
+        // The template's note was made undated, and the day it was started
+        // on was gone (wave 2, round 3).
+        val load = notebook()
+        Templates.newNote(load, Templates.normalize(JSONObject("""{"name": "T", "title": "Meeting"}""")),
+            listOf("General"), date = "2026-11-06")
+        assertEquals("2026-11-06", JSONArray(load.file!!.readText()).getJSONObject(0).getString("date"))
+    }
+
+    @Test
     fun `a template's checklist rows are kept whole and drawn short`() {
         // Saved from a note, a 150,000-letter row went whole into the
         // template editor's wrapping Text and froze it as it opened.

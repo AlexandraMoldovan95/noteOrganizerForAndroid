@@ -356,6 +356,7 @@ fun finishImport(
     // note it may update: its words are saved first. The plan's notes are
     // found again by identity, wherever the list has moved them since.
     if (!state.beforeImport()) return
+    val before = state.noteIds()
     when (val result = Importing.apply(state.load, plan, answers, attachmentsDir, extras)) {
         is Importing.Result.Failed -> state.say(result.reason)
         is Importing.Result.Done -> {
@@ -369,6 +370,7 @@ fun finishImport(
             } else {
                 state.say(importMessage(o))
             }
+            state.arrived(before, if (o.added == 1) "Added 1 note" else "Added ${o.added} notes")
         }
     }
 }

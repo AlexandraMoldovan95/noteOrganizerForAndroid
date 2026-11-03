@@ -540,7 +540,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun outgoingNote(id: Int, day: String? = null): JSONObject? {
         val raw = rawNote(id) ?: return null
         if (day == null || !Recurrence.isRecurring(raw)) return JSONObject(raw.toString())
+        val own = (raw.opt("overrides") as? JSONObject)?.optJSONObject(day)
         return JSONObject(Recurrence.effectiveNote(raw, day).toString()).apply {
+            // The day's looks, as Make it a note keeps them (Days): the
+            // series' bold and lists, put on the day's other words by their
+            // places, went out where the editor showed the day plain.
+            val sameBody = Normalize.sameBody(optString("body"), raw.optString("body"))
+            put("formatting", if (sameBody) JSONArray((raw.opt("formatting") as? JSONArray)?.toString() ?: "[]")
+                              else JSONArray())
+            put("paragraphs", Paragraphs.dayParagraphs(raw.opt("paragraphs"), optString("body"), sameBody,
+                                                       own?.opt("paragraphs")))
             put("date", day)
             put("recurrence", JSONObject())
             remove("uid")
@@ -707,9 +716,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * A new note from a template, opened. The note that was open is saved
      * already -- the editor saves before it asks -- so nothing is replaced,
      * and the desktop's "Replace current note?" has nothing to ask about.
+     * [date]: the calendar day a new note was started on, which it keeps.
      */
-    fun useTemplate(template: JSONObject, said: String) {
-        report(Templates.newNote(load, template, load.categories.keys)) { ok ->
+    fun useTemplate(template: JSONObject, said: String, date: String = "") {
+        report(Templates.newNote(load, template, load.categories.keys, date)) { ok ->
             openNote(ok.id)
             newNoteMade = ok.id
             say(said)
@@ -860,9 +870,29 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     // ---- the Trash ----
 
     fun restoreFromTrash(keys: Collection<Organizing.TrashKey>) {
+        val before = noteIds()
         report(Organizing.restore(load, keys)) { ok ->
-            say(if (ok.imported == 1) "Restored" else "Restored ${ok.imported} notes")
+            val said = if (ok.imported == 1) "Restored" else "Restored ${ok.imported} notes"
+            say(said)
+            arrived(before, said)
         }
+    }
+
+    /** The ids of the notes there are now. */
+    fun noteIds(): Set<Int> = load.notes.map { it.id }.toSet()
+
+    /**
+     * Notes just brought in -- restored, imported -- with what was said of
+     * them, for the list to say when Show, the search or a folded group hides
+     * them ([NotesScreen]): they landed where it did not look, under
+     * "Restored" and a list that had not changed.
+     */
+    var arrivals by mutableStateOf<Pair<List<Int>, String>?>(null)
+
+    /** The notes there are now and were not [before], as [arrivals]. */
+    fun arrived(before: Set<Int>, said: String) {
+        val new = load.notes.map { it.id }.filter { it !in before }
+        if (new.isNotEmpty()) arrivals = new to said
     }
 
     fun deleteForever(keys: Collection<Organizing.TrashKey>) {

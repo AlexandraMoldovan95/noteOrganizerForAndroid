@@ -103,6 +103,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Whether this process has cleared the cache's leftovers yet ([Startup.clearLeftovers]). */
         private var leftoversCleared = false
+
+        /** The most of a shared file read: about what Android hands over as shared words. */
+        private const val SHARED_FILE_CHARS = 500_000
     }
 
     /** Counts the times the reminder's notification was tapped: today, on the calendar. */
@@ -253,9 +256,35 @@ class MainActivity : ComponentActivity() {
             // with spans, and getStringExtra gave null for it -- the code
             // never arrived, and nothing was said.
             intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
+                ?: sharedFile(intent)
         } else {
             null
         }
+
+    /**
+     * Text shared as a file -- a .txt from Files, a mail's attachment -- with
+     * no words in the share itself: read, up to [SHARED_FILE_CHARS]. It
+     * brought the app forward and did nothing, without a word.
+     */
+    private fun sharedFile(intent: Intent): String? {
+        @Suppress("DEPRECATION")
+        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return null
+        return try {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                val reader = stream.reader(Charsets.UTF_8)
+                val buffer = CharArray(SHARED_FILE_CHARS)
+                var read = 0
+                while (read < buffer.size) {
+                    val got = reader.read(buffer, read, buffer.size - read)
+                    if (got < 0) break
+                    read += got
+                }
+                String(buffer, 0, read)
+            }?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     private fun share(text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)

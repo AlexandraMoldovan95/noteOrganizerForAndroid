@@ -618,16 +618,35 @@ class AppStateTest {
         // Shared or exported from a day, the series' own words went out and a
         // code carried the whole series (wave 2, round 2).
         val dir = dirOf(scratch("""[{"id": 1, "uid": "s", "title": "Team meeting", "body": "agenda",
+            "formatting": [{"start": 0, "end": 6, "style": "bold"}],
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},
             "overrides": {"2026-11-09": {"body": "minutes of the day"}}}]""", attachments = true))
         val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
         val day = s.outgoingNote(1, "2026-11-09")!!
         assertEquals("minutes of the day", day.optString("body"))
+        // ...with the day's looks: the series' bold, placed on other words by
+        // its places, went out where the editor showed the day plain (round 3).
+        assertEquals(0, day.optJSONArray("formatting")!!.length())
+        assertEquals(1, s.outgoingNote(1)!!.optJSONArray("formatting")!!.length())
         assertEquals("2026-11-09", day.optString("date"))
         assertFalse(Recurrence.isRecurring(day))
         assertFalse(day.has("uid"))
         assertEquals("agenda", s.outgoingNote(1)!!.optString("body"))
         assertTrue(Recurrence.isRecurring(s.outgoingNote(1)!!))
+    }
+
+    @Test
+    fun `notes restored from the Trash are handed to the list, to say if it hides them`() {
+        // Restored where Show did not look, a note landed unseen under
+        // "Restored" (wave 2, round 3).
+        val dir = dirOf(scratch("""[{"id": 1, "uid": "a", "title": "One"}, {"id": 2, "uid": "b", "title": "Two"}]""",
+                                attachments = true))
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        s.trash(listOf(2))
+        s.restoreFromTrash(s.load.trash.map { Organizing.keyOf(it) })
+        val (ids, said) = s.arrivals!!
+        assertEquals(listOf("Two"), ids.mapNotNull { s.note(it)?.title })
+        assertEquals("Restored", said)
     }
 
     @Test

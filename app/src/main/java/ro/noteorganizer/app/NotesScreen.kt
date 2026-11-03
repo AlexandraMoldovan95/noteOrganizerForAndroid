@@ -179,6 +179,17 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 "Show all") { showAll(note) }
         }
     }
+    // Notes restored or imported where the list does not look, said the
+    // same way once the list is on screen ([AppState.arrivals]).
+    val arrivals = state.arrivals
+    LaunchedEffect(arrivals) {
+        val (ids, said) = arrivals ?: return@LaunchedEffect
+        state.arrivals = null
+        val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
+        val first = hidden.firstOrNull() ?: return@LaunchedEffect
+        val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
+        state.offer("$said, $tail", "Show all") { showAll(first) }
+    }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }
     var dragBy by remember { mutableFloatStateOf(0f) }

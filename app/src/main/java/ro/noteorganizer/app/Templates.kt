@@ -336,7 +336,7 @@ object Templates {
      * ticks and all. The desktop's `_apply_template`, as a note written at
      * once rather than one waiting in the editor.
      */
-    fun newNote(load: Notebook.Load, template: JSONObject, categories: Collection<String>): SaveResult {
+    fun newNote(load: Notebook.Load, template: JSONObject, categories: Collection<String>, date: String = ""): SaveResult {
         val tpl = normalize(template)
         val body = tpl.optString("body")
         val category = tpl.optString("category").takeIf { it in categories } ?: "General"
@@ -344,7 +344,7 @@ object Templates {
         // on the body, and a template with none brings none.
         val formatting = if (body.isEmpty()) emptyList() else Exporting.normalizeFormatting(tpl.opt("formatting"))
         val paragraphs = if (body.isEmpty()) JSONArray() else tpl.optJSONArray("paragraphs")
-        return Notebook.createNote(load, tpl.optString("title"), body, category,
+        return Notebook.createNote(load, tpl.optString("title"), body, category, date = date,
             formatting = formatting, paragraphs = paragraphs, comments = tpl.optString("comments"),
             checklist = tpl.optJSONArray("checklist"))
     }

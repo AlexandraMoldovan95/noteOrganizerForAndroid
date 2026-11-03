@@ -1385,6 +1385,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val segment = cell?.let { c -> Editing.segments(body).firstOrNull { it.table && it.firstLine == c.firstLine } }
         if (cell != null && segment != null) {
             val table = parseTable(segment.text.split("\n"))
+            // A box is ticked, not written in: the answer went in after its
+            // mark, and the box turned into the words "[x]12×3=36".
+            if (table.rows.getOrNull(cell.at.row)?.getOrNull(cell.at.column)?.checked != null) {
+                state.say("A box holds no answer. Tap a cell with words, or the note's text, where it should go.")
+                return
+            }
             val words = cellTextAt(table, cell.at).replace(LINE_BREAK, "\n")
             val at = (cellCaret ?: words.trimEnd('\n').length).coerceIn(0, words.length)
             val now = (words.substring(0, at) + formula + words.substring(at)).replace("|", "/")
@@ -2192,7 +2198,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             templates,
             onPick = { tpl ->
                 pickTemplate = null
-                state.useTemplate(tpl, templateStarted)
+                // A new note started on a calendar day keeps the day: the
+                // template's note was made undated, and the day was gone.
+                state.useTemplate(tpl, templateStarted, date = if (model.id == 0) model.date else "")
             },
             onDismiss = { pickTemplate = null },
         )

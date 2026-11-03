@@ -115,7 +115,7 @@ fun rememberExporter(state: AppState): Exporter {
 
     return remember {
         Exporter { id, format, day ->
-            val note = state.outgoingNote(id, day) ?: return@Exporter
+            val note = (if (day == null) state.rawNote(id) else state.outgoingNote(id, day)) ?: return@Exporter
             pending = "$id:$format:${day.orEmpty()}"
             val name = Exporting.fileName(Exporting.titleOf(note), format)
             if (format == Exporting.HTML) html.launch(name) else txt.launch(name)

@@ -613,20 +613,27 @@ private fun TemplateEditor(
                 }
                 TemplateRows(checklist)
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    fun add() {
+                        val text = Templates.newRow(newItemField.text)
+                        // At the cap the row was drawn, then dropped by Save unsaid.
+                        val full = Templates.noRoom(checklist.size)
+                        if (text.isNotEmpty() && full != null) state.say(full)
+                        else if (text.isNotEmpty()) {
+                            checklist.add(text to false)
+                            newItemField = TextFieldValue("")
+                        }
+                    }
+                    // The keyboard's ✓ adds the item, as in a note's checklist:
+                    // it only closed the keyboard, the words left in the box.
                     OutlinedTextField(newItemField, { next -> newItemField = keptBy(rowCap, newItemField, next) },
                         singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { add() }),
                         label = { Text(stringResource(R.string.checklist_new)) }, modifier = Modifier.weight(1f))
                     OutlinedButton(
-                        onClick = {
-                            val text = Templates.newRow(newItemField.text)
-                            // At the cap the row was drawn, then dropped by Save unsaid.
-                            val full = Templates.noRoom(checklist.size)
-                            if (text.isNotEmpty() && full != null) state.say(full)
-                            else if (text.isNotEmpty()) {
-                                checklist.add(text to false)
-                                newItemField = TextFieldValue("")
-                            }
-                        },
+                        onClick = { add() },
                         modifier = Modifier.padding(start = 8.dp),
                     ) { Text(stringResource(R.string.template_add_item)) }
                 }
