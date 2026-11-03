@@ -601,6 +601,48 @@ class AppStateTest {
     }
 
     @Test
+    fun `text shared in on the way back leaves the half-typed words as the row they were written as`() {
+        // The share opens a note of its own before the editor hears it is
+        // back: the words were taken out of the row into an editor about to
+        // close, and kept nowhere (wave 2, round 2).
+        val (s, editor) = checklist("flour")
+        editor.adding = "plums"
+        assertNull(editor.writeAway())
+        s.noteFromShared("A recipe link", "Saved as a new note")
+        editor.backAgain()
+        assertEquals(listOf("flour", "plums"), s.rowsOnDisk())
+    }
+
+    @Test
+    fun `one day of a series goes out as a note of its own on that date, with that day's words`() {
+        // Shared or exported from a day, the series' own words went out and a
+        // code carried the whole series (wave 2, round 2).
+        val dir = dirOf(scratch("""[{"id": 1, "uid": "s", "title": "Team meeting", "body": "agenda",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "overrides": {"2026-11-09": {"body": "minutes of the day"}}}]""", attachments = true))
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        val day = s.outgoingNote(1, "2026-11-09")!!
+        assertEquals("minutes of the day", day.optString("body"))
+        assertEquals("2026-11-09", day.optString("date"))
+        assertFalse(Recurrence.isRecurring(day))
+        assertFalse(day.has("uid"))
+        assertEquals("agenda", s.outgoingNote(1)!!.optString("body"))
+        assertTrue(Recurrence.isRecurring(s.outgoingNote(1)!!))
+    }
+
+    @Test
+    fun `shared text with a first line longer than a title keeps all of it`() {
+        // Cut to a title's 200 letters, the rest of a shared paragraph was
+        // lost while the app said it was saved (wave 2, round 2).
+        val paragraph = "word ".repeat(70).trim()
+        val (title, body) = sharedAsNote(paragraph + "\nsecond line")
+        assertEquals(Editing.TITLE_CHARS, title.length)
+        assertEquals(paragraph + "\nsecond line", body)
+        assertEquals("Buy milk" to "and bread", sharedAsNote("Buy milk\nand bread\n"))
+        assertEquals("One line" to "", sharedAsNote("  One line  "))
+    }
+
+    @Test
     fun `the autosave leaves the checklist's half-typed words where they are`() {
         val (s, editor) = checklist("flour")
         editor.adding = "bre"

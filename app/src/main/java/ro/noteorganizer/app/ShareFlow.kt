@@ -55,11 +55,12 @@ import java.io.IOException
  * out instead of two, the address typed where the mail is written.
  */
 @Composable
-fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
+fun ShareSheet(state: AppState, noteId: Int, day: String? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val palette = LocalPalette.current
-    // The note as saved -- the button saved it before opening this.
-    val note = state.rawNote(noteId)
+    // The note as saved -- the button saved it before opening this -- or
+    // the one [day] of it the editor is on ([AppState.outgoingNote]).
+    val note = remember(noteId, day, state.revision) { state.outgoingNote(noteId, day) }
     val table = note != null && Outgoing.hasTable(note)
     // Said before the tap, as a table is: past what may be handed over as
     // words, the note goes as a page. And the code, said before the tap as
@@ -79,7 +80,7 @@ fun ShareSheet(state: AppState, noteId: Int, onDismiss: () -> Unit) {
     fun go(format: String) {
         onDismiss()
         // On the app's own scope: the sheet is gone before the PDF is.
-        state.scope.launch { handOver(context, state, noteId, format) }
+        state.scope.launch { handOver(context, state, noteId, day, format) }
     }
     AppSheet(onDismissRequest = onDismiss) {
         Column(
@@ -211,8 +212,8 @@ fun ShareMark(colour: Color, modifier: Modifier = Modifier) {
 private val preparing = Outgoing.OneAtATime()
 
 /** The note handed over, as [format] -- or, while the last one is still made, a word that it is. */
-private suspend fun handOver(context: Context, state: AppState, noteId: Int, format: String) {
-    if (!preparing.run { prepare(context, state, noteId, format) }) state.say(context.getString(R.string.share_busy))
+private suspend fun handOver(context: Context, state: AppState, noteId: Int, day: String?, format: String) {
+    if (!preparing.run { prepare(context, state, noteId, day, format) }) state.say(context.getString(R.string.share_busy))
 }
 
 /**
@@ -221,14 +222,14 @@ private suspend fun handOver(context: Context, state: AppState, noteId: Int, for
  * One file at a time in the cache: the last one is cleared here, not when
  * the other app returns -- it may still be reading it then.
  */
-private suspend fun prepare(context: Context, state: AppState, noteId: Int, format: String) {
+private suspend fun prepare(context: Context, state: AppState, noteId: Int, day: String?, format: String) {
     if (format == Outgoing.CODE) {
-        state.shareCode(listOf(noteId))?.let { sendText(state, it) }
+        state.shareCode(listOf(noteId), day)?.let { sendText(state, it) }
         return
     }
     // A copy, taken here: the page is worked out away from the screen,
     // which a tick in the list may change the note under meanwhile.
-    val note = state.rawNote(noteId)?.let { JSONObject(it.toString()) } ?: return
+    val note = state.outgoingNote(noteId, day) ?: return
     val title = Exporting.titleOf(note)
     val subject = Outgoing.subject(title)
     val send = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_SUBJECT, subject)

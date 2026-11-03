@@ -531,6 +531,25 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         return Organizing.noteById(raw, id)
     }
 
+    /**
+     * A copy of note [id] as it goes out -- shared, exported -- or, opened on
+     * one [day] of a series, that day as a note of its own on its date, as the
+     * desktop's code of a day goes: the series' own words went out, not the
+     * day's, and a code carried the whole series and its identity.
+     */
+    fun outgoingNote(id: Int, day: String? = null): JSONObject? {
+        val raw = rawNote(id) ?: return null
+        if (day == null || !Recurrence.isRecurring(raw)) return JSONObject(raw.toString())
+        return JSONObject(Recurrence.effectiveNote(raw, day).toString()).apply {
+            put("date", day)
+            put("recurrence", JSONObject())
+            remove("uid")
+            put("overrides", JSONObject())
+            put("exceptions", org.json.JSONArray())
+            put("moved", JSONObject())
+        }
+    }
+
     /** How many templates the notebook keeps: the desktop's count, from templates.json. */
     fun templatesCount(): Int = try {
         val file = File(dir, Backup.TEMPLATES)
@@ -702,12 +721,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * first line the title, kept to a title's length, the rest its text.
      * The app is in every share sheet for text, and a link or a paragraph
      * sent to it ended at "This isn't a Note Organizer share code" (wave 2,
-     * the owner's choice).
+     * the owner's choice). A first line longer than a title keeps the whole
+     * text in the note: cut to the title, the rest of a paragraph was lost.
      */
     fun noteFromShared(text: String, said: String) = leaving {
-        val lines = text.replace("\r\n", "\n").trim().split("\n", limit = 2)
-        val title = Editing.firstLetters(lines[0].trim(), Editing.TITLE_CHARS)
-        report(Notebook.createNote(load, title, lines.getOrElse(1) { "" }.trim('\n'))) { ok ->
+        val (title, body) = sharedAsNote(text)
+        report(Notebook.createNote(load, title, body)) { ok ->
             openNote(ok.id)
             newNoteMade = ok.id
             say(said)
@@ -809,14 +828,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * said. Made away from the screen's thread: it is the notes' whole text
      * deflated, and the screen stood still for it at the tap (the final
      * audit's fifth round). From copies, taken here, which a tick in the
-     * list cannot change under it meanwhile.
+     * list cannot change under it meanwhile -- of [day] alone, when the
+     * editor is open on one day of a series ([outgoingNote]).
      */
-    suspend fun shareCode(ids: Collection<Int>): String? {
+    suspend fun shareCode(ids: Collection<Int>, day: String? = null): String? {
         val raw = outside(ids, writes = false) { load.raw } ?: return null
         val wanted = ids.toSet()
-        val notes = (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
-            .filter { (it.opt("id") as? Number)?.toInt() in wanted }
-            .map { JSONObject(it.toString()) }
+        val notes = if (day != null) ids.mapNotNull { outgoingNote(it, day) }
+            else (0 until raw.length()).mapNotNull { raw.opt(it) as? JSONObject }
+                .filter { (it.opt("id") as? Number)?.toInt() in wanted }
+                .map { JSONObject(it.toString()) }
         if (notes.isEmpty()) return null
         val code = try {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { Sharing.encode(notes) }
@@ -875,4 +896,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun settleTheme(phoneIsDark: Boolean) {
         if (load.settings != null && Settings.followsPhone(settings)) chooseTheme(themeName(phoneIsDark))
     }
+}
+
+/**
+ * Shared text as a new note's title and text ([AppState.noteFromShared]):
+ * the first line the title, the rest the text -- or, when the first line is
+ * longer than a title holds, the whole text kept as the text too.
+ */
+internal fun sharedAsNote(text: String): Pair<String, String> {
+    val whole = text.replace("\r\n", "\n").trim()
+    val lines = whole.split("\n", limit = 2)
+    val first = lines[0].trim()
+    val title = Editing.firstLetters(first, Editing.TITLE_CHARS)
+    return title to (if (title.length < first.length) whole else lines.getOrElse(1) { "" }.trim('\n'))
 }

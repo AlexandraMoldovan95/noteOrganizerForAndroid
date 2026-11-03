@@ -288,7 +288,10 @@ Grouped by what the app does; when each item arrived is in the
     every sum.
 27. **Export as file**, `.html` or `.txt`, through Android's "save as":
     the desktop's page byte for byte, the two kinds shown as cards saying
-    what each gives. **Share**, the mark at the top of a note: the note
+    what each gives. From one day of a series, both send that day as a
+    note of its own on its date, its words and not the series' (a code of
+    it carries no repeat and no identity, as the desktop's code of a day);
+    Duplicate is not offered on a day. **Share**, the mark at the top of a note: the note
     as a PDF, a web page, its words or a share code, chosen on one sheet
     and handed to the phone's own share sheet — WhatsApp, a mail app,
     Teams, Drive, and the people those apps put first. The PDF is the

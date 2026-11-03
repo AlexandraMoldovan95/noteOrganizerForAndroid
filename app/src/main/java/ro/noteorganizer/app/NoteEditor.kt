@@ -864,11 +864,16 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return why
     }
 
-    /** Back in front: the row [writeAway] made, if it is still the last and as written, back in the box. */
+    /**
+     * Back in front: the row [writeAway] made, if it is still the last and as
+     * written, back in the box -- of the note still open only. Text shared in
+     * on the way back opens a note of its own first, and the words taken out
+     * of the row went into an editor about to close, kept nowhere.
+     */
     fun backAgain() {
         val (noteId, index, words) = awayRow ?: return
         awayRow = null
-        if (noteId != id || adding.isNotEmpty()) return
+        if (noteId != id || state.openId != id || adding.isNotEmpty()) return
         val rows = state.rawNote(id)?.optJSONArray("checklist") ?: return
         if (rows.length() != index + 1 || rows.optJSONObject(index)?.optString("text") != words.trim()) return
         if (state.report(Notebook.removeChecklistItem(state.load, id, index))) adding = words
@@ -1700,7 +1705,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                        modifier = Modifier.semantics { contentDescription = redoSaid }) {
                 Text("↷", fontSize = 22.sp, color = if (model.canRedo) palette.text else palette.hairline)
             }
-            Spacer(Modifier.weight(1f))
+            // The status takes what the buttons leave, and shortens: measured
+            // before them, "Saved for this day only" squeezed ⋮ to a sliver,
+            // and at a larger font to nothing.
             Text(
                 text = when {
                     model.problem != null -> stringResource(R.string.not_saved)
@@ -1711,6 +1718,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 },
                 color = if (model.problem != null) palette.dangerText else palette.subtext,
                 fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f),
             )
             // Share: one door out -- a PDF, a page, the words, a code --
             // where 🔗 and "Send by email" were two. A note with nothing in
@@ -1810,13 +1821,17 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             }
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_duplicate)) },
-                        onClick = {
-                            menu = false
-                            if (model.save(force = model.id == 0)) state.duplicate(model.id)
-                        },
-                    )
+                    // Not on a day: it copied the whole series, and the calendar
+                    // then showed two notes on every one of its days.
+                    if (day == null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_duplicate)) },
+                            onClick = {
+                                menu = false
+                                if (model.save(force = model.id == 0)) state.duplicate(model.id)
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.note_export)) },
                         onClick = {
@@ -2189,12 +2204,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         ExportDialog(
             onPick = { format ->
                 exportAsk = false
-                state.exporter?.export(model.id, format)
+                state.exporter?.export(model.id, format, day)
             },
             onDismiss = { exportAsk = false },
         )
     }
-    if (shareAsk) ShareSheet(state, model.id) { shareAsk = false }
+    if (shareAsk) ShareSheet(state, model.id, day) { shareAsk = false }
     if (tableMore && model.activeCell != null && activeSegment != null) {
         TableMoreSheet(model, activeSegment, model.activeCell!!.at,
                        onDeleteTable = { tableMore = false; askDeleteTable = true },

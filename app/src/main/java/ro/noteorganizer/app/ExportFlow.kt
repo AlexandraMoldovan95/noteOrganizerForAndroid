@@ -35,8 +35,9 @@ import java.io.IOException
 import java.io.OutputStream
 
 /** Starts an export of one note in one format; the rest happens in Android's picker. */
-class Exporter internal constructor(private val start: (Int, String) -> Unit) {
-    fun export(noteId: Int, format: String) = start(noteId, format)
+class Exporter internal constructor(private val start: (Int, String, String?) -> Unit) {
+    /** The note, or the one [day] of it the editor is open on ([AppState.outgoingNote]). */
+    fun export(noteId: Int, format: String, day: String? = null) = start(noteId, format, day)
 }
 
 /**
@@ -65,11 +66,12 @@ fun rememberExporter(state: AppState): Exporter {
         val job = pending ?: return
         pending = null
         if (uri == null) return
-        val id = job.substringBefore(':').toIntOrNull() ?: return
-        val format = job.substringAfter(':')
+        val parts = job.split(":", limit = 3)
+        val id = parts[0].toIntOrNull() ?: return
+        val format = parts.getOrNull(1) ?: return
         // A copy, taken here: the page is worked out and written away from
         // the screen, which a tick in the list may change the note under.
-        val note = state.rawNote(id)?.let { JSONObject(it.toString()) } ?: return
+        val note = state.outgoingNote(id, parts.getOrNull(2)?.ifEmpty { null }) ?: return
         val title = Exporting.titleOf(note)
         state.scope.launch {
             // Off the screen's thread: a note can hold a table of tens of
@@ -112,9 +114,9 @@ fun rememberExporter(state: AppState): Exporter {
         ActivityResultContracts.CreateDocument(Exporting.mimeType(Exporting.TXT))) { finish(it) }
 
     return remember {
-        Exporter { id, format ->
-            val note = state.rawNote(id) ?: return@Exporter
-            pending = "$id:$format"
+        Exporter { id, format, day ->
+            val note = state.outgoingNote(id, day) ?: return@Exporter
+            pending = "$id:$format:${day.orEmpty()}"
             val name = Exporting.fileName(Exporting.titleOf(note), format)
             if (format == Exporting.HTML) html.launch(name) else txt.launch(name)
         }

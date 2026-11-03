@@ -64,7 +64,11 @@ object Finding {
              checklist: List<String> = emptyList(), comments: String = ""): List<Match> {
         if (query.isEmpty()) return emptyList()
         val found = ArrayList<Match>()
-        val needle = if (matchCase) query else searchFold(query)
+        // The spaces at its ends are not part of it, unless it is nothing else:
+        // a word picked from the keyboard's suggestions comes with one, as in
+        // the list. A line break there is, to find the words that end a line.
+        val words = query.trim(' ').ifEmpty { query }
+        val needle = if (matchCase) words else searchFold(words)
 
         // Letter by letter, each search one character after the last match began.
         fun inText(text: String, add: (Int, Int) -> Match) {
