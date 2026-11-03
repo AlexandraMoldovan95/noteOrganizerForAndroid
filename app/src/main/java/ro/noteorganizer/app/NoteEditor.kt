@@ -2523,7 +2523,9 @@ const val STAND_IN = '​'
  */
 private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Paragraphs.Props>): AnnotatedString {
     val lines = text.text.split("\n")
-    val styled = lines.withIndex().any { (i, line) -> props[firstLine + i] != null || Paragraphs.parseListMarker(line).kind != null }
+    val grow = linesGrown(text, lines)
+    val styled = lines.withIndex().any { (i, line) ->
+        props[firstLine + i] != null || Paragraphs.parseListMarker(line).kind != null || grow[i] > 1f }
     if (!styled) return text
     // Every line its own paragraph, and the line breaks drawn as nothing:
     // a paragraph always starts on a new line, and a break kept inside one
@@ -2559,7 +2561,8 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
             // The field's own spacing, which a paragraph's style replaces --
             // untrimmed: trimmed at a paragraph's first and last line, a
             // one-line paragraph kept none of it and the lines bunched up.
-            lineHeight = BODY_LINE_HEIGHT.sp,
+            // Grown with the line's largest size, as the desktop's line grows.
+            lineHeight = (BODY_LINE_HEIGHT * grow[i]).sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         )
         val last = standIn && i == lines.lastIndex
@@ -2568,6 +2571,30 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
     }
     val drawn = text.text.replace('\n', STAND_IN) + if (standIn) STAND_IN.toString() else ""
     return AnnotatedString(drawn, text.spanStyles, paragraphs)
+}
+
+/**
+ * Each of [lines]' largest size, in ems of the body ([RichText]'s sizes),
+ * 1 for none larger: held to the body's 24 sp, two lines of 20 pt ran into
+ * each other (wave 2, round 6). Each size span placed by its lines' starts,
+ * not each span tried against each line: a note keeps up to 10,000 spans.
+ */
+private fun linesGrown(text: AnnotatedString, lines: List<String>): FloatArray {
+    val grow = FloatArray(lines.size) { 1f }
+    val starts = IntArray(lines.size)
+    for (i in 1 until lines.size) starts[i] = starts[i - 1] + lines[i - 1].length + 1
+    fun lineOf(at: Int): Int {
+        val i = java.util.Arrays.binarySearch(starts, at)
+        return if (i >= 0) i else -i - 2
+    }
+    for (span in text.spanStyles) {
+        val size = span.item.fontSize
+        if (!size.isEm || size.value <= 1f || span.end <= span.start) continue
+        for (i in lineOf(span.start).coerceAtLeast(0)..lineOf(span.end - 1).coerceAtLeast(0)) {
+            if (size.value > grow[i]) grow[i] = size.value
+        }
+    }
+    return grow
 }
 
 /**

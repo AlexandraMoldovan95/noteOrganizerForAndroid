@@ -2598,7 +2598,9 @@ def sizes_and_faces(folder):
     shape the desktop keeps: the size a number, the face one of its own."""
     print("\n-- sizes and faces --")
     seed_inside([
-        {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style",
+        # Two lines: a size larger than the body must not draw them over each
+        # other (a size is points against a 12 pt body since round 6).
+        {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style\nand a second line under them",
          "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Faces")
     open_note("Faces")

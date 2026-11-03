@@ -408,6 +408,18 @@ class NotebookTest {
     }
 
     @Test
+    fun `a size is points against the desktop's 12 pt body, never smaller than the body above 12`() {
+        // Drawn as sp beside a 16 sp body, 14 made words smaller and 16 changed
+        // nothing; the desktop and the PDF read them as points (wave 2, round 6).
+        fun drawn(size: Int) = renderBody(notesFrom("""[{"id": 1, "body": "abc", "formatting":
+            [{"start": 0, "end": 3, "style": "font_size", "value": $size}]}]""").single())
+            .text.spanStyles.single().item.fontSize
+        assertEquals(1f, drawn(12).value, 0.001f)
+        assertTrue(drawn(14).isEm && drawn(14).value > 1f)
+        assertTrue(drawn(9).value < 1f)
+    }
+
+    @Test
     fun `a bad colour value is refused rather than drawn as black`() {
         val json = """
             [{"id": 1, "body": "abc", "formatting":

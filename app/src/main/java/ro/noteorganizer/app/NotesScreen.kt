@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -494,11 +495,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     }
                 }
                 else -> LazyColumn(state = listState,
-                                   // Its foot as tall as the keyboard too: up, it covered the
-                                   // last results, which could not be scrolled into view.
-                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp,
-                                       bottom = 96.dp + with(LocalDensity.current) {
-                                           androidx.compose.foundation.layout.WindowInsets.ime.getBottom(this).toDp() })) {
+                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
                     items(rows, key = { row ->
                         when (row) {
                             is Showing.Row.Header -> "h:" + row.category
@@ -615,6 +612,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                             }
                         }
                     }
+                    // Its foot as tall as the keyboard where nothing above has
+                    // made room for it: up, the keyboard covered the last
+                    // results; counted twice on a wide window, it emptied the pane.
+                    item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.ime)) }
                 }
             }
         }

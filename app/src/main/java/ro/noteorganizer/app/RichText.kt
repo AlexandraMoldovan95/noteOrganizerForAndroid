@@ -8,7 +8,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
 
 /*
  * Turns a note's stored spans into text Compose can draw.
@@ -111,9 +111,12 @@ private fun styleOf(span: FormatSpan, surface: Color): SpanStyle? = when (span.s
     // theme. Its comment is blunt about it: "the solid palette fill buried
     // the text under it."
     "highlight" -> hexColor(span.value)?.let { SpanStyle(background = blend(it, surface, 0.45f)) }
+    // Points against the desktop's 12 pt body, as the desktop and the PDF
+    // read them: drawn as sp beside a 16 sp body, 14 made words smaller and
+    // 16 changed nothing (wave 2, round 6).
     "font_size" -> span.value.toIntOrNull()
         ?.takeIf { it in 6..96 }
-        ?.let { SpanStyle(fontSize = it.sp) }
+        ?.let { SpanStyle(fontSize = (it / 12f).em) }
     // The Windows faces are not on a phone; each is drawn as the kind it
     // is -- serifed, fixed-width or plain -- which is what it was chosen for.
     "font_family" -> when (Fonts.kindOf(span.value)) {
