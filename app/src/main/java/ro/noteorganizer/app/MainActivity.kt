@@ -176,6 +176,7 @@ class MainActivity : ComponentActivity() {
             // update, and the setting may have changed on another device.
             val resumed by resumes
             LaunchedEffect(resumed) {
+                state.resumed = resumed
                 state.backAgain?.invoke()
                 state.dayIs(Recurrence.formatDate(LocalDate.now()))
                 ReminderAlarm.schedule(this@MainActivity, state.settings)

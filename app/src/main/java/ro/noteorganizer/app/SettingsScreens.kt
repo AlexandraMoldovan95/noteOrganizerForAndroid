@@ -1002,8 +1002,11 @@ private fun RemindersPage(state: AppState) {
                 }
             }
             Text(stringResource(R.string.reminder_inexact), color = palette.subtext, fontSize = 13.sp)
-            // Turned off since, in the phone's own settings: said, with the way there.
-            if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            // Turned off since, in the phone's own settings -- the app's, or the
+            // reminder's own kind, which a long press on the notification turns
+            // off: said, with the way there, and read again on each return.
+            val blocked = remember(state.resumed) { remindersBlocked(context) }
+            if (blocked) {
                 Text(stringResource(R.string.reminder_blocked), color = palette.dangerText, fontSize = 13.sp,
                      modifier = Modifier.padding(top = 12.dp))
                 OutlinedButton(onClick = { openNotificationSettings(context) }, modifier = Modifier.padding(top = 6.dp)) {
@@ -1012,6 +1015,14 @@ private fun RemindersPage(state: AppState) {
             }
         }
     }
+}
+
+/** Whether the day's reminder cannot show: the app's notifications off, or the reminder's own channel. */
+private fun remindersBlocked(context: android.content.Context): Boolean {
+    if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) return true
+    val channel = context.getSystemService(android.app.NotificationManager::class.java)
+        ?.getNotificationChannel(ReminderAlarm.CHANNEL) ?: return false
+    return channel.importance == android.app.NotificationManager.IMPORTANCE_NONE
 }
 
 /** The phone's own page of this app's notifications. */

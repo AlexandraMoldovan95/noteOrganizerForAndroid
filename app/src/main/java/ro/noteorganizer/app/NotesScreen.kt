@@ -473,9 +473,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     // The list does not read a day's own words; the History
                     // does. When a day of a repeating note holds them, said,
                     // with the way there (the owner's choice, wave 2).
+                    // A day's own words alone (autoExpand): a dated note Show
+                    // hid is in the History too, and the sentence was false.
                     val words = PyText.strip(query)
                     val inADay = remember(state.revision, words) {
-                        words.isNotEmpty() && Recurrence.history(state.rawNotes(), words).isNotEmpty()
+                        words.isNotEmpty() && Recurrence.history(state.rawNotes(), words)
+                            .any { it is Recurrence.HistoryEntry.Series && it.autoExpand }
                     }
                     if (inADay) {
                         Text(stringResource(R.string.no_match_in_a_day), color = palette.subtext, fontSize = 14.sp,

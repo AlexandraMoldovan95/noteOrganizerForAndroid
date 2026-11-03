@@ -166,6 +166,9 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var date by mutableStateOf(note?.date ?: newDate)
     var pinned by mutableStateOf(note?.pinned ?: false)
 
+    /** Whether this editor began as a new note -- still true after its first save, which a template asks after. */
+    val startedNew: Boolean = note == null
+
     /**
      * Each line's indent and alignment, kept in step with the text as it
      * changes; a list item's kind is its marker, in the text itself. A day
@@ -2198,9 +2201,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             templates,
             onPick = { tpl ->
                 pickTemplate = null
-                // A new note started on a calendar day keeps the day: the
-                // template's note was made undated, and the day was gone.
-                state.useTemplate(tpl, templateStarted, date = if (model.id == 0) model.date else "")
+                // A new note started on a calendar day keeps the day, typed in
+                // first or not: the template's note was made undated.
+                state.useTemplate(tpl, templateStarted, date = if (model.startedNew) model.date else "")
             },
             onDismiss = { pickTemplate = null },
         )

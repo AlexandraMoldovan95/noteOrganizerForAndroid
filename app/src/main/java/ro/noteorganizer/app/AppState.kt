@@ -111,6 +111,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** The History in place of the month, as the desktop's toggle swaps them. */
     var showHistory by mutableStateOf(false)
 
+    /** Counts the app's returns to the screen: what the phone's settings may have changed meanwhile is read again. */
+    var resumed by mutableIntStateOf(0)
+
     /** A search for the History to take up, handed over by the list ([searchHistoryFor]). */
     var historyQuery by mutableStateOf<String?>(null)
 
