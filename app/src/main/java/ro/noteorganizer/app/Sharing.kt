@@ -180,11 +180,13 @@ object Sharing {
      * `code_in`: from its prefix to its padding, or to the first character a
      * code is not written in (`+` and `/` read as `-` and `_`, the other
      * spelling), so "Hi! NOTE1:… Thanks" reads, where every word around a
-     * code made it unreadable now and then. Without padding, and [cut], the
-     * letters past the last whole group of four are left (a word after it).
-     * [text] itself, whitespace out, when it holds no prefix.
+     * code made it unreadable now and then. Without padding, the letters past
+     * the last whole group of four are left (a word after it); a code whose
+     * "=" was lost loses only part of its checksum so, and still reads
+     * (measured: SharingTest). [text] itself, whitespace out, when it holds no
+     * prefix.
      */
-    internal fun codeIn(text: String, cut: Boolean = true): String {
+    internal fun codeIn(text: String): String {
         val at = text.indexOf(PREFIX)
         if (at < 0) return text.filterNot { it.isWhitespace() }
         val body = StringBuilder()
@@ -205,21 +207,12 @@ object Sharing {
                 else -> break
             }
         }
-        if (!padded && cut) body.setLength(body.length - body.length % 4)
+        if (!padded) body.setLength(body.length - body.length % 4)
         return PREFIX + body
     }
 
     fun decode(code: String): Decoded {
-        // Whole first: a code whose "=" was lost on the way reads without it,
-        // as it did before the cut -- which is for words after a code with no
-        // padding, and tried when the whole run does not read.
-        val whole = codeIn(code, cut = false)
-        val read = decodeCleaned(whole)
-        val cutRun = codeIn(code)
-        return if (read is Decoded.Notes || cutRun == whole) read else decodeCleaned(cutRun)
-    }
-
-    private fun decodeCleaned(cleaned: String): Decoded {
+        val cleaned = codeIn(code)
         // The desktop's words, from decode_share_code, so the same damaged
         // code is described the same way on both devices.
         if (cleaned.isEmpty()) return Decoded.Failed("No code was pasted.")
