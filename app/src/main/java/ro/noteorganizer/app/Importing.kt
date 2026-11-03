@@ -238,6 +238,16 @@ object Importing {
     }
 
     /**
+     * Whether the import goes on past its look-alikes -- an Update agreed
+     * to, unchanged notes kept as copies -- so the question about them,
+     * when every new note is one, offers to skip them: Cancel was its only
+     * no, and dropped those answers unsaid, as the desktop's did (wave 2,
+     * round 10).
+     */
+    fun goesOnPastLookAlikes(plan: Plan, answers: Answers): Boolean =
+        (answers.update && plan.differing.isNotEmpty()) || (answers.copyUnchanged && plan.unchanged.isNotEmpty())
+
+    /**
      * How many of the notes left to import as new look identical to a
      * note the notebook will hold -- the notebook as the updates will
      * leave it: the third question, once the first is answered.

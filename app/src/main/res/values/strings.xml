@@ -497,6 +497,8 @@
     <string name="q_all_imported_title">All notes already imported</string>
     <string name="q_all_imported_text">All %1$d new notes in this %2$s look identical to notes you already have. Import them anyway as new copies?</string>
     <string name="q_all_imported_one">The new note in this %1$s looks identical to one you already have. Import it anyway as a new copy?</string>
+    <string name="q_all_imported_going_on">All %1$d new notes in this %2$s look identical to notes you already have. Skipped, the rest of this import still happens.</string>
+    <string name="q_all_imported_one_going_on">The new note in this %1$s looks identical to one you already have. Skipped, the rest of this import still happens.</string>
     <string name="q_import_anyway">Import anyway</string>
 
     <!-- Settings -->

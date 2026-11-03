@@ -166,6 +166,23 @@ class ImportingTest {
     }
 
     @Test
+    fun `an Update agreed to, or copies kept, lets the look-alikes question skip them and go on`() {
+        // Cancel was its only no when every new note looked like one here,
+        // and it dropped the Update agreed one question earlier (wave 2, round 10).
+        val load = notebook("""
+            [{"id": 1, "uid": "a", "title": "Mine", "updated": "2026-10-10 10:00:00"},
+             {"id": 2, "uid": "b", "title": "Same", "category": "General"}]
+        """.trimIndent())
+        val plan = backupPlan(load, """
+            [{"uid": "a", "title": "Changed", "updated": "2026-10-11 10:00:00"},
+             {"uid": "b", "title": "Same", "category": "General"}]
+        """.trimIndent())
+        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(update = true)))
+        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(copyUnchanged = true)))
+        assertFalse(Importing.goesOnPastLookAlikes(plan, Importing.Answers()))
+    }
+
+    @Test
     fun `a note is compared as a load shapes it, so what no person changed is no change`() {
         // Filed here under General when it came, from a category this phone
         // lacks; a day's empty colour; a table closing the body, with and

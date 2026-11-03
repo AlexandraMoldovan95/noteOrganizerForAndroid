@@ -333,10 +333,11 @@ class AppStateTest {
     }
 
     @Test
-    fun `a change that takes the editor to another day or closes it writes the words in A new item first`() {
+    fun `only a change that closes the editor writes the words in A new item first`() {
         // A day moved with them left in the box built the editor anew, the
-        // box empty, the words kept nowhere (wave 2, round 8). Another day
-        // changed beside the editor, which stays, leaves them (round 9).
+        // box empty, the words kept nowhere (wave 2, round 8); written as a
+        // row, a change beside the editor or one refused finished them while
+        // it stayed (rounds 9 and 10). An editor built anew carries them.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1, "2026-10-12")
@@ -351,7 +352,7 @@ class AppStateTest {
         s.deleteDay(1, "2026-10-26")
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "daily"}""")))
         s.deleteDay(1, "2026-10-12")
-        assertEquals(listOf("whole", "whole", "staying", "staying", "whole", "whole"), seen)
+        assertEquals(listOf("staying", "staying", "staying", "staying", "staying", "whole"), seen)
     }
 
     @Test

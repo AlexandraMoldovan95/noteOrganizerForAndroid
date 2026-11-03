@@ -262,7 +262,19 @@ fun ImportQuestions(
         Step.LOOKALIKES -> {
             val count = counts.of(answers.update)
             val remaining = plan.fresh.size + if (answers.update) 0 else plan.differing.size
-            if (count == remaining) {
+            if (count == remaining && Importing.goesOnPastLookAlikes(plan, answers)) {
+                Choice(
+                    title = stringResource(R.string.q_duplicates_title),
+                    text = if (count == 1) stringResource(R.string.q_all_imported_one_going_on, source)
+                           else stringResource(R.string.q_all_imported_going_on, count, source),
+                    options = listOf(
+                        (if (count == 1) stringResource(R.string.q_skip_duplicate)
+                         else stringResource(R.string.q_skip_duplicates, count)) to { onAnswered(answers.copy(skipDuplicates = true)) },
+                        stringResource(R.string.q_import_anyway) to { onAnswered(answers.copy(skipDuplicates = false)) },
+                    ),
+                    cancel = onCancel,
+                )
+            } else if (count == remaining) {
                 Choice(
                     title = stringResource(R.string.q_all_imported_title),
                     text = if (count == 1) stringResource(R.string.q_all_imported_one, source)

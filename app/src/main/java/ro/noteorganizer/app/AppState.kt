@@ -324,6 +324,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var openNoteRewritten by mutableIntStateOf(0)
         private set
 
+    /**
+     * The notes the Trash's Undo just put back, for the list to bring the
+     * first of into sight: several taken back from the top of the screen
+     * came back above it, and the Undo looked as if it did nothing (wave 2,
+     * round 10).
+     */
+    var revealAfterUndo by mutableStateOf<Set<Int>?>(null)
+
     val settings: JSONObject get() = load.settings?.raw ?: JSONObject()
 
     /** A note's attached files: what it calls each, and its stored name. */
@@ -505,11 +513,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * carries the last words typed -- and, when the change [writes] it,
      * the editor reads it back after. Null, the change not made, when the
      * editor's words cannot be saved: read back, or the note sent to the
-     * Trash, they would be gone. A change that [closes] the editor -- or
-     * takes it to another day, which builds it anew -- takes the words in "A
-     * new item…" with it as a row; any other leaves them in the box
-     * ([saveStaying]). A day moved with them left there lost them (round 8);
-     * a day changed beside the editor, which stays, finished them (round 9).
+     * Trash, they would be gone. A change that [closes] the editor takes the
+     * words in "A new item…" with it as a row; any other leaves them in the
+     * box ([saveStaying]), and an editor built anew on another day of the
+     * note carries them along (NoteEditor): a day moved with them left there
+     * lost them (round 8), and one changed or refused while the editor stayed
+     * finished them (rounds 9 and 10).
      */
     private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, closes: Boolean = false,
                             change: () -> T): T? {
@@ -665,7 +674,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun resetDay(id: Int, day: String, dropText: Boolean = true, sendHome: Boolean = true) {
         val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
         val leaves = sendHome && home != null && openId == id && openDay == day
-        report(outside(listOf(id), closes = leaves) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
+        report(outside(listOf(id)) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
             // The editor open on the day goes with it, to where it is now.
             if (leaves) openDay = home
             say(if (dropText) "This day follows the series again" else "This day is back on its own date")
@@ -679,14 +688,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * puts it back while it still can.
      */
     fun moveDay(id: Int, day: String, to: String) {
-        val (result, move) = outside(listOf(id), closes = openId == id && openDay == day) {
-            Days.moveDay(load, id, day, to)
-        } ?: return
+        val (result, move) = outside(listOf(id)) { Days.moveDay(load, id, day, to) } ?: return
         if (!report(result) || move == null) return
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
-            val back = openId == move.id && openDay == move.to
-            report(outside(listOf(move.id), closes = back) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
+            report(outside(listOf(move.id)) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
                 if (openId == move.id && openDay == move.to) openDay = move.from
                 say("Moved back to ${shownDay(move.from)}")
             }
@@ -695,14 +701,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** A day off its series' schedule made a note of its own, or that note sent to the Trash. */
     fun settleOffScheduleDay(id: Int, day: String, how: Days.Settle): Boolean {
-        val result = outside(listOf(id), closes = true) { Days.settleOffScheduleDay(load, id, day, how) } ?: return false
+        val result = outside(listOf(id)) { Days.settleOffScheduleDay(load, id, day, how) } ?: return false
         return report(result)
     }
 
     private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun setRepeat(id: Int, rule: JSONObject?, startWas: Any? = null): Boolean {
-        val result = outside(listOf(id), closes = true) { Days.setRepeat(load, id, rule, startWas) } ?: return false
+        val result = outside(listOf(id)) { Days.setRepeat(load, id, rule, startWas) } ?: return false
         return report(result)
     }
 
@@ -741,7 +747,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
         if (openId != null && openId in ids) closeNote()
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
+            val before = load.notes.map { it.id }.toSet()
             report(Organizing.restore(load, keys)) { ok ->
+                revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
                 if (count == 1) openNote(ok.id)
             }
         }

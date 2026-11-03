@@ -860,6 +860,18 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return writeNote(false) ?: writeRename()
     }
 
+    /**
+     * [save] for a tap that asks something first -- reset or delete a day,
+     * the days off the schedule -- leaving "A new item…" in its box: the
+     * change asked about writes it if it closes the editor, and a Cancel left
+     * the item finished as a row (wave 2, round 10).
+     */
+    fun saveStaying(): Boolean {
+        val why = writeStaying() ?: return true
+        state.say("Not saved: $why")
+        return false
+    }
+
     /** The box's words a trip to the background wrote as a row: the note, the row, the words. */
     private var awayRow: Triple<Int, Int, String>? = null
 
@@ -1564,8 +1576,15 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val palette = LocalPalette.current
     // Not keyed on the id: a new note's first save gives it one, and the
     // editor goes on as it was.
+    // The same note built anew on another of its days -- a day moved, reset,
+    // moved back -- takes the words waiting in "A new item…" along: left in
+    // the editor it replaced, they were kept nowhere (wave 2, round 10).
+    val built = remember { arrayOfNulls<EditorModel>(1) }
     val model = remember(state.opening, state.openDay) {
-        EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
+        EditorModel(state, state.note(openId), state.openDay, state.newNoteDate).also { made ->
+            built[0]?.takeIf { made.id != 0 && it.id == made.id }?.let { made.adding = it.adding }
+            built[0] = made
+        }
     }
     val calc = remember(model) { CalculatorState() }
     var exportAsk by remember { mutableStateOf(false) }
@@ -1875,11 +1894,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         // is: the desktop's two answers, as two entries.
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_day_delete), color = palette.dangerText) },
-                            onClick = { menu = false; if (model.save()) asking = "day" },
+                            onClick = { menu = false; if (model.saveStaying()) asking = "day" },
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_series_delete), color = palette.dangerText) },
-                            onClick = { menu = false; if (model.save()) asking = "series" },
+                            onClick = { menu = false; if (model.saveStaying()) asking = "series" },
                         )
                     } else {
                         DropdownMenuItem(
@@ -1960,7 +1979,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                              fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
                         if (ownEdit || cameFrom != null) {
                             Text(stringResource(R.string.day_reset), color = palette.accentText, fontSize = 13.sp,
-                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { if (model.save()) asking = "reset" })
+                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { if (model.saveStaying()) asking = "reset" })
                         }
                     }
                 }
@@ -1998,7 +2017,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(palette.card)
-                        .clickable { if (model.save()) walkingOff = offDays }
+                        .clickable { if (model.saveStaying()) walkingOff = offDays }
                         .padding(12.dp),
                 )
             }
@@ -2195,11 +2214,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         OffScheduleQuestions(state, model.id, days, onDone = { walkingOff = null })
     }
     if (day != null && asking != null) {
-        DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) {
-            asking = null
-            // A reset changes what this day shows: shown again from the file.
-            state.note(model.id)?.let { model.reloadFrom(it) }
-        }
+        // What a change makes the day show is read back by the change itself
+        // (AppState.outside): read back here too, a Cancel emptied the text's
+        // Undo (wave 2, round 10).
+        DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) { asking = null }
     }
 
     if (moving && day != null) {

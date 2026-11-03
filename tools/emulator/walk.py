@@ -691,6 +691,7 @@ def main():
     outward(folder)
     calendar(folder)
     move_day(folder)
+    move_day_keeps_new_item(folder)
     off_schedule(folder)
     listing(folder)
     list_keeps_place(folder)
@@ -2952,6 +2953,55 @@ def cell_menu(folder):
     check("the table is gone", gone == "", repr(gone))
 
 
+def move_day_keeps_new_item(folder):
+    """Words typed in "A new item…" on a day of a series, then "Move this
+    day…": refused onto a date the series has, and moved. The words stay in
+    the box both times, made no row: moved, the editor built anew lost them
+    (round 8); refused, they were finished as a row (round 10)."""
+    from datetime import date, timedelta
+    print("\n-- a day moved keeps the words waiting in A new item --")
+    today = date.today()
+    first = date(today.year, today.month, 1)
+    monday = first + timedelta(days=(7 - first.weekday()) % 7)
+    second, third = monday + timedelta(days=7), monday + timedelta(days=14)
+    if not seed_inside([
+        {"id": 1, "uid": "mv-items", "title": "Team meeting", "body": "agenda", "category": "Work",
+         "date": monday.isoformat(), "recurrence": {"freq": "weekly", "weekdays": [0]},
+         "checklist": [{"text": "minutes", "done": False}],
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+    ], {"welcome_offered": True}, "Team meeting"):
+        return
+    rows = lambda: [r.get("text") for r in (note_by_uid("mv-items") or {}).get("checklist", [])]
+    tap("Calendar", exact=True, wait=1.5)
+    tap(said(second), wait=1.0)
+    open_note("Team meeting")
+    if not seek(lambda: find("A new item…") is not None):
+        fail("A new item… not on the screen")
+        return
+    tap("A new item…", wait=0.8)
+    type_text("Book the room")
+    keyboard_down()
+    adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")   # back up to the banner
+    time.sleep(1.0)
+    for target, what in ((third, "refused"), (second + timedelta(days=2), "moved")):
+        tap("Move this day", wait=1.5)
+        tap(picker_day(target), wait=0.6)
+        tap("OK", exact=True, wait=2.0)
+        seek(lambda: find("Book the room") is not None)
+        check("a day %s keeps the words in A new item, made no row" % what,
+              rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+        adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
+        time.sleep(1.0)
+    # The editor's own Reset, answered Cancel: its tap saved the box's words
+    # as a row first (round 10).
+    tap("Reset this day", wait=1.5)
+    tap("Cancel", exact=True, wait=1.5)
+    seek(lambda: find("Book the room") is not None)
+    check("Reset this day answered Cancel keeps the words in A new item, made no row",
+          rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+    back_to("Search notes")
+
+
 def move_day(folder):
     """One day of a series held on another date -- the desktop's "Move this
     day…": refused onto a date the series already has, then moved with its
@@ -3613,6 +3663,25 @@ def arranged_from_the_top(folder):
     if long_press("Cherry"):
         tap("📌", wait=1.5)
         check("a note pinned from the list's top is shown at its new place", not says_soon("Cherry", "Apple"))
+    # The top card unpinned: the list held by place, the note still pinned in
+    # sight; kept by its first card, it followed the card (round 10).
+    if long_press("Banana"):
+        tap("📌", wait=1.5)
+    if long_press("Banana"):
+        tap("📌", wait=1.5)
+        check("the top card unpinned leaves the list at its top, the note still pinned in sight",
+              not says_soon("Cherry", "Apple"))
+    # Two notes deleted from the top and taken back: brought into sight, where
+    # they came back above the screen and the Undo seemed to do nothing.
+    if long_press("Cherry"):
+        tap("Apple", exact=True, wait=0.8)
+        tap("🗑", wait=1.0)
+        undo_at = find("Undo", exact=True)
+        if undo_at:
+            adb("shell", "input", "tap", str(undo_at[0]), str(undo_at[1]))
+            time.sleep(1.5)
+        check("two notes taken back from the Trash are shown where they came back",
+              bool(undo_at) and not says_soon("Cherry", "Apple"))
     back_to("Search notes")
     # Grouped by category, a pin rises only to the top of its own group: the
     # top of the list was the wrong place, screens from it (round 9).
