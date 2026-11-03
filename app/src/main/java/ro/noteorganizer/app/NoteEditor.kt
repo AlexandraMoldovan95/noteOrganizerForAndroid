@@ -2203,7 +2203,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 pickTemplate = null
                 // A new note started on a calendar day keeps the day, typed in
                 // first or not: the template's note was made undated.
-                state.useTemplate(tpl, templateStarted, date = if (model.startedNew) model.date else "")
+                val begunNew = model.startedNew || (model.id != 0 && model.id == state.templateDayNote)
+                state.useTemplate(tpl, templateStarted, date = if (begunNew) model.date else "")
             },
             onDismiss = { pickTemplate = null },
         )

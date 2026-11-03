@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -493,7 +494,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     }
                 }
                 else -> LazyColumn(state = listState,
-                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
+                                   // Its foot as tall as the keyboard too: up, it covered the
+                                   // last results, which could not be scrolled into view.
+                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp,
+                                       bottom = 96.dp + with(LocalDensity.current) {
+                                           androidx.compose.foundation.layout.WindowInsets.ime.getBottom(this).toDp() })) {
                     items(rows, key = { row ->
                         when (row) {
                             is Showing.Row.Header -> "h:" + row.category

@@ -738,9 +738,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         report(Templates.newNote(load, template, load.categories.keys, date)) { ok ->
             openNote(ok.id)
             newNoteMade = ok.id
+            if (date.isNotEmpty()) templateDayNote = ok.id
             say(said)
         }
     }
+
+    /**
+     * The note a template began on a calendar day: begun new as well, so a
+     * second template used in it keeps the day -- it counted as a note that
+     * was there before, and the next one was made undated (round 5).
+     */
+    var templateDayNote: Int? = null
 
     /**
      * Text shared from another app that holds no code becomes a note: its

@@ -8,6 +8,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -499,7 +500,10 @@ private fun History(state: AppState) {
     val entries = remember(state.revision, query, bucket) {
         Recurrence.history(state.rawNotes(), query.trim(), bucket)
     }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+    // Its foot as tall as the keyboard: up, it covered the last entries found.
+    val keys = with(LocalDensity.current) { androidx.compose.foundation.layout.WindowInsets.ime.getBottom(this).toDp() }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp),
+               contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = keys)) {
         item {
             BasicTextField(
                 value = query,

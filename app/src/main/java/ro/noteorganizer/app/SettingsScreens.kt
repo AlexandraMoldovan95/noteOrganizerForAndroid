@@ -1006,10 +1006,14 @@ private fun RemindersPage(state: AppState) {
             // reminder's own kind, which a long press on the notification turns
             // off: said, with the way there, and read again on each return.
             val blocked = remember(state.resumed) { remindersBlocked(context) }
-            if (blocked) {
-                Text(stringResource(R.string.reminder_blocked), color = palette.dangerText, fontSize = 13.sp,
-                     modifier = Modifier.padding(top = 12.dp))
-                OutlinedButton(onClick = { openNotificationSettings(context) }, modifier = Modifier.padding(top = 6.dp)) {
+            if (blocked != null) {
+                // Which one, by name, and its own page: told the app's were off,
+                // the person found them on there (round 5).
+                val channel = blocked == Blocked.CHANNEL
+                Text(stringResource(if (channel) R.string.reminder_channel_blocked else R.string.reminder_blocked),
+                     color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
+                OutlinedButton(onClick = { openNotificationSettings(context, channel) },
+                               modifier = Modifier.padding(top = 6.dp)) {
                     Text(openSaid)
                 }
             }
@@ -1017,23 +1021,30 @@ private fun RemindersPage(state: AppState) {
     }
 }
 
-/** Whether the day's reminder cannot show: the app's notifications off, or the reminder's own channel. */
-private fun remindersBlocked(context: android.content.Context): Boolean {
-    if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) return true
+/** What keeps the day's reminder from showing. */
+private enum class Blocked { APP, CHANNEL }
+
+/** What keeps the day's reminder from showing: the app's notifications off, or the reminder's own kind; null for nothing. */
+private fun remindersBlocked(context: android.content.Context): Blocked? {
+    if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) return Blocked.APP
     val channel = context.getSystemService(android.app.NotificationManager::class.java)
-        ?.getNotificationChannel(ReminderAlarm.CHANNEL) ?: return false
-    return channel.importance == android.app.NotificationManager.IMPORTANCE_NONE
+        ?.getNotificationChannel(ReminderAlarm.CHANNEL) ?: return null
+    return if (channel.importance == android.app.NotificationManager.IMPORTANCE_NONE) Blocked.CHANNEL else null
 }
 
-/** The phone's own page of this app's notifications. */
-private fun openNotificationSettings(context: android.content.Context) {
-    val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+/** The phone's own page of this app's notifications -- or, [channel], of the reminder's own kind. */
+private fun openNotificationSettings(context: android.content.Context, channel: Boolean = false) {
+    val intent = android.content.Intent(
+        if (channel) android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS
+        else android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (channel) intent.putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, ReminderAlarm.CHANNEL)
     try {
         context.startActivity(intent)
     } catch (e: android.content.ActivityNotFoundException) {
-        // A phone with no such page: nothing to open.
+        // A phone with no channel page: the app's, or nothing to open.
+        if (channel) openNotificationSettings(context)
     }
 }
 
