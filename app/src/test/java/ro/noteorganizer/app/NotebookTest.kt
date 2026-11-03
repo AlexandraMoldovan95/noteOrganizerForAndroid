@@ -420,6 +420,19 @@ class NotebookTest {
     }
 
     @Test
+    fun `two sizes over the same letters draw the later one, as the desktop does, never both multiplied`() {
+        // As em, 24 inside 20 drew at 3.3 times the body (wave 2, round 7).
+        val drawn = renderBody(notesFrom("""[{"id": 1, "body": "abcdefghij", "formatting":
+            [{"start": 0, "end": 10, "style": "font_size", "value": 20},
+             {"start": 3, "end": 5, "style": "font_size", "value": 24},
+             {"start": 0, "end": 10, "style": "bold"}]}]""").single())
+            .text.spanStyles.filter { it.item.fontSize.isEm }
+            .map { Triple(it.start, it.end, it.item.fontSize.value) }.sortedBy { it.first }
+        assertEquals(listOf(0 to 3, 3 to 5, 5 to 10), drawn.map { it.first to it.second })
+        assertEquals(listOf(20 / 12f, 2f, 20 / 12f), drawn.map { it.third })
+    }
+
+    @Test
     fun `a bad colour value is refused rather than drawn as black`() {
         val json = """
             [{"id": 1, "body": "abc", "formatting":

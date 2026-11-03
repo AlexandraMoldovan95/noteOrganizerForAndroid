@@ -224,8 +224,45 @@ object Organizing {
 
     /** Files several notes under one category; one write. */
     fun moveToCategory(load: Notebook.Load, ids: Collection<Int>, category: String): SaveResult {
-        val name = category.trim().ifEmpty { Themes.PROTECTED_CATEGORY }
+        val name = filedAs(category)
         return editEach(load, ids) { it.put("category", name) }
+    }
+
+    private fun filedAs(category: String) = category.trim().ifEmpty { Themes.PROTECTED_CATEGORY }
+
+    /** Where one note was filed, and when it was last changed: what a move's Undo puts back. */
+    data class Filed(val id: Int, val uid: String?, val category: Any?, val updated: Any?)
+
+    /** Where each of [ids] is filed now, before a move. */
+    fun filedNow(load: Notebook.Load, ids: Collection<Int>): List<Filed> {
+        val array = load.raw ?: return emptyList()
+        return ids.mapNotNull { id ->
+            noteById(array, id)?.let { Filed(id, it.opt("uid") as? String, it.opt("category"), it.opt("updated")) }
+        }
+    }
+
+    /**
+     * A move to [category] taken back: each note back where [marks] say it
+     * was filed, its "updated" with it -- only one still under [category],
+     * as the desktop's _undo_bulk_category: one filed again since keeps it.
+     */
+    fun putBackFiled(load: Notebook.Load, marks: List<Filed>, category: String): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val name = filedAs(category)
+        val candidate = JSONArray(array.toString())
+        var changed = 0
+        for (mark in marks) {
+            val note = candidate.opt(indexOfNote(candidate, mark.id, mark.uid)) as? JSONObject ?: continue
+            if (note.opt("category") != name) continue
+            if (mark.category == null) note.remove("category") else note.put("category", mark.category)
+            if (mark.updated == null) note.remove("updated") else note.put("updated", mark.updated)
+            changed += 1
+        }
+        if (changed == 0) return SaveResult.Failed("Those notes are no longer where the move put them.")
+        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        replace(array, candidate)
+        return SaveResult.Ok(0, imported = changed)
     }
 
     // ---- duplicates ----

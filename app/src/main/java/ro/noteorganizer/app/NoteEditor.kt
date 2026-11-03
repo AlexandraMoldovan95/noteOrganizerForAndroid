@@ -139,6 +139,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import ro.noteorganizer.app.ui.theme.LocalPalette
@@ -846,6 +847,17 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun write(force: Boolean = false, scheduleFollows: Boolean = false): String? {
         writeHeldCell()
         return writeNote(force, scheduleFollows) ?: writeChecklist()
+    }
+
+    /**
+     * [write] for a save the editor stays open after -- a change from the
+     * list beside it, an Undo, an import -- leaving "A new item…" as it is:
+     * its words went in as a finished row, the box emptied under the thumb
+     * (wave 2, round 7). A read-back ([reloadFrom]) keeps the box.
+     */
+    fun writeStaying(): String? {
+        writeHeldCell()
+        return writeNote(false) ?: writeRename()
     }
 
     /** The box's words a trip to the background wrote as a row: the note, the row, the words. */
@@ -1642,10 +1654,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     DisposableEffect(model) {
         state.flush = { model.write() }
+        state.flushStaying = { model.writeStaying() }
         state.flushAway = { model.writeAway() }
         state.backAgain = { model.backAgain() }
         onDispose {
             state.flush = null
+            state.flushStaying = null
             state.flushAway = null
             state.backAgain = null
         }
@@ -1660,6 +1674,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     LaunchedEffect(model, state.openNoteRewritten) {
         if (state.openNoteRewritten != rewrittenAt) state.note(model.id)?.let { model.reloadFrom(it) }
     }
+    // The keys in a box the note's Undo does not hold -- a checklist row, "A
+    // new item…", Find, the calculator -- are its own: Ctrl+Z there took the
+    // body's last words instead, again at every press (wave 2, round 7).
+    var rowsHaveKeys by remember { mutableStateOf(false) }
+    var findHasKeys by remember { mutableStateOf(false) }
+    var calcHasKeys by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -1670,7 +1690,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             .imePadding()
             // A keyboard plugged into a tablet: the desktop's own keys.
             .onPreviewKeyEvent { event ->
-                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isCtrlPressed) {
+                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isCtrlPressed
+                    || rowsHaveKeys || findHasKeys || calcHasKeys) {
                     return@onPreviewKeyEvent false
                 }
                 when {
@@ -1877,7 +1898,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
         }
 
-        if (find.open) {
+        if (find.open) Box(Modifier.onFocusChanged { findHasKeys = it.hasFocus }) {
+            DisposableEffect(Unit) { onDispose { findHasKeys = false } }
             FindBar(
                 find = find,
                 counter = Finding.counter(currentIndex, matches.size, state.findQuery),
@@ -2125,9 +2147,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             // letter typed in the text above it.
             val inChecklist = remember(matches) { matches.filterIsInstance<Finding.InChecklist>() }
             val inComments = remember(matches) { matches.filterIsInstance<Finding.InComments>() }
-            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
-                             found = inChecklist,
-                             current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
+            Box(Modifier.onFocusChanged { rowsHaveKeys = it.hasFocus }) {
+                ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
+                                 found = inChecklist,
+                                 current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
+            }
             CommentsSection(state, model, shown = commentsShown, focusAsk = commentsAsk,
                             found = inComments,
                             current = currentMatch as? Finding.InComments, finding = find.open, reveal = find.reveal)
@@ -2149,8 +2173,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             footTop = if (it.size.height > 0) it.boundsInWindow().top else null
         }) {
         if (calc.open && (!WindowInsets.isImeVisible || calc.displayFocused)) {
-            CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
-                            onClose = { closeCalculator(calc, focusManager) })
+            Box(Modifier.onFocusChanged { calcHasKeys = it.hasFocus }) {
+                DisposableEffect(Unit) { onDispose { calcHasKeys = false } }
+                CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
+                                onClose = { closeCalculator(calc, focusManager) })
+            }
         } else if (writingIn != null && activeSegment != null) {
             // In a table, the table's own bar takes the format bar's place.
             TableBar(model, activeSegment, writingIn.at,
@@ -2561,8 +2588,9 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
             // The field's own spacing, which a paragraph's style replaces --
             // untrimmed: trimmed at a paragraph's first and last line, a
             // one-line paragraph kept none of it and the lines bunched up.
-            // Grown with the line's largest size, as the desktop's line grows.
-            lineHeight = (BODY_LINE_HEIGHT * grow[i]).sp,
+            // Grown with its largest size, in em as the letters are (round 7).
+            lineHeight = if (grow[i] > 1f) (BODY_LINE_HEIGHT / BODY_SIZE.toFloat() * grow[i]).em
+                         else BODY_LINE_HEIGHT.sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         )
         val last = standIn && i == lines.lastIndex

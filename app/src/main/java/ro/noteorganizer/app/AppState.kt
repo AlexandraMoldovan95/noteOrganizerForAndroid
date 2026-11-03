@@ -288,6 +288,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     var flush: (() -> String?)? = null
 
+    /** [flush] for a save the editor stays open after: "A new item…" left in its box (EditorModel.writeStaying). */
+    var flushStaying: (() -> String?)? = null
+
+    /** What a save that leaves the editor open runs: [flushStaying], or [flush] when it is not registered. */
+    private fun saveStaying(): String? = (flushStaying ?: flush)?.invoke()
+
     /** [flush] as the app goes to the background, and its undoing when the app is back in front (EditorModel.writeAway). */
     var flushAway: (() -> String?)? = null
     var backAgain: (() -> Unit)? = null
@@ -413,7 +419,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         fun onDay() = day?.takeIf { d -> rawNote(id)?.let { Recurrence.isRecurring(it) && Days.givenDay(it, d) } == true }
         // Its own card tapped again: the note stays as it is, cursor and all.
         if (id == openId && onDay() == openDay) {
-            flush?.invoke()
+            saveStaying()
             return
         }
         // On a wide screen the list stays beside the note, and a tap on
@@ -499,12 +505,15 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * carries the last words typed -- and, when the change [writes] it,
      * the editor reads it back after. Null, the change not made, when the
      * editor's words cannot be saved: read back, or the note sent to the
-     * Trash, they would be gone.
+     * Trash, they would be gone. A change that [closes] the note takes the
+     * words in "A new item…" with it as a row; any other leaves them in the
+     * box ([saveStaying]).
      */
-    private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, change: () -> T): T? {
+    private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, closes: Boolean = false,
+                            change: () -> T): T? {
         val open = openId
         val touches = open != null && open != 0 && open in ids
-        if (touches) flush?.invoke()?.let { why ->
+        if (touches) (if (closes) flush?.invoke() else saveStaying())?.let { why ->
             say("Not saved, so the open note was left as it is: $why")
             return null
         }
@@ -716,7 +725,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     fun trash(ids: Collection<Int>) {
         // The open note goes to the Trash with its last words in it.
-        val result = outside(ids, writes = false) { Organizing.trashNotes(load, ids) } ?: return
+        val result = outside(ids, writes = false, closes = true) { Organizing.trashNotes(load, ids) } ?: return
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
         val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
@@ -811,7 +820,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * here. A copy open in the editor goes with its last words in it.
      */
     fun cleanUpDuplicates(groups: List<List<Int>>, remove: Set<Int>) {
-        val result = outside(remove, writes = false) { Organizing.cleanUpDuplicates(load, groups, remove, attachments) } ?: return
+        val result = outside(remove, writes = false, closes = true) {
+            Organizing.cleanUpDuplicates(load, groups, remove, attachments)
+        } ?: return
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
         val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
@@ -840,10 +851,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val kept = JSONObject(row.toString())
         if (!report(Notebook.removeChecklistItem(load, id, index))) return
         offerUndo("Removed “${quoted(kept.optString("text"))}” from the checklist") {
-            // Words being typed into another row are written first, as every
-            // change to the list writes them: put back under them, the row
-            // moved the rows below it, and the waiting words were dropped.
-            flush?.invoke()?.let { why ->
+            // Words being typed into another row are written first: put back
+            // under them, the row moved the rows below it. "A new item…" is
+            // left in its box, made a row by this Undo (wave 2, round 7).
+            saveStaying()?.let { why ->
                 say(why)
                 return@offerUndo
             }
@@ -851,9 +862,22 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * Notes filed under one category, with the Undo the desktop's toast
+     * offers: each note back where it was filed ([Organizing.putBackFiled]).
+     * A tap on the sheet's next row moved them all, and where each had been
+     * was kept nowhere (wave 2, round 7).
+     */
     fun moveToCategory(ids: Collection<Int>, category: String) {
-        report(outside(ids) { Organizing.moveToCategory(load, ids, category) } ?: return) {
-            say(if (ids.size == 1) "Moved to “${quoted(category)}”" else "Moved ${ids.size} notes to “${quoted(category)}”")
+        var filed = emptyList<Organizing.Filed>()
+        val moved = outside(ids) {
+            filed = Organizing.filedNow(load, ids)
+            Organizing.moveToCategory(load, ids, category)
+        } ?: return
+        report(moved) {
+            offerUndo(if (ids.size == 1) "Moved to “${quoted(category)}”" else "Moved ${ids.size} notes to “${quoted(category)}”") {
+                report(outside(ids) { Organizing.putBackFiled(load, filed, category) } ?: return@offerUndo)
+            }
         }
     }
 

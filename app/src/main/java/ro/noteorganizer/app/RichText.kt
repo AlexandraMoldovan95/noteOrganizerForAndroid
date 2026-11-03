@@ -30,6 +30,7 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
     val ignored = LinkedHashSet<String>()
     val offsets = utf16Offsets(note.body, note.formatting.flatMap { listOf(it.start, it.end) })
     val lines = ArrayList<Triple<Int, Int, TextDecoration>>()
+    val sizes = ArrayList<Triple<Int, Int, Float>>()
     val text = buildAnnotatedString {
         append(note.body)
         for (span in note.formatting) {
@@ -48,11 +49,38 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
                 ignored.add(span.style)
                 continue
             }
-            addStyle(style, start, end)
+            if (span.style == "font_size") sizes.add(Triple(start, end, style.fontSize.value)) else addStyle(style, start, end)
         }
         for ((start, end, decoration) in decorations(lines)) addStyle(SpanStyle(textDecoration = decoration), start, end)
+        for ((start, end, size) in sizeRuns(sizes)) addStyle(SpanStyle(fontSize = size.em), start, end)
     }
     return RenderedBody(text, ignored)
+}
+
+/**
+ * Sizes over the same letters, the later one listed winning, as the
+ * desktop's runs take them: drawn as em, two sizes over one letter
+ * multiplied -- 24 inside 20 drew at 3.3 times the body, and a code's
+ * thousands grew past any screen (wave 2, round 7). One sweep over the
+ * edges, the sizes open at each held by their place in the list.
+ */
+internal fun sizeRuns(sizes: List<Triple<Int, Int, Float>>): List<Triple<Int, Int, Float>> {
+    if (sizes.size < 2) return sizes
+    val points = sizes.flatMap { listOf(it.first, it.second) }.distinct().sorted()
+    val starting = sizes.indices.groupBy { sizes[it].first }
+    val open = java.util.PriorityQueue<Int>(compareByDescending { it })
+    val runs = ArrayList<Triple<Int, Int, Float>>()
+    for (k in 0 until points.size - 1) {
+        val at = points[k]
+        starting[at]?.let { open.addAll(it) }
+        while (open.isNotEmpty() && sizes[open.peek()!!].second <= at) open.poll()
+        val top = open.peek() ?: continue
+        val size = sizes[top].third
+        val last = runs.lastOrNull()
+        if (last != null && last.second == at && last.third == size) runs[runs.lastIndex] = Triple(last.first, points[k + 1], size)
+        else runs.add(Triple(at, points[k + 1], size))
+    }
+    return runs
 }
 
 /**

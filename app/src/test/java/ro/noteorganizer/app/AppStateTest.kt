@@ -229,6 +229,53 @@ class AppStateTest {
     }
 
     @Test
+    fun `notes moved to one category go back each where it was filed, by the move's Undo`() {
+        // One tap on the sheet moved them all, and where each had been was
+        // kept nowhere (wave 2, round 7).
+        val s = state()
+        s.moveToCategory(listOf(1), "Work")
+        s.snackbar.currentSnackbarData!!.dismiss()
+        val stamped = s.rawNote(2)?.opt("updated")
+        s.moveToCategory(listOf(1, 2), "Home")
+        assertEquals("Home", s.rawNote(1)?.optString("category"))
+        assertTrue(s.rawNote(2)?.opt("updated") != stamped)
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("Work", s.rawNote(1)?.optString("category"))
+        assertEquals("General", s.rawNote(2)?.optString("category"))
+        assertEquals(stamped, s.rawNote(2)?.opt("updated"))
+    }
+
+    @Test
+    fun `a move's Undo leaves a note filed again since where it is now`() {
+        val s = state()
+        val marks = Organizing.filedNow(s.load, listOf(1, 2))
+        assertTrue(s.report(Organizing.moveToCategory(s.load, listOf(1, 2), "Home")))
+        assertTrue(s.report(Organizing.moveToCategory(s.load, listOf(2), "Shopping")))
+        assertTrue(s.report(Organizing.putBackFiled(s.load, marks, "Home")))
+        assertEquals("General", s.rawNote(1)?.optString("category"))
+        assertEquals("Shopping", s.rawNote(2)?.optString("category"))
+    }
+
+    @Test
+    fun `a save the editor stays open after leaves the words in A new item in their box`() {
+        // A row's Undo, the note's own card tapped again and a pin from the
+        // list beside it made them a finished row and emptied the box; the
+        // Trash still takes them with the note (wave 2, round 7).
+        val s = state()
+        assertTrue(s.report(Notebook.addChecklistItem(s.load, 1, "milk")))
+        s.openNote(1)
+        val seen = ArrayList<String>()
+        s.flush = { seen.add("whole"); null }
+        s.flushStaying = { seen.add("staying"); null }
+        s.removeChecklistRow(1, 0)
+        s.snackbar.currentSnackbarData!!.performAction()
+        s.openNote(1)
+        s.setPinned(listOf(1), true)
+        s.trash(listOf(1))
+        assertEquals(listOf("staying", "staying", "staying", "whole"), seen)
+    }
+
+    @Test
     fun aCopyAndACodeCarryTheLastWordsTypedWithoutRereadingTheNote() {
         val s = state()
         s.openNote(1)
