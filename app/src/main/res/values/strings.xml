@@ -560,7 +560,7 @@
     <string name="reminder_notify">Notify me about today\'s notes</string>
     <string name="reminder_notify_sub">A notification at the hour below, even with the app closed, on a day that has notes. It says how many, never their words.</string>
     <string name="reminder_at">At</string>
-    <string name="reminder_inexact">The phone may bring it a few minutes late, to save its battery.</string>
+    <string name="reminder_inexact">The phone may bring it up to an hour late, to save its battery.</string>
     <string name="reminder_denied">The phone does not allow Note Organizer to send notifications, so the reminder stays off.</string>
     <string name="reminder_blocked">Notifications are turned off for Note Organizer on this phone.</string>
     <string name="reminder_channel_blocked">The reminder\'s own notifications, “Today\'s notes”, are turned off on this phone.</string>

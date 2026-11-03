@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -162,6 +163,21 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         if (at < 0) return@LaunchedEffect
         reveal = null
         listState.scrollToItem(at)
+    }
+    // A card an action moved -- pinned, copied, filed elsewhere -- brought
+    // into sight where the list now has it, when it is out of sight: the top
+    // was wrong under grouping, where a pin rises only within its group
+    // (round 9). Let go when the list does not hold it, unlike Show all's.
+    var revealCard by remember { mutableStateOf<Int?>(null) }
+    fun firstOf(ids: Set<Int>): Int? = shown.firstOrNull { it.id in ids }?.id
+    LaunchedEffect(revealCard, laidOut) {
+        val id = revealCard ?: return@LaunchedEffect
+        revealCard = null
+        val at = laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
+        if (at < 0) return@LaunchedEffect
+        withFrameNanos { }
+        if (listState.layoutInfo.visibleItemsInfo.any { it.key == id }) return@LaunchedEffect
+        listState.scrollToItem(if (at > 0 && laidOut[at - 1] is Showing.Row.Header) at - 1 else at)
     }
 
     /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
@@ -304,8 +320,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         }
                     },
                     actions = {
-                        // Pinned, they go to the top: shown there, not above the screen.
-                        IconButton(onClick = { state.setPinned(selected, !allPinned); if (!allPinned) reveal = -1; selected = emptySet() },
+                        // Pinned, the first goes to the top of the list or of its group: shown there.
+                        IconButton(onClick = { state.setPinned(selected, !allPinned); if (!allPinned) revealCard = firstOf(selected); selected = emptySet() },
                                    modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
                             Text("📌", fontSize = 18.sp)
                         }
@@ -322,16 +338,15 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (allPinned) R.string.unpin else R.string.pin)) },
-                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); if (!allPinned) reveal = -1; selected = emptySet() },
+                                onClick = { moreMenu = false; state.setPinned(selected, !allPinned); if (!allPinned) revealCard = firstOf(selected); selected = emptySet() },
                             )
                             if (selected.size == 1) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.duplicate)) },
                                     onClick = {
                                         moreMenu = false
-                                        state.duplicate(selected.single())
-                                        // Stamped now, the copy goes to the top of Recently updated.
-                                        if (order == SortOrder.UPDATED_NEW) reveal = -1
+                                        // The copy, shown where the sort puts it.
+                                        revealCard = state.duplicate(selected.single())
                                         selected = emptySet()
                                     },
                                 )
@@ -657,7 +672,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             onPick = { name ->
                 choosingCategory = false
                 state.moveToCategory(selected, name)
-                if (order == SortOrder.UPDATED_NEW) reveal = -1
+                revealCard = firstOf(selected)
                 selected = emptySet()
             },
             onDismiss = { choosingCategory = false },

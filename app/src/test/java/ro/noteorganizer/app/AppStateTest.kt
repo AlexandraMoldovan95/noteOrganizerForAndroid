@@ -286,8 +286,9 @@ class AppStateTest {
         val shared = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals("typed last", shared.optString("body"))
         s.editorHolds(1, "typed later", seen)
-        s.duplicate(1)
-        assertTrue(s.load.notes.any { it.id != 1 && it.body == "typed later" })
+        // The copy's id, for the list to show it where the sort puts it (round 9).
+        val copy = s.duplicate(1)
+        assertTrue(copy != null && copy != 1 && s.note(copy)?.body == "typed later")
         // Read, not written: the editor keeps its cursor.
         assertEquals(rewritten, s.openNoteRewritten)
         assertEquals(listOf("flush", "flush"), seen)
@@ -334,7 +335,8 @@ class AppStateTest {
     @Test
     fun `a change that takes the editor to another day or closes it writes the words in A new item first`() {
         // A day moved with them left in the box built the editor anew, the
-        // box empty, the words kept nowhere (wave 2, round 8).
+        // box empty, the words kept nowhere (wave 2, round 8). Another day
+        // changed beside the editor, which stays, leaves them (round 9).
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1, "2026-10-12")
@@ -344,10 +346,12 @@ class AppStateTest {
         s.moveDay(1, "2026-10-12", "2026-10-13")
         assertEquals("2026-10-13", s.openDay)
         s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("2026-10-12", s.openDay)
         s.resetDay(1, "2026-10-19")
         s.deleteDay(1, "2026-10-26")
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "daily"}""")))
-        assertEquals(listOf("whole", "whole", "whole", "whole", "whole"), seen)
+        s.deleteDay(1, "2026-10-12")
+        assertEquals(listOf("whole", "whole", "staying", "staying", "whole", "whole"), seen)
     }
 
     @Test

@@ -18,8 +18,8 @@ import java.time.ZoneId
 /**
  * The phone's daily notification ([Reminders]): an alarm at the hour chosen,
  * which reads the notebook, says how many notes fall on the day, and sets
- * itself for the next day. Inexact -- Android may hold it a few minutes to
- * spare the battery -- because an exact one needs a permission Google Play
+ * itself for the next day. Inexact -- Android 12 and later may hold it up to
+ * an hour to spare the battery, Doze longer -- because an exact one needs a permission Google Play
  * reviews, for a reminder that does not need the minute.
  *
  * It only ever reads: no Trash purged, no file rescued or written, as the

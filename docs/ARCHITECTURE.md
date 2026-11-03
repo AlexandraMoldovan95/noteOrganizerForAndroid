@@ -369,8 +369,10 @@ three choices shape it:
   the app's own start does. A notebook it cannot read gets no
   notification. A second writer behind the app's back is the one thing
   the notebook's every rule is built to avoid.
-- **Inexact.** `setAndAllowWhileIdle` may come a few minutes late to
-  spare the battery. An exact alarm needs `SCHEDULE_EXACT_ALARM`, which
+- **Inexact.** `setAndAllowWhileIdle` may come up to an hour late on
+  Android 12 and later, Android's guide says, and later than that under
+  Doze or Battery saver; Settings → Reminders says so (it promised "a few
+  minutes" until the final audit's second wave). An exact alarm needs `SCHEDULE_EXACT_ALARM`, which
   Google Play reviews and the phone's settings can take away, for a
   reminder that does not need the minute. It is set one day at a time,
   again after each one fires, at every start, and after a restart or an

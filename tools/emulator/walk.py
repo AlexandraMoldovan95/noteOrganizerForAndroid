@@ -3614,6 +3614,21 @@ def arranged_from_the_top(folder):
         tap("📌", wait=1.5)
         check("a note pinned from the list's top is shown at its new place", not says_soon("Cherry", "Apple"))
     back_to("Search notes")
+    # Grouped by category, a pin rises only to the top of its own group: the
+    # top of the list was the wrong place, screens from it (round 9).
+    if not seed_inside([{"id": i + 1, "uid": "walk-g%d" % i, "title": name, "body": "x",
+                         "category": "General" if i < 12 else "Work",
+                         "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
+                        for i, name in enumerate(fruit + ["Work plan %d" % n for n in range(1, 9)])],
+                       {"welcome_offered": True, "group_by_category": True, "note_sort": "Title A–Z",
+                        "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}, "Apple"):
+        return
+    seek(lambda: find("Work plan 6") is not None)
+    if long_press("Work plan 6"):
+        tap("📌", wait=1.5)
+        check("grouped, a note pinned in a later group is shown at the top of its group",
+              not says_soon("Work plan 6"))
+    back_to("Search notes")
 
 
 def what_hides_the_list(folder):
