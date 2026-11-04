@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -265,9 +266,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // Where the dragged card's slot was before its last trade, in the
     // layout's terms, until a layout shows the trade.
     var slotWas by remember { mutableStateOf<Float?>(null) }
-    // Whether the finger has moved since it pressed the handle: a press held
-    // still at the top card scrolled the list and moved the note (round 17).
-    var moving by remember { mutableStateOf(false) }
+    // Which way the finger last moved, 0 before it has: a press held still at
+    // the top card scrolled the list (round 17), and the top card dragged
+    // down scrolled it up, against the finger (round 18).
+    var heading by remember { mutableIntStateOf(0) }
     val rows = dragOrder ?: laidOut
     // As they are now, for a handle's gesture, which runs on as it was first
     // touched: read as they were then, a card's second drag started from the
@@ -300,7 +302,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         dragBy = 0f
         dragOrder = null
         slotWas = null
-        moving = false
+        heading = 0
         if (id == null || final == null || final == laidOutNow) return
         val at = final.indexOfFirst { noteOf(it)?.id == id }
         val next = noteOf(final.getOrNull(at + 1))
@@ -315,9 +317,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // The note a step moved, brought wholly into sight once the list shows
     // the step: past the top or the bottom card on screen it went out of
     // sight, or was left a strip (round 17).
-    var stepped by remember { mutableStateOf<Int?>(null) }
+    var stepped by remember { mutableStateOf<Stepped?>(null) }
     LaunchedEffect(stepped, laidOut) {
-        val id = stepped ?: return@LaunchedEffect
+        val (id, step, sizeWas) = stepped ?: return@LaunchedEffect
         val at = laidOut.indexOfFirst { noteOf(it)?.id == id }
         if (at < 0) {
             stepped = null
@@ -333,11 +335,16 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         }
         stepped = null
         if (layout == null) return@LaunchedEffect
-        // Above the list's foot, which is left for the + button.
+        // Above the list's foot, which is left for the + button; a card the
+        // layout no longer holds is brought in beside the card it passed.
         val card = layout.visibleItemsInfo.firstOrNull { it.key == id }
-        if (card == null) listState.scrollToItem(at)
-        else Showing.intoSight(card.offset, card.size, layout.viewportEndOffset - layout.afterContentPadding)
-            .takeIf { it != 0 }?.let { listState.scrollBy(it.toFloat()) }
+        val passed = layout.visibleItemsInfo.firstOrNull { it.index == at - step }
+        val by = Showing.afterStep(card?.offset, card?.size ?: sizeWas, passed?.offset, passed?.size ?: 0, step,
+                                   layout.viewportEndOffset - layout.afterContentPadding)
+        when {
+            by == null -> listState.scrollToItem(at)
+            by != 0 -> listState.scrollBy(by.toFloat())
+        }
     }
 
     /**
@@ -348,6 +355,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     fun stepNote(id: Int, step: Int) {
         val (anchor, before) = Organizing.stepPlace(laidOutNow.mapNotNull { noteOf(it) }, id, step, groupedNow) ?: return
         val at = laidOutNow.indexOfFirst { noteOf(it)?.id == id }
+        val size = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == id }?.size ?: 0
         // Up from the top of the screen, the card keeps its place there, its
         // neighbour under it; held at the index, it went above (round 17).
         if (step < 0 && at == listState.firstVisibleItemIndex) {
@@ -356,7 +364,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             holdByIndex()
         }
         state.moveNote(id, anchor, before = before, grouped = groupedNow)
-        stepped = id
+        stepped = Stepped(id, step, size)
     }
     var stepMenu by remember { mutableStateOf<Int?>(null) }
     val upSaid = stringResource(R.string.move_up)
@@ -399,17 +407,22 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         while (dragged != null) {
             val info = listState.layoutInfo
             val me = info.visibleItemsInfo.firstOrNull { it.key == dragged }
-            if (me != null && moving) {
+            if (me != null && heading != 0) {
                 val top = me.offset + dragBy
+                // Toward the edge the finger is going, never the other way.
                 val step = when {
-                    top < info.viewportStartOffset + edge -> -14f
-                    top + me.size > info.viewportEndOffset - edge -> 14f
+                    heading < 0 && top < info.viewportStartOffset + edge -> -14f
+                    heading > 0 && top + me.size > info.viewportEndOffset - edge -> 14f
                     else -> 0f
                 }
                 if (step != 0f) {
                     val scrolled = listState.scrollBy(step)
                     dragBy += scrolled
                     slotWas = slotWas?.minus(scrolled)
+                    follow(0f)
+                } else if (slotWas != null) {
+                    // A trade's correction, once the layout shows it, though the
+                    // finger stopped: it stood a card off the finger (round 18).
                     follow(0f)
                 }
             }
@@ -710,7 +723,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             dragBy = 0f
                                                             dragOrder = laidOutNow
                                                             slotWas = null
-                                                            moving = false
+                                                            heading = 0
                                                             var travelled = false
                                                             try {
                                                                 while (true) {
@@ -721,7 +734,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                     if (moved.y != 0f) {
                                                                         change.consume()
                                                                         travelled = true
-                                                                        moving = true
+                                                                        heading = if (moved.y > 0f) 1 else -1
                                                                         follow(moved.y)
                                                                     }
                                                                 }
@@ -744,7 +757,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 dragBy = 0f
                                                                 dragOrder = null
                                                                 slotWas = null
-                                                                moving = false
+                                                                heading = 0
                                                                 throw e
                                                             }
                                                         }
@@ -934,3 +947,6 @@ fun sendText(state: AppState, text: String) {
 /** A card to bring into sight once the list has it: the cards in sight, whether the list was at its top, and the item it keeps, when it was asked for. */
 private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>,
                           val anchor: Any?, val lead: Int)
+
+/** A card stepped one place ([step] -1 up, +1 down), and how tall it was before the step. */
+private data class Stepped(val id: Int, val step: Int, val size: Int)

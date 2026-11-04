@@ -204,6 +204,15 @@ class ListingTest {
         assertEquals(250, Showing.intoSight(1000, 250, 1000))
         // ...but never so far that a card taller than the screen loses its top.
         assertEquals(300, Showing.intoSight(300, 1500, 1000))
+        // Round 18: stepped down past the foot, out of the layout -- brought in
+        // beside the card it passed, now ending at 1100: up by 1100 + 250 - 1000,
+        // not to the top of the screen, which hid the card it passed.
+        assertEquals(350, Showing.afterStep(null, 250, 850, 250, step = 1, end = 1000))
+        // ...stepped up past the top: above the card it passed, now at 40.
+        assertEquals(-210, Showing.afterStep(null, 250, 40, 250, step = -1, end = 1000))
+        // Laid out, as before; neither card laid out: null, to its index.
+        assertEquals(0, Showing.afterStep(100, 250, 350, 250, step = 1, end = 1000))
+        assertEquals(null, Showing.afterStep(null, 250, null, 0, step = 1, end = 1000))
     }
 
     // ---- a category's name, wherever settings hold it ----

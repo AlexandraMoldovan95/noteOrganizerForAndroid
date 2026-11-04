@@ -5656,6 +5656,57 @@ def arrange_without_drag(folder):
     after = dict((name, y) for y, name in handles())
     check("...and the card just above the + button moved down stays in sight above it",
           picked in after and plus is not None and after[picked] < plus[1], "%s at %s, the + at %s" % (picked, after.get(picked), plus))
+
+    # The last card on screen, nothing under it in sight, stepped down: out of
+    # the layout, it was taken to the top of the screen, a screen's jump, and
+    # the card it passed went above (round 18).
+    last = None
+    for _ in range(8):
+        shown = handles()
+        order = placed()
+        if shown and plus:
+            y, name = shown[-1]
+            nxt = order[order.index(name) + 1] if order.index(name) + 1 < len(order) else None
+            clear_of_plus = abs(y - plus[1]) > 110
+            if nxt and clear_of_plus and screen_says(nxt) == [nxt]:
+                last, passed_by = name, nxt
+                break
+        adb("shell", "input", "swipe", "540", "1500", "540", "1440", "300")
+        time.sleep(1.0)
+    if not last:
+        fail("mid-list: no last card on screen with nothing under it in sight, clear of the +")
+        return
+    tap("Drag to move " + last, wait=1.0)
+    tap("Move down", exact=True, wait=2.0)
+    after = dict((name, y) for y, name in handles())
+    check("the last card on screen moved down shows just under the card it passed, both in sight",
+          last in after and not screen_says(passed_by) and placed().index(last) == placed().index(passed_by) + 1,
+          "%s, %s: %s" % (last, passed_by, sorted(after.items(), key=lambda kv: kv[1])[:6]))
+
+    # The top card on screen dragged one place down: the edge scroll took the
+    # list up first, against the finger, and the drag landed nowhere (round 18).
+    shown, pill = handles(), find("Sort: Custom order")
+    # The first card whose handle the list shows whole: its top within the
+    # top edge's reach, below the pills.
+    reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+    if len(reachable) >= 3 and reachable[0] == shown[0]:
+        (y0, top_name), (y1, _second), (y2, _third) = reachable[:3]
+        was = placed().index(top_name)
+        x = find("Drag to move " + top_name)[0]
+        # A whole card's height and more: a handle cut by the top edge is
+        # centred on what shows of it, nearer the next card than it is.
+        to = y0 + (y2 - y1) + 60
+        adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+        for y in range(y0, to, 30):
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+        time.sleep(0.8)
+        adb("shell", "input", "motionevent", "UP", str(x), str(to))
+        check_settled("the top card on screen dragged one place down lands one place down",
+                      lambda: (placed().index(top_name), was, top_name, shown[:3], pill),
+                      lambda got: got[0] == was + 1)
+    else:
+        fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
+             % (shown[:3], pill))
     back_to("Search notes")
 
 

@@ -473,6 +473,19 @@ object Showing {
         top + size > end -> minOf(top + size - end, top)
         else -> 0
     }
+
+    /**
+     * How far to scroll once a card [size] tall has moved one [step]: the
+     * card at [top] when the layout holds it, else beside the card it passed,
+     * at [passedTop], [passedSize] tall -- or null when the layout holds
+     * neither. Taken to the top of the screen instead, a card stepped down
+     * past the foot jumped a screen, the card it passed above it (round 18).
+     */
+    fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int): Int? = when {
+        top != null -> intoSight(top, size, end)
+        passedTop == null || size <= 0 -> null
+        else -> intoSight(if (step > 0) passedTop + passedSize else passedTop - size, size, end)
+    }
 }
 
 /** What a save did, or the reason it did not. Never silence. */
