@@ -3189,6 +3189,23 @@ def arranging(folder):
              "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"} for i in range(1, 31)]
     if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
         return
+    # The second card dragged up over the first, at the list's top, and held:
+    # the trade took the list along by a card, and the card under the finger
+    # was drawn above the screen until let go (round 16).
+    handle, first = find("Drag to move Note 02"), find("Note 01", exact=True)
+    if not handle or not first:
+        fail("the long list's first two cards not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], first[1] - 60, -40):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    time.sleep(1.5)
+    unseen = screen_says("Note 02")                  # the words missing, while held
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(first[1] - 60))
+    check_settled("the second card dragged over the first, still held, stays on screen, and lands first",
+                  placed, lambda p: not unseen and p[:2] == ["Note 02", "Note 01"], first=0)
+    if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
     for _ in range(4):
         adb("shell", "input", "swipe", "540", "1700", "540", "500", "200")
         time.sleep(0.6)
@@ -5528,6 +5545,22 @@ def arrange_without_drag(folder):
         check_settled("a row taken off by its ✕ comes back with Undo, in its place",
                       lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
                       lambda rows: rows == ["yeast", "flour"])
+    back_to("Search notes")
+    # A list longer than the screen: a card stepped past the top card went
+    # above the screen, the list following the top card by key (round 16).
+    if not seed_inside([{"id": i, "uid": "nd-l%d" % i, "title": "Note %02d" % i, "order": i,
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                        for i in range(1, 31)],
+                       {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    tap("Drag to move Note 02", wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    check("on a long list, the second card moved up is on screen, first",
+          placed()[:2] == ["Note 02", "Note 01"] and not says_soon("Note 02", "Note 01"), repr(placed()[:3]))
+    tap("Drag to move Note 02", wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    check("...and the top card moved down shows below the one it passed, both on screen",
+          placed()[:2] == ["Note 01", "Note 02"] and not says_soon("Note 01", "Note 02"), repr(placed()[:3]))
     back_to("Search notes")
 
 

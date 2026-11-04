@@ -206,11 +206,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         revealLater(ids)
     }
     /**
-     * An unpin holds the list where it is by place: kept by its first card,
-     * the list followed a card unpinned at the top of the screen, and the
-     * notes still pinned went above it (wave 2, round 10).
+     * The list held where it is by place, for a change that moves the card
+     * at the top of the screen without meaning to take the list along:
+     * kept by its first card, the list followed a card unpinned there and the
+     * notes still pinned went above it (wave 2, round 10); a card stepped or
+     * dragged past the top card went above the screen (round 16).
      */
-    fun holdForUnpin() = listState.requestScrollToItem(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+    fun holdByIndex() = listState.requestScrollToItem(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
 
     /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
     fun showAll(note: Note?) {
@@ -265,6 +267,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val other = noteOf(now.getOrNull(at + step)) ?: return false
         val me = noteOf(now[at]) ?: return false
         if (!Organizing.sameBlock(me, other, grouped)) return false
+        // By place: a trade with the top card took the list along by a card,
+        // and the dragged one was drawn above the screen.
+        holdByIndex()
         dragOrder = now.toMutableList().also { it[at] = it[at + step]; it[at + step] = now[at] }
         return true
     }
@@ -293,6 +298,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
      */
     fun stepNote(id: Int, step: Int) {
         val (anchor, before) = Organizing.stepPlace(laidOut.mapNotNull { noteOf(it) }, id, step, grouped) ?: return
+        holdByIndex()
         state.moveNote(id, anchor, before = before, grouped = grouped)
     }
     var stepMenu by remember { mutableStateOf<Int?>(null) }
@@ -354,7 +360,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     actions = {
                         // Pinned, the first goes to the top of the list or of its group: shown there.
                         IconButton(onClick = {
-                                       if (allPinned) holdForUnpin()
+                                       if (allPinned) holdByIndex()
                                        state.setPinned(selected, !allPinned)
                                        if (!allPinned) revealLater(selected)
                                        selected = emptySet()
@@ -377,7 +383,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                 text = { Text(stringResource(if (allPinned) R.string.unpin else R.string.pin)) },
                                 onClick = {
                                     moreMenu = false
-                                    if (allPinned) holdForUnpin()
+                                    if (allPinned) holdByIndex()
                                     state.setPinned(selected, !allPinned)
                                     if (!allPinned) revealLater(selected)
                                     selected = emptySet()

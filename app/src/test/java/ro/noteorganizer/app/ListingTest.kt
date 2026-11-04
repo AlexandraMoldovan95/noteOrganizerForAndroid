@@ -122,8 +122,8 @@ class ListingTest {
     }
 
     @Test
-    fun `a moved card is brought into sight only when it is out of the window the list kept`() {
-        // Rounds 8-14 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
+    fun `a moved card is brought into sight when it was the first item of the list or is out of the window the list kept`() {
+        // Rounds 8-16 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
         fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())
         // In the window it was asked over: no scroll.
         assertEquals(null, Showing.revealAt(flat(1, 2, 3, 4, 5), setOf(3), listOf(2, 3, 4), atTop = false, anchor = 2, lead = 0))
@@ -164,6 +164,15 @@ class ListingTest {
         // ...and filed from the top of "Oldest updated", its new stamp sending it last.
         assertEquals(139, Showing.revealAt(flat(*((2..140) + 1).toIntArray()), setOf(1),
                                            listOf(1, 2, 3, 4), atTop = true, anchor = 1, lead = 0))
+        // Where it goes (round 16): a list at its top goes back to it when the
+        // card shows from there -- the top card filed five rows down...
+        assertEquals(0, Showing.revealAt(flat(1, 2, 3, 4, 5, 9), setOf(9), listOf(9, 1, 2, 3, 4, 5),
+                                         atTop = true, anchor = 9, lead = 0))
+        // ...and in a group, the header comes with the card now first in it.
+        val pinnedFirst = Showing.rows(notes("""{"id": 1, "category": "General"}""", """{"id": 2, "category": "General"}""",
+                                             """{"id": 5, "category": "Work", "pinned": true}""", """{"id": 6, "category": "Work"}"""),
+                                       true, emptySet(), listOf("General", "Work"))
+        assertEquals(3, Showing.revealAt(pinnedFirst, setOf(5), listOf(5, 6), atTop = false, anchor = 5, lead = 0))
         // The item it kept gone from the list: counted from a card in sight that did not move.
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
     }
