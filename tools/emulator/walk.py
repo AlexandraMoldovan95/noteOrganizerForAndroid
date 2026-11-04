@@ -6704,7 +6704,8 @@ def editor_corners(folder):
     type_text("Trip")
     time.sleep(2.0)
     check("comments asked for on a new note stay through its first save",
-          not says_soon("Comments") and any(n.get("title") == "Trip" for n in read_file("notes_data.json") or []))
+          # The label as the screen draws it: capitals.
+          not says_soon("COMMENTS") and any(n.get("title") == "Trip" for n in read_file("notes_data.json") or []))
     keyboard_down()
     back_to("Search notes")
 
