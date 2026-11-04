@@ -182,8 +182,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val inSight = info.visibleItemsInfo.filter {
             minOf(it.offset + it.size, info.viewportEndOffset) - maxOf(it.offset, 0) >= it.size / 2
         }
-        // The item the list keeps, a sliver too: moved, the list goes with it,
-        // and the cards above it went off the top (round 14).
+        // The item the list keeps, a sliver too: moved, the list goes with it
+        // only so far, so the card is then always brought into sight (rounds 14-15).
         val firstIndex = listState.firstVisibleItemIndex
         val anchor = info.visibleItemsInfo.firstOrNull { it.index == firstIndex }?.key
         val lead = inSight.firstOrNull()?.let { (it.index - firstIndex).coerceAtLeast(0) } ?: 0

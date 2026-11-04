@@ -3734,6 +3734,22 @@ def arranged_from_the_top(folder):
         check("the pinned top card pinned again with a newer note: the newer one, now first, is shown",
               not says_soon("Nectarine", "Keys"))
     back_to("Search notes")
+    # A long list: past about a hundred rows the list does not follow its
+    # first card, and keeps its place by index -- filed from the top of
+    # "Oldest updated", the card went last and nothing scrolled (round 15).
+    import datetime
+    start = datetime.date(2026, 1, 1)
+    many = [{"id": i, "uid": "walk-l%d" % i, "title": "Old %03d" % i, "body": "x", "category": "General",
+             "created": "%s 09:00" % (start + datetime.timedelta(days=i)),
+             "updated": "%s 09:00" % (start + datetime.timedelta(days=i))} for i in range(1, 141)]
+    if not seed_inside(many, dict(colours, note_sort="Oldest updated"), "Old 001"):
+        return
+    if long_press("Old 001"):
+        tap("Move to category", wait=1.0)
+        tap("Work", exact=True, wait=2.0)
+        check("on a list of 140, the top card filed (now the last) is shown where it went",
+              not says_soon("Old 001"))
+    back_to("Search notes")
 
 
 def what_hides_the_list(folder):

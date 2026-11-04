@@ -418,14 +418,17 @@ object Showing {
      * [rows] -- the first of them in the order the list has now -- or null
      * when it needs none: none listed, or already in the window of [seen],
      * the keys at least half in sight when the action was taken. The list
-     * keeps its first item, [anchor], a sliver too, [lead] rows above [seen]:
-     * moved itself, the window follows it (round 14). A list [atTop] stays at
-     * its top when the card shows from there; in a group, the header comes
-     * with its card (wave 2, rounds 8-14).
+     * keeps its first item, [anchor], a sliver too, [lead] rows above [seen].
+     * When that item moved itself, the list follows it only so far -- about
+     * a hundred rows, Compose's nearest range -- and past that keeps its
+     * place by index: no window is trusted then, and the card is brought into
+     * sight (rounds 14-15). A list [atTop] stays at its top when the card
+     * shows from there; in a group, the header comes with its card.
      */
     fun revealAt(rows: List<Row>, ids: Set<Int>, seen: List<Any>, atTop: Boolean, anchor: Any?, lead: Int): Int? {
         val at = rows.indexOfFirst { (it as? Row.Item)?.note?.id in ids }
         if (at < 0) return null
+        if (anchor is Int && anchor in ids) return toward(rows, at, seen, atTop)
         val kept = rows.indexOfFirst { key(it) == anchor }
         // The first item gone, the list keeps its place by index: the window
         // counted, as best it can be, from a card in sight that did not move.
@@ -436,11 +439,14 @@ object Showing {
             else -> rows.indexOfFirst { key(it) == seen[k] }.let { if (it < 0) -1 else it - k }
         }
         if (first >= 0 && at in first until first + seen.size) return null
-        return when {
-            atTop && at < seen.size -> 0
-            at > 0 && rows[at - 1] is Row.Header -> at - 1
-            else -> at
-        }
+        return toward(rows, at, seen, atTop)
+    }
+
+    /** Where to scroll for the card at [at]: the top when it shows from there, its header with it. */
+    private fun toward(rows: List<Row>, at: Int, seen: List<Any>, atTop: Boolean): Int = when {
+        atTop && at < seen.size -> 0
+        at > 0 && rows[at - 1] is Row.Header -> at - 1
+        else -> at
     }
 }
 

@@ -154,8 +154,16 @@ class ListingTest {
         assertEquals(0, Showing.revealAt(flat(3, 6, 1, 2, 4), setOf(6, 3), listOf(6, 3, 1, 2), atTop = true, anchor = 6, lead = 0))
         // ...a sliver pinned, the list following it to the top.
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6, 7), setOf(3), listOf(4, 5, 6), atTop = false, anchor = 3, lead = 1))
-        // Followed far down: there, not the top, which shows none of them.
+        // Moved far down: there, not the top, which shows none of them.
         assertEquals(8, Showing.revealAt(flat(1, 2, 3, 4, 5, 6, 7, 8, 10, 11), setOf(10, 11), listOf(11, 1, 2), atTop = true, anchor = 11, lead = 0))
+        // Round 15: past about a hundred rows the list does NOT follow its first
+        // card, and keeps its place by index -- so a moved first card is always
+        // brought into sight: pinned from 150 rows down...
+        assertEquals(0, Showing.revealAt(flat(*(listOf(151) + (1..150) + (152..200)).toIntArray()), setOf(151),
+                                         listOf(151, 152, 153, 154), atTop = false, anchor = 151, lead = 0))
+        // ...and filed from the top of "Oldest updated", its new stamp sending it last.
+        assertEquals(139, Showing.revealAt(flat(*((2..140) + 1).toIntArray()), setOf(1),
+                                           listOf(1, 2, 3, 4), atTop = true, anchor = 1, lead = 0))
         // The item it kept gone from the list: counted from a card in sight that did not move.
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
     }
