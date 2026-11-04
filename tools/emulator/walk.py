@@ -5596,6 +5596,15 @@ def arrange_without_drag(folder):
     tap("Move down", exact=True, wait=1.5)
     check("...and the top card moved down shows below the one it passed, both on screen",
           placed()[:2] == ["Note 01", "Note 02"] and not says_soon("Note 01", "Note 02"), repr(placed()[:3]))
+    # A card's handle tapped again after a step: its gesture read the list as
+    # at its first touch, and the tap drew -- or wrote -- that order (round 17).
+    tap("Drag to move Note 04", wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    tap("Drag to move Note 04", wait=1.5)
+    adb("shell", "input", "keyevent", "4")              # its menu put away
+    time.sleep(1.0)
+    check_settled("a card's handle tapped again after a step leaves the step as it is",
+                  placed, lambda p: p[:4] == ["Note 01", "Note 02", "Note 04", "Note 03"])
 
     # Mid-list, the card at the top of the screen stepped up, and the card
     # just above the + button stepped down: held at the index, the first went
