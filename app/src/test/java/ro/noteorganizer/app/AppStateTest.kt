@@ -356,6 +356,39 @@ class AppStateTest {
     }
 
     @Test
+    fun `a day move that moves nothing, or a change refused, leaves the editor unread`() {
+        // Read back for nothing, the editor lost its Undo and its cursor:
+        // the picker answered on the day itself, a reset refused (wave 2, round 11).
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1, "2026-10-12")
+        s.flushStaying = { null }
+        var rewritten = s.openNoteRewritten
+        s.moveDay(1, "2026-10-12", "2026-10-12")
+        s.moveDay(1, "2026-10-12", "2026-10-19")
+        assertEquals("2026-10-12", s.openDay)
+        assertEquals(rewritten, s.openNoteRewritten)
+        s.openNote(2)
+        rewritten = s.openNoteRewritten
+        s.resetDay(2, "2026-10-12")
+        assertEquals("a reset refused: the note does not repeat", rewritten, s.openNoteRewritten)
+    }
+
+    @Test
+    fun `the Trash's Undo asks the list to show its notes only when it was tapped on the list`() {
+        // From the Calendar, the reveal waited and moved the list later (round 11).
+        val s = state()
+        s.tab = Tab.CALENDAR
+        s.trash(listOf(2))
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertNull(s.revealAfterUndo)
+        s.tab = Tab.NOTES
+        s.trash(listOf(1))
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals(1, s.revealAfterUndo?.size)
+    }
+
+    @Test
     fun anImportReadsTheOpenNoteBackAndOnlyAnOpenOne() {
         val s = state()
         val rewritten = s.openNoteRewritten

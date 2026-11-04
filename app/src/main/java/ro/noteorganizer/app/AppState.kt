@@ -528,7 +528,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             say("Not saved, so the open note was left as it is: $why")
             return null
         }
-        return change().also { if (touches && writes) openNoteRewritten += 1 }
+        // A change refused wrote nothing: read back anyway, the editor lost
+        // its Undo and its cursor for it (round 11).
+        return change().also { if (touches && writes && it !is SaveResult.Failed) openNoteRewritten += 1 }
     }
 
     /**
@@ -688,7 +690,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * puts it back while it still can.
      */
     fun moveDay(id: Int, day: String, to: String) {
-        val (result, move) = outside(listOf(id)) { Days.moveDay(load, id, day, to) } ?: return
+        // The picker answered on the day itself moves nothing; a move made
+        // builds the editor anew on its date, so nothing is read back: the
+        // read emptied the text's Undo for a move that never happened (round 11).
+        if (to == day) return
+        val (result, move) = outside(listOf(id), writes = false) { Days.moveDay(load, id, day, to) } ?: return
         if (!report(result) || move == null) return
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
@@ -749,7 +755,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             val before = load.notes.map { it.id }.toSet()
             report(Organizing.restore(load, keys)) { ok ->
-                revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
+                // Asked of the list only when the Undo was tapped there, as
+                // newNoteMade is: kept from the Calendar, it moved the list later.
+                if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
                 if (count == 1) openNote(ok.id)
             }
         }

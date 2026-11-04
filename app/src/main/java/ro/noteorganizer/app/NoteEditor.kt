@@ -1974,7 +1974,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium,
-                             modifier = Modifier.clickable { if (model.save()) state.openWholeSeries() })
+                             // The editor built anew on the series carries "A new item…" (round 11).
+                             modifier = Modifier.clickable { if (model.saveStaying()) state.openWholeSeries() })
                         Text(stringResource(R.string.day_move), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
                         if (ownEdit || cameFrom != null) {

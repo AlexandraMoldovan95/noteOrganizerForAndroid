@@ -2999,6 +2999,14 @@ def move_day_keeps_new_item(folder):
     seek(lambda: find("Book the room") is not None)
     check("Reset this day answered Cancel keeps the words in A new item, made no row",
           rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+    # ...and "Whole series", the strip's third link, which saved them as a
+    # row before the editor built anew could carry them (round 11).
+    adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
+    time.sleep(1.0)
+    tap("Whole series", wait=1.5)
+    seek(lambda: find("Book the room") is not None)
+    check("Whole series keeps the words in A new item, made no row",
+          rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
     back_to("Search notes")
 
 
