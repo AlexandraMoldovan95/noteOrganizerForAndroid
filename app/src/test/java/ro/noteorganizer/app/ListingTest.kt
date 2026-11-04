@@ -121,6 +121,28 @@ class ListingTest {
         assertEquals(setOf(1, 4, 2), Showing.visibleIds(rows))
     }
 
+    @Test
+    fun `a moved card is brought into sight only when it is out of the window the list kept`() {
+        // Rounds 8-12 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
+        fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())
+        // In the window it was asked over: no scroll.
+        assertEquals(null, Showing.revealAt(flat(1, 2, 3, 4, 5), 3, listOf(2, 3, 4), atTop = false))
+        // Pinned from under a sliver: the window counted from a card that did
+        // not move (4), not from the pinned card (3), which is now above it.
+        assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), 3, listOf(3, 4, 5), atTop = false))
+        // Several put back by Undo above a list at its top: the top, so all show.
+        assertEquals(0, Showing.revealAt(flat(8, 9, 1, 2, 3), 9, listOf(1, 2, 3), atTop = true))
+        // Below the window, scrolled down: the card itself.
+        assertEquals(4, Showing.revealAt(flat(1, 2, 3, 4, 7), 7, listOf(1, 2), atTop = true))
+        // Not listed, hidden by Show or a search: nothing.
+        assertEquals(null, Showing.revealAt(flat(1, 2), 7, listOf(1, 2), atTop = true))
+        // Grouped: the header comes with the card at the top of its group.
+        val grouped = Showing.rows(notes("""{"id": 1, "category": "General"}""", """{"id": 2, "category": "General"}""",
+                                         """{"id": 6, "category": "Work"}""", """{"id": 5, "category": "Work"}"""),
+                                   true, emptySet(), listOf("General", "Work"))
+        assertEquals(3, Showing.revealAt(grouped, 6, listOf("h:General", 1), atTop = false))
+    }
+
     // ---- a category's name, wherever settings hold it ----
 
     private fun workNotebook(settings: String) = scratch("""[{"id": 1, "category": "Work"}]""", settings = settings)

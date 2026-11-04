@@ -430,6 +430,15 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             saveStaying()
             return
         }
+        // The same note on another of its days, or as the whole series: built
+        // anew there, the editor carries "A new item…" (NoteEditor), so the save
+        // leaves the box -- through leaving(), its words became a row (round 12).
+        if (id == openId && id != 0) {
+            val why = saveStaying() ?: return run { openDay = onDay() }
+            snackbar.currentSnackbarData?.dismiss()
+            offer("Not saved, so the note stays open: $why", "Leave anyway") { openDay = onDay() }
+            return
+        }
         // On a wide screen the list stays beside the note, and a tap on
         // another card replaces it: what it holds is saved first -- and the
         // day asked again after, as that save can move the series' start.

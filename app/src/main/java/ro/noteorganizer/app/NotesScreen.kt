@@ -189,18 +189,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         // Not in the list it was asked over: waited for once, as the Trash's
         // Undo puts notes back after the list was drawn; let go after that.
         if (at < 0 && laidOut == listed) return@LaunchedEffect
-        val first = seen.firstOrNull()?.let { key -> laidOut.indexOfFirst { rowKey(it) == key } } ?: -1
-        if (at < 0 || (first >= 0 && at in first until first + seen.size)) {
-            revealCard = null
-            return@LaunchedEffect
-        }
-        // At its top, the list stays at its top: what arrived above the card
-        // it kept is shown with the card asked for (several put back at once).
-        listState.scrollToItem(when {
-            atTop && first >= 0 && at < first -> 0
-            at > 0 && laidOut[at - 1] is Showing.Row.Header -> at - 1
-            else -> at
-        })
+        Showing.revealAt(laidOut, id, seen, atTop)?.let { listState.scrollToItem(it) }
         revealCard = null
     }
     // Notes the Trash's Undo put back, the first the list shows brought into
@@ -578,7 +567,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 }
                 else -> LazyColumn(state = listState,
                                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
-                    items(rows, key = ::rowKey) { row ->
+                    items(rows, key = Showing::key) { row ->
                         when (row) {
                             is Showing.Row.Header -> GroupHeader(row, load.categories[row.category]) {
                                 // Folded and unfolded under the desktop's own key.
@@ -856,9 +845,3 @@ fun sendText(state: AppState, text: String) {
 
 /** A card to bring into sight once the list has it: the cards in sight, and whether the list was at its top, when it was asked for. */
 private data class Reveal(val id: Int, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>)
-
-/** A list row's key: the list keeps the card it has in sight by it, and a reveal finds that card by it. */
-private fun rowKey(row: Showing.Row): Any = when (row) {
-    is Showing.Row.Header -> "h:" + row.category
-    is Showing.Row.Item -> row.note.id
-}

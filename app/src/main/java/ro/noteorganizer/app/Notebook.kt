@@ -406,6 +406,35 @@ object Showing {
      * then the Trash button sent notes nobody could see.
      */
     fun visibleIds(rows: List<Row>): Set<Int> = rows.filterIsInstance<Row.Item>().map { it.note.id }.toSet()
+
+    /** A row's key: the list keeps the card it has in sight by it, and a reveal finds that card by it. */
+    fun key(row: Row): Any = when (row) {
+        is Row.Header -> "h:" + row.category
+        is Row.Item -> row.note.id
+    }
+
+    /**
+     * Where the list scrolls to bring note [id]'s card into sight among
+     * [rows], or null when it needs none: not listed, or already in the
+     * window of [seen] -- the keys at least half in sight when the action
+     * was taken, which the list keeps, counted from one that did not move
+     * (from the moved card itself, a card pinned from under a sliver read
+     * as in sight). A list [atTop] then stays at its top, so notes that
+     * arrived above the card it kept show too; in a group, the header comes
+     * with its card (wave 2, rounds 8-12).
+     */
+    fun revealAt(rows: List<Row>, id: Int, seen: List<Any>, atTop: Boolean): Int? {
+        val at = rows.indexOfFirst { (it as? Row.Item)?.note?.id == id }
+        if (at < 0) return null
+        val k = seen.indexOfFirst { it != id }
+        val first = if (k < 0) -1 else rows.indexOfFirst { key(it) == seen[k] }.let { if (it < 0) -1 else it - k }
+        if (first >= 0 && at in first until first + seen.size) return null
+        return when {
+            atTop && first >= 0 && at < first -> 0
+            at > 0 && rows[at - 1] is Row.Header -> at - 1
+            else -> at
+        }
+    }
 }
 
 /** What a save did, or the reason it did not. Never silence. */

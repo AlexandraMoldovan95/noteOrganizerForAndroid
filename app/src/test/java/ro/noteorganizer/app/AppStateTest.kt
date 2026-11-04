@@ -356,6 +356,27 @@ class AppStateTest {
     }
 
     @Test
+    fun `the same note opened on another day or as the series keeps the words in A new item`() {
+        // From the calendar beside the editor, through leaving() the whole
+        // save made them a row; built anew, the editor carries them (round 12).
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1, "2026-10-12")
+        val seen = ArrayList<String>()
+        s.flush = { seen.add("whole"); null }
+        s.flushStaying = { seen.add("staying"); null }
+        val opening = s.opening
+        s.openNote(1)
+        assertNull(s.openDay)
+        s.openNote(1, "2026-10-19")
+        assertEquals("2026-10-19", s.openDay)
+        assertEquals(listOf("staying", "staying"), seen)
+        assertEquals(opening, s.opening)
+        s.openNote(2)
+        assertEquals(listOf("staying", "staying", "whole"), seen)
+    }
+
+    @Test
     fun `a day move that moves nothing, or a change refused, leaves the editor unread`() {
         // Read back for nothing, the editor lost its Undo and its cursor:
         // the picker answered on the day itself, a reset refused (wave 2, round 11).
