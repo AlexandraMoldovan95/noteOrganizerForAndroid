@@ -448,6 +448,31 @@ object Showing {
         at > 0 && rows[at - 1] is Row.Header -> at - 1
         else -> at
     }
+
+    /**
+     * Whether a dragged card's slot is still in the viewport, [start] to
+     * [end], once it trades one [step] with its neighbour, the list held by
+     * place -- or, when the card [leads] the screen and steps up, kept where
+     * it is. A card laid out of the viewport went, and its drag with it, when
+     * a taller neighbour came in at the edge (wave 2, round 17). Offsets and
+     * sizes are the layout's, before the trade.
+     */
+    fun tradeStaysInSight(step: Int, meOffset: Int, meSize: Int, otherOffset: Int, otherSize: Int,
+                          leads: Boolean, start: Int, end: Int): Boolean =
+        if (step > 0) otherOffset + otherSize - meSize < end
+        else leads || otherOffset + meSize > start
+
+    /**
+     * How far to scroll to bring a card at [top], [size] tall, wholly into a
+     * viewport from 0 to [end]: 0 when it is, never so far that its top goes.
+     * A card stepped past the top or the bottom card on screen went out of
+     * sight, or was left a strip (wave 2, round 17).
+     */
+    fun intoSight(top: Int, size: Int, end: Int): Int = when {
+        top < 0 -> top
+        top + size > end -> minOf(top + size - end, top)
+        else -> 0
+    }
 }
 
 /** What a save did, or the reason it did not. Never silence. */

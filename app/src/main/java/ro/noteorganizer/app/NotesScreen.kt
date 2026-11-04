@@ -22,10 +22,13 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -39,7 +42,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DropdownMenu
@@ -257,19 +262,33 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     var dragged by remember { mutableStateOf<Int?>(null) }
     var dragBy by remember { mutableFloatStateOf(0f) }
     var dragOrder by remember { mutableStateOf<List<Showing.Row>?>(null) }
+    // Where the dragged card's slot was before its last trade, in the
+    // layout's terms, until a layout shows the trade.
+    var slotWas by remember { mutableStateOf<Float?>(null) }
+    // Whether the finger has moved since it pressed the handle: a press held
+    // still at the top card scrolled the list and moved the note (round 17).
+    var moving by remember { mutableStateOf(false) }
     val rows = dragOrder ?: laidOut
+    // As they are now, for a handle's gesture, which runs on as it was first
+    // touched: read as they were then, a card's second drag started from the
+    // order before its first, and wrote a place counted from it (round 17).
+    val laidOutNow by rememberUpdatedState(laidOut)
+    val groupedNow by rememberUpdatedState(grouped)
     fun noteOf(row: Showing.Row?) = (row as? Showing.Row.Item)?.note
 
-    /** The dragged card one place up or down, when the place is in its block. */
-    fun trade(step: Int): Boolean {
+    /**
+     * The dragged card one place up or down, when the place is in its block;
+     * the list held by place -- a trade with the top card took it along by a
+     * card -- and a card leading the screen kept where it is as it steps up.
+     */
+    fun trade(step: Int, leads: Boolean): Boolean {
         val now = dragOrder ?: return false
         val at = now.indexOfFirst { noteOf(it)?.id == dragged }
         val other = noteOf(now.getOrNull(at + step)) ?: return false
         val me = noteOf(now[at]) ?: return false
-        if (!Organizing.sameBlock(me, other, grouped)) return false
-        // By place: a trade with the top card took the list along by a card,
-        // and the dragged one was drawn above the screen.
-        holdByIndex()
+        if (!Organizing.sameBlock(me, other, groupedNow)) return false
+        if (step < 0 && leads) listState.requestScrollToItem(at - 1, listState.firstVisibleItemScrollOffset)
+        else holdByIndex()
         dragOrder = now.toMutableList().also { it[at] = it[at + step]; it[at + step] = now[at] }
         return true
     }
@@ -280,15 +299,45 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         dragged = null
         dragBy = 0f
         dragOrder = null
-        if (id == null || final == null || final == laidOut) return
+        slotWas = null
+        moving = false
+        if (id == null || final == null || final == laidOutNow) return
         val at = final.indexOfFirst { noteOf(it)?.id == id }
         val next = noteOf(final.getOrNull(at + 1))
         val previous = noteOf(final.getOrNull(at - 1))
         when {
-            next != null && Organizing.sameBlock(noteOf(final[at])!!, next, grouped) ->
-                state.moveNote(id, next.id, before = true, grouped = grouped)
-            previous != null -> state.moveNote(id, previous.id, before = false, grouped = grouped)
+            next != null && Organizing.sameBlock(noteOf(final[at])!!, next, groupedNow) ->
+                state.moveNote(id, next.id, before = true, grouped = groupedNow)
+            previous != null -> state.moveNote(id, previous.id, before = false, grouped = groupedNow)
         }
+    }
+
+    // The note a step moved, brought wholly into sight once the list shows
+    // the step: past the top or the bottom card on screen it went out of
+    // sight, or was left a strip (round 17).
+    var stepped by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(stepped, laidOut) {
+        val id = stepped ?: return@LaunchedEffect
+        val at = laidOut.indexOfFirst { noteOf(it)?.id == id }
+        if (at < 0) {
+            stepped = null
+            return@LaunchedEffect
+        }
+        // The layout of this order: the one read at once was still the old one.
+        val layout = withTimeoutOrNull(1_000) {
+            snapshotFlow { listState.layoutInfo }.first { info ->
+                info.visibleItemsInfo.isNotEmpty() && info.visibleItemsInfo.all {
+                    it.index >= laidOut.size || it.key == Showing.key(laidOut[it.index])
+                }
+            }
+        }
+        stepped = null
+        if (layout == null) return@LaunchedEffect
+        // Above the list's foot, which is left for the + button.
+        val card = layout.visibleItemsInfo.firstOrNull { it.key == id }
+        if (card == null) listState.scrollToItem(at)
+        else Showing.intoSight(card.offset, card.size, layout.viewportEndOffset - layout.afterContentPadding)
+            .takeIf { it != 0 }?.let { listState.scrollBy(it.toFloat()) }
     }
 
     /**
@@ -297,9 +346,17 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
      * Dragging was the only way, and those could not arrange at all.
      */
     fun stepNote(id: Int, step: Int) {
-        val (anchor, before) = Organizing.stepPlace(laidOut.mapNotNull { noteOf(it) }, id, step, grouped) ?: return
-        holdByIndex()
-        state.moveNote(id, anchor, before = before, grouped = grouped)
+        val (anchor, before) = Organizing.stepPlace(laidOutNow.mapNotNull { noteOf(it) }, id, step, groupedNow) ?: return
+        val at = laidOutNow.indexOfFirst { noteOf(it)?.id == id }
+        // Up from the top of the screen, the card keeps its place there, its
+        // neighbour under it; held at the index, it went above (round 17).
+        if (step < 0 && at == listState.firstVisibleItemIndex) {
+            listState.requestScrollToItem(at - 1, listState.firstVisibleItemScrollOffset)
+        } else {
+            holdByIndex()
+        }
+        state.moveNote(id, anchor, before = before, grouped = groupedNow)
+        stepped = id
     }
     var stepMenu by remember { mutableStateOf<Int?>(null) }
     val upSaid = stringResource(R.string.move_up)
@@ -309,15 +366,28 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     /** The dragged card followed by the finger, trading places as it passes a neighbour's middle. */
     fun follow(amount: Float) {
         dragBy += amount
-        val info = listState.layoutInfo.visibleItemsInfo
+        val layout = listState.layoutInfo
+        val info = layout.visibleItemsInfo
         val me = info.firstOrNull { it.key == dragged } ?: return
         // A trade shows on the next frame; until then the layout is the old one.
         if (me.index != (dragOrder ?: return).indexOfFirst { noteOf(it)?.id == dragged }) return
+        // Shown: the card kept under the finger by its slot's real move -- a
+        // neighbour's height, or none when it led the screen. Counted as the
+        // neighbour's, a tall card drifted off the finger (round 17).
+        slotWas?.let { dragBy += it - me.offset }
+        slotWas = null
         val centre = me.offset + me.size / 2 + dragBy
+        val leads = listState.firstVisibleItemIndex == me.index
+        fun staysInSight(other: LazyListItemInfo, step: Int) = Showing.tradeStaysInSight(
+            step, me.offset, me.size, other.offset, other.size, leads, layout.viewportStartOffset, layout.viewportEndOffset)
         val below = info.firstOrNull { it.index == me.index + 1 }
         val above = info.firstOrNull { it.index == me.index - 1 }
-        if (below != null && centre > below.offset + below.size / 2 && trade(1)) dragBy -= below.size
-        else if (above != null && centre < above.offset + above.size / 2 && trade(-1)) dragBy += above.size
+        val traded = when {
+            below != null && centre > below.offset + below.size / 2 -> staysInSight(below, 1) && trade(1, leads)
+            above != null && centre < above.offset + above.size / 2 -> staysInSight(above, -1) && trade(-1, leads)
+            else -> false
+        }
+        if (traded) slotWas = me.offset.toFloat()
     }
 
     // Near the list's top or bottom edge, a dragged card scrolls the list --
@@ -329,7 +399,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         while (dragged != null) {
             val info = listState.layoutInfo
             val me = info.visibleItemsInfo.firstOrNull { it.key == dragged }
-            if (me != null) {
+            if (me != null && moving) {
                 val top = me.offset + dragBy
                 val step = when {
                     top < info.viewportStartOffset + edge -> -14f
@@ -337,7 +407,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     else -> 0f
                 }
                 if (step != 0f) {
-                    dragBy += listState.scrollBy(step)
+                    val scrolled = listState.scrollBy(step)
+                    dragBy += scrolled
+                    slotWas = slotWas?.minus(scrolled)
                     follow(0f)
                 }
             }
@@ -636,7 +708,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             down.consume()
                                                             dragged = note.id
                                                             dragBy = 0f
-                                                            dragOrder = laidOut
+                                                            dragOrder = laidOutNow
+                                                            slotWas = null
+                                                            moving = false
                                                             var travelled = false
                                                             try {
                                                                 while (true) {
@@ -647,6 +721,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                     if (moved.y != 0f) {
                                                                         change.consume()
                                                                         travelled = true
+                                                                        moving = true
                                                                         follow(moved.y)
                                                                     }
                                                                 }
@@ -656,8 +731,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 // there is a way to go: the only note in
                                                                 // its block opened an empty menu.
                                                                 if (!travelled) {
-                                                                    val shown = laidOut.mapNotNull { noteOf(it) }
-                                                                    if (listOf(-1, 1).any { Organizing.stepPlace(shown, note.id, it, grouped) != null }) {
+                                                                    val shown = laidOutNow.mapNotNull { noteOf(it) }
+                                                                    if (listOf(-1, 1).any { Organizing.stepPlace(shown, note.id, it, groupedNow) != null }) {
                                                                         stepMenu = note.id
                                                                     } else {
                                                                         state.say(nowhereSaid)
@@ -668,6 +743,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 dragged = null
                                                                 dragBy = 0f
                                                                 dragOrder = null
+                                                                slotWas = null
+                                                                moving = false
                                                                 throw e
                                                             }
                                                         }

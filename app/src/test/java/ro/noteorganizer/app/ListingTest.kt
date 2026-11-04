@@ -177,6 +177,35 @@ class ListingTest {
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
     }
 
+    @Test
+    fun `a dragged card trades only while its slot stays in the viewport`() {
+        // Round 17, a viewport from -10 to 1000. Down: a card 200 tall past a
+        // neighbour 300 tall whose top has just come in at 990 -- its slot would
+        // start at 1090, out of the viewport, and the card was dropped.
+        assertFalse(Showing.tradeStaysInSight(1, 790, 200, 990, 300, leads = false, start = -10, end = 1000))
+        // ...and once the neighbour is well in, it trades.
+        assertTrue(Showing.tradeStaysInSight(1, 500, 200, 700, 300, leads = false, start = -10, end = 1000))
+        // Up past a taller neighbour mostly above the screen: its slot would end
+        // at -280 + 200, above the viewport.
+        assertFalse(Showing.tradeStaysInSight(-1, 20, 200, -280, 300, leads = false, start = -10, end = 1000))
+        assertTrue(Showing.tradeStaysInSight(-1, 250, 200, -50, 300, leads = false, start = -10, end = 1000))
+        // Leading the screen it keeps its place as it steps up, wherever the neighbour is.
+        assertTrue(Showing.tradeStaysInSight(-1, -20, 200, -320, 300, leads = true, start = -10, end = 1000))
+    }
+
+    @Test
+    fun `a stepped card is scrolled wholly into sight and no further`() {
+        // Round 17, a viewport of 1000: in sight, nothing.
+        assertEquals(0, Showing.intoSight(100, 250, 1000))
+        // Above it: up by what is hidden.
+        assertEquals(-180, Showing.intoSight(-180, 250, 1000))
+        // Below it, or a strip at the foot: down by what is cut off...
+        assertEquals(150, Showing.intoSight(900, 250, 1000))
+        assertEquals(250, Showing.intoSight(1000, 250, 1000))
+        // ...but never so far that a card taller than the screen loses its top.
+        assertEquals(300, Showing.intoSight(300, 1500, 1000))
+    }
+
     // ---- a category's name, wherever settings hold it ----
 
     private fun workNotebook(settings: String) = scratch("""[{"id": 1, "category": "Work"}]""", settings = settings)

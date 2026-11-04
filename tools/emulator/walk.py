@@ -3204,6 +3204,20 @@ def arranging(folder):
     adb("shell", "input", "motionevent", "UP", str(handle[0]), str(first[1] - 60))
     check_settled("the second card dragged over the first, still held, stays on screen, and lands first",
                   placed, lambda p: not unseen and p[:2] == ["Note 02", "Note 01"], first=0)
+    # The same card dragged again, one place down: its handle's gesture read
+    # the list as it was at its first touch, redrew that order and wrote a
+    # place counted from it (round 17).
+    mine, theirs = find("Drag to move Note 02"), find("Drag to move Note 01")
+    if not mine or not theirs:
+        fail("the first two cards' handles not on the screen after the drag")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(mine[0]), str(mine[1]))
+    for y in range(mine[1], theirs[1] + 40, 40):
+        adb("shell", "input", "motionevent", "MOVE", str(mine[0]), str(y))
+    time.sleep(1.0)
+    adb("shell", "input", "motionevent", "UP", str(mine[0]), str(theirs[1] + 40))
+    check_settled("the same card dragged a second time, one place down, lands one place down",
+                  placed, lambda p: p[:3] == ["Note 01", "Note 02", "Note 03"], first=0)
     if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
         return
     for _ in range(4):
@@ -3222,6 +3236,27 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+
+    # Cards of mixed heights: a short card held past the list's foot, the
+    # list scrolling under it. A taller card coming in at the edge took the
+    # short one's slot out of the viewport, and the drag went (round 17).
+    mixed = [dict(n, body="A first line of words\nand a second line" if n["id"] % 2 == 0 else "")
+             for n in many]
+    if not seed_inside(mixed, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    handle, tabs = find("Drag to move Note 03"), find("Calendar", exact=True)
+    if not handle or not tabs:
+        fail("the mixed list: Note 03's handle or the tabs not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], tabs[1], 60):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    time.sleep(3)                                    # held past the foot: the list scrolls
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(tabs[1]))
+    order = settle(placed, lambda o: "Note 03" in o and o.index("Note 03") > 4)
+    check("a short card held past the list's foot rides on past taller cards, and lands down the list",
+          "Note 03" in order and order.index("Note 03") > 4
+          and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:12]))
 
 
 # gfxinfo's flag on a frame the render thread drew alone (FrameInfoFlags::RTAnimation).
@@ -5561,6 +5596,57 @@ def arrange_without_drag(folder):
     tap("Move down", exact=True, wait=1.5)
     check("...and the top card moved down shows below the one it passed, both on screen",
           placed()[:2] == ["Note 01", "Note 02"] and not says_soon("Note 01", "Note 02"), repr(placed()[:3]))
+
+    # Mid-list, the card at the top of the screen stepped up, and the card
+    # just above the + button stepped down: held at the index, the first went
+    # above the screen and the second below the + (round 17).
+    def handles():
+        return sorted((centre[1], desc[len("Drag to move "):]) for _t, desc, centre in nodes()
+                      if desc.startswith("Drag to move Note "))
+    adb("shell", "input", "swipe", "540", "1700", "540", "1150", "400")
+    time.sleep(1.2)
+    shown = handles()
+    if not shown:
+        fail("mid-list: no card's handle on the screen")
+        return
+    top_card = shown[0][1]
+    was = placed().index(top_card)
+    tap("Drag to move " + top_card, wait=1.0)
+    tap("Move up", exact=True, wait=2.0)
+    order = placed()
+    check("mid-list, the card at the top of the screen moved up is still on screen",
+          order.index(top_card) == was - 1 and not says_soon(top_card), repr(order[:12]))
+    # A press held still on the top card's handle: the list scrolled under it
+    # at the edge, and the note moved with no move of the finger (round 17).
+    shown, before = handles(), placed()
+    at = find("Drag to move " + shown[0][1]) if shown else None
+    if at:
+        adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+        time.sleep(1.5)
+        adb("shell", "input", "motionevent", "UP", str(at[0]), str(at[1]))
+        time.sleep(1.0)
+        adb("shell", "input", "keyevent", "4")          # its menu put away
+        time.sleep(0.8)
+    check("a press held still on the top card's handle moves nothing", at is not None and placed() == before,
+          repr(placed()[:12]))
+    plus = find("New note", exact=True)
+    picked = None
+    for _ in range(5):
+        shown = handles()
+        under = [i for i, (y, _n) in enumerate(shown) if plus and y < plus[1] - 60]
+        if under and under[-1] + 1 < len(shown) and shown[under[-1] + 1][0] >= plus[1]:
+            picked = shown[under[-1]][1]
+            break
+        adb("shell", "input", "swipe", "540", "1500", "540", "1400", "300")
+        time.sleep(1.0)
+    if not picked:
+        fail("mid-list: no card just above the + button with the next one under it")
+        return
+    tap("Drag to move " + picked, wait=1.0)
+    tap("Move down", exact=True, wait=2.0)
+    after = dict((name, y) for y, name in handles())
+    check("...and the card just above the + button moved down stays in sight above it",
+          picked in after and plus is not None and after[picked] < plus[1], "%s at %s, the + at %s" % (picked, after.get(picked), plus))
     back_to("Search notes")
 
 
