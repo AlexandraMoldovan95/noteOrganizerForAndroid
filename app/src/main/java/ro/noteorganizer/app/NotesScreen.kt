@@ -171,34 +171,34 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // the list keeps the first of them, and the layout read after the change
     // was still the one before it.
     var revealCard by remember { mutableStateOf<Reveal?>(null) }
-    fun revealLater(id: Int?) {
-        if (id == null) return
+    // All the notes an action moved: the first of them is taken in the list's
+    // new order (Showing.revealAt). Taken before it, a pin or a move of several
+    // reordered them, and the card now first sat above the screen (round 13).
+    fun revealLater(ids: Set<Int>) {
+        if (ids.isEmpty()) return
         // In sight: half of it at least. A sliver under the list's top padding
         // counted, and a card put back above the screen read as shown (round 10).
         val info = listState.layoutInfo
         val inSight = info.visibleItemsInfo.filter {
             minOf(it.offset + it.size, info.viewportEndOffset) - maxOf(it.offset, 0) >= it.size / 2
         }
-        revealCard = Reveal(id, inSight.map { it.key },
+        revealCard = Reveal(ids, inSight.map { it.key },
                             listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0, laidOut)
     }
-    fun firstOf(ids: Set<Int>): Int? = shown.firstOrNull { it.id in ids }?.id
     LaunchedEffect(revealCard, laidOut) {
-        val (id, seen, atTop, listed) = revealCard ?: return@LaunchedEffect
-        val at = laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
+        val (ids, seen, atTop, listed) = revealCard ?: return@LaunchedEffect
+        val listedNow = laidOut.any { (it as? Showing.Row.Item)?.note?.id in ids }
         // Not in the list it was asked over: waited for once, as the Trash's
         // Undo puts notes back after the list was drawn; let go after that.
-        if (at < 0 && laidOut == listed) return@LaunchedEffect
-        Showing.revealAt(laidOut, id, seen, atTop)?.let { listState.scrollToItem(it) }
+        if (!listedNow && laidOut == listed) return@LaunchedEffect
+        Showing.revealAt(laidOut, ids, seen, atTop)?.let { listState.scrollToItem(it) }
         revealCard = null
     }
-    // Notes the Trash's Undo put back, the first the list shows brought into
-    // sight the same way, the others with it below.
+    // Notes the Trash's Undo put back, brought into sight the same way.
     LaunchedEffect(state.revealAfterUndo) {
         val ids = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
-        revealLater(laidOut.firstNotNullOfOrNull { (it as? Showing.Row.Item)?.note?.id?.takeIf { id -> id in ids } }
-                    ?: ids.minOrNull())
+        revealLater(ids)
     }
     /**
      * An unpin holds the list where it is by place: kept by its first card,
@@ -351,7 +351,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         IconButton(onClick = {
                                        if (allPinned) holdForUnpin()
                                        state.setPinned(selected, !allPinned)
-                                       if (!allPinned) revealLater(firstOf(selected))
+                                       if (!allPinned) revealLater(selected)
                                        selected = emptySet()
                                    },
                                    modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
@@ -374,7 +374,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                     moreMenu = false
                                     if (allPinned) holdForUnpin()
                                     state.setPinned(selected, !allPinned)
-                                    if (!allPinned) revealLater(firstOf(selected))
+                                    if (!allPinned) revealLater(selected)
                                     selected = emptySet()
                                 },
                             )
@@ -384,7 +384,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                     onClick = {
                                         moreMenu = false
                                         // The copy, shown where the sort puts it.
-                                        revealLater(state.duplicate(selected.single()))
+                                        revealLater(setOfNotNull(state.duplicate(selected.single())))
                                         selected = emptySet()
                                     },
                                 )
@@ -705,7 +705,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             onPick = { name ->
                 choosingCategory = false
                 state.moveToCategory(selected, name)
-                revealLater(firstOf(selected))
+                revealLater(selected)
                 selected = emptySet()
             },
             onDismiss = { choosingCategory = false },
@@ -844,4 +844,4 @@ fun sendText(state: AppState, text: String) {
 }
 
 /** A card to bring into sight once the list has it: the cards in sight, and whether the list was at its top, when it was asked for. */
-private data class Reveal(val id: Int, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>)
+private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>)

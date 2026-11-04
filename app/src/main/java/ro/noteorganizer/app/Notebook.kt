@@ -414,19 +414,18 @@ object Showing {
     }
 
     /**
-     * Where the list scrolls to bring note [id]'s card into sight among
-     * [rows], or null when it needs none: not listed, or already in the
-     * window of [seen] -- the keys at least half in sight when the action
-     * was taken, which the list keeps, counted from one that did not move
-     * (from the moved card itself, a card pinned from under a sliver read
-     * as in sight). A list [atTop] then stays at its top, so notes that
-     * arrived above the card it kept show too; in a group, the header comes
-     * with its card (wave 2, rounds 8-12).
+     * Where the list scrolls to bring the moved notes [ids] into sight among
+     * [rows] -- the first of them in the order the list has now -- or null
+     * when it needs none: none listed, or already in the window of [seen],
+     * the keys at least half in sight when the action was taken, which the
+     * list keeps, counted from one that did not move. A list [atTop] stays
+     * at its top, so notes that arrived above the card it kept show too; in
+     * a group, the header comes with its card (wave 2, rounds 8-13).
      */
-    fun revealAt(rows: List<Row>, id: Int, seen: List<Any>, atTop: Boolean): Int? {
-        val at = rows.indexOfFirst { (it as? Row.Item)?.note?.id == id }
+    fun revealAt(rows: List<Row>, ids: Set<Int>, seen: List<Any>, atTop: Boolean): Int? {
+        val at = rows.indexOfFirst { (it as? Row.Item)?.note?.id in ids }
         if (at < 0) return null
-        val k = seen.indexOfFirst { it != id }
+        val k = seen.indexOfFirst { it !in ids }
         val first = if (k < 0) -1 else rows.indexOfFirst { key(it) == seen[k] }.let { if (it < 0) -1 else it - k }
         if (first >= 0 && at in first until first + seen.size) return null
         return when {
