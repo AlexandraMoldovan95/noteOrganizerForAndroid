@@ -3706,6 +3706,34 @@ def arranged_from_the_top(folder):
         check("grouped, a note pinned in a later group is shown at the top of its group",
               not says_soon("Work plan 6"))
     back_to("Search notes")
+    # The list's own top card among those moved, and moved down by them: the
+    # list followed it, and the card now first was above the screen (round 14).
+    # Filed together, the two take one stamp and fall into file order.
+    plain = [{"id": i + 1, "uid": "walk-t%d" % i, "title": name, "body": "x", "category": "General",
+              "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
+             for i, name in enumerate(fruit)]
+    colours = {"welcome_offered": True, "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}
+    if not seed_inside(plain, colours, "Nectarine"):
+        return
+    if long_press("Nectarine"):
+        tap("Mango", exact=True, wait=0.8)
+        tap("Move to category", wait=1.0)
+        tap("Work", exact=True, wait=1.5)
+        filed = [n.get("title") for n in read_file("notes_data.json") or [] if n.get("category") == "Work"]
+        check("the top two cards filed together are both shown, the one now first too",
+              sorted(filed) == ["Mango", "Nectarine"] and not says_soon("Mango", "Nectarine"), repr(filed))
+    back_to("Search notes")
+    # Pinned together, the top card already pinned: the newer goes first.
+    keys = {"id": 99, "uid": "walk-keys", "title": "Keys", "body": "x", "category": "General",
+            "pinned": True, "created": "2026-09-01 09:00", "updated": "2026-09-01 09:00"}
+    if not seed_inside(plain + [keys], colours, "Keys"):
+        return
+    if long_press("Keys"):
+        tap("Nectarine", exact=True, wait=0.8)
+        tap("📌", wait=1.5)
+        check("the pinned top card pinned again with a newer note: the newer one, now first, is shown",
+              not says_soon("Nectarine", "Keys"))
+    back_to("Search notes")
 
 
 def what_hides_the_list(folder):
@@ -6652,6 +6680,31 @@ def editor_corners(folder):
           keyboard is not None and keyboard[0] > 0 and len(newest) == 1 and len(add) == 1
           and newest[0][3] - newest[0][1] >= 20 and newest[0][3] <= keyboard[0] and add[0][3] <= keyboard[0],
           "Eggs %s, Add %s, the keyboard from %s" % (newest, add, keyboard))
+    keyboard_down()
+    back_to("Search notes")
+    # A checklist, or comments, asked for from ⋮ on a new note stay through
+    # its first save. Kept by the id it gets there, they went, and the words
+    # waiting in A new item went out of sight with them (round 14).
+    tap("+", exact=True, wait=1.5)
+    tap("⋮", exact=True, wait=1.0)
+    tap("☑ Add a checklist", exact=True, wait=1.5)
+    type_text("Mil")
+    tap("Title", wait=0.8)
+    type_text("Shop")
+    time.sleep(2.0)
+    made = [n for n in read_file("notes_data.json") or [] if n.get("title") == "Shop"]
+    check("a checklist asked for on a new note stays through its first save, the words in A new item with it",
+          not says_soon("Mil") and len(made) == 1 and not made[0].get("checklist"), repr(made))
+    keyboard_down()
+    back_to("Search notes")
+    tap("+", exact=True, wait=1.5)
+    tap("⋮", exact=True, wait=1.0)
+    tap("💬 Add comments", exact=True, wait=1.5)
+    tap("Title", wait=0.8)
+    type_text("Trip")
+    time.sleep(2.0)
+    check("comments asked for on a new note stay through its first save",
+          not says_soon("Comments") and any(n.get("title") == "Trip" for n in read_file("notes_data.json") or []))
     keyboard_down()
     back_to("Search notes")
 

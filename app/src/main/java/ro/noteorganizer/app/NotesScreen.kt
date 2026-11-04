@@ -182,16 +182,21 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val inSight = info.visibleItemsInfo.filter {
             minOf(it.offset + it.size, info.viewportEndOffset) - maxOf(it.offset, 0) >= it.size / 2
         }
-        revealCard = Reveal(ids, inSight.map { it.key },
-                            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0, laidOut)
+        // The item the list keeps, a sliver too: moved, the list goes with it,
+        // and the cards above it went off the top (round 14).
+        val firstIndex = listState.firstVisibleItemIndex
+        val anchor = info.visibleItemsInfo.firstOrNull { it.index == firstIndex }?.key
+        val lead = inSight.firstOrNull()?.let { (it.index - firstIndex).coerceAtLeast(0) } ?: 0
+        revealCard = Reveal(ids, inSight.map { it.key }, firstIndex == 0 && listState.firstVisibleItemScrollOffset == 0,
+                            laidOut, anchor, lead)
     }
     LaunchedEffect(revealCard, laidOut) {
-        val (ids, seen, atTop, listed) = revealCard ?: return@LaunchedEffect
+        val (ids, seen, atTop, listed, anchor, lead) = revealCard ?: return@LaunchedEffect
         val listedNow = laidOut.any { (it as? Showing.Row.Item)?.note?.id in ids }
         // Not in the list it was asked over: waited for once, as the Trash's
         // Undo puts notes back after the list was drawn; let go after that.
         if (!listedNow && laidOut == listed) return@LaunchedEffect
-        Showing.revealAt(laidOut, ids, seen, atTop)?.let { listState.scrollToItem(it) }
+        Showing.revealAt(laidOut, ids, seen, atTop, anchor, lead)?.let { listState.scrollToItem(it) }
         revealCard = null
     }
     // Notes the Trash's Undo put back, brought into sight the same way.
@@ -843,5 +848,6 @@ fun sendText(state: AppState, text: String) {
     state.sendText?.invoke(text)
 }
 
-/** A card to bring into sight once the list has it: the cards in sight, and whether the list was at its top, when it was asked for. */
-private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>)
+/** A card to bring into sight once the list has it: the cards in sight, whether the list was at its top, and the item it keeps, when it was asked for. */
+private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>,
+                          val anchor: Any?, val lead: Int)

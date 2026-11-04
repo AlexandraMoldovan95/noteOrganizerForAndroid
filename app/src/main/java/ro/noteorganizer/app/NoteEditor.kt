@@ -1620,9 +1620,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     // them, or once asked for from ⋮, where adding them and files lives --
     // three links under every note made it busier than it needs to be (the
     // owner's call, 2026-10-23). Shown once, they stay for this visit, even
-    // emptied, so a field never goes from under the finger.
-    var checklistOpen by remember(model.id) { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
-    var commentsOpen by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
+    // emptied, so a field never goes from under the finger. A visit is the
+    // editor's key(state.opening), not the id: a new note's first save gives
+    // it one, and keyed on it, a checklist asked for went at that save (round 14).
+    var checklistOpen by remember { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
+    var commentsOpen by remember { mutableStateOf(model.comments.isNotEmpty()) }
     val checklistShown = checklistOpen || note?.checklist.orEmpty().isNotEmpty()
     val commentsShown = commentsOpen || model.comments.isNotEmpty()
     var checklistAsk by remember { mutableIntStateOf(0) }

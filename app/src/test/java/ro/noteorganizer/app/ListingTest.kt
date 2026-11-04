@@ -123,30 +123,41 @@ class ListingTest {
 
     @Test
     fun `a moved card is brought into sight only when it is out of the window the list kept`() {
-        // Rounds 8-13 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
+        // Rounds 8-14 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
         fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())
         // In the window it was asked over: no scroll.
-        assertEquals(null, Showing.revealAt(flat(1, 2, 3, 4, 5), setOf(3), listOf(2, 3, 4), atTop = false))
-        // Pinned from under a sliver: the window counted from a card that did
-        // not move (4), not from the pinned card (3), which is now above it.
-        assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false))
-        // Two pinned together from under a sliver: counted from the first
-        // card neither of them is (5), both above it now (round 13).
-        assertEquals(0, Showing.revealAt(flat(3, 4, 1, 2, 5, 6), setOf(3, 4), listOf(3, 4, 5), atTop = false))
+        assertEquals(null, Showing.revealAt(flat(1, 2, 3, 4, 5), setOf(3), listOf(2, 3, 4), atTop = false, anchor = 2, lead = 0))
+        // Pinned from under a sliver (2, the item the list keeps): the window
+        // counted from it, and the pinned card (3) is now above it.
+        assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
+        // Two pinned together from under a sliver: both above it now (round 13).
+        assertEquals(0, Showing.revealAt(flat(3, 4, 1, 2, 5, 6), setOf(3, 4), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
         // Several moved: the first of them in the list's NEW order, which the
         // move reordered (round 13).
-        assertEquals(1, Showing.revealAt(flat(1, 7, 6, 2, 3, 4, 5, 8, 9), setOf(6, 7), listOf(8, 9), atTop = false))
+        assertEquals(1, Showing.revealAt(flat(1, 7, 6, 2, 3, 4, 5, 8, 9), setOf(6, 7), listOf(8, 9), atTop = false, anchor = 8, lead = 0))
         // Several put back by Undo above a list at its top: the top, so all show.
-        assertEquals(0, Showing.revealAt(flat(8, 9, 1, 2, 3), setOf(8, 9), listOf(1, 2, 3), atTop = true))
+        assertEquals(0, Showing.revealAt(flat(8, 9, 1, 2, 3), setOf(8, 9), listOf(1, 2, 3), atTop = true, anchor = 1, lead = 0))
         // Below the window, scrolled down: the card itself.
-        assertEquals(4, Showing.revealAt(flat(1, 2, 3, 4, 7), setOf(7), listOf(1, 2), atTop = true))
+        assertEquals(4, Showing.revealAt(flat(1, 2, 3, 4, 7), setOf(7), listOf(1, 2), atTop = true, anchor = 1, lead = 0))
         // Not listed, hidden by Show or a search: nothing.
-        assertEquals(null, Showing.revealAt(flat(1, 2), setOf(7), listOf(1, 2), atTop = true))
+        assertEquals(null, Showing.revealAt(flat(1, 2), setOf(7), listOf(1, 2), atTop = true, anchor = 1, lead = 0))
         // Grouped: the header comes with the card at the top of its group.
         val grouped = Showing.rows(notes("""{"id": 1, "category": "General"}""", """{"id": 2, "category": "General"}""",
                                          """{"id": 6, "category": "Work"}""", """{"id": 5, "category": "Work"}"""),
                                    true, emptySet(), listOf("General", "Work"))
-        assertEquals(3, Showing.revealAt(grouped, setOf(6), listOf("h:General", 1), atTop = false))
+        assertEquals(3, Showing.revealAt(grouped, setOf(6), listOf("h:General", 1), atTop = false, anchor = "h:General", lead = 0))
+        // Round 14: the list's own first card among those moved, and moved
+        // down by them. The list followed it, so the card now first went off
+        // the top: filed together from the top...
+        assertEquals(0, Showing.revealAt(flat(4, 5, 1, 2, 3, 9), setOf(4, 5), listOf(5, 4, 1, 2), atTop = true, anchor = 5, lead = 0))
+        // ...pinned together, one already pinned...
+        assertEquals(0, Showing.revealAt(flat(3, 6, 1, 2, 4), setOf(6, 3), listOf(6, 3, 1, 2), atTop = true, anchor = 6, lead = 0))
+        // ...a sliver pinned, the list following it to the top.
+        assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6, 7), setOf(3), listOf(4, 5, 6), atTop = false, anchor = 3, lead = 1))
+        // Followed far down: there, not the top, which shows none of them.
+        assertEquals(8, Showing.revealAt(flat(1, 2, 3, 4, 5, 6, 7, 8, 10, 11), setOf(10, 11), listOf(11, 1, 2), atTop = true, anchor = 11, lead = 0))
+        // The item it kept gone from the list: counted from a card in sight that did not move.
+        assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
     }
 
     // ---- a category's name, wherever settings hold it ----
