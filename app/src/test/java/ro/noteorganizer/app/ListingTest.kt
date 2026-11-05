@@ -243,6 +243,29 @@ class ListingTest {
     }
 
     @Test
+    fun `an edge scrolls slowly at first, and its zone fits a short list`() {
+        // Round 22: the zone is 56, or an eighth of a short list -- on its side
+        // (a list of 172) every resting card sat in a zone of 56.
+        assertEquals(56f, Showing.edgeZone(-4, 516, 56f))
+        assertEquals(21.5f, Showing.edgeZone(-4, 168, 56f))
+        // No edge, no step; at first a pixel, whatever the depth...
+        assertEquals(0f, Showing.edgeStep(0, 50f, 50f, 3000, 50f))
+        assertEquals(1f, Showing.edgeStep(1, 50f, 50f, 0, 50f))
+        assertEquals(-1f, Showing.edgeStep(-1, 5f, 50f, 0, 50f))
+        // ...held two seconds and deep in the zone, the most...
+        assertEquals(50f, Showing.edgeStep(1, 50f, 50f, 2000, 50f))
+        assertEquals(-50f, Showing.edgeStep(-1, 80f, 50f, 5000, 50f))
+        // ...and in between, rising with both.
+        assertEquals(50f * (1f - 1f / 32f), Showing.edgeStep(1, 25f, 50f, 2000, 50f), 0.001f)
+        assertTrue(Showing.edgeStep(1, 50f, 50f, 1500, 50f) > Showing.edgeStep(1, 50f, 50f, 1000, 50f))
+        // A drag of one place takes under a second: deep in the zone all the
+        // while, its passes scroll less than a card (80) -- at one speed of 14
+        // a pass, 45 passes went 630, two or three places.
+        val quick = (0 until 45).sumOf { Showing.edgeStep(1, 50f, 50f, it * 17L, 50f).toDouble() }
+        assertTrue("$quick", quick < 80.0)
+    }
+
+    @Test
     fun `a drag heads a way only past the touch slop and turns only back past it`() {
         // Round 19, a slop of 8: a tap's pixel of shift is no drag...
         assertEquals(Pair(0, 0f), Showing.dragHeading(0, 0f, 3f, 8f))

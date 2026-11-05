@@ -506,6 +506,28 @@ object Showing {
     }
 
     /**
+     * How deep the edge zones of a list from [start] to [end] reach: [most],
+     * or an eighth of a short list. On a phone on its side every resting
+     * card sat in a zone of [most] (wave 2, round 22).
+     */
+    fun edgeZone(start: Int, end: Int, most: Float): Float = minOf(most, (end - start) / 8f)
+
+    /**
+     * How far one pass of the edge loop scrolls the [way] edgeScroll gave,
+     * for a card [depth] into a zone [edge] deep, [heldMs] after the scroll
+     * began: a pixel at first, up to [most] as the card goes deeper and is
+     * held longer, as Android's own reorder does. At one speed a drag of one
+     * place on a phone on its side went two or three (wave 2, round 22).
+     */
+    fun edgeStep(way: Int, depth: Float, edge: Float, heldMs: Long, most: Float): Float {
+        if (way == 0) return 0f
+        val out = 1f - (depth / edge).coerceIn(0f, 1f)
+        val held = (heldMs / 2000f).coerceIn(0f, 1f)
+        val speed = most * (1f - out * out * out * out * out) * (held * held * held * held * held)
+        return way * maxOf(1f, speed)
+    }
+
+    /**
      * How far to scroll once a card [size] tall has moved one [step], so it
      * and the card it passed, [passedSize] tall, show together: the card at
      * [top] when the layout holds it, else beside the passed card at

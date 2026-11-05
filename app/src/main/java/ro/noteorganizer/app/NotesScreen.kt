@@ -411,25 +411,41 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // finger is still: otherwise its slot stayed behind, scrolled out of
     // sight, and the card was no longer drawn under the finger at all.
     val edge = with(LocalDensity.current) { 56.dp.toPx() }
+    val fastest = with(LocalDensity.current) { 20.dp.toPx() }
     val slop = LocalViewConfiguration.current.touchSlop
     LaunchedEffect(dragged) {
+        // The way the list is scrolling at an edge, and since when.
+        var way = 0
+        var since = 0L
         while (dragged != null) {
             val info = listState.layoutInfo
             val me = info.visibleItemsInfo.firstOrNull { it.key == dragged }
+            var step = 0f
             if (me != null && heading != 0) {
                 // A trade's correction first, once the layout shows it, though the
                 // finger stopped (round 18) -- before the edge is judged, which saw
                 // the card a neighbour off and scrolled a step by itself (round 19).
                 if (slotWas != null) follow(0f)
-                // Toward the edge the finger is going, never the other way.
-                val step = 14f * Showing.edgeScroll(heading, pulledNow, slop, me.offset + dragBy, me.size,
-                                                    info.viewportStartOffset, info.viewportEndOffset, edge)
-                if (step != 0f) {
-                    val scrolled = listState.scrollBy(step)
-                    dragBy += scrolled
-                    slotWas = slotWas?.minus(scrolled)
-                    follow(0f)
-                }
+                // Toward the edge the finger is going, never the other way, slowly
+                // at first (Showing.edgeStep).
+                val start = info.viewportStartOffset
+                val end = info.viewportEndOffset
+                val zone = Showing.edgeZone(start, end, edge)
+                val top = me.offset + dragBy
+                val toward = Showing.edgeScroll(heading, pulledNow, slop, top, me.size, start, end, zone)
+                val clock = android.os.SystemClock.uptimeMillis()
+                if (toward != way) since = clock
+                way = toward
+                val depth = if (toward < 0) start + zone - top else top + me.size - (end - zone)
+                step = Showing.edgeStep(toward, depth, zone, clock - since, fastest)
+            } else {
+                way = 0
+            }
+            if (step != 0f) {
+                val scrolled = listState.scrollBy(step)
+                dragBy += scrolled
+                slotWas = slotWas?.minus(scrolled)
+                follow(0f)
             }
             delay(16)
         }

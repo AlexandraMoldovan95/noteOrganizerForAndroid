@@ -5778,6 +5778,27 @@ def arrange_without_drag(folder):
               placed()[:2] == ["Note 02", "Note 01"] and bool(shown) and shown[0][1] == "Note 01"
               and at is not None and plus is not None and at[1] < plus[1] - 80,
               "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
+        # ...and a drag of one place there: every resting card sat in an
+        # edge zone, the list slid at once, and the note landed two or three
+        # places down (round 22).
+        if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                        for i in range(1, 31)],
+                       {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+            shown = handles()
+            if len(shown) >= 2 and shown[0][1] == "Note 01":
+                (y0, _first), (y1, _second) = shown[:2]
+                x = find("Drag to move Note 01")[0]
+                h = y1 - y0
+                adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+                for y in (y0 + h * 2 // 5, y0 + h * 4 // 5, y0 + h + 40):   # a quick drag
+                    adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+                time.sleep(0.3)
+                adb("shell", "input", "motionevent", "UP", str(x), str(y0 + h + 40))
+                check_settled("on its side, a card dragged one place down lands one place down",
+                              lambda: placed()[:3], lambda p: p == ["Note 02", "Note 01", "Note 03"])
+            else:
+                fail("on its side: Note 01 and the next card's handles not on the screen: %s" % shown[:3])
         turn(0)
         back_to("Search notes")
 
