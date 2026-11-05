@@ -5728,9 +5728,9 @@ def arrange_without_drag(folder):
             y0, name = reachable[0]
             x = find("Drag to move " + name)[0]
             adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
-            for y in range(y0, y0 + 55, 11):
+            for y in range(y0, y0 + 56, 11):                 # down to y0 + 55
                 adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
-            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 + 52))
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 + 52))   # 3 px back
             time.sleep(1.5)
             adb("shell", "input", "motionevent", "UP", str(x), str(y0 + 52))
             check_settled("the top card nudged down, a hair back and held, moves nothing",
