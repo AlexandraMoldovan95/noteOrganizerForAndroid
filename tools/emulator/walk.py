@@ -3255,9 +3255,11 @@ def arranging(folder):
     for i in range(40):                              # held, trembling by a pixel
         adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(top[1] + 140 + i % 2))
     adb("shell", "input", "motionevent", "UP", str(handle[0]), str(top[1] + 140))
-    order = settle(placed, lambda o: "Note 30" in o and o.index("Note 30") <= 20)
+    # Measured: the carry lands about place 8; the lost hold stopped it at 22.
+    order = settle(placed, lambda o: "Note 30" in o and o.index("Note 30") <= 14)
+    print("     (Note 30 landed at place %s)" % (order.index("Note 30") + 1 if "Note 30" in order else "-"))
     check("on a long list a card held at the edge by a trembling finger rides the scroll up, and lands there",
-          "Note 30" in order and order.index("Note 30") <= 20
+          "Note 30" in order and order.index("Note 30") <= 14
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:24]))
 
     # Cards of mixed heights: a short card held past the list's foot, the
