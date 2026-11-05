@@ -455,12 +455,16 @@ object Showing {
      * place -- or, when the card [leads] the screen and steps up, kept where
      * it is. A card laid out of the viewport went, and its drag with it, when
      * a taller neighbour came in at the edge (wave 2, round 17). Offsets and
-     * sizes are the layout's, before the trade.
+     * sizes are the layout's, before the trade. A card that leads trades so
+     * once, until it stops leading ([ledOnce]): the next card above lay in
+     * the list's top padding again, and a slow edge scroll chained ten or
+     * twenty such trades in a fifth of a second (round 23).
      */
     fun tradeStaysInSight(step: Int, meOffset: Int, meSize: Int, otherOffset: Int, otherSize: Int,
-                          leads: Boolean, start: Int, end: Int): Boolean =
+                          leads: Boolean, start: Int, end: Int, ledOnce: Boolean = false): Boolean =
         if (step > 0) otherOffset + otherSize - meSize < end
-        else leads || otherOffset + meSize > start
+        else if (leads) !ledOnce
+        else otherOffset + meSize > start
 
     /**
      * How far to scroll to bring a card at [top], [size] tall, wholly into a

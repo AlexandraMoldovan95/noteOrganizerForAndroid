@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberUpdatedState
@@ -274,6 +275,20 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // How far the finger is from the press: the edge scrolls only past it
     // (Showing.edgeScroll).
     var pulledNow by remember { mutableFloatStateOf(0f) }
+    // A trade's hold, asked again once the new order is composed: a finger's
+    // event measures the list first, in the old order, and spent it -- the
+    // list then followed its top card, and a card carried to the top went
+    // out of sight with its drag (round 23).
+    val hold = remember { Hold() }
+    SideEffect {
+        if (hold.index >= 0) {
+            listState.requestScrollToItem(hold.index, hold.offset)
+            hold.index = -1
+        }
+    }
+    // Whether the dragged card has traded once as it leads the screen
+    // (Showing.tradeStaysInSight).
+    var ledOnce by remember { mutableStateOf(false) }
     val rows = dragOrder ?: laidOut
     // As they are now, for a handle's gesture, which runs on as it was first
     // touched: read as they were then, a card's second drag started from the
@@ -293,8 +308,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val other = noteOf(now.getOrNull(at + step)) ?: return false
         val me = noteOf(now[at]) ?: return false
         if (!Organizing.sameBlock(me, other, groupedNow)) return false
-        if (step < 0 && leads) listState.requestScrollToItem(at - 1, listState.firstVisibleItemScrollOffset)
-        else holdByIndex()
+        hold.index = if (step < 0 && leads) at - 1 else listState.firstVisibleItemIndex
+        hold.offset = listState.firstVisibleItemScrollOffset
+        listState.requestScrollToItem(hold.index, hold.offset)
+        if (step < 0 && leads) ledOnce = true
         dragOrder = now.toMutableList().also { it[at] = it[at + step]; it[at + step] = now[at] }
         return true
     }
@@ -308,6 +325,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         slotWas = null
         heading = 0
         pulledNow = 0f
+        ledOnce = false
         if (id == null || final == null || final == laidOutNow) return
         val at = final.indexOfFirst { noteOf(it)?.id == id }
         val next = noteOf(final.getOrNull(at + 1))
@@ -394,8 +412,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         slotWas = null
         val centre = me.offset + me.size / 2 + dragBy
         val leads = listState.firstVisibleItemIndex == me.index
+        if (!leads) ledOnce = false
         fun staysInSight(other: LazyListItemInfo, step: Int) = Showing.tradeStaysInSight(
-            step, me.offset, me.size, other.offset, other.size, leads, layout.viewportStartOffset, layout.viewportEndOffset)
+            step, me.offset, me.size, other.offset, other.size, leads, layout.viewportStartOffset, layout.viewportEndOffset,
+            ledOnce)
         val below = info.firstOrNull { it.index == me.index + 1 }
         val above = info.firstOrNull { it.index == me.index - 1 }
         val traded = when {
@@ -441,7 +461,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             } else {
                 way = 0
             }
-            if (step != 0f) {
+            // Not while a trade's hold waits for its order to be composed: a
+            // scroll now would be undone by it, the card left off the finger.
+            if (step != 0f && hold.index < 0) {
                 val scrolled = listState.scrollBy(step)
                 dragBy += scrolled
                 slotWas = slotWas?.minus(scrolled)
@@ -746,6 +768,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             slotWas = null
                                                             heading = 0
                                                             pulledNow = 0f
+                                                            ledOnce = false
                                                             var travelled = false
                                                             // How far the finger has gone from the press,
                                                             // and its furthest point the way it is heading.
@@ -791,6 +814,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 slotWas = null
                                                                 heading = 0
                                                                 pulledNow = 0f
+                                                                ledOnce = false
+                                                                hold.index = -1
                                                                 throw e
                                                             }
                                                         }
@@ -983,3 +1008,9 @@ private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boo
 
 /** A card stepped one place ([step] -1 up, +1 down), how tall it was, and the card it passed, before the step. */
 private data class Stepped(val id: Int, val step: Int, val size: Int, val passedSize: Int)
+
+/** Where a drag's last trade holds the list -- [index] -1 when nothing waits -- until its order is composed. */
+private class Hold {
+    var index = -1
+    var offset = 0
+}

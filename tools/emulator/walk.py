@@ -3236,6 +3236,29 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+    # The same carry by a finger that never stays quite still: a trade the edge
+    # scroll made lost its hold to the next move's measure, the list followed
+    # its top card, and the carried card went out of sight with its drag --
+    # the note left where it was (round 23).
+    if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    for _ in range(4):
+        adb("shell", "input", "swipe", "540", "1700", "540", "500", "200")
+        time.sleep(0.6)
+    handle, top = find("Drag to move Note 30"), find("Sort: Custom order")
+    if not handle or not top:
+        fail("the long list again: the last card or the list's top not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], top[1] + 140, -60):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    for i in range(40):                              # held, trembling by a pixel
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(top[1] + 140 + i % 2))
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(top[1] + 140))
+    order = settle(placed, lambda o: "Note 30" in o and o.index("Note 30") <= 20)
+    check("on a long list a card held at the edge by a trembling finger rides the scroll up, and lands there",
+          "Note 30" in order and order.index("Note 30") <= 20
+          and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:24]))
 
     # Cards of mixed heights: a short card held past the list's foot, the
     # list scrolling under it. A taller card coming in at the edge took the

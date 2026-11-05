@@ -191,6 +191,13 @@ class ListingTest {
         assertTrue(Showing.tradeStaysInSight(-1, 250, 200, -50, 300, leads = false, start = -10, end = 1000))
         // Leading the screen it keeps its place as it steps up, wherever the neighbour is.
         assertTrue(Showing.tradeStaysInSight(-1, -20, 200, -320, 300, leads = true, start = -10, end = 1000))
+        // Round 23: but once only, until it stops leading -- the next card above
+        // lay in the top padding again, and trades chained ten or twenty places.
+        assertFalse(Showing.tradeStaysInSight(-1, -5, 200, -305, 300, leads = true, start = -10, end = 1000,
+                                              ledOnce = true))
+        // Not leading, the rule is the slot's, whatever went before.
+        assertTrue(Showing.tradeStaysInSight(-1, 250, 200, -50, 300, leads = false, start = -10, end = 1000,
+                                             ledOnce = true))
     }
 
     @Test
