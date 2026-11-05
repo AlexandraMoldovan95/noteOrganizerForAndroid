@@ -319,7 +319,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // sight, or was left a strip (round 17).
     var stepped by remember { mutableStateOf<Stepped?>(null) }
     LaunchedEffect(stepped, laidOut) {
-        val (id, step, sizeWas) = stepped ?: return@LaunchedEffect
+        val (id, step, sizeWas, passedWas) = stepped ?: return@LaunchedEffect
         val at = laidOut.indexOfFirst { noteOf(it)?.id == id }
         if (at < 0) {
             stepped = null
@@ -339,7 +339,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         // layout no longer holds is brought in beside the card it passed.
         val card = layout.visibleItemsInfo.firstOrNull { it.key == id }
         val passed = layout.visibleItemsInfo.firstOrNull { it.index == at - step }
-        val by = Showing.afterStep(card?.offset, card?.size ?: sizeWas, passed?.offset, passed?.size ?: 0, step,
+        val by = Showing.afterStep(card?.offset, card?.size ?: sizeWas, passed?.offset, passed?.size ?: passedWas, step,
                                    layout.viewportEndOffset - layout.afterContentPadding)
         when {
             by == null -> listState.scrollToItem(at)
@@ -355,16 +355,19 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     fun stepNote(id: Int, step: Int) {
         val (anchor, before) = Organizing.stepPlace(laidOutNow.mapNotNull { noteOf(it) }, id, step, groupedNow) ?: return
         val at = laidOutNow.indexOfFirst { noteOf(it)?.id == id }
-        val size = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == id }?.size ?: 0
+        val shown = listState.layoutInfo.visibleItemsInfo
+        val size = shown.firstOrNull { it.key == id }?.size ?: 0
+        val passedSize = shown.firstOrNull { it.index == at + step }?.size ?: 0
+        val first = listState.firstVisibleItemIndex
+        val offset = listState.firstVisibleItemScrollOffset
+        // Held and scrolled only once the step is saved: a refused one scrolled
+        // the list as if it had been made (round 19).
+        if (!state.moveNote(id, anchor, before = before, grouped = groupedNow)) return
         // Up from the top of the screen, the card keeps its place there, its
         // neighbour under it; held at the index, it went above (round 17).
-        if (step < 0 && at == listState.firstVisibleItemIndex) {
-            listState.requestScrollToItem(at - 1, listState.firstVisibleItemScrollOffset)
-        } else {
-            holdByIndex()
-        }
-        state.moveNote(id, anchor, before = before, grouped = groupedNow)
-        stepped = Stepped(id, step, size)
+        if (step < 0 && at == first) listState.requestScrollToItem(at - 1, offset)
+        else listState.requestScrollToItem(first, offset)
+        stepped = Stepped(id, step, size, passedSize)
     }
     var stepMenu by remember { mutableStateOf<Int?>(null) }
     val upSaid = stringResource(R.string.move_up)
@@ -408,6 +411,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             val info = listState.layoutInfo
             val me = info.visibleItemsInfo.firstOrNull { it.key == dragged }
             if (me != null && heading != 0) {
+                // A trade's correction first, once the layout shows it, though the
+                // finger stopped (round 18) -- before the edge is judged, which saw
+                // the card a neighbour off and scrolled a step by itself (round 19).
+                if (slotWas != null) follow(0f)
                 val top = me.offset + dragBy
                 // Toward the edge the finger is going, never the other way.
                 val step = when {
@@ -419,10 +426,6 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     val scrolled = listState.scrollBy(step)
                     dragBy += scrolled
                     slotWas = slotWas?.minus(scrolled)
-                    follow(0f)
-                } else if (slotWas != null) {
-                    // A trade's correction, once the layout shows it, though the
-                    // finger stopped: it stood a card off the finger (round 18).
                     follow(0f)
                 }
             }
@@ -725,6 +728,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             slotWas = null
                                                             heading = 0
                                                             var travelled = false
+                                                            // How far the finger has gone from the press,
+                                                            // and its furthest point the way it is heading.
+                                                            var pulled = 0f
+                                                            var far = 0f
+                                                            val slop = viewConfiguration.touchSlop
                                                             try {
                                                                 while (true) {
                                                                     val change = awaitPointerEvent().changes
@@ -733,8 +741,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                     val moved = change.positionChange()
                                                                     if (moved.y != 0f) {
                                                                         change.consume()
-                                                                        travelled = true
-                                                                        heading = if (moved.y > 0f) 1 else -1
+                                                                        pulled += moved.y
+                                                                        // A drag only past the touch slop, and turned
+                                                                        // only back past it (Showing.dragHeading).
+                                                                        val (way, furthest) = Showing.dragHeading(heading, far, pulled, slop)
+                                                                        heading = way
+                                                                        far = furthest
+                                                                        travelled = travelled || way != 0
                                                                         follow(moved.y)
                                                                     }
                                                                 }
@@ -948,5 +961,5 @@ fun sendText(state: AppState, text: String) {
 private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>,
                           val anchor: Any?, val lead: Int)
 
-/** A card stepped one place ([step] -1 up, +1 down), and how tall it was before the step. */
-private data class Stepped(val id: Int, val step: Int, val size: Int)
+/** A card stepped one place ([step] -1 up, +1 down), how tall it was, and the card it passed, before the step. */
+private data class Stepped(val id: Int, val step: Int, val size: Int, val passedSize: Int)

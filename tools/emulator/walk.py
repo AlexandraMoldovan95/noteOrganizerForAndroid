@@ -5704,6 +5704,39 @@ def arrange_without_drag(folder):
         check_settled("the top card on screen dragged one place down lands one place down",
                       lambda: (placed().index(top_name), was, top_name, shown[:3], pill),
                       lambda got: got[0] == was + 1)
+        # A tap whose finger shifts a few pixels is still a tap: any shift was
+        # a drag, and the handle's menu never opened (round 19).
+        shown = handles()
+        tap_name = shown[1][1] if len(shown) > 1 else None
+        at = find("Drag to move " + tap_name) if tap_name else None
+        if at:
+            adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+            adb("shell", "input", "motionevent", "MOVE", str(at[0]), str(at[1] + 3))
+            adb("shell", "input", "motionevent", "UP", str(at[0]), str(at[1] + 3))
+            time.sleep(1.2)
+        menu_open = find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+        check("a tap on a handle with a few pixels' shift opens its menu", bool(at) and menu_open, tap_name)
+        if menu_open:
+            adb("shell", "input", "keyevent", "4")          # its menu put away
+            time.sleep(0.8)
+        # The top card nudged down, a hair's recoil, then held: the recoil
+        # read as a turn, the list scrolled up against the finger and the note
+        # was saved places ABOVE where it was (round 19).
+        shown, before = handles(), placed()
+        reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+        if reachable and reachable[0] == shown[0]:
+            y0, name = reachable[0]
+            x = find("Drag to move " + name)[0]
+            adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+            for y in range(y0, y0 + 55, 11):
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 + 52))
+            time.sleep(1.5)
+            adb("shell", "input", "motionevent", "UP", str(x), str(y0 + 52))
+            check_settled("the top card nudged down, a hair back and held, moves nothing",
+                          lambda: placed()[:20], lambda p: p == before[:20])
+        else:
+            fail("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
     else:
         fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))

@@ -475,14 +475,32 @@ object Showing {
     }
 
     /**
-     * How far to scroll once a card [size] tall has moved one [step]: the
-     * card at [top] when the layout holds it, else beside the card it passed,
-     * at [passedTop], [passedSize] tall -- or null when the layout holds
-     * neither. Taken to the top of the screen instead, a card stepped down
-     * past the foot jumped a screen, the card it passed above it (round 18).
+     * The way a drag is heading (+1 down, -1 up, 0 not yet a drag) once the
+     * finger is [pulled] from the press, and its furthest point that way,
+     * from the [heading] and [far] before: a drag only past the touch [slop],
+     * as Android's own, and turned only once back past it from [far]. Taken
+     * from each frame's sign, a tap's pixel of shift opened no menu, and a
+     * hair's recoil at an edge stopped the scroll or ran it against the
+     * finger, moving the note the wrong way (wave 2, round 19).
+     */
+    fun dragHeading(heading: Int, far: Float, pulled: Float, slop: Float): Pair<Int, Float> = when {
+        heading == 0 -> if (kotlin.math.abs(pulled) > slop) Pair(if (pulled > 0f) 1 else -1, pulled) else Pair(0, far)
+        heading > 0 && pulled > far || heading < 0 && pulled < far -> Pair(heading, pulled)
+        kotlin.math.abs(pulled - far) > slop -> Pair(-heading, pulled)
+        else -> Pair(heading, far)
+    }
+
+    /**
+     * How far to scroll once a card [size] tall has moved one [step], so it
+     * and the card it passed, [passedSize] tall, show together: the card at
+     * [top] when the layout holds it, else beside the passed card at
+     * [passedTop] -- null when the layout holds neither. A card stepped down
+     * past the foot jumped a screen (round 18); brought into sight alone, it
+     * left a shorter card it passed above the screen (round 19).
      */
     fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int): Int? = when {
-        top != null -> intoSight(top, size, end)
+        top != null && step > 0 -> intoSight(top - passedSize, passedSize + size, end)
+        top != null -> intoSight(top, size + passedSize, end)
         passedTop == null || size <= 0 -> null
         else -> intoSight(if (step > 0) passedTop + passedSize else passedTop - size, size, end)
     }

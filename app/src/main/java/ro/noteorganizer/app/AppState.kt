@@ -871,10 +871,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         }
     }
 
-    /** A note dragged to just before or after another, in Custom order. */
-    fun moveNote(id: Int, anchor: Int, before: Boolean, grouped: Boolean) {
+    /** A note dragged to just before or after another, in Custom order; true when it was saved. */
+    fun moveNote(id: Int, anchor: Int, before: Boolean, grouped: Boolean): Boolean =
         report(Organizing.moveNote(load, id, anchor, before, grouped))
-    }
 
     fun setPinned(ids: Collection<Int>, pinned: Boolean) {
         report(outside(ids) { Organizing.setPinned(load, ids, pinned) } ?: return)

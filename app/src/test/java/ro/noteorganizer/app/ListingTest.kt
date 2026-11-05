@@ -210,9 +210,30 @@ class ListingTest {
         assertEquals(350, Showing.afterStep(null, 250, 850, 250, step = 1, end = 1000))
         // ...stepped up past the top: above the card it passed, now at 40.
         assertEquals(-210, Showing.afterStep(null, 250, 40, 250, step = -1, end = 1000))
-        // Laid out, as before; neither card laid out: null, to its index.
-        assertEquals(0, Showing.afterStep(100, 250, 350, 250, step = 1, end = 1000))
+        // Both laid out and in sight: nothing; neither laid out: null, to its index.
+        assertEquals(0, Showing.afterStep(400, 250, 150, 250, step = 1, end = 1000))
         assertEquals(null, Showing.afterStep(null, 250, null, 0, step = 1, end = 1000))
+        // Round 19: the top card on screen, mostly hidden, stepped down past a
+        // shorter card -- the pair comes into sight, the card it passed whole
+        // above it, not the moved card alone with the passed one above the screen.
+        assertEquals(-92, Showing.afterStep(-12, 106, null, 80, step = 1, end = 500))
+        // ...and the last card stepped up past a card now under the foot: the pair.
+        assertEquals(180, Showing.afterStep(330, 250, null, 180, step = -1, end = 580))
+    }
+
+    @Test
+    fun `a drag heads a way only past the touch slop and turns only back past it`() {
+        // Round 19, a slop of 8: a tap's pixel of shift is no drag...
+        assertEquals(Pair(0, 0f), Showing.dragHeading(0, 0f, 3f, 8f))
+        // ...past the slop it heads that way...
+        assertEquals(Pair(1, 12f), Showing.dragHeading(0, 0f, 12f, 8f))
+        // ...a hair's recoil at an edge leaves it heading on...
+        assertEquals(Pair(1, 300f), Showing.dragHeading(1, 300f, 297f, 8f))
+        // ...going on moves its furthest point...
+        assertEquals(Pair(1, 320f), Showing.dragHeading(1, 300f, 320f, 8f))
+        // ...and back past the slop it turns.
+        assertEquals(Pair(-1, 290f), Showing.dragHeading(1, 300f, 290f, 8f))
+        assertEquals(Pair(1, -40f), Showing.dragHeading(-1, -50f, -40f, 8f))
     }
 
     // ---- a category's name, wherever settings hold it ----
