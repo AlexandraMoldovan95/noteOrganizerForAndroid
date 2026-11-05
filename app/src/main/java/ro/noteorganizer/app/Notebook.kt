@@ -491,15 +491,33 @@ object Showing {
     }
 
     /**
+     * Which way a dragged card at [top], [size] tall, scrolls the list at an
+     * edge of the viewport from [start] to [end] (-1 up, +1 down, 0 not):
+     * toward the edge it is [heading], and only once the finger is past the
+     * touch [slop] beyond the press that way ([pulled]). On the heading
+     * alone, the top card nudged down and put back scrolled the list under
+     * it, and was saved a place up (wave 2, round 20).
+     */
+    fun edgeScroll(heading: Int, pulled: Float, slop: Float, top: Float, size: Int,
+                   start: Int, end: Int, edge: Float): Int = when {
+        heading < 0 && pulled < -slop && top < start + edge -> -1
+        heading > 0 && pulled > slop && top + size > end - edge -> 1
+        else -> 0
+    }
+
+    /**
      * How far to scroll once a card [size] tall has moved one [step], so it
      * and the card it passed, [passedSize] tall, show together: the card at
      * [top] when the layout holds it, else beside the passed card at
      * [passedTop] -- null when the layout holds neither. A card stepped down
      * past the foot jumped a screen (round 18); brought into sight alone, it
-     * left a shorter card it passed above the screen (round 19).
+     * left a shorter card it passed above the screen (round 19). A pair
+     * taller than the screen keeps the moved card, as a step up does: the
+     * pair's top left it under the + (round 20).
      */
     fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int): Int? = when {
-        top != null && step > 0 -> intoSight(top - passedSize, passedSize + size, end)
+        top != null && step > 0 && passedSize + size <= end -> intoSight(top - passedSize, passedSize + size, end)
+        top != null && step > 0 -> intoSight(top, size, end)
         top != null -> intoSight(top, size + passedSize, end)
         passedTop == null || size <= 0 -> null
         else -> intoSight(if (step > 0) passedTop + passedSize else passedTop - size, size, end)

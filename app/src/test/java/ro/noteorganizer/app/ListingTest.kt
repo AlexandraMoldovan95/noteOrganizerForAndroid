@@ -219,6 +219,27 @@ class ListingTest {
         assertEquals(-92, Showing.afterStep(-12, 106, null, 80, step = 1, end = 500))
         // ...and the last card stepped up past a card now under the foot: the pair.
         assertEquals(180, Showing.afterStep(330, 250, null, 180, step = -1, end = 580))
+        // Round 20: a pair taller than the screen (a phone on its side) keeps
+        // the card stepped down on top, as a step up does -- the pair's top
+        // left it under the + button.
+        assertEquals(106, Showing.afterStep(106, 106, 0, 106, step = 1, end = 74))
+        assertEquals(70, Showing.afterStep(80, 80, 0, 80, step = 1, end = 90))
+    }
+
+    @Test
+    fun `a drag scrolls at an edge only past its press, the way it is heading`() {
+        // Round 20, a slop of 8 and a top edge of 56 from 0 to 1000: the top
+        // card nudged down and put back, a hair above the press, scrolls nothing...
+        assertEquals(0, Showing.edgeScroll(-1, -3f, 8f, 10f, 106, 0, 1000, 56f))
+        // ...past the press by more than the slop, it scrolls up...
+        assertEquals(-1, Showing.edgeScroll(-1, -20f, 8f, 10f, 106, 0, 1000, 56f))
+        // ...but not away from the edge, nor against the finger.
+        assertEquals(0, Showing.edgeScroll(-1, -20f, 8f, 500f, 106, 0, 1000, 56f))
+        assertEquals(0, Showing.edgeScroll(1, 20f, 8f, 10f, 106, 0, 1000, 56f))
+        // The foot alike: a card nudged up and put back there scrolls nothing,
+        // one held past its press goes on down.
+        assertEquals(0, Showing.edgeScroll(1, 2f, 8f, 900f, 106, 0, 1000, 56f))
+        assertEquals(1, Showing.edgeScroll(1, 20f, 8f, 900f, 106, 0, 1000, 56f))
     }
 
     @Test

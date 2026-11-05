@@ -5737,10 +5737,49 @@ def arrange_without_drag(folder):
                           lambda: placed()[:20], lambda p: p == before[:20])
         else:
             fail("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
+        # The top card drawn down, put back where it was pressed and held: the
+        # turn back scrolled the list under it, and the note was saved a place
+        # or two up (round 20).
+        shown, before = handles(), placed()
+        reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+        if reachable and reachable[0] == shown[0]:
+            y0, name = reachable[0]
+            x = find("Drag to move " + name)[0]
+            adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+            for y in range(y0, y0 + 166, 15):                # down 165 px, short of a trade
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            for y in range(y0 + 150, y0 - 1, -15):           # back to the press...
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 - 4))    # ...a hair over
+            time.sleep(1.2)
+            adb("shell", "input", "motionevent", "UP", str(x), str(y0 - 4))
+            check_settled("the top card drawn down, put back and held, moves nothing",
+                          lambda: placed()[:20], lambda p: p == before[:20])
+        else:
+            fail("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
     else:
         fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))
     back_to("Search notes")
+    # A phone on its side: the top card stepped down went under the + button,
+    # brought into sight with the card it passed, the two taller than the
+    # list (round 20).
+    if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
+                     "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                    for i in range(1, 31)],
+                   {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        turn(1)
+        tap("Drag to move Note 01", wait=1.0)
+        tap("Move down", exact=True, wait=2.0)
+        shot(folder, "89-landscape-step", "Note 01")
+        shown, plus = handles(), find("New note", exact=True)
+        at = find("Drag to move Note 01")
+        check("on its side, the top card moved down stays on top, clear of the + button",
+              placed()[:2] == ["Note 02", "Note 01"] and bool(shown) and shown[0][1] == "Note 01"
+              and at is not None and plus is not None and at[1] < plus[1] - 80,
+              "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
+        turn(0)
+        back_to("Search notes")
 
 
 def attaching(folder):

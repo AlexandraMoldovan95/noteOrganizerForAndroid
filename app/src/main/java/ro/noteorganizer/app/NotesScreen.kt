@@ -33,6 +33,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -270,6 +271,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // the top card scrolled the list (round 17), and the top card dragged
     // down scrolled it up, against the finger (round 18).
     var heading by remember { mutableIntStateOf(0) }
+    // How far the finger is from the press: the edge scrolls only past it
+    // (Showing.edgeScroll).
+    var pulledNow by remember { mutableFloatStateOf(0f) }
     val rows = dragOrder ?: laidOut
     // As they are now, for a handle's gesture, which runs on as it was first
     // touched: read as they were then, a card's second drag started from the
@@ -303,6 +307,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         dragOrder = null
         slotWas = null
         heading = 0
+        pulledNow = 0f
         if (id == null || final == null || final == laidOutNow) return
         val at = final.indexOfFirst { noteOf(it)?.id == id }
         val next = noteOf(final.getOrNull(at + 1))
@@ -406,6 +411,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // finger is still: otherwise its slot stayed behind, scrolled out of
     // sight, and the card was no longer drawn under the finger at all.
     val edge = with(LocalDensity.current) { 56.dp.toPx() }
+    val slop = LocalViewConfiguration.current.touchSlop
     LaunchedEffect(dragged) {
         while (dragged != null) {
             val info = listState.layoutInfo
@@ -415,13 +421,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 // finger stopped (round 18) -- before the edge is judged, which saw
                 // the card a neighbour off and scrolled a step by itself (round 19).
                 if (slotWas != null) follow(0f)
-                val top = me.offset + dragBy
                 // Toward the edge the finger is going, never the other way.
-                val step = when {
-                    heading < 0 && top < info.viewportStartOffset + edge -> -14f
-                    heading > 0 && top + me.size > info.viewportEndOffset - edge -> 14f
-                    else -> 0f
-                }
+                val step = 14f * Showing.edgeScroll(heading, pulledNow, slop, me.offset + dragBy, me.size,
+                                                    info.viewportStartOffset, info.viewportEndOffset, edge)
                 if (step != 0f) {
                     val scrolled = listState.scrollBy(step)
                     dragBy += scrolled
@@ -727,12 +729,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             dragOrder = laidOutNow
                                                             slotWas = null
                                                             heading = 0
+                                                            pulledNow = 0f
                                                             var travelled = false
                                                             // How far the finger has gone from the press,
                                                             // and its furthest point the way it is heading.
                                                             var pulled = 0f
                                                             var far = 0f
-                                                            val slop = viewConfiguration.touchSlop
                                                             try {
                                                                 while (true) {
                                                                     val change = awaitPointerEvent().changes
@@ -747,6 +749,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                         val (way, furthest) = Showing.dragHeading(heading, far, pulled, slop)
                                                                         heading = way
                                                                         far = furthest
+                                                                        pulledNow = pulled
                                                                         travelled = travelled || way != 0
                                                                         follow(moved.y)
                                                                     }
@@ -771,6 +774,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                 dragOrder = null
                                                                 slotWas = null
                                                                 heading = 0
+                                                                pulledNow = 0f
                                                                 throw e
                                                             }
                                                         }
