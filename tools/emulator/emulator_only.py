@@ -22,6 +22,7 @@ limit the script stops, naming the call, rather than wait on.
 """
 import os
 import subprocess
+import time
 
 # Read once, at import: the desktop's guard, which the walk takes as it
 # starts (walk.take_the_turn), points LOCALAPPDATA at an empty folder of the
@@ -109,8 +110,13 @@ def fresh_tree(adb_bytes, tries=3):
     or "" when no tree was written in [tries] asks. The last dump's file goes first: a dump that
     writes nothing -- the app's thread held past uiautomator's patience --
     left the screen before it in the file, and a tool that read it judged,
-    or tapped, a screen that was gone (the final audit's ninth round)."""
-    for _ in range(tries):
+    or tapped, a screen that was gone (the final audit's ninth round).
+    The asks are spaced: right after an install and `pm clear`, three made
+    within a second all wrote nothing, and a part's first look failed
+    (twice in wave 2's walks, each part fine walked again)."""
+    for attempt in range(tries):
+        if attempt:
+            time.sleep(1.5 * attempt)
         adb_bytes("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
         raw = adb_bytes("exec-out", "cat", "/sdcard/ui.xml").decode("utf-8", errors="replace")
         if "<?xml" in raw:
