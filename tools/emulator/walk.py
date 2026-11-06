@@ -3877,7 +3877,7 @@ def what_hides_the_list(folder):
     older = {"created": "2026-10-01 09:00", "updated": "2026-10-01 09:00"}
     if not seed_inside([
             dict(stamp, id=1, uid="w2-1", title="Crème brûlée night", body="x", category="General"),
-            dict(stamp, id=2, uid="w2-2", title="Shopping", body="", category="General",
+            dict(stamp, id=2, uid="w2-2", title="Shopping", body="", category="Work",
                  checklist=[{"text": "Gruyère", "done": False}])]
             + [dict(older, id=10 + i, uid="w2-w%d" % i, title="Work item %d" % i, body="x", category="Work")
                for i in range(30)],
@@ -3964,17 +3964,19 @@ def what_hides_the_list(folder):
 
     # Notes the Trash's Undo puts back where Show now hides them are said,
     # with Show all: they came back without a word (wave 2, round 11). Two,
-    # as one put back opens in the editor.
+    # as one put back opens in the editor -- one in Work, one not, so the bar
+    # counts the one Show hides: it said both were (the lows wave's round 8).
     long_press("Crème brûlée night")
     tap("Shopping", exact=True, wait=0.6)
     tap("🗑", wait=0.8)
     tap("Show: All", wait=1.0)
     tap("Work", exact=True, wait=1.5)
     tap("Undo", exact=True, wait=1.0)
-    said = not says_soon("Put back, 2 of them hidden by Show: Work", "Show all", within=8.0)
+    said = not says_soon("Put back, 1 of them hidden by Show: Work", "Show all", within=8.0)
+    shot(folder, "132-put-back-counted", "Put back")
     tap("Show all", exact=True, wait=1.5)
-    check("notes the Trash's Undo puts back where Show hides them are said, and Show all shows them",
-          said and not says_soon("Crème brûlée night", "Shopping", "Show: All"))
+    check("notes the Trash's Undo puts back where Show hides them are said, counted, and Show all shows them",
+          said and not says_soon("Crème brûlée night", "Shopping", "Show: All"), "said %s" % said)
 
     # Text shared to the app: a new note; a code among words: a code.
     adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "

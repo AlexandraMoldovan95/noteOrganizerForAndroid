@@ -297,20 +297,21 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     }
     // Notes restored, imported or made where the list does not look, said
     // the same way once the list is on screen ([AppState.arrivals]): one bar
-    // at a time, asked when its turn comes, and words alike as one. All at
-    // once, each was worded as things stood then -- "hidden by Show: Work"
-    // over a list the first one's Show all had opened (the lows wave's round 7).
+    // at a time, asked when its turn on screen comes -- the bar free. All at
+    // once, or worded behind another bar, each said what hid its notes then:
+    // "hidden by Show: Work" over a list showing all (the lows wave's rounds
+    // 7-8). Each word as made and counted by its own notes, as the desktop's
+    // banner: words merged by their text doubled a count the text carried.
     val hidingNow by rememberUpdatedState<(Note) -> String> { note -> hiding(note) }
     val showAllNow by rememberUpdatedState<(Note) -> Unit> { note -> showAll(note) }
     LaunchedEffect(Unit) {
         while (true) {
-            snapshotFlow { state.arrivals.isNotEmpty() }.first { it }
-            val said = state.arrivals.first().second
-            val ids = state.arrivals.filter { it.second == said }.flatMap { it.first }.distinct()
-            state.arrivals = state.arrivals.filter { it.second != said }
+            snapshotFlow { state.arrivals.isNotEmpty() && state.snackbar.currentSnackbarData == null }.first { it }
+            val (ids, said) = state.arrivals.first()
+            state.arrivals = state.arrivals.drop(1)
             val hidden = state.load.notes.filter { it.id in ids && hidingNow(it).isNotEmpty() }
             val first = hidden.firstOrNull() ?: continue
-            val tail = if (hidden.size == 1) "hidden by ${hidingNow(first)}"
+            val tail = if (ids.size == 1) "hidden by ${hidingNow(first)}"
                        else "${hidden.size} of them hidden by ${hidingNow(first)}"
             val again = { state.waitWord(ids, said) }
             // The first of them still here: the first alone, gone, refused them all (round 3).
