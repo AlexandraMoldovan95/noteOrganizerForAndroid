@@ -364,7 +364,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** From the disk, for when the files changed under the app (an import). */
     fun reload() {
-        load = Notebook.load(dir)
+        // The notes kept aside this session are still the session's to spend.
+        load = Notebook.load(dir).also { it.keptAside.putAll(load.keptAside) }
         revision += 1
     }
 

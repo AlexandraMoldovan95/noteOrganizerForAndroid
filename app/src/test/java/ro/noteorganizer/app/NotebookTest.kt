@@ -1875,4 +1875,60 @@ class NotebookTest {
         assertTrue(Notebook.updateNote(load, 1, "Gym", "Warm up.", date = "2026-11-02") is SaveResult.Ok)
         assertTrue(Notebook.DAY_FIELDS.none { onDisk(load).getJSONObject(0).getJSONObject("_prev").has(it) })
     }
+
+    @Test
+    fun `a big delete beside an Update's copy keeps the copy, and the words go into a note of their own, spent when typed back`() {
+        // The desktop's wave 2: an Update's copy is the note as it was before
+        // the Update, in no other file; a big delete replaced it.
+        val words = "Book the physio for Friday, the bike at seven, then the plan for the knee."
+        fun updated(uid: String) = JSONObject().put("id", 1).put("uid", uid).put("title", "Trip").put("body", words)
+            .put("category", "General").put("date", "2026-11-04")
+            .put("_prev", JSONObject().put("title", "Trip").put("body", "Mine before.").put("category", "General")
+                .put("color", "").put("checklist", JSONArray()).put("pinned", false))
+        fun asides(load: Notebook.Load) = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it) }
+            .filter { it.optString("title") == "Trip (earlier text)" }
+
+        var load = scratch(JSONArray().put(updated("t1")).toString())
+        val cut = Notebook.updateNote(load, 1, "Trip", "Book.") as SaveResult.Ok
+        assertEquals("the Update's copy stays", "Mine before.", onDisk(load).getJSONObject(0).getJSONObject("_prev").getString("body"))
+        val made = asides(load).single()
+        assertEquals(words, made.getString("body"))
+        assertEquals("a one-off's date comes along", "2026-11-04", made.getString("date"))
+        assertEquals(made.getInt("id"), cut.keptAside)
+        assertFalse(cut.keptComments)
+        // Typed back: the note kept aside goes again, said.
+        val back = Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok
+        assertTrue(back.spentAside)
+        assertTrue(asides(load).isEmpty())
+
+        // Pinned since, it is the person's, and stays.
+        load = scratch(JSONArray().put(updated("t2")).toString())
+        val pinned = (Notebook.updateNote(load, 1, "Trip", "Book.") as SaveResult.Ok).keptAside
+        assertTrue(Notebook.updateNote(load, pinned, "Trip (earlier text)", words, pinned = true) is SaveResult.Ok)
+        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertEquals(1, asides(load).size)
+
+        // Deleted and put back from the Trash, likewise.
+        load = scratch(JSONArray().put(updated("t3")).toString(), trash = "[]")
+        val trashed = (Notebook.updateNote(load, 1, "Trip", "Book.") as SaveResult.Ok).keptAside
+        assertTrue(Organizing.trashNotes(load, listOf(trashed)) is SaveResult.Ok)
+        assertTrue(asides(load).isEmpty())
+        assertTrue(Organizing.restore(load, Notebook.refreshed(load).trash.map { Organizing.keyOf(it) }) is SaveResult.Ok)
+        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertEquals(1, asides(load).size)
+
+        // A read is the next start, which no longer knows it: it stays for good.
+        load = scratch(JSONArray().put(updated("t4")).toString())
+        assertTrue(Notebook.updateNote(load, 1, "Trip", "Book.") is SaveResult.Ok)
+        load = Notebook.load(dirOf(load))
+        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertEquals(1, asides(load).size)
+
+        // The comments alone, when the save takes no more.
+        val long = "Ask the physio whether the bike is fine before Friday's session, and bring the scan."
+        load = scratch(JSONArray().put(updated("t5").put("comments", long)).toString())
+        val cleared = Notebook.updateNote(load, 1, "Trip", words, comments = "") as SaveResult.Ok
+        assertTrue(cleared.keptComments)
+        assertEquals(listOf("", long), asides(load).single().let { listOf(it.getString("body"), it.getString("comments")) })
+    }
 }

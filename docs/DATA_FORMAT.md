@@ -842,7 +842,13 @@ again, keeps that copy's words and takes only the comments it replaces
 (2026-10-29: the comments rewritten after a big delete replaced the only
 copy of the deleted words) -- or keeps the copy's own comments, when theirs
 would be the larger loss (2026-10-30: two letters cleared after a long
-comment was deleted wrote over it). An update that would change nothing
+comment was deleted wrote over it). An update's own copy is the note as
+it was here before the update, in no other file, so a big delete after it
+keeps that copy, and the words the delete takes become a note of their
+own, "<title> (earlier text)" -- a one-off's date along, only the
+comments when no more went -- gone again if they are typed back in the
+same session and it is untouched (2026-11-06 on the phone, the desktop's
+wave 2: the delete replaced the copy). An update that would change nothing
 does not touch the note at all, so it cannot spend a rescue copy on
 nothing; it is judged with both notes' copies left out.
 

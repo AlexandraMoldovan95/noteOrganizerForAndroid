@@ -1558,24 +1558,37 @@ class DaysTest {
 
     @Test
     fun `a restarted series' first day stays after a big delete and Restore previous`() {
-        // Deleted, then the repeat ended by a share code and started again
-        // on that very day: a copy of words carried the old deleted day, and
-        // Restore previous put it back over the new series' first day.
+        // Deleted, then the repeat ended and started again on that very day:
+        // a copy of words carried the old deleted day, and Restore previous
+        // put it back over the new series' first day.
         val paragraph = "Warm-up ten minutes on the bike, then squats five by five and lunges three by twelve, plank to finish."
-        val load = scratch("""[{"id": 1, "uid": "s", "title": "Gym", "body": "Plan\n$paragraph", "category": "Work",
-            "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}, "exceptions": ["2026-11-09"]}]""")
-        val theirs = JSONObject("""{"uid": "s", "title": "Gym", "body": "Plan\n$paragraph", "category": "Work",
-            "date": "2026-11-02", "recurrence": {"freq": ""}}""")
-        assertTrue(Importing.apply(load, Importing.plan(load.raw!!, listOf(theirs), Importing.Source.CODE),
-            Importing.Answers(update = true), null) is Importing.Result.Done)
-        assertTrue(Notebook.updateNote(load, 1, "Gym", "Plan\n$paragraph", date = "2026-11-09") is SaveResult.Ok)
-        assertTrue(Days.setRepeat(load, 1, JSONObject("""{"freq": "weekly", "interval": 1}"""), startWas = "2026-11-02") is SaveResult.Ok)
-        assertTrue(Notebook.updateNote(load, 1, "Gym", "Plan") is SaveResult.Ok)
-        assertTrue(Notebook.restorePrevious(load, 1) is SaveResult.Ok)
-        val back = firstOnDisk(load)
-        assertEquals("Plan\n$paragraph", back.getString("body"))
-        assertEquals(listOf("2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30"),
-            Recurrence.expand(back, java.time.LocalDate.of(2026, 11, 1), java.time.LocalDate.of(2026, 11, 30)))
+        fun restarted(endedByCode: Boolean): Notebook.Load {
+            val load = scratch("""[{"id": 1, "uid": "s", "title": "Gym", "body": "Plan\n$paragraph", "category": "Work",
+                "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}, "exceptions": ["2026-11-09"]}]""")
+            if (endedByCode) {
+                val theirs = JSONObject("""{"uid": "s", "title": "Gym", "body": "Plan\n$paragraph", "category": "Work",
+                    "date": "2026-11-02", "recurrence": {"freq": ""}}""")
+                assertTrue(Importing.apply(load, Importing.plan(load.raw!!, listOf(theirs), Importing.Source.CODE),
+                    Importing.Answers(update = true), null) is Importing.Result.Done)
+            } else {
+                assertTrue(Days.setRepeat(load, 1, JSONObject("""{"freq": ""}""")) is SaveResult.Ok)
+            }
+            assertTrue(Notebook.updateNote(load, 1, "Gym", "Plan\n$paragraph", date = "2026-11-09") is SaveResult.Ok)
+            assertTrue(Days.setRepeat(load, 1, JSONObject("""{"freq": "weekly", "interval": 1}"""), startWas = "2026-11-02") is SaveResult.Ok)
+            assertTrue(Notebook.updateNote(load, 1, "Gym", "Plan") is SaveResult.Ok)
+            assertTrue(Notebook.restorePrevious(load, 1) is SaveResult.Ok)
+            assertEquals("Plan\n$paragraph", firstOnDisk(load).getString("body"))
+            return load
+        }
+        fun days(load: Notebook.Load) =
+            Recurrence.expand(firstOnDisk(load), java.time.LocalDate.of(2026, 11, 1), java.time.LocalDate.of(2026, 11, 30))
+        assertEquals(listOf("2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30"), days(restarted(endedByCode = false)))
+        // Ended by a share code, the big delete keeps the Update's copy (the
+        // desktop's wave 2), its words a note of their own: Restore previous
+        // brings back the series as it was before the code, the 9th deleted.
+        val coded = restarted(endedByCode = true)
+        assertEquals(listOf("2026-11-02", "2026-11-16", "2026-11-23", "2026-11-30"), days(coded))
+        assertEquals("Gym (earlier text)", onDisk(coded).getJSONObject(1).getString("title"))
     }
 
     @Test

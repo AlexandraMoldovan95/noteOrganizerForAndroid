@@ -71,6 +71,13 @@ the copy's schedule. Since the thirteenth: only the lines a day lacks -- a
 day grown from the copy's text, the copy's text mid-way in the day's, and a
 day ending in a table typed on the phone with the copy's a table.
 
+And since the desktop's wave 2 (rounds 4-7): a big delete after a share
+code's Update keeps the Update's copy, the words it takes made a note of
+their own, "(earlier text)", and that note gone again when they are typed
+back -- not after a read, which forgets it -- for a series, a one-off (its
+date along) and comments alone. `aside_after` lists those notes with the
+days set aside, in the order the desktop adds them.
+
     py tools/make_days_fixture.py
     NOTEORGANIZER_HOME=... py tools/make_days_fixture.py
 
@@ -78,7 +85,6 @@ Reads the desktop's Python and writes only this repository's fixture.
 """
 import copy
 import datetime
-import hashlib
 import io
 import json
 import os
@@ -88,6 +94,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from desktop_fingerprint import fingerprint  # noqa: E402 -- found beside this script
 ANDROID = os.path.dirname(HERE)
 DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources", "days_cases.json")
@@ -97,30 +105,37 @@ HOMES = os.path.join(ANDROID, "app", "build", "desktop-home")
 # copy below was written: each region of note_organizer.py, start to end.
 REGIONS = {
     "_whole_note_rescue_copy": ("    def _whole_note_rescue_copy(note):", "        return prev\n",
-                                "ac8e17277765dd96bf4eee47b5df41cbd085e0c2"),
+                                "9aeaff3d3afe725936b0102de6da9e3bd99cb4cc"),
     "_turn_off_rescue_copy": ("    def _turn_off_rescue_copy(self, note, takes_text=False):", "        return prev\n",
-                              "92ea4efa47540e945eed99cb3167d6414722af3e"),
+                              "23c6377199fd22afb79412540a2d6fb67d4564e4"),
     "save_current_note's series branch": (
         '                rescue_due = rescue_copy_due(note.get("title", ""), note.get("body", ""),',
-        '                    note["moved"] = {}\n', "ecbd403e984725ab8b25b422287dcf09d9300c74"),
+        '                    note["moved"] = {}\n', "5237d72b1c7f2b3b7c7dd2bb7c650ba7b36af059"),
     "restore_previous_version's write": ("        replaced = copy_replaced_by_restore(note, prev)\n",
                                          '            note["_prev"] = replaced\n',
-                                         "16e564baa985aa70fa754fe230d33d0a9fcb42df"),
+                                         "ea1cff24afe31035e3486915cfa611433e5837be"),
     "_reset_occurrence_override's write": ('        note["overrides"].pop(occurrence_date, None)\n',
                                            '            note["moved"].pop(origin, None)\n',
-                                           "41d1e6cd94035d59b2b505b7a1dd709896ed5dc5"),
+                                           "b21c7986bf36cc7434987c1713e9787960321c15"),
     # The desktop code the copy below takes besides (the sixteenth round: a
     # change in any of it left every fingerprint above as it was).
     "_holds_unspent_rescue": ("    def _holds_unspent_rescue(note):",
                               '        return isinstance(note.get("_prev"), dict) and not rescue_copy_spent(note)\n',
-                              "5a60ca0482da42f8505cf1326dcfc259a510b60d"),
+                              "dcf14508ca760ec11cf7992af4be7f96298ec33f"),
     "the spent copy's drop after a save": ("            # The note holds again what its rescue copy kept -- Undo after\n",
-                                           '                note.pop("_prev", None)\n',
-                                           "8af9cd9916fcdb708e01cc7d0b05453faa3df673"),
+                                           "            self._take_back_aside(note)\n",
+                                           "1a34c7dee7a03901635c6922eec0214655b076bd"),
+    # ...and the words a big delete takes beside an Update's copy (wave 2).
+    "_keep_text_aside": ("    def _keep_text_aside(self, note, comments_only=False):",
+                         "            (kept.get(\"uid\"), words, self._aside_look(kept)))\n",
+                         "5bf13b7ba649ec352d859841e0099bf005bba52d"),
+    "_take_back_aside": ("    def _take_back_aside(self, note):",
+                         "            del self._kept_asides[note.get(\"uid\")]\n",
+                         "4d24c617f68c2a3ca0e23412fe0138f37c8b502f"),
     "_set_aside_days": ("    def _set_aside_days(self, say=True):", "        return made\n",
-                        "4d0bf7f1b06f17bacab79cb0d92b3c9124994b9e"),
+                        "89a665cc3ec167a38c3714fb709ac87b868653ba"),
     "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
-                         "d9232b1dd0728f8cad7e901548bd151a1795ab99"),
+                         "750c23787a4014458cb007cad0ae1964e4b1c478"),
     # ...and what the copy below writes out by hand (PREV_EXTRA_KEYS, the
     # turn-off's two questions), which no fingerprint watched (the audit's
     # eighteenth round).
@@ -128,10 +143,10 @@ REGIONS = {
                            "95c49ecfde5f333f72ad84911010a0f06304f71a"),
     "_repeat_off_loses_days": ("    def _repeat_off_loses_days(self, note, recurrence):",
                                "        return self._days_hold_own_text(note)\n",
-                               "db96865f19a9f03c04ef64c8eac3204fbf05ac3f"),
+                               "4ce9009f5f6418ce8ac3f7faef705fd7414b498d"),
     "_days_kept_off_repeat": ("    def _days_kept_off_repeat(self, note):",
                               "        return self._days_hold_own_text(note)\n",
-                              "10312e795536627240402a6f42678ff6bed03963"),
+                              "e18df89814c158f99f8b1de13b7463b0f2f3cb77"),
 }
 PREV_EXTRA_KEYS = ("checklist", "date", "recurrence", "color", "category", "overrides",
                    "exceptions", "moved", "pinned")
@@ -160,7 +175,7 @@ def fingerprints():
         stop = src.find(end, at) if at >= 0 else -1
         if at < 0 or stop < 0:
             return "the desktop's %s is not where this script copied it from" % name
-        if hashlib.sha1(src[at:stop + len(end)].encode("utf-8")).hexdigest() != sha:
+        if fingerprint(src[at:stop + len(end)]) != sha:
             return ("the desktop's %s has changed since this script copied it: bring the copy below "
                     "and Days.kt / Notebook.kt into line, then update its fingerprint at the top" % name)
     return None
@@ -174,7 +189,6 @@ def main():
     if problem:
         print(problem)
         return 1
-    sys.path.insert(0, HERE)
     from desktop_guest import settle
     settle(DESKTOP)
     isolate()
@@ -184,13 +198,14 @@ def main():
                                           kept_days_fit, drop_hidden_moves, normalize_note, notes_set_aside,
                                           rescue_copy_due,
                                           rescue_copy_spent, shared_update_changes,
-                                          spend_series_days, update_copy, DAY_FIELDS,
+                                          spend_series_days, update_copy, words_lost, DAY_FIELDS,
                                           UPDATABLE_FROM_BACKUP, UPDATABLE_FROM_SHARED)
     from noteorganizer.core.recurrence import is_recurring, normalize_recurrence
     from noteorganizer.core.formatting import normalize_formatting, normalize_paragraphs
     from noteorganizer.core.storage import restore_many_from_trash
     from noteorganizer.core.tables import with_caret_line
     import noteorganizer.core.model as desktop_model
+    import noteorganizer.core.storage as desktop_storage
 
     # The desktop stamps "updated" from the clock, and the parity judges no
     # stamp: on a fixed clock a rebuild writes the same fixture, so one that
@@ -200,7 +215,10 @@ def main():
         def now(cls, tz=None):
             return cls(2026, 10, 29, 12, 0, 0, tzinfo=tz)
 
+    # The stamps are storage's now_stamp since the desktop's d1bb902: fixed
+    # in model alone, every update stamped the clock again at each rebuild.
     desktop_model.datetime = FixedClock
+    desktop_storage.datetime = FixedClock
 
     def whole_note_copy(note):
         """_whole_note_rescue_copy, as fingerprinted."""
@@ -215,11 +233,44 @@ def main():
             prev[key] = copy.deepcopy(note.get(key))
         return prev
 
+    # The notes made of words kept aside in this case, each with the words
+    # that spend it: [words, note]. A read is the next start, which no
+    # longer knows them: their words go None, and they stay for good.
+    kept = []
+
+    def keep_text_aside(note, comments_only=False):
+        """_keep_text_aside, as fingerprinted: the note it makes."""
+        title, body = note.get("title") or "", note.get("body") or ""
+        comments = note.get("comments") or ""
+        if comments_only:
+            body = ""
+        if not (title.strip() or body.strip() or comments.strip()):
+            return
+        made = normalize_note({
+            "id": 0, "title": (title + " (earlier text)").strip(), "body": body,
+            "formatting": [] if comments_only else copy.deepcopy(note.get("formatting") or []),
+            "paragraphs": [] if comments_only else copy.deepcopy(note.get("paragraphs") or []),
+            "comments": comments, "category": note.get("category") or "General",
+            "date": "" if is_recurring(note) else note.get("date") or "",
+            "color": note.get("color") or ""})
+        words = {"comments": comments} if comments_only else {"title": title, "body": body, "comments": comments}
+        kept.append([words, made])
+
+    def take_back_aside(note):
+        """_take_back_aside, as fingerprinted: a note kept aside goes once
+        the note holds its words again (none is touched here)."""
+        kept[:] = [entry for entry in kept
+                   if entry[0] is None
+                   or not all(words_lost(value, note.get(key) or "") == 0 for key, value in entry[0].items())]
+
     def turn_off_copy(note, takes_text):
         """_turn_off_rescue_copy, as fingerprinted -- no save held behind a
         turn-off, which the phone does not have: its held branch is never
         taken here."""
         existing = note.get("_prev")
+        if takes_text and update_copy(existing) and not rescue_copy_spent(note):
+            keep_text_aside(note)
+            takes_text = False
         if takes_text or not (update_copy(existing) and not rescue_copy_spent(note)):
             copy_days_set_aside(note)
         prev = whole_note_copy(note)
@@ -259,9 +310,13 @@ def main():
             note["exceptions"] = []
         if days_lost:
             note["_prev"] = turn_off_copy(note, takes_text=rescue_due and not comments_alone)
-            if comments_alone:
+            if comments_alone and update_copy(note["_prev"]):
+                keep_text_aside(note, comments_only=True)
+            elif comments_alone:
                 note["_prev"]["comments"] = comments_kept_by_copy(
                     note["_prev"].get("comments", ""), note.get("comments", ""))
+        elif rescue_due and update_copy(note.get("_prev")) and not rescue_copy_spent(note):
+            keep_text_aside(note, comments_only=comments_alone)
         elif rescue_due:
             if not comments_alone:
                 copy_days_set_aside(note)
@@ -289,6 +344,7 @@ def main():
             note["moved"] = {}
         if rescue_copy_spent(note):
             note.pop("_prev", None)
+        take_back_aside(note)
 
     def restore(note):
         """restore_previous_version's write, as fingerprinted."""
@@ -673,6 +729,26 @@ def main():
                            "category": "Work", "color": "", "date": "2026-11-02", "recurrence": weekly,
                            "exceptions": [], "overrides": {"2026-11-22": {"body": "Room W2"}}, "moved": {}})
     cases.append(("an Update's copy of another series, then a big delete", upd_copy, [big_delete]))
+    # The desktop's wave 2 (rounds 4-7): an Update's copy is the note as it was
+    # before the Update, in no other file, and a big delete keeps it; the
+    # words the delete takes become a note of their own, gone again when the
+    # note holds them once more -- in the same session, not after a start.
+    laptop = body + "\nFrom the laptop: book the physio for Friday, and the bike at 7."
+    shared = {"do": "share", "incoming": sender(base, body=laptop)}
+    typed_back = {"do": "write", "title": "Gym", "body": laptop, "comments": ""}
+    cases.append(("a share code's Update, then a big delete", base, [shared, big_delete]))
+    cases.append(("a share code's Update, a big delete, the words typed back", base,
+                  [shared, big_delete, typed_back]))
+    cases.append(("a share code's Update, a big delete, read, the words typed back", base,
+                  [shared, big_delete, {"do": "read"}, typed_back]))
+    one_off = dict(renovation, date="2026-11-04")
+    cases.append(("a share code's Update of a one-off, then a big delete", one_off,
+                  [{"do": "share", "incoming": sender(one_off, body=one_off["body"] + " And paint the hall.")},
+                   {"do": "write", "title": "Renovation", "body": "Tiles.", "comments": ""}]))
+    remarks = dict(base, comments="Knee: ask the physio whether the bike is fine before Friday's session.")
+    cases.append(("a share code's Update, then the comments cleared", remarks,
+                  [{"do": "share", "incoming": sender(remarks, body=laptop)},
+                   {"do": "write", "title": "Gym", "body": laptop, "comments": ""}]))
     # ...and a backup's Update counts the days it brings as held.
     held_back = dict(base, recurrence=daily, date="2026-11-04",
                      _prev={"title": "Gym", "body": body, "comments": "", "formatting": [], "paragraphs": [],
@@ -725,11 +801,28 @@ def main():
                 for made in (normalize_note(dict(fresh, id=0))
                              for fresh in notes_set_aside(json.loads(json.dumps(note))))]
 
+    def made_after(note, timeline):
+        """The notes made so far, in the order the desktop adds them: the
+        words kept aside during a save, then the days its write sets aside
+        -- a note kept aside and spent again gone from the list."""
+        days = aside(note)
+        timeline[:] = [(kind, it) for kind, it in timeline
+                       if (kind == "kept" and any(it is entry for entry in kept)) or (kind == "day" and it < len(days))]
+        timeline += [("kept", entry) for entry in kept if not any(it is entry for _k, it in timeline)]
+        timeline += [("day", i) for i in range(sum(1 for kind, _i in timeline if kind == "day"), len(days))]
+        if not any(kind == "kept" for kind, _it in timeline):
+            return days
+        return [{key: it[1][key] for key in ("title", "body", "comments", "category", "color", "date")}
+                if kind == "kept" else days[it] for kind, it in timeline]
+
     out = []
     for name, start, steps in cases:
         # As the desktop's load leaves a note: through normalize_note.
         note = normalize_note(copy.deepcopy(start))
         after = []
+        aside_after = []
+        kept.clear()
+        timeline = []
         for step in steps:
             if step["do"] == "repeat":
                 save(note, note.get("title", ""), note.get("body", ""), note.get("comments", ""),
@@ -745,6 +838,8 @@ def main():
             elif step["do"] == "read":
                 # The notebook read again from its file, at the next start.
                 note = normalize_note(json.loads(json.dumps(note)))
+                for entry in kept:
+                    entry[0] = None
             elif step["do"] == "restore":
                 restore(note)
             elif step["do"] == "reset":
@@ -754,10 +849,11 @@ def main():
             elif step["do"] == "backup":
                 imported(note, step["incoming"], UPDATABLE_FROM_BACKUP)
             after.append(json.loads(json.dumps(note)))
+            aside_after.append(made_after(after[-1], timeline))
         loaded = json.loads(json.dumps(normalize_note(copy.deepcopy(start))))
         out.append({"name": name, "note": start, "steps": steps,
                     "loaded": loaded, "aside_loaded": aside(loaded),
-                    "after": after, "aside_after": [aside(note_then) for note_then in after],
+                    "after": after, "aside_after": aside_after,
                     # What the desktop's import makes of the note as it ends.
                     "imported": json.loads(json.dumps(normalize_note(copy.deepcopy(note))))})
     check_isolated()

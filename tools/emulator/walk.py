@@ -761,6 +761,7 @@ def main():
     hostile_backups(folder)
     code_read_away(folder)
     long_lines(folder)
+    kept_aside(folder)
 
     print()
     if failures:
@@ -5589,14 +5590,6 @@ def arrange_without_drag(folder):
     shot(folder, "89-move-menu", "Move down")
     check("a tap on a card's handle offers to move it, with no way up from the top",
           find("Move down", exact=True) is not None and find("Move up", exact=True) is None)
-    # Turned on its side, the menu goes with its card: it came back open by
-    # itself over the new layout (round 22).
-    turn(1)
-    on_side = find("Move down", exact=True) is not None
-    turn(0)
-    check("a card's step menu is not open again once the phone is turned on its side and back",
-          not on_side and find("Move down", exact=True) is None, "on its side: %s" % on_side)
-    tap("Drag to move Alpha", wait=1.0)
     tap("Move down", exact=True, wait=1.5)
     check_settled("Move down puts the card below its neighbour", placed, lambda p: p == ["Bravo", "Alpha"])
     if open_note("Alpha"):
@@ -5645,6 +5638,32 @@ def arrange_without_drag(folder):
     def handles():
         return sorted((centre[1], desc[len("Drag to move "):]) for _t, desc, centre in nodes()
                       if desc.startswith("Drag to move Note "))
+
+    # A step menu open as the phone turns closes with its card, which the
+    # shorter screen leaves out -- and it came back open by itself once the
+    # card scrolled back into sight (round 22).
+    shown = handles()
+    low = shown[-2][1] if len(shown) > 1 else None
+    if low:
+        tap("Drag to move " + low, wait=1.0)
+        turn(1)
+        left_out = find("Drag to move " + low) is None
+        for _ in range(8):
+            if find("Drag to move " + low):
+                break
+            adb("shell", "input", "swipe", "600", "850", "600", "550", "300")
+            time.sleep(1.0)
+        back_in = find("Drag to move " + low) is not None
+        reopened = find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+        if reopened:
+            adb("shell", "input", "keyevent", "4")
+            time.sleep(0.8)
+        turn(0)
+        check("a step menu whose card the turned screen leaves out is not open again when the card comes back",
+              left_out and back_in and not reopened,
+              "left out %s, back in %s, menu open %s" % (left_out, back_in, reopened))
+    else:
+        fail("the step menu through a turn: no card's handle low on the screen")
     adb("shell", "input", "swipe", "540", "1700", "540", "1150", "400")
     time.sleep(1.2)
     shown = handles()
@@ -7619,6 +7638,65 @@ def screen_sizes(folder):
         adb("shell", "wm", "size", "reset")
         adb("shell", "wm", "density", "reset")
         turn(0)
+
+
+def kept_aside(folder):
+    """A big delete after a share code's Update: the Update's copy -- the
+    note as it was before the Update, in no other file -- stays, and the
+    words the delete took become a note of their own, said with Show; typed
+    back, that note goes again (the desktop's wave 2; a big delete replaced
+    the copy here until the lows wave found it)."""
+    print("\n-- the words a big delete takes beside an Update's copy --")
+    words = "Book the physio for Friday, then the bike at seven, then the plan for the knee"
+    if not seed_inside([{"id": 1, "uid": "ka-trip", "title": "Trip", "body": "Mine before",
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}],
+                       {"welcome_offered": True}, "Trip"):
+        return
+    code = desktop_code({"uid": "ka-trip", "title": "Trip", "body": words, "category": "General",
+                         "updated": "2026-10-15 10:00:00"})
+    if not code:
+        fail("the words kept aside: the desktop's encoder could not be used, so nothing was tried")
+        return
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.5)
+    tap("Import", exact=True, wait=1.5)
+    tap("Update this note", wait=1.5)
+    check_settled("the code's Update reaches the note", lambda: (note_by_uid("ka-trip") or {}).get("body"),
+                  lambda b: b == words)
+
+    def asides():
+        return [n for n in read_file("notes_data.json") or [] if n.get("title") == "Trip (earlier text)"]
+
+    back_to("Search notes")
+    open_note("Trip")
+    tap_last(words, wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+    # Read the moment it comes, the keyboard still up: the bar goes on its
+    # own, and putting the keyboard down first left too little of its time.
+    said = not says_soon("kept as a note of their own", "Show", within=10.0)
+    shot(folder, "128-words-kept-aside", "kept as a note of their own")
+    tap("Show", exact=True, wait=1.5)
+    check("...said, with a Show that opens the note kept aside",
+          said and not says_soon("Trip (earlier text)", words[:20], "ⓘ"))
+    keyboard_down()
+    check_settled("a big delete after it keeps the Update's copy, the note as it was before",
+                  lambda: ((note_by_uid("ka-trip") or {}).get("body"),
+                           ((note_by_uid("ka-trip") or {}).get("_prev") or {}).get("body")),
+                  lambda pair: pair == ("Book", "Mine before"))
+    check_settled("...and the words it took are a note of their own", asides,
+                  lambda made: [n.get("body") for n in made] == [words])
+    back_to("Search notes")
+    open_note("Trip")
+    tap_last("Book", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(words[len("Book"):])
+    said = not says_soon("gone again", within=10.0)
+    keyboard_down()
+    check_settled("the words typed back, the note kept aside of them goes again", asides, lambda made: made == [])
+    check("...said", said)
+    back_to("Search notes")
 
 
 if __name__ == "__main__":

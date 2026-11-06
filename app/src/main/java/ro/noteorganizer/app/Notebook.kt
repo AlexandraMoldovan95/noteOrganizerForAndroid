@@ -581,6 +581,12 @@ sealed class SaveResult {
         val lostStyles: Int = 0,
         /** Only an import fills this: how many notes arrived. */
         val imported: Int = 0,
+        /** The note made of the words this save took beside an Update's copy, 0 for none. */
+        val keptAside: Int = 0,
+        /** Whether that note holds the comments alone, the save taking no more. */
+        val keptComments: Boolean = false,
+        /** Whether a note kept aside went again, its words back in the note. */
+        val spentAside: Boolean = false,
     ) : SaveResult()
 
     data class Failed(val reason: String) : SaveResult()
@@ -1091,7 +1097,16 @@ object Notebook {
         val settings: Settings.Load? = null,
         /** How many notes this read made of days a series' copy set aside ([settleAside]). */
         val setAside: Int = 0,
+        /**
+         * The notes kept aside of each note's words this session, by the
+         * note's uid ([keepTextAside]): the desktop's `_kept_asides`, which
+         * its next start no longer knows either.
+         */
+        val keptAside: MutableMap<String, MutableList<KeptAside>> = HashMap(),
     )
+
+    /** A note [keepTextAside] made: its [uid], the [words] that spend it, and how it [look]ed made. */
+    class KeptAside(val uid: String, val words: Map<String, String>, val look: String)
 
     /**
      * How many days this entry has left before the purge at the app's
@@ -1395,6 +1410,7 @@ object Notebook {
         // words go, or its comments do.
         val oldComments = (note.opt("comments") as? String) ?: ""
         val newComments = comments?.let { mendSurrogates(it) } ?: oldComments
+        var kept: Pair<JSONObject, Map<String, String>>? = null
         if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody, oldComments, newComments)) {
             // Due for the comments alone, over a copy the note does not hold
             // again: that copy keeps its words and takes only the comments
@@ -1403,23 +1419,30 @@ object Notebook {
             // comments were rewritten (the final audit's seventh round).
             val waiting = note.opt("_prev") as? JSONObject
             val commentsAlone = holdsUnspentCopy(note) && !shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody)
-            val previous = if (commentsAlone) JSONObject(waiting!!.toString()) else JSONObject().apply {
-                put("title", oldTitle)
-                put("body", oldBody)
-                put("formatting", note.opt("formatting") ?: JSONArray())
-                put("paragraphs", note.opt("paragraphs") ?: JSONArray())
+            // An import's Update copy is the note as it was here before the
+            // Update, in no other file: it stays, and the words this save
+            // takes become a note of their own (the desktop's wave 2).
+            if (waiting != null && updateCopy(waiting) && !spent(note, waiting)) {
+                kept = keepTextAside(note, commentsAlone)
+            } else {
+                val previous = if (commentsAlone) JSONObject(waiting!!.toString()) else JSONObject().apply {
+                    put("title", oldTitle)
+                    put("body", oldBody)
+                    put("formatting", note.opt("formatting") ?: JSONArray())
+                    put("paragraphs", note.opt("paragraphs") ?: JSONArray())
+                }
+                // The copy's own comments stay when theirs is the larger loss:
+                // two letters cleared after a long comment was deleted wrote over
+                // it (the final audit's eighth round, the desktop's 947e9d3).
+                previous.put("comments", if (commentsAlone) commentsKeptByCopy(waiting!!.opt("comments") as? String ?: "", oldComments)
+                                         else note.opt("comments") ?: "")
+                // Words alone, as the desktop's: a turned-off series' days live
+                // in the note ([daysHoldOwnText]), never only in a copy the next
+                // one replaces -- another series' copy, replaced here, sets its
+                // days with words aside first ([copyDaysSetAside]).
+                if (!commentsAlone) copyDaysSetAside(note)
+                note.put("_prev", previous)
             }
-            // The copy's own comments stay when theirs is the larger loss:
-            // two letters cleared after a long comment was deleted wrote over
-            // it (the final audit's eighth round, the desktop's 947e9d3).
-            previous.put("comments", if (commentsAlone) commentsKeptByCopy(waiting!!.opt("comments") as? String ?: "", oldComments)
-                                     else note.opt("comments") ?: "")
-            // Words alone, as the desktop's: a turned-off series' days live
-            // in the note ([daysHoldOwnText]), never only in a copy the next
-            // one replaces -- another series' copy, replaced here, sets its
-            // days with words aside first ([copyDaysSetAside]).
-            if (!commentsAlone) copyDaysSetAside(note)
-            note.put("_prev", previous)
         }
         // No longer repeating, as the desktop's save has it: days that hold
         // no text of their own -- a skipped day, a colour -- are clutter
@@ -1458,14 +1481,94 @@ object Notebook {
 
         val candidate = copyOf(array)
         candidate.put(index, note)
-        // Days a series' copy set aside, notes of their own in the same write.
+        // The words kept aside, then the days a series' copy set aside: notes
+        // of their own in the same write, in the desktop's order.
+        val aside = kept?.first?.put("id", Organizing.ids(candidate).next())
+        if (aside != null) candidate.put(aside)
         val made = asideNotes(note, Organizing.ids(candidate), candidate)
         for (fresh in made) candidate.put(fresh)
+        val uid = note.opt("uid") as? String ?: ""
+        val back = takeBackAside(load, note, candidate)
         val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
-        array.put(index, note)
-        for (fresh in made) array.put(fresh)
-        return SaveResult.Ok(id, moved.lost)
+        Organizing.replace(array, candidate)
+        // Remembered once written: a failed write kept nothing aside.
+        load.keptAside[uid]?.removeAll(back.entries.toSet())
+        if (aside != null && kept != null) {
+            load.keptAside.getOrPut(uid) { ArrayList() }.add(KeptAside(aside.opt("uid") as? String ?: "", kept.second, asideLook(aside)))
+        }
+        if (load.keptAside[uid]?.isEmpty() == true) load.keptAside.remove(uid)
+        return SaveResult.Ok(id, moved.lost, keptAside = aside?.optInt("id") ?: 0,
+                             keptComments = kept?.second?.keys == setOf("comments"), spentAside = back.removed)
+    }
+
+    /**
+     * The words [note] holds before a save that takes them, beside an
+     * import's Update copy, as a note of their own: "<title> (earlier
+     * text)", its look along, a one-off's date too -- a series' start is no
+     * day of the words -- and only the comments when the save takes no more
+     * ([commentsOnly]). With it, the words that spend it ([takeBackAside]);
+     * null when there is nothing to keep. The desktop's `_keep_text_aside`.
+     */
+    private fun keepTextAside(note: JSONObject, commentsOnly: Boolean): Pair<JSONObject, Map<String, String>>? {
+        fun text(key: String) = note.opt(key) as? String ?: ""
+        val title = text("title")
+        val body = if (commentsOnly) "" else text("body")
+        val comments = text("comments")
+        if (pyStrip(title).isEmpty() && pyStrip(body).isEmpty() && pyStrip(comments).isEmpty()) return null
+        val stamp = Files.now()
+        val made = Normalize.normalizeNote(JSONObject()
+            .put("title", pyStrip("$title (earlier text)"))
+            .put("body", body)
+            .put("formatting", if (commentsOnly) JSONArray() else deepCopy(note.opt("formatting") ?: JSONArray()))
+            .put("paragraphs", if (commentsOnly) JSONArray() else deepCopy(note.opt("paragraphs") ?: JSONArray()))
+            .put("comments", comments)
+            .put("category", text("category").ifEmpty { "General" })
+            .put("date", if (Recurrence.isRecurring(note)) "" else text("date"))
+            .put("color", text("color"))
+            .put("created", stamp)
+            .put("updated", stamp))
+        val words = if (commentsOnly) mapOf("comments" to comments)
+                    else mapOf("title" to title, "body" to body, "comments" to comments)
+        return made to words
+    }
+
+    /** What [takeBackAside] found: the entries whose words are back, and whether a note went with them. */
+    private class TakenBack(val entries: List<KeptAside>, val removed: Boolean)
+
+    /**
+     * The notes [keepTextAside] made of [note]'s words, once [note] holds
+     * those words again -- an Undo, a cut pasted back -- each by [wordsLost],
+     * and taken off [candidate] if untouched since, as a rescue copy is
+     * spent: one stayed in the list for good after every Undo. A note pinned
+     * or filed since is the person's, and stays. The desktop's `_take_back_aside`.
+     */
+    private fun takeBackAside(load: Load, note: JSONObject, candidate: JSONArray): TakenBack {
+        val held = load.keptAside[note.opt("uid") as? String ?: ""] ?: return TakenBack(emptyList(), false)
+        val back = held.filter { entry ->
+            entry.words.all { (key, value) -> wordsLost(value, note.opt(key) as? String ?: "") == 0 }
+        }
+        var removed = false
+        for (entry in back) {
+            val at = (0 until candidate.length()).firstOrNull {
+                entry.uid.isNotEmpty() && (candidate.opt(it) as? JSONObject)?.opt("uid") == entry.uid
+            } ?: continue
+            if (asideLook(candidate.getJSONObject(at)) == entry.look) {
+                candidate.remove(at)
+                removed = true
+            }
+        }
+        return TakenBack(back, removed)
+    }
+
+    /** What an '(earlier text)' note is made of, to tell it untouched: its content and its stamp. */
+    private fun asideLook(note: JSONObject): String =
+        Normalize.contentSignature(note) + "\u0002" + (note.opt("updated") ?: "")
+
+    /** A note kept aside, put back from the Trash ([uids]), is the person's now: no Undo spends it again. */
+    internal fun forgetAsides(load: Load, uids: Set<String>) {
+        for (held in load.keptAside.values) held.removeAll { it.uid in uids }
+        load.keptAside.values.removeAll { it.isEmpty() }
     }
 
     /**

@@ -1112,6 +1112,15 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 if (result.lostStyles > 0) {
                     state.say("${result.lostStyles} styles could not be kept: their text was deleted.")
                 }
+                // The words taken beside an Update's copy, a note of their own:
+                // said with the way to it, and said by the list where it hides
+                // them (the desktop's `_keep_text_aside`).
+                state.load.notes.firstOrNull { result.keptAside != 0 && it.id == result.keptAside }?.let { made ->
+                    val what = if (result.keptComments) "The comments this cleared" else "The words this took away"
+                    state.offer("$what are kept as a note of their own: ${quoted(made.title)}", "Show") { state.openNote(made.id) }
+                    state.arrivals = listOf(made.id) to "Kept aside"
+                }
+                if (result.spentAside) state.say("The words are back in the note; the note kept aside of them is gone again")
                 null
             }
             is SaveResult.Failed -> {

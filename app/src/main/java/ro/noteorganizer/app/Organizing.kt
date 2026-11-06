@@ -984,6 +984,7 @@ object Organizing {
         var firstId = 0
         val worn = HashSet<String>()
         for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(it.opt("uid") as? String ?: "") }
+        val restored = HashSet<String>()
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
@@ -996,6 +997,7 @@ object Organizing {
             val uid = note.opt("uid") as? String ?: ""
             if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
             worn.add(note.opt("uid") as? String ?: "")
+            restored.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)
             if (firstId == 0) firstId = nextId
             notesCandidate.put(note)
@@ -1004,6 +1006,9 @@ object Organizing {
         Notebook.settleAside(notesCandidate)
         write(file, notesCandidate)?.let { return SaveResult.Failed(it) }
         replace(array, notesCandidate)
+        // A note kept aside, put back, is the person's: no Undo spends it again
+        // (the desktop's wave 2, round 8).
+        Notebook.forgetAsides(load, restored)
         val trashCandidate = JSONArray().apply { all.filter { it !in back }.forEach { put(it) } }
         write(trashFile, trashCandidate)?.let {
             return SaveResult.Failed("$it — the notes are restored, and are still in the Trash too.")
