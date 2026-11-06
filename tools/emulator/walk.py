@@ -463,12 +463,13 @@ def shot_as_said(folder, name, *words, within=6.0, over_keys=False):
 
 
 @contextlib.contextmanager
-def messages_held(ms):
+def messages_held(ms, answered=False):
     """The app's messages held for [ms] while this is open: Android's own
     accessibility setting for how long words that need no answer stay, which
     Material's messages keep (SnackbarDuration.toMillis asks the
-    accessibility manager). Put back as it was after."""
-    name = "accessibility_non_interactive_ui_timeout_ms"
+    accessibility manager) -- or, [answered], those with a button, by Time
+    to take action. Put back as it was after."""
+    name = "accessibility_%sinteractive_ui_timeout_ms" % ("" if answered else "non_")
     was = adb("shell", "settings", "get", "secure", name).strip()
     adb("shell", "settings", "put", "secure", name, str(ms))
     try:
@@ -3871,6 +3872,15 @@ def what_hides_the_list(folder):
     app that holds no code is a new note, and a code with words around it is
     still a code."""
     print("\n-- what hides the list's notes --")
+    # The bars' buttons tapped here wait as Time to take action asks: on a
+    # busy emulator the reads before a tap took ten seconds, the bar went,
+    # and the tap opened the card beneath (the lows wave's round 10).
+    with messages_held(30_000, answered=True):
+        hidden_from_the_list(folder)
+
+
+def hidden_from_the_list(folder):
+    """[what_hides_the_list]'s steps, with the bars held."""
     import base64
     import zlib
     stamp = {"created": "2026-11-01 09:00", "updated": "2026-11-01 09:00"}
@@ -3920,10 +3930,16 @@ def what_hides_the_list(folder):
     back_to("Search notes")
     # By name, as the desktop says it (the lows wave's round 6).
     said = not says_soon("“Call the dentist” saved in General, hidden by Show: Work", "Show all", within=8.0)
+    seen_at = time.time()
     shot(folder, "131-new-note-hidden-said", "hidden by Show: Work")
+    # Tapped past the bar's own ten seconds, as a slow run taps it: still up
+    # is the hold above, which every tap on a bar in this part leans on.
+    time.sleep(max(0.0, seen_at + 11.0 - time.time()))
+    held = not screen_says("Show all")
     tap("Show all", exact=True, wait=1.5)
     check("a new note Show hides is said as it closes, and Show all puts it on the list",
-          said and not says_soon("Call the dentist", "Show: All"))
+          said and held and not says_soon("Call the dentist", "Show: All"),
+          "said %s, still up after ten seconds %s" % (said, held))
     # Hidden by the search, and the list left for another tab while its word
     # shows: the word comes again with the list, and its Show all empties the
     # search -- run on the list left, it did nothing (the lows wave's round 5).

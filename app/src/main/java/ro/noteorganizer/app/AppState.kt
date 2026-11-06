@@ -931,20 +931,21 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             val before = load.notes.map { it.id }.toSet()
             report(Organizing.restore(load, keys)) { ok ->
-                // Asked of the list only when the Undo was tapped there, as
-                // newNoteMade is: kept from the Calendar, it moved the list later.
-                if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
-                else if (count == 1) {
-                    if (wasNew != null) noteMade(ok.id)
+                if (count == 1) {
                     for ((waiting, said) in words) {
                         val back = waiting.map { if (it in ids) ok.id else it }
                         // Into the word still waiting when the delete left part of
-                        // it: beside it, the list said the same news twice (round 9).
+                        // it, on any tab: beside it, or left out of it, the list said
+                        // the same news twice (the lows wave's rounds 9-10).
                         val at = arrivals.indexOfFirst { (rest, same) -> same == said && rest.all { it in back } }
                         if (at >= 0) arrivals = arrivals.toMutableList().also { it[at] = back to said }
-                        else waitWord(back, said)
+                        else if (tab != Tab.NOTES) waitWord(back, said)
                     }
                 }
+                // Asked of the list only when the Undo was tapped there, as
+                // newNoteMade is: kept from the Calendar, it moved the list later.
+                if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
+                else if (count == 1 && wasNew != null) noteMade(ok.id)
                 if (count == 1) openNote(ok.id)
             }
         }
@@ -1139,9 +1140,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun restoreFromTrash(keys: Collection<Organizing.TrashKey>) {
         val before = noteIds()
         report(Organizing.restore(load, keys)) { ok ->
-            val said = if (ok.imported == 1) "Restored" else "Restored ${ok.imported} notes"
-            say(said)
-            arrived(before, said)
+            say(if (ok.imported == 1) "Restored" else "Restored ${ok.imported} notes")
+            arrived(before, ok.imported, "restored", "Restored ${ok.imported} notes")
         }
     }
 
@@ -1166,34 +1166,48 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * The next word for the list to say, taken off [arrivals]: words alike
-     * about one note each -- restores made one at a time -- as one, counted
-     * by all their notes (a bar each said the same again, its ✕ bringing the
-     * next; the lows wave's round 9). A word with a count of its own stays
-     * whole: merged, the count it carried was doubled (round 8).
+     * The next word for the list to say, taken off [arrivals]: one at a time,
+     * each as made. Merged, a count a word carried was doubled (the lows
+     * wave's round 8), and two notes in two folded groups got one Show all
+     * (round 10); a word about one note names it instead ([namedWord]).
      */
     fun takeWord(): Pair<List<Int>, String>? {
-        val (firstIds, said) = arrivals.firstOrNull() ?: return null
-        val alike = if (firstIds.size == 1) arrivals.filter { it.second == said && it.first.size == 1 }
-                    else listOf(arrivals.first())
-        arrivals = arrivals.filterNot { it in alike }
-        return alike.flatMap { it.first }.distinct() to said
+        val word = arrivals.firstOrNull() ?: return null
+        arrivals = arrivals.drop(1)
+        return word
     }
 
     /**
-     * The notes there are now and were not [before], as [arrivals] -- the
-     * first [take] of them, in the order made, when the word is about only
-     * those: an import's '(earlier text)' notes came under "Added N notes"
-     * (the lows wave's round 9).
+     * The notes there are now and were not [before], for the list: the first
+     * [count], made first, under their own word, and the rest -- '(earlier
+     * text)' notes the same read set aside -- under theirs. Counted in, they
+     * said "Added 0 notes"; left out, nothing said where they hid (rounds 9-10).
      */
-    fun arrived(before: Set<Int>, said: String, take: Int = Int.MAX_VALUE) {
-        val new = load.notes.map { it.id }.filter { it !in before }.sorted().take(take)
-        if (new.isNotEmpty()) waitWord(new, said)
+    fun arrived(before: Set<Int>, count: Int, one: String, several: String) {
+        val new = load.notes.map { it.id }.filter { it !in before }.sorted()
+        wordOn(new.take(count), one, several)
+        val aside = new.drop(count)
+        wordOn(aside, "kept as a note of its own", "Earlier text kept as ${aside.size} notes of their own")
     }
 
+    /** A word on [ids] for the list: by its name when one note, '“Taxes” [one]', or [several]. */
+    fun wordOn(ids: List<Int>, one: String, several: String) {
+        if (ids.size > 1) waitWord(ids, several)
+        else ids.firstOrNull()?.let { note(it) }?.let { waitWord(ids, namedWord(it, what = one)) }
+    }
+
+    /**
+     * A word about one note, by its name, as the desktop's banner names a
+     * hidden note: 'Restored' twice, about two notes, read as the same news
+     * said again (the lows wave's round 9).
+     */
+    fun namedWord(note: Note, what: String): String = "“${quoted(note.title.trim().ifEmpty { UNTITLED })}” $what"
+
+    /** Whether [said] is about one note, which it names ([namedWord]); a word about several counts them. */
+    fun namesItsNote(said: String): Boolean = said.startsWith("“")
+
     /** A new note [id] the list says when it hides it, by name, as the desktop's banner does. */
-    fun savedWord(note: Note): String =
-        "“${quoted(note.title.trim().ifEmpty { UNTITLED })}” saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}"
+    fun savedWord(note: Note): String = namedWord(note, "saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}")
 
     /**
      * Note [id], just made, for the list to say ([newNoteMade]). One still

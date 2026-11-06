@@ -239,7 +239,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val ids = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }.mapTo(HashSet()) { it.id }
-        if (hidden.isNotEmpty()) state.waitWord(ids.toList(), "Put back")
+        // Not of a note the Undo gave back to a word still waiting: said twice (round 10).
+        val waiting = state.arrivals.flatMapTo(HashSet()) { it.first }
+        val unsaid = ids.filter { it !in waiting }.sorted()
+        if (unsaid.any { it in hidden }) state.wordOn(unsaid, "put back", "Put back")
         revealLater(ids - hidden, arrived = true)
     }
     /**
@@ -310,7 +313,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             val (ids, said) = state.takeWord() ?: continue
             val hidden = state.load.notes.filter { it.id in ids && hidingNow(it).isNotEmpty() }
             val first = hidden.firstOrNull() ?: continue
-            val tail = if (ids.size == 1) "hidden by ${hidingNow(first)}"
+            // Counted by the word: one about several, trimmed to one by a delete,
+            // read "hidden by" as though all were (the lows wave's round 10).
+            val tail = if (state.namesItsNote(said)) "hidden by ${hidingNow(first)}"
                        else "${hidden.size} of them hidden by ${hidingNow(first)}"
             val again = { state.waitWord(ids, said) }
             // The first of them still here: the first alone, gone, refused them all (round 3).
