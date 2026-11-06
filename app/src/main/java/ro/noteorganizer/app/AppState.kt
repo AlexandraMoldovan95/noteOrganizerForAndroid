@@ -342,7 +342,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * came back above it, and the Undo looked as if it did nothing (wave 2,
      * round 10).
      */
-    var revealAfterUndo by mutableStateOf<Set<Int>?>(null)
+    var revealAfterUndo by mutableStateOf<UndoReveal?>(null)
+
+    /**
+     * What [revealAfterUndo] holds: the notes put back, and those no waiting
+     * word took back -- decided by the Undo, as the list's word may already
+     * be taken when the list asks (the lows wave's round 11).
+     */
+    data class UndoReveal(val ids: Set<Int>, val unsaid: Set<Int>)
 
     val settings: JSONObject get() = load.settings?.raw ?: JSONObject()
 
@@ -394,9 +401,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val held = load.notes.mapTo(HashSet()) { it.id }
         // The new note's word ([newNoteMade]) the same way (round 5).
         newNoteMade?.let { if (it !in held) newNoteMade = null }
-        if (arrivals.all { (ids, _) -> ids.all { it in held } }) return
-        arrivals = arrivals.mapNotNull { (ids, said) ->
-            ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { it to said }
+        if (arrivals.all { word -> word.ids.all { it in held } }) return
+        arrivals = arrivals.mapNotNull { word ->
+            word.ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { word.copy(ids = it) }
         }
     }
 
@@ -921,7 +928,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         // notes, which the delete drops: its Undo gives them back, or the note
         // came back unsaid (the lows wave's rounds 6-7).
         val wasNew = newNoteMade?.takeIf { it in ids }
-        val words = arrivals.filter { (waiting, _) -> waiting.any { it in ids } }
+        val words = arrivals.filter { word -> word.ids.any { it in ids } }
         // The open note goes to the Trash with its last words in it.
         val result = outside(ids, writes = false, closes = true) { Organizing.trashNotes(load, ids) } ?: return
         if (!report(result)) return
@@ -931,20 +938,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             val before = load.notes.map { it.id }.toSet()
             report(Organizing.restore(load, keys)) { ok ->
+                val given = HashSet<Int>()
                 if (count == 1) {
-                    for ((waiting, said) in words) {
-                        val back = waiting.map { if (it in ids) ok.id else it }
+                    for (word in words) {
+                        val back = word.ids.map { if (it in ids) ok.id else it }
                         // Into the word still waiting when the delete left part of
                         // it, on any tab: beside it, or left out of it, the list said
                         // the same news twice (the lows wave's rounds 9-10).
-                        val at = arrivals.indexOfFirst { (rest, same) -> same == said && rest.all { it in back } }
-                        if (at >= 0) arrivals = arrivals.toMutableList().also { it[at] = back to said }
-                        else if (tab != Tab.NOTES) waitWord(back, said)
+                        val at = arrivals.indexOfFirst { it.said == word.said && it.named == word.named && it.ids.all { id -> id in back } }
+                        if (at >= 0) {
+                            arrivals = arrivals.toMutableList().also { it[at] = word.copy(ids = back) }
+                            given += ok.id
+                        } else if (tab != Tab.NOTES) waitWord(back, word.said, word.named)
                     }
                 }
                 // Asked of the list only when the Undo was tapped there, as
                 // newNoteMade is: kept from the Calendar, it moved the list later.
-                if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
+                val put = load.notes.map { it.id }.filter { it !in before }.toSet()
+                if (tab == Tab.NOTES) revealAfterUndo = UndoReveal(put, put - given)
                 else if (count == 1 && wasNew != null) noteMade(ok.id)
                 if (count == 1) openNote(ok.id)
             }
@@ -1154,15 +1165,28 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * them ([NotesScreen]): they landed where it did not look, under
      * "Restored" and a list that had not changed.
      */
-    var arrivals by mutableStateOf<List<Pair<List<Int>, String>>>(emptyList())
+    var arrivals by mutableStateOf<List<Word>>(emptyList())
+
+    /**
+     * A word waiting for the list: about [ids], said as [said] -- or, [named],
+     * about one note by the name it has when the word is said ([wordText]):
+     * named when queued, a note renamed meanwhile was said by its old name
+     * (the lows wave's round 11).
+     */
+    data class Word(val ids: List<Int>, val said: String, val named: Boolean = false)
+
+    companion object {
+        /** A new note's [Word.named] word: "“Title” saved in" its category as it is when said ([savedWord]). */
+        const val SAVED_IN = "saved in"
+    }
 
     /**
      * One more word for the list's next showing ([arrivals]), after those
      * waiting: one slot, a later word wrote over an earlier one, never said
      * (the lows wave's round 6).
      */
-    fun waitWord(ids: List<Int>, said: String) {
-        arrivals = arrivals + (ids to said)
+    fun waitWord(ids: List<Int>, said: String, named: Boolean = false) {
+        arrivals = arrivals + Word(ids, said, named)
     }
 
     /**
@@ -1171,7 +1195,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * wave's round 8), and two notes in two folded groups got one Show all
      * (round 10); a word about one note names it instead ([namedWord]).
      */
-    fun takeWord(): Pair<List<Int>, String>? {
+    fun takeWord(): Word? {
         val word = arrivals.firstOrNull() ?: return null
         arrivals = arrivals.drop(1)
         return word
@@ -1193,7 +1217,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** A word on [ids] for the list: by its name when one note, '“Taxes” [one]', or [several]. */
     fun wordOn(ids: List<Int>, one: String, several: String) {
         if (ids.size > 1) waitWord(ids, several)
-        else ids.firstOrNull()?.let { note(it) }?.let { waitWord(ids, namedWord(it, what = one)) }
+        else if (ids.isNotEmpty()) waitWord(ids, one, named = true)
+    }
+
+    /** What [word] says now: a [Word.named] one by its note's name as it is, null when the note is gone. */
+    fun wordText(word: Word): String? {
+        if (!word.named) return word.said
+        val note = word.ids.singleOrNull()?.let { note(it) } ?: return null
+        return if (word.said == SAVED_IN) savedWord(note) else namedWord(note, word.said)
     }
 
     /**
@@ -1203,11 +1234,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     fun namedWord(note: Note, what: String): String = "“${quoted(note.title.trim().ifEmpty { UNTITLED })}” $what"
 
-    /** Whether [said] is about one note, which it names ([namedWord]); a word about several counts them. */
-    fun namesItsNote(said: String): Boolean = said.startsWith("“")
-
     /** A new note [id] the list says when it hides it, by name, as the desktop's banner does. */
-    fun savedWord(note: Note): String = namedWord(note, "saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}")
+    fun savedWord(note: Note): String = namedWord(note, "$SAVED_IN ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}")
 
     /**
      * Note [id], just made, for the list to say ([newNoteMade]). One still
@@ -1215,7 +1243,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * first of two new notes in a row was never said (round 6).
      */
     fun noteMade(id: Int) {
-        newNoteMade?.takeIf { it != id }?.let { earlier -> note(earlier)?.let { waitWord(listOf(earlier), savedWord(it)) } }
+        newNoteMade?.takeIf { it != id && note(it) != null }?.let { earlier -> waitWord(listOf(earlier), SAVED_IN, named = true) }
         newNoteMade = id
     }
 

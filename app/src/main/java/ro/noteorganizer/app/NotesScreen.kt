@@ -236,12 +236,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // without a word, and the reveal waiting for them took over the next
     // change to the list (wave 2, round 11).
     LaunchedEffect(state.revealAfterUndo) {
-        val ids = state.revealAfterUndo ?: return@LaunchedEffect
+        val put = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
+        val ids = put.ids
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }.mapTo(HashSet()) { it.id }
-        // Not of a note the Undo gave back to a word still waiting: said twice (round 10).
-        val waiting = state.arrivals.flatMapTo(HashSet()) { it.first }
-        val unsaid = ids.filter { it !in waiting }.sorted()
+        // Not of a note the Undo gave back to a word still waiting (round 10), as
+        // the Undo decided it: read here, on two panes the word was taken already (round 11).
+        val unsaid = put.unsaid.sorted()
         if (unsaid.any { it in hidden }) state.wordOn(unsaid, "put back", "Put back")
         revealLater(ids - hidden, arrived = true)
     }
@@ -295,8 +296,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val id = madeNew ?: return@LaunchedEffect
         if (state.openId == id) return@LaunchedEffect
         state.newNoteMade = null
-        val note = state.load.notes.firstOrNull { it.id == id } ?: return@LaunchedEffect
-        state.waitWord(listOf(id), state.savedWord(note))
+        if (state.load.notes.none { it.id == id }) return@LaunchedEffect
+        state.waitWord(listOf(id), AppState.SAVED_IN, named = true)
     }
     // Notes restored, imported or made where the list does not look, said
     // the same way once the list is on screen ([AppState.arrivals]): one bar
@@ -310,14 +311,15 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { state.arrivals.isNotEmpty() && state.snackbar.currentSnackbarData == null }.first { it }
-            val (ids, said) = state.takeWord() ?: continue
-            val hidden = state.load.notes.filter { it.id in ids && hidingNow(it).isNotEmpty() }
+            val word = state.takeWord() ?: continue
+            val hidden = state.load.notes.filter { it.id in word.ids && hidingNow(it).isNotEmpty() }
             val first = hidden.firstOrNull() ?: continue
+            val said = state.wordText(word) ?: continue
             // Counted by the word: one about several, trimmed to one by a delete,
             // read "hidden by" as though all were (the lows wave's round 10).
-            val tail = if (state.namesItsNote(said)) "hidden by ${hidingNow(first)}"
+            val tail = if (word.named) "hidden by ${hidingNow(first)}"
                        else "${hidden.size} of them hidden by ${hidingNow(first)}"
-            val again = { state.waitWord(ids, said) }
+            val again = { state.waitWord(word.ids, word.said, word.named) }
             // The first of them still here: the first alone, gone, refused them all (round 3).
             val bar = state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all", again) {
                 showAllNow(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)

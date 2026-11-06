@@ -1119,7 +1119,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                     val what = if (result.keptComments) "The comments this cleared" else "The words this took away"
                     state.offerAbout(listOf(made.id), "$what are kept as a note of their own: ${quoted(made.title)}",
                                      "Show") { state.openNote(made.id) }
-                    state.waitWord(listOf(made.id), state.namedWord(made, "kept as a note of its own"))
+                    state.waitWord(listOf(made.id), "kept as a note of its own", named = true)
                 }
                 // The bar that offered its Show goes with the note: left up, it
                 // waited for a note just gone (the lows wave's round 1).

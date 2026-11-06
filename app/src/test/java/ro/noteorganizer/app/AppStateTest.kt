@@ -123,9 +123,9 @@ class AppStateTest {
         assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
         // ...and the list's word on a note gone, not yet said: said later, it
         // named the next new note, given the same id (rounds 3-4).
-        s.arrivals = listOf(listOf(1, 7) to "Kept aside")
+        s.arrivals = listOf(AppState.Word(listOf(1, 7), "Kept aside"))
         s.refresh()
-        assertEquals(listOf(listOf(1) to "Kept aside"), s.arrivals)
+        assertEquals(listOf(AppState.Word(listOf(1), "Kept aside")), s.arrivals)
         s.trash(listOf(1))
         assertTrue(s.arrivals.isEmpty())
         // ...and the new note's word the same way: it lent its id, and its
@@ -165,12 +165,13 @@ class AppStateTest {
         val s = state()
         s.waitWord(listOf(1), "Put back")
         s.waitWord(listOf(2), "Kept aside")
-        assertEquals(listOf(listOf(1) to "Put back", listOf(2) to "Kept aside"), s.arrivals)
+        assertEquals(listOf(AppState.Word(listOf(1), "Put back"), AppState.Word(listOf(2), "Kept aside")), s.arrivals)
         s.arrivals = emptyList()
         s.noteMade(1)
         s.noteMade(2)
         assertEquals(2, s.newNoteMade)
-        assertEquals(listOf(listOf(1) to "“A” saved in General"), s.arrivals)
+        assertEquals(listOf("“A” saved in General"), s.wordsNow())
+        assertEquals(listOf(1), s.arrivals.single().ids)
         s.tab = Tab.CALENDAR
         s.trash(listOf(2))
         assertNull(s.newNoteMade)
@@ -180,24 +181,26 @@ class AppStateTest {
         s.trash(listOf(1))
         assertTrue(s.arrivals.isEmpty())
         s.snackbar.currentSnackbarData!!.performAction()
-        assertEquals(listOf("“A” saved in General"), s.arrivals.map { it.second })
-        assertEquals("A", s.note(s.arrivals.single().first.single())?.title)
+        assertEquals(listOf("“A” saved in General"), s.wordsNow())
+        assertEquals("A", s.note(s.arrivals.single().ids.single())?.title)
     }
 
     @Test
     fun `a word on several notes is given back whole by one's Undo, on any tab`() {
         // Given back beside the part still waiting, the list said the same news
         // twice (the lows wave's round 9); tapped on the Notes tab, it was not
-        // given back at all, and "Put back" came after it (round 10).
+        // given back at all, and "Put back" came after it (round 10), or, the word
+        // taken meanwhile on two panes, the list's own reading missed it (round 11).
         for (tab in listOf(Tab.CALENDAR, Tab.NOTES)) {
             val s = state()
-            s.arrivals = listOf(listOf(1, 2) to "Added 2 notes")
+            s.arrivals = listOf(AppState.Word(listOf(1, 2), "Added 2 notes"))
             s.tab = tab
             s.trash(listOf(1))
-            assertEquals(listOf(listOf(2) to "Added 2 notes"), s.arrivals)
+            assertEquals(listOf(AppState.Word(listOf(2), "Added 2 notes")), s.arrivals)
             s.snackbar.currentSnackbarData!!.performAction()
-            assertEquals(listOf("Added 2 notes"), s.arrivals.map { it.second })
-            assertEquals("$tab", setOf("A", "B"), s.arrivals.single().first.mapNotNull { s.note(it)?.title }.toSet())
+            assertEquals(listOf("Added 2 notes"), s.wordsNow())
+            assertEquals("$tab", setOf("A", "B"), s.arrivals.single().ids.mapNotNull { s.note(it)?.title }.toSet())
+            if (tab == Tab.NOTES) assertEquals("the Undo decides it, not the list", emptySet<Int>(), s.revealAfterUndo!!.unsaid)
         }
     }
 
@@ -211,11 +214,30 @@ class AppStateTest {
         assertTrue(s.report(Notebook.createNote(s.load, "New one", "")))
         assertTrue(s.report(Notebook.createNote(s.load, "Its earlier text", "")))
         s.arrived(before, 1, "added", "Added 1 notes")
-        assertEquals(listOf("“New one” added", "“Its earlier text” kept as a note of its own"), s.arrivals.map { it.second })
+        assertEquals(listOf("“New one” added", "“Its earlier text” kept as a note of its own"), s.wordsNow())
         s.arrivals = emptyList()
         s.arrived(before, 0, "added", "Added 0 notes")
-        assertEquals(listOf("Earlier text kept as 2 notes of their own"), s.arrivals.map { it.second })
+        assertEquals(listOf("Earlier text kept as 2 notes of their own"), s.wordsNow())
     }
+
+    @Test
+    fun `a word about one note names it as it is when said, renamed or refiled meanwhile`() {
+        // Named when queued, a note renamed before the list said it was said by a
+        // name no note had (the lows wave's round 11).
+        val s = state()
+        s.wordOn(listOf(1), "restored", "Restored 1 notes")
+        s.noteMade(2)
+        s.noteMade(1)
+        assertTrue(s.report(Notebook.updateNote(s.load, 1, "Sourdough", "first")))
+        assertTrue(s.report(Notebook.updateNote(s.load, 2, "Rye", "second", category = "Work")))
+        assertEquals(listOf("“Sourdough” restored", "“Rye” saved in Work"), s.wordsNow())
+        assertEquals(listOf(true, true), s.arrivals.map { it.named })
+        assertTrue(s.report(Organizing.trashNotes(s.load, listOf(1))))
+        assertNull("a note gone says nothing", s.wordText(AppState.Word(listOf(1), "restored", named = true)))
+    }
+
+    /** What each waiting word says now. */
+    private fun AppState.wordsNow(): List<String?> = arrivals.map { wordText(it) }
 
     @Test
     fun `words are said one at a time, and one about one note names it`() {
@@ -229,13 +251,16 @@ class AppStateTest {
             s.snackbar.currentSnackbarData!!.dismiss()
         }
         for (entry in s.load.trash.toList()) s.restoreFromTrash(listOf(Organizing.keyOf(entry)))
-        assertEquals(listOf("“A” restored", "“B” restored"), s.arrivals.map { it.second })
-        assertEquals("“A” restored", s.takeWord()?.second)
-        assertEquals("“B” restored", s.takeWord()?.second)
+        assertEquals(listOf("“A” restored", "“B” restored"), s.wordsNow())
+        assertEquals("“A” restored", s.takeWord()?.let { s.wordText(it) })
+        assertEquals("“B” restored", s.takeWord()?.let { s.wordText(it) })
         assertNull(s.takeWord())
         // A word about several, trimmed to one by a delete, is still counted.
-        assertTrue(s.namesItsNote("“A” restored"))
-        assertFalse(s.namesItsNote("Restored 3 notes"))
+        val both = s.load.notes.map { it.id }
+        s.wordOn(both, "restored", "Restored 2 notes")
+        assertTrue(s.report(Organizing.trashNotes(s.load, listOf(both[1]))))
+        assertEquals(listOf(both[0]), s.arrivals.single().ids)
+        assertFalse(s.arrivals.single().named)
     }
 
     @Test
@@ -717,7 +742,8 @@ class AppStateTest {
         s.tab = Tab.NOTES
         s.trash(listOf(1))
         s.snackbar.currentSnackbarData!!.performAction()
-        assertEquals(1, s.revealAfterUndo?.size)
+        assertEquals(1, s.revealAfterUndo?.ids?.size)
+        assertEquals("no waiting word took it back: said Put back", s.revealAfterUndo?.ids, s.revealAfterUndo?.unsaid)
     }
 
     @Test
@@ -1082,9 +1108,9 @@ class AppStateTest {
         val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
         s.trash(listOf(2))
         s.restoreFromTrash(s.load.trash.map { Organizing.keyOf(it) })
-        val (ids, said) = s.arrivals.single()
-        assertEquals(listOf("Two"), ids.mapNotNull { s.note(it)?.title })
-        assertEquals("“Two” restored", said)
+        val word = s.arrivals.single()
+        assertEquals(listOf("Two"), word.ids.mapNotNull { s.note(it)?.title })
+        assertEquals("“Two” restored", s.wordText(word))
     }
 
     @Test
