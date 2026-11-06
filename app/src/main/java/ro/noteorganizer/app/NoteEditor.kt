@@ -1120,7 +1120,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                     state.offer("$what are kept as a note of their own: ${quoted(made.title)}", "Show") { state.openNote(made.id) }
                     state.arrivals = listOf(made.id) to "Kept aside"
                 }
-                if (result.spentAside) state.say("The words are back in the note; the note kept aside of them is gone again")
+                if (result.spentAside) {
+                    // Over the bar that offered it: its Show stayed up, waiting,
+                    // for a note just gone (the lows wave's round 1).
+                    state.snackbar.currentSnackbarData?.dismiss()
+                    state.say("The words are back in the note; the note kept aside of them is gone again")
+                }
                 null
             }
             is SaveResult.Failed -> {

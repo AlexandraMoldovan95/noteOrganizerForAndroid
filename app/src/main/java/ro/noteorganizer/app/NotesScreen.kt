@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -301,6 +302,14 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // Whether the dragged card has traded once as it leads the screen
     // (Showing.tradeStaysInSight).
     var ledOnce by remember { mutableStateOf(false) }
+    // When the list last stopped scrolling, on the clock a press is read on:
+    // a tap that stopped a fling is told by it (the handle's gesture).
+    var scrollStoppedAt by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect {
+            if (!it) scrollStoppedAt = android.os.SystemClock.uptimeMillis()
+        }
+    }
     // The space under a card, no part of a stepped pair (Showing.afterStep),
     // and the view a step is said through.
     val gap = with(LocalDensity.current) { 8.dp.roundToPx() }
@@ -801,10 +810,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                         // moving gave the card under it a long
                                                         // press, and selection took the drag.
                                                         awaitEachGesture {
-                                                            // Read before the press is ours: a tap that
-                                                            // stops a fling only stops it (round 22).
-                                                            val stopping = listState.isScrollInProgress
                                                             val down = awaitFirstDown(requireUnconsumed = false)
+                                                            // A tap that stops a fling only stops it (round
+                                                            // 22), read at the press: read before awaiting it,
+                                                            // it was the last lift's (the lows wave's round 1).
+                                                            val stopping = listState.isScrollInProgress ||
+                                                                down.uptimeMillis - scrollStoppedAt < 150
                                                             down.consume()
                                                             // A second handle while a card is lifted is no
                                                             // new drag: it took the first one over (round 21).

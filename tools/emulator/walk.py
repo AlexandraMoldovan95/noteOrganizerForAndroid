@@ -5870,6 +5870,33 @@ def arrange_without_drag(folder):
         if find("Move down", exact=True) or find("Move up", exact=True):
             adb("shell", "input", "keyevent", "4")
             time.sleep(0.8)
+        # A fling stopped by a tap on a handle: the tap only stops it, and the
+        # next tap there opens the menu. Read at the handle's last lift, the
+        # first opened it and the second did nothing (the lows wave's round 1).
+        if at:
+            def menu_up():
+                return find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+            # Where a handle lands after a fling cannot be read while it runs:
+            # a tap on a card's words opens the note instead, and another
+            # height is tried.
+            outcome = None
+            for y in (1300, 1370, 1230, 1440):
+                adb("shell", "input", "swipe", "540", "1900", "540", "700", "80")      # a fling
+                adb("shell", "input", "tap", str(at[0]), str(y))
+                time.sleep(1.2)
+                first = not menu_up()
+                adb("shell", "input", "tap", str(at[0]), str(y))
+                time.sleep(1.2)
+                if find("ⓘ", exact=True):
+                    back_to("Search notes")
+                    continue
+                outcome = (first, menu_up())
+                if menu_up():
+                    adb("shell", "input", "keyevent", "4")
+                    time.sleep(0.8)
+                break
+            check("a tap on a handle that stops a fling only stops it, and the next tap opens the menu",
+                  outcome == (True, True), "the first opened nothing, the second the menu: %s" % (outcome,))
     else:
         fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))
@@ -7759,6 +7786,19 @@ def kept_aside(folder):
     keyboard_down()
     check_settled("the words typed back, the note kept aside of them goes again", asides, lambda made: made == [])
     check("...said", said)
+    # The same slip again, put back before Show is tapped: the bar that
+    # offered Show goes with the note -- left up, its Show opened an empty new
+    # note (the lows wave's round 1).
+    tap_last(words, wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+    offered = not says_soon("kept as a note of their own", "Show", within=10.0)
+    type_text(words[len("Book"):])
+    # At once, not once the bar's ten seconds run out: waited for that long,
+    # a bar left up looked the same (the mutant passed).
+    gone = not says_soon("gone again", within=4.0)
+    check("put back before Show is tapped, the note kept aside goes, and its Show with it",
+          offered and gone and find("Show", exact=True) is None, "offered %s, gone said %s" % (offered, gone))
     back_to("Search notes")
 
 

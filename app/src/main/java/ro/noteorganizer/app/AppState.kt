@@ -459,6 +459,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         // another card replaces it: what it holds is saved first -- and the
         // day asked again after, as that save can move the series' start.
         leaving {
+            // Looked for again after the save that left the open note: that
+            // save can take this one away -- an '(earlier text)' note spent --
+            // and an empty new note opened in its place (the lows wave's round 1).
+            if (id != 0 && rawNote(id) == null) {
+                say("That note is no longer here")
+                return@leaving
+            }
             openDay = onDay()
             newNoteDate = ""
             openId = id
@@ -747,7 +754,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         if (selectedDay == day || (openId == id && openDay == day)) followDay(to)
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
-            report(outside(listOf(move.id)) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
+            // Read back only on the day moved, as the move's other changes
+            // are: on the series or another day it lost its Undo (lows round 1).
+            report(outside(listOf(move.id), day = move.to) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
                 if (selectedDay == move.to) followDay(move.from)
                 if (openId == move.id && openDay == move.to) openDay = move.from
                 say("Moved back to ${shownDay(move.from)}")

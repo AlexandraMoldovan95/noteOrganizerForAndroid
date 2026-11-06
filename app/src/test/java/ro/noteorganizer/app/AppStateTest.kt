@@ -74,6 +74,30 @@ class AppStateTest {
     }
 
     @Test
+    fun `a note gone by the time it is opened is said, and the note open stays`() {
+        // An '(earlier text)' note spent by the very save that leaves the open
+        // note: an empty new note opened in its place (the lows wave's round 1).
+        val s = state()
+        s.openNote(1)
+        s.flush = { null }
+        s.openNote(99)
+        assertEquals(1, s.openId)
+        assertEquals("That note is no longer here", s.snackbar.currentSnackbarData?.visuals?.message)
+    }
+
+    @Test
+    fun `a moved day's Undo reads back only the editor on that day`() {
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1)
+        s.flush = { null }
+        s.moveDay(1, "2026-10-12", "2026-10-13")
+        val rewritten = s.openNoteRewritten
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("the whole series shows no day", rewritten, s.openNoteRewritten)
+    }
+
+    @Test
     fun `Leave anyway tapped once another note is open sets no day on it`() {
         // It set the day on whatever note was open, a plain one "on a day",
         // where every save was refused (wave 2, round 13).
