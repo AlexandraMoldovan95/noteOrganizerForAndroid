@@ -248,6 +248,8 @@
     <string name="checklist_remove_said">Remove %1$s from the checklist</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
+    <string name="moved_above">Moved above %1$s</string>
+    <string name="moved_below">Moved below %1$s</string>
     <string name="move_nowhere">Nothing to move it past here.</string>
     <string name="template_row_up">Move %1$s up</string>
     <string name="stepper_fewer">Fewer</string>

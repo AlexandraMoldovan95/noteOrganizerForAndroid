@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -34,6 +35,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -289,6 +291,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // Whether the dragged card has traded once as it leads the screen
     // (Showing.tradeStaysInSight).
     var ledOnce by remember { mutableStateOf(false) }
+    // The space under a card, no part of a stepped pair (Showing.afterStep),
+    // and the view a step is said through.
+    val gap = with(LocalDensity.current) { 8.dp.roundToPx() }
+    val view = LocalView.current
     val rows = dragOrder ?: laidOut
     // As they are now, for a handle's gesture, which runs on as it was first
     // touched: read as they were then, a card's second drag started from the
@@ -308,9 +314,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val other = noteOf(now.getOrNull(at + step)) ?: return false
         val me = noteOf(now[at]) ?: return false
         if (!Organizing.sameBlock(me, other, groupedNow)) return false
+        // Asked only once the order is composed (the SideEffect): asked now,
+        // a finger's measure in the old order laid a short list's card out of
+        // the viewport, and cancelled its drag (wave 2, round 24).
         hold.index = if (step < 0 && leads) at - 1 else listState.firstVisibleItemIndex
         hold.offset = listState.firstVisibleItemScrollOffset
-        listState.requestScrollToItem(hold.index, hold.offset)
         if (step < 0 && leads) ledOnce = true
         dragOrder = now.toMutableList().also { it[at] = it[at + step]; it[at + step] = now[at] }
         return true
@@ -363,7 +371,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val card = layout.visibleItemsInfo.firstOrNull { it.key == id }
         val passed = layout.visibleItemsInfo.firstOrNull { it.index == at - step }
         val by = Showing.afterStep(card?.offset, card?.size ?: sizeWas, passed?.offset, passed?.size ?: passedWas, step,
-                                   layout.viewportEndOffset - layout.afterContentPadding)
+                                   layout.viewportEndOffset - layout.afterContentPadding, gap)
         when {
             by == null -> listState.scrollToItem(at)
             by != 0 -> listState.scrollBy(by.toFloat())
@@ -391,6 +399,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         if (step < 0 && at == first) listState.requestScrollToItem(at - 1, offset)
         else listState.requestScrollToItem(first, offset)
         stepped = Stepped(id, step, size, passedSize)
+        // Said to a screen reader as it lands: silent, a step read as not
+        // taken, and a second one moved the note on (round 22).
+        noteOf(laidOutNow.getOrNull(at + step))?.let { passed ->
+            view.announceForAccessibility(view.context.getString(
+                if (step < 0) R.string.moved_above else R.string.moved_below, passed.headline))
+        }
     }
     var stepMenu by remember { mutableStateOf<Int?>(null) }
     val upSaid = stringResource(R.string.move_up)
@@ -426,6 +440,15 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         if (traded) slotWas = me.offset.toFloat()
     }
 
+    /** Whether the dragged card has a neighbour [toward] it can trade with, in its block. */
+    fun canPass(toward: Int): Boolean {
+        val now = dragOrder ?: return false
+        val at = now.indexOfFirst { noteOf(it)?.id == dragged }
+        val me = noteOf(now.getOrNull(at)) ?: return false
+        val other = noteOf(now.getOrNull(at + toward)) ?: return false
+        return Organizing.sameBlock(me, other, groupedNow)
+    }
+
     // Near the list's top or bottom edge, a dragged card scrolls the list --
     // and goes on trading places as the list passes under it, though the
     // finger is still: otherwise its slot stayed behind, scrolled out of
@@ -434,8 +457,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     val fastest = with(LocalDensity.current) { 20.dp.toPx() }
     val slop = LocalViewConfiguration.current.touchSlop
     LaunchedEffect(dragged) {
-        // The way the list is scrolling at an edge, and since when.
+        // The way the list is scrolling at an edge, the zone the card was in,
+        // and since when its scroll there began.
         var way = 0
+        var sideWas = 0
         var since = 0L
         while (dragged != null) {
             val info = listState.layoutInfo
@@ -447,17 +472,23 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                 // the card a neighbour off and scrolled a step by itself (round 19).
                 if (slotWas != null) follow(0f)
                 // Toward the edge the finger is going, never the other way, slowly
-                // at first (Showing.edgeStep).
+                // at first (Showing.edgeStep), and latched while it heads on.
                 val start = info.viewportStartOffset
                 val end = info.viewportEndOffset
                 val zone = Showing.edgeZone(start, end, edge)
                 val top = me.offset + dragBy
-                val toward = Showing.edgeScroll(heading, pulledNow, slop, top, me.size, start, end, zone)
+                val pulled = if (Showing.edgeLatched(way, heading)) heading * (slop + 1f) else pulledNow
+                var toward = Showing.edgeScroll(heading, pulled, slop, top, me.size, start, end, zone)
+                // Only toward a card it can trade with: past its block's end the
+                // list scrolled on until the card's slot went (round 17).
+                if (toward != 0 && !canPass(toward)) toward = 0
+                val side = when { top < start + zone -> -1; top + me.size > end - zone -> 1; else -> 0 }
                 val clock = android.os.SystemClock.uptimeMillis()
-                if (toward != way) since = clock
+                since = Showing.edgeSince(since, sideWas, side, toward, clock)
+                sideWas = side
                 way = toward
                 val depth = if (toward < 0) start + zone - top else top + me.size - (end - zone)
-                step = Showing.edgeStep(toward, depth, zone, clock - since, fastest)
+                step = Showing.edgeStep(toward, depth, zone, if (since == 0L) 0L else clock - since, fastest)
             } else {
                 way = 0
             }
@@ -760,8 +791,14 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                         // moving gave the card under it a long
                                                         // press, and selection took the drag.
                                                         awaitEachGesture {
+                                                            // Read before the press is ours: a tap that
+                                                            // stops a fling only stops it (round 22).
+                                                            val stopping = listState.isScrollInProgress
                                                             val down = awaitFirstDown(requireUnconsumed = false)
                                                             down.consume()
+                                                            // A second handle while a card is lifted is no
+                                                            // new drag: it took the first one over (round 21).
+                                                            if (dragged != null) return@awaitEachGesture
                                                             dragged = note.id
                                                             dragBy = 0f
                                                             dragOrder = laidOutNow
@@ -774,11 +811,18 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                             // and its furthest point the way it is heading.
                                                             var pulled = 0f
                                                             var far = 0f
+                                                            var cancelled = false
                                                             try {
                                                                 while (true) {
                                                                     val change = awaitPointerEvent().changes
                                                                         .firstOrNull { it.id == down.id } ?: break
-                                                                    if (!change.pressed) break
+                                                                    // A lift the system made up, already taken
+                                                                    // (a Back swipe, a call): no drop, no menu
+                                                                    // (rounds 17 and 25).
+                                                                    if (!change.pressed) {
+                                                                        cancelled = change.isConsumed
+                                                                        break
+                                                                    }
                                                                     val moved = change.positionChange()
                                                                     if (moved.y != 0f) {
                                                                         change.consume()
@@ -793,12 +837,23 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                         follow(moved.y)
                                                                     }
                                                                 }
+                                                                if (cancelled) {
+                                                                    dragged = null
+                                                                    dragBy = 0f
+                                                                    dragOrder = null
+                                                                    slotWas = null
+                                                                    heading = 0
+                                                                    pulledNow = 0f
+                                                                    ledOnce = false
+                                                                    hold.index = -1
+                                                                    return@awaitEachGesture
+                                                                }
                                                                 drop()
                                                                 // Tapped, not dragged: up and down,
                                                                 // for a hand that cannot drag -- when
                                                                 // there is a way to go: the only note in
                                                                 // its block opened an empty menu.
-                                                                if (!travelled) {
+                                                                if (!travelled && !stopping) {
                                                                     val shown = laidOutNow.mapNotNull { noteOf(it) }
                                                                     if (listOf(-1, 1).any { Organizing.stepPlace(shown, note.id, it, groupedNow) != null }) {
                                                                         stepMenu = note.id
@@ -822,6 +877,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                     }
                                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                             )
+                                            // Closed when its card leaves the list: turned on
+                                            // its side, it came back open by itself (round 22).
+                                            DisposableEffect(note.id) {
+                                                onDispose { if (stepMenu == note.id) stepMenu = null }
+                                            }
                                             DropdownMenu(expanded = stepMenu == note.id, onDismissRequest = { stepMenu = null }) {
                                                 // Only the ways it can go, in its block.
                                                 val shownNotes = laidOut.mapNotNull { noteOf(it) }

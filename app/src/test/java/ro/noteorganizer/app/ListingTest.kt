@@ -273,6 +273,34 @@ class ListingTest {
     }
 
     @Test
+    fun `an edge's clock runs while the card stays in its zone, and a scrolling edge holds`() {
+        // Round 23: the clock begins with the first pass that scrolls in a zone...
+        assertEquals(0L, Showing.edgeSince(0L, 0, 1, 0, 1000))
+        assertEquals(1000L, Showing.edgeSince(0L, 0, 1, 1, 1000))
+        assertEquals(1500L, Showing.edgeSince(0L, 1, 1, 1, 1500))
+        // ...and a turn of the finger inside the zone keeps it...
+        assertEquals(1000L, Showing.edgeSince(1000L, 1, 1, 0, 1800))
+        assertEquals(1000L, Showing.edgeSince(1000L, 1, 1, 1, 2000))
+        // ...until the card leaves the zone, or enters the other.
+        assertEquals(0L, Showing.edgeSince(1000L, 1, 0, 0, 2100))
+        assertEquals(2200L, Showing.edgeSince(1000L, 1, -1, -1, 2200))
+        // Round 21: a list scrolling the way the drag heads stays armed past the
+        // press; turned, or not yet scrolling, it is not.
+        assertTrue(Showing.edgeLatched(-1, -1))
+        assertFalse(Showing.edgeLatched(-1, 1))
+        assertFalse(Showing.edgeLatched(0, 1))
+    }
+
+    @Test
+    fun `a stepped pair leaves the moved card's own gap out`() {
+        // Round 21: a pair 4 px too tall counting the gap below the moved card
+        // (130 + 80 = 210 against 206) still comes in whole, the passed card first.
+        assertEquals(-57, Showing.afterStep(23, 130, -57, 80, step = 1, end = 206, gap = 8))
+        // Without the gap it fell back to the moved card alone, the passed one above.
+        assertEquals(0, Showing.afterStep(23, 130, -57, 80, step = 1, end = 206))
+    }
+
+    @Test
     fun `a drag heads a way only past the touch slop and turns only back past it`() {
         // Round 19, a slop of 8: a tap's pixel of shift is no drag...
         assertEquals(Pair(0, 0f), Showing.dragHeading(0, 0f, 3f, 8f))

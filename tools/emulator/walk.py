@@ -5589,6 +5589,14 @@ def arrange_without_drag(folder):
     shot(folder, "89-move-menu", "Move down")
     check("a tap on a card's handle offers to move it, with no way up from the top",
           find("Move down", exact=True) is not None and find("Move up", exact=True) is None)
+    # Turned on its side, the menu goes with its card: it came back open by
+    # itself over the new layout (round 22).
+    turn(1)
+    on_side = find("Move down", exact=True) is not None
+    turn(0)
+    check("a card's step menu is not open again once the phone is turned on its side and back",
+          not on_side and find("Move down", exact=True) is None, "on its side: %s" % on_side)
+    tap("Drag to move Alpha", wait=1.0)
     tap("Move down", exact=True, wait=1.5)
     check_settled("Move down puts the card below its neighbour", placed, lambda p: p == ["Bravo", "Alpha"])
     if open_note("Alpha"):
@@ -5782,6 +5790,20 @@ def arrange_without_drag(folder):
                           lambda: placed()[:20], lambda p: p == before[:20])
         else:
             fail("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
+        # A press the system cancels -- a Back swipe from the edge across a
+        # handle, a call -- read as a tap: the menu opened by itself (round 25).
+        shown, before = handles(), placed()
+        at = find("Drag to move " + shown[1][1]) if len(shown) > 1 else None
+        if at:
+            adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+            adb("shell", "input", "motionevent", "CANCEL", str(at[0]), str(at[1]))
+            time.sleep(1.2)
+        check("a handle's press the system cancels opens no menu and moves nothing",
+              bool(at) and find("Move down", exact=True) is None and find("Move up", exact=True) is None
+              and placed()[:20] == before[:20])
+        if find("Move down", exact=True) or find("Move up", exact=True):
+            adb("shell", "input", "keyevent", "4")
+            time.sleep(0.8)
     else:
         fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))

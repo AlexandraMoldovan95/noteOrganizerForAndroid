@@ -532,6 +532,26 @@ object Showing {
     }
 
     /**
+     * When the edge's scroll began ([since], 0 for not yet), as the card at
+     * [side] (-1 the top zone, +1 the foot's, 0 neither; [sideWas] before)
+     * scrolls the list [toward]: from its first pass in a zone until it
+     * leaves it. Begun again at every turn of the finger, a nudge at full
+     * speed fell back to a crawl (wave 2, round 23).
+     */
+    fun edgeSince(since: Long, sideWas: Int, side: Int, toward: Int, now: Long): Long = when {
+        side != sideWas -> if (toward != 0) now else 0L
+        since == 0L && toward != 0 -> now
+        else -> since
+    }
+
+    /**
+     * Whether the edge stays armed past the press for a list already
+     * scrolling [way] while the drag still heads that way: a settle of a
+     * few pixels back inside the slop stopped it (wave 2, round 21).
+     */
+    fun edgeLatched(way: Int, heading: Int): Boolean = way != 0 && way == heading
+
+    /**
      * How far to scroll once a card [size] tall has moved one [step], so it
      * and the card it passed, [passedSize] tall, show together: the card at
      * [top] when the layout holds it, else beside the passed card at
@@ -539,10 +559,14 @@ object Showing {
      * past the foot jumped a screen (round 18); brought into sight alone, it
      * left a shorter card it passed above the screen (round 19). A pair
      * taller than the screen keeps the moved card, as a step up does: the
-     * pair's top left it under the + (round 20).
+     * pair's top left it under the + (round 20). The moved card's own [gap]
+     * below it is no part of the pair: counted, a pair 8 dp too tall lost
+     * the card it passed (round 21).
      */
-    fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int): Int? = when {
-        top != null && step > 0 && passedSize + size <= end -> intoSight(top - passedSize, passedSize + size, end)
+    fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int,
+                  gap: Int = 0): Int? = when {
+        top != null && step > 0 && passedSize + size - gap <= end ->
+            intoSight(top - passedSize, passedSize + size - gap, end)
         top != null && step > 0 -> intoSight(top, size, end)
         top != null -> intoSight(top, size + passedSize, end)
         passedTop == null || size <= 0 -> null
