@@ -47,11 +47,9 @@ class DaysTest {
 
     @Test
     fun `a turn-off whose copy the same save drops promises no Restore previous`() {
-        // A share code's Update that only turned the repeat on: its copy is
-        // the note not repeating, and the turn-off makes the note that again,
-        // the copy dropped as spent in the same write. The sheet promised
-        // Restore previous, with no copy and no button (the tenth round; the
-        // desktop's _REPEAT_OFF_NO_COPY, 04044ce).
+        // A code's Update that only turned the repeat on: the turn-off makes the
+        // note its copy again, the copy dropped as spent, and the sheet promised a
+        // Restore previous with no button (the desktop's _REPEAT_OFF_NO_COPY).
         val update = """"_prev": {"title": "Stand-up", "body": "agenda", "comments": "", "category": "Work",
             "color": "", "date": "2026-10-05", "recurrence": {"freq": ""},
             "checklist": [{"text": "x", "done": false}]}, "checklist""""
@@ -84,12 +82,9 @@ class DaysTest {
 
     @Test
     fun `a day the note only coloured takes the copy's own words for it, its colour kept`() {
-        // The tenth round's road in this build: off, on from another start,
-        // a day's words written there, Restore previous, then the start put
-        // back. The note held that day by its colour alone, and the copy's
-        // own words for it were spent with the copy's days, in no file (the
-        // desktop's 04044ce: a copy's day is dropped only where the note
-        // deleted that day or wrote words of its own for it).
+        // Off, on from another start, a day's words, Restore previous, the start
+        // back: a day the note held by its colour alone lost the copy's words for
+        // it. The desktop drops a copy's day only where the note deleted or wrote it.
         val load = scratch(gym)
         Days.saveDay(load, 1, "2026-11-09", "Gym", "Leg day - knee hurt", "", "General", "")
         Days.saveDay(load, 1, "2026-11-16", "Gym", "Warm up", "", "General", "#ff6b6b")
@@ -112,8 +107,8 @@ class DaysTest {
 
     @Test
     fun `a day the note moved takes the copy's words for it on the date it moved to`() {
-        // 0.12.0 turned back on as it was, then that very day moved: the
-        // day's words, held in the copy alone, were spent at the first read.
+        // An older phone turned it back on as it was, then that very day moved:
+        // the day's words, held in the copy alone, were spent at the first read.
         val days = """"exceptions": [], "overrides": {}, "moved": {"2026-11-09": "2026-11-11"},"""
         val shipped = """[{"id": 1, "uid": "g", "title": "Gym", "body": "Warm up", "comments": "",
             "category": "General", "color": "", "date": "2026-11-02",
@@ -129,10 +124,9 @@ class DaysTest {
         // Deleted by the note, the day's words go with it, as the desktop's.
         val gone = scratch(shipped.replace(days, """"exceptions": ["2026-11-09"], "overrides": {}, "moved": {},"""))
         assertEquals(0, gone.raw!!.getJSONObject(0).getJSONObject("overrides").length())
-        // An edit the copy keeps under a day it deleted is drawn on no day:
-        // it stays under its own date, though the note moved that day away.
-        // The desktop's own answer, its normalize_note at 99f041e asked of
-        // this very note (scratch android_fixes_r10/probe_deleted_edit.py).
+        // An edit the copy keeps under a day it deleted is drawn on no day: it
+        // stays under its own date, though the note moved that day away -- the
+        // desktop's normalize_note's answer for this very note.
         val stray = scratch(shipped.replace(days, """"exceptions": [], "overrides": {},
                 "moved": {"2026-11-09": "2026-11-11", "2026-11-16": "2026-11-18"},""")
             .replace(""""exceptions": [], "overrides": {"2026-11-09": {"body": "Leg day - knee hurt"}}""",
@@ -189,10 +183,9 @@ class DaysTest {
 
     @Test
     fun `a read asks only a copy that can be a series' own, never every note an import updated`() {
-        // Every Update copy holds all three day fields, and each was shaped
-        // twice at every start for nothing (the final audit's ninth round).
-        // Measured, not judged by a clock: the read leaves such a copy as it
-        // lies, and the time each way is printed for the round's record.
+        // Every Update copy holds all three day fields, and each was shaped twice
+        // at every start for nothing. Judged by what the read leaves, not a clock;
+        // the time each way is printed for the record.
         val notes = JSONArray()
         for (id in 1..1_000) {
             notes.put(JSONObject().put("id", id).put("uid", "u$id").put("title", "Note $id")
@@ -233,9 +226,8 @@ class DaysTest {
 
     @Test
     fun `a series turned back on with a year of days of its own takes them back in time that grows with the days`() {
-        // The words added to a day were read off a copy of the whole note, made
-        // for each day: the turn-on grew with the square of the days, on the
-        // main thread (the final audit's thirteenth round). Timed against a
+        // A day's added words were read off a copy of the whole note made for each
+        // day, the turn-on growing with the square of the days. Timed against a
         // quarter as many days in the same run: four times the work, not sixteen.
         fun timed(days: Int): Long = (0 until 3).minOf {
             val note = yearOfDays(days)
@@ -405,10 +397,9 @@ class DaysTest {
 
     @Test
     fun `a day of a series ending in a table typed on the phone follows it, and its colour alone is no text`() {
-        // A day's text is kept with the line under a closing table, the
-        // series' as typed: compared as they lay, a day saying what the series
-        // said was cut off from it, and a colour alone read as words, so the
-        // repeat's turn-off made a copy and kept the days (the fourteenth round).
+        // A day's text keeps the line under a closing table, the series' is as
+        // typed: compared as they lay, a day saying what the series said was cut
+        // off from it, and a colour alone read as words at the turn-off.
         val load = scratch(series.replace("\"body\": \"agenda\"", "\"body\": \"agenda\\n| a | b |\""))
         var said: Days.DaySaved? = null
         Days.saveDay(load, 1, "2026-10-12", "Stand-up", "agenda\n| a | b |", "", "Work", "", result = { said = it })
@@ -540,10 +531,9 @@ class DaysTest {
 
     @Test
     fun `a start moved in the editor onto a moved day's date drops that move at the save, its words where they showed`() {
-        // Daily from the 10th, the 12th moved back to the 8th; the editor's
-        // date set to the 5th makes the 8th a day of the rule's own. Left till
-        // the next start, the moved day was drawn nowhere (the fifteenth
-        // round); its words never move on their own (the seventeenth).
+        // Daily from the 10th, the 12th moved back to the 8th; the start set to the
+        // 5th makes the 8th the rule's own. Left till the next start, the moved day
+        // was drawn nowhere; its words never move on their own.
         val load = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-10-10",
             "recurrence": {"freq": "daily"}, "moved": {"2026-10-12": "2026-10-08"},
             "overrides": {"2026-10-08": {"title": "Own"}}}]""")
@@ -627,8 +617,8 @@ class DaysTest {
 
     @Test
     fun `two moves onto one date are read as one, and History lists the date once`() {
-        // As 0.13.0 could leave them: History gave two rows of one key, and
-        // the list threw at every unfolding (the nineteenth round).
+        // As an older phone could leave them: History gave two rows of one key,
+        // and the list threw at every unfolding.
         val load = scratch("""[{"id": 1, "uid": "m", "title": "Meeting", "body": "x", "date": "2026-11-02",
             "recurrence": {"freq": "weekly", "interval": 2},
             "moved": {"2026-12-07": "2026-12-10", "2026-12-14": "2026-12-10"}}]""")
@@ -654,10 +644,9 @@ class DaysTest {
         val gone = Days.DayGone(1, "s", "2026-11-20", null, "2026-11-16")
         assertTrue(Days.undoDeleteDay(load, gone) is SaveResult.Ok)
         assertEquals("""{"2026-11-16":"2026-11-20"}""", firstOnDisk(load).getJSONObject("moved").toString())
-        // ...never a live one: within its seconds a Restore previous brought
-        // back a version with another day moved onto that date, and the Undo
-        // dropped that move as dead, its words read as this day's (the
-        // twentieth round).
+        // ...never a live one: a Restore previous within its seconds brought back
+        // another day moved onto that date, and the Undo dropped that move as dead,
+        // its words read as this day's.
         val live = scratch("""[{"id": 1, "uid": "s", "title": "S", "body": "", "date": "2026-11-02",
             "recurrence": {"freq": "weekly"}, "moved": {"2026-11-23": "2026-11-20"},
             "overrides": {"2026-11-20": {"body": "the 23rd's words"}}}]""")
@@ -700,22 +689,12 @@ class DaysTest {
     }
 
     /**
-     * The fuzz of a series' days (the owner's choice, the seventeenth round;
-     * the desktop's test_data_safety runs its own). Random roads through the
-     * phone's own actions -- a day edited, moved, deleted, reset, made a note
-     * of its own, a delete or a move undone at once; the series' text cut
-     * down or written long; the Repeat sheet's start and rule, off, and back
-     * on as the copy holds it; 0.13.0's turn-off and turn-on, then the read
-     * at the install; Restore previous; a read; the Trash and back; a share
-     * code's or a backup's Update -- and after every step every day's words
-     * the person did not delete or type over are where a person reaches them
-     * (a day the calendar draws or lists off the schedule, the copy, a note
-     * made of them), and History finds each such day at the end. A copy is
-     * one slot: REPLACED by another, what it alone held goes, unless it
-     * repeats as a series the note does not (those are set aside); spent, its
-     * days are owed to the note. Words shown twice -- an '(earlier text)'
-     * note repeating a day's -- are the duplicates the owner chose to leave
-     * (1 Nov): counted, not failed; the fuzz once held only for its seeds.
+     * The fuzz of a series' days, by the owner's choice (ISSUES_LOG, "A fuzz
+     * that never took the road it guarded"): random roads through the
+     * phone's actions on a day, the series, its repeat and copy, an older
+     * phone's turn-off, Restore previous, the Trash, an Update -- and after
+     * every step every day's words not deleted or typed over are where a
+     * person reaches them, History finding each. Words shown twice are counted.
      */
     @Test
     fun `a fuzz of a series' days loses and hides no day's words`() {
@@ -731,9 +710,8 @@ class DaysTest {
         // days edited and deleted between: the corner rounds 15 to 24 kept finding.
         val offOn = listOf("edit", "edit", "delete", "delete", "off", "back", "back", "older", "rule", "read", "undo")
         // A word a person can reach: a day the calendar draws or lists off the
-        // schedule (any day of a note that no longer repeats, which a repeat
-        // brings back). In the file alone, on a date nothing shows, it is not
-        // kept (the eighteenth round: the fuzz counted it kept).
+        // schedule (any day of a note no longer repeating). In the file alone, on
+        // a date nothing shows, it is not kept, though the fuzz once counted it.
         fun seen(note: JSONObject): List<String> {
             val days = note.optJSONObject("overrides") ?: return emptyList()
             val repeats = Recurrence.isRecurring(note)
@@ -871,13 +849,11 @@ class DaysTest {
                         Days.setRepeat(load, id(), JSONObject(copyWas.getJSONObject("recurrence").toString()), startWas = if (date != was) was else null)
                     }
                     op == "older" && repeats -> {
-                        // 0.13.0's turn-off and turn-on as it was, the version people
-                        // upgrade from: the days in the copy alone, each shown blank --
-                        // one, looking empty, perhaps deleted there (round 21's road)
-                        // -- then this build's read at the install. What the copy it
-                        // replaced held alone was 0.13.0's to lose, not this build's.
+                        // An older phone's turn-off and turn-on: the days in the copy alone,
+                        // each blank, one perhaps deleted there, then this build's read at the
+                        // install. What the copy it replaced held alone was the older one's to lose.
                         olderLost = bodies(copyWas?.optJSONObject("overrides")).toSet() - held
-                        // The notes as this build holds them: the file keeps 0.13.0's
+                        // The notes as this build holds them: the file keeps the older
                         // shape until the first save after the read.
                         val array = JSONArray(load.raw!!.toString())
                         val raw = array.getJSONObject((0 until array.length()).first { array.getJSONObject(it).optString("uid") == "f17" })
@@ -913,10 +889,9 @@ class DaysTest {
                 val shown = bodies(after.optJSONObject("overrides")) + made()
                 val heldAfter = seen(after).toSet() + made() + bodies((after.opt("_prev") as? JSONObject)?.optJSONObject("overrides")) +
                     (after.optJSONArray("_set_aside")?.let { a -> (0 until a.length()).map { a.getJSONObject(it).optString("body") } }.orEmpty())
-                // The slot rule excuses a copy REPLACED by another, never one
-                // spent -- the same copy, its days taken out -- whose days are
-                // owed to the note. A new copy can match the old in every field
-                // but its days: an Update over an Update's copy.
+                // The slot rule excuses a copy REPLACED by another, never one spent --
+                // the same copy, its days taken out -- whose days are owed to the note
+                // (a new copy can match the old in all but its days: an Update's).
                 val copyNow = after.opt("_prev") as? JSONObject
                 val spent = copyWas?.let { JSONObject(it.toString()).apply { for (f in listOf("overrides", "exceptions", "moved")) remove(f) } }
                 val replaced = copyNow != null && !(copyWas != null && Notebook.sameJson(copyNow, copyWas)) &&
@@ -985,8 +960,8 @@ class DaysTest {
     @Test
     fun `turning a repeat off keeps a day's own text in the note, inert, and the series whole in the copy`() {
         // The owner's choice, the desktop's rule: one place for a turned-off
-        // series' days, the note. Up to 0.12.0 they went into the copy alone,
-        // which the desktop's next copy of words erased.
+        // series' days, the note. In the copy alone, as an older phone kept them,
+        // the desktop's next copy of words erased them.
         val load = scratch(series)
         Days.saveDay(load, 1, "2026-10-12", "Own title", "agenda", "", "Work", "")
         Days.deleteDay(load, 1, "2026-10-19")
@@ -1062,11 +1037,9 @@ class DaysTest {
 
     @Test
     fun `a big delete's copy that carried an earlier turn-off's days still gives its words to the next turn-off`() {
-        // Turned off, the series' days stay in the note; turned on again,
-        // a day given its own text, a big delete: its copy is the words
-        // alone. The second turn-off takes those words into its copy of the
-        // series, whose days are the note's own (f1a38aa's chain, the
-        // desktop's way).
+        // Off (the days stay in the note), on, a day's own text, a big delete
+        // whose copy is the words alone: the second turn-off takes those words into
+        // its copy of the series, whose days are the note's own, as the desktop's.
         val paragraph = "A paragraph of three hundred letters, written once and deleted. ".repeat(5)
         val load = scratch(series.replace("\"body\": \"agenda\"", "\"body\": \"agenda\\n$paragraph\""))
         Days.saveDay(load, 1, "2026-10-12", "Moved to room 4", "agenda\n$paragraph", "", "Work", "")
@@ -1132,10 +1105,9 @@ class DaysTest {
 
     @Test
     fun `days a turned-off series kept come back only onto the series they were kept from`() {
-        // Turned back on from another date, an old deleted day hid the new
-        // series' own first day. The owner's answer, the desktop's
-        // kept_days_fit: only with the same start and rule; a deleted day
-        // holds nothing, and the rescue copy keeps them all.
+        // Turned back on from another date, an old deleted day hid the new series'
+        // first day. The owner's answer, the desktop's kept_days_fit: only with the
+        // same start and rule; a deleted day holds nothing, the copy keeps them all.
         val weekly = JSONObject("""{"freq": "weekly", "weekdays": [0]}""")
         assertTrue(Notebook.keptDaysFit(keptOff(), "2026-09-07", weekly))
         assertFalse(Notebook.keptDaysFit(keptOff(), "2026-09-14", weekly))
@@ -1209,9 +1181,9 @@ class DaysTest {
 
     @Test
     fun `a big rewrite after a turn-off keeps a copy of words alone, the days staying in the note`() {
-        // Turned off by hand, the days went into the copy alone (up to
-        // 0.12.0); a big rewrite then made a copy of its own over that one
-        // slot, and on the desktop the day's text was in no file.
+        // Turned off by hand on an older phone, the days went into the copy alone;
+        // a big rewrite then made a copy of its own over that one slot, and on the
+        // desktop the day's text was in no file.
         val load = scratch(series)
         val long = "The agenda for the whole team, item by item, ".repeat(6).trim()
         assertTrue(Notebook.updateNote(load, 1, "Stand-up", long) is SaveResult.Ok)
@@ -1431,11 +1403,9 @@ class DaysTest {
 
     @Test
     fun `the series counts the days keeping their own edits, and the days moved, as the desktop's banner`() {
-        // Mondays: the 19th has its own words; the 7th, a Wednesday, has some
-        // the schedule no longer reaches (the next line shows those); the
-        // 12th is held on the 14th, and the 26th on the 2nd, a Monday the
-        // series gives anyway -- one day there all the same. The desktop's
-        // own functions, run on this note, answer 1 and 2.
+        // Mondays: the 19th has its own words; the 7th, a Wednesday, some off the
+        // schedule; the 12th held on the 14th, the 26th on the 2nd, a Monday the
+        // series gives anyway. The desktop's own functions on this note answer 1 and 2.
         val note = JSONObject("""{"id": 1, "title": "Stand-up", "body": "agenda", "date": "2026-10-05",
             "recurrence": {"freq": "weekly", "weekdays": [0]},
             "overrides": {"2026-10-19": {"body": "own"}, "2026-10-07": {"body": "off"}},
@@ -1451,7 +1421,7 @@ class DaysTest {
 
     // ---- one place for a turned-off series' days: the note ----
 
-    /** A note of a weekly series turned off by the phone's 0.12.0: the days in its copy, none in the note. */
+    /** A note of a weekly series turned off by an older phone: the days in its copy, none in the note. */
     private fun shipped(days: String = """"exceptions": ["2026-11-16"], "overrides": {"2026-11-09": {"body": "Leg day - knee hurt"}}""",
                         rule: String = """{"freq": "weekly", "interval": 1}"""): String =
         """[{"id": 1, "uid": "g", "title": "Gym", "body": "Warm up.", "comments": "", "category": "General",
@@ -1462,9 +1432,9 @@ class DaysTest {
 
     @Test
     fun `a series' days 0_12_0 kept only in its copy come into the note as it is read, once, and stay`() {
-        // Her phone runs 0.12.0, whose turn-offs moved a series' days out of
-        // the note into its copy; the desktop's next copy of words erased it.
-        // The desktop's _days_back_from_copy, as the phone reads its notebook.
+        // An older phone's turn-offs moved a series' days out of the note into its
+        // copy, which the desktop's next copy of words erased. The desktop's
+        // _days_back_from_copy, as the phone reads its notebook.
         val load = scratch(shipped())
         val note = load.raw!!.getJSONObject(0)
         assertEquals("Leg day - knee hurt", dayTitleOrBody(note, "2026-11-09"))
@@ -1487,9 +1457,9 @@ class DaysTest {
         val elsewhere = scratch(shipped().replaceFirst(""""date": "2026-11-02", "recurrence": {"freq": ""}""",
                                                        """"date": "2026-11-09", "recurrence": {"freq": "weekly"}"""))
         assertEquals(0, elsewhere.raw!!.getJSONObject(0).getJSONObject("overrides").length())
-        // Into one repeating again as that same series -- 0.12.0's turn-off,
-        // then on as it was, which gave the note none of its days back (the
-        // seventh round, as the desktop's cdbb89e).
+        // Into one repeating again as that same series -- an older phone's turn-off,
+        // then on as it was, which gave the note none of its days back -- as the
+        // desktop's.
         val back = scratch(shipped().replaceFirst(""""recurrence": {"freq": ""}""", """"recurrence": {"freq": "weekly"}"""))
         assertEquals("Leg day - knee hurt", dayTitleOrBody(back.raw!!.getJSONObject(0), "2026-11-09"))
     }
@@ -1499,11 +1469,9 @@ class DaysTest {
 
     @Test
     fun `the read asks the move of the note as the desktop's load shapes it, not of the file as it lies`() {
-        // The desktop moves the days at the end of normalize_note: its deleted
-        // days real dates, its copy shaped, a day's edit its text alone. The
-        // phone asked the raw file, and odd shapes moved differently. Each
-        // answer here is the desktop's own, run on its core at a4bbf05
-        // (scratch probe_read_parity.py): days in the note, or none.
+        // The desktop moves the days at the end of normalize_note, on the note as
+        // shaped; the phone asked the raw file, and odd shapes moved differently.
+        // Each answer is the desktop's own, run on its core: days in the note, or none.
         fun read(over: String, prev: String = ""): JSONObject {
             val copy = """"title": "Gym", "body": "Warm up.", "comments": "", "formatting": [], "paragraphs": [],
                 "date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}, "exceptions": [],
@@ -1801,11 +1769,9 @@ class DaysTest {
                             Importing.Answers(update = true), null) is Importing.Result.Done)
                     }
                 }
-                // The file, when the step wrote it; when it wrote nothing -- a
-                // read, an import that changed nothing -- the note as the app
-                // holds it, which its next write stores: read from the file,
-                // a notebook 0.12.0 left showed the days its read had moved
-                // (the eighth round's backup of a series turned back on).
+                // The file, when the step wrote it; otherwise the note as the app holds
+                // it, which its next write stores: read from the file, an older phone's
+                // notebook showed the days its read had moved.
                 val wrote = load.file!!.readText() != fileWas
                 stored = if (wrote) firstOnDisk(load) else load.raw!!.getJSONObject(0)
                 assertEquals("$name, step ${s + 1} (${step.getString("do")})",

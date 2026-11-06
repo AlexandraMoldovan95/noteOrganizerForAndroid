@@ -5,28 +5,14 @@ import org.json.JSONObject
 
 /**
  * Pasting from another app with its formatting: HTML in; a note's text,
- * styles and lines out.
- *
- * This is the desktop's `html_to_note` (core/richtext.py) and the
- * `_Reader` behind it, ported line for line. The reader runs on Python's
- * `html.parser`, and what it hands the reader -- which text arrives in
- * which piece, what a broken tag turns into, how `&amp;` and its 2,231
- * relatives are read -- decides the note as much as the reader does. So
- * that parser is here too, the parts of it this reader can reach, as
- * Python 3.13.14 has them; and so is `html.unescape`, reading the same
- * table of named references, written out of Python by
- * `tools/make_html_entities.py`.
- *
- * Everything counts as Python does: lengths and offsets are code points,
- * spaces are Python's spaces (`PyText`), a digit is any script's digit
- * where Python's `int()` and `float()` accept one. `PastingTest` holds the
- * desktop's own answers for a few hundred fragments, and this file has to
- * give every one of them exactly.
- *
- * What the mapping keeps and drops is the desktop's decision, not this
- * file's: bold, italic, underline, strikethrough, a colour that is really
- * a colour, a pale highlight, lists, alignment and tables come in; sizes,
- * typefaces and everything else a page can say are left behind.
+ * styles and lines out -- the desktop's `html_to_note` and its `_Reader`,
+ * ported line for line, with the parts of Python's `html.parser` it reaches
+ * and `html.unescape` over the same named references
+ * (`tools/make_html_entities.py`), as they decide the note too. Everything
+ * counts as Python does (code points, `PyText`'s spaces, any script's
+ * digits), and `PastingTest` holds the desktop's answers for a few hundred
+ * fragments. What comes in -- styles, a real colour, a pale highlight,
+ * lists, alignment, tables; not sizes or faces -- is the desktop's choice.
  */
 object Pasting {
 
@@ -73,11 +59,9 @@ object Pasting {
             if (hi > lo) s.copy(start = lo - from, end = hi - from) else null
         }
         val firstLine = (0 until from).count { c[it] == '\n'.code }
-        // A line's looks travel with its start: a copy ending in a line break
-        // holds none of the next line's, one begun after a line's start none
-        // of that line's -- a word copied out of a nested item set the level
-        // of the item it was pasted into (the lows wave's verification,
-        // rounds 5, 6 and 10).
+        // A line's looks travel with its start: a copy ending in a break holds
+        // none of the next line's, one begun mid-line none of that line's, or a
+        // word copied out of a nested item set the level of the item pasted into.
         val lineCount = text.count { it == '\n' } + if (text.endsWith("\n")) 0 else 1
         val skipped = if (from > 0 && c[from - 1] != '\n'.code) 1 else 0
         val stored = Paragraphs.extract(body, props)
@@ -181,14 +165,11 @@ object Pasting {
 
     /**
      * [text] put in place of [from, to) of [body] (code points), as the
-     * desktop's paste writes it: the selection out; a line break before or
-     * after where table rows at its edges would otherwise join the line
-     * or the table beside them (`_rows_gap`); the text in, a styled run the
-     * cursor stood INSIDE carried over it as a Tk tag is, one it stood at
-     * the edge of not; [pastedSpans] laid over -- a highlight never over a
-     * line's end, as the desktop lays one -- and [pastedLines] given their
-     * lines (an alignment a source put on a table row is not one this
-     * person chose, and is left behind); then the lists renumbered.
+     * desktop's paste writes it: the selection out; a line break where table
+     * rows at its edges would join what is beside them (`_rows_gap`); the text
+     * in, a run the cursor stood INSIDE carried over it as a Tk tag is;
+     * [pastedSpans] laid over, a highlight never over a line's end;
+     * [pastedLines] given their lines, but not on table rows; lists renumbered.
      */
     fun insert(body: String, spans: List<FormatSpan>, props: Map<Int, Paragraphs.Props>, from: Int, to: Int,
                text: String, pastedSpans: List<FormatSpan> = emptyList(),
@@ -196,10 +177,9 @@ object Pasting {
         val c = cps(body)
         var a = from.coerceIn(0, c.size)
         var b = to.coerceIn(a, c.size)
-        // Over a selection that reaches a list, the paste takes the place
-        // typing over it would (Paragraphs.deletionRange): the next item keeps
-        // its number, and no marker is left among the words -- "zz" over items
-        // 2 and 3 gave "zz4. four".
+        // Over a selection reaching a list, the paste takes the place typing would
+        // (Paragraphs.deletionRange): the next item keeps its number, and no marker
+        // stays among the words -- "zz" over items 2 and 3 gave "zz4. four".
         if (b > a && text.isNotEmpty()) {
             val lines = body.split("\n")
             val starts = Paragraphs.lineStarts(lines)
@@ -212,14 +192,9 @@ object Pasting {
                 b = starts[e.line] + e.column
             }
         }
-        // With nothing selected, at an item's marker end -- where Enter in a
-        // list and a tap on a marker leave the cursor -- a paste bringing its
-        // own marker loses it: the item keeps its marker, its kind and its
-        // looks, as Word keeps a paragraph's list when a paste brings no
-        // paragraph mark, and as the desktop keeps the line's tags. With words
-        // after it and a line break of its own, the paste goes in before the
-        // item. Kept, a copied item pasted into a new one read "3. 1. Kiwi"
-        // (the lows wave's verification, rounds 8 and 9).
+        // At an item's marker end, nothing selected, a paste's own marker goes and
+        // the item keeps its own, as Word and the desktop keep it ("3. 1. Kiwi"
+        // otherwise); with words after it and a break of its own, it goes before.
         var put = text
         var putSpans = pastedSpans
         var putLines = pastedLines
@@ -262,10 +237,9 @@ object Pasting {
         val above = if (firstLine > 0) keptLines[firstLine - 1] else ""
         val below = keptLines.getOrElse(firstLine + 1) { "" }
         val pasted = put.split("\n")
-        // Words pasted at a table row's end or start take a line of their
-        // own: the place to write after a note's last table pastes at that
-        // row's end, and a paragraph pasted there was glued onto it -- the
-        // row read as words, the table one row short (the owner, 2026-10-26).
+        // Words pasted at a table row's end or start take a line of their own: a
+        // paragraph pasted after a note's last table was glued onto its row, the
+        // row read as words, the table one row short.
         val onRow = isRow(before + after)
         val trail = if ((isRow(pasted.last()) && (PyText.strip(after).isNotEmpty() || isRow(below))) ||
                         (onRow && before.isEmpty() && !isRow(pasted.last()))) "\n" else ""
@@ -295,11 +269,9 @@ object Pasting {
             }
         }
 
-        // The lines: those after the paste move down by the lines it brought,
-        // those the selection took away are gone, and the caret's keeps its own.
-        // Words a paste with a line break pushes down keep their line's looks,
-        // as the desktop's text carries its tags: left on the line the paste
-        // began, a line pasted before a nested item flattened it.
+        // The lines after the paste move down by those it brought, the selection's
+        // go, the caret's keeps its own; words a break pushes down keep their line's
+        // looks, as the desktop's tags do, or one pasted before a nested item flattened it.
         val added = whole.count { it == '\n'.code }
         val pushed = added > 0 && after.isNotEmpty()
         val lines = HashMap<Int, Paragraphs.Props>()
@@ -324,11 +296,9 @@ object Pasting {
             if (p.kind == null && p.indent == 0) continue
             lines[n] = (lines[n] ?: Paragraphs.Props()).copy(indent = p.indent)
         }
-        // A bullet pasted as words, with no depth of its own, takes the one
-        // its glyph says -- "◦ " one in, "▪ " two -- as the desktop's
-        // _paragraph_indent_of reads a line with no margin: pasted plain,
-        // "◦ b" sat at the margin here. Only lines the paste began: a line
-        // already in the note keeps the depth it was given.
+        // A bullet pasted as words takes the depth its glyph says -- "◦ " one in,
+        // "▪ " two -- as the desktop's _paragraph_indent_of reads it; only lines
+        // the paste began, a line already in the note keeping its own.
         val first = base + if (lead.isEmpty() && before.isNotEmpty()) 1 else 0
         for (n in first..minOf(firstLine + added, texts.size - 1)) {
             if ((lines[n]?.indent ?: 0) != 0) continue
@@ -353,12 +323,9 @@ object Pasting {
         try {
             Parser(source, reader).run()
         } catch (e: Exception) {
-            // A pasted page is arbitrary input, and a failed paste must never
-            // take the editor with it. Python fails here too, on the same
-            // inputs: a number of more than 4,300 digits is a ValueError.
-            // It also hides the app's own html_entities.json gone missing --
-            // every web paste then comes in as plain words -- which is why
-            // tools/check_release_lookups.py holds the release build to it.
+            // A failed paste of arbitrary input never takes the editor with it, as
+            // Python fails on the same inputs; html_entities.json gone missing would
+            // hide here too, which tools/check_release_lookups.py guards.
             return NOTHING
         }
         for (open in reader.open.toList()) reader.close(open.style)
@@ -516,14 +483,11 @@ object Pasting {
     private const val CHECKBOX_DONE = "[x]"
 
     /**
-     * `_BLOCK_TAG_RE.search`: "<", spaces, an optional "/", spaces, one of
-     * the block tags' names and a word's end, ignoring case. Spelled out
-     * rather than handed to a regex engine, because the
-     * phone's engine is not the computer's and neither is Python's: the
-     * three letters Python also matches -- İ and ı for i, the Kelvin sign
-     * for k, the long ſ for s -- are named here, and `\b` is Python's, a
-     * letter or digit of any script or "_" (both measured over all of
-     * Unicode against Python 3.13).
+     * `_BLOCK_TAG_RE.search`: "<", spaces, an optional "/", spaces, a block
+     * tag's name and a word's end, ignoring case -- spelled out, as the phone's
+     * regex engine is not Python's: the three letters Python also matches (İ
+     * and ı for i, the Kelvin sign for k, ſ for s) are named, and `\b` is
+     * Python's, any script's letter or digit or "_" (measured over Unicode).
      */
     private val BLOCK_NAMES = (BLOCK_TAGS + setOf("li", "ul", "ol", "table")).sorted()
 
@@ -813,13 +777,9 @@ object Pasting {
     private class Entities(val named: Map<String, String>, val charrefs: Map<Int, String>, val invalid: Set<Int>)
 
     private val entities: Entities by lazy {
-        // From the root, by the file's own path: a name relative to this
-        // class is looked up in the class's package, and the release build
-        // renames the class into another (R8 made it "ca1", no package).
-        // The file was then not found, the parser's guard turned that into
-        // "nothing read", and a paste from a web page with an &, a < or an
-        // &nbsp; in it -- most of them -- came in as plain words, its
-        // formatting silently gone.
+        // From the root, by the file's own path: relative to this class, R8's
+        // renamed package lost it, and every web paste with an & or &nbsp; came in
+        // as plain words (ISSUES_LOG, "A file looked up by a name the release").
         val stream = Pasting::class.java.getResourceAsStream("/ro/noteorganizer/app/html_entities.json")
             ?: error("html_entities.json is missing from the app")
         val json = JSONObject(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
@@ -1409,10 +1369,8 @@ object Pasting {
     }
 
     // ---- tables, as `tables.align` lines them up ----
-    //
-    // Which lines are rows, their cells, alignments and widths are the
-    // editor's own rules (Notebook.kt, Tables.kt), asked of each line as
-    // text; only where the spaces go is worked out here, in code points.
+    // Rows, cells, alignments and widths are the editor's own rules (Tables.kt);
+    // only where the spaces go is worked out here, in code points.
 
     private const val PIPE = '|'.code
 
@@ -1499,10 +1457,9 @@ object Pasting {
             // No separator here sets a width: [forgetWidths], which every
             // paste passes first, has spelled each at markdown's minimum.
             val widths = layoutWidths(cells.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
-            // Weighed before it is built: past MAX_TABLE_PADDING the table is
-            // left ragged, each cell padded only as its alignment needs. Padded
-            // after the paste ceiling, one 60,000-character cell over 2,000 rows
-            // became 120 million characters, and the app ran out of memory.
+            // Weighed before it is built: past MAX_TABLE_PADDING the table is left
+            // ragged, each cell padded only as its alignment needs (120 million
+            // characters from one long cell over 2,000 rows ran out of memory).
             val perRow = rowWidths(rows, widths) { r, i -> paddingNeed(aligns[r].getOrNull(i) ?: CellAlign.LEFT) }
             // The lines before this block, as they came, summed once and kept
             // running: summed afresh per block, many small tables walked the
@@ -1511,10 +1468,9 @@ object Pasting {
             var pos = prefix
             for (offset in 0..last - first) {
                 val old = lines[first + offset]
-                // The edits come right to left, each at its place in the line
-                // as it was: the line is put together once from its pieces.
-                // Rebuilt at every edit, a row of thousands of cells was
-                // copied thousands of times.
+                // The edits come right to left, each at its place in the line as it
+                // was, and the line is put together once from its pieces: rebuilt at
+                // every edit, a row of thousands of cells was copied thousands of times.
                 val pieces = ArrayList<IntArray>()
                 var end = old.size
                 for ((at, delta) in padOps(old, perRow[offset], aligns[offset])) {
@@ -1543,10 +1499,9 @@ object Pasting {
 
     /**
      * `tables.forget_widths`: every table's separator spelled at markdown's
-     * minimum, for text from outside the app. Its dashes are as many as its
-     * writer typed -- "---:" is how markdown spells a right-aligned column --
-     * and read as this app's own record they were a width set by hand: the
-     * column drawn four characters wide, its header cut to "How…". The
+     * minimum, for text from outside the app, whose dashes are as many as
+     * its writer typed ("---:" is a right-aligned column): read as this app's
+     * record, they were a width set by hand, a header cut to "How…". The
      * colons and a hidden mark stay. Offsets in code points, counted in the
      * text as it came, for [shiftSpans].
      */

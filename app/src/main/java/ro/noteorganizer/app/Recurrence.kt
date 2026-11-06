@@ -9,20 +9,14 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
- * Repeating notes: the rules, and working out which dates they land on.
- * A port of the desktop's `core/recurrence.py`, whose `test_recurrence.py`
- * is this file's acceptance suite (`RecurrenceTest`).
- *
- * **A repeating note is stored exactly once.** Its days are worked out on
- * demand for whatever range is being shown, and never written to the
- * file: a note repeating daily since 1990 is still one entry. Four fields
- * describe it all -- `date` (the series' first day), `recurrence` (the
- * rule), `exceptions` (days deleted one by one), `overrides` (days edited
- * on their own) -- and since the desktop's 0.92.374 a fifth, `moved` (a day
- * held on another date).
- *
- * Dates are `java.time.LocalDate`, there from Android 8, this app's
- * minimum; the file keeps one form, YYYY-MM-DD, whatever was typed.
+ * Repeating notes: the rules, and which dates they land on -- a port of the
+ * desktop's `core/recurrence.py`, whose `test_recurrence.py` is this file's
+ * acceptance suite (`RecurrenceTest`). **A repeating note is stored
+ * exactly once:** its days are worked out for the range shown, never
+ * written. Five fields describe it: `date` (the first day), `recurrence`
+ * (the rule), `exceptions` (days deleted), `overrides` (days edited on
+ * their own) and `moved` (a day held on another date). Dates are
+ * `java.time.LocalDate`; the file keeps one form, YYYY-MM-DD.
  */
 object Recurrence {
 
@@ -74,10 +68,8 @@ object Recurrence {
         String.format(Locale.US, "%04d-%02d-%02d", d.year, d.monthValue, d.dayOfMonth)
 
     // ---- dates as people write them, and as the app shows them ----
-    //
-    // In figures the day comes first, as the field's form asks, and the
-    // month first only where the day first cannot be: 10/17/2026 is October
-    // 17th, the American way, while 10/12/2026 is the tenth of December.
+    // In figures the day comes first, and the month first only where the day
+    // cannot be: 10/17/2026 is October 17th, 10/12/2026 the tenth of December.
 
     /**
      * The month names a typed date may use, in English and in Romanian, as
@@ -108,10 +100,9 @@ object Recurrence {
     // of figures, or a word. Figures are 0-9 only: digits of another script
     // are not a date. Letters are any script's, as Python's [^\W\d_].
     private val DATE_PART = Regex("[0-9]{1,2}(?:st|nd|rd|th)|[0-9]+|\\p{L}+", RegexOption.IGNORE_CASE)
-    // What a typed date may be made of, taken away run by run: anything left
-    // over means it is not a date. One pass, never a backtracking search.
-    // The spaces are Python's `\s`, written out: Android's regex engine and
-    // the computer's do not agree on the name of that class.
+    // What a typed date may be made of, taken away run by run in one pass:
+    // anything left over is no date. The spaces are Python's `\s`, written
+    // out, as Android's regex engine and the computer's name that class apart.
     private const val SPACES = "\\t\\n\\u000B\\f\\r\\u001C-\\u001F \\u0085\\u00A0\\u1680" +
         "\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000"
     private val DATE_RUNS = Regex("[0-9]+|\\p{L}+|[$SPACES./,\\-]+")
@@ -140,18 +131,12 @@ object Recurrence {
     }
 
     /**
-     * A date as a person writes it -> that day, or null.
-     *
-     * Read: 17.10.2026, 17/10/2026, 17-10-2026 (the day first; the month
-     * first only where the day first cannot be); 2026-10-17; and the month
-     * as a word before or after the day -- 17 oct 2026, 17 octombrie 2026,
-     * October 17, 2026. A day name, an ordinal ending, "the" and "of" are
-     * read and set aside.
-     *
-     * [settled]: the person has finished with the field. Only then is a
-     * short year read as this century's and a missing one as this year's:
-     * read while typing, "17.10.20" on its way to 2026 would be saved as
-     * 2020. [today] is for tests.
+     * A date as a person writes it -> that day, or null: 17.10.2026,
+     * 17/10/2026, 17-10-2026, 2026-10-17, and the month as a word before or
+     * after the day (17 oct 2026, October 17, 2026); a day name, an ordinal,
+     * "the" and "of" set aside. Only once [settled] -- the field finished --
+     * is a short or missing year filled in: while typing, "17.10.20" on its
+     * way to 2026 would be saved as 2020. [today] is for tests.
      */
     fun readDate(value: Any?, settled: Boolean = false, today: LocalDate? = null): LocalDate? =
         readDate(value, settled, today, MONTH_NAMES)
@@ -282,16 +267,10 @@ object Recurrence {
     }
 
     /**
-     * Python's `int(text)`, base 10: Python's spaces either side, a sign,
-     * then digits -- any script's -- with single underscores between them,
-     * as Python 3.6 reads "1_000"; past 4,300 digits Python refuses (its
-     * default int_max_str_digits). Null where Python raises; a number past
-     * an Int is held at its edge, as the clamp after it would hold it.
-     * `toIntOrNull` refused "1_0", which the desktop stores as 10, and so a
-     * hand-made code repeated on other days on the two apps (the final
-     * audit's eighth round). Its spaces are not `str.strip()`'s: `int()`
-     * turns a space past ASCII into " ", then skips ASCII's own six at the
-     * ends, so the separators U+001C to U+001F, which `str.isspace()`
+     * Python's `int(text)`, base 10: its spaces either side, a sign, digits
+     * of any script with single underscores between ("1_000"), at most 4,300
+     * digits; null where Python raises, past an Int held at its edge. Its
+     * spaces are ASCII's six, so the separators U+001C to U+001F, which `str.isspace()`
      * counts, are refused -- read as spaces, "\u001c7" repeated weekly on
      * the phone and daily on the desktop (the final audit's ninth round).
      */
@@ -466,11 +445,9 @@ object Recurrence {
     /**
      * Every date this note lands on between [start] and [end], inclusive, as
      * YYYY-MM-DD, in order: deleted days left out, a moved day drawn on its
-     * new date. [limit] stops after that many -- the first ones.
-     *
-     * The one place a series' days are worked out: the calendar, the
-     * History, the sort by next day and the days off the schedule all ask
-     * it, so a moved day is moved everywhere.
+     * new date; [limit] the first that many. The one place a series' days are
+     * worked out -- calendar, History, the sort, the days off the schedule --
+     * so a moved day is moved everywhere.
      */
     fun expand(note: JSONObject, start: LocalDate, end: LocalDate, limit: Int? = null): List<String> {
         val moved = moves(note)
@@ -513,10 +490,9 @@ object Recurrence {
             note.put("moved", moved)
         }
         val orig = movedFrom(note, day) ?: day
-        // Another move onto [to], which the caller found free, is a dead one
-        // -- its own date no longer the rule's -- and goes: two moves onto one
-        // date were read as the dead one (the desktop's move_day, the
-        // seventeenth round).
+        // Another move onto [to], which the caller found free, is a dead one --
+        // its own date no longer the rule's -- and goes, as the desktop's move_day
+        // drops it: two moves onto one date were read as the dead one.
         for (dead in moved.keys().asSequence().toList()) {
             if (dead != orig && moved.opt(dead) == to) moved.remove(dead)
         }
@@ -549,10 +525,9 @@ object Recurrence {
         fun gone(text: String) = text in parts.exceptions || text in skip
         val freq = rule.getString("freq")
         if (freq.isEmpty()) {
-            // The note's deleted days belong to the series it was, kept for
-            // a repeat brought back: asked here, a series whose first day had
-            // been deleted fell off the calendar, and out of the day's
-            // reminder, once its repeat was turned off (the desktop's b26394c).
+            // The deleted days belong to the series it was, kept for a repeat
+            // brought back: asked here, a series whose first day was deleted fell
+            // off the calendar and the reminder once its repeat was turned off.
             val oneOff = formatDate(anchor)
             return if (anchor in start..end && oneOff !in skip) listOf(oneOff) else emptyList()
         }
@@ -692,12 +667,11 @@ object Recurrence {
 
     /**
      * The note as it appears on one day: the series with that day's own
-     * edit on top -- a copy; the stored note is never changed. A note that
-     * no longer repeats is itself on its day: the days a share code or
-     * "↩ Restore previous" left in it are kept for a repeat brought back,
-     * and read here they stood in for it -- the calendar's row of its date
-     * showed the first day's old title and words, with a ✎. The desktop's
-     * `effective_note` (b26394c). What a day HOLDS is [dayAsKept].
+     * edit on top -- a copy; the stored note is never changed. A note that no
+     * longer repeats is itself on its day: the days a share code or "↩
+     * Restore previous" left in it are kept for a repeat brought back, and
+     * read here they stood in for it. The desktop's `effective_note`; what a
+     * day HOLDS is [dayAsKept].
      */
     fun effectiveNote(note: JSONObject, day: String): JSONObject =
         if (!isRecurring(note)) note else dayAsKept(note, day)
@@ -771,10 +745,8 @@ object Recurrence {
      * What the series view says of its days, counted as the desktop's
      * `_update_occurrence_banner` counts them: the days keeping their own
      * edits, less those the schedule no longer reaches (the next line shows
-     * those), and the days held on another date the calendar still draws
-     * them on. An edit to the series not reaching three days looked like an
-     * edit that failed -- the desktop's field report, and the phone's until
-     * it said so.
+     * those), and the days held on another date the calendar still draws.
+     * Unsaid, an edit to the series not reaching three days looked failed.
      */
     fun seriesCounts(note: JSONObject): Pair<Int, Int> {
         if (!isRecurring(note)) return 0 to 0
@@ -908,10 +880,9 @@ object Recurrence {
                 val off = offScheduleDays(note).toSet()
                 // Every day of this series asked of one reading of its moves.
                 val schedule = Schedule(note)
-                // The dates moved days are drawn on. One past the end or before
-                // the start is outside the span the rule's days were asked of:
-                // listed too, or it was in no row and no search found its words
-                // (the desktop's history_entries, the eighteenth round).
+                // The dates moved days are drawn on, those outside the rule's span
+                // too, or a day past the end was in no row and no search found its
+                // words (as the desktop's history_entries lists them).
                 val drawnOn = moves(note).mapNotNull { (_, new) ->
                     (new as? String)?.takeIf { isDate(it) && schedule.on(parseDate(it)!!) == listOf(it) }
                 }.toSet()

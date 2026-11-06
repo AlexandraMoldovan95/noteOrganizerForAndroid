@@ -2,35 +2,23 @@ package ro.noteorganizer.app
 
 /**
  * A note's body as the editor shows it: prose the person types into, and
- * tables drawn as grids between it.
- *
- * The desktop draws a table inside its text box. A phone's text field
- * cannot hold a grid, so the editor cuts the body into SEGMENTS by line:
- * each run of prose becomes its own field, each table a grid. Typing in
- * one field rewrites only that field's lines, and the body is put back
- * together around it -- so the file still holds one body, exactly as the
- * desktop stores it, and the formatting is moved by [remapSpans], the rule
- * every other edit uses.
- *
- * A body that ends with a table gets an empty prose segment after it, so
- * there is somewhere to keep writing; it adds a line only once something
- * is typed into it.
+ * tables drawn as grids between it. A phone's text field cannot hold a
+ * grid, as the desktop's text box does, so the body is cut into SEGMENTS
+ * by line: each run of prose a field, each table a grid. Typing in one
+ * rewrites only its lines, the body put back together around it -- one
+ * body in the file, as the desktop stores it, styles moved by [remapSpans].
+ * A body ending in a table gets an empty prose segment after it, to keep
+ * writing in; it adds a line only once something is typed.
  */
 object Editing {
 
     /**
-     * One piece of the body. Lines are the body's own line numbers,
-     * [lastLine] inclusive; a segment past the end of the body has
-     * `lastLine == firstLine - 1` and holds nothing yet. [cpStart] is
-     * where it begins, counted in code points as the file counts. A table
-     * of more than [MAX_DRAWN_CELLS] cells is not [drawn] as a grid. A
-     * [long] segment is lines holding a run longer than [MAX_UNBROKEN]
-     * that the layout cannot break, or runs past what the body may give the
-     * layout in all ([MAX_LAYOUT_COST]) -- a table's cells counted too, and
-     * such a table is not [drawn] -- shown read-only; only a [field] is
-     * typed in. A [heavy] one is [long] for another reason: past what one
-     * body draws ([MAX_DRAWN_LINES], [MAX_SEGMENTS]), or one line heavier
-     * to draw than a field may be ([MAX_FIELD_WEIGHT]).
+     * One piece of the body, by the body's own line numbers, [lastLine]
+     * inclusive (past the end: `lastLine == firstLine - 1`); [cpStart] in code
+     * points. Not [drawn]: a table past [MAX_DRAWN_CELLS] or the layout's
+     * budget. [long]: shown read-only, a run past [MAX_UNBROKEN] or the budget
+     * ([MAX_LAYOUT_COST]); only a [field] is typed in. [heavy]: long for
+     * another reason ([MAX_DRAWN_LINES], [MAX_SEGMENTS], [MAX_FIELD_WEIGHT]).
      */
     data class Segment(
         val table: Boolean,
@@ -49,46 +37,31 @@ object Editing {
     }
 
     /**
-     * The longest run of letters with no space in it that a text field is
-     * given to lay out. Such a run is broken where it meets the edge, letter
-     * by letter, and the cost grows with its square: on the emulator 20,000
-     * letters opened in 0.2 s and 150,000 held the screen 12.6 s, against
-     * 0.17 s for 150,000 with spaces (measured 2026-10-28). A share code of a
-     * few hundred characters can bring one, in a body, a title, comments or
-     * a checklist row, and the note froze at every opening; the code dialog
-     * froze the same way on a code of 120,000.
-     *
-     * A run is what lies between two places where the layout can break a
-     * line ([forEachRun]) -- not between two of what Kotlin calls
-     * whitespace, which counts the no-break spaces the layout never breaks
-     * at: 150,000 letters joined by them measured as runs of four.
+     * The longest run with no break in it a text field is given to lay out:
+     * broken letter by letter at the edge, its cost grows with its square --
+     * 150,000 letters held the screen 12.6 s, against 0.17 s with spaces, and
+     * a share code can bring one. A run lies between places the layout can
+     * break ([forEachRun]), not between Kotlin's whitespace, which counts the
+     * no-break spaces the layout never breaks at.
      */
     const val MAX_UNBROKEN = 10_000
 
     /**
-     * The most letter-by-letter work all the text of one body, one title or
-     * one comments field may give the layout, as the sum of each run's
-     * square: twice one run of [MAX_UNBROKEN], about 0.1 s on the emulator
-     * by the figures above. A run is broken letter by letter wherever it
-     * lies, so the work adds up across the lines: a hundred lines of 9,999
-     * letters passed the line's own test one by one, and come by the same
-     * figures to some 5.6 s in one field. Ordinary words add little -- a
-     * page of prose a few thousandths of this, 300,000 characters of it
-     * about a hundredth.
+     * The most letter-by-letter work one body, title or comments field may
+     * give the layout, as the sum of each run's square: twice one run of
+     * [MAX_UNBROKEN], about 0.1 s. The work adds up across lines -- a hundred
+     * lines of 9,999 letters each passed alone, some 5.6 s together -- while
+     * ordinary words add little: 300,000 characters of prose, a hundredth.
      */
     const val MAX_LAYOUT_COST = 2L * MAX_UNBROKEN * MAX_UNBROKEN
 
     /**
-     * Every run of [text] the layout cannot break, by its length in UTF-16
-     * units. A run ends at a line break, and where a line can certainly be
-     * broken: after the spaces between two words, and between two
-     * ideographs. Everywhere else it goes on -- through a no-break space
-     * (U+00A0, U+2007, U+202F), a word joiner, a control character, a space
-     * after an opening bracket or a quotation mark (Unicode's line-breaking
-     * rules, UAX #14, keep "( (" together) -- so a run may be longer than
-     * what the layout finds, never shorter: wrong, it shows a line
-     * read-only that a field could have held, and never hands a field a line
-     * it cannot break.
+     * Every run of [text] the layout cannot break, in UTF-16 units: ended at
+     * a line break, after the spaces between two words, and between two
+     * ideographs, and going on through no-break spaces, joiners, controls and
+     * a space after a bracket or quote (UAX #14). Longer than the layout's,
+     * never shorter: wrong, it shows read-only what a field could have held,
+     * and never hands a field a line it cannot break.
      */
     internal inline fun forEachRun(text: CharSequence, each: (Int) -> Unit) {
         var run = 0
@@ -113,13 +86,11 @@ object Editing {
     }
 
     /**
-     * Whether a line can certainly be broken between [before] and [c], with
-     * [lastSeen] the last character ahead of any spaces. After a space a
-     * break is allowed (UAX #14's LB18) unless the spaces follow an opening
-     * bracket, a quotation mark, a closing bracket or a dash (LB14 to LB17),
-     * or what comes next may not start a line (LB7 to LB13): so only
-     * between a letter, a digit or ,.;:!? and a letter or digit. Two
-     * ideographs may always be broken between (LB31).
+     * Whether a line can certainly be broken between [before] and [c],
+     * [lastSeen] the last character ahead of any spaces: after a space
+     * (LB18) only between a letter, a digit or ,.;:!? and a letter or digit,
+     * as brackets, quotes and dashes keep their spaces (LB14-17) and some
+     * characters may not start a line (LB7-13); between two ideographs always (LB31).
      */
     internal fun breaksBefore(before: Char, c: Char, lastSeen: Char): Boolean =
         if (before == ' ') c.isLetterOrDigit() && (lastSeen.isLetterOrDigit() || lastSeen in ENDS_A_WORD)
@@ -182,14 +153,11 @@ object Editing {
     }
 
     /**
-     * What drawing one field costs, beside laying it out: Compose draws a
-     * field in a scrolling column whole, and each of its lines is drawn by a
-     * call that copies the field's ENTIRE text again (simpleperf, 2026-10-27:
-     * a field of 362,000 letters took nine seconds) -- so the work is its
-     * length times its lines. The most one field may take, as that product:
-     * a line of 150,000 letters with spaces, which opened in 0.17 s on the
-     * emulator (measured 2026-10-28). A note of 200,000 empty lines, from a
-     * share code of 666 characters, came to 4e10 -- some fifty times this.
+     * What drawing one field costs beside laying it out: Compose draws it
+     * whole, each line by a call copying the ENTIRE text again (a field of
+     * 362,000 letters took nine seconds), so the work is length times lines.
+     * The most a field may take: a line of 150,000 letters with spaces, 0.17 s;
+     * 200,000 empty lines from a 666-character code came to fifty times this.
      */
     const val MAX_FIELD_WEIGHT = 150_000L * ((150_000 + WRAP - 1) / WRAP)
 
@@ -208,48 +176,23 @@ object Editing {
     const val FIELD_LINES = 1_000
 
     /**
-     * The most lines all of a body's fields draw together ([drawnLines]), and
-     * the most pieces it is drawn as: the editor draws every piece at once,
-     * in one scrolling column. Past either, the rest of the body is one
-     * piece shown read-only, its start and how many lines it holds -- the
-     * note keeps every byte, Find finds it, and it can be read on. A note of
-     * 7,000 lines of prose, 308,000 characters, draws 14,000 lines.
-     *
-     * The pieces were 100, and ordinary notes reached them: fifty weekly
-     * tables under their headings, 2,331 characters, made the fiftieth and
-     * all after it read-only, with nowhere to write at the end (the final
-     * audit's fifth round). They are a ceiling for hostile notes only -- the
-     * 3,000 tables of two cells a share code of a few hundred characters
-     * brings -- set from what the emulator measured them to cost: at 500,
-     * those tables open in 2.6 s, at 2,000 in 6.2; fifty weekly tables in
-     * 0.65. The lines were 20,000, and a journal of 10,050 lines, 442,000
-     * characters, had its end read-only: one of 40,000 drawn lines opens
-     * in 1.1 s, against 0.8 at 20,000 (measured 2026-10-29).
+     * The most lines a body's fields draw together ([drawnLines]), and the
+     * most pieces, all drawn at once: past either, the rest is one read-only
+     * piece, every byte kept and found by Find. A ceiling for hostile notes
+     * only (ISSUES_LOG, "A ceiling for hostile notes that ordinary ones"):
+     * measured, 500 pieces open in 2.6 s, 40,000 lines in 1.1 s, where at 100
+     * and 20,000 fifty weekly tables and a long journal ended read-only.
      */
     const val MAX_DRAWN_LINES = 40_000
     const val MAX_SEGMENTS = 500
 
     /**
-     * The most cells a table may have to be drawn as a grid. Every cell is
-     * a piece of the screen of its own, laid out and measured when the note
-     * opens, all of them at once: a table of 300 by 300, 90,000 cells, came
-     * in a share code of 2.9 KB, and the note it was in would not open.
-     * Past this a table is shown as a few of its lines, read-only, and
-     * nothing in the note changes. Written into the text around it, as
-     * first done, it opened in nine seconds on the emulator: a field of
-     * 362,000 letters is laid out whole and drawn whole, each of its
-     * thousands of lines copying all of its text again (measured,
-     * 2026-10-27). And a grid costs one to two milliseconds a cell on the
-     * emulator, measured from the tap to the last frame drawn: 100 cells
-     * 0.4 s, 400 cells 1.0 s, 1,000 cells 2.0 s, 2,000 cells 2.7 s. 1,000 --
-     * fifty rows of twenty columns, past any table written by hand -- keeps
-     * the slowest grid near two seconds on that slow machine; the walk's
-     * big_table times one at the line.
-     *
-     * It is what a whole body draws, all its tables together: asked of each
-     * table alone, ten tables of 1,000 cells, from a share code of 350
-     * characters, were drawn as 10,000. A table past what is left is shown
-     * as one too large is.
+     * The most cells a whole body draws as grids, its tables together: each
+     * cell is laid out when the note opens, and 90,000 from a 2.9 KB code kept
+     * it shut. Past it a table shows a few lines, read-only, nothing changed.
+     * A cell costs one to two milliseconds on the emulator; 1,000 -- fifty
+     * rows of twenty, past any table written by hand -- keeps the slowest grid
+     * near two seconds (the walk's big_table times one at the line).
      */
     const val MAX_DRAWN_CELLS = 1_000
 
@@ -265,8 +208,7 @@ object Editing {
     /**
      * A row's length as the desktop weighs it: in code points. Counted in
      * UTF-16 units, 1,200 emoji typed kept 1,000, and a desktop row of 1,500
-     * emoji, an ordinary row there, was read-only on the phone (the final
-     * audit's sixth round).
+     * emoji, ordinary there, was read-only on the phone.
      */
     fun rowChars(text: String): Int = text.codePointCount(0, text.length)
 
@@ -279,42 +221,21 @@ object Editing {
     data class Fit(val text: String, val caret: Int?, val said: String?)
 
     /**
-     * The desktop's `_limit_entry`, for every box the app keeps to a length
-     * -- a row's field and a box for a new row, a note's title, a template's
-     * name and title: an edit within [limit] -- or one leaving the words
-     * shorter than they were -- stands. Past it, the words already there
-     * stay whole and only what came in is cut, to the room left, never
-     * through an emoji: "Pasted text shortened: ...", or [shortened] where
-     * the desktop's box says it its own way. With no room, nothing comes in:
-     * "[what] can be up to". Weighed in letters, as Python weighs them
-     * ([rowChars]). `take` over the whole value kept the first 2,000 of the
-     * edit's result, so a letter or a paste anywhere but at the end cut the
-     * row's own last words -- out of sight in a field of one line, with no
-     * Undo and nothing said (the final audit's sixth round); a title and a
-     * template's name and title kept `take(200)` a round longer, in UTF-16
-     * units, so a title of 150 emoji the desktop holds lost 50 of them at the
-     * first letter typed, and a letter typed at the cap split one in two
-     * (the seventh).
-     *
-     * What came in is read up to the [cursor] the field leaves after it
-     * ([changeAt]), as the desktop inserts what fits at its insert mark: read
-     * off the two texts alone, " fresh" pasted after "Buy" in "Buy milk" was
-     * "fresh " a letter on, and at the cap its first letters were glued to
-     * the next word, "Buy fremilk" (the final audit's tenth round). And the
-     * cut is said only when words were left out, as the desktop's title
-     * says it since its 737efe7: a paste's own trailing space, all the cap
-     * took, was said to be shortened.
+     * The desktop's `_limit_entry`, for every box kept to a length: an edit
+     * within [limit], or leaving the words shorter, stands; past it, the words
+     * there stay whole and only what came in is cut, never through an emoji,
+     * and said ("Pasted text shortened", or [shortened]) only when words were
+     * left out. What came in is read up to the [cursor] ([changeAt]), as the
+     * desktop inserts at its mark -- not `take` over the whole value.
      */
     fun fitRow(was: String, now: String, limit: Int = CHECKLIST_ROW_CHARS,
                what: String = "A checklist item", shortened: String? = null, cursor: Int? = null): Fit {
         val change = changeAt(was, now, cursor)
         val before = was.substring(0, change.head)
         val after = was.substring(was.length - change.tail)
-        // Each line break one letter, as the desktop's _cap_paste puts a paste
-        // in before any box weighs it: Windows' clipboard keeps CR LF, and a
-        // paste that fitted was weighed at two letters a line, cut, said
-        // shortened, and kept its CR (the final audit's eighth round). Only
-        // what came in: what the box held stays as it was.
+        // Each line break one letter in what came in, as the desktop's _cap_paste
+        // puts a paste: Windows' clipboard keeps CR LF, and a paste that fitted
+        // was weighed at two a line, cut and said shortened.
         val came = lineBreaks(change.came)
         val whole = if (came == change.came) now else before + came + after
         val length = rowChars(whole)
@@ -370,14 +291,11 @@ object Editing {
 
     /**
      * The edit [typed], a prose field's words, made to its [segment] of the
-     * body, in the body's code points: what came in read up to the [cursor]
-     * the field leaves ([changeAt]), as the desktop's Tk marks see a key or a
-     * paste go in at the insert mark. Read off the two texts alone, Enter
-     * typed at the calculator's place, a line below it, was the line break
-     * after the old one, and the place stayed before the new line: the next
-     * answer went above the words typed under the last (the final audit's
-     * tenth round). Null when nothing changed, or for the field under a
-     * table that closes the note, a line the body does not hold yet.
+     * body, in code points: what came in read up to the [cursor] the field
+     * leaves ([changeAt]), as the desktop's Tk marks see a key go in at the
+     * insert mark -- off the two texts, Enter at the calculator's place read
+     * as the break before it. Null when nothing changed, or for the field
+     * under a closing table, a line the body does not hold yet.
      */
     fun proseEdit(segment: Segment, typed: String, cursor: Int?): Paragraphs.Edit? {
         val was = segment.text
@@ -393,13 +311,11 @@ object Editing {
 
     /**
      * [now] typed over [was] in a box with no cap -- the note's text, its
-     * comments, a table's cell, a template's -- with what came in holding a
-     * CR given as the one line break the desktop's paste puts in
-     * ([lineBreaks]), as the capped boxes take it ([fitRow]): the words and
-     * the cursor after what came in, or null when no CR came in. A plain
-     * paste in CR LF kept every CR in the file -- the field's own paste, a
-     * keyboard's clipboard chip -- where the desktop's stores none (the
-     * final audit's ninth round). A CR the words already held stays.
+     * comments, a cell, a template's -- a CR in what came in given as the one
+     * line break the desktop's paste puts in ([lineBreaks]): the words and the
+     * cursor after what came in, or null when no CR came in. A paste in CR LF
+     * kept every CR in the file, where the desktop stores none; a CR the
+     * words already held stays.
      */
     fun breaksCame(was: String, now: String, cursor: Int? = null): Pair<String, Int>? {
         if ('\r' !in now) return null
@@ -411,12 +327,10 @@ object Editing {
 
     /**
      * Whether the edit from [was] to [now], in a title, was Enter: what came
-     * in is one line break and nothing else. Asked of the whole value -- one
-     * letter longer, one break in all -- every letter typed into a title that
-     * already held a break was taken for Enter: dropped, the cursor sent to
-     * the note's words, the next letters written there (the final audit's
-     * eighth round). A share code, a desktop template, and the phone before
-     * 0.11 can each leave a break in a title.
+     * in is one line break and nothing else. Asked of the whole value, every
+     * letter typed into a title already holding a break -- a share code, a
+     * desktop template or an older phone can leave one -- was taken for
+     * Enter, dropped and the cursor sent to the note's words.
      */
     fun isEnter(was: String, now: String): Boolean = changeOf(was, now).came == "\n"
 
@@ -425,17 +339,12 @@ object Editing {
         if ('\n' !in text && '\r' !in text) text else text.replace('\r', ' ').replace('\n', ' ')
 
     /**
-     * A note's title after [now] replaced [was]: one line, as the desktop's
-     * title is. What came in goes in as the desktop's `_on_title_paste` puts
-     * a paste, weighed as it goes in, on one line ([titleLine]), so a line
-     * copied with its break, or two lines in CR LF, are not read as
-     * shortened. A break the title already held is a space once the title is
-     * written in. The text, and where the cursor goes when what came in
-     * changed; null leaves the field's own. What came in ends at the
-     * [cursor] the field gives after it, when it does: read off the two
-     * texts alone, " fresh\n" pasted into "Buy| milk" came in as
-     * "fresh\n " -- the title's own space taken into the paste's break, and
-     * "Buy freshmilk" went in where the desktop puts "Buy fresh milk".
+     * A note's title after [now] replaced [was]: one line, as the desktop's.
+     * What came in goes in as `_on_title_paste` puts a paste, on one line
+     * ([titleLine]), ending at the [cursor] the field gives (off the texts
+     * alone, a paste with a break took the title's own space: "Buy
+     * freshmilk"); a break the title held is a space once written in. The
+     * text, and the cursor when what came in changed; null leaves the field's.
      */
     fun titleTyped(was: String, now: String, cursor: Int? = null): Pair<String, Int?> {
         val change = changeAt(was, now, cursor)
@@ -449,13 +358,9 @@ object Editing {
      * The desktop's `_TITLE_PASTE_BREAK` join, since its 51f0c44: a line
      * break or a tab -- \t \n \v \f \r, U+001C to U+001E, U+0085, U+2028,
      * U+2029 -- with the spaces around it, is one space between words and
-     * nothing at either end; every other space goes in as it was copied. Its
-     * `\s*[break]\s*` takes a whole run of Python's spaces holding a break,
-     * so the run is read here once, letter by letter -- in time that grows
-     * with the paste, where a regex would try each space of a long run again.
-     * Joined by `str.split()` before, " and more" copied with its break went
-     * in glued, "Groceriesand more", and a tab stayed in the title (the
-     * final audit's ninth round).
+     * nothing at either end; other spaces go in as copied. A run of Python's
+     * spaces holding a break is read once, letter by letter, where a regex
+     * would try each space of a long run again.
      */
     fun titleLine(text: String): String {
         if (text.none { it.code < 0x20 || it == '\u0085' || it == '\u2028' || it == '\u2029' }) return text
@@ -506,15 +411,11 @@ object Editing {
     }
 
     /**
-     * [fitRow] for boxes kept to [limit] -- one editor's rows and its box
-     * for a new row, or one title -- what it says said once while edits go on
-     * meeting the cap, as the desktop says it at every refused key: a
-     * keyboard's letters at the cap are many, and the phone queues a bar for
-     * each. Said again at the next cut that does not go on from the words the
-     * last one left in the same [fit]'s `box`: in another row, or in the box
-     * emptied by Add. Said once an editor, a second long paste after Add, or
-     * into another row, was cut without a word (the final audit's seventh
-     * round).
+     * [fitRow] for boxes kept to [limit] -- one editor's rows and its box for
+     * a new row, or one title -- said once while edits go on meeting the cap,
+     * as the phone would queue a bar for each letter the desktop refuses; said
+     * again at a cut that does not go on from what the last left in the same
+     * [fit]'s `box` (another row, the box emptied by Add).
      */
     class BoxCap(private val say: (String) -> Unit, private val limit: Int = CHECKLIST_ROW_CHARS,
                  private val what: String = "A checklist item", private val shortened: String? = null) {
@@ -538,22 +439,17 @@ object Editing {
 
     /**
      * The most letters a checklist's rows draw as fields together, from the
-     * top; past it a row is shown short, read-only, kept whole. Each row was
-     * weighed alone, and every row is drawn at once in the note's scrolling
-     * column: 120 rows of 150,000 letters, from a share code of 38 KB, were
-     * 18 million letters laid out at each opening (the final audit's fifth
-     * round). A thousand rows of a hundred letters -- a long list written by
-     * hand -- are drawn whole.
+     * top; past it a row is shown short, read-only, kept whole. Weighed alone,
+     * 120 rows of 150,000 letters from a 38 KB code were 18 million letters
+     * laid out at each opening; a thousand rows of a hundred are drawn whole.
      */
     const val CHECKLIST_CHARS = 100_000
 
     /**
      * How many of a checklist's first rows are drawn, and how many more each
-     * "Show" draws: every row is a piece of the screen of its own, drawn at
-     * once in the note's column, and 1,000 short rows held the screen 5.3 s
-     * as the note opened on the emulator, whatever their letters (measured,
-     * the final audit's fifth round). The last [CHECKLIST_TAIL_ROWS] are
-     * drawn too, where a new item lands.
+     * "Show" draws: every row is a piece of the screen drawn at once, and
+     * 1,000 short rows held the screen 5.3 s as the note opened. The last
+     * [CHECKLIST_TAIL_ROWS] are drawn too, where a new item lands.
      */
     const val CHECKLIST_ROWS = 200
     const val CHECKLIST_TAIL_ROWS = 5
@@ -562,10 +458,8 @@ object Editing {
      * The rows of a checklist of [size] that are drawn, in order: its first
      * [head] and its last [tail] -- all of them when that leaves out no more
      * than a few -- and the rows up to [reach], a row a search stepped to,
-     * when it lies in the rows between. A row already drawn among the last
-     * -- where the newest item lands, and is looked for -- reached past
-     * them all and drew every row, 1,000 of them at each letter typed in
-     * the bar (the final audit's sixth round).
+     * when it lies between: a reach among the last drew every row, at each
+     * letter typed in the bar.
      */
     fun checklistShown(size: Int, head: Int, reach: Int = -1, tail: Int = CHECKLIST_TAIL_ROWS): List<Int> {
         val last = size - tail
@@ -576,14 +470,11 @@ object Editing {
 
     /**
      * The [checklistShown] window -- its head and its tail -- after the row
-     * at [from] moved to [to], in a list of [size]: wide enough that every
-     * row drawn before is drawn after, the rows the move pushed across an
-     * edge of the stretch not drawn included, and the row moved too -- into
-     * that stretch, it is drawn there, the window one row wider on the side
-     * it came from. Counted over every row, a step from the edge of the rows
-     * not drawn put the row among them: it vanished, a row never shown stood
-     * in its place, and a screen reader's next Move moved that one (the
-     * final audit's sixth round).
+     * at [from] moved to [to], in a list of [size]: every row drawn before is
+     * drawn after, rows the move pushed across an edge included, and the row
+     * moved too, the window one row wider on the side it came from. Stepped
+     * among rows not drawn, it vanished, and a screen reader's next Move
+     * moved the row shown in its place.
      */
     fun keepMovedInSight(size: Int, head: Int, tail: Int, reach: Int, from: Int, to: Int): Pair<Int, Int> {
         val shown = checklistShown(size, head, reach, tail)
@@ -610,12 +501,10 @@ object Editing {
     }
 
     /**
-     * Where a row dragged from [from] lands: on the drawn row whose middle
-     * is nearest the dragged row's middle, now at [at] -- [middles] holding
-     * each drawn row's. Counted in rows of one height from where it began,
-     * the "N more rows" line between the rows drawn was counted as a row and
-     * the rows it stands for as none, and a drop under the last row before
-     * it landed among rows not drawn (the final audit's sixth round).
+     * Where a row dragged from [from] lands: on the drawn row whose middle is
+     * nearest the dragged row's, now at [at] -- [middles] holding each drawn
+     * row's. Counted in rows of one height, the "N more rows" line counted as
+     * one row and the rows it stands for as none.
      */
     fun dropTarget(middles: Map<Int, Float>, at: Float, from: Int): Int =
         middles.minByOrNull { (_, middle) -> kotlin.math.abs(middle - at) }?.key ?: from
@@ -637,23 +526,12 @@ object Editing {
     fun rowTooLong(text: String): Boolean = rowChars(text) > CHECKLIST_ROW_CHARS || tooLongToLayOut(text)
 
     /**
-     * A row shown to be read, in parts of at most [chars] UTF-16 units that a
-     * phone's width wraps: each line of it, and each long line cut after its
-     * last space near the end of a part -- or, with none there, on the edge
-     * of a letter as a person sees one ([letterEdge]): never through an
-     * emoji, a flag, a family joined by ZWJ, or a letter and its accent.
-     * Each part is drawn, and read aloud, as a piece of its own: cut between
-     * a flag's two halves, every flag in the next part paired one place off
-     * and showed another country (the final audit's eighth round). Each part
-     * is its start and end in the row; a line break belongs to none.
-     *
-     * The space is looked for within the slack alone. Looked for back to the
-     * row's start, each part of a row with no space in it -- one unbroken
-     * word, Chinese, a pasted blob -- read all of the row before it: the
-     * square of the row over 600 letters read, on the screen's thread, and a
-     * row of five million letters from a share code of 7 KB held "Read all",
-     * or a search's stop in it, for tens of seconds (the final audit's
-     * seventh round).
+     * A row shown to be read, in parts of at most [chars] UTF-16 units: each
+     * line, each long line cut after its last space near a part's end, or on
+     * the edge of a letter as a person sees one ([letterEdge]) -- never through
+     * an emoji, a flag or an accent, as each part is drawn and read aloud
+     * alone. Start and end in the row each; a line break belongs to none. The
+     * space is looked for in the slack alone, or a spaceless row read its square.
      */
     fun rowParts(text: CharSequence, chars: Int = ROW_PART_CHARS): List<Pair<Int, Int>> {
         val out = ArrayList<Pair<Int, Int>>()
@@ -805,10 +683,9 @@ object Editing {
         starts[lines.size] = at
         fun text(first: Int, last: Int) = lines.subList(first, last + 1).joinToString("\n")
         val out = ArrayList<Segment>()
-        // What the lines given to fields so far cost to lay out, in the
-        // body's order ([MAX_LAYOUT_COST]): a line that would take it past
-        // the limit is shown read-only too. A body no longer than one run's
-        // limit cannot reach it, and is not weighed at all.
+        // What the lines given to fields so far cost to lay out ([MAX_LAYOUT_COST]):
+        // a line taking it past the limit is read-only too. A body no longer than
+        // one run's limit cannot reach it, and is not weighed.
         var spent = 0L
         val weighed = body.length > MAX_UNBROKEN
         // Asked once of each line, in order: it counts what it lets in.
@@ -853,10 +730,9 @@ object Editing {
                 !(weighed && tooHeavyToDraw(lines[i])) && !tooMuch(i)
             }
             fun readOnly(i: Int) = !shown[i - first]
-            // Empty lines between two read-only ones are read-only too: an
-            // empty line costs the layout nothing and was let in, so once
-            // the limit was reached "x", "", "x", "" ... came out as ten
-            // thousand pieces, every other one a field.
+            // Empty lines between two read-only ones are read-only too: costing
+            // nothing, they were let in, and "x", "", "x", "" ... past the limit
+            // came out as ten thousand pieces, every other one a field.
             var k = 0
             while (k < shown.size) {
                 if (!shown[k] || lines[first + k].isNotEmpty()) {
@@ -910,11 +786,9 @@ object Editing {
             val rows = lines.subList(block.first, block.last + 1)
             val cells = gridCells(rows)
             val gridded = cells <= cellsLeft
-            // A grid's cells are text laid out like any other, each in a
-            // column a few words wide: a row of two cells, one of them
-            // 150,000 letters long, passed the count of cells, was drawn,
-            // and froze the note as the line alone would have. Weighed as
-            // lines are, it is shown as one -- read-only, its start below.
+            // A grid's cells are text laid out like any other: a row of two cells,
+            // one 150,000 letters long, passed the count of cells and froze the note.
+            // Weighed as lines are, it is shown as one -- read-only, its start below.
             val tooMuch = gridded && cellsTooMuch(rows)
             if (gridded && !tooMuch) cellsLeft -= cells
             out.add(Segment(true, block.first, block.last, text(block.first, block.last), starts[block.first],
@@ -977,15 +851,11 @@ object Editing {
     fun changeEnd(old: String, new: String): Int = new.offsetByCodePoints(0, changeEndPoints(old, new))
 
     /**
-     * A field's change taken once. Samsung's keyboard, pressing Enter on a
-     * word it is still composing, finishes the word and presses the key in
-     * one batch, and the field reports the result twice, a millisecond
-     * apart, both times from the value before it. The note's text applies
-     * a change to the body as it is now, so the second report broke a second
-     * line -- every Enter after a word skipped one (the owner's phone,
-     * 2026-10-23, read off the field's own log). The same change from the
-     * same value within [WINDOW_MS] is the same report; a person cannot
-     * repeat a keystroke from the very same state that fast.
+     * A field's change taken once: Samsung's keyboard, Enter on a word still
+     * being composed, has the field report the result twice from the same
+     * value, and the second broke a second line (ISSUES_LOG, "One change told
+     * twice by Samsung's keyboard"). The same change from the same value
+     * within [WINDOW_MS] is one report: no person repeats a keystroke that fast.
      */
     class Once {
         private var from: Any? = null
@@ -1090,18 +960,11 @@ object Editing {
 
     /**
      * The editor's Undo and Redo: the states a note went through, newest
-     * last. Typing is one step per pause -- letters typed within [pause] of
-     * each other, of the same kind, join the step before -- so one Undo
-     * takes back a word or a burst of words, not a letter; a format, a list
-     * key, a table edit is a step of its own. At most [limit] steps are
-     * kept. A new change after an Undo forgets what Redo would have brought
-     * back, as every editor's does.
-     *
-     * And at most [budget] in all, by what [weigh] says each state holds:
-     * a step is the whole note as it was, and 200 of a note of two million
-     * letters -- from a share code of 8 KB -- were 760 MB, far past what a
-     * phone gives an app (the final audit's fifth round). The oldest go
-     * first, but never the newest, so the last change can always be undone.
+     * last. Letters of the same kind typed within [pause] join one step, so an
+     * Undo takes back a burst of words; a format, a list key, a table edit is
+     * its own. At most [limit] steps and [budget] in all, by [weigh] -- 200
+     * whole states of a two-million-letter note were 760 MB -- the oldest
+     * going first, never the newest. A change after an Undo forgets the Redo.
      */
     class History<T>(
         private val limit: Int = 200,
@@ -1234,11 +1097,9 @@ object Editing {
     /**
      * `_insert_table`: a blank table at the cursor ([caret], in code points),
      * on lines of its own -- a break before it when the cursor's line holds
-     * something or a table sits right above, so two tables never fuse into
-     * one; a break after it, so there is somewhere to carry on writing, and
-     * a second one when a table follows right below. A cursor past the end
-     * -- the empty field under a table that closes the note -- is a new line
-     * there.
+     * something or a table sits right above, so two tables never fuse; a
+     * break after it, to carry on writing, and a second when a table follows
+     * below. A cursor past the end (under a closing table) is a new line there.
      */
     fun insertTable(body: String, caret: Int, rows: Int, columns: Int): Inserted {
         val r = rows.coerceIn(1, TABLE_ROWS * 4)

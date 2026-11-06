@@ -288,10 +288,9 @@ object Days {
         return edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "That note no longer repeats, so the day can't come back."
             val skipped = gone.cameFrom ?: gone.day
-            // Back only onto a date the series holds nothing on now, as a move
-            // comes home ([dayIsFree]): another day moved there since was hidden
-            // under it, its words read as this day's and this day's own lost
-            // (the final audit's twelfth round). The delete took this day's edit.
+            // Back only onto a date the series holds nothing on now, as a move comes
+            // home ([dayIsFree]): another day moved there since was hidden under it,
+            // its words read as this day's. The delete took this day's edit.
             val on = Recurrence.parseDate(gone.day)
             val stillSkipped = (note.opt("exceptions") as? JSONArray)?.let { a ->
                 (0 until a.length()).any { a.opt(it) == skipped } } == true
@@ -310,11 +309,9 @@ object Days {
             if (gone.cameFrom != null) {
                 val moved = note.opt("moved") as? JSONObject ?: JSONObject().also { note.put("moved", it) }
                 val others = moved.keys().asSequence().filter { it != gone.cameFrom && moved.opt(it) == gone.day }.toList()
-                // Another day still moved onto the date -- its own date one the
-                // rule gives -- holds it: the date is not free, as above. Within
-                // the Undo's seconds a Restore previous brought one back, and the
-                // Undo dropped it as dead, its words read as this day's (the
-                // twentieth round; the desktop the same).
+                // Another day still moved onto the date -- its own date one the rule
+                // gives -- holds it, as above: a Restore previous within the Undo's
+                // seconds brought one back, and the Undo dropped it as dead.
                 if (on != null && (Recurrence.ruleDaysAmong(note, others) - exceptions.toSet()).isNotEmpty()) {
                     return@edit "Another day of this series is on ${Recurrence.showDay(on)} now, so that day can't come back."
                 }
@@ -324,10 +321,9 @@ object Days {
                 for (dead in others) moved.remove(dead)
                 moved.put(gone.cameFrom, gone.day)
             }
-            // The desktop's `_undo_occurrence_delete` guards: the repeat
-            // changed since may no longer give the day -- back, it would be
-            // a day off the schedule nobody made -- and an edit the day has
-            // gained since is newer than the one taken away.
+            // The desktop's `_undo_occurrence_delete` guards: a repeat changed since
+            // may no longer give the day (back, it would be off the schedule), and an
+            // edit the day gained since is newer than the one taken away.
             if (!givenDay(note, gone.day)) return@edit "The repeat no longer has that day, so it can't come back."
             gone.ownEdit?.let { if (!overridesOf(note).has(gone.day)) overridesOf(note).put(gone.day, JSONObject(it.toString())) }
             null
@@ -381,15 +377,11 @@ object Days {
         "This day is no longer one of the series' days. Open the series to settle the days off its schedule."
 
     /**
-     * Whether [note]'s day now on [day] may be held on [to]: a date no
-     * other day of the series is on -- two days on one date would be one.
-     *
-     * The desktop's `_day_is_free` also takes the day's own date as free,
-     * whatever is on it now. But while a day is away, another can be moved
-     * onto its date; the first one's return then hid the second -- its move
-     * still in the file, drawn nowhere, because a moved day is not drawn
-     * where the series already has one. So its own date is free here only
-     * when it is empty, as any other.
+     * Whether [note]'s day now on [day] may be held on [to]: a date no other
+     * day of the series is on. Unlike the desktop's `_day_is_free`, its own
+     * date is free only when empty: while a day is away another can be moved
+     * onto its date, and the first one's return hid the second, its move
+     * still in the file and drawn nowhere.
      */
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false
@@ -469,16 +461,12 @@ object Days {
     enum class Settle { NOTE, TRASH }
 
     /**
-     * One day a series keeps its own edits for, which its repeat no longer
-     * lands on -- so no calendar shows it -- made a note of its own on its
-     * date, or that note moved straight to the Trash; either way taken out
-     * of the series. The desktop's `_settle_off_schedule_day`: the new note
-     * holds what the day showed -- title, text, comments, category, colour
-     * -- the series' formatting only where the day's text is the series' own
-     * (its offsets would land on the wrong letters anywhere else), and none
-     * of the checklist and the files, which were never the day's. A move
-     * that brought the day here goes too, or a rule brought back would draw
-     * it again. The Trash is written before the notes, as every delete is.
+     * A day the series keeps edits for that its repeat no longer lands on,
+     * made a note of its own on its date or sent straight to the Trash (the
+     * desktop's `_settle_off_schedule_day`): what the day showed, the series'
+     * formatting only where the text is the series' own, no checklist or
+     * files. A move that brought it here goes too, or a rule brought back
+     * would draw it again. The Trash is written before the notes.
      */
     fun settleOffScheduleDay(load: Notebook.Load, id: Int, day: String, how: Settle): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -543,13 +531,10 @@ object Days {
 
     /**
      * What the Repeat sheet says of a turn-off, asked of [note] as its save
-     * left it -- the desktop's `_repeat_off_line`: the copy it kept is the
-     * series, or, after an import's Update, the note as it was before that,
-     * which Restore previous brings back instead (the ninth round). A copy
-     * the note holds again in full is dropped by the same save
-     * ([Notebook.dropSpentCopy]): no Restore previous is promised for it.
-     * Said from the copy's kind alone, the sheet promised a button that was
-     * gone (the tenth round, the desktop's 04044ce).
+     * left it -- the desktop's `_repeat_off_line`: the copy kept is the
+     * series, or after an import's Update the note as it was before it. A
+     * copy the note holds again in full is dropped by that save
+     * ([Notebook.dropSpentCopy]), and no Restore previous is promised for it.
      */
     internal fun repeatOffWord(note: JSONObject?): OffWord = when {
         note == null || !Notebook.holdsUnspentCopy(note) -> OffWord.NO_COPY
@@ -558,23 +543,12 @@ object Days {
     }
 
     /**
-     * Sets a note's repeat, or turns it off with [rule] null or a rule
-     * that does not repeat. A repeating note needs a first day. Turned off,
-     * when a day held text of its own, the note as it was goes into the
-     * rescue copy first, repeat and days included, so "↩ Restore previous"
-     * brings the series back whole -- and the days stay in the note as well,
-     * inert while it does not repeat, back if a repeat is: one place for
-     * them, the note, as the desktop keeps them (the owner's choice, the
-     * final audit's sixth round). Kept only in the copy, as up to 0.12.0,
-     * the desktop's next copy of words erased them. Days none of which holds
-     * text of its own -- skipped days, a colour -- go, as the desktop's save
-     * clears them, the copy aside.
-     *
-     * [startWas] is the series' start before the sheet's Save wrote a new
-     * one, which it does first: the rescue copy keeps the series as it was,
-     * as the desktop's `save_current_note` takes it before the new date --
-     * taken after, "Restore previous" brought back a series starting on the
-     * new date, its days' own edits off its schedule.
+     * Sets a note's repeat, or turns it off ([rule] null or not repeating);
+     * a repeating note needs a first day. Turned off with days holding text
+     * of their own, the note goes whole into the rescue copy first, and the
+     * days stay in the note too, inert, as the desktop keeps them (the
+     * owner's choice); days holding no text go. [startWas]: the start before
+     * the sheet's Save wrote a new one, which the copy keeps, as the desktop's.
      */
     fun setRepeat(load: Notebook.Load, id: Int, rule: JSONObject?, startWas: Any? = null): SaveResult = edit(load, id) { note ->
         val clean = Recurrence.normalize(rule)
@@ -585,11 +559,9 @@ object Days {
         if (!repeats) {
             if (Recurrence.isRecurring(note)) {
                 val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
-                // The words of a big delete's copy the note still needs go
-                // into the turn-off's copy with the series; an import's
-                // Update copy is kept whole, given the series where it lacks
-                // it (Notebook.turnOffCopy). Asked of the note as it was
-                // before this Save, as the desktop's save asks it.
+                // A big delete's copy goes into the turn-off's with the series; an
+                // Update copy is kept whole, given the series it lacks (turnOffCopy).
+                // Asked of the note before this Save, as the desktop's save asks.
                 if (repeatOffLosesDays(was)) {
                     // Another series' copy, replaced here, held its days
                     // alone: set aside first, asked of the series as it was
@@ -603,19 +575,17 @@ object Days {
             // days the note holds, whether it repeated or not.
             if (!Notebook.daysHoldOwnText(note)) Notebook.clearDays(note)
         }
-        // Turned back on with another start or rule than the series had (the
-        // sheet wrote the new start first): its old deleted days, which hold
-        // nothing, no longer hide the new series' own -- its rescue copy keeps
-        // them -- and days with words of their own stay (Notebook.keptDaysFit).
+        // Turned back on with another start or rule: the old deleted days, which
+        // hold nothing, no longer hide the new series' own (the copy keeps them),
+        // and days with words of their own stay (Notebook.keptDaysFit).
         if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
         // A day moved onto a date the new rule gives loses its move now, not
         // at the next start (Normalize.dropHiddenMoves).
         Normalize.dropHiddenMoves(note)
-        // Turned back on as the series its copy holds: the note holds the
-        // days again, and the copy's are spent -- kept there, a day reset
-        // after came back at every start (the desktop's spend_series_days,
-        // the final audit's eighth round).
+        // Turned back on as the series its copy holds, the copy's days are spent,
+        // as the desktop's spend_series_days spends them: kept there, a day reset
+        // after came back at every start.
         Notebook.spendSeriesDays(note)
         // Back on as the series was, the note holds again all its copy kept:
         // spent, as the desktop's save drops it, the banner with it.

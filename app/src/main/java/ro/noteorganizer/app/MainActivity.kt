@@ -136,12 +136,9 @@ class MainActivity : ComponentActivity() {
             leftoversCleared = true
             Startup.clearLeftovers(cacheDir)
         }
-        // What the app was started with is acted on once. Restored -- after
-        // Android ended the process in the background, or a change the app
-        // does not take itself -- or reopened from Recents, the activity is
-        // handed the same intent again: a share code that started the app
-        // was offered again, its "Update this note" ready to put the older
-        // words back over the newer.
+        // What the app was started with is acted on once: restored or reopened
+        // from Recents, the activity is handed the same intent again, and a share
+        // code was offered again, its "Update this note" over newer words.
         val fresh = savedInstanceState == null &&
             ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
         if (fresh) {
@@ -185,10 +182,9 @@ class MainActivity : ComponentActivity() {
                 state.dayIs(Recurrence.formatDate(LocalDate.now()))
                 ReminderAlarm.schedule(this@MainActivity, state.settings)
             }
-            // And while the app is in front, the day turns at midnight too --
-            // looked at once a minute, as the desktop's `_watch_the_day`, so a
-            // clock or zone changed meanwhile is caught as well; and only in
-            // front, so a phone with the app behind is never woken for it.
+            // And while the app is in front, the day turns at midnight, looked at once
+            // a minute as the desktop's `_watch_the_day` does (a clock or zone changed
+            // is caught too); only in front, so a phone is never woken for it.
             LaunchedEffect(Unit) {
                 lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                     while (true) {
@@ -349,12 +345,9 @@ fun AppRoot(state: AppState, version: String) {
         busy = context.getString(R.string.exporting)
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                // Opened -- for writing, which empties it -- only once the
-                // backup is built and checked; a half-written backup is
-                // deleted, one that never opened is kept (Backup.exportTo).
-                // "wt" only, never the single-note export's fallback to "w":
-                // written over a longer backup without emptying it, a zip
-                // keeps the old one's tail, and its index, at its end.
+                // Opened for writing only once the backup is built and checked
+                // (Backup.exportTo); "wt" only, never "w": over a longer backup
+                // without emptying it, a zip keeps the old one's tail and index.
                 Backup.exportTo(state.dir, context.cacheDir,
                     open = { context.contentResolver.openOutputStream(uri, "wt") },
                     emptyPlace = { isEmptyDocument(context, uri) },
@@ -390,13 +383,9 @@ fun AppRoot(state: AppState, version: String) {
         busy = { busy },
     )
 
-    // A note's own pickers -- Export as file, Attach files -- answered here
-    // with the backup's: where the answer arrives even when Android ended
-    // the app behind the picker and started it again on its list
-    // (AppState.pickAttachments). Held by the editor, the answer found
-    // nobody: the exported file left empty, the files not attached, nothing
-    // said. (Android's "allow notifications?" stays with its page: it only
-    // pauses the app, which saves nothing then and is not ended for memory.)
+    // A note's own pickers answered here with the backup's, where the answer
+    // arrives even when Android ended the app behind the picker (ISSUES_LOG,
+    // "Answers sent to"). "Allow notifications?" stays with its page: it only pauses.
     state.exporter = rememberExporter(state)
     var attachFor by rememberSaveable { mutableStateOf<Int?>(null) }
     val attachPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -426,11 +415,9 @@ fun AppRoot(state: AppState, version: String) {
 
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.bg)) {
         val open = state.openId
-        // Material's window widths: from a medium window -- a phone on its
-        // side, a small tablet -- the bar moves to a rail down the left
-        // edge, where a short, wide screen can spare it; from an expanded
-        // one the note opens beside the notes or the calendar, and the list
-        // stays in reach. Settings has no note to sit beside.
+        // Material's window widths: from a medium window (a phone on its side) the
+        // bar becomes a rail down the left; from an expanded one the note opens
+        // beside the notes or the calendar. Settings has no note to sit beside.
         val wide = maxWidth >= RAIL_FROM
         val panesFit = maxWidth >= TWO_PANES_FROM
         val twoPanes = panesFit && state.tab != Tab.SETTINGS
@@ -466,11 +453,9 @@ fun AppRoot(state: AppState, version: String) {
                 state.showToday(Recurrence.formatDate(LocalDate.now()))
             }
         }
-        // One shape at every width, the rail, the panes and the bar each
-        // there or not: the list and the editor keep their places in it, so
-        // turning the phone moves them without rebuilding them -- an editor
-        // built again would lose its find bar, its cursor and whatever it
-        // had not saved yet, and the list its selection.
+        // One shape at every width, rail, panes and bar each there or not, so
+        // turning the phone moves the list and the editor without rebuilding them:
+        // rebuilt, they lose the find bar, the cursor, unsaved words, the selection.
         val tabShown = open == null || (twoPanes && !state.listAside)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -497,10 +482,9 @@ fun AppRoot(state: AppState, version: String) {
                         }
                     }
                 }
-                // Beside the rail, the edges are kept here, once, for
-                // whatever is drawn inside -- the editor's own paddings then
-                // find nothing left to add. On a phone each screen keeps its
-                // own, as it always has.
+                // Beside the rail, the edges are kept here, once, for whatever is
+                // drawn inside, and the editor's paddings find nothing to add; on a
+                // phone each screen keeps its own.
                 Box(
                     Modifier
                         .weight(1f)
@@ -550,20 +534,16 @@ fun AppRoot(state: AppState, version: String) {
                 }
             }
         }
-        // Above the bar at the bottom, and on the list above the + as well:
-        // a message that half covers the button it sits next to reads as
-        // a mistake. And above the keyboard, which covers the bar and the +:
-        // under it, a word said while typing -- a letter refused at a row's
-        // cap -- was drawn behind the keys (the final audit's eighth round).
+        // Above the bar at the bottom, and on the list above the + too (half over
+        // a button it reads as a mistake), and above the keyboard, which covers
+        // both: under it, a word said while typing was drawn behind the keys.
         val listShown = state.tab == Tab.NOTES && tabShown
         val density = LocalDensity.current
         val keys = WindowInsets.ime.getBottom(density)
         val typing = keys > 0
-        // And above what the open note's editor draws at its foot -- its bar,
-        // "A new item…" being typed in -- which sits on the keyboard's top:
-        // drawn just above the keys, a message covered them and took their
-        // taps for its four seconds (the final audit's ninth round). Kept
-        // below the status bar however tall that foot is.
+        // And above the editor's foot on the keyboard -- its bar, "A new item…"
+        // -- or a message covered them and took their taps for its four seconds;
+        // kept below the status bar however tall that foot is.
         val footClear = state.editorFootTop?.takeIf { open != null }?.let { top ->
             val below = maxOf(keys, WindowInsets.navigationBars.getBottom(density))
             with(density) { (constraints.maxHeight - below - top).coerceAtLeast(0f).toDp() }
@@ -606,10 +586,9 @@ fun AppRoot(state: AppState, version: String) {
                     state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
                 }
                 val categories = state.load.categories.keys + theirs
-                // Worked out away from the screen: the plan, and how many
-                // look like notes already here, which normalizes every note
-                // of both notebooks -- 1.3 s with the screen held still, a
-                // thousand notes each side (the emulator, 2026-10-27).
+                // Worked out away from the screen: the plan, and how many look like
+                // notes here, which normalizes every note of both notebooks -- 1.3 s
+                // with the screen held still, a thousand notes each side.
                 busy = context.getString(R.string.importing)
                 scope.launch {
                     val ready = withContext(Dispatchers.Default) {
