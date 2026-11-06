@@ -134,6 +134,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     val folded = androidx.compose.runtime.mutableStateMapOf<String, Boolean>()
 
+    /**
+     * The folds of notes no longer in the notebook go with them: a note
+     * deleted left its folds to the next note given its id, a checklist
+     * added there folding its text shut (wave 2, round 15).
+     */
+    private fun dropFoldsOfGone() {
+        if (folded.isEmpty()) return
+        val held = load.notes.mapTo(HashSet()) { it.id.toString() }
+        folded.keys.filter { key -> key.substringBefore(':').let { it != "0" && it !in held } }.forEach { folded.remove(it) }
+    }
+
     // ---- the day's reminder ([Reminders]) ----
 
     /** How many notes today's bar says, while it shows; null when it does not. */
@@ -359,6 +370,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** After a write: the screen from the arrays the write left. */
     fun refresh() {
         load = Notebook.refreshed(load)
+        dropFoldsOfGone()
         revision += 1
     }
 
@@ -366,6 +378,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun reload() {
         // The notes kept aside this session are still the session's to spend.
         load = Notebook.load(dir).also { it.keptAside.putAll(load.keptAside) }
+        dropFoldsOfGone()
         revision += 1
     }
 
@@ -437,7 +450,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         if (id == openId && id != 0) {
             val why = saveStaying() ?: return run { openDay = onDay() }
             snackbar.currentSnackbarData?.dismiss()
-            offer("Not saved, so the note stays open: $why", "Leave anyway") { openDay = onDay() }
+            // Only on the note it was asked over: tapped late, it set the day
+            // on whatever note was open then, a plain one "on a day" (round 13).
+            offer("Not saved, so the note stays open: $why", "Leave anyway") { if (openId == id) openDay = onDay() }
             return
         }
         // On a wide screen the list stays beside the note, and a tap on
@@ -499,6 +514,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * the open one, and a change to it from the list reaches the editor.
      */
     fun newNoteSaved(id: Int) {
+        // What was folded while it was new is this note's now, and no later
+        // new note's (wave 2, round 14).
+        for (key in folded.keys.filter { it.startsWith("0:") }) {
+            folded.remove(key)?.let { folded["$id:" + key.substringAfter(':')] = it }
+        }
         if (openId == 0) openId = id
         // Made from a calendar day, it stands on that day, where it was made.
         if (tab == Tab.NOTES) newNoteMade = id
@@ -531,7 +551,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * finished them (rounds 9 and 10).
      */
     private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, closes: Boolean = false,
-                            change: () -> T): T? {
+                            day: String? = null, change: () -> T): T? {
         val open = openId
         val touches = open != null && open != 0 && open in ids
         if (touches) (if (closes) flush?.invoke() else saveStaying())?.let { why ->
@@ -539,9 +559,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             return null
         }
         // A change refused wrote nothing: read back anyway, the editor lost
-        // its Undo and its cursor for it (round 11).
-        return change().also { if (touches && writes && it !is SaveResult.Failed) openNoteRewritten += 1 }
+        // its Undo and its cursor for it (round 11) -- a day's delete too,
+        // whose answer comes first in a pair (round 12). A change to one
+        // [day] reads back only the editor on that day: open on another, or
+        // on the whole series, it lost them for nothing (round 10).
+        val shown = day == null || openDay == day
+        return change().also { if (touches && writes && shown && !refused(it)) openNoteRewritten += 1 }
     }
+
+    /** Whether [result] -- a change's answer, or one first in a pair -- is a refusal. */
+    private fun refused(result: Any?): Boolean =
+        result is SaveResult.Failed || (result as? Pair<*, *>)?.first is SaveResult.Failed
 
     /**
      * Before an import is applied: the open note saved, so an update replaces
@@ -549,19 +577,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * back after, over words no file holds.
      */
     fun beforeImport(): Boolean {
-        val why = flush?.invoke() ?: return true
+        val why = flush?.invoke() ?: return true.also { openBeforeImport = openId?.let { rawNote(it)?.toString() } }
         say("Not saved, so nothing was imported: $why")
         return false
     }
 
+    /** The open note as the notebook held it before an import ([beforeImport]). */
+    private var openBeforeImport: String? = null
+
     /**
-     * After an import: the notebook read again, and the open note with it,
-     * which the import may have updated. Read back whichever it touched:
-     * an unchanged note read back loses nothing but its cursor.
+     * After an import: the notebook read again, and the open note with it
+     * when the import changed it. Read back untouched, it lost its text's
+     * Undo and its cursor for nothing (wave 2, round 14).
      */
     fun afterImport() {
         reload()
-        if (openId != null) openNoteRewritten += 1
+        val open = openId
+        if (open != null && rawNote(open)?.toString() != openBeforeImport) openNoteRewritten += 1
+        openBeforeImport = null
     }
 
     /** From one day back to the whole series, the editor staying on the note. */
@@ -675,7 +708,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun deleteDay(id: Int, day: String) {
         // The editor closes only when it is on this day: on another it stays,
         // and the words in "A new item…" with it (round 9).
-        val (result, gone) = outside(listOf(id), closes = openId == id && openDay == day) {
+        val (result, gone) = outside(listOf(id), closes = openId == id && openDay == day, day = day) {
             Days.deleteDay(load, id, day)
         } ?: return
         if (!report(result) || gone == null) return
@@ -686,7 +719,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun resetDay(id: Int, day: String, dropText: Boolean = true, sendHome: Boolean = true) {
         val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
         val leaves = sendHome && home != null && openId == id && openDay == day
-        report(outside(listOf(id)) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
+        report(outside(listOf(id), day = day) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
             // The editor open on the day goes with it, to where it is now.
             if (leaves) openDay = home
             say(if (dropText) "This day follows the series again" else "This day is back on its own date")
@@ -706,13 +739,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         if (to == day) return
         val (result, move) = outside(listOf(id), writes = false) { Days.moveDay(load, id, day, to) } ?: return
         if (!report(result) || move == null) return
+        // The calendar on the day, beside the editor or reached with Back,
+        // goes with it: it stayed on the old date, the moved card gone from it
+        // and the editor's outline on nothing (wave 2, round 12).
+        if (selectedDay == day || (openId == id && openDay == day)) followDay(to)
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
             report(outside(listOf(move.id)) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
+                if (selectedDay == move.to) followDay(move.from)
                 if (openId == move.id && openDay == move.to) openDay = move.from
                 say("Moved back to ${shownDay(move.from)}")
             }
         }
+    }
+
+    /** The calendar on [date], its month with it. */
+    private fun followDay(date: String) {
+        selectedDay = date
+        Recurrence.parseDate(date)?.let { calendarMonth = java.time.YearMonth.from(it) }
     }
 
     /** A day off its series' schedule made a note of its own, or that note sent to the Trash. */

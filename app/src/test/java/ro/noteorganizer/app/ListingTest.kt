@@ -122,6 +122,17 @@ class ListingTest {
     }
 
     @Test
+    fun `only the cards a change moved are brought into sight`() {
+        fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())
+        // Filed under a sort a move does not reorder: nothing moved, nothing to bring.
+        assertEquals(emptySet<Int>(), Showing.movedIds(flat(1, 2, 3, 4), flat(1, 2, 3, 4), setOf(1, 4)))
+        // A pin of 3 with 1 already pinned: 3 moved, 1 kept its place.
+        assertEquals(setOf(3), Showing.movedIds(flat(1, 2, 3, 4), flat(1, 3, 2, 4), setOf(1, 3)))
+        // A note arriving -- a copy, a note put back -- moved.
+        assertEquals(setOf(9), Showing.movedIds(flat(1, 2), flat(1, 9, 2), setOf(9)))
+    }
+
+    @Test
     fun `a moved card is brought into sight when it was the first item of the list or is out of the window the list kept`() {
         // Rounds 8-16 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
         fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())

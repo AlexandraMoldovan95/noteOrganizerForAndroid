@@ -1595,7 +1595,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             built[0] = made
         }
     }
-    val calc = remember(model) { CalculatorState() }
+    // For the visit, as the checklist's and comments' flags are: rebuilt on
+    // the whole series or another day, it shut the calculator with its sum
+    // and the find bar (wave 2, round 15). Both read the model at use.
+    val calc = remember { CalculatorState() }
     var exportAsk by remember { mutableStateOf(false) }
     var shareAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
@@ -1604,7 +1607,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val templateNone = stringResource(R.string.template_none)
     val templateNothing = stringResource(R.string.template_nothing)
     val templateStarted = stringResource(R.string.template_started)
-    val find = remember(model) { FindState() }
+    val find = remember { FindState() }
     val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     // Worked out again as the note or the search changes; nothing at all
@@ -3094,7 +3097,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // Where the box and its Add stand while typed in, for the window's
     // messages to be drawn above them, never over them ([AppState.editorFootTop]).
     var addTop by remember { mutableStateOf<Float?>(null) }
-    LaunchedEffect(addFocused, addTop) { model.addBoxTop = if (addFocused) addTop else null }
+    // Asked of each model: the same note built anew on another day keeps the
+    // box focused where it was, and messages were drawn over it (round 13).
+    LaunchedEffect(model, addFocused, addTop) { model.addBoxTop = if (addFocused) addTop else null }
     DisposableEffect(model) { onDispose { model.addBoxTop = null } }
     // And again after each row added, once it is laid out: the new row
     // pushed the box down a row at a time, under the keys, and the newest
@@ -3213,12 +3218,17 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         val rowKey = rowKeys[index]
         // Where the row stands while it is renamed, for the window's messages
         // to stand above it ([EditorModel.renamingRow]); let go with the row.
+        var rowFocused by remember { mutableStateOf(false) }
         fun renamed(on: Boolean) {
+            rowFocused = on
             val at = placed[rowKey]?.takeIf { it.isAttached }?.boundsInWindow()?.top
             if (on && at != null) model.renamingRow = rowKey to at
             else if (model.renamingRow?.first == rowKey) model.renamingRow = null
         }
         DisposableEffect(rowKey) { onDispose { renamed(false) } }
+        // Told again to a model built anew on another day: the row keeps its
+        // focus, and the new model knew nothing of it (round 13).
+        LaunchedEffect(model) { if (rowFocused) renamed(true) }
         Row(
             Modifier
                 .fillMaxWidth()

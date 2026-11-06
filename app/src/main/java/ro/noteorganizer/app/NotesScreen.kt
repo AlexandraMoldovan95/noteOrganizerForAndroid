@@ -184,7 +184,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // All the notes an action moved: the first of them is taken in the list's
     // new order (Showing.revealAt). Taken before it, a pin or a move of several
     // reordered them, and the card now first sat above the screen (round 13).
-    fun revealLater(ids: Set<Int>) {
+    // [arrived]: notes already in the list asked over -- the Trash's Undo asks
+    // once they are back -- which moved by arriving, not by place.
+    fun revealLater(ids: Set<Int>, arrived: Boolean = false) {
         if (ids.isEmpty()) return
         // In sight: half of it at least. A sliver under the list's top padding
         // counted, and a card put back above the screen read as shown (round 10).
@@ -198,22 +200,30 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val anchor = info.visibleItemsInfo.firstOrNull { it.index == firstIndex }?.key
         val lead = inSight.firstOrNull()?.let { (it.index - firstIndex).coerceAtLeast(0) } ?: 0
         revealCard = Reveal(ids, inSight.map { it.key }, firstIndex == 0 && listState.firstVisibleItemScrollOffset == 0,
-                            laidOut, anchor, lead)
+                            laidOut, anchor, lead, arrived)
     }
     LaunchedEffect(revealCard, laidOut) {
-        val (ids, seen, atTop, listed, anchor, lead) = revealCard ?: return@LaunchedEffect
+        val reveal = revealCard ?: return@LaunchedEffect
+        val (ids, seen, atTop, listed, anchor, lead) = reveal
         val listedNow = laidOut.any { (it as? Showing.Row.Item)?.note?.id in ids }
         // Not in the list it was asked over: waited for once, as the Trash's
         // Undo puts notes back after the list was drawn; let go after that.
         if (!listedNow && laidOut == listed) return@LaunchedEffect
-        Showing.revealAt(laidOut, ids, seen, atTop, anchor, lead)?.let { listState.scrollToItem(it) }
+        // Only the cards the change moved (Showing.movedIds), or arrived.
+        val moved = if (reveal.arrived) ids else Showing.movedIds(listed, laidOut, ids)
+        if (moved.isNotEmpty()) Showing.revealAt(laidOut, moved, seen, atTop, anchor, lead)?.let { listState.scrollToItem(it) }
         revealCard = null
     }
-    // Notes the Trash's Undo put back, brought into sight the same way.
+    // Notes the Trash's Undo put back, brought into sight the same way -- and
+    // said where the list hides them, as an import's are: they came back
+    // without a word, and the reveal waiting for them took over the next
+    // change to the list (wave 2, round 11).
     LaunchedEffect(state.revealAfterUndo) {
         val ids = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
-        revealLater(ids)
+        val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }.mapTo(HashSet()) { it.id }
+        if (hidden.isNotEmpty()) state.arrivals = ids.toList() to "Put back"
+        revealLater(ids - hidden, arrived = true)
     }
     /**
      * The list held where it is by place, for a change that moves the card
@@ -1064,7 +1074,7 @@ fun sendText(state: AppState, text: String) {
 
 /** A card to bring into sight once the list has it: the cards in sight, whether the list was at its top, and the item it keeps, when it was asked for. */
 private data class Reveal(val ids: Set<Int>, val seen: List<Any>, val atTop: Boolean, val listed: List<Showing.Row>,
-                          val anchor: Any?, val lead: Int)
+                          val anchor: Any?, val lead: Int, val arrived: Boolean = false)
 
 /** A card stepped one place ([step] -1 up, +1 down), how tall it was, and the card it passed, before the step. */
 private data class Stepped(val id: Int, val step: Int, val size: Int, val passedSize: Int)

@@ -38,6 +38,92 @@ class AppStateTest {
     }
 
     @Test
+    fun `a note's folds go with it, and a new note's become its own once saved`() {
+        val s = state()
+        s.folded["2:text"] = true
+        s.folded["1:comments"] = true
+        s.trash(listOf(2))
+        assertNull("a deleted note's fold is no next note's", s.folded["2:text"])
+        assertEquals(true, s.folded["1:comments"])
+        // Folded while new, then saved as 3: the fold is note 3's, no later new note's.
+        s.folded["0:checklist"] = true
+        s.newNoteSaved(3)
+        assertNull(s.folded["0:checklist"])
+        assertEquals(true, s.folded["3:checklist"])
+    }
+
+    @Test
+    fun `the calendar goes with a day moved from the editor on it, and back with its Undo`() {
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.selectedDay = "2026-10-12"
+        s.calendarMonth = java.time.YearMonth.of(2026, 10)
+        s.openNote(1, "2026-10-12")
+        s.moveDay(1, "2026-10-12", "2026-11-03")
+        assertEquals("2026-11-03", s.selectedDay)
+        assertEquals(java.time.YearMonth.of(2026, 11), s.calendarMonth)
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("2026-10-12", s.selectedDay)
+        assertEquals(java.time.YearMonth.of(2026, 10), s.calendarMonth)
+    }
+
+    @Test
+    fun `Leave anyway tapped once another note is open sets no day on it`() {
+        // It set the day on whatever note was open, a plain one "on a day",
+        // where every save was refused (wave 2, round 13).
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1)
+        s.flush = { "the disk is full" }
+        s.flushStaying = { "the disk is full" }
+        s.openNote(1, "2026-10-12")
+        val offer = s.snackbar.currentSnackbarData!!
+        assertEquals("Leave anyway", offer.visuals.actionLabel)
+        s.flush = { null }
+        s.flushStaying = { null }
+        s.openNote(2)
+        offer.performAction()
+        assertEquals(2, s.openId)
+        assertNull(s.openDay)
+    }
+
+    @Test
+    fun `the open note is read back only when a change or an import wrote it`() {
+        val s = state()
+        s.openNote(1)
+        s.flush = { null }
+        val rewritten = s.openNoteRewritten
+        // A day's delete refused -- note 1 repeats not -- wrote nothing (round 12).
+        s.deleteDay(1, "2026-10-05")
+        assertEquals(rewritten, s.openNoteRewritten)
+        // An import that never touched it (round 14)...
+        assertTrue(s.beforeImport())
+        s.afterImport()
+        assertEquals(rewritten, s.openNoteRewritten)
+        // ...and one that did.
+        assertTrue(s.beforeImport())
+        assertTrue(s.report(Notebook.updateNote(s.load, 1, "A", "from the code")))
+        s.afterImport()
+        assertEquals(rewritten + 1, s.openNoteRewritten)
+        // On the very day open, a delete refused -- the series ended behind
+        // the editor -- answers in a pair, and wrote nothing.
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.openNote(1, "2026-10-12")
+        assertTrue(s.report(Days.setRepeat(s.load, 1, JSONObject("""{"freq": ""}"""))))
+        val before = s.openNoteRewritten
+        s.deleteDay(1, "2026-10-12")
+        assertEquals(before, s.openNoteRewritten)
+    }
+
+    @Test
+    fun `the notes kept aside this session outlive a read of the notebook from the disk`() {
+        val s = state()
+        s.load.keptAside["a"] = mutableListOf(Notebook.KeptAside("x", mapOf("body" to "first"), "look"))
+        s.reload()
+        assertEquals("x", s.load.keptAside["a"]?.single()?.uid)
+    }
+
+    @Test
     fun `the day turning with the app open moves today, drops the earlier day's bar and asks for the new one's`() {
         // Read once, today stayed on the day the app opened: past midnight the
         // calendar's ring, "Calendar: soonest" and the bar kept to yesterday.
@@ -319,7 +405,7 @@ class AppStateTest {
     }
 
     @Test
-    fun aDayChangedFromTheCalendarBesideTheNoteIsSavedFirstAndReadBack() {
+    fun aDayChangedFromTheCalendarBesideTheNoteIsSavedFirstAndReadBackOnlyWhereItShows() {
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1)
@@ -329,7 +415,12 @@ class AppStateTest {
         s.resetDay(1, "2026-10-12")
         s.deleteDay(1, "2026-10-19")
         assertEquals(listOf("flush", "flush"), seen)
-        assertEquals(rewritten + 2, s.openNoteRewritten)
+        // The whole series shows no day: read back, it lost its Undo for
+        // nothing (wave 2, round 10). Open on the day changed, it is.
+        assertEquals(rewritten, s.openNoteRewritten)
+        s.openNote(1, "2026-10-26")
+        s.resetDay(1, "2026-10-26")
+        assertEquals(rewritten + 1, s.openNoteRewritten)
     }
 
     @Test
@@ -420,8 +511,10 @@ class AppStateTest {
         s.flush = { flushed = true; null }
         s.beforeImport()
         assertTrue(flushed)
+        // Saved first, and read back only if the import changed it: this one
+        // did not (wave 2, round 14; the one that does is pinned below).
         s.afterImport()
-        assertEquals(rewritten + 1, s.openNoteRewritten)
+        assertEquals(rewritten, s.openNoteRewritten)
     }
 
     @Test

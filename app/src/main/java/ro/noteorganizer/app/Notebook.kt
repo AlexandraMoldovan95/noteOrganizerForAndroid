@@ -414,6 +414,19 @@ object Showing {
     }
 
     /**
+     * Which of [ids] the change from [listed] to [rows] moved: their place
+     * differs, or they arrived. Under a sort a move does not reorder -- Title
+     * A-Z, Custom order, a calendar's -- filing a selection made across a
+     * scroll brought the list back to the first card selected, screens above,
+     * nothing moved; a pin of notes some already pinned scrolled to one of
+     * those (wave 2, rounds 10, 14 and 16).
+     */
+    fun movedIds(listed: List<Row>, rows: List<Row>, ids: Set<Int>): Set<Int> {
+        fun place(of: List<Row>, id: Int) = of.indexOfFirst { (it as? Row.Item)?.note?.id == id }
+        return ids.filterTo(HashSet()) { place(listed, it) != place(rows, it) }
+    }
+
+    /**
      * Where the list scrolls to bring the moved notes [ids] into sight among
      * [rows] -- the first of them in the order the list has now -- or null
      * when it needs none: none listed, or already in the window of [seen],

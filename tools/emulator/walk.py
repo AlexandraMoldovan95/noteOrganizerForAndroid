@@ -3008,6 +3008,22 @@ def move_day_keeps_new_item(folder):
     seek(lambda: find("Book the room") is not None)
     check("Whole series keeps the words in A new item, made no row",
           rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+    # A sum typed in the calculator on a day, not put in yet, then "Whole
+    # series": built anew, the editor shut the calculator and the sum went
+    # with it (round 15).
+    back_to("Search notes")
+    tap("Calendar", exact=True, wait=1.5)
+    tap(said(third), wait=1.0)
+    open_note("Team meeting")
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+    for key in ("4", "5", "7"):
+        tap(key, exact=True, wait=0.3)
+    adb("shell", "input", "swipe", "900", "500", "900", "1200", "300")    # back up to the banner
+    time.sleep(1.0)
+    tap("Whole series", wait=1.5)
+    check("Whole series keeps the calculator open with the sum typed in it",
+          find("⬇ Insert into note") is not None and find("457", exact=True) is not None)
     back_to("Search notes")
 
 
@@ -3885,6 +3901,20 @@ def what_hides_the_list(folder):
     tap("Show all", exact=True, wait=1.5)
     check("a new note Show hides is said as it closes, and Show all puts it on the list",
           said and not says_soon("Call the dentist", "Show: All"))
+
+    # Notes the Trash's Undo puts back where Show now hides them are said,
+    # with Show all: they came back without a word (wave 2, round 11). Two,
+    # as one put back opens in the editor.
+    long_press("Crème brûlée night")
+    tap("Shopping", exact=True, wait=0.6)
+    tap("🗑", wait=0.8)
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    tap("Undo", exact=True, wait=1.0)
+    said = not says_soon("Put back, 2 of them hidden by Show: Work", "Show all", within=8.0)
+    tap("Show all", exact=True, wait=1.5)
+    check("notes the Trash's Undo puts back where Show hides them are said, and Show all shows them",
+          said and not says_soon("Crème brûlée night", "Shopping", "Show: All"))
 
     # Text shared to the app: a new note; a code among words: a code.
     adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
