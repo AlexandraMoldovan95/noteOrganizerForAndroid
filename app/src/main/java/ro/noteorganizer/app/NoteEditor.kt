@@ -1117,15 +1117,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 // them (the desktop's `_keep_text_aside`).
                 state.load.notes.firstOrNull { result.keptAside != 0 && it.id == result.keptAside }?.let { made ->
                     val what = if (result.keptComments) "The comments this cleared" else "The words this took away"
-                    state.offer("$what are kept as a note of their own: ${quoted(made.title)}", "Show") { state.openNote(made.id) }
+                    state.offerAbout(listOf(made.id), "$what are kept as a note of their own: ${quoted(made.title)}",
+                                     "Show") { state.openNote(made.id) }
                     state.arrivals = listOf(made.id) to "Kept aside"
                 }
-                if (result.spentAside) {
-                    // Over the bar that offered it: its Show stayed up, waiting,
-                    // for a note just gone (the lows wave's round 1).
-                    state.snackbar.currentSnackbarData?.dismiss()
-                    state.say("The words are back in the note; the note kept aside of them is gone again")
-                }
+                // The bar that offered its Show goes with the note: left up, it
+                // waited for a note just gone (the lows wave's round 1).
+                state.asidesSpent(result.spentAside)
                 null
             }
             is SaveResult.Failed -> {

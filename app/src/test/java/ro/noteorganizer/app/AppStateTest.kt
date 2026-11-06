@@ -86,6 +86,28 @@ class AppStateTest {
     }
 
     @Test
+    fun `a note kept aside taken back takes its own bars, shown or waiting, and no other`() {
+        // The bar on screen dismissed, whatever it was: another note kept
+        // aside lost its Show and this one's then showed, or another
+        // action's Undo went (the lows wave's round 2).
+        val s = state()
+        val gone = "The words are back in the note; the note kept aside of them is gone again"
+        s.offerAbout(listOf(1), "Kept 1", "Show") {}
+        s.offerAbout(listOf(2), "Kept 2", "Show") {}
+        s.asidesSpent(listOf(2))
+        assertEquals("Kept 1", s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        assertEquals("the one waiting went with its note", gone, s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        s.offerAbout(listOf(1), "Kept 1", "Show") {}
+        s.trash(listOf(2))
+        s.asidesSpent(listOf(1))
+        assertEquals("an Undo on screen stays", "Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
+    }
+
+    @Test
     fun `a moved day's Undo reads back only the editor on that day`() {
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))

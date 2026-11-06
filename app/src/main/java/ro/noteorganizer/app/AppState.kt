@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -406,12 +407,34 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /** A message with one thing to do about it: "Exported to…", Open. */
-    fun offer(message: String, action: String, onAction: () -> Unit) {
+    fun offer(message: String, action: String, onAction: () -> Unit): Job =
         scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = action,
                 duration = SnackbarDuration.Long, withDismissAction = true)
             if (answer == SnackbarResult.ActionPerformed) onAction()
         }
+
+    /** The bars [offerAbout] put up, by the notes they are about. */
+    private val barsAbout = HashMap<Int, MutableList<Job>>()
+
+    /** An [offer] about the notes [ids], which goes with them when [asidesSpent] takes them away. */
+    fun offerAbout(ids: Collection<Int>, message: String, action: String, onAction: () -> Unit) {
+        val bar = offer(message, action, onAction)
+        barsAbout.values.removeAll { bars -> bars.removeAll { it.isCompleted }; bars.isEmpty() }
+        for (id in ids) barsAbout.getOrPut(id) { ArrayList() }.add(bar)
+    }
+
+    /**
+     * The notes kept aside that a save took back, their words in the note
+     * again ([SaveResult.Ok.spentAside]): their bars go, on screen or still
+     * waiting their turn, and it is said. Only theirs: dismissing the bar on
+     * screen took another action's Undo, or the bar of another note kept
+     * aside, whose own then showed (the lows wave's round 2).
+     */
+    fun asidesSpent(ids: List<Int>) {
+        if (ids.isEmpty()) return
+        for (id in ids) barsAbout.remove(id)?.forEach { it.cancel() }
+        say("The words are back in the note; the note kept aside of them is gone again")
     }
 
     fun putSetting(key: String, value: Any?): Boolean {

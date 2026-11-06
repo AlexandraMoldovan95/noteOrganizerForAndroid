@@ -7738,12 +7738,15 @@ def kept_aside(folder):
     the copy here until the lows wave found it)."""
     print("\n-- the words a big delete takes beside an Update's copy --")
     words = "Book the physio for Friday, then the bike at seven, then the plan for the knee"
-    if not seed_inside([{"id": 1, "uid": "ka-trip", "title": "Trip", "body": "Mine before",
+    # A checklist row the note kept aside does not take: a search for it
+    # finds the note and hides that one, for the wide screen below.
+    rows = [{"text": "passport", "done": False}]
+    if not seed_inside([{"id": 1, "uid": "ka-trip", "title": "Trip", "body": "Mine before", "checklist": rows,
                          "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}],
                        {"welcome_offered": True}, "Trip"):
         return
     code = desktop_code({"uid": "ka-trip", "title": "Trip", "body": words, "category": "General",
-                         "updated": "2026-10-15 10:00:00"})
+                         "checklist": rows, "updated": "2026-10-15 10:00:00"})
     if not code:
         fail("the words kept aside: the desktop's encoder could not be used, so nothing was tried")
         return
@@ -7799,6 +7802,37 @@ def kept_aside(folder):
     gone = not says_soon("gone again", within=4.0)
     check("put back before Show is tapped, the note kept aside goes, and its Show with it",
           offered and gone and find("Show", exact=True) is None, "offered %s, gone said %s" % (offered, gone))
+    back_to("Search notes")
+    # With the list beside the note, the list says where it hides the note
+    # kept aside, in a bar waiting behind the editor's: taken back, that one
+    # goes too -- shown, its Show all emptied the search for a note gone
+    # (the lows wave's round 2). A 14-inch tablet, as screen_sizes draws it.
+    adb("shell", "wm", "size", "1848x2960")
+    adb("shell", "wm", "density", "340")
+    time.sleep(3.0)
+    try:
+        back_to("Search notes")
+        tap("Search notes", wait=0.8)
+        type_text("passport")
+        keyboard_down()
+        if not open_note("Trip"):
+            return
+        tap_last(words, wait=0.6)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+        offered = not says_soon("kept as a note of their own", "Show", within=10.0)
+        type_text(words[len("Book"):])
+        gone = not says_soon("gone again", within=4.0)
+        # The list's bar would come once the editor's goes: looked for over
+        # the whole of the bars' time.
+        stale = settle(lambda: not screen_says("hidden by your search"), lambda seen: seen, within=12.0, first=0)
+        check("...and on a wide screen, the list's bar for it goes too",
+              offered and gone and not stale,
+              "offered %s, gone said %s, the list's bar shown %s" % (offered, gone, stale))
+        keyboard_down()
+    finally:
+        adb("shell", "wm", "size", "reset")
+        adb("shell", "wm", "density", "reset")
     back_to("Search notes")
 
 

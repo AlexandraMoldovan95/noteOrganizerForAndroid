@@ -1898,14 +1898,14 @@ class NotebookTest {
         assertFalse(cut.keptComments)
         // Typed back: the note kept aside goes again, said.
         val back = Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok
-        assertTrue(back.spentAside)
+        assertEquals("the note that went, by its id, its bar to go with it", listOf(made.getInt("id")), back.spentAside)
         assertTrue(asides(load).isEmpty())
 
         // Pinned since, it is the person's, and stays.
         load = scratch(JSONArray().put(updated("t2")).toString())
         val pinned = (Notebook.updateNote(load, 1, "Trip", "Book.") as SaveResult.Ok).keptAside
         assertTrue(Notebook.updateNote(load, pinned, "Trip (earlier text)", words, pinned = true) is SaveResult.Ok)
-        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertTrue((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside.isEmpty())
         assertEquals(1, asides(load).size)
 
         // Deleted and put back from the Trash, likewise.
@@ -1914,14 +1914,14 @@ class NotebookTest {
         assertTrue(Organizing.trashNotes(load, listOf(trashed)) is SaveResult.Ok)
         assertTrue(asides(load).isEmpty())
         assertTrue(Organizing.restore(load, Notebook.refreshed(load).trash.map { Organizing.keyOf(it) }) is SaveResult.Ok)
-        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertTrue((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside.isEmpty())
         assertEquals(1, asides(load).size)
 
         // A read is the next start, which no longer knows it: it stays for good.
         load = scratch(JSONArray().put(updated("t4")).toString())
         assertTrue(Notebook.updateNote(load, 1, "Trip", "Book.") is SaveResult.Ok)
         load = Notebook.load(dirOf(load))
-        assertFalse((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside)
+        assertTrue((Notebook.updateNote(load, 1, "Trip", words) as SaveResult.Ok).spentAside.isEmpty())
         assertEquals(1, asides(load).size)
 
         // The comments alone, when the save takes no more.

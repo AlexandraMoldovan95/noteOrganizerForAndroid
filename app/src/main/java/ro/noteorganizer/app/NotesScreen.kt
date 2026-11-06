@@ -170,6 +170,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     LaunchedEffect(reveal, laidOut) {
         val id = reveal ?: return@LaunchedEffect
         val at = if (id == -1) 0 else laidOut.indexOfFirst { (it as? Showing.Row.Item)?.note?.id == id }
+        // Waited for while the list changes to show it; let go once the note
+        // is gone, or the next note given its id was scrolled to (lows round 2).
+        if (at < 0 && state.load.notes.none { it.id == id }) reveal = null
         if (at < 0) return@LaunchedEffect
         reveal = null
         listState.scrollToItem(at)
@@ -237,6 +240,12 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
 
     /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
     fun showAll(note: Note?) {
+        // Asked over a note gone since -- one kept aside, taken back: the
+        // search and Show changed for nothing (the lows wave's round 2).
+        if (note != null && state.rawNote(note.id) == null) {
+            state.say("That note is no longer here")
+            return
+        }
         query = ""
         listedFor = ""
         reveal = note?.id ?: -1
@@ -272,7 +281,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
         val first = hidden.firstOrNull() ?: return@LaunchedEffect
         val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
-        state.offer("$said, $tail", "Show all") { showAll(first) }
+        state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all") { showAll(first) }
     }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }

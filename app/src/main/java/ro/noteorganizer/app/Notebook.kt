@@ -598,8 +598,8 @@ sealed class SaveResult {
         val keptAside: Int = 0,
         /** Whether that note holds the comments alone, the save taking no more. */
         val keptComments: Boolean = false,
-        /** Whether a note kept aside went again, its words back in the note. */
-        val spentAside: Boolean = false,
+        /** The notes kept aside that went again, their words back in the note. */
+        val spentAside: List<Int> = emptyList(),
     ) : SaveResult()
 
     data class Failed(val reason: String) : SaveResult()
@@ -1546,8 +1546,8 @@ object Notebook {
         return made to words
     }
 
-    /** What [takeBackAside] found: the entries whose words are back, and whether a note went with them. */
-    private class TakenBack(val entries: List<KeptAside>, val removed: Boolean)
+    /** What [takeBackAside] found: the entries whose words are back, and the notes that went with them. */
+    private class TakenBack(val entries: List<KeptAside>, val removed: List<Int>)
 
     /**
      * The notes [keepTextAside] made of [note]'s words, once [note] holds
@@ -1557,18 +1557,18 @@ object Notebook {
      * or filed since is the person's, and stays. The desktop's `_take_back_aside`.
      */
     private fun takeBackAside(load: Load, note: JSONObject, candidate: JSONArray): TakenBack {
-        val held = load.keptAside[note.opt("uid") as? String ?: ""] ?: return TakenBack(emptyList(), false)
+        val held = load.keptAside[note.opt("uid") as? String ?: ""] ?: return TakenBack(emptyList(), emptyList())
         val back = held.filter { entry ->
             entry.words.all { (key, value) -> wordsLost(value, note.opt(key) as? String ?: "") == 0 }
         }
-        var removed = false
+        val removed = ArrayList<Int>()
         for (entry in back) {
             val at = (0 until candidate.length()).firstOrNull {
                 entry.uid.isNotEmpty() && (candidate.opt(it) as? JSONObject)?.opt("uid") == entry.uid
             } ?: continue
             if (asideLook(candidate.getJSONObject(at)) == entry.look) {
+                removed.add(candidate.getJSONObject(at).optInt("id"))
                 candidate.remove(at)
-                removed = true
             }
         }
         return TakenBack(back, removed)
