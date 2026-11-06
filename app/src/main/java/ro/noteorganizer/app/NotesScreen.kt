@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -260,6 +261,16 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // Work, or not what the search looks for -- said once it is closed, with
     // the way back: it vanished from the list as it was written (the desktop
     // says it as the note is made).
+    // The list's own bars live while it does, and each is asked again as the
+    // word it came of: its Show all acts on this list, and from a list gone
+    // it did nothing at all (the lows wave's round 5).
+    val listBars = remember { ArrayList<Pair<Job, () -> Unit>>() }
+    DisposableEffect(Unit) {
+        onDispose {
+            for ((bar, again) in listBars) if (!bar.isCompleted) { bar.cancel(); again() }
+            listBars.clear()
+        }
+    }
     val madeNew = state.newNoteMade
     LaunchedEffect(madeNew, state.openId) {
         val id = madeNew ?: return@LaunchedEffect
@@ -268,8 +279,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val note = state.load.notes.firstOrNull { it.id == id } ?: return@LaunchedEffect
         val hides = hiding(note)
         if (hides.isNotEmpty()) {
-            state.offer("Saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}, hidden by $hides",
-                "Show all") { showAll(note) }
+            val again = { state.newNoteMade = id }
+            listBars += state.offerAbout(listOf(id), "Saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}, " +
+                "hidden by $hides", "Show all", again) { showAll(note) } to again
         }
     }
     // Notes restored or imported where the list does not look, said the
@@ -281,10 +293,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
         val first = hidden.firstOrNull() ?: return@LaunchedEffect
         val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
+        val again = { state.arrivals = ids to said }
         // The first of them still here: the first alone, gone, refused them all (round 3).
-        state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all") {
+        listBars += state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all", again) {
             showAll(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)
-        }
+        } to again
     }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }

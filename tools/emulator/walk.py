@@ -3918,6 +3918,25 @@ def what_hides_the_list(folder):
     tap("Show all", exact=True, wait=1.5)
     check("a new note Show hides is said as it closes, and Show all puts it on the list",
           said and not says_soon("Call the dentist", "Show: All"))
+    # Hidden by the search, and the list left for another tab while its word
+    # shows: the word comes again with the list, and its Show all empties the
+    # search -- run on the list left, it did nothing (the lows wave's round 5).
+    tap("Search notes", wait=0.8)
+    type_text("gruyere")
+    keyboard_down()
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Call Ann")
+    back_to("Shopping")
+    said = not says_soon("hidden by your search", "Show all", within=8.0)
+    tap("Settings", exact=True, wait=1.5)
+    tap("Notes", exact=True, wait=1.5)
+    again = not says_soon("hidden by your search", "Show all", within=8.0)
+    tap("Show all", exact=True, wait=1.5)
+    check("...and hidden by the search, the list left for another tab, its word comes again with "
+          "the list and Show all empties the search",
+          said and again and not says_soon("Call Ann", "Search notes"),
+          "said %s, again %s" % (said, again))
 
     # Notes the Trash's Undo puts back where Show now hides them are said,
     # with Show all: they came back without a word (wave 2, round 11). Two,

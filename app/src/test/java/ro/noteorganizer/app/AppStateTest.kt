@@ -128,26 +128,46 @@ class AppStateTest {
         assertEquals(listOf(1) to "Kept aside", s.arrivals)
         s.trash(listOf(1))
         assertNull(s.arrivals)
+        // ...and the new note's word the same way: it lent its id, and its
+        // "Saved in", to the next note restored or imported (round 5).
+        s.newNoteMade = 7
+        s.refresh()
+        assertNull(s.newNoteMade)
     }
 
     @Test
-    fun `an Undo takes the bar at once, over bars waiting their turn and an earlier Undo`() {
-        // Behind a note's Show it waited ten seconds, and a second delete
-        // then showed the first one's Undo (the lows wave's round 3).
+    fun `an Undo takes the bar at once, and the offers waiting come after it, asked again`() {
+        // Behind a note's Show it waited ten seconds (the lows wave's round 3);
+        // thrown away, a hidden note's word was never said (round 4); the bar
+        // on screen is replaced, as the desktop's banner is, and what waited is
+        // asked again once the Undo is done, by whoever made it (round 5).
         val s = state()
+        var asked = 0
         s.offer("Exported", "Open") {}
-        s.offerAbout(listOf(2), "Kept aside, hidden", "Show all") {}
-        s.trash(listOf(1))
+        s.offer("Saved, hidden", "Show all") {}
+        s.offerAbout(listOf(2), "About B", "Show") {}
+        s.offerAbout(listOf(1), "Kept aside, hidden", "Show all", again = { asked += 1 }) {}
+        s.trash(listOf(2))
         assertEquals("Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
+        assertEquals("held back until it is done", 0, asked)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        assertEquals("the list's word is asked again, not shown as made", 1, asked)
+        assertEquals("Saved, hidden", s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        assertNull("the bar on screen went, and none about a note gone", s.snackbar.currentSnackbarData)
+    }
+
+    @Test
+    fun `the offers an Undo held back outlive a second Undo, and come after the last`() {
+        val s = state()
+        s.say("one")
+        s.offer("Saved, hidden", "Show all") {}
+        s.trash(listOf(1))
         s.trash(listOf(2))
         s.snackbar.currentSnackbarData!!.performAction()
         // By title: put back, a note may be given another id.
         assertEquals("the Undo shown is the last delete's", listOf("B"), s.rawNotes().map { it.optString("title") })
-        // ...and the offers it went before come after it -- thrown away, a hidden
-        // note's word was never said (round 4) -- but none about a note it took away.
-        assertEquals("Exported", s.snackbar.currentSnackbarData?.visuals?.message)
-        s.snackbar.currentSnackbarData!!.dismiss()
-        assertNull(s.snackbar.currentSnackbarData)
+        assertEquals("Saved, hidden", s.snackbar.currentSnackbarData?.visuals?.message)
     }
 
     @Test

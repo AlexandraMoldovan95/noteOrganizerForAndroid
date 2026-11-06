@@ -380,7 +380,8 @@ fun finishImport(
             // found in the list.
             val o = result.outcome
             if (o.added + o.updated == 1 && o.firstId > 0) {
-                state.offer(importMessage(o), "Open") { state.openNote(o.firstId) }
+                // About that note: held back by an Undo, not offered again once it is gone.
+                state.offerAbout(listOf(o.firstId), importMessage(o), "Open") { state.openNote(o.firstId) }
             } else {
                 state.say(importMessage(o))
             }

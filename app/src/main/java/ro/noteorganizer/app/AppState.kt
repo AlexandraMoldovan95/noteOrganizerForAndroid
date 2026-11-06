@@ -391,8 +391,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * new note, which is given a gone note's id (the lows wave's rounds 3-4).
      */
     private fun dropArrivalsOfGone() {
-        val (ids, said) = arrivals ?: return
         val held = load.notes.mapTo(HashSet()) { it.id }
+        // The new note's word ([newNoteMade]) the same way (round 5).
+        newNoteMade?.let { if (it !in held) newNoteMade = null }
+        val (ids, said) = arrivals ?: return
         if (ids.all { it in held }) return
         arrivals = ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { it to said }
     }
@@ -422,25 +424,33 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** A message with one thing to do about it: "Exported to…", Open. */
     fun offer(message: String, action: String, onAction: () -> Unit): Job =
-        offerFor(emptyList(), message, action, onAction)
+        offerFor(emptyList(), message, action, null, onAction)
 
-    private fun offerFor(about: Collection<Int>, message: String, action: String, onAction: () -> Unit): Job {
+    private fun offerFor(about: Collection<Int>, message: String, action: String, again: (() -> Unit)?,
+                         onAction: () -> Unit): Job {
         val bar = scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = action,
                 duration = SnackbarDuration.Long, withDismissAction = true)
             if (answer == SnackbarResult.ActionPerformed) onAction()
         }
         offered.removeAll { it.bar.isCompleted }
-        offered.add(Offered(about, message, action, onAction, bar))
+        offered.add(Offered(about, message, action, onAction, again, bar))
         return bar
     }
 
-    /** An [offer] as made -- the notes it is about, its words, its action -- and its bar. */
+    /**
+     * An [offer] as made -- the notes it is about, its words, its action, and
+     * how to ask it again ([again]: the list's own bars are asked again by the
+     * list, which knows what hides a note) -- and its bar.
+     */
     private class Offered(val about: Collection<Int>, val message: String, val action: String,
-                          val onAction: () -> Unit, val bar: Job)
+                          val onAction: () -> Unit, val again: (() -> Unit)?, val bar: Job)
 
     /** Every [offer] whose bar is not yet gone, shown or waiting: an Undo goes before them ([offerUndo]). */
     private val offered = ArrayList<Offered>()
+
+    /** The offers an Undo still showing holds back, asked again once it is done. */
+    private val heldBack = ArrayList<Offered>()
 
     /** The bars [offerAbout] put up, by the notes they are about. */
     private val barsAbout = HashMap<Int, MutableList<Job>>()
@@ -448,11 +458,17 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** The last [offerUndo]'s bar, which the next one replaces, shown or waiting. */
     private var undoBar: Job? = null
 
-    /** An [offer] about the notes [ids], which goes with them when [asidesSpent] takes them away. */
-    fun offerAbout(ids: Collection<Int>, message: String, action: String, onAction: () -> Unit) {
-        val bar = offerFor(ids, message, action, onAction)
+    /**
+     * An [offer] about the notes [ids], which goes with them when [asidesSpent]
+     * takes them away, and is not asked again for notes gone; [again], how
+     * the one who made it asks it again ([offerUndo]).
+     */
+    fun offerAbout(ids: Collection<Int>, message: String, action: String, again: (() -> Unit)? = null,
+                   onAction: () -> Unit): Job {
+        val bar = offerFor(ids, message, action, again, onAction)
         barsAbout.values.removeAll { bars -> bars.removeAll { it.isCompleted }; bars.isEmpty() }
         for (id in ids) barsAbout.getOrPut(id) { ArrayList() }.add(bar)
+        return bar
     }
 
     /**
@@ -854,24 +870,43 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     private fun offerUndo(message: String, undo: () -> Unit) {
         // The newest takes the bar, as the desktop's banner is replaced: two
         // deletes in a row, and the Undo on screen brought back the first.
-        // Before the bars still waiting their turn too, which it waited behind
-        // (the lows wave's round 3); an earlier Undo goes. The offers come
-        // after it, as the desktop holds a banner back behind an Undo: thrown
-        // away, a hidden note's word was never said (round 4).
+        // An earlier Undo still waiting goes too (the lows wave's round 3).
         undoBar?.cancel()
-        val after = offered.filter { !it.bar.isCompleted }
-        after.forEach { it.bar.cancel() }
+        // The offers waiting their turn are held back until it is done, after
+        // its own words, as the desktop holds a banner back behind an Undo --
+        // thrown away, a hidden note's word was never said (rounds 3-5).
+        val shown = snackbar.currentSnackbarData?.visuals
+        heldBack.addAll(offered.filter { o ->
+            !o.bar.isCompleted && !(shown != null && shown.message == forTheScreen(o.message) && shown.actionLabel == o.action)
+        })
+        offered.forEach { it.bar.cancel() }
         offered.clear()
         snackbar.currentSnackbarData?.dismiss()
         undoBar = scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = "Undo",
                 duration = SnackbarDuration.Long, withDismissAction = false)
             if (answer == SnackbarResult.ActionPerformed) undo()
+            askHeldBackAgain()
         }
-        for (o in after) {
-            if (o.about.isEmpty()) offer(o.message, o.action, o.onAction)
-            // Not for notes this very action took away.
-            else if (o.about.any { rawNote(it) != null }) offerAbout(o.about, o.message, o.action, o.onAction)
+    }
+
+    /**
+     * The offers an Undo held back, asked again now it is done: each as its
+     * maker asks it ([Offered.again]) -- shown as made, a list's Show all ran
+     * on a list gone and "hidden by" was said of a note nothing hid (round 5)
+     * -- and none about notes gone since.
+     */
+    private fun askHeldBackAgain() {
+        val waiting = heldBack.toList()
+        heldBack.clear()
+        for (o in waiting) {
+            if (o.about.isNotEmpty() && o.about.none { rawNote(it) != null }) continue
+            val again = o.again
+            when {
+                again != null -> again()
+                o.about.isEmpty() -> offer(o.message, o.action, o.onAction)
+                else -> offerAbout(o.about, o.message, o.action, null, o.onAction)
+            }
         }
     }
 
