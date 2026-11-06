@@ -7,11 +7,14 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-two of the ninety-eight are
+**the code**, or in **the design**. Twenty-three of the hundred and one are
 about the checking.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-06](#custom-order-twelve-rounds-to-settle) | design | The final audit's second wave, rounds 14 to 25: Custom order's steps and drag -- cards out of sight, a drag against the finger, every card in an edge zone on its side, a hold lost to the next finger event -- most of it pushed in by the round before | Where the frame order decides, a gesture's rules are one machine: every decision in a pure function, and the whole machine re-attacked |
+| [2026-11-06](#walk-checks-that-could-not-tell) | checking | The same rounds: five walk checks were not the check they were written to be -- a label in capitals, a stale gesture, a cut handle, a recoil the wrong way, a pass mark from one build | A walk check is a claim about the screen: watch it fail on the bug, pass on the fix, and measure its mark on both |
+| [2026-11-04](#a-fix-the-next-round-found-wrong) | code | The final audit's second wave, rounds 1 to 13: an ordinary week, and my own fixes found wrong by the next round -- "A new item…" lost on a moved day, a flag on the call, a reveal on the old layout, parts stacked | A fix is a new road: re-attack it by name, and look at the photographs |
 | [2026-11-02](#a-mark-held-in-a-cell-and-the-roads-that-changed-the-table-first) | code | The final audit's third wave: a cell left on "[x]" kept "[x" -- the held mark was written before the table's bar, Undo and the calculator, not before Caption, Line above, Delete or Insert table; and the Duplicates clean-up merged a Duplicate's files twice | A value held back must be written by every road that can replace what it belongs to; find the roads by what they change |
 | [2026-11-02](#a-paste-meeting-a-list-one-road-at-a-time) | code | The lows wave's verification, rounds 5 to 11: one class found a road a round -- a pasted line read as a corrected word, a paste with no list handling, a copy carrying the next line's or its first line's looks, a whole item pasted over another keeping the covered marker ("2. 3. Bread", "3. 1. Kiwi") -- until round 9 tested the rule's whole matrix | When each fix of a rule leaves the case beside it, write the rule down and test its whole matrix on both apps at once; a fix by road is a fix of one cell |
 | [2026-11-01](#a-days-lists-read-by-line) | design | The lows wave's verification, rounds 1 to 4: a day of its own text took its lists' depth from the series by line, and Enter renumbered and stored it; the owner chose that a day keeps its own lists | What a copy can change, the copy keeps; structure borrowed by line number holds only until the first line moves |
@@ -113,6 +116,114 @@ about the checking.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## Custom order, twelve rounds to settle
+
+**2026-11-06.** The final audit's second wave, rounds 14 to 25, on the phone
+alone: the desktop had met the stop rule at round 14. Custom order arranges
+notes by dragging a card's handle, or one place at a time with Move up and
+Move down from the handle's menu, TalkBack or Switch Access. Nine of these
+twelve rounds found something of medium or above in that one small machine,
+and most of it came from the round before: a fix for one road moved what the
+next road stood on.
+
+What the rounds found, in order:
+
+- A moved or pinned card went out of sight on a long list (rounds 14 to 16).
+  The list follows its first card by key, but only within about a hundred
+  rows; past that it keeps the index. It is now held by index.
+- A step past the top card or the foot left the card above the screen, under
+  the +, or as a strip (rounds 17 to 21). `Showing.intoSight` came first, then
+  `afterStep` brought in the card it passed, and in the end the pair comes in
+  only when it fits.
+- A drag scrolled the list against the finger: it read its way from one
+  frame's sign, and turned on a hair's recoil (rounds 17 to 20). The fix was
+  `dragHeading` with the touch slop, and an edge that scrolls only past the
+  press.
+- On its side every card sat inside a 56 dp edge zone, so any drag slid the
+  list, and a move of one place went two or three (round 22). `edgeZone` and
+  a ramped `edgeStep` followed, as Android's own reorder does it.
+- A trade the edge loop made between frames lost its hold to the next finger
+  event, whose measure ran in the old order, and the carried card vanished
+  with its drag (round 23). The hold is now asked again once the new order
+  is composed. In the same round the slow start chained trades with cards
+  lying in the list's 4 dp top padding; a card that leads now trades so once.
+
+**The mechanism.** A `LazyColumn` keeps its place either by the first card's
+key or by an index asked for the next measure only. Which measure comes next
+depends on whether a finger event, a recomposition or the edge loop runs
+first. Each fix was right for the frame order it was written against.
+
+**The fix,** as it stands at 97b4811:
+
+- Every decision is a pure `Showing` function pinned by `ListingTest`.
+- The walk steps, drags, nudges, puts back and carries with a finger that
+  trembles, upright and on its side.
+- Mutants AS541 to AS577 were run against it.
+
+Rounds 24 and 25 found nothing of medium or above. The lows they and the
+earlier rounds left wait in the lows wave: a slow start that may feel
+sluggish, a step TalkBack does not announce, a Back swipe on a handle that
+opens its menu.
+
+**The lesson:** where the frame order decides, a gesture's rules are one
+machine. Put every decision in a pure function, and re-attack the whole
+machine, not only the last fix.
+
+---
+
+## Walk checks that could not tell
+
+**2026-11-06.** The same rounds, on the emulator. Five times a walk check
+was not the check it was written to be:
+
+- The comments' label is drawn in capitals, "COMMENTS". A check looking for
+  "Comments" failed on a correct screen (571cc61).
+- A second drag of the same card could not tell the stale gesture from the
+  right one, and AS557 survived. It was replaced by a tap after a step
+  (de6afd1).
+- The top card's drag measured a handle cut by the top edge, centred on what
+  showed of it, and stopped short of a trade on the fixed build. A
+  photographed probe found it (6320095).
+- The recoil "3 px back" went 8 px on (dbd52dd).
+- A pass mark set from one build only. The trembling carry's mark is now set
+  between where the fixed build lands and where the mutant stopped, measured
+  on both: places 7 and 8 against 22 (97b4811).
+
+Two things the emulator cannot do. adb sends no MOVE while a finger is held,
+so round 23's lost hold needed a trembling finger written into the walk. And
+AS558, a drag lost beside a taller card, never happened on the emulator, so
+it is pinned in `ListingTest` alone.
+
+**The lesson:** a walk check is a claim about the screen. Watch it fail on
+the bug and pass on the fix, and measure its mark on both builds.
+
+---
+
+## A fix the next round found wrong
+
+**2026-11-03 to 2026-11-04.** The final audit's second wave, rounds 1 to 13,
+on the phone: an ordinary person's first week, and a careless hand. Every
+search now folds case and accents by the desktop's rule. Shared text becomes
+a note. A note that Show hides is said, with Show all. Round after round,
+the next round also found my own fixes wrong:
+
+- Round 7's way of keeping "A new item…" lost it when a day was moved. Round
+  8 graded that high.
+- Round 8's `closes = true` was set on the call, not on its result (round 9).
+- Round 9's reveal read the layout from before the change. The walk and a
+  probe caught it.
+- A `Box` round the checklist's section stacked its parts on one another,
+  and an em size overlapped the rows. Only the walk's photographs saw
+  either.
+- The keyboard's foot was counted twice on a wide screen.
+- The Trash's Undo counted a strip under the list's padding as visible,
+  which logcat showed.
+
+**The lesson:** a fix is a new road. The next round re-attacks it by name,
+and the photographs see what no check was told to look for.
 
 ---
 
