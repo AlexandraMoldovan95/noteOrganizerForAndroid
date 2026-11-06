@@ -372,6 +372,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun refresh() {
         load = Notebook.refreshed(load)
         dropFoldsOfGone()
+        dropArrivalsOfGone()
         revision += 1
     }
 
@@ -380,7 +381,20 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         // The notes kept aside this session are still the session's to spend.
         load = Notebook.load(dir).also { it.keptAside.putAll(load.keptAside) }
         dropFoldsOfGone()
+        dropArrivalsOfGone()
         revision += 1
+    }
+
+    /**
+     * The list's word waiting for it ([arrivals]) without the notes gone
+     * since -- taken back, sent to the Trash: said later, it named the next
+     * new note, which is given a gone note's id (the lows wave's rounds 3-4).
+     */
+    private fun dropArrivalsOfGone() {
+        val (ids, said) = arrivals ?: return
+        val held = load.notes.mapTo(HashSet()) { it.id }
+        if (ids.all { it in held }) return
+        arrivals = ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { it to said }
     }
 
     /** A result shown when it failed; the screen refreshed either way. */
@@ -408,17 +422,25 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** A message with one thing to do about it: "Exported to…", Open. */
     fun offer(message: String, action: String, onAction: () -> Unit): Job =
-        scope.launch {
+        offerFor(emptyList(), message, action, onAction)
+
+    private fun offerFor(about: Collection<Int>, message: String, action: String, onAction: () -> Unit): Job {
+        val bar = scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = action,
                 duration = SnackbarDuration.Long, withDismissAction = true)
             if (answer == SnackbarResult.ActionPerformed) onAction()
-        }.also { bar ->
-            offered.removeAll { it.isCompleted }
-            offered.add(bar)
         }
+        offered.removeAll { it.bar.isCompleted }
+        offered.add(Offered(about, message, action, onAction, bar))
+        return bar
+    }
 
-    /** Every [offer]'s bar not yet gone, shown or waiting: an Undo takes the bar over them ([offerUndo]). */
-    private val offered = ArrayList<Job>()
+    /** An [offer] as made -- the notes it is about, its words, its action -- and its bar. */
+    private class Offered(val about: Collection<Int>, val message: String, val action: String,
+                          val onAction: () -> Unit, val bar: Job)
+
+    /** Every [offer] whose bar is not yet gone, shown or waiting: an Undo goes before them ([offerUndo]). */
+    private val offered = ArrayList<Offered>()
 
     /** The bars [offerAbout] put up, by the notes they are about. */
     private val barsAbout = HashMap<Int, MutableList<Job>>()
@@ -428,7 +450,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** An [offer] about the notes [ids], which goes with them when [asidesSpent] takes them away. */
     fun offerAbout(ids: Collection<Int>, message: String, action: String, onAction: () -> Unit) {
-        val bar = offer(message, action, onAction)
+        val bar = offerFor(ids, message, action, onAction)
         barsAbout.values.removeAll { bars -> bars.removeAll { it.isCompleted }; bars.isEmpty() }
         for (id in ids) barsAbout.getOrPut(id) { ArrayList() }.add(bar)
     }
@@ -443,11 +465,6 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun asidesSpent(ids: List<Int>) {
         if (ids.isEmpty()) return
         for (id in ids) barsAbout.remove(id)?.forEach { it.cancel() }
-        // ...and the list's word on them, not yet said: kept for the list's next
-        // showing, it was said of the next new note, given the same id (round 3).
-        arrivals = arrivals?.let { (waiting, said) ->
-            (waiting - ids.toSet()).takeIf { it.isNotEmpty() }?.let { it to said }
-        }
         say("The words are back in the note; the note kept aside of them is gone again")
     }
 
@@ -766,6 +783,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val home = rawNote(id)?.let { Recurrence.movedFrom(it, day) }
         val leaves = sendHome && home != null && openId == id && openDay == day
         report(outside(listOf(id), day = day) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
+            // The calendar on the day goes home with it, as with Move this day:
+            // it stayed on the date the day left (the lows wave's round 4).
+            if (sendHome && home != null && (selectedDay == day || leaves)) followDay(home)
             // The editor open on the day goes with it, to where it is now.
             if (leaves) openDay = home
             say(if (dropText) "This day follows the series again" else "This day is back on its own date")
@@ -834,16 +854,24 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     private fun offerUndo(message: String, undo: () -> Unit) {
         // The newest takes the bar, as the desktop's banner is replaced: two
         // deletes in a row, and the Undo on screen brought back the first.
-        // Over the bars still waiting their turn too -- an earlier Undo, an
-        // offer -- which it waited behind (the lows wave's round 3).
+        // Before the bars still waiting their turn too, which it waited behind
+        // (the lows wave's round 3); an earlier Undo goes. The offers come
+        // after it, as the desktop holds a banner back behind an Undo: thrown
+        // away, a hidden note's word was never said (round 4).
         undoBar?.cancel()
-        offered.forEach { it.cancel() }
+        val after = offered.filter { !it.bar.isCompleted }
+        after.forEach { it.bar.cancel() }
         offered.clear()
         snackbar.currentSnackbarData?.dismiss()
         undoBar = scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = "Undo",
                 duration = SnackbarDuration.Long, withDismissAction = false)
             if (answer == SnackbarResult.ActionPerformed) undo()
+        }
+        for (o in after) {
+            if (o.about.isEmpty()) offer(o.message, o.action, o.onAction)
+            // Not for notes this very action took away.
+            else if (o.about.any { rawNote(it) != null }) offerAbout(o.about, o.message, o.action, o.onAction)
         }
     }
 

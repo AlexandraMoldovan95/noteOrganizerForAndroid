@@ -74,6 +74,22 @@ class AppStateTest {
     }
 
     @Test
+    fun `the calendar goes home with a moved day reset`() {
+        // Reset this day moves the day too, and the calendar stayed on the date
+        // it left, the card gone from it (the lows wave's round 4).
+        val s = state()
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
+        s.selectedDay = "2026-10-12"
+        s.calendarMonth = java.time.YearMonth.of(2026, 10)
+        s.openNote(1, "2026-10-12")
+        s.moveDay(1, "2026-10-12", "2026-11-03")
+        s.resetDay(1, "2026-11-03", dropText = false)
+        assertEquals("2026-10-12", s.selectedDay)
+        assertEquals(java.time.YearMonth.of(2026, 10), s.calendarMonth)
+        assertEquals("2026-10-12", s.openDay)
+    }
+
+    @Test
     fun `a note gone by the time it is opened is said, and the note open stays`() {
         // An '(earlier text)' note spent by the very save that leaves the open
         // note: an empty new note opened in its place (the lows wave's round 1).
@@ -105,12 +121,12 @@ class AppStateTest {
         assertEquals("an Undo on screen stays", "Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
         s.snackbar.currentSnackbarData!!.dismiss()
         assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
-        // ...and the list's word on it, not yet said: said later, it named the
-        // next new note, given the same id (round 3).
+        // ...and the list's word on a note gone, not yet said: said later, it
+        // named the next new note, given the same id (rounds 3-4).
         s.arrivals = listOf(1, 7) to "Kept aside"
-        s.asidesSpent(listOf(7))
+        s.refresh()
         assertEquals(listOf(1) to "Kept aside", s.arrivals)
-        s.asidesSpent(listOf(1))
+        s.trash(listOf(1))
         assertNull(s.arrivals)
     }
 
@@ -119,14 +135,19 @@ class AppStateTest {
         // Behind a note's Show it waited ten seconds, and a second delete
         // then showed the first one's Undo (the lows wave's round 3).
         val s = state()
-        s.offerAbout(listOf(5), "Kept 5", "Show") {}
-        s.offerAbout(listOf(5), "Kept aside, hidden", "Show all") {}
+        s.offer("Exported", "Open") {}
+        s.offerAbout(listOf(2), "Kept aside, hidden", "Show all") {}
         s.trash(listOf(1))
         assertEquals("Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
         s.trash(listOf(2))
         s.snackbar.currentSnackbarData!!.performAction()
         // By title: put back, a note may be given another id.
         assertEquals("the Undo shown is the last delete's", listOf("B"), s.rawNotes().map { it.optString("title") })
+        // ...and the offers it went before come after it -- thrown away, a hidden
+        // note's word was never said (round 4) -- but none about a note it took away.
+        assertEquals("Exported", s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData!!.dismiss()
+        assertNull(s.snackbar.currentSnackbarData)
     }
 
     @Test
