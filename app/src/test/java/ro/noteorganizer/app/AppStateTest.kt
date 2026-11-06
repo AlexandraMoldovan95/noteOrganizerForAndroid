@@ -185,6 +185,42 @@ class AppStateTest {
     }
 
     @Test
+    fun `a word on several notes is given back whole by one's Undo, and an import's counts only what it added`() {
+        // Given back beside the part still waiting, the list said the same news
+        // twice; an import's '(earlier text)' notes came under "Added N notes"
+        // (the lows wave's round 9).
+        val s = state()
+        s.arrivals = listOf(listOf(1, 2) to "Added 2 notes")
+        s.tab = Tab.CALENDAR
+        s.trash(listOf(1))
+        assertEquals(listOf(listOf(2) to "Added 2 notes"), s.arrivals)
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals(listOf("Added 2 notes"), s.arrivals.map { it.second })
+        assertEquals(setOf("A", "B"), s.arrivals.single().first.mapNotNull { s.note(it)?.title }.toSet())
+        s.arrivals = emptyList()
+        val before = s.noteIds()
+        assertTrue(s.report(Notebook.createNote(s.load, "New one", "")))
+        assertTrue(s.report(Notebook.createNote(s.load, "Its earlier text", "")))
+        s.arrived(before, "Added 1 note", 1)
+        assertEquals(listOf("New one"), s.arrivals.single().first.map { s.note(it)?.title })
+    }
+
+    @Test
+    fun `restores made one at a time are said as one word, and a counted word stays whole`() {
+        // A bar each said the same again, its ✕ bringing the next; merged, a
+        // count the word carried was doubled (the lows wave's rounds 8-9).
+        val s = state()
+        s.waitWord(listOf(1), "Restored")
+        s.waitWord(listOf(5, 6), "Restored 2 notes")
+        s.waitWord(listOf(2), "Restored")
+        s.waitWord(listOf(7, 8), "Restored 2 notes")
+        assertEquals(listOf(1, 2) to "Restored", s.takeWord())
+        assertEquals(listOf(5, 6) to "Restored 2 notes", s.takeWord())
+        assertEquals(listOf(7, 8) to "Restored 2 notes", s.takeWord())
+        assertNull(s.takeWord())
+    }
+
+    @Test
     fun `text shared in becomes a note even while the open note cannot be saved`() {
         // Held for "Leave anyway", the words lived in that bar alone: its ✕,
         // its ten seconds or an Undo dropped them (the lows wave's round 6).

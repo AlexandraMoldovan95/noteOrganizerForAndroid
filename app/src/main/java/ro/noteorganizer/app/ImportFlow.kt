@@ -385,7 +385,9 @@ fun finishImport(
             } else {
                 state.say(importMessage(o))
             }
-            state.arrived(before, if (o.added == 1) "Added 1 note" else "Added ${o.added} notes")
+            // About the notes it added alone, made first: with its '(earlier text)'
+            // notes counted in, it said "Added 0 notes" (the lows wave's round 9).
+            if (o.added > 0) state.arrived(before, if (o.added == 1) "Added 1 note" else "Added ${o.added} notes", o.added)
         }
     }
 }

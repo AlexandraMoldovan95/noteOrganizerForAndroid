@@ -307,8 +307,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { state.arrivals.isNotEmpty() && state.snackbar.currentSnackbarData == null }.first { it }
-            val (ids, said) = state.arrivals.first()
-            state.arrivals = state.arrivals.drop(1)
+            val (ids, said) = state.takeWord() ?: continue
             val hidden = state.load.notes.filter { it.id in ids && hidingNow(it).isNotEmpty() }
             val first = hidden.firstOrNull() ?: continue
             val tail = if (ids.size == 1) "hidden by ${hidingNow(first)}"

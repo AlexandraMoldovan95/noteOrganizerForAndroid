@@ -936,7 +936,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
                 else if (count == 1) {
                     if (wasNew != null) noteMade(ok.id)
-                    for ((waiting, said) in words) waitWord(waiting.map { if (it in ids) ok.id else it }, said)
+                    for ((waiting, said) in words) {
+                        val back = waiting.map { if (it in ids) ok.id else it }
+                        // Into the word still waiting when the delete left part of
+                        // it: beside it, the list said the same news twice (round 9).
+                        val at = arrivals.indexOfFirst { (rest, same) -> same == said && rest.all { it in back } }
+                        if (at >= 0) arrivals = arrivals.toMutableList().also { it[at] = back to said }
+                        else waitWord(back, said)
+                    }
                 }
                 if (count == 1) openNote(ok.id)
             }
@@ -1158,9 +1165,29 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         arrivals = arrivals + (ids to said)
     }
 
-    /** The notes there are now and were not [before], as [arrivals]. */
-    fun arrived(before: Set<Int>, said: String) {
-        val new = load.notes.map { it.id }.filter { it !in before }
+    /**
+     * The next word for the list to say, taken off [arrivals]: words alike
+     * about one note each -- restores made one at a time -- as one, counted
+     * by all their notes (a bar each said the same again, its ✕ bringing the
+     * next; the lows wave's round 9). A word with a count of its own stays
+     * whole: merged, the count it carried was doubled (round 8).
+     */
+    fun takeWord(): Pair<List<Int>, String>? {
+        val (firstIds, said) = arrivals.firstOrNull() ?: return null
+        val alike = if (firstIds.size == 1) arrivals.filter { it.second == said && it.first.size == 1 }
+                    else listOf(arrivals.first())
+        arrivals = arrivals.filterNot { it in alike }
+        return alike.flatMap { it.first }.distinct() to said
+    }
+
+    /**
+     * The notes there are now and were not [before], as [arrivals] -- the
+     * first [take] of them, in the order made, when the word is about only
+     * those: an import's '(earlier text)' notes came under "Added N notes"
+     * (the lows wave's round 9).
+     */
+    fun arrived(before: Set<Int>, said: String, take: Int = Int.MAX_VALUE) {
+        val new = load.notes.map { it.id }.filter { it !in before }.sorted().take(take)
         if (new.isNotEmpty()) waitWord(new, said)
     }
 
