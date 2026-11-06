@@ -3890,16 +3890,21 @@ def what_hides_the_list(folder):
     check("a list Show leaves empty names it, and Show all notes brings the notes back",
           not says_soon("Crème brûlée night", "Shopping", "Show: All"))
 
-    def search(words):
+    def search(words, expect):
         tap("Search notes", wait=0.8)
         type_text(words)
-        time.sleep(1.0)
-        on = [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)]
+        # Looked for until it shows, not once a second after typing: on a busy
+        # emulator the list's answer came later, and the check failed two runs
+        # in three with nothing wrong (the lows wave's round 7).
+        on = settle(lambda: [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)],
+                    lambda seen: seen == expect, within=6.0, first=0)
         tap("Clear search", exact=True, wait=1.0)
         keyboard_down()
         return on
+    # What each search showed is said when it fails.
+    found = (search("creme", ["Crème brûlée night"]), search("gruyere", ["Shopping"]))
     check("the search finds Crème brûlée by creme, and a note by its checklist's row",
-          search("creme") == ["Crème brûlée night"] and search("gruyere") == ["Shopping"])
+          found == (["Crème brûlée night"], ["Shopping"]), "found %s" % (found,))
 
     # A new note filed under General while Show is at Work, the list
     # scrolled down: Show all brings the new note's card into sight, where
@@ -3938,6 +3943,24 @@ def what_hides_the_list(folder):
           "the list and Show all empties the search",
           said and again and not says_soon("Call Ann", "Search notes"),
           "said %s, again %s" % (said, again))
+    # Two new notes in a row that Show hides: their words come one at a time,
+    # each asked when its turn comes -- after the first one's Show all, the
+    # second said "hidden by Show: Work" over a list showing everything (the
+    # lows wave's round 7).
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    for title in ("Alpha errand", "Beta errand"):
+        tap("+", exact=True, wait=1.5)
+        tap("Title")
+        type_text(title)
+        back_to("Show: Work")
+    first = not says_soon("“Alpha errand” saved in General, hidden by Show: Work", within=8.0)
+    tap("Show all", exact=True, wait=1.5)
+    stale = settle(lambda: not screen_says("“Beta errand” saved in General, hidden by"), lambda seen: seen,
+                   within=12.0, first=0)
+    check("two new notes Show hides are said in turn, and after the first one's Show all the second "
+          "is not said hidden", first and not stale and not says_soon("Show: All"),
+          "first said %s, the second said hidden after Show all %s" % (first, stale))
 
     # Notes the Trash's Undo puts back where Show now hides them are said,
     # with Show all: they came back without a word (wave 2, round 11). Two,

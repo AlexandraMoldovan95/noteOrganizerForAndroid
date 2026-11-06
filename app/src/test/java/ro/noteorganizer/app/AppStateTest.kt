@@ -176,6 +176,12 @@ class AppStateTest {
         assertNull(s.newNoteMade)
         s.snackbar.currentSnackbarData!!.performAction()
         assertEquals("B", s.newNoteMade?.let { s.note(it)?.title })
+        // ...and a word already in the queue, too (round 7).
+        s.trash(listOf(1))
+        assertTrue(s.arrivals.isEmpty())
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals(listOf("“A” saved in General"), s.arrivals.map { it.second })
+        assertEquals("A", s.note(s.arrivals.single().first.single())?.title)
     }
 
     @Test

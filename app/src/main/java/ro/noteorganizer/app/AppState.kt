@@ -917,9 +917,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * exactly those entries, and opens the note when it was the only one.
      */
     fun trash(ids: Collection<Int>) {
-        // A new note's word waiting for the list, which the delete drops: its
-        // Undo gives it back, or the note came back unsaid (lows round 6).
+        // A new note's word waiting for the list, and the queued words on these
+        // notes, which the delete drops: its Undo gives them back, or the note
+        // came back unsaid (the lows wave's rounds 6-7).
         val wasNew = newNoteMade?.takeIf { it in ids }
+        val words = arrivals.filter { (waiting, _) -> waiting.any { it in ids } }
         // The open note goes to the Trash with its last words in it.
         val result = outside(ids, writes = false, closes = true) { Organizing.trashNotes(load, ids) } ?: return
         if (!report(result)) return
@@ -932,7 +934,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 // Asked of the list only when the Undo was tapped there, as
                 // newNoteMade is: kept from the Calendar, it moved the list later.
                 if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
-                else if (wasNew != null && count == 1) noteMade(ok.id)
+                else if (count == 1) {
+                    if (wasNew != null) noteMade(ok.id)
+                    for ((waiting, said) in words) waitWord(waiting.map { if (it in ids) ok.id else it }, said)
+                }
                 if (count == 1) openNote(ok.id)
             }
         }
@@ -1161,7 +1166,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /** A new note [id] the list says when it hides it, by name, as the desktop's banner does. */
     fun savedWord(note: Note): String =
-        "“${quoted(note.title.ifEmpty { UNTITLED })}” saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}"
+        "“${quoted(note.title.trim().ifEmpty { UNTITLED })}” saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}"
 
     /**
      * Note [id], just made, for the list to say ([newNoteMade]). One still
