@@ -227,7 +227,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val ids = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }.mapTo(HashSet()) { it.id }
-        if (hidden.isNotEmpty()) state.arrivals = ids.toList() to "Put back"
+        if (hidden.isNotEmpty()) state.waitWord(ids.toList(), "Put back")
         revealLater(ids - hidden, arrived = true)
     }
     /**
@@ -257,10 +257,6 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         }
     }
 
-    // A new note the list cannot show -- filed under General with Show at
-    // Work, or not what the search looks for -- said once it is closed, with
-    // the way back: it vanished from the list as it was written (the desktop
-    // says it as the note is made).
     // The list's own bars live while it does, and each is asked again as the
     // word it came of: its Show all acts on this list, and from a list gone
     // it did nothing at all (the lows wave's round 5).
@@ -271,6 +267,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             listBars.clear()
         }
     }
+    // A new note the list cannot show -- filed under General with Show at
+    // Work, or not what the search looks for -- said once it is closed, with
+    // the way back: it vanished from the list as it was written (the desktop
+    // says it as the note is made). Said by name: after another note was
+    // closed, it read as about that one (the lows wave's round 6).
     val madeNew = state.newNoteMade
     LaunchedEffect(madeNew, state.openId) {
         val id = madeNew ?: return@LaunchedEffect
@@ -279,25 +280,28 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val note = state.load.notes.firstOrNull { it.id == id } ?: return@LaunchedEffect
         val hides = hiding(note)
         if (hides.isNotEmpty()) {
-            val again = { state.newNoteMade = id }
-            listBars += state.offerAbout(listOf(id), "Saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}, " +
-                "hidden by $hides", "Show all", again) { showAll(note) } to again
+            val again = { state.noteMade(id) }
+            listBars += state.offerAbout(listOf(id), "${state.savedWord(note)}, hidden by $hides", "Show all",
+                again) { showAll(note) } to again
         }
     }
     // Notes restored or imported where the list does not look, said the
-    // same way once the list is on screen ([AppState.arrivals]).
+    // same way once the list is on screen ([AppState.arrivals]), each word
+    // in turn.
     val arrivals = state.arrivals
     LaunchedEffect(arrivals) {
-        val (ids, said) = arrivals ?: return@LaunchedEffect
-        state.arrivals = null
-        val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
-        val first = hidden.firstOrNull() ?: return@LaunchedEffect
-        val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
-        val again = { state.arrivals = ids to said }
-        // The first of them still here: the first alone, gone, refused them all (round 3).
-        listBars += state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all", again) {
-            showAll(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)
-        } to again
+        if (arrivals.isEmpty()) return@LaunchedEffect
+        state.arrivals = emptyList()
+        for ((ids, said) in arrivals) {
+            val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
+            val first = hidden.firstOrNull() ?: continue
+            val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
+            val again = { state.waitWord(ids, said) }
+            // The first of them still here: the first alone, gone, refused them all (round 3).
+            listBars += state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all", again) {
+                showAll(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)
+            } to again
+        }
     }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }

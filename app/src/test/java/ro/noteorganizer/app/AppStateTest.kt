@@ -123,11 +123,11 @@ class AppStateTest {
         assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
         // ...and the list's word on a note gone, not yet said: said later, it
         // named the next new note, given the same id (rounds 3-4).
-        s.arrivals = listOf(1, 7) to "Kept aside"
+        s.arrivals = listOf(listOf(1, 7) to "Kept aside")
         s.refresh()
-        assertEquals(listOf(1) to "Kept aside", s.arrivals)
+        assertEquals(listOf(listOf(1) to "Kept aside"), s.arrivals)
         s.trash(listOf(1))
-        assertNull(s.arrivals)
+        assertTrue(s.arrivals.isEmpty())
         // ...and the new note's word the same way: it lent its id, and its
         // "Saved in", to the next note restored or imported (round 5).
         s.newNoteMade = 7
@@ -155,6 +155,39 @@ class AppStateTest {
         assertEquals("Saved, hidden", s.snackbar.currentSnackbarData?.visuals?.message)
         s.snackbar.currentSnackbarData!!.dismiss()
         assertNull("the bar on screen went, and none about a note gone", s.snackbar.currentSnackbarData)
+    }
+
+    @Test
+    fun `the list's words wait in turn, by name, and a new note's survives the next one and its own Undo`() {
+        // One slot each: a later word wrote over an earlier one, never said,
+        // and the first of two new notes in a row went unsaid; a new note
+        // deleted from the Calendar and put back lost its word (lows round 6).
+        val s = state()
+        s.waitWord(listOf(1), "Put back")
+        s.waitWord(listOf(2), "Kept aside")
+        assertEquals(listOf(listOf(1) to "Put back", listOf(2) to "Kept aside"), s.arrivals)
+        s.arrivals = emptyList()
+        s.noteMade(1)
+        s.noteMade(2)
+        assertEquals(2, s.newNoteMade)
+        assertEquals(listOf(listOf(1) to "“A” saved in General"), s.arrivals)
+        s.tab = Tab.CALENDAR
+        s.trash(listOf(2))
+        assertNull(s.newNoteMade)
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("B", s.newNoteMade?.let { s.note(it)?.title })
+    }
+
+    @Test
+    fun `text shared in becomes a note even while the open note cannot be saved`() {
+        // Held for "Leave anyway", the words lived in that bar alone: its ✕,
+        // its ten seconds or an Undo dropped them (the lows wave's round 6).
+        val s = state()
+        s.openNote(1)
+        s.flush = { "the disk is full" }
+        s.noteFromShared("Shared words\nand more", "Saved as a new note")
+        assertEquals(1, s.openId)
+        assertEquals(listOf("and more"), s.load.notes.filter { it.title == "Shared words" }.map { it.body })
     }
 
     @Test
@@ -989,7 +1022,7 @@ class AppStateTest {
         val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
         s.trash(listOf(2))
         s.restoreFromTrash(s.load.trash.map { Organizing.keyOf(it) })
-        val (ids, said) = s.arrivals!!
+        val (ids, said) = s.arrivals.single()
         assertEquals(listOf("Two"), ids.mapNotNull { s.note(it)?.title })
         assertEquals("Restored", said)
     }

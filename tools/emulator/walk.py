@@ -3913,7 +3913,8 @@ def what_hides_the_list(folder):
     tap("Title")
     type_text("Call the dentist")
     back_to("Search notes")
-    said = not says_soon("Saved in General, hidden by Show: Work", "Show all", within=8.0)
+    # By name, as the desktop says it (the lows wave's round 6).
+    said = not says_soon("“Call the dentist” saved in General, hidden by Show: Work", "Show all", within=8.0)
     shot(folder, "131-new-note-hidden-said", "hidden by Show: Work")
     tap("Show all", exact=True, wait=1.5)
     check("a new note Show hides is said as it closes, and Show all puts it on the list",

@@ -1074,6 +1074,6 @@ fun showWelcome(state: AppState) {
         state.settingsPage = null
         state.openNote(ok.id)
         // Said as it closes when the list does not show it, as a new note is.
-        state.newNoteMade = ok.id
+        state.noteMade(ok.id)
     }
 }

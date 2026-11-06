@@ -394,9 +394,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val held = load.notes.mapTo(HashSet()) { it.id }
         // The new note's word ([newNoteMade]) the same way (round 5).
         newNoteMade?.let { if (it !in held) newNoteMade = null }
-        val (ids, said) = arrivals ?: return
-        if (ids.all { it in held }) return
-        arrivals = ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { it to said }
+        if (arrivals.all { (ids, _) -> ids.all { it in held } }) return
+        arrivals = arrivals.mapNotNull { (ids, said) ->
+            ids.filter { it in held }.takeIf { it.isNotEmpty() }?.let { it to said }
+        }
     }
 
     /** A result shown when it failed; the screen refreshed either way. */
@@ -600,7 +601,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         // Made from a calendar day too: it stands on that day, and the list,
         // when next on screen, says so if it hides it -- unsaid, the note was
         // nowhere on it (wave 2, round 9).
-        newNoteMade = id
+        noteMade(id)
     }
 
     fun closeNote() {
@@ -916,6 +917,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * exactly those entries, and opens the note when it was the only one.
      */
     fun trash(ids: Collection<Int>) {
+        // A new note's word waiting for the list, which the delete drops: its
+        // Undo gives it back, or the note came back unsaid (lows round 6).
+        val wasNew = newNoteMade?.takeIf { it in ids }
         // The open note goes to the Trash with its last words in it.
         val result = outside(ids, writes = false, closes = true) { Organizing.trashNotes(load, ids) } ?: return
         if (!report(result)) return
@@ -928,6 +932,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 // Asked of the list only when the Undo was tapped there, as
                 // newNoteMade is: kept from the Calendar, it moved the list later.
                 if (tab == Tab.NOTES) revealAfterUndo = load.notes.map { it.id }.filter { it !in before }.toSet()
+                else if (wasNew != null && count == 1) noteMade(ok.id)
                 if (count == 1) openNote(ok.id)
             }
         }
@@ -942,7 +947,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun useTemplate(template: JSONObject, said: String, date: String = "") {
         report(Templates.newNote(load, template, load.categories.keys, date)) { ok ->
             openNote(ok.id)
-            newNoteMade = ok.id
+            noteMade(ok.id)
             if (date.isNotEmpty()) templateDayNote = ok.id
             say(said)
         }
@@ -962,13 +967,16 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * sent to it ended at "This isn't a Note Organizer share code" (wave 2,
      * the owner's choice). A first line longer than a title keeps the whole
      * text in the note: cut to the title, the rest of a paragraph was lost.
+     * Made at once, then opened as any note is: held for an open note that
+     * could not be saved, the words lived in its "Leave anyway" bar alone,
+     * and its ✕, its ten seconds or an Undo dropped them (lows round 6).
      */
-    fun noteFromShared(text: String, said: String) = leaving {
+    fun noteFromShared(text: String, said: String) {
         val (title, body) = sharedAsNote(text)
         report(Notebook.createNote(load, title, body)) { ok ->
-            openNote(ok.id)
-            newNoteMade = ok.id
+            noteMade(ok.id)
             say(said)
+            openNote(ok.id)
         }
     }
 
@@ -1134,12 +1142,35 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * them ([NotesScreen]): they landed where it did not look, under
      * "Restored" and a list that had not changed.
      */
-    var arrivals by mutableStateOf<Pair<List<Int>, String>?>(null)
+    var arrivals by mutableStateOf<List<Pair<List<Int>, String>>>(emptyList())
+
+    /**
+     * One more word for the list's next showing ([arrivals]), after those
+     * waiting: one slot, a later word wrote over an earlier one, never said
+     * (the lows wave's round 6).
+     */
+    fun waitWord(ids: List<Int>, said: String) {
+        arrivals = arrivals + (ids to said)
+    }
 
     /** The notes there are now and were not [before], as [arrivals]. */
     fun arrived(before: Set<Int>, said: String) {
         val new = load.notes.map { it.id }.filter { it !in before }
-        if (new.isNotEmpty()) arrivals = new to said
+        if (new.isNotEmpty()) waitWord(new, said)
+    }
+
+    /** A new note [id] the list says when it hides it, by name, as the desktop's banner does. */
+    fun savedWord(note: Note): String =
+        "“${quoted(note.title.ifEmpty { UNTITLED })}” saved in ${note.category.ifEmpty { Themes.PROTECTED_CATEGORY }}"
+
+    /**
+     * Note [id], just made, for the list to say ([newNoteMade]). One still
+     * waiting goes to the list's other words, as made: written over, the
+     * first of two new notes in a row was never said (round 6).
+     */
+    fun noteMade(id: Int) {
+        newNoteMade?.takeIf { it != id }?.let { earlier -> note(earlier)?.let { waitWord(listOf(earlier), savedWord(it)) } }
+        newNoteMade = id
     }
 
     fun deleteForever(keys: Collection<Organizing.TrashKey>) {
