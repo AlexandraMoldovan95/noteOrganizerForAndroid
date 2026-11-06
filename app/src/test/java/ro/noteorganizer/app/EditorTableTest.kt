@@ -182,9 +182,8 @@ class EditorTableTest {
     @Test
     fun `a column made wider on a table with no separator keeps a cell's colour on its cell, through a row added`() {
         // The phone's own tables have no separator; Wider puts one under the
-        // header. Read off the texts it was found two letters into the next
-        // row, that row's first cell's colour spread over it, and the next row
-        // added dropped the colour (the final audit's thirteenth round).
+        // header. Read off the texts, it landed two letters into the next row,
+        // spread that row's first cell's colour, and the next row added lost it.
         val model = editor("Budget\n| Item | Cost |\n| Rent | 500 |")
         model.highlightCell(model.table(), 1, 0, "#ffff00")
         val before = model.styled(model.spans.single())

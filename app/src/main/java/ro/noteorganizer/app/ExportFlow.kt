@@ -41,19 +41,12 @@ class Exporter internal constructor(private val start: (Int, String, String?) ->
 }
 
 /**
- * The desktop's "Export as file", with Android's own "save as" in place of
- * Windows' -- the person chooses the folder and the name, which starts as
- * the desktop's. What is written is the note as saved, worked out when the
- * picker answers, so nothing typed in between is left out.
- *
- * Afterwards the message offers to open the file, as the desktop asks
- * "Open it now?": the file itself is the only honest preview of how the
- * note lays out. A cancelled picker writes nothing.
- *
- * Remembered by AppRoot, not by the editor: Android may end the app behind
- * the picker and start it again on its list, and an editor's exporter was
- * not there to take the answer -- the file the picker had made stayed
- * empty, and nothing was said.
+ * The desktop's "Export as file", with Android's own "save as": the person
+ * picks the folder and the name (the desktop's, to start). The note is
+ * written as saved when the picker answers, so nothing typed meanwhile is
+ * left out, and the message offers to open the file, as the desktop asks
+ * "Open it now?". A cancelled picker writes nothing. Remembered by AppRoot:
+ * Android may end the app behind the picker (ISSUES_LOG, "Answers sent to").
  */
 @Composable
 fun rememberExporter(state: AppState): Exporter {

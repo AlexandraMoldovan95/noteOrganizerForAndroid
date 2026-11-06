@@ -4,28 +4,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * One note out as a file: the desktop's "Export as file", byte for byte.
+ * One note out as a file: the desktop's "Export as file", byte for byte. A
+ * web page (.html) carries everything the note has -- styles, colours,
+ * lists, real tables -- and is the road to a PDF and to Word; plain text
+ * (.txt) is the body as stored. Both add the checklist and the comments,
+ * and neither carries attached files: those travel in a full backup.
  *
- * Two formats, as on the desktop. A web page (.html) carries everything
- * the note has -- styles, colours, lists, tables as real tables -- and is
- * the road to a PDF (a browser's print) and to Word, which opens one. Plain
- * text (.txt) is the body as stored. Both add the checklist and the
- * comments after the body, and neither carries attached files: those
- * travel in a full backup.
- *
- * The page is `note_to_html` and `html_document` from the desktop's
- * core/richtext.py, ported line for line, and `CalculatorTest`'s neighbour
- * `ExportingTest` holds a fixture of notes the desktop itself exported, so
- * a file from the phone is the file the desktop would have written.
- *
- * Everything here counts as Python does: a note's formatting and its
- * paragraph lines are positions in CODE POINTS, so each line is worked
- * on as an array of them, and Python's spaces are the ones stripped.
- *
- * The note's styles are read here through the desktop's own gatekeepers
- * (`normalize_formatting`, `normalize_paragraphs`) rather than the
- * phone's lenient reader, so a span the desktop would drop is dropped
- * from the page too.
+ * The page is the desktop's `note_to_html` and `html_document`, ported line
+ * for line and held to a fixture the desktop exported (`ExportingTest`). It
+ * counts in CODE POINTS, as Python does, and reads styles through the
+ * desktop's gatekeepers, so a span the desktop drops is dropped here too.
  */
 object Exporting {
 
@@ -667,9 +655,7 @@ object Exporting {
      * extension: what Windows refuses becomes "_", what hides or reorders
      * text goes ([Normalize.HIDDEN_IN_NAMES]), the ends lose their dots,
      * spaces and "_", 60 characters are kept, "note" when none are left.
-     * The desktop's own rule replaced only \n, \r and tab of the controls
-     * until its 1fcc189; a title holding another one could not be exported
-     * there, and here a picker was offered a name with a bell in it.
+     * Every control character is refused, not only line breaks and tab.
      */
     fun fileName(title: String, format: String): String {
         val safe = Normalize.HIDDEN_IN_NAMES.replace(FORBIDDEN_IN_NAME.replace(title, "_"), "").trim(' ', '.', '_')

@@ -10,6 +10,10 @@ checking** (a tool or a test whose verdict could not be trusted), in
 **the code**, or in **the design**. Twenty-three of the hundred and one are
 about the checking.
 
+Smaller lessons, each once a long comment in the code, are collected
+[at the end](#smaller-lessons-moved-out-of-the-code), by the name the code
+points with.
+
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
 | [2026-11-06](#custom-order-twelve-rounds-to-settle) | design | The final audit's second wave, rounds 14 to 25: Custom order's steps and drag -- cards out of sight, a drag against the finger, every card in an edge zone on its side, a hold lost to the next finger event -- most of it pushed in by the round before | Where the frame order decides, a gesture's rules are one machine: every decision in a pure function, and the whole machine re-attacked |
@@ -4417,3 +4421,18 @@ Opened 2026-09-13: `trash_retention_days`' docstring said a hand-edited
 day. Both safe, but the two statements disagreed. **Closed** — the
 desktop's docstring now says what the code does ("clamped to 1-365"),
 and this app follows the same code.
+
+## Smaller lessons, moved out of the code
+
+*Each of these was once a long comment beside the code it explains. The
+code now says why in a line or three and points here, by name, for what
+happened.*
+
+### From `NotesBackupAgent.kt`
+
+- **The backup's off mark** — With Settings → Backup's switch off, the
+  agent first handed Android nothing at all. Android then kept the copy
+  made while the switch was on — notes and all, with a settings file that
+  could not say off — and a reinstall or a new phone brought it back,
+  switch on. One small file saying off replaces that copy at the next
+  backup, and a restore brings back the answer, not the notes.

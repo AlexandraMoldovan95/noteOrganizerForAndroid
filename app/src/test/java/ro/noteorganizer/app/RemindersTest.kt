@@ -39,10 +39,9 @@ class RemindersTest {
 
     @Test
     fun `a file 0_13_0 wrote is counted as the app's read settles it, as the calendar shows it`() {
-        // Its series turned off and on as it was, the blank-looking day
-        // deleted: the read makes the copy's words a note on that day, which
-        // the calendar shows and the notification did not count (the
-        // twenty-first round). Nothing is written.
+        // Its series turned off and on, the blank-looking day deleted: the read
+        // makes the copy's words a note on that day, which the calendar shows and
+        // the notification did not count. Nothing is written.
         val older = """[{"id": 1, "uid": "gym", "title": "Gym", "body": "plan", "date": "2026-11-02",
             "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
             "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],

@@ -39,13 +39,12 @@ object Normalize {
     private val MAP_FIELDS = listOf("overrides", "moved")
 
     /**
-     * A note as `normalize_note` would hand it back, for the parts that
-     * matter to a file another program will read: types, the attachment
-     * names, the checklist and attachment ceilings, the repeat rule. Its
-     * `id` is the caller's to give; its `uid` is kept, or minted when it
-     * has none -- as the desktop mints one at its own door. [daysBack]
-     * false leaves a turned-off series' days where the copy holds them, for
-     * a caller that asks the move itself ([Notebook.daysBackAsRead]).
+     * A note as `normalize_note` would hand it back, for what a file another
+     * program reads needs: types, attachment names, the ceilings, the repeat
+     * rule. Its `id` is the caller's to give; its `uid` is kept, or minted as
+     * the desktop mints one at its own door. [daysBack] false leaves a
+     * turned-off series' days in the copy, for a caller that asks the move
+     * itself ([Notebook.daysBackAsRead]).
      */
     fun normalizeNote(raw: JSONObject, daysBack: Boolean = true): JSONObject {
         val out = JSONObject()
@@ -81,12 +80,9 @@ object Normalize {
             Recurrence.parseDate(out.getString("date")) == null) {
             out.put("recurrence", normalizeRecurrence(null))
         }
-        // The text's own shape, as normalize_note leaves it: the line under
-        // a table that closes the body (with_caret_line), the styles the
-        // desktop keeps (normalize_formatting: known styles, sound offsets,
-        // bold with italic folded, the ceiling), the line entries bounded by
-        // the body's lines (normalize_paragraphs). Left as they came, an
-        // imported note was in a form no load of either app gives it.
+        // The text's own shape, as normalize_note leaves it -- the line under a
+        // closing table, the styles the desktop keeps, line entries within the
+        // body -- or an imported note was in a form no load of either app gives.
         val body = withCaretLine(out.getString("body"))
         out.put("body", body)
         out.put("formatting", Notebook.spansToJson(clampSpansPerLine(body, Exporting.normalizeFormatting(raw.opt("formatting")))))
@@ -98,10 +94,9 @@ object Normalize {
         dropHiddenMoves(out)
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
-        // The rescue copy is carried through, as the desktop carries it:
-        // dropped here, "Restore previous" would promise what the file no
-        // longer holds. Shaped as the desktop shapes it, not copied whole:
-        // a restore puts it straight back into the note.
+        // The rescue copy carried through, or "Restore previous" would promise
+        // what the file no longer holds -- shaped as the desktop shapes it, not
+        // copied whole, as a restore puts it straight back into the note.
         (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
         // A copy's days set aside, kept until the notebook makes them notes
         // of their own ([Notebook.settleAside]), as the desktop keeps them.
@@ -114,14 +109,10 @@ object Normalize {
 
     /**
      * A rescue copy as `normalize_note` shapes `_prev`: its words as text,
-     * its styles held to the line ceilings against its own text, its line
-     * entries sound, and of anything else only what an update from a backup
-     * replaces, each shaped by the note's own rules -- the checklist's
-     * thousand rows, a repeat rule, the days' edits. An absent key stays
-     * absent: that tells an update's copy from a shrink's. Copied whole, a
-     * backup's copy brought fifty thousand checklist rows past every
-     * ceiling, and a restore wrote them into the note (ISSUES_LOG, "A
-     * rescue copy let in whole").
+     * its styles held to the line ceilings, its line entries sound, and of
+     * anything else only what an update from a backup replaces, each by the
+     * note's own rules. An absent key stays absent: that tells an update's
+     * copy from a shrink's (ISSUES_LOG, "A rescue copy let in whole").
      */
     fun shapePrevious(prev: JSONObject): JSONObject {
         val body = prev.opt("body") as? String ?: ""
@@ -221,10 +212,9 @@ object Normalize {
         val heldOn = HashSet<String>()
         var pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
             .sortedWith(compareBy({ it.first }, { it.second })).toList()
-        // Of two moves onto one date, the one the calendar draws -- its own
-        // date the rule's -- is kept: by date alone the read kept a dead one,
-        // and a meeting moved under 0.13.0 jumped back at the upgrade (the
-        // twentieth round, the desktop's normalize_note).
+        // Of two moves onto one date, the one the calendar draws -- its own date
+        // the rule's -- is kept, as the desktop's normalize_note keeps it: by date
+        // alone the read kept a dead one, and a meeting jumped back at an upgrade.
         val twins = pairs.groupingBy { it.second }.eachCount().filter { it.value > 1 }.keys
         if (twins.isNotEmpty() && Recurrence.isRecurring(note)) {
             val live = Recurrence.ruleDaysAmong(note, pairs.filter { it.second in twins }.map { it.first })
@@ -242,14 +232,12 @@ object Normalize {
     }
 
     /**
-     * Each move of [note] onto a date its rule now gives -- the day drawn
-     * nowhere there, a delete there taking it -- dropped; its words stay
-     * where they showed, on the rule's day there. Words never move on their
-     * own (the owner's choice, the seventeenth round: round sixteen's moving
-     * them wrote one day's text over another's). Not off a date whose own day
-     * stays deleted or moved away; each chain walked once. The desktop's
-     * `drop_hidden_moves`, at every read -- the raw notes too
-     * ([Notebook.settleAsRead]) -- and in every save, update and restore.
+     * Each move of [note] onto a date its rule now gives -- drawn nowhere,
+     * taken by a delete there -- dropped, its words staying where they showed
+     * (ISSUES_LOG, "Words that never move on their own"). Not off a date whose
+     * own day stays deleted or moved away; each chain walked once. The
+     * desktop's `drop_hidden_moves`, at every read ([Notebook.settleAsRead])
+     * and in every save, update and restore.
      */
     internal fun dropHiddenMoves(note: JSONObject) {
         val moved = note.opt("moved") as? JSONObject ?: return
@@ -311,11 +299,9 @@ object Normalize {
     /**
      * The desktop's `clean_override`: only the fields a day may replace, as
      * text, a colour that cannot be drawn dropped -- not the whole edit. A
-     * category this device lacks is the importer's to file under General,
-     * as it files the note's own. A day's text ending in a table gains the
-     * line under it ([withCaretLine]), as the desktop's does: without it the
-     * same day read as changed in an import, and words added under it were
-     * glued onto its table (the final audit's thirteenth round).
+     * category this device lacks is the importer's to file under General. A
+     * day's text ending in a table gains the line under it ([withCaretLine]),
+     * as the desktop's does, or an import read the day as changed.
      */
     fun cleanOverride(patch: JSONObject): JSONObject {
         val out = JSONObject()

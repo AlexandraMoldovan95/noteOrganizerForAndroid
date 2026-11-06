@@ -9,22 +9,12 @@ import org.junit.Test
 /**
  * The test that decides whether share codes are a transfer mechanism at
  * all: **a code made by one program has to be readable by the other.**
- *
- * Both halves are real, not simulated. `desktop_code.txt` was produced by
- * the Windows app's own `encode_share_code`. The code this test writes
- * back out is decoded by that same Python's `decode_share_code` in
- * `tools/check_interop.py`, run after the tests. Neither side is asked to
- * trust the other's word.
- *
- * The note inside the fixture is invented, on purpose. What gives this
- * test its value is that the DESKTOP encoded it — not that somebody's
- * real writing is sitting in it. It used to hold a real note, and a share
- * code is not encryption: anyone who can read this repository can read
- * the note. So the note is now written for the test, carrying exactly the
- * properties the test cares about.
- *
- * If this file is missing, the test says so rather than passing quietly —
- * a cross-program check that silently skips is worse than none.
+ * Both halves are real: `desktop_code.txt` was made by the Windows app's
+ * own `encode_share_code`, and the code this test writes back out is
+ * decoded by that same Python in `tools/check_interop.py`. The fixture's
+ * note is invented on purpose -- a share code is not encryption, and
+ * anyone who reads this repository reads the note. A missing fixture is
+ * said, not skipped: a cross-program check that skips is worse than none.
  */
 class InteropTest {
 
@@ -45,9 +35,8 @@ class InteropTest {
         val note = (decoded as Sharing.Decoded.Notes).notes.single()
 
         // Every field a code carries, as tools/make_interop_fixture.py's NOTE
-        // set it and the desktop's normalize_note kept it -- the uid decides
-        // Update or Add, so it is held too. Regenerate the fixture with that
-        // script if it ever has to change.
+        // set it and the desktop's normalize_note kept it -- the uid, which
+        // decides Update or Add, too. That script regenerates the fixture.
         assertEquals("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", note.getString("uid"))
         assertEquals("Sums for the test", note.getString("title"))
         assertEquals("Work", note.getString("category"))
@@ -75,11 +64,9 @@ class InteropTest {
 
     @Test
     fun `a code made HERE is written out for the desktop to check`() {
-        // Not an assertion about the desktop -- a hand-off: the code, and
-        // what the phone meant to send, for tools/check_interop.py to read
-        // as the desktop reads a note (decode, then normalize_note) and
-        // compare. The note is shaped by the phone's own choke point and
-        // carries every field a code does.
+        // A hand-off, not an assertion: the code and what the phone meant to
+        // send, for tools/check_interop.py to read as the desktop does and
+        // compare; shaped by the phone's choke point, with every field a code carries.
         val note = Normalize.normalizeNote(org.json.JSONObject()
             .put("uid", "11111111-2222-4333-8444-555555555555")
             .put("title", "From the phone")

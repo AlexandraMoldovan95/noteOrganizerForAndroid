@@ -4,18 +4,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The note a brand-new notebook on this phone opens with.
+ * The note a brand-new notebook on this phone opens with, built the way the
+ * desktop's `core/welcome.py` builds its own: stored exactly as the editor
+ * would store it typed -- bullet markers in the text, bold as character
+ * spans, bullet lines as paragraph entries. Only a notebook that did not
+ * exist until this start gets it; Settings → About offers it again.
  *
- * Built the way the desktop's `core/welcome.py` builds its own: stored
- * exactly as the editor would have stored it had it been typed -- the
- * bullet markers in the text, bold as character spans, the bullet lines as
- * paragraph entries. Only a notebook that did not exist until this start
- * gets it; Settings → About offers it again.
- *
- * The words are this app's own, written for a phone: they name what a
- * thumb does here, not what a mouse does on the desktop. The desktop's
- * were worded with the owner over three drafts; these are a first draft,
- * and the test plan marks them NEEDS YOUR EYE.
+ * The words are this app's own, written for a phone: what a thumb does
+ * here, not a mouse on the desktop. A first draft, which the test plan
+ * marks NEEDS YOUR EYE.
  */
 object Welcome {
 

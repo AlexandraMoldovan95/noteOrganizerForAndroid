@@ -5,30 +5,15 @@ import java.math.RoundingMode
 
 /**
  * The editor's calculator: the desktop's `core/calculator.py`, answer for
- * answer, plus what its panel does with a key press and where a result
- * lands in the note.
- *
- * Three pieces, all without Android:
- *
- *  - [evaluate] reads a sum the way the desktop does -- `+ − × ÷` with the
- *    usual precedence, three interchangeable bracket styles, a prefix `√`,
- *    a right-associative `^` and a postfix `%` -- and gives the number, or
- *    null for anything that is not a sum. One null covers every failure:
- *    a stray character, an unclosed bracket, a division by zero.
- *  - [Pad] is the panel's display and its history, and what each key does
- *    to them: the desktop's `_calc_press`.
- *  - [place] is where an inserted calculation goes: at the cursor the first
- *    time, then each on its own line after the one before.
- *
- * Written by hand rather than handed to a script engine, as the desktop's
- * is: a pasted string is only ever arithmetic here, whatever it holds.
- *
- * Python's arithmetic is IEEE doubles, as Kotlin's is, so most of it ports
- * as written. The places where Python decides something the JVM decides
- * differently are each said where they happen: which characters are digits
- * and spaces, what a power does at the edges, how a result is rounded for
- * the display. `CalculatorTest` asks a few hundred sums of both and fails
- * on any answer that differs.
+ * answer. [evaluate] reads a sum as the desktop does (`+ − × ÷`, three
+ * bracket styles, prefix `√`, right-associative `^`, postfix `%`) and gives
+ * the number, or null for anything that is not a sum; [Pad] is the panel's
+ * display, history and keys (`_calc_press`); [place] is where an inserted
+ * calculation goes. Written by hand, not handed to a script engine, so a
+ * pasted string is only ever arithmetic. Where Python decides something the
+ * JVM decides differently -- digits, spaces, a power's edges, rounding --
+ * it is said where it happens, and `CalculatorTest` asks a few hundred
+ * sums of both.
  */
 object Calculator {
 
@@ -42,15 +27,11 @@ object Calculator {
     private const val SINGLE = "+−×÷√^%" + OPEN + CLOSE
 
     /**
-     * How deep a sum may nest before it is refused. The desktop's parser is
-     * recursive, and Python stops it at about a thousand calls -- some
-     * two hundred brackets inside each other -- where the desktop answers
-     * nothing (it catches the RecursionError). The phone counts the same
-     * calls, one per parsing step as Python makes them, and says Error a
-     * little before that, so the deepest sum anyone
-     * will paste is refused rather than taking the app down with a stack
-     * overflow. Every sum the desktop answers below this depth, the phone
-     * answers the same.
+     * How deep a sum may nest before it is refused. Python stops the
+     * desktop's recursive parser at about a thousand calls -- some two
+     * hundred brackets -- and the desktop answers nothing; the phone counts
+     * the same calls and says Error a little before, rather than overflow
+     * its stack. Below this depth both answer the same.
      */
     internal const val MAX_DEPTH = 900
 
@@ -384,16 +365,11 @@ object Calculator {
 
     /**
      * Where a calculation lands in [body]: after the previous one, on a line
-     * of its own, when there was one ([mark]); otherwise at the [caret], or
-     * at the end when the cursor was never in the note. The desktop keeps the
-     * same "own line, after the last insertion" place, so several sums in a
-     * row build a list downwards instead of landing wherever the cursor is.
-     *
-     * Never inside a table: a place that falls in one moves to the line after
-     * it, since a sum glued to a row would turn the row into something else.
-     * That covers the empty field under a table that ends the note, too: it
-     * sits one past the end, and what is written there starts a line.
-     * Positions are counted in code points, as the file counts them.
+     * of its own ([mark]), as the desktop keeps it, so sums build a list
+     * downwards; otherwise at the [caret], or the end. Never inside a table
+     * -- glued to a row, a sum changes the row -- but on the line after it,
+     * the empty field under a table that ends the note included. In code
+     * points, as the file counts.
      */
     fun place(body: String, formula: String, mark: Int?, caret: Int?): Placed {
         val length = body.codePointCount(0, body.length)
@@ -441,12 +417,9 @@ object Calculator {
 
     /**
      * A remembered place carried through [edits], each made in the text the
-     * one before it left -- as the desktop's Tk mark moves through each
-     * insert and delete of an operation in turn ([Paragraphs.moveMark]). A
-     * list's markers, Enter in a numbered list, a paste that renumbers: one
-     * place followed as if the change were one, the calculator's next answer
-     * went into a later line -- "3×3=9Rent", or into "4." (the final audit's
-     * ninth round).
+     * one before it left, as the desktop's Tk mark moves ([Paragraphs.moveMark]).
+     * Followed as one change through a list's markers or a renumbering paste,
+     * the next answer went into a later line -- "3×3=9Rent", or into "4.".
      */
     fun follow(edits: List<Paragraphs.Edit>, at: Int?): Int? =
         at?.let { edits.fold(it) { x, e -> Paragraphs.moveMark(x, e) } }

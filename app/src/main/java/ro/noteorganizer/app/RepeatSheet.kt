@@ -192,10 +192,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                             model.date = start
                             model.changed()
                         }
-                        // The note first -- a new one, or a new start date --
-                        // then its repeat, which only a saved note can hold;
-                        // the repeat's write settles the schedule, the copy's
-                        // days spent there once, on the final start and rule.
+                        // The note first (a new one, or a new start), then its repeat,
+                        // which only a saved note can hold: the repeat's write settles
+                        // the schedule and spends the copy's days once, on the final rule.
                         if (!model.save(force = model.id == 0, scheduleFollows = true)) {
                             problem = model.problem
                             return@TextButton
@@ -205,11 +204,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                         }
                         val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
                         if (state.setRepeat(model.id, draft(), startWas)) {
-                            // Kept over an import's Update, the copy is the note
-                            // from before the update, which Restore previous then
-                            // brings back -- not the series (the desktop's
-                            // _repeat_off_line, the final audit's ninth round);
-                            // a copy the same save dropped promises nothing (the tenth).
+                            // Kept over an import's Update, the copy is the note from
+                            // before it, which Restore previous brings back, not the series
+                            // (the desktop's _repeat_off_line); a copy the save dropped promises nothing.
                             if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
                                 Days.OffWord.SERIES_KEPT -> offKept
                                 Days.OffWord.UPDATE_KEPT -> offKeptUpdate

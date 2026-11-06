@@ -152,10 +152,8 @@ class OrganizingTest {
     @Test
     fun `an id written as text is read as the desktop's int of its stripped text reads it, a float as none`() {
         // toIntOrNull gave "1_0" and a digit of another script no id, so the
-        // next free number; and a float kept its whole part, which Python's
-        // int("7.5") refuses (the final audit's ninth round, beside the
-        // rule's int()). The desktop's own answers: normalize_note and
-        // repair_note_ids at 8b5d6cc (scratch android_fixes_r9/probe_int.py).
+        // next free number, and a float kept its whole part, which Python's
+        // int("7.5") refuses. The desktop's normalize_note and repair_note_ids answer.
         val load = notebook("""[{"id": "1_0", "title": "a"}, {"id": "\u0663", "title": "b"},
                                 {"id": "\u001c7", "title": "c"}, {"id": 7.5, "title": "d"},
                                 {"id": "\u20285", "title": "e"}, {"id": " 2 ", "title": "f"}]""")
@@ -172,11 +170,9 @@ class OrganizingTest {
 
     @Test
     fun `an id an Int cannot hold takes a new number, and no new note's id wraps onto another's`() {
-        // Held at the edge, 2,147,483,647, the next new note's id wrapped to
-        // -2,147,483,648 and every new note after took that same id; a number
-        // past an Int was cut onto another's, 4,294,967,301 read as 5 (the
-        // final audit's tenth round). The desktop keeps such an id: Python's
-        // numbers hold it, and the phone's cannot.
+        // Held at 2,147,483,647, the next new note's id wrapped to -2,147,483,648
+        // and every new note after took it; past an Int, 4,294,967,301 read as
+        // 5. The desktop keeps such an id: Python's numbers hold it, the phone's cannot.
         val past = notebook("""[{"id": 1, "title": "a"}, {"id": "99999999999", "title": "b"},
                                 {"id": 4294967301, "title": "c"}, {"id": 5, "title": "d"}]""")
         assertTrue(Organizing.repairIds(past))
@@ -416,7 +412,7 @@ class OrganizingTest {
         // A backup carries this note to the desktop, where Tk draws the
         // emoji variation selector as a blank after the icon.
         assertFalse((note.getString("title") + body).contains("\uFE0F"))
-        // 0.9.1 took "Follow the phone" away; the note went on promising it.
+        // "Follow the phone" was taken away; the note went on promising it.
         assertFalse(body.contains("follow your phone"))
     }
 

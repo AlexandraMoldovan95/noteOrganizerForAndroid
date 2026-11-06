@@ -19,13 +19,10 @@ object Files {
 
     /**
      * Dump to a sibling `.tmp`, force it to the disk, then rename over the
-     * real file. A crash mid-write leaves the old file whole, because
-     * rename is atomic within a filesystem; a half-written file never
-     * carries the real name.
-     *
-     * The `sync()` is one step stronger than the desktop's, on purpose: a
-     * phone's process is killed far more casually than a PC's, so
-     * "written" has to mean "on the flash", not "in a buffer".
+     * real file: rename is atomic within a filesystem, so a crash leaves the
+     * old file whole and a half-written one never carries the real name. The
+     * `sync()` is one step past the desktop's, on purpose: a phone's process
+     * is killed far more casually, so "written" means "on the flash".
      *
      * @return null when it worked, otherwise the reason.
      */
@@ -54,12 +51,9 @@ object Files {
     /**
      * Copies a file that exists but cannot be read aside, before anything
      * can write over it: `notes_data_corrupt_20261015_143000.json` beside
-     * the original, never deleted by anything here.
-     *
-     * The desktop's `preserve_corrupt_file`, name and all, so a person who
-     * learnt where to look on one device finds it on the other. The same
-     * bytes are kept once: a file nobody can read is read again at every
-     * start, and each start used to keep one more identical copy.
+     * the original, never deleted here -- the desktop's
+     * `preserve_corrupt_file`, name and all. The same bytes are kept once:
+     * read again at every start, the file left one more copy each time.
      *
      * @return the copy (an earlier one holding the same bytes, if there is
      *   one), or null if even the copy failed -- in which case the caller
@@ -111,13 +105,10 @@ object Files {
     /**
      * JSON that came from outside -- a share code, the files a backup
      * brings -- parsed by [parse], or [Unreadable]. The nesting is measured
-     * first, before any parsing: Android's org.json goes one call deeper per
-     * bracket, and a million of them ended the app with StackOverflowError,
-     * an Error that no `catch (e: Exception)` sees. A parser that runs out of
-     * stack all the same -- through a comment or a quote the measure reads
-     * differently -- is damage too, as the desktop's JSON_UNREADABLE counts
-     * RecursionError (ISSUES_LOG, "A million brackets past a catch for
-     * exceptions").
+     * before parsing, as org.json goes a call deeper per bracket and a stack
+     * overflow is an Error no `catch (e: Exception)` sees; one that happens
+     * all the same is damage too, as on the desktop (ISSUES_LOG, "A million
+     * brackets past a catch for exceptions").
      */
     fun <T> parseOutside(text: String, parse: (String) -> T): T {
         if (nestedPast(text, MAX_JSON_DEPTH)) throw Unreadable(TOO_DEEP)
@@ -134,13 +125,10 @@ object Files {
 
     /**
      * Every number in [value] that is no number -- NaN, or infinity, which
-     * `1e999` reads as -- made null, in place, all the way down. Android's
-     * org.json takes them inside an array, unchecked, and then its
-     * toString() of that array, and of everything holding it, gives null:
-     * the import's next copy of a backup's template, `[NaN]` in its
-     * checklist, stopped the app. The desktop's json reads them too, and its
-     * normalize then drops what is not of a note's types; null is dropped
-     * the same way here.
+     * `1e999` reads as -- made null, in place, all the way down: org.json
+     * takes them in an array unchecked, and toString() of what holds them
+     * gives null (a template's `[NaN]` checklist stopped an import). The
+     * desktop's normalize drops them as it drops a null.
      */
     fun finiteOnly(value: Any?) {
         when (value) {
@@ -157,13 +145,10 @@ object Files {
 
     /**
      * One of the app's own files -- the notes, the Trash, the settings, the
-     * templates -- read and parsed as [parseOutside] parses what comes from
-     * outside. They are written by this app, but not only: a backup Android
-     * put back, the desktop's files copied in. Read with a bare
-     * `catch (e: Exception)`, a file nested past the parser's stack, or too
-     * large for the phone, ended in an Error none of those catches saw, and
-     * the app stopped at every start -- the desktop's JSON_UNREADABLE, which
-     * every reader of its files catches whole, ported.
+     * templates -- parsed as [parseOutside] parses what comes from outside:
+     * a backup Android put back or the desktop's files copied in can be
+     * nested past the stack or too large, and an Error no catch saw stopped
+     * the app at every start. The desktop's JSON_UNREADABLE, ported.
      */
     fun <T> parseOwn(file: File, parse: (String) -> T): T = parseOutside(readData(file), parse)
 

@@ -331,12 +331,9 @@ class TablesTest {
 
     @Test
     fun `a drawn row number is not a file line number`() {
-        // The grid skips the separator, so from that row on the screen is
-        // one behind the file. Taken at face value, tapping "Milk" edits
-        // the header above it -- which is exactly what happened.
-        // Two columns, because one is not a table: a row needs at least
-        // two cells, the same `_MIN_CELLS` the desktop uses. The first
-        // version of this test used one column and measured nothing.
+        // The grid skips the separator, so from that row on the screen is one
+        // behind the file: taken at face value, tapping "Milk" edited the header.
+        // Two columns: one is no table (the desktop's `_MIN_CELLS`), and measured nothing.
         val t = table("| Item | Qty |", "| --- | --- |", "| Milk | 2 |")
         assertEquals(1, t.separatorAt)
         assertEquals(0, t.fileRow(0))       // the header row, before it
@@ -352,10 +349,9 @@ class TablesTest {
 
     @Test
     fun `editing a cell leaves every OTHER line byte for byte the same`() {
-        // Rebuilding the whole table re-pads every line, and the span
-        // remap then sees one huge changed region and drops every style
-        // inside it. Measured on a real note: one cell edit lost a colour
-        // three rows away. So a cell edit must touch only its own line.
+        // Rebuilding the whole table re-pads every line, and the span remap drops
+        // every style in one huge changed region: one cell edit lost a colour
+        // three rows away. So a cell edit touches only its own line.
         val lines = listOf(
             "| Item      | Qty      |",
             "| Milk      | 2        |",

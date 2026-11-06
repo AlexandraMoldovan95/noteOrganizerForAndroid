@@ -147,11 +147,9 @@ class ExportingTest {
 
     @Test
     fun `a table too large to draw is written into a page in time that grows with its size, not its square`() {
-        // A row of 50,000 empty cells, from a code of 186 characters: each
-        // empty cell looked for the row's pipes again. And 60,000 rows of "^"
-        // under one header: every row asked of every merge whether it was
-        // its own. Billions of steps, on the screen's thread, for Share.
-        // Here 20,000 and 30,000: minutes the old way, a fraction of a second now.
+        // A row of 50,000 empty cells (a code of 186 characters) looked for the
+        // row's pipes at each cell; 60,000 rows of "^" asked every merge at each
+        // row. Here 20,000 and 30,000: minutes the old way, a fraction of a second now.
         val empty = JSONObject().put("title", "Empty cells").put("body", "|".repeat(20_001))
         val merged = JSONObject().put("title", "Merged").put("body", "| a | b |\n" + List(30_000) { "| ^ | ^ |" }.joinToString("\n"))
         val hidden = JSONObject().put("title", "Hidden").put("body",

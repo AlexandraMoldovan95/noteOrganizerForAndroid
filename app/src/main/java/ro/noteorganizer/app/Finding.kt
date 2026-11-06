@@ -1,27 +1,15 @@
 package ro.noteorganizer.app
 
 /**
- * Find in note: the desktop's find bar, as rules.
- *
- * It looks through the open note's body -- its prose and its tables' cells
- * -- then its checklist and comments, and never changes any of it. Matches come in reading order, each one a place
- * the editor can paint and scroll to; the bar counts them "3/12" and steps
- * through them, round from the last to the first.
- *
- * The desktop's own rules, kept:
- *
- *  - Case and diacritics do not count unless asked ("Aa"): "creme" finds
- *    "Crème", in prose and in a cell alike ([searchFold]).
- *  - Matches may overlap: "aa" is found twice in "aaa", because each search
- *    starts one character after the last match began.
- *  - A cell is one match however often its words occur in it, and is
- *    searched as it reads: a line break inside it is a space; a merge
- *    marker or a checkbox is not a word.
- *  - At most [CAP] matches, and the count then says so with a "+".
- *
- * One rule differs, on purpose: the desktop steps through a table's
- * matches column by column -- a side effect of how it sorts them -- and the
- * phone goes row by row, the order a table is read in.
+ * Find in note: the desktop's find bar, as rules. It looks through the open
+ * note's body -- prose and tables' cells -- then its checklist and comments,
+ * and changes none of it; matches come in reading order, and the bar counts
+ * them "3/12" and steps round them. As on the desktop, case and diacritics
+ * count only when asked ("Aa", [searchFold]); matches may overlap ("aa" twice
+ * in "aaa"); a cell is one match, read with a line break as a space and no
+ * merge marker or checkbox as a word; at most [CAP] matches, then a "+".
+ * One rule differs on purpose: the desktop steps through a table column by
+ * column, a side effect of its sort; the phone goes row by row, as it reads.
  */
 object Finding {
 
@@ -98,16 +86,9 @@ object Finding {
                 inText(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
-            // A piece shown read-only -- lines too long to lay out, the rest
-            // past what the note draws, a table too large to draw -- is
-            // searched as written, each line one stop however often its words
-            // occur in it, as a cell is: the piece shows the line of the stop
-            // stepped to, cut around it (LongText). Skipped, the bar said
-            // "0/0" in the colour of a word found nowhere, while the list's
-            // search found the note by it (the final audit's fifth round); and
-            // a stop at every match, a table of 90,000 cells used up the count
-            // before the words after it. A table not drawn is never parsed at
-            // every letter typed.
+            // A read-only piece (lines too long to lay out, the rest past what is
+            // drawn, a table too large to draw) is searched too, as the list's search
+            // does: unparsed, one stop a line as a cell is, so it cannot use up the count.
             if (segment.long || !segment.drawn) {
                 inLines(segment.text) { start, end -> InText(index, start, end) }
                 continue

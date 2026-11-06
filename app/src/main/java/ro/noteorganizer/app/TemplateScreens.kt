@@ -355,14 +355,10 @@ fun TemplatesPage(state: AppState) {
 
 /**
  * A template's body: its words to edit, and its tables drawn as tables,
- * never as their pipe rows. The desktop's template editor hides a table's
- * rows from the body box and shows the table in a preview -- "raw pipe
- * rows with merge markers read as noise" -- and the phone drew both, the
- * rows in the box and the grid under it, which looked like a broken table
- * above a whole one (a first try on a real phone). Here the body is cut as
- * the note editor cuts it: each run of words a field of its own, each
- * table a grid in its place, all in one box; a table is shown, not
- * edited, as in the desktop's preview.
+ * never as their pipe rows -- the desktop shows them in a preview, and the
+ * phone drew both, a broken table above a whole one. Cut as the note editor
+ * cuts a body: each run of words a field, each table a grid in its place,
+ * all in one box; a table is shown, not edited, as in the desktop's preview.
  */
 @Composable
 private fun TemplateBody(body: String, ownCopy: Pasting.OwnCopy?, onChange: (String) -> Unit) {
@@ -428,21 +424,15 @@ private fun TemplateEditor(
     draft: Templates.Draft? = null,
 ) {
     val palette = LocalPalette.current
-    // What the template holds, and what the editor starts from: the draft
-    // kept aside as the app last went away, when it is continued, its fields
-    // as they were typed -- over the template it edits, which stays what
-    // a change is measured from, so Save and ✕ still ask about the draft.
+    // The editor starts from a continued draft's fields as typed, over the
+    // template it edits, which stays what a change is measured from, so
+    // Save and ✕ still ask about the draft.
     val held = remember { Templates.normalize(original ?: JSONObject()) }
     val start = remember { draft?.fields ?: held }
     var body by remember { mutableStateOf(start.optString("body")) }
-    // Held by the field itself: a field over a TextFieldState keeps its
-    // cursor in sight as it is typed into, where one over a String does not
-    // and has no layout to ask with ([Following]). Remembered as the fields
-    // beside it are, never saved for the system to hold while the app is
-    // away: 600,000 letters of comments were more than that handover
-    // carries, and the app stopped as Home was pressed (seen on the
-    // emulator, TransactionTooLargeException). Saved, they bought nothing --
-    // an app started again opens on its list, not on this editor.
+    // A TextFieldState keeps its cursor in sight, where a String has no layout
+    // to ask ([Following]); remembered, never saved for the system to hold:
+    // 600,000 letters overflowed that handover, and the app stopped at Home.
     val comments = remember { TextFieldState(start.optString("comments")) }
     val categories = state.load.categories.keys.toList()
     fun categoryOf(t: JSONObject) = t.optString("category").takeIf { it in categories } ?: "General"
@@ -459,10 +449,8 @@ private fun TemplateEditor(
     // row every note made from the template showed read-only.
     val rowCap = remember { Editing.BoxCap({ state.say(it) }) }
     // The name and the title with their cursors, kept to the desktop's 200
-    // letters as its boxes are -- the words already there whole, what came
-    // in cut, said in its words. `take(200)` of each new value cut their own
-    // end, in UTF-16 units (the final audit's seventh round). A new
-    // template's name starts empty, not normalize's "(untitled)".
+    // letters -- the words there whole, what came in cut, and said -- not
+    // `take(200)`'s own end. A new template's name starts empty, not "(untitled)".
     var nameField by remember {
         val name = if (draft == null && original == null) "" else start.optString("name")
         mutableStateOf(TextFieldValue(name, TextRange(name.length)))
@@ -528,14 +516,9 @@ private fun TemplateEditor(
 
     fun close() = if (changed()) askClose = true else leave()
 
-    // Kept aside, every field and the words waiting in "A new item…", to be
-    // offered back, whenever the editor goes where nobody saved it: the app
-    // to the background, Android able to end it there -- and the editor off
-    // the screen by the app's own doing, with no ✕ pressed: the reminder's
-    // notification tapped while the app is in front opens the calendar, an
-    // import's Open the note, and everything typed went unsaved, unasked and
-    // undrafted (the final audit's seventh round). Nothing changed, no draft
-    // stays behind ([Templates.keepDraft]).
+    // Every field and "A new item…" kept aside, to be offered back, whenever the
+    // editor goes unsaved: to the background, or off the screen by the app's own
+    // doing (a reminder tapped, an import's Open). Nothing changed, no draft stays.
     fun keep() = Templates.keepDraft(state.draftDir, changed()) {
         Templates.Draft(original?.optString("name"),
             Templates.draftFields(nameField.text, titleField.text, body, comments.text.toString(), category, checklist.toList(),
@@ -588,17 +571,13 @@ private fun TemplateEditor(
                     label = { Text(stringResource(R.string.template_field_title)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 TemplateBody(body, state.ownCopy) { edited(it) }
-                // At most ten lines tall, scrolling inside past them: grown
-                // to fit very long comments, the field outgrew the tallest
-                // size Compose can measure and the app stopped as the
-                // template opened (600,000 letters, on the emulator).
-                // Comments too long to lay out are shown, not edited, as a
-                // note's are, and kept as they were.
+                // At most ten lines tall, scrolling inside: grown to fit, very long
+                // comments outgrew what Compose can measure, and the app stopped.
+                // Comments too long to lay out are shown, not edited, as a note's are.
                 val commentsText = comments.text.toString()
                 if (Editing.tooLongToLayOut(commentsText)) {
                     // Under the name its field had: the label was the field's
-                    // own, and the block alone read as the body's (the walk,
-                    // 2026-10-29).
+                    // own, and the block alone read as the body's.
                     Text(stringResource(R.string.template_field_comments), color = palette.subtext, fontSize = 12.sp,
                          modifier = Modifier.padding(top = 12.dp))
                     LongText(commentsText)
@@ -662,11 +641,9 @@ private fun TemplateEditor(
                 Spacer(Modifier.height(48.dp))
             }
         }
-        // The app's messages, over the editor: said in the window under this
-        // one, they were drawn beneath it and never seen -- a full list's
-        // refusal, a list too full to save, the row cap's words (the walk,
-        // 2026-10-29). Shown here alone while the editor is open
-        // ([MessagesShown]): shown by both, each was two live regions.
+        // The app's messages, over the editor -- in the window under it they were
+        // never seen -- and here alone while it is open ([MessagesShown]): shown
+        // by both, each was two live regions.
         Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(),
             contentAlignment = Alignment.BottomCenter) {
             if (MessagesShown.Over(state.snackbar)) SnackbarHost(state.snackbar, Modifier.padding(bottom = 16.dp))
@@ -713,12 +690,10 @@ private fun TemplateEditor(
 /**
  * A template's checklist rows, drawn as the note editor draws a long list:
  * the first [Editing.CHECKLIST_ROWS] and the last few, "Show" drawing more
- * ([Editing.checklistShown]). Every row was drawn at once -- a box and two
- * buttons each, up to 1,000 of them, as a template saved from a long list
- * holds -- and drawn again at each letter typed in the template's name or
- * title, whose scope they shared (the final audit's sixth round). A row
- * moved by its arrow past the rows not drawn stays drawn, its key moving
- * with it, and a row longer than a glimpse is read whole on asking.
+ * ([Editing.checklistShown]) -- all 1,000 were drawn again at each letter
+ * typed in the name or title. A row moved by its arrow past the rows not
+ * drawn stays drawn, its key moving with it, and a row longer than a
+ * glimpse is read whole on asking.
  */
 @Composable
 private fun TemplateRows(checklist: SnapshotStateList<Pair<String, Boolean>>) {

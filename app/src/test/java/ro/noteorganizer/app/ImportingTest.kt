@@ -79,10 +79,9 @@ class ImportingTest {
 
     @Test
     fun `a number that is no number comes in as nothing, and the import goes on`() {
-        // Android's org.json takes NaN inside an array unchecked, and its
-        // toString() of everything holding it then gives null: the import's
-        // copy of a backup's template with "checklist": [NaN] stopped the app.
-        // This parser refuses to hold one, so it is put there as Android's would.
+        // Android's org.json takes NaN in an array unchecked, and toString() of
+        // what holds it gives null: a backup's template with "checklist": [NaN]
+        // stopped the import. This parser refuses one, so it is put in by hand.
         val checklist = JSONArray().put(JSONObject().put("text", "milk"))
         val held = JSONArray::class.java.getDeclaredField("myArrayList").apply { isAccessible = true }
         @Suppress("UNCHECKED_CAST")
@@ -187,10 +186,9 @@ class ImportingTest {
 
     @Test
     fun `a note is compared as a load shapes it, so what no person changed is no change`() {
-        // Filed here under General when it came, from a category this phone
-        // lacks; a day's empty colour; a table closing the body, with and
-        // without its line. (Styles in another order are a difference to the
-        // desktop too: its normalize_formatting keeps their order.)
+        // Filed under General when it came, from a category this phone lacks; a
+        // day's empty colour; a table closing the body, with and without its line.
+        // (Styles in another order differ on the desktop too: it keeps their order.)
         val load = notebook("""
             [{"id": 1, "uid": "a", "title": "T", "body": "x\n| a | b |\n", "category": "General",
               "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]},
@@ -430,9 +428,8 @@ class ImportingTest {
 
     @Test
     fun `a note sent to the Trash while a backup is planned does not turn Update onto another note`() {
-        // The plan is made away from the screen, against the list as it was
-        // at Continue; the list stays usable meanwhile. Applied by place,
-        // the Trash in between moved Diary's place onto the PIN note, and
+        // The plan is made away from the screen, the list usable meanwhile. Applied
+        // by place, a Trash in between moved Diary's place onto the PIN note, and
         // Update rewrote that one with Diary's words.
         val load = notebook("""
             [{"id": 1, "uid": "u-shopping", "title": "Shopping", "body": "milk", "updated": "2026-10-01 09:00:00"},

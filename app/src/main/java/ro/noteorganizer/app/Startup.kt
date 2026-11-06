@@ -4,22 +4,14 @@ import org.json.JSONArray
 import java.io.File
 
 /**
- * What happens to the notebook before the first screen is drawn.
- *
- * The notebook lives in the app's own private storage, which no other app
- * can read. Two things can greet it:
- *
- * - A notebook left in the older folder -- where the development tools
- *   put one with `adb push` before this app had a notebook of its own --
- *   is copied in, once, the first time there is none here, on a
- *   development build ([olderFolder]). Copied, not moved: nothing is
- *   deleted on the way.
- * - A notebook that did not exist until this start opens on the welcome
- *   note, once, as the desktop's does. One that was copied in, or emptied
- *   by hand, never gets one.
- *
- * Then the Trash is emptied of what has outlived its window -- the one
- * the person chose, and only when it can be read ([Settings.purgeWindow]).
+ * What happens to the notebook before the first screen is drawn, in the
+ * app's own private storage, which no other app can read. On a development
+ * build, a notebook the development tools left in the older folder is
+ * copied in -- not moved -- the first time there is none here
+ * ([olderFolder]). A notebook that did not exist until this start opens on
+ * the welcome note, once, as the desktop's does; one copied in or emptied
+ * by hand never gets one. Then the Trash is emptied of what has outlived
+ * the window the person chose, only when it can be read ([Settings.purgeWindow]).
  */
 object Startup {
 
@@ -73,13 +65,9 @@ object Startup {
         // makes it on each load: two notes sharing one were edited as one
         // and sent to the Trash together. Written once, then read again.
         if (load.problem == null && Organizing.repairIds(load)) load = Notebook.load(dir)
-        // Settings that could not be read held the Trash's window: it is
-        // marked as lost before anything writes a fresh file -- or the next
-        // start would read "never chosen" and purge at 30 days what the
-        // person had kept for 90. The file's bytes were kept aside already.
-        // So did the answer to Android's backup, which a fresh file without
-        // it reads as on: Android then copied the notes to the account of a
-        // person who had turned it off. Unknown, it is off until they say.
+        // Settings that could not be read held the Trash's window and the answer
+        // to Android's backup: marked lost before a fresh file reads them as
+        // 30 days and on. Unknown, the backup is off until the person says.
         load.settings?.let {
             if (it.problem != null) {
                 Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true, Settings.PHONE_GOOGLE_BACKUP to false))
@@ -96,12 +84,9 @@ object Startup {
                 Settings.put(settings, Stats.FIRST_LAUNCH_DATE, Recurrence.formatDate(java.time.LocalDate.now()))
             }
         }
-        // The Trash emptied by the window the person chose -- and only when
-        // that window is known: a note kept too long can still be deleted,
-        // one deleted too soon cannot come back.
-        // Nor on a start that could not read the notes: the list is empty
-        // then, so a file only those notes use would not be spared -- the
-        // desktop skips that start's purge too (2026-10-26).
+        // The Trash emptied only by a known window -- a note kept too long can
+        // still go, one deleted too soon cannot come back -- and not when the
+        // notes could not be read, whose files it would not spare (as on the desktop).
         val window = load.settings?.let { Settings.purgeWindow(it) }
         if (window != null && load.problem == null) {
             val purged = Organizing.purgeExpired(load, File(dir, Backup.ATTACHMENTS), days = window)
@@ -119,11 +104,9 @@ object Startup {
     /**
      * A backup unpacked for an import (`import_…`) or a file copied in to be
      * attached (`attach_…`), left in [cache] by an app that went before it
-     * was done -- ended in the background, or rebuilt while an import's
-     * question was up. Each is deleted once the import or the attaching is
-     * over, so a process just started holds none of its own: whatever is
-     * there is a leftover, a whole notebook's copy among them, and it
-     * stayed for good.
+     * was done. Each is deleted once its work is over, so a process just
+     * started holds none of its own: whatever is there is a leftover -- a
+     * whole notebook's copy among them -- which stayed for good.
      */
     fun clearLeftovers(cache: File) {
         cache.listFiles()?.filter { it.name.startsWith("import_") || it.name.startsWith("attach_") }

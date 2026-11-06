@@ -4,23 +4,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Lists, indents and alignment: what a note's lines are, beyond their words.
- *
- * The desktop's model, kept whole. A list item is told by the MARKER in its
- * text -- "• " (◦ and ▪ deeper down) or "1. " -- not by anything stored
- * beside it: the marker is what is saved, read back and copied. A line's
- * indent and alignment are its paragraph properties. What the file stores
- * in `paragraphs` is worked out from both at the moment of saving, as the
- * desktop's `_extract_paragraphs` does: the kind from the marker, the
- * indent and alignment from the properties.
- *
- * Every operation here is the desktop's, line for line, from its editor:
- * turning lines into a list and back, indenting, aligning, Enter in a list
- * (it continues; on an empty item it steps out), Backspace against a
- * marker (it climbs out a level, then takes the marker away), and
- * renumbering every numbered run afterwards. Each returns the new body
- * and the EDITS it made -- marker text put in or taken out at the start of
- * lines -- so styles move with exactly the text they were on.
+ * Lists, indents and alignment: what a note's lines are beyond their words,
+ * by the desktop's model, kept whole. A list item is told by the MARKER in
+ * its text -- "• " (◦ and ▪ deeper down) or "1. " -- which is what is saved,
+ * read back and copied; indent and alignment are paragraph properties, and
+ * `paragraphs` is worked out from both at saving, as the desktop's
+ * `_extract_paragraphs` does. Every operation is the desktop's, line for
+ * line -- lists on and off, indent, align, Enter and Backspace in a list,
+ * renumbering -- and returns the new body and the EDITS it made, so styles
+ * move with exactly the text they were on.
  */
 object Paragraphs {
 
@@ -313,11 +305,9 @@ object Paragraphs {
         }
         val moved = remapParagraphLines(old, new, props.keys.toList())
         val out = moved.entries.associate { (from, to) -> to to props.getValue(from) }.toMutableMap()
-        // Text put into a line, or taken from it, across line breaks: each line
-        // the edit leaves carries the looks of the line it began in, as the
-        // desktop's text gives inserted text the tags around it. Dropped, a cut
-        // pasted back into a nested item, or lines pasted into one, went to the
-        // margin (the lows wave's verification, round 4).
+        // Text put into or taken from a line across line breaks: each line the
+        // edit leaves carries the looks of the line it began in, as the desktop's
+        // inserted text takes the tags around it -- else pasted lines went to the margin.
         edited(old, new, edit)?.let { (line, until) -> props[line]?.let { kept -> for (n in line until until) out[n] = kept } }
         return out
     }
@@ -518,21 +508,12 @@ object Paragraphs {
     }
 
     /**
-     * What a typed edit means in a list, if anything -- the desktop's Enter
-     * and Backspace keys, read off the text the keyboard produced:
-     *
-     *  - A line break typed after an item's marker continues the list: the
-     *    new line gets a marker of the same kind, at the same depth. On an
-     *    item with nothing written in it, the break is taken back and the
-     *    item steps out a level -- or, at the margin, stops being one.
-     *  - The marker's last character deleted takes the item out a level, or
-     *    at the margin the whole marker -- not one character of it.
-     *
-     * [old] and [new] are the body before and after the keyboard's edit;
-     * [props] are the properties as they were. The result's steps start
-     * from [old] -- the keyboard's own edit is the first of them, or is
-     * taken back -- so styles move from the text before the keystroke.
-     * Null when the edit is not one of these, and the text stays as typed.
+     * What a typed edit means in a list -- the desktop's Enter and Backspace,
+     * read off the text the keyboard produced. A break after an item's marker
+     * continues the list, same kind and depth; on an empty item it steps out
+     * a level, or at the margin stops being one. The marker's last character
+     * deleted climbs a level, or at the margin takes the whole marker. The steps
+     * start from [old], so styles move from the text before the key; null otherwise.
      */
     fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
         corrected(old, new, props, caret)?.let { return it }
@@ -621,10 +602,9 @@ object Paragraphs {
                 lines[n] = ""
                 return finish(Result(lines.joinToString("\n"), props - n, edits)) to prefix
             }
-            // The line broke in two: what follows moves down a line, and
-            // the new line carries the item's depth with a fresh marker --
-            // and its centring, as the desktop's new item carries the tags
-            // of the one it came from.
+            // The line broke in two: what follows moves down, and the new line
+            // carries the item's depth with a fresh marker, and its centring, as
+            // the desktop's new item carries the tags of the one it came from.
             val shifted = props.mapKeys { (line, _) -> if (line > n) line + 1 else line }
             val withNew = withProps(shifted, n + 1, Props(indent = indent, align = props[n]?.align ?: "left"))
             val marker = markerFor(kind, 1, indent)
@@ -659,20 +639,12 @@ object Paragraphs {
     data class Pos(val line: Int, val column: Int)
 
     /**
-     * `list_deletion_range`: where a deletion should fall when it reaches a
-     * list, or null when it reaches none. A marker is characters, and the
-     * keyboard's own deletes saw only characters: two lines joined kept the
-     * second one's marker among the words ("2. two3. three"), typing over
-     * whole items swallowed the next item's ("x4. four"), and nothing
-     * renumbered. Word's answer, where a marker is no character at all: two
-     * lines joined keep the first one's marker and lose the second's --
-     * unless nothing of the first line is kept, when the second takes its
-     * place; typing over a selection that ends at an item's start keeps
-     * that item; a deletion from just after a marker keeps it, one into a
-     * marker takes all of it, and one from a line's very start takes the
-     * marker it chose. [start] and [end] are what the key would delete;
-     * [typing]: the selection is being typed over -- with [pasted], the
-     * text a paste puts in.
+     * `list_deletion_range`: where a deletion reaching a list should fall, or
+     * null. A marker is characters: the keyboard's deletes left "2. two3. three".
+     * Word's answer, kept: joined lines keep the first one's marker
+     * (the second's when none of the first stays); typing over a selection
+     * ending at an item's start keeps the item; a deletion just after a marker
+     * keeps it, one into it takes all. [typing] over a selection, [pasted] its text.
      */
     fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false,
                       pasted: String? = null): Pair<Pos, Pos>? {
@@ -682,8 +654,7 @@ object Paragraphs {
         val m1 = cpLength(first.marker)
         // A paste bringing its own marker, over a selection begun at an item's
         // marker, takes that marker's place wherever the selection ends: kept,
-        // a whole item pasted over the last one read "3. 1. Milk" (the lows
-        // wave's verification, rounds 6 and 7).
+        // a whole item pasted over the last one read "3. 1. Milk".
         val own = pasted != null && parseListMarker(pasted.substringBefore('\n')).kind != null
         val fromMarker = own && first.kind != null && c1 <= m1
         if (l1 == l2) {

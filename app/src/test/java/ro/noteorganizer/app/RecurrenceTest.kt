@@ -683,11 +683,9 @@ class RecurrenceTest {
 
     @Test
     fun `the days a note keeps after its repeat is turned off steer nothing while it does not repeat`() {
-        // A share code or "Restore previous" that ends a repeat leaves the
-        // series' days in the note, for a repeat brought back. Read anyway,
-        // the calendar's row of its date showed the first day's old words,
-        // and a series whose first day was deleted fell off the calendar and
-        // out of the day's reminder. The desktop's test_recurrence, the same.
+        // A repeat ended by a code or "Restore previous" leaves the series' days
+        // in the note; read anyway, its date showed the first day's old words, or
+        // fell off the calendar and the reminder. As the desktop's test_recurrence.
         val kept = note("""{"id":1,"title":"Weekly sync","body":"SERIES TEXT","date":"2026-09-07",
             "recurrence":{"freq":""},"exceptions":["2026-09-07"],
             "overrides":{"2026-09-07":{"title":"Kickoff","body":"FIRST DAY"}}}""")
@@ -707,11 +705,9 @@ class RecurrenceTest {
 
     @Test
     fun `a hand-made rule is read as the desktop's int() and isinstance read it`() {
-        // A code with interval "1_0" and weekdays [true, 3] repeated every
-        // ten weeks on Tuesday and Thursday on the desktop, and every
-        // Thursday on the phone (the final audit's eighth round). The
-        // desktop's answers, from its own normalize_recurrence at 947e9d3
-        // (scratch android_fixes_r8/probe_parity.py).
+        // A code with interval "1_0" and weekdays [true, 3] repeated every ten
+        // weeks on Tuesday and Thursday on the desktop, and every Thursday here.
+        // The desktop's answers, from its own normalize_recurrence.
         fun rule(vararg pairs: Pair<String, Any>): JSONObject {
             val o = JSONObject().put("freq", "weekly").put("interval", 2).put("weekdays", JSONArray(listOf(1, 3)))
                 .put("month_days", JSONArray()).put("month_day_policy", "clamp").put("end", "").put("count", 0)
@@ -749,9 +745,7 @@ class RecurrenceTest {
     fun `int() skips only its own spaces, so the separators str-isspace counts are refused`() {
         // pythonIntOf stripped with str.isspace(), which counts U+001C to
         // U+001F: "\u001c7" was 7 on the phone, refused on the desktop, its
-        // interval 1 -- weekly here, daily there (the final audit's ninth
-        // round). Each answer is CPython's own int(), and the desktop's
-        // normalize_recurrence at 8b5d6cc (scratch android_fixes_r9/probe_int.py).
+        // interval 1 -- weekly here, daily there. Each answer is CPython's int().
         val python = mapOf(
             "\u001c7" to null, "7\u001f" to null, "\u001e2" to null, "\u001d3" to null, "\u001f3\u0085" to null,
             "\u00857" to 7, " 7 " to 7, "\u000b7" to 7, "\u00A07" to 7, "\u30007\u3000" to 7, "\t7\n" to 7,

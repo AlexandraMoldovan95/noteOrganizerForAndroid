@@ -128,10 +128,9 @@ class BackupTest {
 
     @Test
     fun `an entry that unpacks to more than it declares is stopped at what it declared`() {
-        // The guards above read the sizes the archive CLAIMS. A hostile one
-        // can claim a small size for a large entry, so the unpacking counts
-        // too. Built by writing an honest zip, then lowering the size its
-        // central directory declares for the attached file.
+        // The guards above read the sizes the archive CLAIMS; a hostile one can
+        // claim a small size for a large entry, so the unpacking counts too. An
+        // honest zip, then the size its central directory declares lowered.
         val zip = File(temp("in"), "liar.zip")
         zipOf(zip, "notes_data.json" to "[]", "attachments/big.txt" to "x".repeat(10_000))
         val bytes = zip.readBytes()
@@ -197,10 +196,9 @@ class BackupTest {
 
     @Test
     fun `notes that do not parse are said in words of our own, never the parser's`() {
-        // Android's org.json puts the whole text it read into its message,
-        // and the message reached the screen: a notebook missing its last
-        // bracket put every note in it into the bar at the foot. The
-        // computer's parser does not, so the sentence is held whole.
+        // Android's org.json puts the whole text it read into its message, and a
+        // notebook missing its last bracket put every note into the bar at the
+        // foot. The computer's parser does not, so the sentence is held whole.
         val zip = File(temp("in"), "cut.zip")
         zipOf(zip, "notes_data.json" to """[{"id": 1, "title": "Bank", "body": "Card PIN 4821"}""")
         val reason = (Backup.read(zip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason
@@ -280,12 +278,9 @@ class BackupTest {
 
     @Test
     fun `a file not in UTF-8 is damage, never letters turned into marks`() {
-        // A notes file saved in Windows' Romanian code page came in with its
-        // letters as replacement marks, and the next save wrote those over
-        // the person's words; the desktop counts such bytes as damage.
-        // A title holding an S with a comma below and an a with a breve,
-        // written by their numbers: one byte each in that code page, and
-        // neither byte UTF-8.
+        // A notes file in Windows' Romanian code page came in as replacement marks,
+        // and the next save wrote them over the words; the desktop calls it damage.
+        // An S with a comma below and an a with a breve: one byte each, not UTF-8.
         val title = Char(0x0218) + "tampil" + Char(0x0103)
         val romanian = "[{\"id\": 1, \"uid\": \"r\", \"title\": \"$title\"}]".toByteArray(charset("windows-1250"))
         val dir = temp("own")

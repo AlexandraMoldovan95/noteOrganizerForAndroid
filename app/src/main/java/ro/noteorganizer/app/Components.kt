@@ -79,13 +79,11 @@ fun Modifier.said(id: Int): Modifier {
 }
 
 /**
- * A sheet from the bottom, as every one in the app is drawn. The sheet is
- * a window of its own, and Android drew its bars for the phone's light or
- * dark, not the app's: on a light phone with the app dark, a white bar of
- * buttons over the sheet and the clock dark on dark, seen on the owner's
- * phone. And a sheet taller than half the screen opened half-way, the
- * rest below the screen's edge until dragged up: Share's last card lay
- * under the buttons there. A sheet opens whole, as tall as it needs.
+ * A sheet from the bottom, as every one in the app is drawn: a window of its
+ * own, whose bars Android drew for the phone's light or dark, not the app's
+ * (a white bar of buttons on a light phone with the app dark), and which
+ * opened half-way when taller than half the screen, Share's last card under
+ * the buttons. A sheet opens whole, as tall as it needs, its bars the app's.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,16 +100,9 @@ fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
             isAppearanceLightNavigationBars = !palette.isDark,
         ),
     ) {
-        // The app's [messages], shown in the sheet when it stays open over
-        // what said them: drawn in the window under it, they were never
-        // seen -- the Repeat sheet's word that a turned-off repeat keeps its
-        // days, said as the note's details stayed open (the walk, 2026-10-29);
-        // a category's name refused, Save looking as if it did nothing (the
-        // final audit's eighth round). Their room is kept: a sheet's words
-        // taller than the window -- the details, on a phone on its side --
-        // took all of it, and the message had none. Such a sheet scrolls.
-        // A sheet opened over another -- the Repeat sheet over the note's
-        // details -- draws them; the one under it, none ([MessagesShown]).
+        // The app's [messages] in the sheet that stays open over what said them
+        // -- drawn in the window under it, they were never seen -- with their
+        // room kept (the sheet scrolls), and in the topmost sheet only ([MessagesShown]).
         CompositionLocalProvider(LocalMessagesDepth provides depth) {
             if (messages == null) content()
             else {
@@ -127,17 +118,11 @@ private val LocalMessagesDepth = compositionLocalOf { 0 }
 
 /**
  * The hosts drawing the app's messages over the window -- a sheet's, the
- * template editor's -- counted for each state they draw: while one does,
- * the window's own host draws none, so a message is one live region, read
- * out once. Drawn by both, each said over a sheet was two, one in the
- * sheet's window and one in the window under it, and TalkBack could read
- * it twice (the final audit's ninth round). A host that goes leaves a
- * message still standing to the window's, which shows it again.
- *
- * And of those hosts, one draws: the deepest -- a sheet opened over another
- * sheet -- the newest of equals. The Repeat sheet over the note's details
- * drew each message as the details did under it, two live regions again
- * (the final audit's tenth round).
+ * template editor's -- counted for each state they draw. While one does,
+ * the window's own host draws none, and of them only the deepest draws,
+ * the newest of equals: a message is one live region, read out once, not
+ * two TalkBack could read twice. A host that goes leaves a message still
+ * standing to the next, which shows it again.
  */
 object MessagesShown {
     private val over = mutableStateMapOf<Any, Map<Any, Int>>()
@@ -185,15 +170,11 @@ fun Modifier.saidAloud(): Modifier = semantics { liveRegion = LiveRegionMode.Pol
 
 /**
  * A text field in a column that scrolls, kept in sight where it is typed
- * into. Compose's field brings its cursor into view only when it takes the
- * focus: Enter on the last line the keyboard left showing made the next one
- * under the keys, and the screen stayed where it was (the owner's phone,
- * 2026-10-23). After each change to the words, once they are laid out, the
- * place where the change ended is brought into view.
- *
- * On the field: [requester] in its modifier, after any padding, so its box
- * is the words' own; [laidOut] as its onTextLayout; [typed] from its
- * onValueChange.
+ * into: Compose brings the cursor into view only as the field takes the
+ * focus, and Enter on the last line in sight made the next one under the
+ * keys. After each change, once laid out, where it ended is brought into
+ * view. On the field: [requester] in its modifier, after any padding;
+ * [laidOut] as its onTextLayout; [typed] from its onValueChange.
  */
 @Stable
 class Following {
@@ -216,13 +197,10 @@ class Following {
 
 /**
  * [cursor], given while the field has the focus, is also kept in sight as
- * the keyboard rises. Compose keeps the focused field in view as the screen
- * shrinks, and for a field longer than what is left that showed another part
- * of it: a tap on line 2 of a long note, the phone on its side, left lines
- * 20 to 22 in sight (2026-10-23). Asked at each height the keyboard passes
- * through, as the checklist's box is. The note still jumps away as the
- * keyboard rises and scrolls back to the line: Compose's own move comes
- * first, at each height, and a request can only answer it.
+ * the keyboard rises, asked at each height it passes: Compose keeps a long
+ * field in view by another part of it (a tap on line 2, lines 20 to 22 in
+ * sight). The note still jumps away and back as the keyboard rises:
+ * Compose's own move comes first, and a request can only answer it.
  */
 @Composable
 fun rememberFollowing(cursor: Int? = null): Following {
@@ -335,11 +313,9 @@ fun Dot(colour: String, size: Int = 12) {
 /**
  * The desktop's note card: the colour stripe down its left edge, the
  * headline, the first words, and the tags line in a readable shade of the
- * note's colour. A headline borrowed from the text, for a note with no
- * title, is set lighter than a real one.
- *
- * [open] outlines the card of the note open beside the list, on a screen
- * wide enough for both; a selected card is filled as well.
+ * note's colour; a headline borrowed from the text is set lighter than a
+ * title. [open] outlines the card of the note open beside the list, on a
+ * screen wide enough for both; a selected card is filled as well.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -367,10 +343,9 @@ fun NoteCard(
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) palette.calendarHasNotes else palette.card)
             .then(if (selected || open) Modifier.border(2.dp, palette.accent, RoundedCornerShape(12.dp)) else Modifier)
-            // The colour stripe painted on the card, not a child stretched
-            // to the card's height: that asked the card to be measured twice
-            // (IntrinsicSize.Min), every line of its text laid out twice, on
-            // every card that scrolled into sight.
+            // The colour stripe painted on the card, not a child stretched to its
+            // height, which measured every card twice (IntrinsicSize.Min), every
+            // line of its text laid out twice as it scrolled into sight.
             .drawBehind { drawRect(stripe, size = Size(5.dp.toPx(), size.height)) }
             .then(if (actions.isEmpty()) Modifier else Modifier.semantics {
                 customActions = actions

@@ -143,6 +143,7 @@ past the others:
     py tools/check_note_shape.py       # the two programs agree on a note
     py tools/check_palettes.py         # ... and on the themes and colours
     py tools/check_english.py          # the repository is English
+    py tools/check_comments.py         # comments say why; stories go to the issues log
 
 And for a change anybody will see, the walk on the emulator
 (`py tools/emulator/walk.py <folder>`), with its photographs looked at.

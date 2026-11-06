@@ -32,13 +32,11 @@ object Outgoing {
             previewText(note.opt("comments") as? String ?: "").second > 0
 
     /**
-     * One share made ready at a time. Asked for again before the last one
-     * is ready -- a long note's PDF takes a moment on a slow phone, and the
-     * Share button is there again meanwhile -- the second is not started:
-     * it would clear the folder the first is still writing into. Here, not
-     * on the screen's side, so the order is held by a test: an emulator's
-     * taps could not tell this refusal's message from the first share's
-     * failing. Used on the main thread only, so a plain flag is enough.
+     * One share made ready at a time. Asked again before the last is ready
+     * -- a long note's PDF takes a moment on a slow phone, and the Share
+     * button is back meanwhile -- the second is not started: it would clear
+     * the folder the first still writes into. Here, not on the screen's
+     * side, so a test holds the order. Main thread only: a plain flag.
      */
     class OneAtATime {
         private var busy = false
@@ -95,13 +93,11 @@ object Outgoing {
 
     /**
      * Whether [words] -- with the [subject] beside them -- are more than may
-     * be handed to another app in one go ([Sharing.tooLongToHand], the
-     * ceiling a share code is held to): Android passes them through a buffer
-     * of about a megabyte, and a note of 300,000 characters handed as words
-     * stopped the app at the share sheet. Weighed by what they come to in
-     * that buffer, not by their letters: a Chinese letter takes as much
-     * room as five bytes, a Latin one three. The page carries any length, as
-     * a file the other app reads.
+     * be handed to another app at once ([Sharing.tooLongToHand], a share
+     * code's ceiling): Android's buffer of about a megabyte, which a note of
+     * 300,000 characters overflowed at the share sheet. Weighed in that
+     * buffer, not in letters: a Chinese letter as five bytes, a Latin one as
+     * three. The page carries any length, as a file the other app reads.
      */
     fun tooLongForWords(words: String, subject: String): Boolean = Sharing.tooLongToHand(words, subject)
 

@@ -68,20 +68,14 @@ internal fun chooserWithoutThisApp(context: Context, send: Intent, title: String
 fun ShareSheet(state: AppState, noteId: Int, day: String? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val palette = LocalPalette.current
-    // The note as saved -- the button saved it before opening this -- or
-    // the one [day] of it the editor is on ([AppState.outgoingNote]).
-    // A copy only for a day: a note of some megabytes copied at every opening
-    // held the screen (the fifth round's lesson, kept).
+    // The note as saved -- the button saved it before opening this -- or the
+    // [day] the editor is on ([AppState.outgoingNote]); copied only for a day:
+    // a note of some megabytes copied at every opening held the screen.
     val note = remember(noteId, day, state.revision) { if (day == null) state.rawNote(noteId) else state.outgoingNote(noteId, day) }
     val table = note != null && Outgoing.hasTable(note)
-    // Said before the tap, as a table is: past what may be handed over as
-    // words, the note goes as a page. And the code, said before the tap as
-    // the words are: refused only after it, the person learnt of the
-    // ceiling when it was too late to choose. Both weighed away from the
-    // screen's thread -- the code is the note's whole text deflated, and
-    // the sheet of a note of some megabytes opened only once that was done
-    // (the final audit's fifth round). Until then the cards read as for a
-    // note that fits; a tap meanwhile is refused after it, as it always was.
+    // Said before the tap, as a table is, so the person can still choose: words
+    // past what may be handed over go as a page, and a code past its ceiling is
+    // refused. Weighed off the screen's thread; a tap meanwhile is refused after it.
     val subject = remember(note) { note?.let { Outgoing.subject(Exporting.titleOf(it)) } ?: "" }
     val weighed by produceState<Weighed?>(null, note) {
         value = note?.let { withContext(Dispatchers.Default) { Weighed.of(it, table, subject) } }
@@ -280,9 +274,8 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, day:
             return
         }
         // A PDF that would leave part of the note out is asked about before
-        // anything is handed over: said in a bar as the share sheet opened,
-        // the sheet covered the bar, and its time ran out under it. Nothing
-        // is written into the PDF itself.
+        // anything is handed over: said in a bar, the share sheet covered it
+        // until its time ran out. Nothing is written into the PDF itself.
         printed?.takeIf { it.firstPagesOnly || it.cutAtEdge }?.let { p ->
             when (state.askPdf(p.firstPagesOnly, p.cutAtEdge)) {
                 AppState.PdfChoice.CANCEL -> {

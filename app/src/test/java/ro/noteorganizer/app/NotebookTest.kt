@@ -325,10 +325,9 @@ class NotebookTest {
 
     @Test
     fun `a span after an emoji is drawn where the text actually is`() {
-        // "x" then an emoji then "BOLD". The desktop counted characters, so
-        // it stored 2..6. Kotlin's indices for the same four letters are
-        // 3..7, and drawing at 2..6 would embolden half the emoji and miss
-        // the last letter.
+        // "x", an emoji, "BOLD": the desktop counts characters and stores 2..6;
+        // Kotlin's indices are 3..7, and drawing at 2..6 would embolden half the
+        // emoji and miss the last letter.
         val json = """
             [{"id": 1, "body": "x👣BOLD", "formatting":
               [{"start": 2, "end": 6, "style": "bold"}]}]
@@ -379,10 +378,9 @@ class NotebookTest {
 
     @Test
     fun `underline and strike over many spans are merged in one sweep`() {
-        // Every other letter struck through under one underline: merged by
-        // asking every span at each pair of edges, 60,000 spans took some
-        // seven billion tests, at every drawing of the field. One sweep takes
-        // milliseconds; two seconds is a margin no machine speed crosses.
+        // Every other letter struck through under one underline: asked of every
+        // span at each pair of edges, 60,000 spans took seven billion tests a
+        // drawing. One sweep takes milliseconds; two seconds no machine crosses.
         val under = androidx.compose.ui.text.style.TextDecoration.Underline
         val strike = androidx.compose.ui.text.style.TextDecoration.LineThrough
         val n = 60_000
@@ -592,13 +590,11 @@ class NotebookTest {
     }
 
     /**
-     * The class the font size belonged to: a value the phone reads or
-     * writes in a shape the desktop's gatekeepers refuse. Every note in the
-     * export fixture -- styles valid and not, sizes as numbers, text and
-     * true/false -- goes through a save on the phone, and what the desktop
-     * would keep of its styles and its paragraph lines must come back
-     * exactly. (Spans past the end of the text are left out: they style
-     * nothing, and an edit at the end rightly moves them.)
+     * The class the font size belonged to: a value written in a shape the
+     * desktop's gatekeepers refuse. Every note in the export fixture -- styles
+     * valid and not, sizes as numbers, text and true/false -- goes through a
+     * save here, and what the desktop keeps of its styles and paragraph lines
+     * comes back exactly (spans past the text's end left out: they style nothing).
      */
     @Test
     fun `a save keeps every span the phone's normalizer keeps, over the desktop's export cases`() {
@@ -700,11 +696,9 @@ class NotebookTest {
 
     @Test
     fun `a notebook that cannot be read is kept aside before anything is written`() {
-        // The desktop's answer, ported: the unreadable bytes are copied
-        // beside the original, the app starts with an empty list, and it
-        // says where the copy is. Writing over the file is then safe --
-        // and refusing every write forever would make a phone that cannot
-        // take a single note.
+        // The desktop's answer, ported: the unreadable bytes are copied beside the
+        // original, the app starts empty and says where the copy is. Writing over it
+        // is then safe; refusing every write would make a phone that takes no note.
         val load = scratch("{ not a notes file")
         val kept = load.file!!.parentFile!!.listFiles()!!
             .single { it.name.startsWith("notes_data_corrupt_") }
@@ -1039,10 +1033,9 @@ class NotebookTest {
 
     @Test
     fun `what an edit takes away is counted in letters, an emoji one, as the desktop counts`() {
-        // In UTF-16 units twelve emoji deleted were twenty-four characters:
-        // the phone's copy then replaced one the desktop keeps, its deleted
-        // paragraph in no copy. The desktop's answers, from its own core
-        // (scratch probe_rescue_units.py, at a4bbf05).
+        // In UTF-16 units twelve emoji deleted were twenty-four characters: the
+        // phone's copy replaced one the desktop keeps, a deleted paragraph in no
+        // copy. The desktop's answers, from its own core.
         val party = "🎉"
         val smile = "😀"
         assertEquals(6, Notebook.textLost(smile.repeat(10), smile.repeat(4)))
@@ -1066,11 +1059,9 @@ class NotebookTest {
 
     @Test
     fun `a column added to a table loses no words, and leaves the copy of a deleted paragraph in place`() {
-        // A column added pads every row again: measured as the span between
-        // the first change and the last, it read as the whole table lost,
-        // and the autosave's copy replaced the deleted paragraph's -- the
-        // desktop's `_lost`, the smaller of that span and the words gone.
-        // Padded as the table rules pad it: a column in and out again.
+        // A column added pads every row: measured as a span, the whole table read
+        // as lost and the copy of a deleted paragraph was replaced. The desktop's
+        // `_lost`: the smaller of the span and the words gone.
         val table = TableEdit(listOf("| Name | Qty | Price |", "| --- | --- | --- |") +
             (1..8).map { "| item $it | $it | ${it * 3}.50 |" }).insertColumnAfter(0).removeColumn(1).lines()
         val paragraph = "A paragraph of three hundred letters, written once and deleted. ".repeat(5)
@@ -1090,10 +1081,9 @@ class NotebookTest {
 
     @Test
     fun `five rows of a table's eight deleted at once keep a copy, its share measured as the loss is`() {
-        // The words gone were set against a length that counts the padding:
-        // in a table of short cells it is most of each row, and half a table
-        // read as a quarter -- no copy (the desktop's fifth round, its own
-        // case: a shopping list's five rows of eight).
+        // The words gone were set against a length counting the padding, most of
+        // a short cell's row: half a table read as a quarter, and no copy was kept
+        // (the desktop's own case, five rows of eight).
         val rows = listOf(listOf("Item", "Qty", "Ok")) + listOf("tea 1 y", "jam 2 n", "oat 1 y", "egg 6 y",
             "fig 3 n", "rye 1 y", "soy 2 n", "nut 4 y").map { it.split(" ") }
         val lines = listOf("Groceries") + formatTable(rows, List(rows.size) { List(3) { CellAlign.LEFT } })
@@ -1107,10 +1097,9 @@ class NotebookTest {
 
     @Test
     fun `a list's markers changed lose no words, and leave the copy of a deleted paragraph in place`() {
-        // Each "1." counted as a word: numbers turned to bullets, or bullets
-        // one level in, read as the list lost, and the autosave's copy
-        // replaced the one holding a paragraph deleted a moment before. The
-        // desktop's case, its _words.
+        // Each "1." counted as a word: numbers turned to bullets read as the list
+        // lost, and the autosave's copy replaced one holding a paragraph deleted
+        // a moment before. The desktop's case, its _words.
         val items = listOf("milk", "eggs", "bread", "butter", "flour", "sugar", "salt",
                            "apples", "pears", "rice", "beans", "tea", "coffee", "onion")
         val numbered = items.mapIndexed { i, w -> "${i + 1}. $w" }.joinToString("\n")
@@ -1131,10 +1120,9 @@ class NotebookTest {
 
     @Test
     fun `a letter typed in a long note is weighed by the span alone, the words never split`() {
-        // Every autosave asked the words as well: the whole old and new text
-        // split into words three times for one letter typed. Timed against
-        // the span's own measure on the same text, so no machine's speed
-        // moves the margin: the words cost some fifty times the span.
+        // Every autosave split the whole old and new text into words three times
+        // for one letter. Timed against the span's own measure on the same text,
+        // so no machine moves the margin: the words cost some fifty times the span.
         val old = "a word or two in a long journal ".repeat(150_000)
         val typed = old.substring(0, 2_000_000) + "x" + old.substring(2_000_000)
         fun ms(work: () -> Unit): Long {
@@ -1388,10 +1376,9 @@ class NotebookTest {
 
     @Test
     fun `the trash is written BEFORE the notebook, so a crash cannot lose a note`() {
-        // The ordering is the safety argument, so it is tested rather than
-        // trusted: make the NOTEBOOK unwritable and delete. The trash copy
-        // must already exist -- meaning the interrupted state is "in both
-        // files", never "in neither".
+        // The ordering is the safety argument, so it is tested, not trusted: with
+        // the NOTEBOOK unwritable, a delete leaves the trash copy written -- the
+        // interrupted state is "in both files", never "in neither".
         val load = scratch("""[{"id": 1, "title": "precious"}]""", "[]")
         val doomed = Notebook.Load(
             notes = load.notes, categories = load.categories, source = "x",
@@ -1519,10 +1506,9 @@ class NotebookTest {
 
     @Test
     fun `a stamp the purge cannot read counts no days down on the row`() {
-        // The row once read "2020-02-30" leniently and counted down to
-        // "0 days left" for an entry the purge, reading strictly, keeps.
-        // And as the desktop's strptime reads it: no space before, four year
-        // digits, no space inside a field -- each of these it refuses.
+        // Read leniently, "2020-02-30" counted down to "0 days left" for an entry
+        // the strict purge keeps. As the desktop's strptime: no space before, four
+        // year digits, no space inside a field.
         for (stamp in listOf("2020-02-30 10:00:00", "2020-10-05 25:00:00", "2020-10-05 10:00:00.5",
                              " 2020-10-05 10:00:00", "202-10-05 10:00:00", "20200-10-05 10:00:00",
                              "2020-10-05 10:00: 0")) {
@@ -1740,10 +1726,9 @@ class NotebookTest {
 
     @Test
     fun `a NEW note keeps the styling it was written with`() {
-        // This is the test that was missing. The toolbar worked, the screen
-        // showed bold text, and `createNote` dropped every span because the
-        // parameter had only been added to `updateNote`. Nothing looked
-        // wrong until the file was read back.
+        // The screen showed bold text while `createNote` dropped every span: the
+        // parameter had been added to `updateNote` alone, and nothing looked wrong
+        // until the file was read back.
         val load = scratch("[]")
         val spans = listOf(
             FormatSpan(0, 4, "bold"),
@@ -1840,11 +1825,9 @@ class NotebookTest {
         val elsewhere = series("_prev" to series()).put("date", "2026-11-09")
         Notebook.spendSeriesDays(elsewhere)
         assertTrue("another series keeps them", elsewhere.getJSONObject("_prev").has("overrides"))
-        // A backup whose copy still holds a day reset here reads, truly, as
-        // changed: the arriving note is read as a load reads it, its copy's
-        // day taken back -- the ninth round reversed the eighth's bare
-        // reading of the arriving side, as the desktop's 8b5d6cc. This side,
-        // held here, is still compared without its copy, never read again.
+        // A backup whose copy still holds a day reset here reads, truly, as changed:
+        // the arriving note is read as a load reads it, its copy's day taken back,
+        // as on the desktop. This side is compared without its copy, never read again.
         val reset = series().put("overrides", JSONObject())
         assertTrue(Notebook.sharedUpdateChanges(reset, series("_prev" to series()).put("overrides", JSONObject()),
                                                 Notebook.UPDATABLE_FROM_BACKUP))

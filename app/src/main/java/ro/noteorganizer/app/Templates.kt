@@ -6,27 +6,14 @@ import java.io.File
 
 /**
  * Templates: reusable starting points for new notes, in the same
- * `templates.json` the desktop keeps -- so a template made on either
- * device starts notes on both.
- *
- * A template holds a name and the note fields it fills in: title, body
- * (with its styles and paragraph lines), comments, category, checklist.
- * The desktop's rules, kept:
- *
- *  - Every template read passes `normalize_template`: what is not the
- *    right shape is replaced by its default, never trusted.
- *  - A name is never overwritten silently: saving under a name another
- *    template has asks first ([nameTaken]).
- *  - Templates do not go to the Trash: deleting one is for good, and the
- *    question says so.
- *  - A note made from a template is a new note; nothing done to it
- *    afterwards touches the template.
- *  - A file that cannot be read is kept aside before anything writes over
- *    it, as every other data file is.
- *
- * One rule is not ported: the desktop's per-line clamp on styles guards
- * its text widget's drawing, which the phone does not have, and no note a
- * person writes comes near it.
+ * `templates.json` the desktop keeps, so a template made on either device
+ * starts notes on both. A template holds a name and the note fields it
+ * fills in. The desktop's rules, kept: every template read passes
+ * `normalize_template`; a name is never overwritten silently
+ * ([nameTaken]); a delete is for good, not the Trash, and says so; nothing
+ * done to a note made from one touches the template; a file that cannot be
+ * read is kept aside before anything writes over it. Not ported: the
+ * per-line clamp on styles, which guards the desktop's text widget alone.
  */
 object Templates {
 
@@ -205,10 +192,9 @@ object Templates {
      * A template being written, kept aside when the app goes to the
      * background with changes nobody saved: its [fields] as the editor held
      * them -- the name as typed, empty or not -- the words [waiting] in "A new
-     * item…", and the name of the template it [edits], null for a new one.
-     * Without it, Android ending the app behind Home lost everything typed:
-     * the template editor saves only on Save (the owner's choice, the final
-     * audit's sixth round, is a draft offered back).
+     * item…", and the name of the template it [edits], null for a new one:
+     * the editor saves only on Save, and Android ending the app behind Home
+     * lost everything typed. Offered back, by the owner's choice.
      */
     data class Draft(val edits: String?, val fields: JSONObject, val waiting: String)
 
@@ -254,11 +240,8 @@ object Templates {
     /**
      * The editor's draft as it is now, kept in [dir] whenever the editor goes
      * where nobody saved it: the [draft] when something [changed], and none
-     * when nothing did -- the changes taken back by hand. Written only when
-     * something had changed, a draft from the last time the app went away
-     * stayed behind a revert and was offered back, and Continue then Save,
-     * the question's default, wrote the words the person had taken out (the
-     * final audit's seventh round). One editor is open at a time, and none
+     * when nothing did -- or an older draft, offered back after a revert,
+     * wrote the words taken out. One editor is open at a time, and none
      * opens while a draft waits unanswered, so the draft there is its own.
      */
     fun keepDraft(dir: File, changed: Boolean, draft: () -> Draft): String? {

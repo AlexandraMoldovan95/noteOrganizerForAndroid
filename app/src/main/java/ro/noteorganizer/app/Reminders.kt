@@ -30,10 +30,8 @@ object Reminders {
      * The phone's news after which the next reminder is set again, rather
      * than shown: a restart and an update, which clear an app's alarms, and
      * a new time zone or clock. The alarm is an instant, worked out for the
-     * hour in the zone of the day it was set; carried to another zone it
-     * rang at the old zone's hour -- 03:00 for a 09:00 reminder taken from
-     * Bucharest to New York -- until the app was next opened (the final
-     * audit).
+     * hour in the zone it was set in; carried to another zone it rang at the
+     * old zone's hour -- 03:00 for a 09:00 reminder taken to New York.
      */
     val RESCHEDULE_ON = setOf(
         "android.intent.action.BOOT_COMPLETED",
@@ -56,10 +54,9 @@ object Reminders {
         } catch (e: Exception) {
             return null
         }
-        // Settled as the app's load settles it, in memory alone: the file
-        // keeps the shape 0.13.0 wrote until the first save after the install,
-        // and the count differed from the calendar's on the days the read
-        // changes (the final audit's twenty-first round).
+        // Settled as the app's load settles it, in memory alone: a file in an
+        // older shape keeps it until the first save, and the count differed
+        // from the calendar's on the days the read changes.
         for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { Notebook.settleAsRead(it) }
         Notebook.settleAside(array)
         return dueOn((0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }, day)

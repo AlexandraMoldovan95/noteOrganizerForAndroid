@@ -202,10 +202,9 @@ class EditingTest {
 
     @Test
     fun `an ordinary note of many small tables, or a long journal, is drawn whole to its end`() {
-        // 100 pieces were a note's ceiling: fifty weekly tables under their
-        // headings, 2,331 characters, made the fiftieth and everything after
-        // it read-only, with nowhere to write at the end; and a training log
-        // of sixty sessions, 5 KB, hid its last ten from Find.
+        // 100 pieces were a note's ceiling: fifty weekly tables (2,331 characters)
+        // left the fiftieth on read-only, nowhere to write at the end, and a 5 KB
+        // log of sixty sessions hid its last ten from Find.
         val weeks = (1..50).joinToString("\n") { "Week $it\n| Day | Spent |\n|---|---|\n| Mon | $it |" }
         val parts = Editing.segments(weeks)
         assertTrue(parts.none { it.long })
@@ -338,10 +337,9 @@ class EditingTest {
 
     @Test
     fun `Find stops at a table it does not draw once a line, and still reaches the words after it`() {
-        // A stop at every cell, the counter moved through 2,000 cells of a
-        // table shown only as its first lines, and the one match on the
-        // screen was never reached; skipped, its words were found nowhere.
-        // Each line is one stop, and the table shows the line stepped to.
+        // A stop at every cell ran through 2,000 cells of a table shown by its
+        // first lines, never reaching the match on screen; skipped, it found
+        // nothing. Each line is one stop, and the table shows the line stepped to.
         val big = grid(300, 300).replace(Regex("r\\d+c\\d+"), "1")
         val found = Finding.scan("$big\nTotal 1", "1", matchCase = false)
         assertEquals("every line but the separator", 299, found.count { it.segment == 0 })
@@ -721,10 +719,9 @@ class EditingTest {
 
     @Test
     fun `a title and a template's name keep their own words at 200 letters, said in the desktop's words`() {
-        // take(200) of the whole new value: a letter at the start of a title of
-        // 200 pushed its last letter off; a title of 150 emoji, which the
-        // desktop holds, kept 100 at the first letter typed; one typed after
-        // 199 letters was cut in two, half of it saved as "?".
+        // take(200) of the whole new value pushed a full title's last letter off,
+        // kept 100 of a title of 150 emoji the desktop holds, and cut a letter
+        // typed after 199 in two, half of it saved as "?".
         val title = "t".repeat(199) + "!"
         val key = Editing.fitRow(title, "X$title", Editing.TITLE_CHARS, "A note title", "Pasted title shortened to 200 characters")
         assertEquals(title, key.text)
@@ -831,10 +828,9 @@ class EditingTest {
 
     @Test
     fun `a row read in parts is cut on the edge of a letter, never inside a flag, a family or an accent`() {
-        // Each part is drawn and read aloud as a piece of its own: cut
-        // between a flag's halves, every flag after it paired one place off
-        // and showed another country -- US, AR read as SA, RU (the final
-        // audit's eighth round). The JVM's own grapheme rules are the judge.
+        // Each part is drawn and read aloud as a piece of its own: cut between a
+        // flag's halves, every flag after it paired one place off (US, AR read
+        // as SA, RU). The JVM's own grapheme rules are the judge.
         fun regional(cp: Int) = cp in 0x1F1E6..0x1F1FF
         val rows = listOf("x" + "🇺🇸🇦🇷".repeat(80), "x" + "👨‍👩‍👧".repeat(80), "x" + "é".repeat(400),
                           "x" + "👍🏽".repeat(150), "x" + "🏳️‍🌈".repeat(60), "x" + "각".repeat(200))
@@ -924,11 +920,9 @@ class EditingTest {
 
     @Test
     fun `a title paste joins only its breaks, each with its spaces one space, as the desktop's 51f0c44`() {
-        // Joined by str.split(), " and more" copied with its break went in
-        // glued -- "Groceriesand more" -- and a tab stayed in the title (the
-        // final audit's ninth round). The desktop's own answers: its
-        // _TITLE_PASTE_BREAK at 8b5d6cc, read from its source and run
-        // (scratch android_fixes_r9/probe_title.py).
+        // Joined by str.split(), " and more" copied with its break went in glued --
+        // "Groceriesand more" -- and a tab stayed in the title. The desktop's own
+        // answers, from its _TITLE_PASTE_BREAK.
         val desktop = mapOf(
             " and more\r\n" to " and more", " fresh\n" to " fresh", "a  b\nc" to "a  b c", "Name\tValue" to "Name Value",
             "Week\u2028plan" to "Week plan", "Shopping\r\n  Milk,  eggs" to "Shopping Milk,  eggs",

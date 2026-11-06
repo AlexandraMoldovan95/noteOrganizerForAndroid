@@ -85,15 +85,10 @@ internal fun sizeRuns(sizes: List<Triple<Int, Int, Float>>): List<Triple<Int, In
 
 /**
  * Underline and strike over the same letters, as one decoration: two
- * styles each naming a decoration do not add up -- the later wins -- so
- * letters both underlined and struck through showed one line while the S
- * key said both. The desktop draws both, its two being independent.
- *
- * One sweep over the edges, counting the lines open at each: asked of
- * every span for each pair of neighbouring edges, the merge took 200
- * million tests for a field of the 10,000 spans a note keeps, at every
- * drawing of it -- each letter typed, each autosave (the final audit's
- * fifth round).
+ * styles each naming a decoration do not add up -- the later wins -- and
+ * the desktop draws both. One sweep over the edges, counting the lines
+ * open at each: asked of every span for each pair of edges, the merge took
+ * 200 million tests for a note's 10,000 spans at every letter typed.
  */
 internal fun decorations(lines: List<Triple<Int, Int, TextDecoration>>): List<Triple<Int, Int, TextDecoration>> {
     if (lines.isEmpty()) return emptyList()
@@ -132,12 +127,9 @@ private fun styleOf(span: FormatSpan, surface: Color): SpanStyle? = when (span.s
     "underline" -> SpanStyle(textDecoration = TextDecoration.Underline)
     "strike" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
     "text_color" -> hexColor(span.value)?.let { SpanStyle(color = it) }
-    // Not the stored colour: a palette meant for a white page is a solid
-    // pale wash that buries light text on a dark one. The desktop hit this
-    // and blends the paint toward the page instead, keeping the pure
-    // colour in the data -- so the same highlight stays readable in every
-    // theme. Its comment is blunt about it: "the solid palette fill buried
-    // the text under it."
+    // Not the stored colour: a palette meant for a white page buries light
+    // text on a dark one, so the paint is blended toward the page, as the
+    // desktop does, and the pure colour stays in the data.
     "highlight" -> hexColor(span.value)?.let { SpanStyle(background = blend(it, surface, 0.45f)) }
     // Points against the desktop's 12 pt body, as the desktop and the PDF
     // read them: drawn as sp beside a 16 sp body, 14 made words smaller and

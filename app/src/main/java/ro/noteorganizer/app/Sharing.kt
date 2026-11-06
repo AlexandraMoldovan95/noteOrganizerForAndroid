@@ -7,16 +7,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Share codes: moving notes between devices as copy-paste text.
- *
- * A code is a small JSON payload, zlib-compressed, Base64'd, behind a
- * version prefix. Measured on a real notebook, one note comes to 630
- * characters at the median and 72 of 77 fit under 2000 — small enough for
- * a message or an email, which is the whole point.
+ * Share codes: moving notes between devices as copy-paste text -- a small
+ * JSON payload, zlib-compressed, Base64'd, behind a version prefix. On a
+ * real notebook one note came to 630 characters at the median, and 72 of
+ * 77 fit under 2000: small enough for a message or an email.
  *
  * **This is not encryption.** Anyone holding the code can read the note.
- * It is a compact, pasteable spelling of the same text, nothing more.
- *
  * It carries note CONTENT and never attachments: binary files would push a
  * code past anything a chat box will accept.
  */
@@ -37,11 +33,9 @@ object Sharing {
      * without it a shared note arrives flush left with flat lists.
      */
     val SHAREABLE_FIELDS = listOf(
-        // "uid" travels; "id" does not. An id is only a note's place in
-        // one file and means nothing anywhere else. The uid is what lets
-        // the far end recognise a note it already has instead of guessing
-        // from the text -- a guess that fails exactly when the note was
-        // edited, which is the only time anyone re-sends one.
+        // "uid" travels, "id" does not: an id is a place in one file. The uid lets
+        // the far end recognise a note it has instead of guessing from the text --
+        // a guess that fails exactly when the note was edited.
         "uid",
         "title", "body", "formatting", "comments", "category", "date",
         "color", "recurrence", "paragraphs", "checklist",
@@ -73,32 +67,21 @@ object Sharing {
     class TooLarge(message: String) : Exception(message)
 
     /**
-     * What the phone hands another app in one go, in characters -- a code,
-     * or a note's words. A text longer than this is refused here, kindly.
-     *
-     * Measured on the emulator, not reasoned: the share sheet is started by
-     * the system with the text in it, about three bytes a character, in a
-     * one-way call held to half of a megabyte's buffer. 160,000 characters
-     * went through; 180,000 and 210,000 (634 KB) failed in the system's own
-     * process, after the app's call had returned -- no exception reached the
-     * app, nothing was said, and the sheet simply never came (2026-10-28).
-     * The 250,000 first set here was such a size. 100,000 leaves the buffer
-     * room for whatever else is in flight.
-     *
-     * That is 100,000 characters of the Latin alphabet: the ceiling itself is
+     * What the phone hands another app at once, in characters -- a code or a
+     * note's words; longer is refused here, kindly. Measured, not reasoned:
+     * the share sheet's text travels at about three bytes a character in a
+     * call held to half a megabyte, and past 160,000 the sheet never came,
+     * nothing said. 100,000 Latin letters leave room; the ceiling itself is
      * [MAX_HANDED_BYTES], what they come to ([handedBytes]).
      */
     const val MAX_HANDED_CHARS = 100_000
 
     /**
      * What [texts] come to in Android's buffer, handed to another app: each
-     * is carried twice -- as the intent's text, two bytes a UTF-16 unit, and
-     * again as its clip, which Android 11 and later write in UTF-8, one byte
-     * a Latin letter and three a Chinese or Korean one. The emulator measured
-     * 210,000 Latin letters at 634,252 bytes, 3.02 a letter; and counted by
-     * letters alone, 99,890 Chinese ones -- under the 100,000 -- were a
-     * parcel of 503,764 bytes, and the system failed to deliver it to the
-     * share sheet, unsaid; 94,990 went through (measured 2026-10-28).
+     * twice, as the intent's text (two bytes a UTF-16 unit) and as its clip,
+     * in UTF-8 since Android 11 (one byte a Latin letter, three a Chinese or
+     * Korean one). Measured: 210,000 Latin letters, 634,252 bytes; counted by
+     * letters, 99,890 Chinese ones were a parcel the system did not deliver.
      */
     fun handedBytes(vararg texts: String): Long = texts.sumOf { 2L * it.length + utf8Length(it) }
 
@@ -178,13 +161,10 @@ object Sharing {
     /**
      * The share code inside [text], its wrapping taken out -- the desktop's
      * `code_in`: from its prefix to its padding, or to the first character a
-     * code is not written in (`+` and `/` read as `-` and `_`, the other
-     * spelling), so "Hi! NOTE1:… Thanks" reads, where every word around a
-     * code made it unreadable now and then. Without padding, the letters past
-     * the last whole group of four are left (a word after it); a code whose
-     * "=" was lost loses only part of its checksum so, and still reads
-     * (measured: SharingTest). [text] itself, whitespace out, when it holds no
-     * prefix.
+     * code is not written in (`+` and `/` read as `-` and `_`), so that
+     * "Hi! NOTE1:… Thanks" reads. Without padding, letters past the last
+     * whole group of four are left (a word after it); a code that lost its
+     * "=" still reads. [text], whitespace out, when it holds no prefix.
      */
     internal fun codeIn(text: String): String {
         val at = text.indexOf(PREFIX)
@@ -264,11 +244,9 @@ object Sharing {
                     "split it into smaller codes, or to send a backup instead " +
                     "(Settings → Backup → Export).")
         }
-        // Projected through the SAME slice `encode` produces, so a
-        // hand-crafted code can only carry the fields a real one would.
-        // This is the boundary that stops an imported note smuggling in an
-        // attachment reference -- one whose `stored_as` could later aim a
-        // delete at a file outside the attachments folder.
+        // Through the SAME slice `encode` makes, so a hand-made code carries only
+        // a real one's fields: no attachment reference whose `stored_as` could
+        // later aim a delete outside the attachments folder.
         val out = ArrayList<JSONObject>(notes.length())
         for (i in 0 until notes.length()) {
             val note = notes.opt(i) as? JSONObject ?: JSONObject()

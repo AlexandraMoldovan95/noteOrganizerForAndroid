@@ -12,23 +12,15 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 /**
- * The full backup: one `.zip` holding the whole notebook, the same file
- * the desktop's Settings → Backup writes and reads -- so a backup made on
- * one device restores on the other.
- *
- * Inside: `notes_data.json`, `settings.json`, `templates.json`,
- * `trash.json`, and every attached file under `attachments/`. A backup
- * the app wrote must be one it agrees to read back, so an export is
- * checked by the import's own rules before it is handed over -- all but
- * the memory one, which depends on the phone: a notebook grown past what
- * this phone's import reads at once is still saved, the person told so
- * ([exportTo]), since the desktop restores it.
- *
- * A backup arrives from anywhere, so reading one is guarded the way the
- * desktop's `_safe_extract_zip` guards it -- and one step stricter: only
- * the names a backup is made of are unpacked at all. Anything else in the
- * archive is left where it is, so no entry can name a path outside the
- * folder it is unpacked into.
+ * The full backup: one `.zip` holding the whole notebook -- the four JSON
+ * files and every attached file under `attachments/` -- the same file the
+ * desktop's Settings → Backup writes and reads, so a backup made on one
+ * device restores on the other. An export is checked by the import's own
+ * rules before it is handed over, but for memory: a notebook past what this
+ * phone reads at once is still saved, and said ([exportTo]). Reading one is
+ * guarded as the desktop's `_safe_extract_zip` guards it, one step
+ * stricter: only the names a backup is made of are unpacked, so no entry
+ * can name a path outside the folder.
  */
 object Backup {
 
@@ -138,11 +130,9 @@ object Backup {
         File(dir, ATTACHMENTS).listFiles()?.filter { it.isFile }?.sortedBy { it.name }?.forEach {
             entries.add(it to "$ATTACHMENTS/${it.name}")
         }
-        // A file the app could not read, kept aside (Files.preserveCorrupt):
-        // in the app's own storage no person can reach it, and a notebook
-        // gone unreadable had nowhere else to be. It travels in the backup,
-        // under a folder of its own that an import, here or on the desktop,
-        // leaves where it is.
+        // A file the app could not read, kept aside (Files.preserveCorrupt), out
+        // of every person's reach in the app's storage: it travels here, in a
+        // folder of its own that an import, here or on the desktop, leaves be.
         dir.listFiles()?.filter { it.isFile && KEPT_ASIDE.matches(it.name) }?.sortedBy { it.name }?.forEach {
             entries.add(it to "$UNREADABLE/${it.name}")
         }
@@ -183,18 +173,12 @@ object Backup {
     }
 
     /**
-     * [export] to a place the person chose, which may be an older backup
-     * to be written over. On failure the place is [discard]ed only when
-     * what it holds is a half-written backup -- [open] gave a stream and the
-     * writing then failed -- or the empty file the picker made for this one
-     * ([emptyPlace]). A place that refused to open, or gave no stream, is
-     * as it was: a backup chosen to be replaced was deleted for a refusal,
-     * with nothing in its place.
-     *
-     * A backup this phone could not read back is still written -- the
-     * person's only copy is never withheld -- and [Export.Saved.tooLarge]
-     * says so, where "Backup saved." was followed, at the import, by a
-     * refusal.
+     * [export] to a place the person chose, which may be an older backup to
+     * be written over. On failure the place is [discard]ed only when it holds
+     * a half-written backup ([open] gave a stream) or the picker's empty file
+     * ([emptyPlace]): a place that refused to open is left as it was, not a
+     * backup deleted for nothing. A backup this phone could not read back is
+     * still written, the only copy never withheld, and [Export.Saved.tooLarge] says so.
      */
     fun exportTo(dir: File, scratch: File, open: () -> OutputStream?, emptyPlace: () -> Boolean,
                  discard: () -> Unit, heap: Long = Runtime.getRuntime().maxMemory()): Export {
@@ -247,12 +231,10 @@ object Backup {
 
     /**
      * The most one of a backup's JSON files may hold on a phone that lets
-     * the app use [heap] bytes: a sixteenth of it -- 16 MB where an app is
-     * given 256. Read, the text takes two bytes a letter, the objects parsed
-     * from it several times that, and the notes are copied again on their
-     * way in. The bomb guard's floor is the desktop's, 50 MB, sized for a
-     * computer: under it, a 48 KB archive unpacked to a 50 MB note, and the
-     * phone ran out of memory reading it.
+     * the app use [heap] bytes: a sixteenth -- 16 MB of 256. The text takes
+     * two bytes a letter, its objects several times that, and the notes are
+     * copied on their way in; the desktop's 50 MB floor, sized for a
+     * computer, let a 48 KB archive unpack to a note this phone could not hold.
      */
     fun jsonCeiling(heap: Long): Long = heap / 16
 
@@ -274,13 +256,10 @@ object Backup {
 
     /**
      * Where [place] -- `attachments/<name>` or a data file -- is unpacked:
-     * itself, unless its name is longer than this phone's storage holds.
-     * Windows counts 255 UTF-16 units to a name, Android 255 bytes, so a
-     * desktop file named in Cyrillic or Chinese can be legal there and not
-     * here -- and one such name refused the whole backup, with an errno and
-     * an inner path for its message. Such a name keeps its type and as much
-     * of its start as fits, with a short mark of the whole name so two never
-     * meet.
+     * itself, unless its name is longer than this phone's storage holds
+     * (Windows counts 255 UTF-16 units, Android 255 bytes, so a name in
+     * Cyrillic or Chinese refused a whole backup). Such a name keeps its type
+     * and as much of its start as fits, with a short mark of the whole name.
      */
     fun fittedPlace(place: String): String {
         val name = place.substringAfter('/', place)
@@ -336,11 +315,9 @@ object Backup {
                     if (place != placed) renamed[placed.substringAfter('/')] = place.substringAfter('/')
                     val target = File(into, place)
                     target.parentFile?.mkdirs()
-                    // The sizes the guards read are the archive's own claim.
-                    // Counted here too, so an entry that unpacks to more
-                    // than it declared is stopped at what it declared.
-                    // A JSON file that never said its size, no more than the
-                    // phone can read.
+                    // The guards read the archive's own claim, counted here too: an
+                    // entry is stopped at what it declared, and a JSON file that never
+                    // said its size at what the phone can read.
                     val claimed = if (entry.size >= 0) entry.size else BOMB_MIN_BYTES
                     val limit = if (place in JSON_FILES) minOf(claimed, jsonCeiling(heap)) else claimed
                     archive.getInputStream(entry).use { input ->

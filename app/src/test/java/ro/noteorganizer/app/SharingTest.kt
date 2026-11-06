@@ -54,10 +54,9 @@ class SharingTest {
 
     @Test
     fun `a note past what a code may hold is refused before it is deflated`() {
-        // Weighed only after the deflate at level 9, the dearest step, such a
-        // note cost the whole of it to be refused -- on the screen's thread,
-        // as the Share sheet opened. Timed against writing its text out once,
-        // the work the refusal still does, so no machine's speed moves the margin.
+        // Weighed after the deflate at level 9, the dearest step, such a note
+        // paid all of it to be refused, on the screen's thread. Timed against writing
+        // its text out once, the work the refusal still does, so no machine moves the margin.
         val words = listOf("milk", "bread", "a long day", "walked to the river", "Tuesday", "7:30")
         val random = java.util.Random(11)
         val body = StringBuilder()
@@ -148,10 +147,9 @@ class SharingTest {
 
     @Test
     fun `a code nested deeper than any note is damage, refused before it is parsed`() {
-        // Android's org.json goes one call deeper per bracket, and a million
-        // of them ended the app with StackOverflowError. The computer's
-        // parser stops at 512 by itself, so this nests 150 deep: that
-        // parser takes it, and only the guard refuses it.
+        // Android's org.json goes a call deeper per bracket; the computer's parser
+        // stops at 512 by itself, so this nests 150 deep: that parser takes it,
+        // and only the guard refuses it.
         val nested = { depth: Int -> "[".repeat(depth) + "]".repeat(depth) }
         val code = codeOf(JSONObject("""{"v": 1, "notes": [{"title": "x", "deep": ${nested(150)}}]}"""))
         val result = Sharing.decode(code)
@@ -272,15 +270,8 @@ class SharingTest {
     }
 
     // ---- importing ----
-    //
-    // These used to drive `importShareCode`, the one import route before
-    // a code carried a note's identity. The screen now inspects a code
-    // first, so a note this device already has can raise a question
-    // instead of being copied silently, and that is the only route there
-    // is. Checks that drive a function nothing calls keep it alive while
-    // proving nothing about what the app does -- and that one carried its
-    // own second copy of the new-note defaults, which is exactly how two
-    // copies of a rule drift apart without anyone noticing.
+    // By the screen's own route -- inspect, then write with the answer -- not
+    // a function nothing calls, which a check would keep alive for nothing.
 
     /** What the screen does: look first, then write with the answer. */
     private fun bring(load: Notebook.Load, code: String,
@@ -324,11 +315,8 @@ class SharingTest {
 
     @Test
     fun `importing the same code twice depends on whether it carries an identity`() {
-        // The old rule was: always create. A code carried no id, so there
-        // was nothing to match it against, and two notes are visible and
-        // fixable where overwriting the wrong one is not. That reasoning
-        // is exactly why the identity exists -- and it still governs the
-        // half of the world that has none.
+        // A code with no identity is always created: two notes are visible and
+        // fixable where overwriting the wrong one is not.
         val load = scratch("[]")
         val anonymous = Sharing.encode(listOf(note("""{"title": "x"}""")))
         bring(load, anonymous)
@@ -338,11 +326,9 @@ class SharingTest {
         assertEquals(listOf(1, 2),
             (0 until 2).map { onDisk(load).getJSONObject(it).getInt("id") })
 
-        // A code made from a note this device has SAVED carries that
-        // note's identity, and then the second arrival is recognised
-        // rather than guessed at -- which is the whole point of the
-        // field. Importing it still leaves two notes here, but now
-        // because that answer was chosen, not because nothing could tell.
+        // A code made from a SAVED note carries its identity, so the second
+        // arrival is recognised, not guessed at: two notes here now because
+        // that answer was chosen, not because nothing could tell.
         val mine = Shares.codeFor(load, 1)!!
         val found = Notebook.inspectShareCode(load, mine) as Notebook.Inspection.Ready
         assertEquals("a code made here is recognised when it comes back",

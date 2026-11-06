@@ -149,10 +149,9 @@ class EditorTypingTest {
 
     @Test
     fun `a line typed past what the note draws lets the keyboard go, said once, never onto the line above`() {
-        // Enter at the end of a note whose fields draw all the lines a body
-        // may: the new line went into the read-only rest, the field kept the
-        // keyboard with its cursor at its end, and the next words were glued
-        // onto the line above.
+        // Enter at the end of a note drawing all the lines a body may: the new
+        // line went into the read-only rest, the field kept the keyboard, and
+        // the next words were glued onto the line above.
         val model = editor(List(Editing.MAX_DRAWN_LINES) { "x" }.joinToString("\\n"))
         val segments = Editing.segments(model.body)
         val last = segments.lastIndex
@@ -349,9 +348,8 @@ class EditorTypingTest {
         assertTrue(day.save())
         assertEquals("follows", day.status)
         // ...a cut across two nested items pasted straight back keeps the depth
-        // of the line it went into, as the desktop's text does (the round-4
-        // medium); lines pasted after an item's end keep its depth too, where
-        // the desktop's take its centring alone.
+        // of the line it went into, as the desktop's does; lines pasted after an
+        // item's end keep its depth too, where the desktop's keep its centring alone.
         val cutFrom = words.indexOf("hotel")
         val cutTo = words.indexOf("ck\n2. Go")
         day.type(words.removeRange(cutFrom, cutTo), cutFrom)
@@ -523,10 +521,9 @@ class EditorTypingTest {
 
     @Test
     fun `Undo of a style leaves the cursor where it was, so a table goes in there, not onto the one at the end`() {
-        // B, then ↶ on the same bar, then ⊞: Undo emptied the place the
-        // cursor was and only a change of the words put it back, so the
-        // table went to the note's end -- onto the table closing it, refused
-        // with words about a note too large (the final audit's seventh round).
+        // B, then ↶ on the same bar, then ⊞: Undo emptied the cursor's place, so
+        // the table went to the note's end -- onto the table closing it, refused
+        // with words about a note too large.
         val model = editor("Shopping\\nbread and milk\\n| Item | Qty |\\n| Eggs | 6 |")
         val field = Editing.segments(model.body).first()
         assertTrue(field.field)
@@ -579,10 +576,9 @@ class EditorTypingTest {
 
     @Test
     fun `the calculator's place moves with Undo and Redo, so each answer still goes on a line of its own`() {
-        // An Undo or Redo that changed the words emptied the place the last
-        // answer ended, and the next went where the cursor was, glued on:
-        // "Total: 2+2=43×3=9", a false number. The desktop's Tk mark moves
-        // through Ctrl+Z and Ctrl+Y (the final audit's eighth round).
+        // An Undo or Redo of the words emptied the last answer's place, and the
+        // next was glued on at the cursor: "Total: 2+2=43×3=9", a false number.
+        // The desktop's Tk mark moves through Ctrl+Z and Ctrl+Y.
         val model = editor("Total: ")
         model.caret = 7
         model.insertCalculation("2+2=4")
@@ -624,11 +620,9 @@ class EditorTypingTest {
 
     @Test
     fun `the calculator's place moves through every place a change made, so the next answer goes under the last`() {
-        // Followed as one change from the first place it touched to the last,
-        // a list's markers, Enter in a numbered list, or an Undo of letters
-        // typed in two places sent the next answer into a later line:
-        // "3*3=9Rent", "4\n3*3=9. Rent" (the final audit's ninth round). The
-        // desktop's Tk mark moves through each insert and delete in turn.
+        // Followed as one change, a list's markers, Enter in a numbered list or an
+        // Undo of letters in two places sent the next answer into a later line:
+        // "3*3=9Rent". The desktop's Tk mark moves through each edit in turn.
         fun EditorModel.bullets() =
             applyLines(Paragraphs.toggleList(body, props, 0, 2, "bullet"), 0, 0, body.length)
         // A: bullets over the three lines, then Insert.
@@ -673,11 +667,8 @@ class EditorTypingTest {
 
     @Test
     fun `an Undo of letters typed in two places carries the calculator's place back through each`() {
-        // The two letters are one step of Undo only when typed within a
-        // second of each other (History joins by the clock): that alone is
-        // assumed here. In the test above, the Assume ended the whole method,
-        // and the list's and the paste's cases went unrun with it -- a skip
-        // the gate counts as a pass (the final audit's tenth round).
+        // One step of Undo only when typed within a second (History joins by the
+        // clock), assumed here alone: an Assume ends its whole method, unrun cases and all.
         // C: a letter after "Budget" and one before "Rent", one step of Undo.
         val c = budget()
         val steps = c.undoSteps
@@ -703,11 +694,9 @@ class EditorTypingTest {
 
     @Test
     fun `Enter typed at the calculator's place, a line below it, carries the place after it, as the desktop's mark`() {
-        // Read off the two texts, Enter typed right after the answer was the
-        // break after the old one, and the place stayed before the new line:
-        // the next answer went above the words typed under the last (the
-        // final audit's tenth round). Read at the cursor, as Tk's mark of
-        // right gravity sees a key go in at the insert mark.
+        // Read off the two texts, Enter right after the answer was the break after
+        // the old one, and the next answer went above the words typed under the last.
+        // Read at the cursor, as Tk's mark of right gravity sees a key go in.
         val food = budget()
         food.type("Budget\n2+2=4\n\nRent", 13)
         food.type("Budget\n2+2=4\nFood\nRent", 17)
@@ -736,10 +725,9 @@ class EditorTypingTest {
 
     @Test
     fun `Enter at the end of a centred line, a line below it, keeps the centring on both halves`() {
-        // The phone's own rule, as the desktop's tags lie over the text; read
-        // off the texts, the break was the next line's start, and the new
-        // line was left at the margin, where at the note's end it was centred
-        // (the final audit's tenth round).
+        // The phone's own rule, as the desktop's tags lie over the text: read off
+        // the texts, the break was the next line's start, and the new line was
+        // left at the margin, where at the note's end it was centred.
         val model = editor("Packing list\\nPassport, charger")
         model.props = mapOf(0 to Paragraphs.Props(align = "center"))
         model.type("Packing list\n\nPassport, charger", 13)
@@ -762,11 +750,9 @@ class EditorTypingTest {
 
     @Test
     fun `a paste cut at a box's cap is cut where the cursor put it in, and said only when words are left out`() {
-        // The title's paste was read at the cursor, then read again off the
-        // texts at the cap: " fresh" pasted after "Buy" kept "fre" glued to
-        // "milk", where the desktop keeps "Buy fr milk"; and a paste's own
-        // trailing space, all the cap took, was said to be shortened (the
-        // final audit's tenth round, the desktop's 737efe7).
+        // Read again off the texts at the cap, " fresh" pasted after "Buy" kept
+        // "fre" glued to "milk" (the desktop: "Buy fr milk"), and a paste whose
+        // trailing space was all the cap took was said to be shortened.
         val title = "A".repeat(189) + "Buy milk"
         val model = editor("x", title = title)
         model.typeTitle(TextFieldValue(title, TextRange(192)), TextFieldValue("A".repeat(189) + "Buy fresh milk", TextRange(198)))
@@ -813,11 +799,9 @@ class EditorTypingTest {
 
     @Test
     fun `a title holding a line break takes the letters typed into it, and a tap rewrites nothing`() {
-        // A share code, a desktop template or the phone before 0.11 can leave
-        // a break in a title. Every letter typed into it was taken for Enter
-        // and dropped, the cursor sent to the note's words; and a tap that
-        // only moved the cursor rewrote the title and saved the note (the
-        // final audit's eighth round).
+        // A share code, a desktop template or an older phone can leave a break in
+        // a title: every letter typed into it was taken for Enter and dropped, and
+        // a tap that only moved the cursor rewrote the title and saved the note.
         val model = editor("x", title = "Groceries\\n")
         assertEquals("Groceries\n", model.title)
         val shown = TextFieldValue(model.title, TextRange(model.title.length))

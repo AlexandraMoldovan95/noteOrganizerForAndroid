@@ -589,11 +589,9 @@ private fun CategoryEditor(
     val palette = LocalPalette.current
     var draftName by remember(name) { mutableStateOf(name) }
     var draftColour by remember(colour) { mutableStateOf(colour) }
-    // A Save refused -- a name already used, one over 80 letters, the most
-    // categories, a delete or a write that failed -- leaves the sheet open,
-    // and is said over it: said in the window under it, Save looked as if
-    // it did nothing (the final audit's eighth round). Scrolled, with the
-    // keyboard up on a phone on its side.
+    // A Save refused (a name used, over 80 letters, the most categories, a
+    // failed delete or write) keeps the sheet open and is said over it: said
+    // under it, Save looked to do nothing. Scrolled, for a phone on its side.
     AppSheet(onDismissRequest = onDismiss, messages = messages) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(title, color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
@@ -695,10 +693,9 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         }
         Text(stringResource(R.string.backup_import_explain), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         busy?.let { Text(it, color = palette.accentText, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp)) }
-        // Android's own backup: on, as it always was (the owner's call,
-        // 2026-10-27), said here so a person knows where else a copy may
-        // be, and theirs to turn off -- NotesBackupAgent then hands Android
-        // only a mark saying it is off, none of the notes.
+        // Android's own backup: on by default (the owner's call), said here so a
+        // person knows where else a copy may be, and theirs to turn off --
+        // NotesBackupAgent then hands Android only a mark saying so.
         val google = state.load.settings?.let { Settings.googleBackupOn(it) } ?: true
         // The whole row is the switch: its words are what a finger, and a
         // screen reader, find.

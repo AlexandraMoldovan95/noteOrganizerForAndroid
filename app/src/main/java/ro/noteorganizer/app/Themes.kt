@@ -1,19 +1,16 @@
 package ro.noteorganizer.app
 
 /**
- * The desktop's palettes and swatches, colour for colour.
+ * The desktop's palettes and swatches, colour for colour. Its
+ * `core/themes.py` is the specification: eight themes with the same role
+ * names (`bg`, `card`, `text`, `accent`...), the names it shows for them,
+ * the categories a new notebook starts with, and the swatches a person
+ * picks from -- copied rather than re-chosen, so a note coloured on one
+ * device is the same colour on the other. `tools/check_palettes.py` reads
+ * both files and fails on any difference.
  *
- * The desktop's `core/themes.py` is the specification: eight themes with
- * the same role names (`bg`, `card`, `text`, `accent`...), the names it
- * shows for them, the categories a new notebook starts with, and the
- * swatches a person picks from. Copied rather than re-chosen, so a note
- * coloured on one device is the same colour on the other, and a theme is
- * recognisably the same theme. `tools/check_palettes.py` reads both files
- * and fails on any difference.
- *
- * Plain strings and arithmetic, no Compose: like the rest of the rules
- * layer, this is tested on the computer. `AppTheme.kt` turns it into
- * colours to draw with.
+ * Plain strings and arithmetic, no Compose, tested on the computer;
+ * `AppTheme` (ui/theme/Theme.kt) turns it into colours to draw with.
  */
 object Themes {
 

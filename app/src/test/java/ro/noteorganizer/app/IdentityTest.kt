@@ -46,11 +46,9 @@ class IdentityTest {
 
     @Test
     fun `a note that arrived WITHOUT one is left alone`() {
-        // Deliberate. The desktop mints identities for every note at its
-        // own door, once. If this app minted them too, a notebook copied
-        // here before the desktop had seen it would end up with two
-        // different identities for the same note -- the exact collision
-        // the field exists to prevent, manufactured by the fix for it.
+        // Deliberate: the desktop mints identities at its own door, once. Minted
+        // here too, a notebook copied in before the desktop saw it would hold
+        // two identities for one note -- the collision the field exists to prevent.
         val load = scratch("""[{"id": 1, "title": "old"}]""")
         Notebook.createNote(load, "new", "")
         assertFalse("no identity is invented for the old note",
@@ -145,10 +143,8 @@ class IdentityTest {
 
     @Test
     fun `an update carries everything the code brought, not only the words`() {
-        // Written after a mutant that dropped `checklist` from the field
-        // list survived: the first version of this suite only ever looked
-        // at the title and the body, so nine of the ten fields an update
-        // replaces were never checked at all.
+        // Every field an update replaces: a suite that looked at the title and
+        // the body alone let a mutant dropping `checklist` survive.
         val load = scratch("""
             [{"id": 7, "uid": "abc", "title": "Old", "category": "General",
               "color": "", "date": "", "checklist": [], "comments": ""}]
@@ -199,10 +195,9 @@ class IdentityTest {
 
     @Test
     fun `a note that has no identity is not the same note as another`() {
-        // Notes that reached this device before the desktop minted any
-        // carry no uid, and a code made from one carries none either. If
-        // "" matched "", every such note would be the same note -- and
-        // the first one in the file would be silently overwritten.
+        // Notes that came before the desktop minted any carry no uid, nor do
+        // their codes: if "" matched "", every such note would be one note,
+        // and the first in the file silently overwritten.
         val load = scratch("""
             [{"id": 1, "uid": "", "title": "No identity"},
              {"id": 2, "title": "Nor this one"}]
@@ -230,11 +225,9 @@ class IdentityTest {
 
     @Test
     fun `a write that fails leaves the screen exactly as it was`() {
-        // The candidate array shares its note objects with the live one,
-        // so an update applied in place would reach the screen before the
-        // write could fail -- showing a version that exists nowhere. A
-        // mutant proved this was held up by that sharing rather than by
-        // the code, so the check is here now.
+        // The candidate array shares its note objects with the live one, so an
+        // update applied in place would reach the screen before the write could
+        // fail, showing a version that exists nowhere.
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val nowhere = load.copy(file = File(load.file!!.parentFile,
             "no/such/notes_data.json"))
@@ -443,10 +436,9 @@ class IdentityTest {
 
     @Test
     fun `a restore over part of the copy's words made bold or a list since keeps them as the copy in turn`() {
-        // Styles were weighed only on the same words: a part of the copy's
-        // text made bold since went to no file, no copy kept, the question
-        // silent -- the desktop's ae6efe2 keeps it (test_data_safety's own
-        // case, "Trip" / "Packing list:"; the final audit's ninth round).
+        // Styles were weighed only on the same words: part of the copy made bold
+        // since went to no file, no copy kept, the question silent. The desktop
+        // keeps it (test_data_safety's own case, "Trip" / "Packing list:").
         val prev = """{"title": "Trip", "body": "Packing list: boots, rope, map, torch.", "comments": "",
                        "formatting": [], "paragraphs": []}"""
         fun keeps(extra: String): Boolean {
@@ -506,11 +498,9 @@ class IdentityTest {
 
     @Test
     fun `whether a restore keeps the note's words is answered in time that grows with the words, not their square`() {
-        // A backup's rescue copy of four million letters, and a note of
-        // twenty thousand that nearly matches it: the JVM's contains took
-        // fourteen seconds a call, and was asked of every note at every
-        // load -- each start, each save. Linear, it takes milliseconds;
-        // two seconds is a margin no machine speed crosses either way.
+        // A rescue copy of four million letters and a note of twenty thousand
+        // nearly matching it: the JVM's contains took fourteen seconds a call, at
+        // every load. Linear, milliseconds; two seconds is a margin no machine crosses.
         val dir = Files.createTempDirectory("notebook").toFile()
         val note = JSONObject().put("id", 7).put("title", "t").put("body", "a".repeat(20_000) + "b")
             .put("_prev", JSONObject().put("title", "t").put("body", "a".repeat(4_000_000)))

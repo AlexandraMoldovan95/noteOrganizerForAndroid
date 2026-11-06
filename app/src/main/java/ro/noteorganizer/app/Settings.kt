@@ -5,21 +5,13 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * `settings.json`, read and written the way the desktop reads and writes
- * it -- and shared with it, since a backup carries the file both ways.
- *
- * **A partial reader must not become a total writer**, here as in the
- * notebook: the desktop keeps a dozen keys this app never looks at (the
- * calendar's painted days, the spelling dictionary, which groups are
- * folded), and a write that rebuilt the file from what the phone knows
- * would delete them all. So every write edits the object that was READ,
- * one key at a time, and everything else survives byte for byte.
- *
- * The keys the two programs share are the desktop's own names, with the
- * desktop's values. The few that only a phone has a use for are prefixed
- * `phone_`, so whoever opens a shared file can tell whose they are; the
- * desktop keeps keys it does not know, so they come back unharmed from a
- * round trip through it.
+ * `settings.json`, read and written as the desktop reads and writes it, and
+ * shared with it, since a backup carries the file both ways. **A partial
+ * reader must not become a total writer:** the desktop keeps a dozen keys
+ * this app never looks at, so every write edits the object that was READ,
+ * one key at a time, and everything else survives byte for byte. Shared
+ * keys are the desktop's names and values; the phone's own are prefixed
+ * `phone_`, and come back unharmed from a round trip through the desktop.
  */
 object Settings {
 
@@ -38,10 +30,10 @@ object Settings {
 
     // The phone's own.
     /**
-     * Whether the theme follows the phone's dark mode: what the app did
-     * until 0.9.0, on by default. The choice is gone; a notebook that still
-     * follows is settled once ([AppState.settleTheme]) on the theme it wears,
-     * and this is then false for good.
+     * Whether the theme follows the phone's dark mode: once the app's way, on
+     * by default. The choice is gone; a notebook that still follows is settled
+     * once ([AppState.settleTheme]) on the theme it wears, and this is then
+     * false for good.
      */
     const val PHONE_FOLLOWS_PHONE = "phone_theme_follows_phone"
     /** The last light and the last dark theme worn: where Light | Dark goes back to. */
@@ -64,18 +56,12 @@ object Settings {
     const val PHONE_GOOGLE_BACKUP = "phone_google_backup"
 
     /**
-     * Whether Android's backup may take the app's data. Not when the person
-     * turned it off -- nor when settings.json cannot be read, as then their
-     * answer is not known: a copy not made can be made at the next backup,
-     * one made against their word cannot be taken back.
-     *
-     * Nor when settings.json holds no answer and the mark of a restore made
-     * while off ([GOOGLE_BACKUP_OFF_MARK]) lies beside it: that mark IS the
-     * answer until the app's first start writes it into the file
-     * ([takeOffMark]). Read from the file alone, a phone restored and not
-     * yet opened read as on -- a restore brings no settings.json, only the
-     * mark -- and Android's next backup deleted the mark and kept nothing:
-     * the app came up on, and the backup after it took the notes.
+     * Whether Android's backup may take the app's data: not when the person
+     * turned it off, nor when settings.json cannot be read (a copy not made
+     * can be made later, one made against their word cannot be taken back),
+     * nor when it holds no answer and a restore's off mark lies beside it
+     * ([GOOGLE_BACKUP_OFF_MARK]), the answer until the first start writes it
+     * in ([takeOffMark]): read alone, a phone restored and unopened read as on.
      */
     fun googleBackupOn(load: Load): Boolean {
         if (load.problem != null) return false
@@ -85,13 +71,10 @@ object Settings {
 
     /**
      * What Android's full backup of the notebook in [dir] may take, decided
-     * here for `NotesBackupAgent`, so that the agent and Settings → Backup
-     * answer by one rule ([googleBackupOn]). On: everything Android's own
-     * rules take, and a mark left by a restore is deleted -- carried in a
-     * backup made while on and restored, it would turn off what the person
-     * had turned on. Off: only the mark, written again, so that Android's
-     * copy says off and holds nothing else; when it cannot be written,
-     * nothing at all.
+     * here so the agent and Settings → Backup answer by one rule
+     * ([googleBackupOn]). On: what Android's rules take, and a restore's mark
+     * deleted, or it would turn off what the person turned on. Off: only the
+     * mark, written again; when it cannot be written, nothing at all.
      */
     fun forFullBackup(dir: File): FullBackup {
         val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
@@ -112,11 +95,8 @@ object Settings {
     /**
      * The one file Android's backup is handed while the switch is off
      * (`NotesBackupAgent`), beside the notebook: it says so, and nothing
-     * else. Handed nothing, Android kept the copy made while the switch was
-     * on -- with a settings.json that could not say off, since no backup is
-     * made once it does -- and a reinstall or a new phone put that back and
-     * turned backups on again. This copy replaces it, and a restore brings
-     * the answer back ([takeOffMark]).
+     * else, replacing the copy made while on (smaller lessons: the backup's
+     * off mark); a restore brings the answer back ([takeOffMark]).
      */
     const val GOOGLE_BACKUP_OFF_MARK = "phone_google_backup_off.json"
 
@@ -251,10 +231,9 @@ object Settings {
      * for deletion. Anything unusable reads as the default.
      */
     fun retentionDays(raw: JSONObject): Int {
-        // A whole number only, as `isinstance(days, int)` asks. 7.5 is not
-        // one, and neither is 7.0. Android's parser reads those as a
-        // Double, the computer's test library as a BigDecimal: both are
-        // refused by name, so the answer does not depend on the parser.
+        // A whole number only, as `isinstance(days, int)` asks: 7.5 and 7.0 are
+        // refused by type (Android's parser reads a Double, the test library a
+        // BigDecimal), so the answer does not depend on the parser.
         val days = raw.opt(RETENTION_DAYS)
         if (days !is Number || days is Double || days is Float ||
             days is java.math.BigDecimal
@@ -265,14 +244,11 @@ object Settings {
     }
 
     /**
-     * The window the start-up purge may go by, or null when it is not known
-     * -- and then nothing is purged: a note kept too long can still be
-     * deleted, one deleted too soon cannot come back, which the desktop's
-     * own purge says of a missing date. Not known when the file could not
-     * be read ([Load.problem], and [PHONE_TRASH_WINDOW_UNKNOWN] at the
-     * starts after it), or when the value is not a whole number from 1 to
-     * 365: no app writes "forever", 7.5 or 0, and a clamp would read 0 as
-     * one day. Never chosen, it is the default, as the desktop reads it.
+     * The window the start-up purge may go by, or null when it is not known,
+     * and then nothing is purged (a note kept too long can still go, one
+     * deleted too soon cannot come back): the file unreadable ([Load.problem],
+     * then [PHONE_TRASH_WINDOW_UNKNOWN]), or not a whole number from 1 to 365
+     * -- a clamp would read 0 as one day. Never chosen, it is the default.
      */
     fun purgeWindow(load: Load): Int? {
         if (load.problem != null || load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) == true) return null
@@ -300,18 +276,11 @@ object Settings {
 
     /**
      * The category map, as the desktop's `load_categories` builds it: the
-     * saved map when there is one (well-formed names and `#hex` colours
-     * only, at most [MAX_CATEGORIES], names no longer than
-     * [MAX_CATEGORY_NAME] -- a longer one is dropped, never shortened, or
-     * every note filed under it would stop matching); the starting set
-     * only when nothing usable was saved; and General always present and
-     * always first.
-     *
-     * Then the notes are believed, as `adopt_categories_of` believes them:
-     * a name a note (or one day of a repeating note) is filed under that
-     * the map does not hold comes back with a colour from the default
-     * palette. Deleting settings.json, or copying only the notes to a new
-     * phone, must not empty somebody's filing into General.
+     * saved one (well-formed names and `#hex` colours, at most
+     * [MAX_CATEGORIES], a name past [MAX_CATEGORY_NAME] dropped, never cut),
+     * else the starting set, General always first. Then, as
+     * `adopt_categories_of`, a name a note or a day is filed under comes back
+     * with a default colour: settings.json lost must not empty the filing.
      */
     fun categories(raw: JSONObject, notes: JSONArray? = null): LinkedHashMap<String, String> {
         val saved = raw.opt(CATEGORIES) as? JSONObject

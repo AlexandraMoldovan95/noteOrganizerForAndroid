@@ -87,9 +87,8 @@ class SettingsTest {
 
     @Test
     fun `a hand-edited retention window is clamped, not obeyed`() {
-        // The desktop's CODE is the specification -- `max(1, min(days,
-        // 365))` -- not its docstring, which says 0 and -3 fall back to the
-        // default. Only something that is not a whole number at all
+        // The desktop's CODE is the specification -- `max(1, min(days, 365))` --
+        // not its docstring: only something that is not a whole number at all
         // ("forever") reaches the default.
         fun days(json: String) = Settings.retentionDays(JSONObject(json))
         assertEquals(1, days("""{"trash_retention_days": 0}"""))

@@ -222,9 +222,8 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
             Modifier
                 .fillMaxWidth()
                 // At least 56, and more as the letters grow: held at 56, the
-                // number at the phone's largest letters pushed a day's
-                // markers half out of the cell and its dots out of sight
-                // (seen on the emulator, 2026-10-27).
+                // number at the phone's largest letters pushed a day's markers
+                // half out of the cell and its dots out of sight.
                 .heightIn(min = 56.dp)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(8.dp))
@@ -239,10 +238,9 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
             Box(Modifier.fillMaxWidth().height(3.dp).background(if (isToday) palette.accent else androidx.compose.ui.graphics.Color.Transparent))
             Text(number.toString(), color = ink, fontSize = 14.sp,
                  fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(top = 2.dp))
-            // Under the number, not in the corner over it: a phone's cell is
-            // narrow, and the corner's markers covered the day (the owner,
-            // 2026-10-25). Sized as the marks they are, so larger letters
-            // grow the number without pushing the dots out of the cell.
+            // Under the number, not in the corner over it, where they covered
+            // the day in a phone's narrow cell; sized as marks, so larger
+            // letters grow the number without pushing the dots out of the cell.
             if (markers.isNotEmpty()) {
                 Text(markers.joinToString(""), fontSize = with(LocalDensity.current) { 11.dp.toSp() },
                      lineHeight = with(LocalDensity.current) { 13.dp.toSp() }, maxLines = 1)
@@ -577,12 +575,9 @@ private fun History(state: AppState) {
                                     if (day.offSchedule) append(offSchedule)
                                 }.trim()
                                 HistoryRow(Recurrence.showDate(day.date), shownTitle(day.title), marks, 1) {
-                                    // A day off the schedule is no day of the series
-                                    // to open: the series opens, its banner leading to
-                                    // the questions that settle such days -- the
-                                    // desktop's History sends it to the same walk.
-                                    // Opened as a day, it could be moved or deleted
-                                    // where no calendar would ever show it.
+                                    // A day off the schedule opens the series, whose banner
+                                    // leads to the questions that settle it, as the desktop's
+                                    // History does: as a day, it could be moved where none shows.
                                     if (day.offSchedule) state.openNote(entry.noteId)
                                     else state.openNote(entry.noteId, day.date)
                                 }
