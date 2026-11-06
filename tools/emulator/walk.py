@@ -71,13 +71,30 @@ def busy_share(seconds=3.0):
     """How much of the emulator's processor was at work over [seconds], 0 to
     1, from the counters in /proc/stat (idle and waiting count as rest)."""
     def counters():
-        values = [int(v) for v in adb("shell", "head", "-1", "/proc/stat").split()[1:]]
-        return sum(values), values[3] + values[4]
+        # Read again while it comes back empty: right after an install the
+        # phone's shell gave back nothing for a few seconds ([install]).
+        for _ in range(15):
+            values = [int(v) for v in adb("shell", "head", "-1", "/proc/stat").split()[1:]]
+            if len(values) >= 5:
+                return sum(values), values[3] + values[4]
+            time.sleep(1.0)
+        raise RuntimeError("the emulator's /proc/stat could not be read")
     total, rest = counters()
     time.sleep(seconds)
     total_after, rest_after = counters()
     spent = total_after - total
     return 1.0 - (rest_after - rest) / spent if spent > 0 else 0.0
+
+
+def install(apk):
+    """[apk] installed, and the phone answering again before anything looks
+    at it: for some seconds after an install its shell gave back nothing, and
+    a part's first look read no tree, or a boot check no counters (wave 2 and
+    its lows wave, after each change of APK; each part fine walked again)."""
+    adb("install", "-r", apk, check=True)
+    deadline = time.time() + 60
+    while time.time() < deadline and not fresh_tree(lambda *a: adb(*a, binary=True), tries=1):
+        time.sleep(1.0)
 
 
 def wait_for_boot(limit=300, quiet_for=30.0):
@@ -678,7 +695,7 @@ def main():
     # Off, once: the stylus tutorial swallows typed text on a fresh image.
     adb("shell", "settings", "put", "secure", "stylus_handwriting_enabled", "0")
     print("installing", APK)
-    adb("install", "-r", APK, check=True)
+    install(APK)
 
     if parts:
         for part in parts:
@@ -5933,6 +5950,12 @@ def attaching(folder):
     check("its bytes are in the attachments folder", kept == b"RECEIPT 120", repr(kept[:40]))
     shot(folder, "50-attached", "walk-receipt.txt", "Remove walk-receipt.txt")
 
+    # A file gone from the folder, tapped: said, as the desktop says it -- it
+    # opened nothing, without a word (wave 2, round 5).
+    adb("shell", "run-as", PACKAGE, "rm", "%s/attachments/%s" % (NOTEBOOK, stored))
+    tap("📎  walk-receipt.txt", exact=True, wait=0.5)
+    check("a file gone from the folder, tapped, is said missing", not says_soon("can't be found"))
+
     tap("Remove walk-receipt.txt", wait=1.2)
     check("removing a file asks first, and says the copy goes", not screen_says("can't be undone"))
     tap_last("Remove", wait=1.5)
@@ -6141,6 +6164,16 @@ def sharing(folder):
     check("Web page hands over the export's page, its table drawn",
           sheet != PACKAGE and page.lstrip().lower().startswith(b"<!doctype html") and b"<table" in page,
           "%s, %d bytes" % (sheet, len(page)))
+    back_in()
+
+    # This app is left off its own share sheet: a code sent to itself opened
+    # the import of notes already here (wave 2, round 9).
+    ask("Trip")
+    tap("Share code", exact=True, wait=1.0)
+    sheet = handed()
+    shot(folder, "60d-share-sheet-without-the-app")
+    check("the phone's share sheet does not offer this app", sheet != PACKAGE
+          and find("Note Organizer", exact=True) is None, sheet)
     back_in()
 
     # A long note: a picture of its own for each page, each with something

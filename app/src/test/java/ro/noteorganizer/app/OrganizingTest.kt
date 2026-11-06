@@ -47,7 +47,7 @@ class OrganizingTest {
     @Test
     fun `a duplicate is a separate note, with files of its own`() {
         val load = notebook("""
-            [{"id": 4, "uid": "u", "title": "Trip", "body": "b",
+            [{"id": 4, "uid": "u", "title": "Trip", "body": "b", "created": "2020-01-01 09:00:00",
               "attachments": [{"filename": "map.png", "stored_as": "map.png"}],
               "_prev": {"title": "older"}}]
         """.trimIndent())
@@ -56,6 +56,7 @@ class OrganizingTest {
         assertEquals(5, result.id)
         val copy = onDisk(load).getJSONObject(1)
         assertEquals("Trip (copy)", copy.getString("title"))
+        assertEquals("made now, as the desktop's", copy.getString("updated"), copy.getString("created"))
         assertNotEquals("u", copy.getString("uid"))
         assertFalse("a copy has no earlier version of its own", copy.has("_prev"))
         val stored = copy.getJSONArray("attachments").getJSONObject(0).getString("stored_as")

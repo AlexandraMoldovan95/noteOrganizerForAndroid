@@ -520,8 +520,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             folded.remove(key)?.let { folded["$id:" + key.substringAfter(':')] = it }
         }
         if (openId == 0) openId = id
-        // Made from a calendar day, it stands on that day, where it was made.
-        if (tab == Tab.NOTES) newNoteMade = id
+        // Made from a calendar day too: it stands on that day, and the list,
+        // when next on screen, says so if it hides it -- unsaid, the note was
+        // nowhere on it (wave 2, round 9).
+        newNoteMade = id
     }
 
     fun closeNote() {
@@ -1065,7 +1067,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
  * longer than a title holds, the whole text kept as the text too.
  */
 internal fun sharedAsNote(text: String): Pair<String, String> {
-    val whole = text.replace("\r\n", "\n").trim()
+    // Without the byte-order mark a .txt from Notepad starts with: kept, it
+    // stood invisible at the head of the title (wave 2, round 4).
+    val whole = text.removePrefix(Char(0xFEFF).toString()).replace("\r\n", "\n").trim()
     val lines = whole.split("\n", limit = 2)
     val first = lines[0].trim()
     val title = Editing.firstLetters(first, Editing.TITLE_CHARS)

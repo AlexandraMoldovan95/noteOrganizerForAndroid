@@ -98,6 +98,9 @@ object ReminderAlarm {
             .setContentText(words)
             .setContentIntent(open)
             .setAutoCancel(true)
+            // Gone at the day's end: a day with no notes posts nothing, and
+            // yesterday's stayed all day saying "for today" (wave 2, round 6).
+            .setTimeoutAfter(Days.untilNextDay(java.time.ZonedDateTime.now()))
             .build()
         try {
             notifications.notify(NOTIFICATION_ID, notification)

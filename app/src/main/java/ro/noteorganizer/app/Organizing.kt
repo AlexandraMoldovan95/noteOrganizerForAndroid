@@ -152,6 +152,8 @@ object Organizing {
         val base = (original.opt("title") as? String ?: "").trim()
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
         val stamp = Files.now()
+        // Made now: it kept the original's "Created" (wave 2, round 3, both apps).
+        clone.put("created", stamp)
         clone.put("updated", stamp)
         clone.put("id", ids(array).next())
         val atts = clone.getJSONArray("attachments")

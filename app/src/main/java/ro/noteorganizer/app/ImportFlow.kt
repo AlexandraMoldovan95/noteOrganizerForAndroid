@@ -220,17 +220,19 @@ fun ImportQuestions(
                     })
                 }
             }
+            val update = stringResource(if (one) R.string.q_update_this else R.string.q_update_n, count) to {
+                next(Step.KNOWN, answers.copy(update = true))
+            }
+            val add = stringResource(if (one) R.string.q_add_new else R.string.q_add_new_n) to {
+                next(Step.KNOWN, answers.copy(update = false))
+            }
             Choice(
                 title = title,
                 text = text,
-                options = listOf(
-                    stringResource(if (one) R.string.q_update_this else R.string.q_update_n, count) to {
-                        next(Step.KNOWN, answers.copy(update = true))
-                    },
-                    stringResource(if (one) R.string.q_add_new else R.string.q_add_new_n) to {
-                        next(Step.KNOWN, answers.copy(update = false))
-                    },
-                ),
+                // The answer that stands out loses nothing when the arriving
+                // versions are older: Update was it, and wrote them over the
+                // newer ones here (wave 2, round 2).
+                options = if (Importing.updateStandsOut(plan)) listOf(update, add) else listOf(add, update),
                 cancel = onCancel,
             )
         }

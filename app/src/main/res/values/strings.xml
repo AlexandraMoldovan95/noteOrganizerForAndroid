@@ -283,6 +283,7 @@
         <item quantity="other">%1$d files attached to “%2$s”.</item>
     </plurals>
     <string name="no_app_opens">No app on this phone opens this kind of file.</string>
+    <string name="file_missing">This attached file can\'t be found on the phone.</string>
     <string name="note_details">Note details</string>
     <string name="no_date">No date</string>
     <string name="repeats_note">This note repeats. Its date can be changed, but not cleared: clearing it would delete the repeat too.</string>

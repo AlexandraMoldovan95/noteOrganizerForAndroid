@@ -2,6 +2,7 @@ package ro.noteorganizer.app
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.Canvas
@@ -46,6 +47,15 @@ import org.json.JSONObject
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import java.io.File
 import java.io.IOException
+
+/**
+ * The phone's share sheet for [send], this app left off it: sent to itself,
+ * a note's words came back as a copy of the note, and a code as an import of
+ * notes already here (wave 2, round 9).
+ */
+internal fun chooserWithoutThisApp(context: Context, send: Intent, title: String): Intent =
+    Intent.createChooser(send, title)
+        .putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, arrayOf(ComponentName(context, MainActivity::class.java)))
 
 /**
  * "Share": the note as a PDF, a web page, its words or a share code,
@@ -299,7 +309,7 @@ private suspend fun prepare(context: Context, state: AppState, noteId: Int, day:
         send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     try {
-        context.startActivity(Intent.createChooser(send, context.getString(R.string.share_title)))
+        context.startActivity(chooserWithoutThisApp(context, send, context.getString(R.string.share_title)))
     } catch (e: ActivityNotFoundException) {
         state.say(context.getString(R.string.share_no_app))
     } catch (e: RuntimeException) {

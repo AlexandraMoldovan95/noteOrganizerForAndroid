@@ -50,6 +50,12 @@ class AppStateTest {
         s.newNoteSaved(3)
         assertNull(s.folded["0:checklist"])
         assertEquals(true, s.folded["3:checklist"])
+        // Made from a calendar day, the list is told of it too, to say so
+        // where it hides it: unsaid, it was nowhere on it (round 9).
+        s.newNoteMade = null
+        s.tab = Tab.CALENDAR
+        s.newNoteSaved(4)
+        assertEquals(4, s.newNoteMade)
     }
 
     @Test
@@ -877,6 +883,8 @@ class AppStateTest {
         assertEquals(paragraph + "\nsecond line", body)
         assertEquals("Buy milk" to "and bread", sharedAsNote("Buy milk\nand bread\n"))
         assertEquals("One line" to "", sharedAsNote("  One line  "))
+        // A .txt saved by Notepad starts with a byte-order mark: not in the title.
+        assertEquals("Buy milk" to "and bread", sharedAsNote(Char(0xFEFF) + "Buy milk\r\nand bread"))
     }
 
     @Test

@@ -153,7 +153,11 @@ class MainActivity : ComponentActivity() {
             val state = remember { AppState(dir, scope).also { it.notice = notice; it.draftDir = noBackupFilesDir } }
             LaunchedEffect(state) {
                 state.sendText = { text -> share(text) }
-                state.openFile = { file, name -> open(file, name) }
+                // A file gone from the note's folder is said, as the desktop
+                // says it: it opened nothing, without a word (wave 2, round 5).
+                state.openFile = { file, name ->
+                    if (file.isFile) open(file, name) else state.say(getString(R.string.file_missing))
+                }
                 flush = {
                     (state.flushAway ?: state.flush)?.invoke()
                     state.keepTemplateDraft?.invoke()
@@ -292,7 +296,7 @@ class MainActivity : ComponentActivity() {
         // A code is held to the ceiling before it comes here (Sharing.MAX_HANDED_CHARS);
         // whatever Android still refuses is said, never the app stopped.
         try {
-            startActivity(Intent.createChooser(send, getString(R.string.share_code)))
+            startActivity(chooserWithoutThisApp(this, send, getString(R.string.share_code)))
         } catch (e: ActivityNotFoundException) {
             android.widget.Toast.makeText(this, R.string.share_no_app, android.widget.Toast.LENGTH_LONG).show()
         } catch (e: RuntimeException) {

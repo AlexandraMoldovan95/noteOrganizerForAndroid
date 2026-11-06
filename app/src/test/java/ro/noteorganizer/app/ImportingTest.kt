@@ -162,6 +162,9 @@ class ImportingTest {
         assertEquals(listOf("b"), plan.unchanged.map { it.uid })
         assertEquals(listOf("Fresh", "No identity"), plan.fresh.map { it.getString("title") })
         assertEquals("the backup's copy of c is older", 1, plan.older)
+        // Update does not stand out over older versions: it wrote them over
+        // the newer ones here (wave 2, round 2).
+        assertFalse(Importing.updateStandsOut(plan))
         assertEquals(before, load.file!!.readText())
     }
 
@@ -223,6 +226,7 @@ class ImportingTest {
         val plan = Importing.plan(load.raw!!, notes("""[{"uid": "a", "title": "y", "updated": "2020-01-01 00:00:00"}]"""),
             Importing.Source.CODE)
         assertEquals(0, plan.older)
+        assertTrue(Importing.updateStandsOut(plan))
     }
 
     @Test

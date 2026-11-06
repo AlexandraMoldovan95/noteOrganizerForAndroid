@@ -158,6 +158,13 @@ object Importing {
     }
 
     /**
+     * Whether Update is the answer that stands out in [plan]'s question: not
+     * when a backup's versions are older than the notes here, where it wrote
+     * them over the newer ones (wave 2, round 2); adding loses nothing.
+     */
+    fun updateStandsOut(plan: Plan): Boolean = plan.older == 0
+
+    /**
      * Asked of no file: what arrived, sorted into the three kinds.
      * [categories] are the ones the notebook will have -- its own, and a
      * backup's it adds: a note filed under one it will not have is

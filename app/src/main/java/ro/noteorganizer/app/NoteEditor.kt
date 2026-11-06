@@ -3752,7 +3752,10 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
     // is open, its answer comes here.
     DisposableEffect(model) {
         state.attachHere = handler@{ id, uris ->
-            if (id != model.id) return@handler false
+            // Asked for on this note new: saved meanwhile, as the app went
+            // behind the picker, it read as another note's, and the files
+            // were said lost (wave 2, round 5).
+            if (id != model.id && !(id == 0 && model.startedNew)) return@handler false
             // A new note is saved first: only a saved note can hold files.
             if (!model.save(force = model.id == 0)) return@handler true
             val room = Organizing.roomFor(state.load, model.id)
