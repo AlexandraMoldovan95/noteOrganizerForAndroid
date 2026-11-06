@@ -412,10 +412,19 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = action,
                 duration = SnackbarDuration.Long, withDismissAction = true)
             if (answer == SnackbarResult.ActionPerformed) onAction()
+        }.also { bar ->
+            offered.removeAll { it.isCompleted }
+            offered.add(bar)
         }
+
+    /** Every [offer]'s bar not yet gone, shown or waiting: an Undo takes the bar over them ([offerUndo]). */
+    private val offered = ArrayList<Job>()
 
     /** The bars [offerAbout] put up, by the notes they are about. */
     private val barsAbout = HashMap<Int, MutableList<Job>>()
+
+    /** The last [offerUndo]'s bar, which the next one replaces, shown or waiting. */
+    private var undoBar: Job? = null
 
     /** An [offer] about the notes [ids], which goes with them when [asidesSpent] takes them away. */
     fun offerAbout(ids: Collection<Int>, message: String, action: String, onAction: () -> Unit) {
@@ -434,6 +443,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun asidesSpent(ids: List<Int>) {
         if (ids.isEmpty()) return
         for (id in ids) barsAbout.remove(id)?.forEach { it.cancel() }
+        // ...and the list's word on them, not yet said: kept for the list's next
+        // showing, it was said of the next new note, given the same id (round 3).
+        arrivals = arrivals?.let { (waiting, said) ->
+            (waiting - ids.toSet()).takeIf { it.isNotEmpty() }?.let { it to said }
+        }
         say("The words are back in the note; the note kept aside of them is gone again")
     }
 
@@ -820,8 +834,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     private fun offerUndo(message: String, undo: () -> Unit) {
         // The newest takes the bar, as the desktop's banner is replaced: two
         // deletes in a row, and the Undo on screen brought back the first.
+        // Over the bars still waiting their turn too -- an earlier Undo, an
+        // offer -- which it waited behind (the lows wave's round 3).
+        undoBar?.cancel()
+        offered.forEach { it.cancel() }
+        offered.clear()
         snackbar.currentSnackbarData?.dismiss()
-        scope.launch {
+        undoBar = scope.launch {
             val answer = snackbar.showSnackbar(forTheScreen(message), actionLabel = "Undo",
                 duration = SnackbarDuration.Long, withDismissAction = false)
             if (answer == SnackbarResult.ActionPerformed) undo()

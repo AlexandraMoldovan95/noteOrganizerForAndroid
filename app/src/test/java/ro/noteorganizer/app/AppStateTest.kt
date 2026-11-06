@@ -105,6 +105,40 @@ class AppStateTest {
         assertEquals("an Undo on screen stays", "Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
         s.snackbar.currentSnackbarData!!.dismiss()
         assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
+        // ...and the list's word on it, not yet said: said later, it named the
+        // next new note, given the same id (round 3).
+        s.arrivals = listOf(1, 7) to "Kept aside"
+        s.asidesSpent(listOf(7))
+        assertEquals(listOf(1) to "Kept aside", s.arrivals)
+        s.asidesSpent(listOf(1))
+        assertNull(s.arrivals)
+    }
+
+    @Test
+    fun `an Undo takes the bar at once, over bars waiting their turn and an earlier Undo`() {
+        // Behind a note's Show it waited ten seconds, and a second delete
+        // then showed the first one's Undo (the lows wave's round 3).
+        val s = state()
+        s.offerAbout(listOf(5), "Kept 5", "Show") {}
+        s.offerAbout(listOf(5), "Kept aside, hidden", "Show all") {}
+        s.trash(listOf(1))
+        assertEquals("Undo", s.snackbar.currentSnackbarData?.visuals?.actionLabel)
+        s.trash(listOf(2))
+        s.snackbar.currentSnackbarData!!.performAction()
+        // By title: put back, a note may be given another id.
+        assertEquals("the Undo shown is the last delete's", listOf("B"), s.rawNotes().map { it.optString("title") })
+    }
+
+    @Test
+    fun `an earlier Undo still waiting its turn gives way to the next`() {
+        val s = state()
+        s.say("one")
+        s.say("two")
+        s.trash(listOf(1))
+        s.trash(listOf(2))
+        s.snackbar.currentSnackbarData!!.performAction()
+        // By title: put back, a note may be given another id.
+        assertEquals("the Undo shown is the last delete's", listOf("B"), s.rawNotes().map { it.optString("title") })
     }
 
     @Test

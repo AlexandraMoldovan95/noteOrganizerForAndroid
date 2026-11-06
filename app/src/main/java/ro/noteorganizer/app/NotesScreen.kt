@@ -281,7 +281,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         val hidden = state.load.notes.filter { it.id in ids && hiding(it).isNotEmpty() }
         val first = hidden.firstOrNull() ?: return@LaunchedEffect
         val tail = if (ids.size == 1) "hidden by ${hiding(first)}" else "${hidden.size} of them hidden by ${hiding(first)}"
-        state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all") { showAll(first) }
+        // The first of them still here: the first alone, gone, refused them all (round 3).
+        state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all") {
+            showAll(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)
+        }
     }
     val arranging = order == SortOrder.CUSTOM && !selecting
     var dragged by remember { mutableStateOf<Int?>(null) }
