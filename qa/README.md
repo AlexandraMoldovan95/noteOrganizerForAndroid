@@ -434,7 +434,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 475 cases on 7 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 479 cases on 7 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and
