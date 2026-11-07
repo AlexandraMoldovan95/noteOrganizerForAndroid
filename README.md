@@ -83,6 +83,17 @@ other — and then the person decides, never a clock.
 **A share code is not encryption.** It is text, compressed and encoded so
 it survives a chat window. Anyone holding the code can read the note.
 
+## How it was built
+
+Alexandra Moldovan built it with Claude Code, Anthropic's AI coding
+agent, as she built the desktop app. She decided what it should do, used
+it on her own phone and reported what went wrong there, chose between the
+options the agent put forward, and approves what is merged. The agent
+wrote most of the code and the documentation, working under the rules in
+[CLAUDE.md](CLAUDE.md); its commits carry a `Co-Authored-By` line. In her
+own words: [In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
+in the desktop app's repository.
+
 ## Documentation
 
 Start wherever your question is.
@@ -109,11 +120,10 @@ inventing behaviour
 Requirements: Android Studio (or a JDK plus the Android SDK) and an
 emulator or a device with USB debugging on. Minimum Android 8.0 (API 26).
 
-`gradlew` needs a JDK and will not start without one — there is no
-system-wide Java on this machine, and the only JDK is the one bundled
-inside Android Studio:
+`gradlew` needs a JDK and will not start without one. Where no other is
+installed, point it at the one bundled inside Android Studio:
 
-    set JAVA_HOME=C:\Programs\android_studio\jbr
+    set JAVA_HOME=<Android Studio's folder>\jbr
 
     gradlew.bat assembleDebug          # build the APK
     gradlew.bat testDebugUnitTest      # the JVM unit tests, no device needed
