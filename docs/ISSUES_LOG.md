@@ -7,7 +7,7 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-three of the hundred and one are
+**the code**, or in **the design**. Twenty-six of the hundred and six are
 about the checking.
 
 Smaller lessons, each once a long comment in the code, are collected
@@ -16,6 +16,11 @@ points with.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-07](#a-bars-button-tapped-after-the-bar-had-gone) | checking | A walk on a freshly booted emulator tapped a bar's Show all after the bar's ten seconds were up, opened the card beneath, and failed 25 steps from one | A check that taps something with a lifetime must own that lifetime, or the machine's speed decides the verdict |
+| [2026-11-07](#the-lists-words-merged-and-unmerged) | design | The lows wave's verification, rounds 5 to 11: what the list says of notes it hides -- one slot, then all at once, then merged, unmerged, merged again -- my own last fix found wrong five times, until each word named its note, as the desktop's does | When two fixes keep undoing each other, the choice between them is the wrong question: ask what the other program does |
+| [2026-11-06](#the-bar-that-went-with-whichever-note-was-on-screen) | code | The lows wave's verification, rounds 1 to 4: a note kept aside went and left its Show; dismissing "the bar on screen" took another action's Undo; an Undo then waited behind offers, or threw them away | Dismiss what you mean, by name: on a queue, "the current one" is a guess |
+| [2026-11-06](#the-walks-first-look-after-an-install) | checking | Mutant walks failed at the start, "uiautomator wrote no tree": right after an install the emulator's shell answers nothing for seconds, and a mutant walk installs every time | A flake that comes "now and then" may come after one thing every time: find what it follows before widening a timeout |
+| [2026-11-06](#a-rule-the-phone-never-got-behind-a-fingerprint-comments-had-stopped) | checking | The second wave changed what the desktop keeps after an Update and a big delete; the phone never followed, because the fixture comparing them had stopped on the desktop's comment pass and nobody ran it again | A guard that stops for a harmless reason will be treated as harmless the day it stops for a real one |
 | [2026-11-06](#custom-order-twelve-rounds-to-settle) | design | The final audit's second wave, rounds 14 to 25: Custom order's steps and drag -- cards out of sight, a drag against the finger, every card in an edge zone on its side, a hold lost to the next finger event -- most of it pushed in by the round before | Where the frame order decides, a gesture's rules are one machine: every decision in a pure function, and the whole machine re-attacked |
 | [2026-11-06](#walk-checks-that-could-not-tell) | checking | The same rounds: five walk checks were not the check they were written to be -- a label in capitals, a stale gesture, a cut handle, a recoil the wrong way, a pass mark from one build | A walk check is a claim about the screen: watch it fail on the bug, pass on the fix, and measure its mark on both |
 | [2026-11-04](#a-fix-the-next-round-found-wrong) | code | The final audit's second wave, rounds 1 to 13: an ordinary week, and my own fixes found wrong by the next round -- "A new item…" lost on a moved day, a flag on the call, a reveal on the old layout, parts stacked | A fix is a new road: re-attack it by name, and look at the photographs |
@@ -120,6 +125,166 @@ points with.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A bar's button tapped after the bar had gone
+
+**2026-11-07.** A walk on a freshly booted emulator failed 25 steps from
+one: "Show all puts the new note on the list". The bar was right in its
+photograph. The emulator's own log timed it: the bar rose at 00:00:57, a
+Long bar lives ten seconds, and the reads before the tap -- 2.5 s each on
+a cold emulator -- put the tap at 00:01:07.5. The tap landed on the card
+beneath, opened another note, and every step after ran from the wrong
+screen until a Back left the app. Walked again, warm, it passed.
+
+**The fix.** The part holds its bars as Android's Time to take action asks
+-- a real setting, which Material's bars keep -- and the step taps past the
+bar's own ten seconds, so it fails if the hold does and never because the
+machine was slow.
+
+**The lesson:** a check that taps something with a lifetime must own that
+lifetime, or the machine's speed decides the verdict.
+
+---
+
+## The list's words, merged and unmerged
+
+**2026-11-07.** What the list says of notes it hides -- restored, imported,
+put back, new -- waits until the list is on screen. Rounds 5 to 10 of the
+lows wave's verification found my own last fix wrong five times:
+
+- **Round 6.** One slot: a later word wrote over an earlier one.
+- **Round 7 (medium).** A queue, but every word shown at once, each saying
+  what hid its notes when it was queued -- "hidden by Show: Work" over a
+  list showing all. One bar at a time, worded when its turn comes. The
+  first cut passed every unit test and failed on the emulator: the list
+  asked of the next word before it recomposed, reading Show from the last
+  drawing. It now reads the settings as they are.
+- **Round 8 (medium).** I had merged words with the same text, and a count
+  the text carried was doubled. Unmerged.
+- **Round 9 (low).** Unmerged, two restores made one at a time gave two
+  bars saying "Restored, hidden by its folded group", the same news twice.
+  I merged words about one note each.
+- **Round 10 (lows).** That merge undid round 8's fixes: "Added 1 note, 2
+  of them hidden", and one Show all for two folded groups.
+
+**The fix** is the one the round-9 finder offered first, and the desktop's
+own: a word about one note names it -- "“Taxes” restored", "“Bread”
+added" -- so two words are two notes, each with its Show all, and nothing
+is merged. The same round gave an import's and a restore's "(earlier
+text)" notes a word of their own, and a delete's Undo its note back on
+every tab.
+
+Round 11 found the naming done too early. The name was written when the
+word was queued, so a note opened from the import's Open and renamed before
+the list came back was said by its old name: "“Bread” added" over a list
+holding Sourdough. A word about one note now keeps its verb and is named
+when it is said (`AppState.Word`, `wordText`), and a new note's word reads
+its category then too. And on two panes, where the list never leaves the
+screen, the Trash's Undo could give a note back into a waiting word and
+then say it again as "Put back". The Undo now records what it gave back
+(`UndoReveal`), and the list says only the rest.
+
+**The lesson:** when two fixes keep undoing each other, the choice between
+them is the wrong question. Ask what the other program does; here it had
+already answered.
+
+---
+
+## The bar that went with whichever note was on screen
+
+**2026-11-06.** When an Update's words are kept aside, the bar at the foot
+says so with Show. When the words come back -- an Undo, a paste -- that
+note goes again. The lows wave's first verification round found its Show
+still on screen, and Show opened an empty new note (medium). The fix
+dismissed the bar on screen as the note went.
+
+Round 2 found what "the bar on screen" means on Android. The bars wait in a
+queue (Material3's `SnackbarHostState`), so the one on screen can be another
+action's Undo -- a checklist row's only way back. Or it can be the bar of a
+second note kept aside, whose own stale Show then came up next. On a tablet
+the list beside the note queues its own "Kept aside, hidden by" bar, which
+outlived the note and whose Show all emptied the search for nothing.
+
+**The fix.** A bar about a note is kept by that note's id
+(`AppState.offerAbout`, `offer` returning its Job). A take-back cancels
+exactly those bars, on screen or still waiting their turn (`asidesSpent`).
+Show all for a note gone says so and changes nothing.
+
+Round 3 found the queue's other side. An Undo waited ten seconds behind an
+offer still queued, and a second delete then showed the FIRST delete's
+Undo -- the medium wave 2's first round had fixed by dismissing the bar on
+screen. Every offer now keeps its Job, and an Undo cancels those still shown
+or waiting, and an earlier Undo still waiting. And the list's word on a note
+kept aside, held until the list is next on screen, named the next new note,
+which is given the same id; it is dropped when the note goes.
+
+Round 4 found that round 3's fix overshot. To let the Undo through, it
+threw the waiting offers away, so a hidden import's "hidden by … Show all"
+was never said -- a word wave 2 had added on purpose. Each offer is now
+kept as made. The ones an Undo goes before come back after it, as the
+desktop holds a banner back behind an Undo. The list's waiting word now
+drops every gone note at each refresh, on any road, not only the
+take-back.
+
+**The lesson:** dismiss what you mean, by name -- not whatever happens to
+be showing. On a queue, "the current one" is a guess, and "the newest takes
+the bar" holds only if the ones waiting are taken out too.
+
+---
+
+## The walk's first look after an install
+
+**2026-11-06.** Mutant walks failed at the start, "uiautomator wrote no
+tree", and once a boot check crashed reading `/proc/stat`. Each part was
+fine walked again. Measured: right after `adb install -r` the emulator's
+shell answers with nothing for a few seconds -- longer than three quick
+asks. It came after every change of APK, which is exactly what a mutant
+walk does. The walk now waits after installing until the screen reads
+again (`walk.install`), and the boot check reads its counters again while
+they come back empty. A first attempt only spaced the screen's asks: it
+was not enough, because the next run's boot check met the same silence.
+
+**The lesson:** a flake that comes "now and then" may come after one thing
+every time; find what it follows before widening a timeout.
+
+---
+
+## A rule the phone never got, behind a fingerprint comments had stopped
+
+**2026-11-06.** The second wave's lows, on the phone. Rounds 4 to 9 of the
+second wave changed what the DESKTOP keeps when a note updated from a backup
+or a share code then loses much of its text: the Update's rescue copy -- the
+note as it was here before the Update, in no other file -- stays, and the
+words the delete takes become a note of their own, "<title> (earlier text)".
+The phone never followed. On the phone, one big delete after an Update
+replaced that copy with a copy of the backup's words, which the backup still
+holds; the note as it was before was gone.
+
+Nothing compared the two. The days fixture (`tools/make_days_fixture.py`)
+runs the desktop's own save and holds the phone to it, but it fingerprints
+the desktop lines it copies, and the desktop's comment pass of 5 November
+had changed those lines' comments: the fixture maker stopped, as it should,
+and nobody ran it again -- its stop looked like the comment pass, not like a
+change of rule. Two of its regions had changed in code as well.
+
+It was found by the export walk: the same kind of fingerprint stopped it,
+and looking at why showed only comments had changed there -- then the days
+fixture's regions were checked one by one.
+
+**The fix.** `Notebook.updateNote` keeps an unspent Update copy and makes
+the aside note in the same write (`keepTextAside`); a note kept aside goes
+again when its words come back in the same session and it is untouched
+(`takeBackAside`), and is forgotten when put back from the Trash. The
+fixture copies the desktop's branches, with five new cases. And both
+fixture makers now fingerprint the code alone (`desktop_fingerprint.py`):
+a comment rewritten on the desktop no longer stops them, a changed line
+still does.
+
+**The lesson:** a guard that stops for a harmless reason will be treated as
+harmless the day it stops for a real one. Make it stop only for what it
+guards -- and when it does stop, read the diff before deciding it is noise.
 
 ---
 
@@ -4436,3 +4601,15 @@ happened.*
   could not say off — and a reinstall or a new phone brought it back,
   switch on. One small file saying off replaces that copy at the next
   backup, and a restore brings back the answer, not the notes.
+
+### From `Importing.kt`
+
+- **The backup's Trash window** — A backup's Trash entries come with the
+  days they were deleted. Kept by this notebook's default of 30 days, a
+  backup from a notebook that kept its Trash for 60 or 90 emptied, at the
+  next start, what the person had kept. Taken whole, the window went wrong
+  the other way: a backup from a 7-day notebook, with no Trash in it at
+  all, emptied this notebook's own Trash at the next start, files and all.
+  So only a longer window comes in, only with Trash to keep by it, and only
+  where this notebook never chose one, as the desktop's import takes it
+  (e69721e).
