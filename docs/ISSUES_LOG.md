@@ -132,8 +132,8 @@ Findings still open, and those closed since, are at the
 
 ## A message read after it went, a tap between two cards, a list left mid-way
 
-**2026-11-07.** The full walk after the lows wave failed two of its 940
-or so steps, and the same parts walked again failed two others. Each step
+**2026-11-07.** The full walk after the lows wave failed two of its 613
+steps, and the same parts walked again failed two others. Each step
 had passed in earlier walks, and the app under them had changed only in
 its comments. All of them were the walk.
 
