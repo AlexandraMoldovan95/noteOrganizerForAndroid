@@ -86,7 +86,12 @@ def limited(args, limit):
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True)
         else:
             os.killpg(proc.pid, signal.SIGKILL)
-        proc.communicate()
+        # A process the ending missed may still hold the pipes: waited on for
+        # good, it would hold the runner as the build did.
+        try:
+            proc.communicate(timeout=60)
+        except subprocess.TimeoutExpired:
+            pass
         return subprocess.CompletedProcess(args, 124, "", "ended after %d s" % limit)
 
 
@@ -122,7 +127,7 @@ def run_unit(work, m):
             if case.find("failure") is not None or case.find("error") is not None:
                 failed += 1
                 names.append(case.get("name"))
-    if tests == 0:
+    if tests == 0 or run.returncode == 124:
         return "NO RUN", "no test results -- " + (run.stdout + run.stderr)[-400:]
     return ("KILLED" if failed else "SURVIVED"), "%d of %d failed %s" % (failed, tests, names[:3])
 
@@ -162,9 +167,13 @@ def main():
                         print("%s is judged by the walk's part %s: build it with --apk" % (m["id"], m["tests"][5:]))
                         wrong += 1
                         continue
-                    built = gradle(work, "assembleDebug")
                     apk = os.path.join(work, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
-                    if not os.path.exists(apk):
+                    # The last mutant's APK goes first: left, a build that failed
+                    # or was ended read as this one's.
+                    if os.path.exists(apk):
+                        os.remove(apk)
+                    built = gradle(work, "assembleDebug")
+                    if built.returncode != 0 or not os.path.exists(apk):
                         print("NO RUN %s: the APK did not build -- %s" % (m["id"], built.stderr[-400:]))
                         wrong += 1
                         continue
