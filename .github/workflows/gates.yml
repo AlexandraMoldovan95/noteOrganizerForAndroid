@@ -45,6 +45,8 @@ jobs:
         run: python tools/check_english.py
       - name: Comments say why, in a few lines
         run: python tools/check_comments.py
+      - name: Every mutant finds the code it mutates
+        run: python tools/check_mutant_targets.py
 
   contract:
     name: The two programs still agree

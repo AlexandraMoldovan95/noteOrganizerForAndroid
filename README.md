@@ -92,7 +92,8 @@ options the agent put forward, and approves what is merged. The agent
 wrote most of the code and the documentation, working under the rules in
 [CLAUDE.md](CLAUDE.md); its commits carry a `Co-Authored-By` line. In her
 own words: [In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
-in the desktop app's repository.
+in the desktop app's repository, which also tells
+[how the final audit before the stores was run](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/AI_WORKFLOW.md#the-final-audit).
 
 ## Documentation
 
@@ -166,10 +167,12 @@ at 47% of the canvas is in the
 | The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — [its parts and checks](qa/README.md#the-emulator-walk), each reading the file the app wrote |
 | The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
 
-The unit tests pin the rules ported from Python rather than the screens,
-and every one of them has been watched failing — broken on purpose, run,
-read, reverted. A mutant that produces no test results at all is not a
-passing one ([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
+The unit tests pin the rules ported from Python rather than the screens.
+A fix comes with a check watched failing: the fix broken on purpose — a
+mutant — run, read, put back. The 280 mutants of the final audit that
+still aim at today's code are in `tools/mutants.json`, run with
+`py tools/mutate.py`. A mutant that produces no test results at all is
+not a passing one ([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
 
 The parts that matter most are not judged by this app at all. A note
 written on the phone, a share code and a backup made here were each

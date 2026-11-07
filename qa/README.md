@@ -115,6 +115,13 @@ One exited on an error with a mutated `Notebook.kt` still on disk. And a
 runner that reads text and writes it back rewrites every line ending in
 the file, so a "restore" that changed nothing leaves the file rewritten
 end to end. ([the story](../docs/ISSUES_LOG.md#a-mutant-runner-that-left-the-code-broken))
+`tools/mutate.py` keeps both rules by never touching the repository: it
+unpacks a commit into a folder of its own and mutates that. Its catalogue,
+`tools/mutants.json`, holds the 280 mutants written during the final audit
+that still aim at today's code (262 judged by a unit test, 18 by a part of
+the walk); 97 more were written then whose code has changed since, and
+went. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
+no longer finds its code.
 
 **A check that does the app's job proves nothing.** If the check computes
 the expected answer the same way the app computes it, it agrees with the
