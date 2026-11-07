@@ -118,9 +118,13 @@ end to end. ([the story](../docs/ISSUES_LOG.md#a-mutant-runner-that-left-the-cod
 `tools/mutate.py` keeps both rules by never touching the repository: it
 unpacks a commit into a folder of its own and mutates that. Its catalogue,
 `tools/mutants.json`, holds the mutants written since the final audit
-began that still aim at today's code -- 281 on 7 November 2026, 263 judged
+began that still aim at today's code -- 282 on 7 November 2026, 264 judged
 by a unit test and 18 by a part of the walk; 97 more written during the
-audit aimed at code that has changed since, and went. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
+audit aimed at code that has changed since, and went. The unit ones were
+first run all together that day: 257 of 263 as the catalogue said. Of the
+six others, two had been re-aimed while it ran; four had lost their test to
+a later fix, and were given one or, where two guards now overlap, marked
+equivalent with the reason. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
 no longer finds its code.
 
 **A check that does the app's job proves nothing.** If the check computes
