@@ -146,7 +146,7 @@ object Organizing {
         val base = (original.opt("title") as? String ?: "").trim()
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
         val stamp = Files.now()
-        // Made now: it kept the original's "Created" (wave 2, round 3, both apps).
+        // Made now: it kept the original's "Created".
         clone.put("created", stamp)
         clone.put("updated", stamp)
         clone.put("id", ids(array).next())
@@ -983,7 +983,7 @@ object Organizing {
         write(file, notesCandidate)?.let { return SaveResult.Failed(it) }
         replace(array, notesCandidate)
         // A note kept aside, put back, is the person's: no Undo spends it again
-        // (the desktop's wave 2, round 8).
+        //.
         Notebook.forgetAsides(load, restored)
         val trashCandidate = JSONArray().apply { all.filter { it !in back }.forEach { put(it) } }
         write(trashFile, trashCandidate)?.let {

@@ -51,7 +51,7 @@ import java.io.IOException
 /**
  * The phone's share sheet for [send], this app left off it: sent to itself,
  * a note's words came back as a copy of the note, and a code as an import of
- * notes already here (wave 2, round 9).
+ * notes already here.
  */
 internal fun chooserWithoutThisApp(context: Context, send: Intent, title: String): Intent =
     Intent.createChooser(send, title)

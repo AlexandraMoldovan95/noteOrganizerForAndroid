@@ -59,7 +59,7 @@ class ImportingTest {
         assertEquals(1, (updated as Importing.Result.Done).outcome.earlierText)
         assertTrue(notes(here.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" && it.getString("body") == "knee" })
         // ...once: the next Update from the same backup, the note edited here
-        // since, made the same note again (the lows wave's verification).
+        // since, made the same note again.
         assertTrue(Notebook.updateNote(here, 1, "Gym", "edited here since") is SaveResult.Ok)
         val again = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
             "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
@@ -162,7 +162,7 @@ class ImportingTest {
         assertEquals(listOf("Fresh", "No identity"), plan.fresh.map { it.getString("title") })
         assertEquals("the backup's copy of c is older", 1, plan.older)
         // Update does not stand out over older versions: it wrote them over
-        // the newer ones here (wave 2, round 2).
+        // the newer ones here.
         assertFalse(Importing.updateStandsOut(plan))
         assertEquals(before, load.file!!.readText())
     }
@@ -170,7 +170,7 @@ class ImportingTest {
     @Test
     fun `an Update agreed to, or copies kept, lets the look-alikes question skip them and go on`() {
         // Cancel was its only no when every new note looked like one here,
-        // and it dropped the Update agreed one question earlier (wave 2, round 10).
+        // and it dropped the Update agreed one question earlier.
         val load = notebook("""
             [{"id": 1, "uid": "a", "title": "Mine", "updated": "2026-10-10 10:00:00"},
              {"id": 2, "uid": "b", "title": "Same", "category": "General"}]

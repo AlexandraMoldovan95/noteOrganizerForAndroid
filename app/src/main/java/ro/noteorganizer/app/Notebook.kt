@@ -438,7 +438,7 @@ object Showing {
      * How far to scroll to bring a card at [top], [size] tall, wholly into a
      * viewport from 0 to [end]: 0 when it is, never so far that its top goes.
      * A card stepped past the top or the bottom card on screen went out of
-     * sight, or was left a strip (wave 2, round 17).
+     * sight, or was left a strip.
      */
     fun intoSight(top: Int, size: Int, end: Int): Int = when {
         top < 0 -> top
@@ -466,7 +466,7 @@ object Showing {
      * toward the edge it is [heading], and only once the finger is past the
      * touch [slop] beyond the press that way ([pulled]). On the heading
      * alone, the top card nudged down and put back scrolled the list under
-     * it, and was saved a place up (wave 2, round 20).
+     * it, and was saved a place up.
      */
     fun edgeScroll(heading: Int, pulled: Float, slop: Float, top: Float, size: Int,
                    start: Int, end: Int, edge: Float): Int = when {
@@ -478,7 +478,7 @@ object Showing {
     /**
      * How deep the edge zones of a list from [start] to [end] reach: [most],
      * or an eighth of a short list. On a phone on its side every resting
-     * card sat in a zone of [most] (wave 2, round 22).
+     * card sat in a zone of [most].
      */
     fun edgeZone(start: Int, end: Int, most: Float): Float = minOf(most, (end - start) / 8f)
 
@@ -487,7 +487,7 @@ object Showing {
      * for a card [depth] into a zone [edge] deep, [heldMs] after the scroll
      * began: a pixel at first, up to [most] as the card goes deeper and is
      * held longer, as Android's own reorder does. At one speed a drag of one
-     * place on a phone on its side went two or three (wave 2, round 22).
+     * place on a phone on its side went two or three.
      */
     fun edgeStep(way: Int, depth: Float, edge: Float, heldMs: Long, most: Float): Float {
         if (way == 0) return 0f
@@ -502,7 +502,7 @@ object Showing {
      * [side] (-1 the top zone, +1 the foot's, 0 neither; [sideWas] before)
      * scrolls the list [toward]: from its first pass in a zone until it
      * leaves it. Begun again at every turn of the finger, a nudge at full
-     * speed fell back to a crawl (wave 2, round 23).
+     * speed fell back to a crawl.
      */
     fun edgeSince(since: Long, sideWas: Int, side: Int, toward: Int, now: Long): Long = when {
         side != sideWas -> if (toward != 0) now else 0L
@@ -513,7 +513,7 @@ object Showing {
     /**
      * Whether the edge stays armed past the press for a list already
      * scrolling [way] while the drag still heads that way: a settle of a
-     * few pixels back inside the slop stopped it (wave 2, round 21).
+     * few pixels back inside the slop stopped it.
      */
     fun edgeLatched(way: Int, heading: Int): Boolean = way != 0 && way == heading
 
@@ -2070,8 +2070,8 @@ object Notebook {
         fun key(made: JSONObject) = listOf(text(made.opt("title")), text(made.opt("date")), text(made.opt("body")),
                                           text(made.opt("comments")))
         // A note of [among] already holding the same words on the same day is
-        // that note: a backup's Update made it again at every import (the lows
-        // wave's verification; the desktop's settle_set_aside the same).
+        // that note: a backup's Update made it again at every import (the
+        // desktop's settle_set_aside the same).
         val held = (0 until among.length()).mapNotNull { among.opt(it) as? JSONObject }.mapTo(HashSet()) { key(it) }
         val stamp = Files.now()
         val made = ArrayList<JSONObject>()

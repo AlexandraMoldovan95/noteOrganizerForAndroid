@@ -46,13 +46,13 @@ object Startup {
         }
         var load = Notebook.load(dir)
         load.problem?.let { lines.add(it) }
-        // The desktop's start says the same of the same notes (round 15),
+        // The desktop's start says the same of the same notes,
         // and writes them at once: left for the next save, each start made
-        // them again under new identities and said so again (round 16).
+        // them again under new identities and said so again.
         if (load.setAside > 0) {
             val many = load.setAside != 1
             // Both reasons said, as on the desktop: a day the note deleted is
-            // one (round 21), and the line once named only the other.
+            // one, and the line once named only the other.
             lines.add("Some days of a repeating note had earlier text that only an older copy of it kept: " +
                 "those days now show other text, or were deleted. It is kept as ${load.setAside} " +
                 "note${if (many) "s" else ""} of ${if (many) "their" else "its"} own, each on its day, titled " +

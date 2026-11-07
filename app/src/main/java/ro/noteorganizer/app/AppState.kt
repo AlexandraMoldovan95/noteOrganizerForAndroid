@@ -132,7 +132,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The folds of notes no longer in the notebook go with them: a note
      * deleted left its folds to the next note given its id, a checklist
-     * added there folding its text shut (wave 2, round 15).
+     * added there folding its text shut.
      */
     private fun dropFoldsOfGone() {
         if (folded.isEmpty()) return
@@ -330,15 +330,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The notes the Trash's Undo just put back, for the list to bring the
      * first of into sight: several taken back from the top of the screen
-     * came back above it, and the Undo looked as if it did nothing (wave 2,
-     * round 10).
+     * came back above it, and the Undo looked as if it did nothing.
      */
     var revealAfterUndo by mutableStateOf<UndoReveal?>(null)
 
     /**
      * What [revealAfterUndo] holds: the notes put back, and those no waiting
      * word took back -- decided by the Undo, as the list's word may already
-     * be taken when the list asks (the lows wave's round 11).
+     * be taken when the list asks.
      */
     data class UndoReveal(val ids: Set<Int>, val unsaid: Set<Int>)
 
@@ -386,11 +385,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The list's word waiting for it ([arrivals]) without the notes gone
      * since -- taken back, sent to the Trash: said later, it named the next
-     * new note, which is given a gone note's id (the lows wave's rounds 3-4).
+     * new note, which is given a gone note's id.
      */
     private fun dropArrivalsOfGone() {
         val held = load.notes.mapTo(HashSet()) { it.id }
-        // The new note's word ([newNoteMade]) the same way (round 5).
+        // The new note's word ([newNoteMade]) the same way.
         newNoteMade?.let { if (it !in held) newNoteMade = null }
         if (arrivals.all { word -> word.ids.all { it in held } }) return
         arrivals = arrivals.mapNotNull { word ->
@@ -475,7 +474,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * again ([SaveResult.Ok.spentAside]): their bars go, on screen or still
      * waiting their turn, and it is said. Only theirs: dismissing the bar on
      * screen took another action's Undo, or the bar of another note kept
-     * aside, whose own then showed (the lows wave's round 2).
+     * aside, whose own then showed.
      */
     fun asidesSpent(ids: List<Int>) {
         if (ids.isEmpty()) return
@@ -513,12 +512,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         }
         // The same note on another of its days, or as the whole series: built
         // anew there, the editor carries "A new item…" (NoteEditor), so the save
-        // leaves the box -- through leaving(), its words became a row (round 12).
+        // leaves the box -- through leaving(), its words became a row.
         if (id == openId && id != 0) {
             val why = saveStaying() ?: return run { openDay = onDay() }
             snackbar.currentSnackbarData?.dismiss()
             // Only on the note it was asked over: tapped late, it set the day
-            // on whatever note was open then, a plain one "on a day" (round 13).
+            // on whatever note was open then, a plain one "on a day".
             offer("Not saved, so the note stays open: $why", "Leave anyway") { if (openId == id) openDay = onDay() }
             return
         }
@@ -528,7 +527,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         leaving {
             // Looked for again after the save that left the open note: that
             // save can take this one away -- an '(earlier text)' note spent --
-            // and an empty new note opened in its place (the lows wave's round 1).
+            // and an empty new note opened in its place.
             if (id != 0 && rawNote(id) == null) {
                 say("That note is no longer here")
                 return@leaving
@@ -585,14 +584,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     fun newNoteSaved(id: Int) {
         // What was folded while it was new is this note's now, and no later
-        // new note's (wave 2, round 14).
+        // new note's.
         for (key in folded.keys.filter { it.startsWith("0:") }) {
             folded.remove(key)?.let { folded["$id:" + key.substringAfter(':')] = it }
         }
         if (openId == 0) openId = id
         // Made from a calendar day too: it stands on that day, and the list,
         // when next on screen, says so if it hides it -- unsaid, the note was
-        // nowhere on it (wave 2, round 9).
+        // nowhere on it.
         noteMade(id)
     }
 
@@ -652,7 +651,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * After an import: the notebook read again, and the open note with it
      * when the import changed it. Read back untouched, it lost its text's
-     * Undo and its cursor for nothing (wave 2, round 14).
+     * Undo and its cursor for nothing.
      */
     fun afterImport() {
         reload()
@@ -771,7 +770,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** One day out of its series, with the Undo the desktop's toast offers. */
     fun deleteDay(id: Int, day: String) {
         // The editor closes only when it is on this day: on another it stays,
-        // and the words in "A new item…" with it (round 9).
+        // and the words in "A new item…" with it.
         val (result, gone) = outside(listOf(id), closes = openId == id && openDay == day, day = day) {
             Days.deleteDay(load, id, day)
         } ?: return
@@ -785,7 +784,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val leaves = sendHome && home != null && openId == id && openDay == day
         report(outside(listOf(id), day = day) { Days.resetDay(load, id, day, dropText, sendHome) } ?: return) {
             // The calendar on the day goes home with it, as with Move this day:
-            // it stayed on the date the day left (the lows wave's round 4).
+            // it stayed on the date the day left.
             if (sendHome && home != null && (selectedDay == day || leaves)) followDay(home)
             // The editor open on the day goes with it, to where it is now.
             if (leaves) openDay = home
@@ -802,18 +801,18 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun moveDay(id: Int, day: String, to: String) {
         // The picker answered on the day itself moves nothing; a move made
         // builds the editor anew on its date, so nothing is read back: the
-        // read emptied the text's Undo for a move that never happened (round 11).
+        // read emptied the text's Undo for a move that never happened.
         if (to == day) return
         val (result, move) = outside(listOf(id), writes = false) { Days.moveDay(load, id, day, to) } ?: return
         if (!report(result) || move == null) return
         // The calendar on the day, beside the editor or reached with Back,
         // goes with it: it stayed on the old date, the moved card gone from it
-        // and the editor's outline on nothing (wave 2, round 12).
+        // and the editor's outline on nothing.
         if (selectedDay == day || (openId == id && openDay == day)) followDay(to)
         if (openId == id && openDay == day) openDay = to
         offerUndo("Moved to ${shownDay(to)}") {
             // Read back only on the day moved, as the move's other changes
-            // are: on the series or another day it lost its Undo (lows round 1).
+            // are: on the series or another day it lost its Undo.
             report(outside(listOf(move.id), day = move.to) { Days.undoMoveDay(load, move) } ?: return@offerUndo) {
                 if (selectedDay == move.to) followDay(move.from)
                 if (openId == move.id && openDay == move.to) openDay = move.from
@@ -851,11 +850,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     private fun offerUndo(message: String, undo: () -> Unit) {
         // The newest takes the bar, as the desktop's banner is replaced: two
         // deletes in a row, and the Undo on screen brought back the first.
-        // An earlier Undo still waiting goes too (the lows wave's round 3).
+        // An earlier Undo still waiting goes too.
         undoBar?.cancel()
         // The offers waiting their turn are held back until it is done, after
         // its own words, as the desktop holds a banner back behind an Undo --
-        // thrown away, a hidden note's word was never said (rounds 3-5).
+        // thrown away, a hidden note's word was never said.
         val shown = snackbar.currentSnackbarData?.visuals
         heldBack.addAll(offered.filter { o ->
             !o.bar.isCompleted && !(shown != null && shown.message == forTheScreen(o.message) && shown.actionLabel == o.action)
@@ -874,7 +873,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The offers an Undo held back, asked again now it is done: each as its
      * maker asks it ([Offered.again]) -- shown as made, a list's Show all ran
-     * on a list gone and "hidden by" was said of a note nothing hid (round 5)
+     * on a list gone and "hidden by" was said of a note nothing hid
      * -- and none about notes gone since.
      */
     private fun askHeldBackAgain() {
@@ -899,7 +898,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun trash(ids: Collection<Int>) {
         // A new note's word waiting for the list, and the queued words on these
         // notes, which the delete drops: its Undo gives them back, or the note
-        // came back unsaid (the lows wave's rounds 6-7).
+        // came back unsaid.
         val wasNew = newNoteMade?.takeIf { it in ids }
         val words = arrivals.filter { word -> word.ids.any { it in ids } }
         // The open note goes to the Trash with its last words in it.
@@ -917,7 +916,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                         val back = word.ids.map { if (it in ids) ok.id else it }
                         // Into the word still waiting when the delete left part of
                         // it, on any tab: beside it, or left out of it, the list said
-                        // the same news twice (the lows wave's rounds 9-10).
+                        // the same news twice.
                         val at = arrivals.indexOfFirst { it.said == word.said && it.named == word.named && it.ids.all { id -> id in back } }
                         if (at >= 0) {
                             arrivals = arrivals.toMutableList().also { it[at] = word.copy(ids = back) }
@@ -953,7 +952,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The note a template began on a calendar day: begun new as well, so a
      * second template used in it keeps the day -- it counted as a note that
-     * was there before, and the next one was made undated (round 5).
+     * was there before, and the next one was made undated.
      */
     var templateDayNote: Int? = null
 
@@ -1053,7 +1052,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         offerUndo("Removed “${quoted(kept.optString("text"))}” from the checklist") {
             // Words being typed into another row are written first: put back
             // under them, the row moved the rows below it. "A new item…" is
-            // left in its box, made a row by this Undo (wave 2, round 7).
+            // left in its box, made a row by this Undo.
             saveStaying()?.let { why ->
                 say(why)
                 return@offerUndo
@@ -1066,7 +1065,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * Notes filed under one category, with the Undo the desktop's toast
      * offers: each note back where it was filed ([Organizing.putBackFiled]).
      * A tap on the sheet's next row moved them all, and where each had been
-     * was kept nowhere (wave 2, round 7).
+     * was kept nowhere.
      */
     fun moveToCategory(ids: Collection<Int>, category: String) {
         var filed = emptyList<Organizing.Filed>()
@@ -1140,7 +1139,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * A word waiting for the list: about [ids], said as [said] -- or, [named],
      * about one note by the name it has when the word is said ([wordText]):
      * named when queued, a note renamed meanwhile was said by its old name
-     * (the lows wave's round 11).
+     *.
      */
     data class Word(val ids: List<Int>, val said: String, val named: Boolean = false)
 
@@ -1152,7 +1151,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * One more word for the list's next showing ([arrivals]), after those
      * waiting: one slot, a later word wrote over an earlier one, never said
-     * (the lows wave's round 6).
+     *.
      */
     fun waitWord(ids: List<Int>, said: String, named: Boolean = false) {
         arrivals = arrivals + Word(ids, said, named)
@@ -1160,9 +1159,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /**
      * The next word for the list to say, taken off [arrivals]: one at a time,
-     * each as made. Merged, a count a word carried was doubled (the lows
-     * wave's round 8), and two notes in two folded groups got one Show all
-     * (round 10); a word about one note names it instead ([namedWord]).
+     * each as made. Merged, a count a word carried was doubled, and
+     * two notes in two folded groups got one Show all;
+     * a word about one note names it instead ([namedWord]).
      */
     fun takeWord(): Word? {
         val word = arrivals.firstOrNull() ?: return null
@@ -1174,7 +1173,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * The notes there are now and were not [before], for the list: the first
      * [count], made first, under their own word, and the rest -- '(earlier
      * text)' notes the same read set aside -- under theirs. Counted in, they
-     * said "Added 0 notes"; left out, nothing said where they hid (rounds 9-10).
+     * said "Added 0 notes"; left out, nothing said where they hid.
      */
     fun arrived(before: Set<Int>, count: Int, one: String, several: String) {
         val new = load.notes.map { it.id }.filter { it !in before }.sorted()
@@ -1199,7 +1198,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * A word about one note, by its name, as the desktop's banner names a
      * hidden note: 'Restored' twice, about two notes, read as the same news
-     * said again (the lows wave's round 9).
+     * said again.
      */
     fun namedWord(note: Note, what: String): String = "“${quoted(note.title.trim().ifEmpty { UNTITLED })}” $what"
 
@@ -1209,7 +1208,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * Note [id], just made, for the list to say ([newNoteMade]). One still
      * waiting goes to the list's other words, as made: written over, the
-     * first of two new notes in a row was never said (round 6).
+     * first of two new notes in a row was never said.
      */
     fun noteMade(id: Int) {
         newNoteMade?.takeIf { it != id && note(it) != null }?.let { earlier -> waitWord(listOf(earlier), SAVED_IN, named = true) }
@@ -1256,7 +1255,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
  */
 internal fun sharedAsNote(text: String): Pair<String, String> {
     // Without the byte-order mark a .txt from Notepad starts with: kept, it
-    // stood invisible at the head of the title (wave 2, round 4).
+    // stood invisible at the head of the title.
     val whole = text.removePrefix(Char(0xFEFF).toString()).replace("\r\n", "\n").trim()
     val lines = whole.split("\n", limit = 2)
     val first = lines[0].trim()

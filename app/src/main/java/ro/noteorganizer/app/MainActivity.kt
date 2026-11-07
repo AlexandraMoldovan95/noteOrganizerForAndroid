@@ -151,7 +151,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(state) {
                 state.sendText = { text -> share(text) }
                 // A file gone from the note's folder is said, as the desktop
-                // says it: it opened nothing, without a word (wave 2, round 5).
+                // says it: it opened nothing, without a word.
                 state.openFile = { file, name ->
                     if (file.isFile) open(file, name) else state.say(getString(R.string.file_missing))
                 }

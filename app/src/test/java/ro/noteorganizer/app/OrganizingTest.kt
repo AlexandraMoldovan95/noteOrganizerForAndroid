@@ -562,7 +562,7 @@ class OrganizingTest {
     @Test
     fun `a file the copy kept already holds is not merged again, as Duplicate copies it under a new name`() {
         // Cleaning up the app's own Duplicate gave the kept note every file
-        // twice (the final audit's wave 3, round 8).
+        // twice.
         val load = notebook("""
             [{"id": 1, "title": "Trip", "body": "b", "attachments": [{"filename": "map.png", "stored_as": "a_map.png"}]},
              {"id": 2, "title": "Trip (copy)", "body": "b", "attachments": [

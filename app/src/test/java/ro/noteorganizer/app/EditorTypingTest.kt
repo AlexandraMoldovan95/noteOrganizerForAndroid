@@ -286,7 +286,7 @@ class EditorTypingTest {
         assertEquals(emptyMap<Int, Paragraphs.Props>(), EditorModel(state, state.note(1), day = state.openDay).props)
         // ...but a list's depth, which lives in its entries alone, stays where
         // the day's line keeps its marker: on the desktop a nested numbered
-        // list read flat and the next Enter renumbered it (the lows wave).
+        // list read flat and the next Enter renumbered it.
         File(dir, "notes_data.json").writeText("""[{"id": 2, "uid": "a", "title": "Agenda", "body": "Agenda\n1. Buy\n1. milk",
             "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
             "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number", "indent": 1}],
@@ -296,7 +296,7 @@ class EditorTypingTest {
         val listDay = EditorModel(nested, nested.note(2), day = nested.openDay)
         assertEquals(mapOf(2 to Paragraphs.Props(indent = 1)), listDay.props)
         // ...a paste there keeps it: renumbered with no depth, the nested list
-        // read as one run, stored (the lows wave's verification).
+        // read as one run, stored.
         val field = Editing.segments(listDay.body).first()
         listDay.pastePlain(field, TextFieldValue(field.text, TextRange("Agenda today".length)), " (room 4)")
         assertEquals("Agenda today (room 4)\n1. Buy\n1. milk", listDay.body.trimEnd('\n'))
@@ -327,7 +327,7 @@ class EditorTypingTest {
     fun `on a day, Enter then Backspace at a nested item's start keep its depth, and the day follows the series again`() {
         // The list rules ran on the whole note only: on a day the item lost
         // its depth, and since a day keeps its lists, that was stored and the
-        // day cut off from the series (the lows wave's verification, round 3).
+        // day cut off from the series.
         val dir = NioFiles.createTempDirectory("editordayenter").toFile()
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Agenda",
             "body": "Agenda\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go", "category": "General",
@@ -376,7 +376,7 @@ class EditorTypingTest {
     fun `a list line cut and pasted back on a day is the line again, never a word corrected with Enter`() {
         // Read as the keyboard's corrected word and its Enter, "• Eggs" and its
         // break pasted before "• Bread" gave "• • Bread", stored, the day cut
-        // off from its series (the lows wave's verification, round 5).
+        // off from its series.
         val dir = NioFiles.createTempDirectory("editordaypaste").toFile()
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Shopping",
             "body": "Shopping\n• Milk\n• Eggs\n• Bread\nCall mum", "category": "General",
@@ -417,7 +417,7 @@ class EditorTypingTest {
     fun `on a day a numbered item cut and pasted back is renumbered, and a nested one keeps its level by its copy`() {
         // Left to the field, the paste read 1, 2, 2 and a nested item went to
         // the margin, the day stored apart from its series: a day's copy was
-        // plain (the lows wave's verification, round 6).
+        // plain.
         val dir = NioFiles.createTempDirectory("editordaycut").toFile()
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "t", "title": "Trip",
             "body": "Trip\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go", "category": "General",

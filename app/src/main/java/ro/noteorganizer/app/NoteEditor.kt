@@ -818,7 +818,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * [write] for a save the editor stays open after -- a change from the
      * list beside it, an Undo, an import -- leaving "A new item…" as it is:
      * its words went in as a finished row, the box emptied under the thumb
-     * (wave 2, round 7). A read-back ([reloadFrom]) keeps the box.
+     *. A read-back ([reloadFrom]) keeps the box.
      */
     fun writeStaying(): String? {
         writeHeldCell()
@@ -829,7 +829,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * [save] for a tap that asks something first -- reset or delete a day,
      * the days off the schedule -- leaving "A new item…" in its box: the
      * change asked about writes it if it closes the editor, and a Cancel left
-     * the item finished as a row (wave 2, round 10).
+     * the item finished as a row.
      */
     fun saveStaying(): Boolean {
         val why = writeStaying() ?: return true
@@ -1077,7 +1077,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                     state.waitWord(listOf(made.id), "kept as a note of its own", named = true)
                 }
                 // The bar that offered its Show goes with the note: left up, it
-                // waited for a note just gone (the lows wave's round 1).
+                // waited for a note just gone.
                 state.asidesSpent(result.spentAside)
                 null
             }
@@ -1440,7 +1440,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * elsewhere formatted -- and the copy kept for a paste back into a
      * note. A day's own text is plain: its copy carries its lists' depth
      * alone, as the desktop's day copies it -- cut plain, a nested item
-     * pasted back went to the margin (the lows wave's verification, round 6).
+     * pasted back went to the margin.
      */
     fun copyOut(plain: String): String? {
         freshenPick()
@@ -1500,7 +1500,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         if (text.isEmpty() && old.selection.collapsed) return
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
         // On a day, its lists' depth goes in, or the paste renumbered a nested
-        // list as one run (the lows wave's verification).
+        // list as one run.
         land(Pasting.insert(body, spans, if (day != null) Paragraphs.listDepths(props, body) else props, from, to, text))
     }
 
@@ -1537,7 +1537,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     // For the visit, as the checklist's and comments' flags are: rebuilt on
     // the whole series or another day, it shut the calculator with its sum
-    // and the find bar (wave 2, round 15). Both read the model at use.
+    // and the find bar. Both read the model at use.
     val calc = remember { CalculatorState() }
     var exportAsk by remember { mutableStateOf(false) }
     var shareAsk by remember { mutableStateOf(false) }
@@ -1645,7 +1645,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     // The keys in a box the note's Undo does not hold -- a checklist row, "A
     // new item…", Find, the calculator -- are its own: Ctrl+Z there took the
-    // body's last words instead, again at every press (wave 2, round 7).
+    // body's last words instead, again at every press.
     var rowsHaveKeys by remember { mutableStateOf(false) }
     var findHasKeys by remember { mutableStateOf(false) }
     var calcHasKeys by remember { mutableStateOf(false) }
@@ -1924,7 +1924,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium,
-                             // The editor built anew on the series carries "A new item…" (round 11).
+                             // The editor built anew on the series carries "A new item…".
                              modifier = Modifier.clickable { if (model.saveStaying()) state.openWholeSeries() })
                         Text(stringResource(R.string.day_move), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
@@ -2161,7 +2161,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     if (day != null && asking != null) {
         // What a change makes the day show is read back by the change itself
         // (AppState.outside): read back here too, a Cancel emptied the text's
-        // Undo (wave 2, round 10).
+        // Undo.
         DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) { asking = null }
     }
 
@@ -2552,7 +2552,7 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
 /**
  * Each of [lines]' largest size, in ems of the body ([RichText]'s sizes),
  * 1 for none larger: held to the body's 24 sp, two lines of 20 pt ran into
- * each other (wave 2, round 6). Each size span placed by its lines' starts,
+ * each other. Each size span placed by its lines' starts,
  * not each span tried against each line: a note keeps up to 10,000 spans.
  */
 private fun linesGrown(text: AnnotatedString, lines: List<String>): FloatArray {
@@ -3000,7 +3000,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // messages to be drawn above them, never over them ([AppState.editorFootTop]).
     var addTop by remember { mutableStateOf<Float?>(null) }
     // Asked of each model: the same note built anew on another day keeps the
-    // box focused where it was, and messages were drawn over it (round 13).
+    // box focused where it was, and messages were drawn over it.
     LaunchedEffect(model, addFocused, addTop) { model.addBoxTop = if (addFocused) addTop else null }
     DisposableEffect(model) { onDispose { model.addBoxTop = null } }
     // And again after each row added, once it is laid out: the new row
@@ -3128,7 +3128,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
         }
         DisposableEffect(rowKey) { onDispose { renamed(false) } }
         // Told again to a model built anew on another day: the row keeps its
-        // focus, and the new model knew nothing of it (round 13).
+        // focus, and the new model knew nothing of it.
         LaunchedEffect(model) { if (rowFocused) renamed(true) }
         Row(
             Modifier
@@ -3639,7 +3639,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
         state.attachHere = handler@{ id, uris ->
             // Asked for on this note new: saved meanwhile, as the app went
             // behind the picker, it read as another note's, and the files
-            // were said lost (wave 2, round 5).
+            // were said lost.
             if (id != model.id && !(id == 0 && model.startedNew)) return@handler false
             // A new note is saved first: only a saved note can hold files.
             if (!model.save(force = model.id == 0)) return@handler true

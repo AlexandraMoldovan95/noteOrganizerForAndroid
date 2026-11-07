@@ -78,8 +78,7 @@ class EditorTableTest {
     @Test
     fun `a cell's held mark is written first by everything the table's bar, its More sheet, Redo and the calculator do`() {
         // More → Caption and Line above changed the note before the cell was
-        // left, and the held "[x]" was dropped as stale (the final audit's
-        // wave 3, round 8).
+        // left, and the held "[x]" was dropped as stale.
         val body = "Plan\n| Day | Task |\n| --- | --- |\n| Mon | gym |"
         val changes: Map<String, (EditorModel, Editing.Segment) -> Unit> = linkedMapOf(
             "Caption" to { m, s -> m.addCaption(s) },
@@ -217,7 +216,7 @@ class EditorTableTest {
     @Test
     fun `the calculator's answer never goes into a box`() {
         // A ticked box chosen, a caret left from a cell with words: the box
-        // became the words "[x]12×3=36" (wave 2, round 3).
+        // became the words "[x]12×3=36".
         val body = "| Item | Done |\n| --- | --- |\n| milk | [x] |"
         val model = editor(body)
         val table = Editing.segments(model.body).first { it.table }

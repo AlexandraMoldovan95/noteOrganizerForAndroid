@@ -363,8 +363,8 @@ object Recurrence {
      * How many times a note's moved days have been read whole: a count the
      * tests hold to, never a time. Asking about one day at a time read all
      * 5,000 of a backup's moved days for each, and the note froze as it
-     * opened and at every letter typed (ISSUES_LOG, round 2 of the final
-     * audit).
+     * opened and at every letter typed (ISSUES_LOG, "Fixes that
+     * were holes").
      */
     internal var movesRead = 0L
 

@@ -408,7 +408,7 @@ class NotebookTest {
     @Test
     fun `a size is points against the desktop's 12 pt body, never smaller than the body above 12`() {
         // Drawn as sp beside a 16 sp body, 14 made words smaller and 16 changed
-        // nothing; the desktop and the PDF read them as points (wave 2, round 6).
+        // nothing; the desktop and the PDF read them as points.
         fun drawn(size: Int) = renderBody(notesFrom("""[{"id": 1, "body": "abc", "formatting":
             [{"start": 0, "end": 3, "style": "font_size", "value": $size}]}]""").single())
             .text.spanStyles.single().item.fontSize
@@ -419,7 +419,7 @@ class NotebookTest {
 
     @Test
     fun `two sizes over the same letters draw the later one, as the desktop does, never both multiplied`() {
-        // As em, 24 inside 20 drew at 3.3 times the body (wave 2, round 7).
+        // As em, 24 inside 20 drew at 3.3 times the body.
         val drawn = renderBody(notesFrom("""[{"id": 1, "body": "abcdefghij", "formatting":
             [{"start": 0, "end": 10, "style": "font_size", "value": 20},
              {"start": 3, "end": 5, "style": "font_size", "value": 24},

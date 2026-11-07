@@ -134,17 +134,17 @@ class ListingTest {
 
     @Test
     fun `a moved card is brought into sight when it was the first item of the list or is out of the window the list kept`() {
-        // Rounds 8-16 of wave 2: pinned, put back by Undo, pinned under a sliver, grouped.
+        // Pinned, put back by Undo, pinned under a sliver, grouped.
         fun flat(vararg ids: Int) = Showing.rows(ids.map { notes("""{"id": $it}""").single() }, false, emptySet(), emptyList())
         // In the window it was asked over: no scroll.
         assertEquals(null, Showing.revealAt(flat(1, 2, 3, 4, 5), setOf(3), listOf(2, 3, 4), atTop = false, anchor = 2, lead = 0))
         // Pinned from under a sliver (2, the item the list keeps): the window
         // counted from it, and the pinned card (3) is now above it.
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
-        // Two pinned together from under a sliver: both above it now (round 13).
+        // Two pinned together from under a sliver: both above it now.
         assertEquals(0, Showing.revealAt(flat(3, 4, 1, 2, 5, 6), setOf(3, 4), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
         // Several moved: the first of them in the list's NEW order, which the
-        // move reordered (round 13).
+        // move reordered.
         assertEquals(1, Showing.revealAt(flat(1, 7, 6, 2, 3, 4, 5, 8, 9), setOf(6, 7), listOf(8, 9), atTop = false, anchor = 8, lead = 0))
         // Several put back by Undo above a list at its top: the top, so all show.
         assertEquals(0, Showing.revealAt(flat(8, 9, 1, 2, 3), setOf(8, 9), listOf(1, 2, 3), atTop = true, anchor = 1, lead = 0))
@@ -157,7 +157,7 @@ class ListingTest {
                                          """{"id": 6, "category": "Work"}""", """{"id": 5, "category": "Work"}"""),
                                    true, emptySet(), listOf("General", "Work"))
         assertEquals(3, Showing.revealAt(grouped, setOf(6), listOf("h:General", 1), atTop = false, anchor = "h:General", lead = 0))
-        // Round 14: the list's own first card among those moved, and moved
+        // The list's own first card among those moved, and moved
         // down by them. The list followed it, so the card now first went off
         // the top: filed together from the top...
         assertEquals(0, Showing.revealAt(flat(4, 5, 1, 2, 3, 9), setOf(4, 5), listOf(5, 4, 1, 2), atTop = true, anchor = 5, lead = 0))
@@ -167,7 +167,7 @@ class ListingTest {
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6, 7), setOf(3), listOf(4, 5, 6), atTop = false, anchor = 3, lead = 1))
         // Moved far down: there, not the top, which shows none of them.
         assertEquals(8, Showing.revealAt(flat(1, 2, 3, 4, 5, 6, 7, 8, 10, 11), setOf(10, 11), listOf(11, 1, 2), atTop = true, anchor = 11, lead = 0))
-        // Round 15: past about a hundred rows the list does NOT follow its first
+        // Past about a hundred rows the list does NOT follow its first
         // card, and keeps its place by index -- so a moved first card is always
         // brought into sight: pinned from 150 rows down...
         assertEquals(0, Showing.revealAt(flat(*(listOf(151) + (1..150) + (152..200)).toIntArray()), setOf(151),
@@ -175,7 +175,7 @@ class ListingTest {
         // ...and filed from the top of "Oldest updated", its new stamp sending it last.
         assertEquals(139, Showing.revealAt(flat(*((2..140) + 1).toIntArray()), setOf(1),
                                            listOf(1, 2, 3, 4), atTop = true, anchor = 1, lead = 0))
-        // Where it goes (round 16): a list at its top goes back to it when the
+        // Where it goes: a list at its top goes back to it when the
         // card shows from there -- the top card filed five rows down...
         assertEquals(0, Showing.revealAt(flat(1, 2, 3, 4, 5, 9), setOf(9), listOf(9, 1, 2, 3, 4, 5),
                                          atTop = true, anchor = 9, lead = 0))
@@ -190,7 +190,7 @@ class ListingTest {
 
     @Test
     fun `a dragged card trades only while its slot stays in the viewport`() {
-        // Round 17, a viewport from -10 to 1000. Down: a card 200 tall past a
+        // A viewport from -10 to 1000. Down: a card 200 tall past a
         // neighbour 300 tall whose top has just come in at 990 -- its slot would
         // start at 1090, out of the viewport, and the card was dropped.
         assertFalse(Showing.tradeStaysInSight(1, 790, 200, 990, 300, leads = false, start = -10, end = 1000))
@@ -202,7 +202,7 @@ class ListingTest {
         assertTrue(Showing.tradeStaysInSight(-1, 250, 200, -50, 300, leads = false, start = -10, end = 1000))
         // Leading the screen it keeps its place as it steps up, wherever the neighbour is.
         assertTrue(Showing.tradeStaysInSight(-1, -20, 200, -320, 300, leads = true, start = -10, end = 1000))
-        // Round 23: but once only, until it stops leading -- the next card above
+        // But once only, until it stops leading -- the next card above
         // lay in the top padding again, and trades chained ten or twenty places.
         assertFalse(Showing.tradeStaysInSight(-1, -5, 200, -305, 300, leads = true, start = -10, end = 1000,
                                               ledOnce = true))
@@ -213,7 +213,7 @@ class ListingTest {
 
     @Test
     fun `a stepped card is scrolled wholly into sight and no further`() {
-        // Round 17, a viewport of 1000: in sight, nothing.
+        // A viewport of 1000: in sight, nothing.
         assertEquals(0, Showing.intoSight(100, 250, 1000))
         // Above it: up by what is hidden.
         assertEquals(-180, Showing.intoSight(-180, 250, 1000))
@@ -222,7 +222,7 @@ class ListingTest {
         assertEquals(250, Showing.intoSight(1000, 250, 1000))
         // ...but never so far that a card taller than the screen loses its top.
         assertEquals(300, Showing.intoSight(300, 1500, 1000))
-        // Round 18: stepped down past the foot, out of the layout -- brought in
+        // Stepped down past the foot, out of the layout -- brought in
         // beside the card it passed, now ending at 1100: up by 1100 + 250 - 1000,
         // not to the top of the screen, which hid the card it passed.
         assertEquals(350, Showing.afterStep(null, 250, 850, 250, step = 1, end = 1000))
@@ -231,13 +231,13 @@ class ListingTest {
         // Both laid out and in sight: nothing; neither laid out: null, to its index.
         assertEquals(0, Showing.afterStep(400, 250, 150, 250, step = 1, end = 1000))
         assertEquals(null, Showing.afterStep(null, 250, null, 0, step = 1, end = 1000))
-        // Round 19: the top card on screen, mostly hidden, stepped down past a
+        // The top card on screen, mostly hidden, stepped down past a
         // shorter card -- the pair comes into sight, the card it passed whole
         // above it, not the moved card alone with the passed one above the screen.
         assertEquals(-92, Showing.afterStep(-12, 106, null, 80, step = 1, end = 500))
         // ...and the last card stepped up past a card now under the foot: the pair.
         assertEquals(180, Showing.afterStep(330, 250, null, 180, step = -1, end = 580))
-        // Round 20: a pair taller than the screen (a phone on its side) keeps
+        // A pair taller than the screen (a phone on its side) keeps
         // the card stepped down on top, as a step up does -- the pair's top
         // left it under the + button.
         assertEquals(106, Showing.afterStep(106, 106, 0, 106, step = 1, end = 74))
@@ -246,7 +246,7 @@ class ListingTest {
 
     @Test
     fun `a drag scrolls at an edge only past its press, the way it is heading`() {
-        // Round 20, a slop of 8 and a top edge of 56 from 0 to 1000: the top
+        // A slop of 8 and a top edge of 56 from 0 to 1000: the top
         // card nudged down and put back, a hair above the press, scrolls nothing...
         assertEquals(0, Showing.edgeScroll(-1, -3f, 8f, 10f, 106, 0, 1000, 56f))
         // ...past the press by more than the slop, it scrolls up...
@@ -262,7 +262,7 @@ class ListingTest {
 
     @Test
     fun `an edge scrolls slowly at first, and its zone fits a short list`() {
-        // Round 22: the zone is 56, or an eighth of a short list -- on its side
+        // The zone is 56, or an eighth of a short list -- on its side
         // (a list of 172) every resting card sat in a zone of 56.
         assertEquals(56f, Showing.edgeZone(-4, 516, 56f))
         assertEquals(21.5f, Showing.edgeZone(-4, 168, 56f))
@@ -285,7 +285,7 @@ class ListingTest {
 
     @Test
     fun `an edge's clock runs while the card stays in its zone, and a scrolling edge holds`() {
-        // Round 23: the clock begins with the first pass that scrolls in a zone...
+        // The clock begins with the first pass that scrolls in a zone...
         assertEquals(0L, Showing.edgeSince(0L, 0, 1, 0, 1000))
         assertEquals(1000L, Showing.edgeSince(0L, 0, 1, 1, 1000))
         assertEquals(1500L, Showing.edgeSince(0L, 1, 1, 1, 1500))
@@ -295,7 +295,7 @@ class ListingTest {
         // ...until the card leaves the zone, or enters the other.
         assertEquals(0L, Showing.edgeSince(1000L, 1, 0, 0, 2100))
         assertEquals(2200L, Showing.edgeSince(1000L, 1, -1, -1, 2200))
-        // Round 21: a list scrolling the way the drag heads stays armed past the
+        // A list scrolling the way the drag heads stays armed past the
         // press; turned, or not yet scrolling, it is not.
         assertTrue(Showing.edgeLatched(-1, -1))
         assertFalse(Showing.edgeLatched(-1, 1))
@@ -304,7 +304,7 @@ class ListingTest {
 
     @Test
     fun `a stepped pair leaves the moved card's own gap out`() {
-        // Round 21: a pair 4 px too tall counting the gap below the moved card
+        // A pair 4 px too tall counting the gap below the moved card
         // (130 + 80 = 210 against 206) still comes in whole, the passed card first.
         assertEquals(-57, Showing.afterStep(23, 130, -57, 80, step = 1, end = 206, gap = 8))
         // Without the gap it fell back to the moved card alone, the passed one above.
@@ -313,7 +313,7 @@ class ListingTest {
 
     @Test
     fun `a drag heads a way only past the touch slop and turns only back past it`() {
-        // Round 19, a slop of 8: a tap's pixel of shift is no drag...
+        // A slop of 8: a tap's pixel of shift is no drag...
         assertEquals(Pair(0, 0f), Showing.dragHeading(0, 0f, 3f, 8f))
         // ...past the slop it heads that way...
         assertEquals(Pair(1, 12f), Showing.dragHeading(0, 0f, 12f, 8f))

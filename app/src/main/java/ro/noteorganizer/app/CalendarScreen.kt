@@ -589,8 +589,8 @@ private fun History(state: AppState) {
         }
         item { Spacer(Modifier.height(96.dp)) }
         // ...and as tall as the keyboard where nothing above made room for it:
-        // up, it covered the last entries found (round 5; counted twice on a
-        // wide window, round 6).
+        // up, it covered the last entries found (counted twice on a
+        // wide window).
         item { Spacer(Modifier.windowInsetsBottomHeight(androidx.compose.foundation.layout.WindowInsets.ime)) }
     }
 }

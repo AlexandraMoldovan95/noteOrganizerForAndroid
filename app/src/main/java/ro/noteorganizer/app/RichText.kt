@@ -61,7 +61,7 @@ fun renderBody(note: Note, surface: Color = Color(0xFF1E1E2F)): RenderedBody {
  * Sizes over the same letters, the later one listed winning, as the
  * desktop's runs take them: drawn as em, two sizes over one letter
  * multiplied -- 24 inside 20 drew at 3.3 times the body, and a code's
- * thousands grew past any screen (wave 2, round 7). One sweep over the
+ * thousands grew past any screen. One sweep over the
  * edges, the sizes open at each held by their place in the list.
  */
 internal fun sizeRuns(sizes: List<Triple<Int, Int, Float>>): List<Triple<Int, Int, Float>> {
@@ -133,7 +133,7 @@ private fun styleOf(span: FormatSpan, surface: Color): SpanStyle? = when (span.s
     "highlight" -> hexColor(span.value)?.let { SpanStyle(background = blend(it, surface, 0.45f)) }
     // Points against the desktop's 12 pt body, as the desktop and the PDF
     // read them: drawn as sp beside a 16 sp body, 14 made words smaller and
-    // 16 changed nothing (wave 2, round 6).
+    // 16 changed nothing.
     "font_size" -> span.value.toIntOrNull()
         ?.takeIf { it in 6..96 }
         ?.let { SpanStyle(fontSize = (it / 12f).em) }

@@ -147,7 +147,7 @@ object Importing {
     /**
      * Whether Update is the answer that stands out in [plan]'s question: not
      * when a backup's versions are older than the notes here, where it wrote
-     * them over the newer ones (wave 2, round 2); adding loses nothing.
+     * them over the newer ones; adding loses nothing.
      */
     fun updateStandsOut(plan: Plan): Boolean = plan.older == 0
 
@@ -230,8 +230,7 @@ object Importing {
      * Whether the import goes on past its look-alikes -- an Update agreed
      * to, unchanged notes kept as copies -- so the question about them,
      * when every new note is one, offers to skip them: Cancel was its only
-     * no, and dropped those answers unsaid, as the desktop's did (wave 2,
-     * round 10).
+     * no, and dropped those answers unsaid, as the desktop's did.
      */
     fun goesOnPastLookAlikes(plan: Plan, answers: Answers): Boolean =
         (answers.update && plan.differing.isNotEmpty()) || (answers.copyUnchanged && plan.unchanged.isNotEmpty())

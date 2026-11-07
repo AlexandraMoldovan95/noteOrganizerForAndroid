@@ -420,7 +420,7 @@ class DaysTest {
 
     @Test
     fun `a day keeps its own list lines, and follows the series only when they are the series' too`() {
-        // The owner's choice (the lows wave): a day's lists' depth lives with
+        // The owner's choice: a day's lists' depth lives with
         // the day, taken from the series by line it slid after a line added.
         val load = scratch("""[{"id": 1, "uid": "a", "title": "Agenda", "body": "Agenda\n1. Buy\n1. milk",
             "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
@@ -596,7 +596,7 @@ class DaysTest {
         assertFalse(Notebook.sameSeries("2026-01-31", JSONObject().put("freq", "monthly").put("month_day_policy", "skip"),
             "2026-01-31", JSONObject().put("freq", "monthly")))
         // ...nor the weekdays, month days or policy a rule keeps that its
-        // frequency never reads: the Repeat sheet stores all three (the lows wave).
+        // frequency never reads: the Repeat sheet stores all three.
         assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly").put("month_days", JSONArray().put(15)),
             "2026-11-02", JSONObject().put("freq", "weekly")))
         assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "daily").put("weekdays", JSONArray().put(0).put(2)),
@@ -707,7 +707,7 @@ class DaysTest {
         val all = listOf("edit", "edit", "move", "shift", "delete", "rule", "rule", "read", "share", "backup", "restore",
             "off", "back", "back", "older", "reset", "undo", "settle", "text", "trash")
         // A third of the roads keep to the turn-off and the turn-on with the
-        // days edited and deleted between: the corner rounds 15 to 24 kept finding.
+        // days edited and deleted between: the corner the audit kept finding.
         val offOn = listOf("edit", "edit", "delete", "delete", "off", "back", "back", "older", "rule", "read", "undo")
         // A word a person can reach: a day the calendar draws or lists off the
         // schedule (any day of a note no longer repeating). In the file alone, on
@@ -763,7 +763,7 @@ class DaysTest {
                 undo = null
                 when {
                     // A run of days each given words, each held a day later, the
-                    // last first -- the road the desktop's round 17 lost one on.
+                    // last first -- the road the desktop once lost one on.
                     op == "shift" && repeats && drawn.size >= 2 -> {
                         val i = rng.nextInt(drawn.size - 1)
                         val run = drawn.subList(i, minOf(drawn.size, i + 2 + rng.nextInt(3)))
@@ -932,7 +932,7 @@ class DaysTest {
                     .any { it.optString("title").endsWith("(earlier text)") && it.optString("date") in deleted }) goneRoads++
         }
         assertEquals(emptyList<String>(), failures.take(3))
-        // Its roads reach round 21's: the fuzz once never did, in 3,000 roads.
+        // Its roads set a deleted day's words aside: once, in 3,000 roads, none did.
         assertTrue("roads setting aside a deleted day's words: $goneRoads; words shown twice, left by the owner's choice: $doubles",
                    goneRoads > 0)
     }

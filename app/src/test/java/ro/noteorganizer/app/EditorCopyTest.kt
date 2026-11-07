@@ -109,7 +109,7 @@ class EditorCopyTest {
     @Test
     fun `words with no table are the editor's paste too, which renumbers the list it lands in`() {
         // Left to the field, a numbered line pasted into a list kept its
-        // number (the lows wave's verification, round 6).
+        // number.
         val (_, model) = editor()
         assertTrue(model.pasteAtEnd(" and Spike"))
         assertEquals("$words and Spike", model.body)

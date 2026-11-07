@@ -65,7 +65,7 @@ object Paragraphs {
      * its own, only the list entries whose line still carries their marker,
      * without alignment -- the desktop's `day_paragraphs`. A list's depth
      * lives nowhere else, and the rest, put on by line number, landed on the
-     * wrong lines (the final audit's lows wave).
+     * wrong lines.
      */
     fun dayProps(paragraphs: Any?, body: String, sameBody: Boolean, own: Any? = null): Map<Int, Props> =
         propsOf(dayParagraphs(paragraphs, body, sameBody, own), body)
@@ -107,7 +107,7 @@ object Paragraphs {
      * starting with a list marker, its kind and the depth [paragraphs] give
      * it, else a bullet's glyph's. The one look a day of a series keeps of its
      * own: its text is plain, but a nested list's depth lives nowhere else
-     * (the owner's choice, the lows wave). Without [body], the list entries
+     * (the owner's choice). Without [body], the list entries
      * as they are.
      */
     fun listLines(paragraphs: Any?, body: String?): JSONArray {
@@ -534,7 +534,7 @@ object Paragraphs {
         if (caret < 1 || caret > b.size || b[caret - 1] != '\n'.code || oneMore(a, b, caret - 1)) return null
         // Lines put in before a line -- a paste the keyboard's clipboard made --
         // are no word corrected: read as one, "• Eggs" pasted back before
-        // "• Bread" gave "• • Bread" (the lows wave's verification, round 5).
+        // "• Bread" gave "• • Bread".
         if (linesPutBefore(a, b, caret)) return null
         val m = b.copyOfRange(0, caret - 1) + b.copyOfRange(caret, b.size)
         val mid = String(m, 0, m.size)

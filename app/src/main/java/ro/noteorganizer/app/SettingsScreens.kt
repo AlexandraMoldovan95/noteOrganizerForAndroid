@@ -1005,7 +1005,7 @@ private fun RemindersPage(state: AppState) {
             val blocked = remember(state.resumed) { remindersBlocked(context) }
             if (blocked != null) {
                 // Which one, by name, and its own page: told the app's were off,
-                // the person found them on there (round 5).
+                // the person found them on there.
                 val channel = blocked == Blocked.CHANNEL
                 Text(stringResource(if (channel) R.string.reminder_channel_blocked else R.string.reminder_blocked),
                      color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))

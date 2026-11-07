@@ -223,7 +223,7 @@ fun ImportQuestions(
                 text = text,
                 // The answer that stands out loses nothing when the arriving
                 // versions are older: Update was it, and wrote them over the
-                // newer ones here (wave 2, round 2).
+                // newer ones here.
                 options = if (Importing.updateStandsOut(plan)) listOf(update, add) else listOf(add, update),
                 cancel = onCancel,
             )
@@ -378,7 +378,7 @@ fun finishImport(
                 state.say(importMessage(o))
             }
             // The notes it added, made first, and its '(earlier text)' notes, each
-            // under its own word (the lows wave's rounds 9-10).
+            // under its own word.
             state.arrived(before, o.added, "added", "Added ${o.added} notes")
         }
     }

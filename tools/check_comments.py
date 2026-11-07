@@ -6,7 +6,10 @@ Everywhere in the app's Kotlin -- app/src/main and app/src/test -- that
 every pointer into the issues log leads somewhere: ``ISSUES_LOG, "..."``
 names the start of a story's title in docs/ISSUES_LOG.md, and
 ``smaller lessons: ...`` names an entry in its "Smaller lessons, moved out
-of the code" section.
+of the code" section; and that no comment names a round of an audit
+("round 9", "the lows wave"): it says when a reason was found, never the
+reason, and a reader outside the audit cannot use it. A story's title
+quoted as a pointer is not counted.
 
 In the files listed in BRIEF, four rules as well:
 
@@ -137,6 +140,9 @@ MAX_OVERVIEW_LINES = 10
 # A release as both apps number them before 1.0.0. Dates such as
 # 17.10.2026 and library versions such as Compose 1.10.4 do not match.
 RELEASE = re.compile(r"\b0\.\d{1,3}\.\d{1,4}\b")
+
+# A round of an audit, as the comments once named them.
+ROUND = re.compile(r"\brounds? \d+\b|\blows wave\b", re.I)
 
 # Where a KDoc's prose ends and its block tags begin.
 TAG = re.compile(r"^@(param|return|property|throws|exception|see|sample|"
@@ -364,6 +370,9 @@ def check(name, path, titles, lessons):
     for first, _length, text, _kind, _alone in found:
         for what in broken_pointers(text, titles, lessons):
             problems.append((first, "points to %s in ISSUES_LOG" % what))
+        named = ROUND.search(STORY.sub("", " ".join(text.split())))
+        if named:
+            problems.append((first, "names the audit's %r" % named.group(0)))
     if name not in BRIEF:
         return sorted(problems)
     overview = overview_line(source, found)
@@ -403,8 +412,8 @@ def main():
               "story goes to docs/ISSUES_LOG.md, with a pointer left here."
               % (failures, MAX_COMMENT_LINES))
         return 1
-    print("Comments brief: %d file(s) read, every pointer into ISSUES_LOG "
-          "leads somewhere, %d condensed file(s) within their limits."
+    print("Comments brief: %d file(s) read, no audit round named, every pointer "
+          "into ISSUES_LOG leads somewhere, %d condensed file(s) within their limits."
           % (len(files), len(BRIEF)))
     return 0
 

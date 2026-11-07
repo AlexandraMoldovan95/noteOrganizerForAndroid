@@ -51,7 +51,7 @@ class AppStateTest {
         assertNull(s.folded["0:checklist"])
         assertEquals(true, s.folded["3:checklist"])
         // Made from a calendar day, the list is told of it too, to say so
-        // where it hides it: unsaid, it was nowhere on it (round 9).
+        // where it hides it: unsaid, it was nowhere on it.
         s.newNoteMade = null
         s.tab = Tab.CALENDAR
         s.newNoteSaved(4)
@@ -76,7 +76,7 @@ class AppStateTest {
     @Test
     fun `the calendar goes home with a moved day reset`() {
         // Reset this day moves the day too, and the calendar stayed on the date
-        // it left, the card gone from it (the lows wave's round 4).
+        // it left, the card gone from it.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.selectedDay = "2026-10-12"
@@ -92,7 +92,7 @@ class AppStateTest {
     @Test
     fun `a note gone by the time it is opened is said, and the note open stays`() {
         // An '(earlier text)' note spent by the very save that leaves the open
-        // note: an empty new note opened in its place (the lows wave's round 1).
+        // note: an empty new note opened in its place.
         val s = state()
         s.openNote(1)
         s.flush = { null }
@@ -105,7 +105,7 @@ class AppStateTest {
     fun `a note kept aside taken back takes its own bars, shown or waiting, and no other`() {
         // The bar on screen dismissed, whatever it was: another note kept
         // aside lost its Show and this one's then showed, or another
-        // action's Undo went (the lows wave's round 2).
+        // action's Undo went.
         val s = state()
         val gone = "The words are back in the note; the note kept aside of them is gone again"
         s.offerAbout(listOf(1), "Kept 1", "Show") {}
@@ -122,14 +122,14 @@ class AppStateTest {
         s.snackbar.currentSnackbarData!!.dismiss()
         assertEquals(gone, s.snackbar.currentSnackbarData?.visuals?.message)
         // ...and the list's word on a note gone, not yet said: said later, it
-        // named the next new note, given the same id (rounds 3-4).
+        // named the next new note, given the same id.
         s.arrivals = listOf(AppState.Word(listOf(1, 7), "Kept aside"))
         s.refresh()
         assertEquals(listOf(AppState.Word(listOf(1), "Kept aside")), s.arrivals)
         s.trash(listOf(1))
         assertTrue(s.arrivals.isEmpty())
         // ...and the new note's word the same way: it lent its id, and its
-        // "Saved in", to the next note restored or imported (round 5).
+        // "Saved in", to the next note restored or imported.
         s.newNoteMade = 7
         s.refresh()
         assertNull(s.newNoteMade)
@@ -160,7 +160,7 @@ class AppStateTest {
     fun `the list's words wait in turn, by name, and a new note's survives the next one and its own Undo`() {
         // One slot each: a later word wrote over an earlier one, never said,
         // and the first of two new notes in a row went unsaid; a new note
-        // deleted from the Calendar and put back lost its word (lows round 6).
+        // deleted from the Calendar and put back lost its word.
         val s = state()
         s.waitWord(listOf(1), "Put back")
         s.waitWord(listOf(2), "Kept aside")
@@ -176,7 +176,7 @@ class AppStateTest {
         assertNull(s.newNoteMade)
         s.snackbar.currentSnackbarData!!.performAction()
         assertEquals("B", s.newNoteMade?.let { s.note(it)?.title })
-        // ...and a word already in the queue, too (round 7).
+        // ...and a word already in the queue, too.
         s.trash(listOf(1))
         assertTrue(s.arrivals.isEmpty())
         s.snackbar.currentSnackbarData!!.performAction()
@@ -204,9 +204,9 @@ class AppStateTest {
 
     @Test
     fun `an arrival's notes and its earlier text are said each under its own word, one by name`() {
-        // An import's '(earlier text)' notes came under "Added N notes" (the
-        // lows wave's round 9), then under no word at all, and a restore's
-        // still under "Restored" (round 10).
+        // An import's '(earlier text)' notes came under "Added N notes",
+        // then under no word at all, and a restore's
+        // still under "Restored".
         val s = state()
         val before = s.noteIds()
         assertTrue(s.report(Notebook.createNote(s.load, "New one", "")))
@@ -221,7 +221,7 @@ class AppStateTest {
     @Test
     fun `a word about one note names it as it is when said, renamed or refiled meanwhile`() {
         // Named when queued, a note renamed before the list said it was said by a
-        // name no note had (the lows wave's round 11).
+        // name no note had.
         val s = state()
         s.wordOn(listOf(1), "restored", "Restored 1 notes")
         s.noteMade(2)
@@ -239,9 +239,9 @@ class AppStateTest {
 
     @Test
     fun `words are said one at a time, and one about one note names it`() {
-        // Merged, two restores' words doubled a count the text carried (the lows
-        // wave's round 8), or left the second note's folded group unsaid; each
-        // as made and unnamed, two bars said the same news (rounds 9-10).
+        // Merged, two restores' words doubled a count the text carried,
+        // or left the second note's folded group unsaid; each
+        // as made and unnamed, two bars said the same news.
         val s = state()
         s.tab = Tab.SETTINGS
         for (id in listOf(1, 2)) {
@@ -264,7 +264,7 @@ class AppStateTest {
     @Test
     fun `text shared in becomes a note even while the open note cannot be saved`() {
         // Held for "Leave anyway", the words lived in that bar alone: its ✕,
-        // its ten seconds or an Undo dropped them (the lows wave's round 6).
+        // its ten seconds or an Undo dropped them.
         val s = state()
         s.openNote(1)
         s.flush = { "the disk is full" }
@@ -313,7 +313,7 @@ class AppStateTest {
     @Test
     fun `Leave anyway tapped once another note is open sets no day on it`() {
         // It set the day on whatever note was open, a plain one "on a day",
-        // where every save was refused (wave 2, round 13).
+        // where every save was refused.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1)
@@ -336,10 +336,10 @@ class AppStateTest {
         s.openNote(1)
         s.flush = { null }
         val rewritten = s.openNoteRewritten
-        // A day's delete refused -- note 1 repeats not -- wrote nothing (round 12).
+        // A day's delete refused -- note 1 repeats not -- wrote nothing.
         s.deleteDay(1, "2026-10-05")
         assertEquals(rewritten, s.openNoteRewritten)
-        // An import that never touched it (round 14)...
+        // An import that never touched it...
         assertTrue(s.beforeImport())
         s.afterImport()
         assertEquals(rewritten, s.openNoteRewritten)
@@ -560,7 +560,7 @@ class AppStateTest {
     @Test
     fun `notes moved to one category go back each where it was filed, by the move's Undo`() {
         // One tap on the sheet moved them all, and where each had been was
-        // kept nowhere (wave 2, round 7).
+        // kept nowhere.
         val s = state()
         s.moveToCategory(listOf(1), "Work")
         s.snackbar.currentSnackbarData!!.dismiss()
@@ -589,7 +589,7 @@ class AppStateTest {
     fun `a save the editor stays open after leaves the words in A new item in their box`() {
         // A row's Undo, the note's own card tapped again and a pin from the
         // list beside it made them a finished row and emptied the box; the
-        // Trash still takes them with the note (wave 2, round 7).
+        // Trash still takes them with the note.
         val s = state()
         assertTrue(s.report(Notebook.addChecklistItem(s.load, 1, "milk")))
         s.openNote(1)
@@ -615,7 +615,7 @@ class AppStateTest {
         val shared = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals("typed last", shared.optString("body"))
         s.editorHolds(1, "typed later", seen)
-        // The copy's id, for the list to show it where the sort puts it (round 9).
+        // The copy's id, for the list to show it where the sort puts it.
         val copy = s.duplicate(1)
         assertTrue(copy != null && copy != 1 && s.note(copy)?.body == "typed later")
         // Read, not written: the editor keeps its cursor.
@@ -659,7 +659,7 @@ class AppStateTest {
         s.deleteDay(1, "2026-10-19")
         assertEquals(listOf("flush", "flush"), seen)
         // The whole series shows no day: read back, it lost its Undo for
-        // nothing (wave 2, round 10). Open on the day changed, it is.
+        // nothing. Open on the day changed, it is.
         assertEquals(rewritten, s.openNoteRewritten)
         s.openNote(1, "2026-10-26")
         s.resetDay(1, "2026-10-26")
@@ -691,7 +691,7 @@ class AppStateTest {
     @Test
     fun `the same note opened on another day or as the series keeps the words in A new item`() {
         // From the calendar beside the editor, through leaving() the whole
-        // save made them a row; built anew, the editor carries them (round 12).
+        // save made them a row; built anew, the editor carries them.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1, "2026-10-12")
@@ -712,7 +712,7 @@ class AppStateTest {
     @Test
     fun `a day move that moves nothing, or a change refused, leaves the editor unread`() {
         // Read back for nothing, the editor lost its Undo and its cursor:
-        // the picker answered on the day itself, a reset refused (wave 2, round 11).
+        // the picker answered on the day itself, a reset refused.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1, "2026-10-12")
@@ -730,7 +730,7 @@ class AppStateTest {
 
     @Test
     fun `the Trash's Undo asks the list to show its notes only when it was tapped on the list`() {
-        // From the Calendar, the reveal waited and moved the list later (round 11).
+        // From the Calendar, the reveal waited and moved the list later.
         val s = state()
         s.tab = Tab.CALENDAR
         s.trash(listOf(2))
@@ -755,7 +755,7 @@ class AppStateTest {
         s.beforeImport()
         assertTrue(flushed)
         // Saved first, and read back only if the import changed it: this one
-        // did not (wave 2, round 14; the one that does is pinned below).
+        // did not (the one that does is pinned below).
         s.afterImport()
         assertEquals(rewritten, s.openNoteRewritten)
     }
@@ -1064,7 +1064,7 @@ class AppStateTest {
     fun `text shared in on the way back leaves the half-typed words as the row they were written as`() {
         // The share opens a note of its own before the editor hears it is
         // back: the words were taken out of the row into an editor about to
-        // close, and kept nowhere (wave 2, round 2).
+        // close, and kept nowhere.
         val (s, editor) = checklist("flour")
         editor.adding = "plums"
         assertNull(editor.writeAway())
@@ -1076,7 +1076,7 @@ class AppStateTest {
     @Test
     fun `one day of a series goes out as a note of its own on that date, with that day's words`() {
         // Shared or exported from a day, the series' own words went out and a
-        // code carried the whole series (wave 2, round 2).
+        // code carried the whole series.
         val dir = dirOf(scratch("""[{"id": 1, "uid": "s", "title": "Team meeting", "body": "agenda",
             "formatting": [{"start": 0, "end": 6, "style": "bold"}],
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},
@@ -1085,7 +1085,7 @@ class AppStateTest {
         val day = s.outgoingNote(1, "2026-11-09")!!
         assertEquals("minutes of the day", day.optString("body"))
         // ...with the day's looks: the series' bold, placed on other words by
-        // its places, went out where the editor showed the day plain (round 3).
+        // its places, went out where the editor showed the day plain.
         assertEquals(0, day.optJSONArray("formatting")!!.length())
         assertEquals(1, s.outgoingNote(1)!!.optJSONArray("formatting")!!.length())
         assertEquals("2026-11-09", day.optString("date"))
@@ -1098,7 +1098,7 @@ class AppStateTest {
     @Test
     fun `notes restored from the Trash are handed to the list, to say if it hides them`() {
         // Restored where Show did not look, a note landed unseen under
-        // "Restored" (wave 2, round 3).
+        // "Restored".
         val dir = dirOf(scratch("""[{"id": 1, "uid": "a", "title": "One"}, {"id": 2, "uid": "b", "title": "Two"}]""",
                                 attachments = true))
         val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
@@ -1112,7 +1112,7 @@ class AppStateTest {
     @Test
     fun `shared text with a first line longer than a title keeps all of it`() {
         // Cut to a title's 200 letters, the rest of a shared paragraph was
-        // lost while the app said it was saved (wave 2, round 2).
+        // lost while the app said it was saved.
         val paragraph = "word ".repeat(70).trim()
         val (title, body) = sharedAsNote(paragraph + "\nsecond line")
         assertEquals(Editing.TITLE_CHARS, title.length)

@@ -198,7 +198,7 @@ class SharingTest {
                 assertEquals(title, (result as Sharing.Decoded.Notes).notes.single().getString("title"))
             }
             // ...and a code whose "=" was lost on the way still reads, as it did
-            // before the cut for words after a code (wave 2, round 2's low).
+            // before the cut for words after a code.
             assertTrue("$title without its padding", Sharing.decode(code.trimEnd('=')) is Sharing.Decoded.Notes)
         }
     }

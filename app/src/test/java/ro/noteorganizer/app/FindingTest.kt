@@ -76,7 +76,7 @@ class FindingTest {
         assertEquals(0, hits("Σ", "ς"))
         assertEquals(0, hits("할머니", "한"))
         // A space picked up after the word from the keyboard's suggestions is
-        // not part of it, as in the list's search (wave 2, round 2).
+        // not part of it, as in the list's search.
         assertEquals(listOf(Finding.InChecklist(0, 0, 4)), Finding.scan("", "milk ", false, checklist = listOf("milk")))
         // Kept: a letter past the basic plane (Deseret).
         assertEquals(0, hits("𐐀", "𐐨"))

@@ -327,7 +327,7 @@ class PastingTest {
     fun `a whole line cut and pasted before another carries no looks of the line after it, and the other keeps its own`() {
         // Counted in, the line after a copy ending in a break went with it: a
         // line moved from above a centred one centred the line it was pasted
-        // before (the lows wave's verification, round 5).
+        // before.
         val week = "Call the bank\nTuesday\nDentist at 10\nBuy stamps"
         val centred = mapOf(1 to Paragraphs.Props(align = "center"))
         assertEquals(emptyList<Exporting.Paragraph>(), Pasting.copyOut(week, emptyList(), centred, 0, 14)!!.paragraphs)
@@ -355,8 +355,8 @@ class PastingTest {
 
     @Test
     fun `a copy begun at a line's end carries none of that line's looks, an empty line copied whole keeps its own`() {
-        // The other end of round 5's: copied from a centred title's end, the
-        // next line centred the line it was pasted into (round 6).
+        // The other end of the test below: copied from a centred title's end, the
+        // next line centred the line it was pasted into.
         val body = "Title\nMonday: gym"
         val centred = mapOf(0 to Paragraphs.Props(align = "center"))
         val copy = Pasting.copyOut(body, emptyList(), centred, 5, body.length)!!
@@ -372,7 +372,7 @@ class PastingTest {
     @Test
     fun `a copy begun after a line's start carries none of its looks - a word from a nested item nests nothing`() {
         // A line's looks travel with its start: the word set the level of the
-        // item it was pasted into, and the list renumbered (round 10).
+        // item it was pasted into, and the list renumbered.
         val body = "1. Fruit\n1. Apple pie"
         val props = mapOf(1 to Paragraphs.Props(indent = 1))
         val from = body.indexOf("Apple")
@@ -385,7 +385,7 @@ class PastingTest {
     @Test
     fun `a whole item pasted over another takes its place whole, its marker and its break`() {
         // Kept as a letter typed over the selection keeps them, the paste read
-        // "2. 3. Bread" (round 6).
+        // "2. 3. Bread".
         val list = "Shopping\n1. Milk\n2. Eggs\n3. Bread\nCall mum"
         val eggs = list.indexOf("2. Eggs")
         val bread = list.indexOf("3. Bread")
@@ -397,7 +397,7 @@ class PastingTest {
         assertEquals(Paragraphs.Pos(2, 3) to Paragraphs.Pos(2, 7),
                      Paragraphs.deletionRange(list.split("\n"), Paragraphs.Pos(2, 0), Paragraphs.Pos(3, 0), typing = true))
         // ...over the last item, one item's words, the note's end: begun at the
-        // item's marker, the paste's own marker takes its place (round 7).
+        // item's marker, the paste's own marker takes its place.
         val last = "Shopping\n1. Milk\n2. Bread\n3. Jam\nCall mum"
         assertEquals("Shopping\n1. Milk\n2. Bread\n3. Milk\nCall mum",
                      Pasting.insert(last, emptyList(), emptyMap(), last.indexOf("Jam"), last.indexOf("Call mum"), "1. Milk\n").body)
@@ -414,7 +414,7 @@ class PastingTest {
     @Test
     fun `a paste bringing its own marker at an item's marker end, nothing selected, takes its place or goes before`() {
         // Where Enter in a list leaves the cursor: copied items pasted into the
-        // new empty one read "3. 1. Kiwi" (round 8).
+        // new empty one read "3. 1. Kiwi".
         val list = "Shopping\n1. Milk\n2. Bread\n3. "
         assertEquals("Shopping\n1. Milk\n2. Bread\n3. Kiwi\n4. Plum",
                      Pasting.insert(list, emptyList(), emptyMap(), list.length, list.length, "1. Kiwi\n2. Plum").body)
@@ -433,7 +433,7 @@ class PastingTest {
         assertEquals("Shopping\n1. Milk\n2. KiwiJam\n3. Tea", Pasting.insert(jam, emptyList(), emptyMap(), at, at, "Kiwi").body)
         // The item keeps its kind and its level whatever the paste brings, as
         // the desktop keeps the line's tags: another kind, our own copy at
-        // another level, several lines with words after (round 9).
+        // another level, several lines with words after.
         val nestedProps = mapOf(2 to Paragraphs.Props(indent = 1))
         val bullet = Pasting.insert(nested, emptyList(), nestedProps, nested.length, nested.length, "• Kiwi")
         assertEquals("Plan\n1. Fruit\n1. Kiwi", bullet.body)

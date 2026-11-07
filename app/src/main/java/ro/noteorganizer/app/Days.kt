@@ -215,7 +215,7 @@ object Days {
             // series draws no day are on no screen and in no search.
             if (!givenDay(note, day)) return@edit NOT_A_DAY
             // ...its own list lines with them ([paragraphs], the editor's):
-            // cleanOverride keeps those alone (the owner's choice, the lows wave).
+            // cleanOverride keeps those alone (the owner's choice).
             val patch = Normalize.cleanOverride(JSONObject()
                 .put("title", Notebook.pyStrip(title)).put("body", body).put("comments", comments)
                 .put("category", category).put("color", color).also { if (paragraphs != null) it.put("paragraphs", paragraphs) })
