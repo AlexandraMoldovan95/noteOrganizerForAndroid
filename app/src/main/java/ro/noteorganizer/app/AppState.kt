@@ -437,9 +437,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * An [offer] as made -- the notes it is about, its words, its action, and
-     * how to ask it again ([again]: the list's own bars are asked again by the
-     * list, which knows what hides a note) -- and its bar.
+     * An [offer] as made: the notes it is about, its words, its action, how to
+     * ask it again ([again]) and its bar. One Undo at a time is on offer
+     * ([undoBar], the newest); the offers it finds waiting go to [heldBack], to
+     * be asked again by their makers when it is done, never for notes gone,
+     * and a later one queues behind it as any bar does. [barsAbout] files the
+     * bars by note, so notes taken back end exactly their own.
      */
     private class Offered(val about: Collection<Int>, val message: String, val action: String,
                           val onAction: () -> Unit, val again: (() -> Unit)?, val bar: Job)
