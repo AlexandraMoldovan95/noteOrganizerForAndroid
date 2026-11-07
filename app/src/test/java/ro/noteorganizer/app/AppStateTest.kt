@@ -137,10 +137,9 @@ class AppStateTest {
 
     @Test
     fun `an Undo takes the bar at once, and the offers waiting come after it, asked again`() {
-        // Behind a note's Show it waited ten seconds (the lows wave's round 3);
-        // thrown away, a hidden note's word was never said (round 4); the bar
-        // on screen is replaced, as the desktop's banner is, and what waited is
-        // asked again once the Undo is done, by whoever made it (round 5).
+        // Behind a note's Show it waited ten seconds; thrown away, a hidden note's
+        // word was never said. The bar on screen is replaced, as the desktop's
+        // banner is, and what waited is asked again once the Undo is done.
         val s = state()
         var asked = 0
         s.offer("Exported", "Open") {}
@@ -187,10 +186,9 @@ class AppStateTest {
 
     @Test
     fun `a word on several notes is given back whole by one's Undo, on any tab`() {
-        // Given back beside the part still waiting, the list said the same news
-        // twice (the lows wave's round 9); tapped on the Notes tab, it was not
-        // given back at all, and "Put back" came after it (round 10), or, the word
-        // taken meanwhile on two panes, the list's own reading missed it (round 11).
+        // Given back beside the part still waiting, the same news came twice; on
+        // the Notes tab it was not given back, and "Put back" followed it, or,
+        // taken meanwhile on two panes, the list's own reading missed it.
         for (tab in listOf(Tab.CALENDAR, Tab.NOTES)) {
             val s = state()
             s.arrivals = listOf(AppState.Word(listOf(1, 2), "Added 2 notes"))
@@ -670,10 +668,9 @@ class AppStateTest {
 
     @Test
     fun `only a change that closes the editor writes the words in A new item first`() {
-        // A day moved with them left in the box built the editor anew, the
-        // box empty, the words kept nowhere (wave 2, round 8); written as a
-        // row, a change beside the editor or one refused finished them while
-        // it stayed (rounds 9 and 10). An editor built anew carries them.
+        // A day moved with them left in the box built the editor anew, the words
+        // kept nowhere; written as a row, a change beside the editor or one
+        // refused finished them while it stayed. An editor built anew carries them.
         val s = state()
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         s.openNote(1, "2026-10-12")
@@ -1030,10 +1027,9 @@ class AppStateTest {
 
     @Test
     fun `an Undo bar lasts from when it shows, for as long as the phone asks`() {
-        // Its own eight seconds counted from the asking: queued behind another
-        // message it flashed for a second, or stayed for good. Android's long
-        // length is counted by the bar at the foot from when it shows, and
-        // stretched by the phone's "Time to take action".
+        // Its own eight seconds, counted from the asking, flashed or stayed for
+        // good behind another message. Android's long length counts from when
+        // it shows, stretched by the phone's "Time to take action".
         val (s, _) = checklist("eggs", "bread")
         s.removeChecklistRow(1, 0)
         val offer = s.snackbar.currentSnackbarData!!

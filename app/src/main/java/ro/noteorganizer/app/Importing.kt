@@ -8,29 +8,16 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Bringing notes in -- from a share code or from a backup -- by the
- * desktop's rules, asked as the desktop asks them.
- *
- * Nothing is overwritten on its own. An import is planned first, without
- * writing anything, and the plan says which questions there are:
- *
- * 1. Notes this device already has, by identity, that arrive CHANGED:
- *    update them, or add them as new notes beside the originals. From a
- *    backup the question also says when the arriving copy is OLDER.
- * 2. Notes that arrive exactly as they are here: skip them, or add copies.
- * 3. Notes nothing here matches by identity that still LOOK identical to
- *    one here (the desktop's `_dup_key`): import them anyway, or skip them.
- *
- * Every answer is given before anything is written. Then [apply] writes
- * it all, the way `import_data` writes it: the backup's categories, its
- * painted calendar days, its templates and its Trash join what is here
- * without replacing any of it, and a file another note already uses is
- * given a copy of its own, so deleting one note can never take another's
- * file with it.
- *
- * The two routes share this one planner and this one apply, as they do
- * on the desktop: two hand-rolled copies of one judgement is how its
- * search rules once drifted apart.
+ * Bringing notes in, from a share code or a backup, by the desktop's rules.
+ * [plan] writes nothing: it sorts what arrived into notes here that come
+ * changed (update them, or add beside them; a backup's older copy is said),
+ * notes that come as they are (skip, or copy), and new notes that look like
+ * one here (`_dup_key`: import or skip). Every answer comes first; [apply]
+ * then writes as `import_data` does: a backup's categories, painted days,
+ * templates and Trash join what is here, and a file another note uses gets
+ * a copy of its own, so deleting one note never takes another's file. Both
+ * routes share this one planner, as on the desktop: two copies of one
+ * judgement is how its search rules once drifted apart.
  */
 object Importing {
 
@@ -166,12 +153,10 @@ object Importing {
 
     /**
      * Asked of no file: what arrived, sorted into the three kinds.
-     * [categories] are the ones the notebook will have -- its own, and a
-     * backup's it adds: a note filed under one it will not have is
-     * compared as the General note the import makes it, as the desktop's
-     * normalize_note compares it. Compared as it came, an unchanged note
-     * read as "edited elsewhere", and Update changed nothing but its rescue
-     * copy.
+     * [categories] are the ones the notebook will have; a note filed under
+     * one it will not have is compared as the General note the import makes
+     * it, as normalize_note does. Compared as it came, an unchanged note read
+     * as "edited elsewhere", and Update changed nothing but its rescue copy.
      */
     fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
              categories: Set<String>? = null): Plan {
@@ -180,12 +165,9 @@ object Importing {
             else fileUnder(JSONObject(note.toString()), categories)
         }
         val byUid = positions(notebook)
-        // Each identity is claimed by the first note arriving with it. A code
-        // or a backup holding two with one identity updated one note twice --
-        // the question counted two, and the second update's rescue copy was
-        // the first arrival, the person's own words in no copy -- or, both
-        // new, added two notes wearing it, and files picked for the second
-        // went to the first. A second comes in as a note of its own.
+        // Each identity goes to the first note arriving with it; a second comes
+        // in as a note of its own. Both kept it, one note was updated twice
+        // (the person's words in no copy), or two notes wore it, files crossed.
         val claimed = HashSet<String>()
 
         val differing = ArrayList<Known>()
@@ -307,16 +289,11 @@ object Importing {
     private fun keyOf(note: JSONObject): String = Normalize.dupKey(Normalize.normalizeNote(note))
 
     /**
-     * [plan] as it stands against the list as it is now ([at], from
-     * [positions]): a note it matched that has gone since -- sent to the
-     * Trash while the plan was made away from the screen -- arrives as a
-     * new note, as the plan would have sorted it a moment later. Nothing
-     * here wears its identity any more, so nothing here is replaced by it.
-     *
-     * And the other way: a note planned as new whose identity a note here
-     * wears now -- restored from the Trash while the plan was made -- comes
-     * in as a note of its own. Added wearing it, the notebook held two notes
-     * with one identity, and nobody had been asked.
+     * [plan] against the list as it is now ([at], from [positions]). A note
+     * it matched that has gone since, to the Trash while the plan was made,
+     * arrives as a new note, as a fresh plan would sort it. A note planned as
+     * new whose identity a note here wears now, restored meanwhile, comes in
+     * as a note of its own: added wearing it, two notes held one identity.
      */
     private fun stillMatched(plan: Plan, at: Map<String, Int>): Plan {
         val gone = (plan.differing + plan.unchanged).filter { it.uid !in at }.toSet()
@@ -341,15 +318,11 @@ object Importing {
     }
 
     /**
-     * Writes what the answers agreed to. [attachmentsDir] is this
-     * notebook's folder of attached files; [extras] is what a backup
-     * carries besides its notes. Every file is written by [Files] or
-     * through the notebook's own writer, and each write is whole or not
-     * at all.
-     *
-     * Outside data a reading missed is refused here, not by stopping the
-     * app: every write comes after the work, so a failure before them
-     * leaves everything as it was.
+     * Writes what the answers agreed to. [attachmentsDir] is this notebook's
+     * folder of attached files; [extras] is what a backup carries besides its
+     * notes. Every file is written by [Files] or the notebook's own writer,
+     * whole or not at all, and only after the work: outside data a reading
+     * missed is refused here, not by a crash, and leaves everything as it was.
      */
     fun apply(
         load: Notebook.Load,
@@ -459,10 +432,9 @@ object Importing {
         val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
         val newIds = Organizing.ids(candidate)
         for (incoming in toAdd + copies) {
-            // A backup's note keeps its rescue copy ("↩ Restore previous"),
-            // as the desktop's import keeps it through normalize_note:
-            // dropped here, a notebook moved to a new phone lost every one.
-            // A code never carries one, and one that claims to is not taken.
+            // A backup's note keeps its rescue copy ("↩ Restore previous"), as
+            // normalize_note does; dropped, a notebook moved to a new phone lost
+            // every one. A code never carries one, so one claiming to is dropped.
             val note = Normalize.normalizeNote(incoming)
             if (plan.source != Source.BACKUP) note.remove("_prev")
             fileUnder(note, categories.keys)
@@ -541,15 +513,9 @@ object Importing {
             }
         }
 
-        // 7. The backup's Trash window, for a notebook that never chose one:
-        //    its entries came with the days they were deleted, and the
-        //    default 30 emptied, at the next start, what the person had
-        //    kept for 60 or 90 days. A window chosen here is kept -- and so
-        //    is the default against a shorter one, which this notebook's
-        //    own Trash was promised: a backup from a 7-day notebook, with no
-        //    Trash in it at all, emptied it at the next start, files and
-        //    all. Only a longer window, and only with Trash to keep by it,
-        //    as the desktop's import takes it (e69721e).
+        // 7. The backup's Trash window: only a longer one than the default,
+        //    only with Trash to keep by it, and only where none was chosen
+        //    here (smaller lessons: the backup's Trash window).
         val window = extras.trashWindow
         val adoptsWindow = window != null && window > Settings.TRASH_RETENTION_DAYS &&
             (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
@@ -577,10 +543,9 @@ object Importing {
         val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         var earlierText = 0
         if (changed) {
-            // Days a series' copy set aside -- an Update replacing another
-            // series' copy, a backup's note read -- notes of their own, and
-            // said: a 0.13.0 notebook moved in by a backup made them unsaid
-            // (the final audit's twenty-third round).
+            // Days a series' copy set aside (an Update replacing another
+            // series' copy, a backup's note read) become notes of their own,
+            // and are said; an older notebook's came in unsaid otherwise.
             earlierText = Notebook.settleAside(candidate)
             Files.writeAtomic(notesFile, candidate.toString(2))?.let { return Result.Failed(it) }
             replaceContents(notebook, candidate)
@@ -661,11 +626,9 @@ object Importing {
         val here = File(attachmentsDir, name)
         if (!here.exists() && unpacked != null) {
             val from = File(unpacked, name)
-            // Moved, not copied: the unpacked backup and the notebook share
-            // the app's own disk, and a move costs nothing however large the
-            // file. Copied, a notebook of photos was written a second time on
-            // the screen's thread, the screen still for seconds. Copied only
-            // where a move cannot be made; the unpacked folder goes after.
+            // Moved, not copied: the unpacked backup shares the app's disk, so
+            // a move costs nothing; copied, a notebook of photos held the screen
+            // still for seconds. Copied only where a move cannot be made.
             if (from.isFile) {
                 here.parentFile?.mkdirs()
                 if (!from.renameTo(here)) copyWhole(from, here)

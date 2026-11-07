@@ -25,26 +25,20 @@ enum class Tab { NOTES, CALENDAR, SETTINGS }
 enum class SettingsPage { NAME, APPEARANCE, CATEGORIES, TEMPLATES, REMINDERS, BACKUP, TRASH, DUPLICATES, STATS, ABOUT, LICENSES }
 
 /**
- * The app's state, and every action a screen can take on the notebook.
- *
- * One place, because every screen shares the same notebook and the same
- * rule for changing it: the write goes through the rules layer, which
- * writes a candidate whole before anything in memory changes; on success
- * the screen is refreshed from what was written, and on failure it is
- * told why, never left showing a change the file does not have.
- *
- * Holds Compose state, so it lives on the drawing side of the line the
- * layering gate keeps.
+ * The app's state, and every action a screen can take on the notebook: one
+ * place, because every screen shares one notebook and one rule for changing
+ * it. The rules layer writes a candidate whole before memory changes; the
+ * screen is refreshed from what was written, or told why not, never left
+ * showing a change the file does not have. Holds Compose state, so it lives
+ * on the drawing side of the line the layering gate keeps.
  */
 class AppState(val dir: File, val scope: CoroutineScope) {
 
     val attachments: File = File(dir, "attachments").apply { mkdirs() }
 
     // Never "equal": a write changes the settings INSIDE the object it read,
-    // so the refreshed notebook compares equal to the old one, Compose
-    // skipped the redraw, and the screen went on showing the setting as it
-    // was -- found on the emulator, where a switch stayed on over a file
-    // that said off. Every refresh is a redraw.
+    // so Compose skipped the redraw, and a switch stayed on over a file that
+    // said off (ISSUES_LOG, "A setting saved, and a switch that did not move").
     var load by mutableStateOf(Notebook.load(dir), neverEqualPolicy())
         private set
 
@@ -258,13 +252,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     val snackbar = SnackbarHostState()
 
     /**
-     * Where, in the window, the top is of what the open note's editor draws
-     * at the foot of its column -- its format bar, a table's bar, the box
-     * being typed in when it stands there -- for the window's messages to be
-     * drawn above it; null when it draws nothing there. Drawn just above the
-     * keyboard, a message covered the bar's keys and "A new item…" with its
-     * Add, and took the taps meant for them for its four seconds (the final
-     * audit's ninth round). In pixels.
+     * The window's top, in pixels, of what the open note's editor draws at
+     * the foot of its column (its format bar, a table's bar, the box being
+     * typed in), for messages to be drawn above it; null when nothing is
+     * there. Drawn just above the keyboard, a message covered the bar's keys
+     * and "A new item…", and took the taps meant for them.
      */
     var editorFootTop by mutableStateOf<Float?>(null)
 
@@ -274,10 +266,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** Opens an attached file with the phone's own apps, set by the activity. */
     var openFile: ((File, String) -> Unit)? = null
 
-    // Android's pickers for one note, set by AppRoot: there the answer
-    // arrives even when Android ended the app behind the picker and started
-    // it again. Held by the editor, it found nobody -- an exported file left
-    // empty, files not attached, and nothing said.
+    // Android's pickers for one note, set by AppRoot, where the answer arrives
+    // even after Android ended the app behind the picker; held by the editor,
+    // it found nobody (ISSUES_LOG, "Answers sent to a screen that was gone").
 
     /** Export as file ([rememberExporter]). */
     var exporter: Exporter? = null
@@ -508,12 +499,10 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /**
      * Opens a note -- on one [day] of it, when the series draws that day
-     * ([Days.givenDay]); as a whole otherwise. A plain note opened from a
-     * calendar day is simply the note. Opened on a day it does not draw,
-     * every save there was refused, and every way out that saves first with
-     * it: only "Leave anyway" was left, and what was typed went with it (the
-     * final audit's twenty-fourth round; the desktop's load_note asks the
-     * same).
+     * ([Days.givenDay]); as a whole otherwise, as the desktop's load_note
+     * asks. Opened on a day it does not draw, every save there was refused,
+     * and every way out that saves first: only "Leave anyway" was left, and
+     * what was typed went with it.
      */
     fun openNote(id: Int, day: String? = null) {
         fun onDay() = day?.takeIf { d -> rawNote(id)?.let { Recurrence.isRecurring(it) && Days.givenDay(it, d) } == true }
@@ -552,16 +541,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * The note open on one of its days, [id], read back after something
-     * else rewrote it -- "↩ Restore previous" brought back a copy with no
-     * repeat, or one with that day deleted, an import's update ended it:
-     * when the series no longer draws the day ([Days.givenDay]), the editor
-     * leaves it for the whole note, as [openNote] would open it. Left on a
-     * note that no longer repeats, every save was refused, "This note no
-     * longer repeats"; left on a day the series had deleted, every save went
-     * through, "Saved for this day only", to a day no screen shows and no
-     * search finds (ISSUES_LOG, "The day the editor stayed on"). True when
-     * it left.
+     * The note open on one of its days, [id], read back after something else
+     * rewrote it (a Restore previous, an import's update): when the series no
+     * longer draws the day ([Days.givenDay]), the editor leaves it for the
+     * whole note, as [openNote] would open it. Left there, every save was
+     * refused, or went to a day no screen shows (ISSUES_LOG, "The day the
+     * editor stayed on"). True when it left.
      */
     fun leaveDayIfNotDrawn(id: Int): Boolean {
         val day = openDay
@@ -624,18 +609,12 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * A change to [ids] from outside the editor. When the open note is one
-     * of them, what the editor holds is saved first -- so the change lands
-     * on the note as it is on screen, and a copy or a code made of it
-     * carries the last words typed -- and, when the change [writes] it,
-     * the editor reads it back after. Null, the change not made, when the
-     * editor's words cannot be saved: read back, or the note sent to the
-     * Trash, they would be gone. A change that [closes] the editor takes the
-     * words in "A new item…" with it as a row; any other leaves them in the
-     * box ([saveStaying]), and an editor built anew on another day of the
-     * note carries them along (NoteEditor): a day moved with them left there
-     * lost them (round 8), and one changed or refused while the editor stayed
-     * finished them (rounds 9 and 10).
+     * A change to [ids] from outside the editor. An open note among them is
+     * saved first, so the change lands on what is on screen, and read back
+     * after when the change [writes] it; null, the change not made, when its
+     * words cannot be saved. A change that [closes] the editor takes the words
+     * in "A new item…" as a row; any other leaves them in the box
+     * ([saveStaying]), carried by an editor built anew (NoteEditor).
      */
     private fun <T> outside(ids: Collection<Int>, writes: Boolean = true, closes: Boolean = false,
                             day: String? = null, change: () -> T): T? {
@@ -645,11 +624,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             say("Not saved, so the open note was left as it is: $why")
             return null
         }
-        // A change refused wrote nothing: read back anyway, the editor lost
-        // its Undo and its cursor for it (round 11) -- a day's delete too,
-        // whose answer comes first in a pair (round 12). A change to one
-        // [day] reads back only the editor on that day: open on another, or
-        // on the whole series, it lost them for nothing (round 10).
+        // Read back only after a change that wrote (a day's delete answers
+        // first in a pair), and to one [day] only on that day: read back for
+        // nothing, the editor lost its Undo and its cursor.
         val shown = day == null || openDay == day
         return change().also { if (touches && writes && shown && !refused(it)) openNoteRewritten += 1 }
     }
@@ -865,15 +842,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     }
 
     /**
-     * A message with an Undo, for Android's long length: ten seconds from
-     * the moment it shows, and longer where the person asked Android for
-     * more time to act (Accessibility, "Time to take action"), which the bar
-     * at the foot reads. The desktop's banner gives eight; Android's short
-     * four was gone before a thumb could reach it. Its own eight-second timer
-     * started when it was asked for, not shown: queued behind another
-     * message it flashed for a second, or outlived its timer and stayed for
-     * good, holding back every message after it -- and it dismissed whatever
-     * was showing, not itself.
+     * A message with an Undo, for Android's long length: ten seconds from when
+     * it shows, longer where the person asked for more time ("Time to take
+     * action"), which the bar reads. The desktop gives eight; Android's short
+     * four was gone before a thumb got there. A timer of its own, started on
+     * the asking, flashed it or kept it for good behind another message.
      */
     private fun offerUndo(message: String, undo: () -> Unit) {
         // The newest takes the bar, as the desktop's banner is replaced: two
@@ -985,15 +958,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var templateDayNote: Int? = null
 
     /**
-     * Text shared from another app that holds no code becomes a note: its
-     * first line the title, kept to a title's length, the rest its text.
-     * The app is in every share sheet for text, and a link or a paragraph
-     * sent to it ended at "This isn't a Note Organizer share code" (wave 2,
-     * the owner's choice). A first line longer than a title keeps the whole
-     * text in the note: cut to the title, the rest of a paragraph was lost.
-     * Made at once, then opened as any note is: held for an open note that
-     * could not be saved, the words lived in its "Leave anyway" bar alone,
-     * and its ✕, its ten seconds or an Undo dropped them (lows round 6).
+     * Text shared from another app that holds no code becomes a note, by the
+     * owner's choice: its first line the title, the rest its text; a first
+     * line longer than a title keeps the whole text. Made at once, then
+     * opened as any note is: held for an open note that could not be saved,
+     * the words lived in its "Leave anyway" bar alone, which could drop them.
      */
     fun noteFromShared(text: String, said: String) {
         val (title, body) = sharedAsNote(text)
@@ -1271,8 +1240,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
 
     /**
      * Once, at a start: a notebook that still followed the phone -- the
-     * default until 0.9.0 -- keeps the theme it is wearing and follows no
-     * more. Nothing changes on the screen; only the next change of the
+     * default of early releases -- keeps the theme it is wearing and follows
+     * no more. Nothing changes on the screen; only the next change of the
      * phone's mode no longer changes the app's.
      */
     fun settleTheme(phoneIsDark: Boolean) {

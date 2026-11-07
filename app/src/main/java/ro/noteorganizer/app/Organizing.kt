@@ -49,12 +49,11 @@ object Organizing {
 
     /**
      * Where the note an action was taken on stands now, taken on [id] and
-     * known by [uid] when it has one: the note at [id] while it still wears
-     * that uid; else the first note wearing it -- Undo brought it back from
-     * the Trash under a new id; else -1, its id freed and perhaps another
-     * note's now. Never the first wearing the uid while the note at [id]
-     * wears it too: two notes can wear one, from a code or a backup that
-     * held them so, and files picked for the second went to the first.
+     * known by [uid]: the note at [id] while it still wears that uid; else
+     * the first note wearing it (Undo brought it back under a new id); else
+     * -1, its id perhaps another note's now. Never the first wearing the uid
+     * while the note at [id] wears it too: a code or backup can hold two
+     * wearing one, and files picked for the second went to the first.
      */
     internal fun indexOfNote(array: JSONArray, id: Int, uid: String?): Int {
         val byId = indexOfId(array, id)
@@ -65,13 +64,11 @@ object Organizing {
 
     /**
      * A note's id as this phone holds it: `normalize_note`'s
-     * `int(str(id).strip())` -- a whole number as it is, text read as
-     * Python's int() reads it after str.strip(), a float, "7.5" or "7.0",
-     * none (the final audit's ninth round) -- and then only a positive
-     * number an Int holds; 0 for anything else, which [repairIds] gives a
-     * new number. Read with toInt(), a number past an Int wrapped onto
-     * another's, 4,294,967,301 read as 5, and text past it was held at the
-     * edge, where the next new note's id wrapped (the tenth).
+     * `int(str(id).strip())` -- a whole number as it is, text as Python's
+     * int() reads it stripped, never a float ("7.5" or "7.0") -- then only a
+     * positive number an Int holds; 0 for anything else, which [repairIds]
+     * renumbers. Read with toInt(), 4,294,967,301 wrapped onto 5, another
+     * note's id.
      */
     internal fun heldId(raw: Any?): Int {
         val value = when (raw) {
@@ -89,14 +86,11 @@ object Organizing {
         if (raw is Int || raw is Long || raw is Short || raw is Byte) (raw as Number).toLong() else null
 
     /**
-     * New note ids, for a notebook whose notes hold [inUse]: each one more
-     * than the highest, as the desktop's `max(ids) + 1` gives them -- and,
-     * once the highest is the most an Int holds, the lowest number no note
-     * has, which there always is. `max + 1` there wrapped to
-     * -2,147,483,648, and every new note after took that same id: two notes
-     * edited as one, the second's words written over the first's (the final
-     * audit's tenth round). Every road that makes a note asks here: a new
-     * note, a duplicate, a Trash restore, an import, a day made a note.
+     * New note ids for a notebook whose notes hold [inUse]: one more than the
+     * highest, as the desktop's `max(ids) + 1`, and once the highest is the
+     * most an Int holds, the lowest free number. `max + 1` there wrapped, and
+     * every new note after took one id: two notes edited as one. Every road
+     * that makes a note asks here: new, duplicate, restore, import, a day.
      */
     internal class Ids(inUse: Iterable<Int>) {
         private val used = HashSet<Int>()
@@ -172,14 +166,10 @@ object Organizing {
 
     /**
      * Notes to the Trash, one or several -- every delete in the app. The
-     * entries keep their ids, so [restore] can bring exactly these back:
-     * the Undo after a delete.
-     *
-     * The Trash is written FIRST, and that order is the safety argument: a
-     * phone killed between the two writes leaves the notes in both files,
-     * a duplicate a person can see, never in neither. The desktop writes
-     * them in this order too. If the Trash cannot be written, the notes
-     * file is not touched.
+     * entries keep their ids, so [restore] can bring exactly these back (the
+     * Undo). The Trash is written FIRST, as on the desktop: a phone killed
+     * between the two writes leaves the notes in both files, a duplicate a
+     * person can see, never in neither; a Trash not written leaves the notes.
      */
     fun trashNotes(load: Notebook.Load, ids: Collection<Int>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -289,13 +279,11 @@ object Organizing {
     }
 
     /**
-     * The ticked copies ([remove]) of each group to the Trash, and their
-     * files handed to the first copy of the group left, up to the files a
-     * note holds. Each file is copied for it: the copy going to the Trash
-     * keeps its own, and the Trash's purge deletes those. A group ticked
-     * whole goes whole. The desktop's
-     * `_cleanup_selected_duplicates`, after its question -- the files are
-     * merged only once it is answered, or every No would copy them again.
+     * The ticked copies ([remove]) of each group to the Trash, their files
+     * copied to the first copy left, up to the files a note holds (the copy
+     * going to the Trash keeps its own, for the purge). A group ticked whole
+     * goes whole. The desktop's `_cleanup_selected_duplicates`, after its
+     * question: merged before it, every No would copy the files again.
      */
     fun cleanUpDuplicates(load: Notebook.Load, groups: List<List<Int>>, remove: Set<Int>,
                           attachmentsDir: File?): SaveResult {
@@ -425,13 +413,9 @@ object Organizing {
                uid: String? = null): Attached {
         val file = load.file ?: return Attached(SaveResult.Failed(NOWHERE), 0, emptyList())
         val array = load.raw ?: return Attached(SaveResult.Failed(UNREADABLE), 0, emptyList())
-        // The note the files were picked for, found by its [uid] when it has
-        // one: a copy that outlives the editor ends after the person may have
-        // sent that note to the Trash and made another, which takes the freed
-        // id -- and the files went to the new note, unsaid. And by the uid
-        // when the id no longer holds it: Undo brings a note back from the
-        // Trash under a new id, and its files were refused as "no longer
-        // here" with the note in the list ([indexOfNote]).
+        // The note the files were picked for, by its [uid] ([indexOfNote]): by
+        // the id alone, a note made since in a deleted one's freed id took its
+        // files, unsaid, and one Undo brought back under a new id refused them.
         val index = indexOfNote(array, id, uid)
         if (index < 0) {
             return Attached(SaveResult.Failed("The note these files were picked for is no longer here, " +
@@ -588,17 +572,11 @@ object Organizing {
 
     /**
      * Every note a positive id no other note has -- the desktop's
-     * `repair_note_ids`, with `normalize_note`'s reading of an id written
-     * as text: the first holder of a number keeps it, so a note remembered
-     * as open is still the same note, and every later holder takes the next
-     * free number. Two notes sharing an id were edited as one and went to
-     * the Trash together. Written when anything changed; true then.
-     *
-     * One difference from the desktop, which Python's numbers never meet: an
-     * id this phone cannot hold, past 2,147,483,647, takes a new number like
-     * a shared one ([heldId]); the desktop keeps it. Held at the edge, it
-     * made the next new note's id wrap to -2,147,483,648, and every new note
-     * after took that same id (the final audit's tenth round).
+     * `repair_note_ids`, ids written as text read as `normalize_note` reads
+     * them: the first holder keeps its number, so a note remembered as open
+     * is still that note, and later holders take the next free one. Written
+     * when anything changed; true then. Unlike the desktop, an id past an
+     * Int ([heldId]) is renumbered too: held, the next new id wrapped.
      */
     fun repairIds(load: Notebook.Load): Boolean {
         val file = load.file ?: return false
@@ -890,13 +868,11 @@ object Organizing {
 
     /**
      * When an entry went to the Trash, read as the desktop's strptime reads
-     * "%Y-%m-%d %H:%M:%S": its own pattern ([DELETED_AT] -- four year
-     * digits, a space or tab between date and time), nothing before or
-     * after, and a real date ("2026-02-30" is none). SimpleDateFormat skipped
-     * a leading space and took a year of any length, and refused the tab.
-     * The purge and the row's "days left" both ask this, so they cannot
-     * disagree. ASCII digits and spaces only, where Python's also take other
-     * scripts': no app writes those into a stamp.
+     * "%Y-%m-%d %H:%M:%S" ([DELETED_AT]: four year digits, a space or tab
+     * between, nothing around it, a real date). SimpleDateFormat took a
+     * leading space and any year, and refused the tab. The purge and the
+     * row's "days left" both ask this, so they agree. ASCII digits only;
+     * Python's take other scripts' too, which no app writes into a stamp.
      */
     internal fun deletedAt(stamp: String?): Date? {
         val found = DELETED_AT.matchEntire(stamp ?: return null) ?: return null
@@ -964,13 +940,11 @@ object Organizing {
         deleteForever(load, entriesOf(load.trashRaw).map { keyOf(it) }, attachmentsDir)
 
     /**
-     * These entries back in the notebook, each with a fresh id -- its old
-     * one may have been handed to a note made since -- the notebook written
-     * first. A category deleted in the meantime files a note under General.
-     * A uid another note now has is replaced, as the desktop's
-     * `restore_many_from_trash` replaces it: a copy that came by code while
-     * this one sat in the Trash took its identity, and two notes with one
-     * uid meant the next code updated one of them and never the other.
+     * These entries back in the notebook, each with a fresh id (its old one
+     * may be a newer note's), the notebook written first; a category deleted
+     * meanwhile files a note under General. A uid another note now has is
+     * replaced, as `restore_many_from_trash` does: a copy that came by code
+     * meanwhile took it, and the next code updated only one of the two.
      */
     fun restore(load: Notebook.Load, keys: Collection<TrashKey>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -990,9 +964,9 @@ object Organizing {
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
-            // Read from the Trash's file, as the notes are at load: a series
-            // 0.12.0 turned off and deleted takes its days back into the note
-            // (Notebook.settleAsRead), as the desktop's restore does.
+            // Read from the Trash's file, as the notes are at load: a series an
+            // older release turned off and deleted takes its days back into the
+            // note (Notebook.settleAsRead), as the desktop's restore does.
             Notebook.settleAsRead(note)
             val nextId = fresh.next()
             note.put("id", nextId)

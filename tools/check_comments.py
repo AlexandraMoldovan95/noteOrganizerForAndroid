@@ -44,6 +44,7 @@ ISSUES_LOG = os.path.join(ROOT, "docs", "ISSUES_LOG.md")
 # Files whose comments have been condensed: main/ or test/, then the path
 # below the app's package.
 BRIEF = [
+    "main/AppState.kt",
     "main/Backup.kt",
     "main/Calculator.kt",
     "main/CalculatorPanel.kt",
@@ -56,10 +57,16 @@ BRIEF = [
     "main/Files.kt",
     "main/FindBar.kt",
     "main/Finding.kt",
+    "main/ImportFlow.kt",
+    "main/Importing.kt",
     "main/Links.kt",
     "main/MainActivity.kt",
     "main/Normalize.kt",
+    "main/NoteEditor.kt",
+    "main/Notebook.kt",
     "main/NotesBackupAgent.kt",
+    "main/NotesScreen.kt",
+    "main/Organizing.kt",
     "main/Outgoing.kt",
     "main/Paragraphs.kt",
     "main/Pasting.kt",
@@ -87,6 +94,7 @@ BRIEF = [
     "main/ui/theme/Theme.kt",
     "main/ui/theme/ThemeVeil.kt",
     "main/ui/theme/Type.kt",
+    "test/AppStateTest.kt",
     "test/BackupTest.kt",
     "test/CalculatorTest.kt",
     "test/DaysTest.kt",

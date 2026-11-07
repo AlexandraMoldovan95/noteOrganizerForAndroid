@@ -59,11 +59,9 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
         text = {
             Column {
                 Text(stringResource(R.string.import_code_explain), color = palette.subtext, fontSize = 13.sp)
-                // A code is one unbroken word by nature, and a field lays it
-                // out letter by letter at its edge: 120,000 characters shared
-                // to the app held the screen until Android offered to close
-                // it. A long one is shown as its start and its length; Copy
-                // takes the whole code, Paste puts another in its place.
+                // A code is one unbroken word, which a field lays out letter by
+                // letter: 120,000 shared to the app froze the screen. A long one
+                // shows its start and length; Copy takes it whole, Paste replaces it.
                 if (draft.length > CODE_SHOWN_CHARS) {
                     Text(stringResource(R.string.code_too_long, draft.length), color = palette.text, fontSize = 13.sp,
                          modifier = Modifier.padding(top = 10.dp))
@@ -98,11 +96,9 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
         },
         confirmButton = {
             TextButton(enabled = draft.isNotBlank() && !reading, onClick = {
-                // Read away from the screen, as a backup is: a code of a few
-                // thousand letters can unpack to 20 MB and 200 notes, each
-                // weighed against the whole notebook, and done in the tap the
-                // screen held still meanwhile. The list as it is now, taken
-                // here: a save made meanwhile puts a new object in it.
+                // Read away from the screen, as a backup is: a short code can
+                // unpack to 20 MB and 200 notes, the screen still meanwhile. The
+                // list is copied here, since a save made meanwhile replaces it.
                 val notebook = org.json.JSONArray().also { copy ->
                     state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
                 }
@@ -153,15 +149,11 @@ private fun readCode(notebook: org.json.JSONArray, categories: Set<String>, code
 private enum class Step { KNOWN, UNCHANGED, LOOKALIKES }
 
 /**
- * The desktop's three questions, asked in its order and in its words,
- * each answered before anything is written:
- *
- * 1. notes already here and changed -- update them, or add them as new;
- * 2. notes already here, unchanged -- skip them, or add copies;
- * 3. new notes that look like ones here -- import anyway, or skip them.
- *
- * A question with nothing to ask about is not asked. Cancel, on any
- * question that offers it, leaves everything exactly as it was.
+ * The desktop's three questions, in its order and words, each answered
+ * before anything is written: notes here and changed (update, or add as
+ * new); notes here unchanged (skip, or add copies); new notes that look like
+ * ones here (import anyway, or skip). A question with nothing to ask about
+ * is not asked, and Cancel, wherever offered, leaves everything as it was.
  */
 @Composable
 fun ImportQuestions(

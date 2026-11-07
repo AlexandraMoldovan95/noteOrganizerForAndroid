@@ -124,19 +124,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     val laidOut = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())
     BackHandler(enabled = selecting) { selected = emptySet() }
 
-    // Custom order, arranged by hand: the handle on each card drags it. While
-    // it is dragged the card trades places with its neighbours as it passes
-    // them, so its own slot follows the finger -- a card left at its old
-    // slot would be dropped from the list by the first long scroll, and its
-    // drag with it -- and the one move is written when it is let go.
+    // Custom order: a card's handle drags it, trading places with neighbours as
+    // it passes, so its slot follows the finger (left at its old slot, a long
+    // scroll dropped it and its drag); the one move is written when let go.
     val listState = rememberLazyListState()
-    // A new search starts its results at the top: kept in place, the first
-    // matches of a search typed with the list scrolled down sat above the
-    // screen (the owner's call, 2026-10-21, as on the desktop). Back from a
-    // note, the search is the one the list was drawn for, and it keeps its
-    // place: drawn again, the list starts from the search it is given back.
-    // Not handed to Android: a second copy of the words, it doubled what the
-    // app's stop carried (the final audit's eighth round).
+    // A new search starts its results at the top, as on the desktop (the
+    // owner's call); back from a note, the list keeps its place. Not handed to
+    // Android: a second copy of the words doubled what the app's stop carried.
     var listedFor by remember { mutableStateOf(query) }
     LaunchedEffect(query) {
         if (query != listedFor) {
@@ -164,10 +158,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         ).joinToString(" and ")
     }
 
-    // The row Show all scrolls to once the list holds it: [note]'s card, or
-    // the top (-1). Left to itself the list keeps the card it had in sight,
-    // and the notes Show had hidden came in above it, out of view -- the new
-    // note Show all was pressed for among them.
+    // The row Show all scrolls to once the list holds it: [note]'s card, or the
+    // top (-1). Left alone, the notes Show had hidden came in above the card in
+    // sight, out of view, the one Show all was pressed for among them.
     var reveal by remember { mutableStateOf<Int?>(null) }
     // Another sort, Show or grouping starts at the top, as a new search does:
     // kept on its first card, Title A–Z seemed to begin there, the notes
@@ -190,19 +183,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         reveal = null
         listState.scrollToItem(at)
     }
-    // A card an action moved -- pinned, copied, filed elsewhere -- brought
-    // into sight where the list now has it, when it is out of sight: the top
-    // was wrong under grouping, where a pin rises only within its group
-    // (round 9). Let go when the list does not hold it, unlike Show all's.
-    // In sight is judged from the cards in sight when the action was taken:
-    // the list keeps the first of them, and the layout read after the change
-    // was still the one before it.
+    // A card an action moved (pinned, copied, refiled) brought into sight where
+    // the list now has it, judged from the cards in sight before the action: the
+    // layout read after it is still the old one. Let go when it is not listed.
     var revealCard by remember { mutableStateOf<Reveal?>(null) }
-    // All the notes an action moved: the first of them is taken in the list's
-    // new order (Showing.revealAt). Taken before it, a pin or a move of several
-    // reordered them, and the card now first sat above the screen (round 13).
-    // [arrived]: notes already in the list asked over -- the Trash's Undo asks
-    // once they are back -- which moved by arriving, not by place.
+    // All the notes an action moved, the first taken in the list's new order
+    // (Showing.revealAt). [arrived]: notes asked over once back (the Trash's
+    // Undo), which moved by arriving, not by place.
     fun revealLater(ids: Set<Int>, arrived: Boolean = false) {
         if (ids.isEmpty()) return
         // In sight: half of it at least. A sliver under the list's top padding
@@ -231,10 +218,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         if (moved.isNotEmpty()) Showing.revealAt(laidOut, moved, seen, atTop, anchor, lead)?.let { listState.scrollToItem(it) }
         revealCard = null
     }
-    // Notes the Trash's Undo put back, brought into sight the same way -- and
-    // said where the list hides them, as an import's are: they came back
-    // without a word, and the reveal waiting for them took over the next
-    // change to the list (wave 2, round 11).
+    // Notes the Trash's Undo put back, brought into sight the same way, and
+    // said where the list hides them, as an import's are: unsaid, the reveal
+    // waiting for them took over the next change to the list.
     LaunchedEffect(state.revealAfterUndo) {
         val put = state.revealAfterUndo ?: return@LaunchedEffect
         state.revealAfterUndo = null
@@ -286,11 +272,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             listBars.clear()
         }
     }
-    // A new note the list cannot show -- filed under General with Show at
-    // Work, or not what the search looks for -- said once it is closed, with
-    // the way back: it vanished from the list as it was written (the desktop
-    // says it as the note is made). Said by name: after another note was
-    // closed, it read as about that one (the lows wave's round 6).
+    // A new note the list cannot show (Show or the search hides it) is said by
+    // name once closed, with the way back: it vanished from the list as it was
+    // written. The desktop says it as the note is made.
     val madeNew = state.newNoteMade
     LaunchedEffect(madeNew, state.openId) {
         val id = madeNew ?: return@LaunchedEffect
@@ -299,13 +283,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         if (state.load.notes.none { it.id == id }) return@LaunchedEffect
         state.waitWord(listOf(id), AppState.SAVED_IN, named = true)
     }
-    // Notes restored, imported or made where the list does not look, said
-    // the same way once the list is on screen ([AppState.arrivals]): one bar
-    // at a time, asked when its turn on screen comes -- the bar free. All at
-    // once, or worded behind another bar, each said what hid its notes then:
-    // "hidden by Show: Work" over a list showing all (the lows wave's rounds
-    // 7-8). Each word as made and counted by its own notes, as the desktop's
-    // banner: words merged by their text doubled a count the text carried.
+    // Notes restored, imported or made where the list does not look, said once
+    // it is on screen: one bar at a time, worded when its turn comes, never
+    // merged (ISSUES_LOG, "The list's words, merged and unmerged").
     val hidingNow by rememberUpdatedState<(Note) -> String> { note -> hiding(note) }
     val showAllNow by rememberUpdatedState<(Note) -> Unit> { note -> showAll(note) }
     LaunchedEffect(Unit) {
@@ -342,10 +322,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     // How far the finger is from the press: the edge scrolls only past it
     // (Showing.edgeScroll).
     var pulledNow by remember { mutableFloatStateOf(0f) }
-    // A trade's hold, asked again once the new order is composed: a finger's
-    // event measures the list first, in the old order, and spent it -- the
-    // list then followed its top card, and a card carried to the top went
-    // out of sight with its drag (round 23).
+    // A trade's hold, asked again once the new order is composed: spent by a
+    // finger's event measuring the old order, the list followed its top card,
+    // and a card carried to the top went out of sight with its drag.
     val hold = remember { Hold() }
     SideEffect {
         if (hold.index >= 0) {
@@ -522,10 +501,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
         return Organizing.sameBlock(me, other, groupedNow)
     }
 
-    // Near the list's top or bottom edge, a dragged card scrolls the list --
-    // and goes on trading places as the list passes under it, though the
-    // finger is still: otherwise its slot stayed behind, scrolled out of
-    // sight, and the card was no longer drawn under the finger at all.
+    // Near the list's edge, a dragged card scrolls the list and goes on trading
+    // places as it passes, the finger still: otherwise its slot stayed behind,
+    // out of sight, and the card was no longer drawn under the finger.
     val edge = with(LocalDensity.current) { 56.dp.toPx() }
     val fastest = with(LocalDensity.current) { 20.dp.toPx() }
     val slop = LocalViewConfiguration.current.touchSlop
@@ -773,10 +751,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             when {
                 load.notes.isEmpty() -> EmptyLine(stringResource(R.string.no_notes))
                 shown.isEmpty() -> Column(Modifier.padding(16.dp)) {
-                    // The desktop separates "nothing matches" from "no notes":
-                    // they ask the reader to do different things. And it
-                    // names what is hiding them: with Show picked once and
-                    // forgotten, "your search" blamed a search nobody had typed.
+                    // "Nothing matches" is not "no notes", as on the desktop, and
+                    // it names what hides them: with Show picked once and forgotten,
+                    // "your search" blamed a search nobody had typed.
                     val hides = hiding(null).ifEmpty { "the list's choices" }
                     Text(stringResource(R.string.no_match, hides), color = palette.subtext, fontSize = 14.sp)
                     Text(
@@ -786,11 +763,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 10.dp).clickable { showAll(null) },
                     )
-                    // The list does not read a day's own words; the History
-                    // does. When a day of a repeating note holds them, said,
-                    // with the way there (the owner's choice, wave 2).
-                    // A day's own words alone (autoExpand): a dated note Show
-                    // hid is in the History too, and the sentence was false.
+                    // The History reads a day's own words, the list does not: a day
+                    // holding them is said, with the way there (the owner's choice).
+                    // Its own words alone (autoExpand), not a dated note Show hid.
                     val words = PyText.strip(query)
                     val inADay = remember(state.revision, words) {
                         words.isNotEmpty() && Recurrence.history(state.rawNotes(), words)
@@ -858,10 +833,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                 modifier = Modifier
                                                     .semantics { contentDescription = moveLabel }
                                                     .pointerInput(note.id) {
-                                                        // Grabbed at the touch, not after the
-                                                        // finger has travelled: a hand that
-                                                        // presses the handle and pauses before
-                                                        // moving gave the card under it a long
+                                                        // Grabbed at the touch: a hand pausing
+                                                        // before it moved gave the card a long
                                                         // press, and selection took the drag.
                                                         awaitEachGesture {
                                                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -924,10 +897,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                                                                     return@awaitEachGesture
                                                                 }
                                                                 drop()
-                                                                // Tapped, not dragged: up and down,
-                                                                // for a hand that cannot drag -- when
-                                                                // there is a way to go: the only note in
-                                                                // its block opened an empty menu.
+                                                                // Tapped, not dragged: up and down, for a
+                                                                // hand that cannot drag, when there is a
+                                                                // way to go (else the menu was empty).
                                                                 if (!travelled && !stopping) {
                                                                     val shown = laidOutNow.mapNotNull { noteOf(it) }
                                                                     if (listOf(-1, 1).any { Organizing.stepPlace(shown, note.id, it, groupedNow) != null }) {
