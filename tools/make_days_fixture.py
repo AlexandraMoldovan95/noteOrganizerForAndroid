@@ -9,7 +9,7 @@ update, a backup's. For each, the note the desktop stores after every step
 and the note its import makes of it. `DaysTest` walks the phone's own
 functions through the same steps and fails on any field that differs: the
 two programs keep a turned-off series' days in one place, the note (the
-owner's choice, the final audit's sixth round).
+owner's choice).
 
 What the desktop does is run, not described: its core's
 `normalize_note`, `rescue_copy_due`, `kept_days_fit`, `days_hold_own_text`,
@@ -26,13 +26,13 @@ folders under app/build, checked empty afterwards: nothing it reads at
 import can be a notebook -- and under the desktop's own memory ceiling
 (`desktop_guest`).
 
-The cases since the seventh round: a 0.12.0 Trash entry restored, then
+The cases, in the order they were added: a 0.12.0 Trash entry restored, then
 rewritten; 0.12.0's turn-off then turn-on as it was; an update's copy of a
 series, which never moves; the same backup imported twice; the comments
 rewritten over a big delete's copy; "Restore previous" after comments were
 typed, and after the same words' styles changed.
 
-And since the eighth (the desktop's 947e9d3): a day reset after a series is
+Then (the desktop's 947e9d3): a day reset after a series is
 turned back on as its copy's series, read again -- the copy's days spent --
 by the editor's turn-on and by 0.12.0's notebook read; the backup made
 before the reset, compared without either side's copy (an import asks
@@ -41,7 +41,7 @@ backup imported where the move ran; a turn-off over a share code's Update
 copy, which it keeps; and two letters of comments cleared after a long
 comment was deleted.
 
-And since the ninth (the desktop's 8b5d6cc): the copy's days taken back
+Then (the desktop's 8b5d6cc): the copy's days taken back
 into the note per date before they are spent -- 0.12.0 turned on as it
 was, then another day edited, coloured, deleted or moved; the note's own
 day over the copy's; the copy's moves onto dates the note's own move
@@ -51,7 +51,7 @@ first one's copy of the same series, after a big delete and after the
 comments were cleared; and an arriving note read as a load reads it, its
 copy's days taken back, before both are compared bare.
 
-And since the tenth (the desktop's round-ten data fix): a copy's day is
+Then (a data fix of the desktop's): a copy's day is
 dropped only where the note deleted that day or wrote words of its own for
 it -- 0.12.0 turned on as it was, then that very day moved, coloured (the
 desktop's patch and the phone's), or moved with another put on its date;
@@ -62,16 +62,16 @@ a line was added, which keeps the newest words; and a big delete, the repeat
 off, on as another series (another start, every two weeks, an end date) and
 off again, which keeps the deleted words.
 
-And since the eleventh and twelfth (the desktop's data fixes of those
-rounds): a copy's day whose words the note's day lacks puts them on the day,
+Then (two more of the desktop's data fixes): a copy's day whose words the
+note's day lacks puts them on the day,
 after its own -- 0.12.0 turned on as it was, that day coloured, then the
 series' words changed: read, read again, Restore previous, the day reset;
 and two of the copy's days for one date, the note's day moved onto a day off
-the copy's schedule. Since the thirteenth: only the lines a day lacks -- a
+the copy's schedule. Then only the lines a day lacks -- a
 day grown from the copy's text, the copy's text mid-way in the day's, and a
 day ending in a table typed on the phone with the copy's a table.
 
-And since the desktop's wave 2 (rounds 4-7): a big delete after a share
+Then, by the desktop's rule: a big delete after a share
 code's Update keeps the Update's copy, the words it takes made a note of
 their own, "(earlier text)", and that note gone again when they are typed
 back -- not after a read, which forgets it -- for a series, a one-off (its
@@ -117,15 +117,15 @@ REGIONS = {
     "_reset_occurrence_override's write": ('        note["overrides"].pop(occurrence_date, None)\n',
                                            '            note["moved"].pop(origin, None)\n',
                                            "b21c7986bf36cc7434987c1713e9787960321c15"),
-    # The desktop code the copy below takes besides (the sixteenth round: a
-    # change in any of it left every fingerprint above as it was).
+    # The desktop code the copy below takes besides (a change in any of it
+    # once left every fingerprint above as it was).
     "_holds_unspent_rescue": ("    def _holds_unspent_rescue(note):",
                               '        return isinstance(note.get("_prev"), dict) and not rescue_copy_spent(note)\n',
                               "dcf14508ca760ec11cf7992af4be7f96298ec33f"),
     "the spent copy's drop after a save": ("            # The note holds again what its rescue copy kept -- Undo after\n",
                                            "            self._take_back_aside(note)\n",
                                            "1a34c7dee7a03901635c6922eec0214655b076bd"),
-    # ...and the words a big delete takes beside an Update's copy (wave 2).
+    # ...and the words a big delete takes beside an Update's copy.
     "_keep_text_aside": ("    def _keep_text_aside(self, note, comments_only=False):",
                          "            (kept.get(\"uid\"), words, self._aside_look(kept)))\n",
                          "5bf13b7ba649ec352d859841e0099bf005bba52d"),
@@ -137,8 +137,7 @@ REGIONS = {
     "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
                          "750c23787a4014458cb007cad0ae1964e4b1c478"),
     # ...and what the copy below writes out by hand (PREV_EXTRA_KEYS, the
-    # turn-off's two questions), which no fingerprint watched (the audit's
-    # eighteenth round).
+    # turn-off's two questions), which no fingerprint watched.
     "_PREV_EXTRA_LABELS": ("    _PREV_EXTRA_LABELS = (", '        ("pinned", "pin"),\n    )\n',
                            "95c49ecfde5f333f72ad84911010a0f06304f71a"),
     "_repeat_off_loses_days": ("    def _repeat_off_loses_days(self, note, recurrence):",
@@ -408,11 +407,11 @@ def main():
     # alone, the note repeating with no days, the series' copy holding them.
     back_on = dict(shipped, recurrence=weekly)
     back_on_elsewhere = dict(shipped, recurrence=weekly, date="2026-11-09")
-    # The eighth round's: a series whose one day of its own is the only day it
+    # A series whose one day of its own is the only day it
     # holds -- reset, it holds none, the state the copy's days came back into.
     one_day = dict(base, overrides={"2026-11-09": {"body": "Leg day - knee hurt, rest Thursday"}})
     back_on_one = dict(back_on, _prev=dict(back_on["_prev"], exceptions=[]))
-    # The seventh round's comments: a long comment beside a paragraph.
+    # Comments: a long comment beside a paragraph.
     trip_body = ("Day 2: the hike to the lake starts at 7, bring the blue tent, two litres of water each, "
                  "and the map Ioana printed. Day 3: rest, then the castle at noon. ") * 2
     trip_comments = ("Booking refs and phone numbers for the trip: hotel 88231, car 1192-A, "
@@ -466,7 +465,7 @@ def main():
         ("0.12.0's turn-off, read, then Restore previous", shipped, [{"do": "restore"}]),
         ("0.12.0's turn-off of days with no text, read", shipped_empty, []),
         ("an update's copy of a one-off, read", updated_one_off, []),
-        # The seventh round. A Trash entry is read when it is restored.
+        # A Trash entry is read when it is restored.
         ("0.12.0's turn-off in the Trash, restored", shipped, [untrash]),
         ("0.12.0's turn-off in the Trash, restored, then a big delete", shipped, [untrash, big_delete]),
         ("0.12.0's turn-off then on as it was, read", back_on, []),
@@ -492,7 +491,7 @@ def main():
          [{"do": "write", "title": "Renovation", "body": "Kitchen", "comments": ""},
           {"do": "write", "title": "Renovation", "body": renovation["body"], "comments": "", "formatting": bold},
           {"do": "restore"}]),
-        # The eighth round. A series' own copy's days are spent once the note
+        # A series' own copy's days are spent once the note
         # repeats as that series again: a day reset after stays reset.
         ("one day of its own: off, an edit, on as it was, the day reset, read", one_day,
          [off, {"do": "write", "title": "Gym!", "body": body, "comments": ""}, on_same,
@@ -518,7 +517,7 @@ def main():
           {"do": "write", "title": "Trip", "body": trip_body, "comments": ""},
           {"do": "restore"}]),
     ]
-    # The ninth round (the desktop's 8b5d6cc). The copy's days come back to
+    # The desktop's 8b5d6cc. The copy's days come back to
     # the note on every date its own days leave free, then the copy's are
     # spent: 0.12.0 turned back on as it was, then any other day touched,
     # held its first day's own text in the copy alone, and the spend erased it.
@@ -553,7 +552,7 @@ def main():
                   dict(own, comments=trip_comments),
                   [off, {"do": "write", "title": "Gym", "body": body, "comments": ""}, on_same, off,
                    {"do": "restore"}]))
-    # The tenth round (the desktop's round-ten data fix). A date the note holds
+    # A date the note holds
     # with no words of its own no longer spends the copy's own text for that
     # day: 0.12.0 turned on as it was, then THAT day moved, or only coloured.
     first = "2026-11-09"
@@ -600,9 +599,9 @@ def main():
                                                          "end": "2027-03-01"}})):
         cases.append(("a big delete, off, on %s, off again, Restore previous" % what, own,
                       [big_delete, off, step, off, {"do": "restore"}]))
-    # The eleventh and twelfth rounds. A day coloured before the series' words
-    # changed holds the old words, read as its own, and the copy's for it were
-    # dropped; since the fifteenth they are set aside, a note of their own.
+    # A day coloured before the series' words changed holds the old words,
+    # read as its own, and the copy's for it were dropped; now they are set
+    # aside, a note of their own.
     stale = dict(back_on, body=body + "\nBring water.",
                  overrides={first: {"title": "Gym", "body": body, "comments": "",
                                     "color": "#ff6b6b", "category": "Work"}})
@@ -619,7 +618,7 @@ def main():
                                      "2026-11-16": {"body": "Monday 16th's own"}}))
     cases.append(("two of the copy's days for one date, read", tie, []))
     cases.append(("two of the copy's days for one date, read again", tie, [{"do": "read"}]))
-    # The thirteenth round. Only the lines a day lacks are added: a day grown
+    # Only the lines a day lacks are added: a day grown
     # from the copy's text, or holding it mid-way, is left as it is; and a day
     # ending in a table the phone typed, with no line under it, keeps the copy's
     # table apart from its own.
@@ -629,7 +628,7 @@ def main():
             ("the copy's text the day's and a line more", "Agenda.", "Agenda.\nBook room"),
             ("a day's text ending in a table, the copy's a table",
              "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |", "| x | y |\n| --- | --- |\n| 3 | 4 |"),
-            # The fourteenth round: the lines the day lacks, not all after the first difference.
+            # The lines the day lacks, not all after the first difference.
             ("the day's first line corrected", "Agenda (Monday).\nBook room\nCall Ann",
              "Agenda.\nBook room\nCall Ann"),
             ("a line changed in the day's middle", "Agenda.\nBook room 4\nCall Ann", "Agenda.\nBook room\nCall Ann"),
@@ -647,7 +646,7 @@ def main():
     cases.append(("a day's text ending in a table typed on the phone, read",
                   dict(back_on, overrides={first: {"body": "Room\n| a | b |\n| --- | --- |\n| 1 | 2 |"}},
                        _prev=dict(back_on["_prev"], exceptions=[], overrides={})), []))
-    # The fifteenth round (the owner's choice). A copy's day whose words a day
+    # The owner's choice: a copy's day whose words a day
     # holding words lacks is set aside, to be a note of their own -- above; and
     # a copy of another series is set aside before a turn-off, a big delete or
     # an import's Update replaces it, its days with words in it alone.
@@ -687,7 +686,7 @@ def main():
                        _prev=dict(back_on["_prev"], body=table, exceptions=[],
                                   overrides={first: {"title": "Gym ", "body": table + "\n",
                                                      "color": "#ff6b6b"}})), []))
-    # The sixteenth round. A day goes home only where the rule still gives its
+    # A day goes home only where the rule still gives its
     # own date: moved onto a Thursday, the series then moved to Thursdays, its
     # words stay on the Thursday they showed on, and the move goes.
     thursday = dict(base, moved={first: "2026-11-12"}, overrides={"2026-11-12": {"body": "dentist at 4"}})
@@ -708,7 +707,7 @@ def main():
                  overrides={"2026-11-11": {"body": "Moved day's words"}})
     cases.append(("a share code made it weekly, a day moved, Restore previous", coded,
                   [{"do": "restore"}, {"do": "read"}]))
-    # The seventeenth round (the owner's choice): words never move on their
+    # The owner's choice: words never move on their
     # own. A week shifted a day at a time, the shift then made the rule: the
     # moves go, each day's words where they showed.
     mon_wed = {"freq": "weekly", "interval": 1, "weekdays": [0, 1, 2]}
@@ -729,7 +728,7 @@ def main():
                            "category": "Work", "color": "", "date": "2026-11-02", "recurrence": weekly,
                            "exceptions": [], "overrides": {"2026-11-22": {"body": "Room W2"}}, "moved": {}})
     cases.append(("an Update's copy of another series, then a big delete", upd_copy, [big_delete]))
-    # The desktop's wave 2 (rounds 4-7): an Update's copy is the note as it was
+    # The desktop's rule: an Update's copy is the note as it was
     # before the Update, in no other file, and a big delete keeps it; the
     # words the delete takes become a note of their own, gone again when the
     # note holds them once more -- in the same session, not after a start.
@@ -763,12 +762,12 @@ def main():
     cases.append(("a backup's Update bringing the copy's day words back", held_back,
                   [{"do": "backup", "incoming": dict(copy.deepcopy(base), body="Warm up, from the laptop.",
                                                      overrides={first: {"body": "ROOM 4B"}})}]))
-    # The twenty-first round (the owner's choice): a day the note deleted stays
+    # The owner's choice: a day the note deleted stays
     # deleted, but the copy's words for it are set aside -- 0.13.0 turned off
     # and on as it was showed that day blank, its words in the copy alone.
     cases.append(("0.12.0's turn-off then on as it was, the blank-looking day deleted, read",
                   dict(back_on, exceptions=[first]), [{"do": "read"}]))
-    # Rounds nineteen and twenty: 0.13.0 leaves two moves onto one date (a day
+    # 0.13.0 leaves two moves onto one date (a day
     # moved, the repeat made every two weeks, another day moved onto the same
     # date); the read keeps the one the calendar draws, whichever the file
     # lists first -- parity once rested on one hand-written case a side.

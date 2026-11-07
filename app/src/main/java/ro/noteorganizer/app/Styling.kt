@@ -173,8 +173,8 @@ fun typedSpans(
  * points: the edit found from the caret -- what follows it is the old
  * text's end -- and the styles moved by [typedSpans]; letters only taken
  * away, at the caret, as Tk deletes them -- read off the texts, a letter
- * deleted beside its twin took the twin's style (the final audit's twelfth
- * round). Any other change is moved by [remapSpans].
+ * deleted beside its twin took the twin's style.
+ * Any other change is moved by [remapSpans].
  */
 fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpan>,
                      pending: Set<String> = emptySet()): List<FormatSpan> {

@@ -32,7 +32,7 @@ class OrganizingTest {
     @Test
     fun `every text that says what a duplicate is names each part of the key`() {
         // Settings → Duplicates once named four of the six parts while the
-        // import's questions named all six (the final audit's third wave).
+        // import's questions named all six.
         val phrase = "same title, text, comments, category, checklist, repeat rule and a series' own days"
         val parts = phrase.removePrefix("same ").replace(" and ", ", ").split(", ")
         assertEquals(Normalize.dupKey(JSONObject()).split("\u0001").size, parts.size)
@@ -480,7 +480,7 @@ class OrganizingTest {
     @Test
     fun `a series' own days keep two copies apart -- the clean-up merges none of them`() {
         // A copy holding a deleted, an edited or a moved day grouped with one
-        // that did not, and the clean-up could drop it (the final audit's wave 3).
+        // that did not, and the clean-up could drop it.
         val series = """"title": "Gym", "body": "b", "date": "2026-01-05", "recurrence": {"freq": "weekly"}"""
         val load = notebook("""
             [{"id": 1, $series},
@@ -544,8 +544,8 @@ class OrganizingTest {
 
     @Test
     fun `the copy kept takes files up to the ones a note holds, the rest left with the copy in the Trash`() {
-        // Past them the list hid the rest, and the Trash's purge took them
-        // (the final audit's wave 3); the import's adoptFiles stops there too.
+        // Past them the list hid the rest, and the Trash's purge took them;
+        // the import's adoptFiles stops there too.
         fun files(prefix: String, count: Int) = JSONArray((0 until count).map {
             JSONObject().put("filename", "$prefix$it").put("stored_as", "$prefix$it.txt") })
         val notes = JSONArray()

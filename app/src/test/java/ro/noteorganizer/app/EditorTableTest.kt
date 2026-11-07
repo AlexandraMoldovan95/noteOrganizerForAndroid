@@ -51,7 +51,7 @@ class EditorTableTest {
     fun `a cell left on a box's or a merge's mark keeps it, as the desktop writes a cell when it is left`() {
         // The field holds "[x]" back while typed -- written, the cell turns
         // into a box under the finger -- and only the next letter wrote it:
-        // a cell left there kept "[x" (the final audit's wave 3).
+        // a cell left there kept "[x".
         val body = "Plan\n| Day | Task |\n| --- | --- |\n| Mon | gym |"
         val model = editor(body)
         fun type(at: CellAt, words: String) {
@@ -113,7 +113,7 @@ class EditorTableTest {
     @Test
     fun `letters typed in a padded or aligned cell keep its words' styles, as the desktop's cell editor styles them`() {
         // Read off the texts, a cell narrower than its column, or aligned
-        // right, cut or dropped the bold on its words (the fourteenth round).
+        // right, cut or dropped the bold on its words.
         val body = "Budget\n| Item  |  Cost |\n|-------|------:|\n| Rent  |   500 |\n| Total |  1250 |"
         val model = editor(body)
         val total = body.indexOf("1250")
@@ -138,7 +138,7 @@ class EditorTableTest {
     fun `a table or an answer put in where a styled run starts leaves it as it was, as the desktop's insert`() {
         // Read off the texts, a run starting where the table went in grew
         // over the whole table, and one starting on the line after an
-        // answer took the answer (the final audit's twelfth round).
+        // answer took the answer.
         val model = editor("Trip\nImportant: book flights")
         model.spans = listOf(FormatSpan(5, 14, "highlight", "#ffff00"))
         model.changed()
@@ -165,7 +165,7 @@ class EditorTableTest {
     @Test
     fun `a caption under a highlighted table takes no highlight, its Source line's break included`() {
         // The desktop clears to the line after "Source: "; the phone left its
-        // line break highlighted, a bar to the margin there (the thirteenth round).
+        // line break highlighted, a bar to the margin there.
         val model = editor("Budget\n| Item | Cost |\n| Rent | 500 |\nNext line")
         model.spans = listOf(FormatSpan(7, codePointsOf(model.body).size, "highlight", "#ffff00"))
         model.changed()
@@ -308,7 +308,7 @@ class EditorTableTest {
     fun `after Undo of a cell's words, the calculator writes where the person was writing once the cell is let go`() {
         // Undo in a cell keeps the cell (d6b5850), and emptied the places
         // remembered in the text: once the cell was let go, the calculator's
-        // answer went to the note's end (the final audit's eighth round).
+        // answer went to the note's end.
         val body = "Costs\n| Item | Cost |\n| --- | --- |\n| fuel | 120 |\nafter"
         val model = editor(body)
         model.caret = 5

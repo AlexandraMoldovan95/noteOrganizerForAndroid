@@ -22,12 +22,12 @@ the silent-mutant failure again, one level up. A result file older than
 the newest source file is from some other version of the code, and is
 refused as such. A source file is any file the tests are built or fed
 from: a fixture the tests replay (days_cases.json) counts as much as the
-Kotlin (the final audit's twenty-second round).
+Kotlin.
 
 And when a test class ran fewer tests than its file holds, or did not run
 at all: each *Test.kt file's @Test count must be the count its result
 file reports. The floor alone let 26 of 31 classes vanish one at a time
-with the gate green (the final audit's twenty-fifth round).
+with the gate green.
 
 The floor is not a target to grow; it is a tripwire. If a whole suite
 stops being discovered, the count quietly halves and every run stays
@@ -45,14 +45,14 @@ ANDROID = os.path.dirname(HERE)
 RESULTS = os.path.join(ANDROID, "app", "build", "test-results",
                        "testDebugUnitTest", "*.xml")
 
-# Near the count the suite holds (903 at the final audit's fourteenth round):
+# Near the count the suite holds (903 on 2026-10-31):
 # at 200, twelve of 31 test classes -- 612 tests -- could go undiscovered and
 # the gate still passed.
 FLOOR = 880
 
 # The only tests that may skip, and why: each Assumes what the clock alone
 # decides. Any other skip fails the gate -- counted as a pass, a test that
-# stopped running kept CI green (the final audit's twelfth round).
+# stopped running kept CI green.
 MAY_SKIP = {
     ("ro.noteorganizer.app.EditorTypingTest",
      "an Undo of letters typed in two places carries the calculator's place back through each"),

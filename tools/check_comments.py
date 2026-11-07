@@ -9,7 +9,9 @@ names the start of a story's title in docs/ISSUES_LOG.md, and
 of the code" section; and that no comment names a round of an audit
 ("round 9", "the lows wave"): it says when a reason was found, never the
 reason, and a reader outside the audit cannot use it. A story's title
-quoted as a pointer is not counted.
+quoted as a pointer is not counted. The reasons in tools/mutants.json,
+and the comments and docstrings of the Python under tools/, are held to
+the same rule.
 
 In the files listed in BRIEF, four rules as well:
 
@@ -34,10 +36,13 @@ written.
 Run: py tools/check_comments.py
 """
 
+import ast
 import io
+import json
 import os
 import re
 import sys
+import tokenize
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = os.path.join(ROOT, "app", "src")
@@ -141,8 +146,19 @@ MAX_OVERVIEW_LINES = 10
 # 17.10.2026 and library versions such as Compose 1.10.4 do not match.
 RELEASE = re.compile(r"\b0\.\d{1,3}\.\d{1,4}\b")
 
-# A round of an audit, as the comments once named them.
-ROUND = re.compile(r"\brounds? \d+\b|\blows wave\b", re.I)
+# A round of an audit, as the comments once named them: in figures, in
+# words ("round eleven", "the tenth round"), or as the audit itself. Only
+# figures were refused at first, and 79 labels in words stayed.
+_NUM = (r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
+        r"twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
+        r"nineteen|twenty(?:-[a-z]+)?)")
+_ORD = (r"(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|"
+        r"tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|"
+        r"seventeenth|eighteenth|nineteenth|twentieth|twenty-[a-z]+)")
+ROUND = re.compile(
+    r"\brounds? %s\b|\b(?:%s|%s)(?: and (?:%s|%s))? rounds?\b(?! trip)|\blows wave\b"
+    r"|\bfinal audit\b|\baudit's\b|\bwave %s\b"
+    % (_NUM, _ORD, _NUM, _ORD, _NUM, _NUM), re.I)
 
 # Where a KDoc's prose ends and its block tags begin.
 TAG = re.compile(r"^@(param|return|property|throws|exception|see|sample|"
@@ -394,6 +410,49 @@ def check(name, path, titles, lessons):
     return sorted(problems)
 
 
+def python_rounds():
+    """(file, line, label) for each comment run or docstring in the tools'
+    Python that names a round. This file is left out: it quotes the labels
+    it refuses."""
+    found = []
+    for folder, _dirs, names in os.walk(os.path.join(ROOT, "tools")):
+        for name in sorted(names):
+            path = os.path.join(folder, name)
+            rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+            if not name.endswith(".py") or rel == "tools/check_comments.py":
+                continue
+            with io.open(path, encoding="utf-8") as fh:
+                source = fh.read()
+            texts, last = [], None
+            for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+                if tok.type != tokenize.COMMENT:
+                    continue
+                if texts and last == tok.start[0] - 1 and tok.line.strip().startswith("#"):
+                    texts[-1][1] += " " + tok.string.lstrip("#")
+                else:
+                    texts.append([tok.start[0], tok.string.lstrip("#")])
+                last = tok.start[0]
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    doc = ast.get_docstring(node)
+                    if doc:
+                        texts.append([node.body[0].lineno, doc])
+            for line, text in texts:
+                named = ROUND.search(STORY.sub("", " ".join(text.split())))
+                if named:
+                    found.append((rel, line, named.group(0)))
+    return sorted(found)
+
+
+def catalogue_rounds():
+    """The mutants whose reason names a round: tools/mutants.json is read by
+    whoever runs a mutant, outside the audit as much as a comment is."""
+    with io.open(os.path.join(ROOT, "tools", "mutants.json"), encoding="utf-8") as fh:
+        catalogue = json.load(fh)
+    return [(m.get("id", "?"), named.group(0)) for m in catalogue
+            for named in [ROUND.search(m.get("why", ""))] if named]
+
+
 def main():
     files = kotlin_files()
     missing = [name for name in BRIEF if name not in files]
@@ -407,13 +466,20 @@ def main():
         for line, what in check(name, files[name], titles, lessons):
             print("%s:%d: %s" % (name, line, what))
             failures += 1
+    for mid, named in catalogue_rounds():
+        print("tools/mutants.json: %s's reason names the audit's %r" % (mid, named))
+        failures += 1
+    for rel, line, named in python_rounds():
+        print("%s:%d: names the audit's %r" % (rel, line, named))
+        failures += 1
     if failures:
         print("\n%d problem(s). A comment says why in at most %d lines; the "
               "story goes to docs/ISSUES_LOG.md, with a pointer left here."
               % (failures, MAX_COMMENT_LINES))
         return 1
     print("Comments brief: %d file(s) read, no audit round named, every pointer "
-          "into ISSUES_LOG leads somewhere, %d condensed file(s) within their limits."
+          "into ISSUES_LOG leads somewhere, %d condensed file(s) within their limits; "
+          "the tools' Python and the mutants' reasons name no round either."
           % (len(files), len(BRIEF)))
     return 0
 

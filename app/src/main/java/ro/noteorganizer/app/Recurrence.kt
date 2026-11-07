@@ -272,7 +272,7 @@ object Recurrence {
      * digits; null where Python raises, past an Int held at its edge. Its
      * spaces are ASCII's six, so the separators U+001C to U+001F, which `str.isspace()`
      * counts, are refused -- read as spaces, "\u001c7" repeated weekly on
-     * the phone and daily on the desktop (the final audit's ninth round).
+     * the phone and daily on the desktop.
      */
     internal fun pythonIntOf(text: String): Int? =
         pythonBigIntOf(text)?.max(java.math.BigInteger.valueOf(Int.MIN_VALUE.toLong()))
@@ -317,8 +317,8 @@ object Recurrence {
      * True and False are ints there, 1 and 0, and kept as the days they are:
      * left out, a hand-made rule's [true, 3] was Thursday alone on the phone
      * and Tuesday and Thursday on the desktop, and "the same series" answered
-     * no for a rule the desktop read as the same (the final audit's eighth
-     * round). Written as the numbers, which Python reads as equal to them.
+     * no for a rule the desktop read as the same.
+     * Written as the numbers, which Python reads as equal to them.
      */
     private fun sortedInts(value: Any?, range: IntRange): JSONArray {
         val list = value as? JSONArray ?: return JSONArray()
@@ -720,7 +720,7 @@ object Recurrence {
      * cannot disagree with the calendar. A deleted day is not counted -- but
      * a deleted date a day was moved onto holds that day's words, and is
      * asked of the series as it is: hidden there, they were listed nowhere
-     * (the desktop's off_schedule_days, the seventeenth round).
+     * (the desktop's off_schedule_days).
      */
     fun offScheduleDays(note: JSONObject): List<String> {
         if (!isRecurring(note)) return emptyList()
@@ -822,8 +822,8 @@ object Recurrence {
     private fun bucketOf(date: String, today: LocalDate): String? {
         val d = parseDate(date) ?: return null
         // A day already given words in a year to come is this year's work:
-        // under "Older" it read as the archive (the audit's nineteenth round,
-        // as on the desktop).
+        // under "Older" it read as the archive (as on
+        // the desktop).
         return when {
             d.year >= today.year -> "This year"
             d.year == today.year - 1 -> "Last year"
@@ -918,7 +918,7 @@ object Recurrence {
                     for (day in overrides.keys().asSequence().sortedDescending()) {
                         // A deleted day's edit must not resurface -- but a day
                         // moved onto that date holds its own words there, drawn
-                        // or off the schedule (the eighteenth round).
+                        // or off the schedule.
                         if ((day in exceptions && day !in drawnOn && day !in off) || !isDate(day)) continue
                         if (!bucketOk(day)) continue
                         val own = overrides.opt(day) as? JSONObject ?: JSONObject()
@@ -935,8 +935,7 @@ object Recurrence {
                         if (overrides.has(newText) || !isDate(newText) || !bucketOk(newText) || !baseMatches) continue
                         val day = parseDate(newText)!!
                         // The move the calendar draws there, once: two onto one
-                        // date gave two rows of one key, and the list threw
-                        // (the nineteenth round).
+                        // date gave two rows of one key, and the list threw.
                         if (schedule.on(day) != listOf(newText) || schedule.movedFrom(newText) != orig) continue
                         days.add(HistoryDay(newText, title, false, false, orig))
                     }

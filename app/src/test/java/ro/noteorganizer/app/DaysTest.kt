@@ -141,7 +141,7 @@ class DaysTest {
     fun `a second turn-off gives the first one's words only when the note has lost words to them`() {
         // Off, a line added, on as it was, off again: the first copy's older
         // words went into the second's, and Restore previous dropped the
-        // line (the tenth round, the desktop's 04044ce rescue_copy_due).
+        // line (the desktop's 04044ce rescue_copy_due).
         val body = "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan."
         val load = scratch(gym.replace("\"Warm up\"", "\"" + body.replace("\n", "\\n") + "\""))
         Days.saveDay(load, 1, "2026-11-09", "Gym", "Leg day - knee hurt", "", "General", "")
@@ -163,7 +163,7 @@ class DaysTest {
     fun `a second turn-off keeps a big delete's words whatever series the first copy held`() {
         // A big delete, off, on again from another start, off again: the
         // first turn-off's copy, of another series, gave no words, and the
-        // deleted lines were in no file (the tenth round, the desktop's 99f041e).
+        // deleted lines were in no file (the desktop's 99f041e).
         val body = "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan."
         val load = scratch(gym.replace("\"Warm up\"", "\"" + body.replace("\n", "\\n") + "\""))
         Days.saveDay(load, 1, "2026-11-09", "Gym", "Leg day - knee hurt", "", "General", "")
@@ -563,7 +563,7 @@ class DaysTest {
     @Test
     fun `a day moved onto a deleted date, its own date no longer the rule's, is listed off the schedule`() {
         // Drawn by no day and left out of the list with every deleted date,
-        // its words were shown and said by nothing (the seventeenth round).
+        // its words were shown and said by nothing.
         val hidden = JSONObject("""{"date": "2026-11-02", "recurrence": {"freq": "weekly", "end": "2026-12-20"},
             "exceptions": ["2026-12-14"], "moved": {"2026-12-21": "2026-12-14"},
             "overrides": {"2026-12-14": {"body": "Budget review"}}}""")
@@ -574,7 +574,7 @@ class DaysTest {
 
     @Test
     fun `a day moved onto a date a dead move points at takes it, the dead move gone`() {
-        // Two moves onto one date were read as the dead one (the seventeenth round).
+        // Two moves onto one date were read as the dead one.
         val note = JSONObject("""{"date": "2026-11-02", "recurrence": {"freq": "weekly"},
             "moved": {"2026-11-18": "2026-11-20"}}""")
         Recurrence.moveDay(note, "2026-11-23", "2026-11-20")
@@ -590,7 +590,7 @@ class DaysTest {
         assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "monthly"),
             "2026-11-02", JSONObject().put("freq", "monthly").put("month_days", JSONArray().put(2))))
         // ...whatever month-day policy a weekly rule keeps hidden, which it
-        // never reads; a monthly one reads it (the nineteenth round).
+        // never reads; a monthly one reads it.
         assertTrue(Notebook.sameSeries("2026-11-02", JSONObject().put("freq", "weekly").put("month_day_policy", "skip"),
             "2026-11-02", JSONObject().put("freq", "weekly")))
         assertFalse(Notebook.sameSeries("2026-01-31", JSONObject().put("freq", "monthly").put("month_day_policy", "skip"),
@@ -623,7 +623,7 @@ class DaysTest {
             "recurrence": {"freq": "weekly", "interval": 2},
             "moved": {"2026-12-07": "2026-12-10", "2026-12-14": "2026-12-10"}}]""")
         // The one the calendar draws stays: 14 Dec is the rule's, 7 Dec no
-        // longer (the twentieth round: by date alone, the dead one was kept).
+        // longer (by date alone, the dead one was kept).
         val moved = load.raw!!.getJSONObject(0).getJSONObject("moved")
         assertEquals("""{"2026-12-14":"2026-12-10"}""", moved.toString())
         val days = Recurrence.history(listOf(load.raw!!.getJSONObject(0)))
@@ -659,7 +659,7 @@ class DaysTest {
     @Test
     fun `a copy holding the series as the note does, its weekday lit and the note's not, is spent`() {
         // Compared as stored, Restore previous stayed offered for nothing, and
-        // the next turn-off brought back an old agenda (the eighteenth round).
+        // the next turn-off brought back an old agenda.
         val note = Normalize.normalizeNote(JSONObject("""{"id": 45, "title": "Gym", "body": "plan",
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},
             "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
@@ -673,7 +673,7 @@ class DaysTest {
     @Test
     fun `History lists a day moved past a bounded series' end, or onto a deleted date, and finds its words`() {
         // In no row, a search found them nowhere -- History is the one search
-        // of a day's own words (the eighteenth round, as on the desktop).
+        // of a day's own words (as on the desktop).
         fun read(json: String) = Normalize.normalizeNote(JSONObject(json))
         fun found(note: JSONObject) = Recurrence.history(listOf(note), "Budget")
             .filterIsInstance<Recurrence.HistoryEntry.Series>().flatMap { s -> s.days.map { it.date } }
@@ -897,7 +897,7 @@ class DaysTest {
                 val replaced = copyNow != null && !(copyWas != null && Notebook.sameJson(copyNow, copyWas)) &&
                     !(spent != null && Notebook.sameJson(copyNow, spent)) &&
                     // ...and never an Update's copy a turn-off replaced: kept
-                    // whole is the promise there (the ninth round).
+                    // whole is the promise there.
                     !(op in setOf("off", "rule") && copyWas != null && Notebook.updateCopy(copyWas))
                 if (replaced) for (word in onlyCopy - heldAfter) live[word] = 0
                 for (word in olderLost - heldAfter) live[word] = 0
@@ -911,7 +911,7 @@ class DaysTest {
             }
             if (failures.isNotEmpty() || at() == null) continue
             // History, the one search of a day's own words, finds every day the
-            // calendar draws or lists off the schedule (the eighteenth round).
+            // calendar draws or lists off the schedule.
             val series = note()
             if (Recurrence.isRecurring(series)) {
                 val off = Recurrence.offScheduleDays(series).toSet()
@@ -1308,7 +1308,7 @@ class DaysTest {
     fun `a day is not moved onto a date that keeps the words of a day the calendar no longer shows`() {
         // The 12th, a Monday of a series now on Tuesdays, keeps its own words
         // and is drawn nowhere. The 13th moved onto it wrote over them, and
-        // the move's Undo took the day back without them (the eleventh round).
+        // the move's Undo took the day back without them.
         val load = scratch(offTheSchedule)
         Days.saveDay(load, 1, "2026-10-13", "Stand-up", "room 4B", "", "Work", "")
         val (refused, move) = Days.moveDay(load, 1, "2026-10-13", "2026-10-12")
@@ -1333,7 +1333,7 @@ class DaysTest {
     fun `a deleted day's Undo leaves it out while another day stands on its date`() {
         // The 12th deleted, the 19th moved onto its date, then the delete's
         // Undo: the 12th came back over the 19th, which was drawn nowhere,
-        // its words read as the 12th's and the 12th's own lost (the twelfth round).
+        // its words read as the 12th's and the 12th's own lost.
         val load = scratch(series)
         Days.saveDay(load, 1, "2026-10-12", "Stand-up", "Mon 12 own", "", "Work", "")
         Days.saveDay(load, 1, "2026-10-19", "Stand-up", "Mon 19 own", "", "Work", "")
@@ -1551,8 +1551,8 @@ class DaysTest {
         fun days(load: Notebook.Load) =
             Recurrence.expand(firstOnDisk(load), java.time.LocalDate.of(2026, 11, 1), java.time.LocalDate.of(2026, 11, 30))
         assertEquals(listOf("2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30"), days(restarted(endedByCode = false)))
-        // Ended by a share code, the big delete keeps the Update's copy (the
-        // desktop's wave 2), its words a note of their own: Restore previous
+        // Ended by a share code, the big delete keeps the Update's copy,
+        // its words a note of their own: Restore previous
         // brings back the series as it was before the code, the 9th deleted.
         val coded = restarted(endedByCode = true)
         assertEquals(listOf("2026-11-02", "2026-11-16", "2026-11-23", "2026-11-30"), days(coded))
@@ -1595,8 +1595,8 @@ class DaysTest {
 
     @Test
     fun `a day with words of its own keeps them, the copy's a note of their own, kept by the next write and said at the start`() {
-        // Added to the day, four rounds read them four ways, each leaving a
-        // case (the final audit's fifteenth round, the owner's choice).
+        // Added to the day, they were read four ways, each leaving a case
+        // (the owner's choice).
         val load = scratch(dayAndCopyDiffer())
         assertEquals(1, load.setAside)
         val made = load.raw!!.getJSONObject(1)
@@ -1635,7 +1635,7 @@ class DaysTest {
     @Test
     fun `a chain of moved days is walked once, each link's date asked once, and two days swapped stay`() {
         // A pass a link took the square of a chain's length: a crafted backup
-        // froze the desktop's window (the sixteenth round).
+        // froze the desktop's window.
         val links = LinkedHashMap<String, String>()
         for (i in 0 until 3000) links["d$i"] = "d${i + 1}"
         var asked = 0

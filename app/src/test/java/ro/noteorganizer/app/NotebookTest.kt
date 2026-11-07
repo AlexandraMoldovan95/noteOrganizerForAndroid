@@ -1060,8 +1060,8 @@ class NotebookTest {
         assertEquals(1, Notebook.textLost("x\uDE00", "y\uDE00"))
         assertEquals("a lone half kept is no emoji kept", 2, Notebook.textLost("\uD83Dx", "😀"))
         // ...and at the end, its mirror: a lone second half the new text pairs.
-        // Only this shape engages the end's step, which no case reached (the
-        // final audit's eighth round); Python counts 2.
+        // Only this shape engages the end's step, which no case reached;
+        // Python counts 2.
         assertEquals("a lone half kept at the end is no emoji kept", 2, Notebook.textLost("x\uDE00", "😀"))
     }
 
@@ -1476,7 +1476,7 @@ class NotebookTest {
     fun `a series 0_12_0 turned off and sent to the Trash takes its days back into the note as it comes back`() {
         // Restored as it lay, its days were in its copy alone for the rest of
         // the session, and the next copy of words erased them; the desktop's
-        // restore shapes it, the move with it (the final audit's seventh round).
+        // restore shapes it, the move with it.
         val load = scratch("""[{"id": 1, "title": "Other"}]""",
             """[{"id": 5, "uid": "g", "title": "Gym", "body": "Warm up.", "date": "2026-11-02", "recurrence": {"freq": ""},
                 "exceptions": [], "overrides": {}, "moved": {}, "deleted_at": "2026-10-27 10:00:00",
@@ -1869,7 +1869,7 @@ class NotebookTest {
 
     @Test
     fun `a big delete beside an Update's copy keeps the copy, and the words go into a note of their own, spent when typed back`() {
-        // The desktop's wave 2: an Update's copy is the note as it was before
+        // As on the desktop: an Update's copy is the note as it was before
         // the Update, in no other file; a big delete replaced it.
         val words = "Book the physio for Friday, the bike at seven, then the plan for the knee."
         fun updated(uid: String) = JSONObject().put("id", 1).put("uid", uid).put("title", "Trip").put("body", words)

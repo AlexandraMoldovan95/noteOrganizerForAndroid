@@ -188,7 +188,7 @@ class SharingTest {
     @Test
     fun `a code is found among the words around it, padded or not, as the desktop's code_in finds it`() {
         // A greeting before it, a mail signature or "Thanks" after it: read
-        // only now and then, as the code's padding happened to fall (wave 2).
+        // only now and then, as the code's padding happened to fall.
         for (title in listOf("x", "xy", "xyz", "wxyz")) {
             val code = Sharing.encode(listOf(note("""{"title": "$title"}""")))
             for (pasted in listOf("Hi Ana!\n$code\nThanks", "$code Sent from my phone",

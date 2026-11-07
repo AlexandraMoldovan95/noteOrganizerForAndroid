@@ -50,8 +50,8 @@ object Normalize {
         val out = JSONObject()
         val id = raw.opt("id")
         // A whole number an Int holds, as it is; past one, no id, never one
-        // cut down onto another note's (4,294,967,301 read as 5: the final
-        // audit's tenth round). The load gives it a new number ([Organizing.repairIds]).
+        // cut down onto another note's (4,294,967,301 read as 5).
+        // The load gives it a new number ([Organizing.repairIds]).
         val whole = if (id is Int || id is Long || id is Short || id is Byte) (id as Number).toLong() else null
         out.put("id", if (whole != null && whole in Int.MIN_VALUE..Int.MAX_VALUE) whole.toInt() else 0)
         val uid = (raw.opt("uid") as? String)?.trim().orEmpty()
@@ -102,7 +102,7 @@ object Normalize {
         // of their own ([Notebook.settleAside]), as the desktop keeps them.
         Notebook.shapedAside(raw.opt("_set_aside"))?.let { out.put("_set_aside", it) }
         // A turned-off series' days kept only in its copy come into the
-        // note, as the desktop's normalize_note brings them (round six).
+        // note, as the desktop's normalize_note brings them.
         if (daysBack) Notebook.daysBackFromCopy(out)
         return out
     }
@@ -185,8 +185,7 @@ object Normalize {
      * table counted on both sides or neither: a day's text is stored with it
      * ([cleanOverride]), the series' as typed on this phone, and a day that
      * said what its series said read as text of its own -- cut off from the
-     * series, its colour alone taken for words (the final audit's fourteenth
-     * round).
+     * series, its colour alone taken for words.
      */
     fun sameBody(a: Any?, b: Any?): Boolean =
         if (a is String && b is String) withCaretLine(a) == withCaretLine(b) else a == b
@@ -256,7 +255,7 @@ object Normalize {
      * date: [free] says the date is the rule's own and not deleted, and the
      * day whose date it is must leave it too, when it was moved ([origin]).
      * Each chain walked once, [free] asked once a link: a pass a link took
-     * the square of a chain's length (the sixteenth round).
+     * the square of a chain's length.
      */
     internal fun linksLeaving(links: Map<String, String>, origin: (String) -> Boolean,
                               free: (String) -> Boolean): Map<String, Boolean> {

@@ -87,7 +87,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
 
     // Its Save refused -- the note's repeat not written -- the sheet stays,
     // and says why over itself: said in the window under it, it was never
-    // seen (the final audit's eighth round).
+    // seen.
     AppSheet(onDismissRequest = onDone, messages = state.snackbar) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.repeat), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)

@@ -152,7 +152,7 @@ class CalculatorTest {
     fun `the spaces Python counts are spaces, and a keyboard's signs are the keys'`() {
         assertEquals(8.0, ev("5 + 3"))
         assertEquals(8.0, ev("5\u0085+3"))
-        // Typed on a keyboard, a sum said Error (wave 2): - * x / : are the
+        // Typed on a keyboard, a sum said Error: - * x / : are the
         // keys' − × ÷, and a comma between digits is the decimal point.
         assertEquals(2.0, ev("5-3"))
         assertEquals(15.0, ev("5*3"))

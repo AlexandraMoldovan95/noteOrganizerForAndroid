@@ -53,7 +53,7 @@ class StartupTest {
     @Test
     fun `days a series' copy set aside become notes at the start, written at once, made once`() {
         // Left for the next save, each start made them again under new
-        // identities and said so again (the sixteenth round).
+        // identities and said so again.
         val dir = temp("phone")
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},
@@ -72,7 +72,7 @@ class StartupTest {
         assertEquals(2, again.length())
         assertEquals(first.getJSONObject(1).getString("uid"), again.getJSONObject(1).getString("uid"))
         // ...and a Trash file the start could not read does not hold that
-        // write: the notes were read (the seventeenth round).
+        // write: the notes were read.
         val damaged = temp("phone")
         File(damaged, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
             "date": "2026-11-02", "recurrence": {"freq": "weekly"},

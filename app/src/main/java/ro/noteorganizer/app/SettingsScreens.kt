@@ -386,7 +386,7 @@ private fun NamePage(state: AppState) {
         saved = state.putSetting(Settings.USERNAME, draft.trim())
     }
     // Kept when the page is left by Back too, as the desktop's box keeps it
-    // as it is typed: the name went with the page, unsaid (wave 2).
+    // as it is typed: the name went with the page, unsaid.
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose { if (draft.trim() != Settings.username(state.settings)) save() }
     }

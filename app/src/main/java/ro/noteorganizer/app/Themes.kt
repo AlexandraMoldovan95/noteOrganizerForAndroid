@@ -260,8 +260,8 @@ object Themes {
      * The edge of a control at rest -- a switch that is off, its knob and
      * rim; a text field's border; an outlined button's: the theme's
      * subtext. The hairline it was drawn in stood 1.2 to 1 from what lies
-     * around it, and a switch that was off all but vanished (the final
-     * audit); a boundary asks 3 to 1, which ThemesTest holds every theme to.
+     * around it, and a switch that was off all but
+     * vanished; a boundary asks 3 to 1, which ThemesTest holds every theme to.
      */
     fun controlEdge(theme: Map<String, String>): String = theme.getValue("subtext")
 

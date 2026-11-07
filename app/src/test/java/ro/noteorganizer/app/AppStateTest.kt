@@ -1014,7 +1014,7 @@ class AppStateTest {
     @Test
     fun `two deletes in a row, and the Undo on screen brings back the second`() {
         // The second bar waited behind the first, so the Undo a thumb reached
-        // took back the note deleted before (wave 2).
+        // took back the note deleted before.
         val dir = dirOf(scratch("""[{"id": 1, "uid": "a", "title": "One"}, {"id": 2, "uid": "b", "title": "Two"}]""",
                                 attachments = true))
         val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
@@ -1040,7 +1040,7 @@ class AppStateTest {
     @Test
     fun `half-typed words written as a row on the way to the background are back in the box on return`() {
         // Kept as a row in case Android ends the app; left so, the person
-        // came back to a finished item and an empty box (wave 2).
+        // came back to a finished item and an empty box.
         val (s, editor) = checklist("flour")
         editor.adding = "bre"
         assertNull(editor.writeAway())
@@ -1217,7 +1217,7 @@ class AppStateTest {
     @Test
     fun `while a sheet draws the app's messages the window's host draws none, and draws them again after`() {
         // Drawn by both, each message over a sheet was two live regions, and
-        // TalkBack could read it twice (the final audit's ninth round).
+        // TalkBack could read it twice.
         val messages = Any()
         val first = Any()
         val second = Any()
@@ -1235,7 +1235,7 @@ class AppStateTest {
     @Test
     fun `of two sheets drawing the app's messages, the one opened over the other draws them, the other none`() {
         // The Repeat sheet over the note's details: both drew each message,
-        // two live regions again (the final audit's tenth round). The deeper
+        // two live regions again. The deeper
         // draws them; once it goes, the one under it does again.
         val messages = Any()
         val details = Any()

@@ -173,7 +173,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(waiting) {
                 val text = waiting ?: return@LaunchedEffect
                 // A code, with words around it or not, is imported; any other
-                // text becomes a note of its own (the owner's choice, wave 2).
+                // text becomes a note of its own (the owner's choice).
                 if (text.contains(Sharing.PREFIX)) state.incomingCode = text
                 else state.noteFromShared(text, sharedNoteSaid)
                 incoming.value = null

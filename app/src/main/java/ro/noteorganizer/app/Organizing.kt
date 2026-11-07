@@ -313,7 +313,7 @@ object Organizing {
                     if (!seen.add(stored)) continue
                     // Duplicate gave the copy each file again under a new
                     // name: the kept note holds it already, and merged, it
-                    // listed every file twice (the final audit's wave 3).
+                    // listed every file twice.
                     if (attachmentsDir != null && (0 until merged.length()).any { k ->
                             (merged.opt(k) as? JSONObject)?.let { sameFile(attachmentsDir, att, it) } == true }) continue
                     // A file that cannot be copied is left with the copy in
@@ -505,7 +505,7 @@ object Organizing {
      * goes before (up) or after (down), as a drag's drop names it for
      * [moveNote] -- or null when there is no place that way in its block.
      * Arranging by hand without a drag, which a screen reader, Switch Access
-     * or a hand that cannot drag could not do at all (the final audit).
+     * or a hand that cannot drag could not do at all.
      */
     fun stepPlace(shown: List<Note>, id: Int, step: Int, grouped: Boolean): Pair<Int, Boolean>? {
         val at = shown.indexOfFirst { it.id == id }

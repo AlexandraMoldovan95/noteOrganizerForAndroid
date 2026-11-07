@@ -295,8 +295,7 @@ object Paragraphs {
      * the [edit] itself, in code points, when the field's cursor told where
      * it was made ([Editing.proseEdit]): read off the two texts, Enter at the
      * end of a centred line with a line below was the break after the old
-     * one, and the new line was left at the margin (the final audit's tenth
-     * round).
+     * one, and the new line was left at the margin.
      */
     fun follow(old: String, new: String, props: Map<Int, Props>, edit: Edit? = null): Map<Int, Props> {
         if (props.isEmpty() || old == new) return props

@@ -164,7 +164,7 @@ object MessagesShown {
  * Words that appear to say what just happened, read out by a screen reader
  * as they come, as the app's messages at the foot are: where a dialog or a
  * page says them under its own box instead, a plain line of text was read
- * by nobody (the final audit's eighth round).
+ * by nobody.
  */
 fun Modifier.saidAloud(): Modifier = semantics { liveRegion = LiveRegionMode.Polite }
 

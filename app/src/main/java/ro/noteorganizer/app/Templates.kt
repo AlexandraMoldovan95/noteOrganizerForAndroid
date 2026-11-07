@@ -135,7 +135,7 @@ object Templates {
      * the words waiting in "A new item…" last, as Add puts them -- as the
      * note editor's save takes the words in its own box. Left out, Save
      * dropped them unsaid, and ✕ closed with no question when they were the
-     * only change (the final audit's fifth round).
+     * only change.
      */
     fun checklistWith(rows: List<Pair<String, Boolean>>, waiting: String): JSONArray {
         val out = JSONArray(rows.map { JSONObject().put("text", it.first).put("done", it.second) })
@@ -166,7 +166,7 @@ object Templates {
      * Whether words waiting in "A new item…" have no room in a template of
      * [rows] rows: then Save cannot keep them, and they are not saved. Taken
      * with the rows and cut by the cap, they were dropped unsaid, and ✕ found
-     * nothing changed (the final audit's sixth round).
+     * nothing changed.
      */
     fun waitingLeftOut(rows: Int, waiting: String): Boolean = newRow(waiting).isNotEmpty() && noRoom(rows) != null
 

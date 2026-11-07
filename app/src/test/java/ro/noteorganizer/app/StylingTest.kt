@@ -178,7 +178,7 @@ class StylingTest {
     @Test
     fun `a letter deleted beside its twin takes its own style away, as Tk deletes at the cursor`() {
         // Read off the texts, the deletion was found one letter late: the
-        // twin kept the deleted letter's bold (the final audit's twelfth round).
+        // twin kept the deleted letter's bold.
         assertEquals("Backspace after the bold first l of Hello", emptyList<String>(),
                      typed("Hello", "Helo", 2, listOf(s(2, 3, "bold"))))
         assertEquals("Backspace after the first t of tthe: the bold the stays whole", listOf("0-3:bold"),

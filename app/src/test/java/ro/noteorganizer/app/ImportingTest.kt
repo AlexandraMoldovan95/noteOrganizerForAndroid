@@ -35,7 +35,7 @@ class ImportingTest {
     fun `a backup moving in a 0_13_0 notebook says the earlier text it kept as notes`() {
         // Its series turned off and on as it was, the blank-looking day
         // deleted: the read sets the copy's words aside, and the message said
-        // only "Added 1 note." (the final audit's twenty-third round).
+        // only "Added 1 note."
         val load = notebook("[]")
         val result = Importing.apply(load, backupPlan(load, """[{"id": 1, "uid": "gym", "title": "Gym",
             "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
@@ -48,7 +48,7 @@ class ImportingTest {
         assertTrue(notes(load.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" })
         // ...and an Update of the note already here keeps them too: an Add
         // kept what the arriving note's copy set aside, an Update dropped it
-        // (the twenty-second round; the desktop the same).
+        // (the desktop the same).
         val here = notebook("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "here", "date": "2026-11-02",
             "recurrence": {"freq": "weekly"}}]""")
         val updated = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
@@ -267,7 +267,7 @@ class ImportingTest {
         val done = Importing.apply(load, plan, Importing.Answers(update = true), File(dirOf(load), "attachments"),
             Importing.Extras(attachments = unpacked)) as Importing.Result.Done
         // Counted apart: "Updated 1 (Restore previous undoes each one)" was
-        // said of files Restore previous does not take back (wave 3).
+        // said of files Restore previous does not take back.
         assertEquals(0, done.outcome.updated)
         assertEquals(1, done.outcome.filesOnly)
         assertTrue(importMessage(done.outcome), "took attached files" in importMessage(done.outcome))

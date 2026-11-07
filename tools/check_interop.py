@@ -2,8 +2,8 @@
 
 InteropTest proves this app reads a code the desktop's Python made. The
 other half -- the desktop reading a code made here -- was promised by the
-test's own words and DATA_FORMAT, and nothing ran it (the final audit's
-third wave). This is that half: it takes the code InteropTest writes out,
+test's own words and DATA_FORMAT, and nothing ran it. This is that half:
+it takes the code InteropTest writes out,
 `app/build/interop/phone_code.txt`, and reads it as the desktop's import
 does -- `decode_share_code`, then `normalize_note`, which drops what the
 desktop does not keep -- and compares every field the phone meant to send

@@ -269,7 +269,7 @@ class EditorTypingTest {
     @Test
     fun `a day showing the series' words shows its lines' looks, and none once it has its own text`() {
         // Centred and indented on the whole series and on the desktop's day,
-        // flat on every day of it here (the twenty-fifth round).
+        // flat on every day of it here.
         val dir = NioFiles.createTempDirectory("editordaylines").toFile()
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "p", "title": "Plan", "body": "Agenda\nsecond",
             "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
@@ -450,7 +450,7 @@ class EditorTypingTest {
     @Test
     fun `a day the series does not draw opens the whole note, asked after the open note is saved`() {
         // Opened on it, every save was refused, and every way out that saves
-        // first: only "Leave anyway" was left (the twenty-fourth round).
+        // first: only "Leave anyway" was left.
         val dir = NioFiles.createTempDirectory("editoropenundrawn").toFile()
         File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "g", "title": "Gym", "body": "plan",
             "category": "General", "date": "2026-11-02", "recurrence": {"freq": "weekly"},
@@ -597,7 +597,7 @@ class EditorTypingTest {
         budget.insertCalculation("5×2=10")
         assertEquals("Budget\n12+30=42\n5×2=10", budget.body)
         // Only a style taken back, the words the same: the place stays where it
-        // was, the second answer on its own line (round seven's half, which no
+        // was, the second answer on its own line (which no
         // test held: the cursor's place was read, the calculator's was not).
         val plan = editor("Plan\\nfuel")
         plan.caret = 4
@@ -738,7 +738,7 @@ class EditorTypingTest {
     fun `a table put in at the calculator's place carries the place after it`() {
         // Made where the cursor was, not read off the texts: put in right
         // after the answer, it was read as put in a line on, and the next
-        // answer went above the table (the final audit's tenth round).
+        // answer went above the table.
         val model = editor("Total \\nRent")
         model.caret = 6
         model.insertCalculation("2+2=4")
@@ -783,7 +783,7 @@ class EditorTypingTest {
     @Test
     fun `a plain paste in CR LF goes into the note's text as the desktop's paste puts it, one break a line`() {
         // The field's own paste, or a keyboard's clipboard chip, kept every
-        // CR in the file (the final audit's ninth round); the capped boxes
+        // CR in the file; the capped boxes
         // already took CR LF as one break.
         val model = editor("Shopping: ")
         val field = Editing.segments(model.body).first()
@@ -821,7 +821,7 @@ class EditorTypingTest {
     fun `a title holding a break is shown on one line, so words typed at once are taken as they came`() {
         // Shown with its break, the first letter rewrote the box under the
         // keyboard and letters arriving in that moment were lost: " list"
-        // came back " li" (the final audit's eighth round, the walk).
+        // came back " li" (the walk).
         val model = editor("x", title = "Groceries\\n")
         val box = model.titleBox(TextFieldValue())
         assertEquals("Groceries ", box.text)
@@ -842,7 +842,7 @@ class EditorTypingTest {
     fun `lines pasted into a title go in as the desktop's title paste puts them, said shortened only when cut`() {
         // Weighed as copied, a line copied with its break, or two lines in CR
         // LF, read as shortened at the cap, and the CR stayed in the title
-        // (the final audit's eighth round, the desktop's 6443d2c).
+        // (the desktop's 6443d2c).
         fun pasteInto(title: String, clip: String): Pair<String, String?> {
             val model = editor("x", title = title)
             val shown = TextFieldValue(title, TextRange(title.length))

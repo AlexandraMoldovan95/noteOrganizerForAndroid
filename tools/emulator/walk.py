@@ -56,7 +56,7 @@ def adb(*args, binary=False, check=False, timeout=None):
     The first takes the machine's turn when nothing has yet: a part called
     from a script of its own walked the emulator beside whatever else ran,
     with no memory ceiling and no homes of its own, and took the turn only at
-    the export part, halfway (the final audit's ninth round)."""
+    the export part, halfway."""
     if not turn_held:
         stop = take_the_turn()
         if stop is not None:
@@ -89,8 +89,8 @@ def busy_share(seconds=3.0):
 def install(apk):
     """[apk] installed, and the phone answering again before anything looks
     at it: for some seconds after an install its shell gave back nothing, and
-    a part's first look read no tree, or a boot check no counters (wave 2 and
-    its lows wave, after each change of APK; each part fine walked again)."""
+    a part's first look read no tree, or a boot check no counters (after a
+    change of APK, more than once; each part fine walked again)."""
     adb("install", "-r", apk, check=True)
     deadline = time.time() + 60
     while time.time() < deadline and not fresh_tree(lambda *a: adb(*a, binary=True), tries=1):
@@ -131,8 +131,8 @@ def screen_xml(tries=3):
     uiautomator's patience ("null root node"), or ten seconds of events
     ("could not get idle state") -- left the screen before it in the file,
     and the walk read that: a freeze longer than the look's patience passed
-    every check of the frames drawn in it, the worse the surer (the final
-    audit's ninth round). Asked [tries] times; a screen that never reads is
+    every check of the frames drawn in it, the worse the surer. Asked
+    [tries] times; a screen that never reads is
     a failure of its own, so no check passes on a tree that is not there."""
     global unreadable
     said = []
@@ -178,7 +178,7 @@ def said_over(words, *targets, within=6.0, touching=False):
     the message's block covers: the words' ancestor just below the one they
     share with the target, the message with its margin. A message drawn just
     above the keyboard covered the editor's own bar and "A new item…" with
-    its Add, and took their taps (the final audit's ninth round). With
+    its Add, and took their taps. With
     [touching], a target counts as covered when the block reaches into it
     anywhere, not only over its middle. The words missing, and the names of
     the targets covered or not on the screen."""
@@ -441,7 +441,7 @@ def shot_as_said(folder, name, *words, within=6.0, over_keys=False):
     """[says_soon], photographed the moment the screen is read saying
     [words]: a message lives four seconds, and [shot], reading the screen
     again first, photographed five of them gone -- the photos named for
-    what was said showed none of it (the final audit's eighth round). The
+    what was said showed none of it. The
     words missing, as [says_soon] gives them; no photo without them.
     [over_keys]: the keyboard is up here, and the first of [words] must be
     drawn above it -- the UI tree holds a node the keys cover, and the
@@ -686,7 +686,7 @@ def main():
     # and held for the whole walk: taken at the export part, where the
     # desktop's guard was first called, the walk ran its first sixteen parts
     # beside a desktop suite, then waited for it up to an hour with the
-    # emulator up (the final audit's eighth round). The desktop's code the
+    # emulator up. The desktop's code the
     # walk runs (its share-code encoder, its export, its templates) runs under
     # its memory ceiling from here on. adb's path was read before this, at
     # import (emulator_only.ADB): the guard points LOCALAPPDATA at an empty
@@ -1466,7 +1466,7 @@ def calendar(folder):
     long_press(said(other))
     tap("Colour this day", wait=1.2)
     # By its value within its words: a swatch says its place and its value
-    # ("Colour 5 of 12, #43aa8b") since the final audit, not the hex alone.
+    # ("Colour 5 of 12, #43aa8b"), not the hex alone.
     tap(", #43aa8b", wait=1.2)
     settings = read_file("settings.json") or {}
     check("a painted day is kept under the desktop's key",
@@ -1757,7 +1757,7 @@ def changes(folder):
     shot(folder, "21-large-letters", "Welcome to Note Organizer")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     # Bold text (Android 12's, Samsung's "Bold font"): missing from the
-    # changes the app takes itself until the final audit, it closed the note.
+    # changes the app takes itself until it was added, it closed the note.
     adb("shell", "settings", "put", "secure", "font_weight_adjustment", "300")
     time.sleep(2.0)
     check("bold letters leave the note open", still_in_note())
@@ -1782,7 +1782,7 @@ def changes(folder):
 def writes_fail(on):
     """Every write of the notebook failing, as on a full disk -- or written
     again: a folder where the write puts its .tmp, which it cannot remove
-    while a file is in it (the final audit's way in, 2026-10-27)."""
+    while a file is in it."""
     tmp = "%s/notes_data.json.tmp" % NOTEBOOK
     if on:
         adb("shell", "run-as", PACKAGE, "mkdir", "-p", tmp)
@@ -2018,8 +2018,8 @@ def _tables_opened(folder):
         only then: no look at the screen falls inside the time measured.
         Read once the screen showed the words, an opening ended where the
         walk's own look had the app draw again: read 1.5 s after the tap, an
-        opening frame still drawing was in no list (the final audit's ninth
-        round); read after the look, a 0.5 s opening could fail by a redraw
+        opening frame still drawing was in no list; read after the look, a
+        0.5 s opening could fail by a redraw
         started 5.6 ms late, and 2.4 s of work drawing nothing passed by a
         look made sooner (the tenth)."""
         deadline = time.time() + 20.0
@@ -2628,7 +2628,7 @@ def sizes_and_faces(folder):
     print("\n-- sizes and faces --")
     seed_inside([
         # Two lines: a size larger than the body must not draw them over each
-        # other (a size is points against a 12 pt body since round 6).
+        # other (a size is points against a 12 pt body).
         {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style\nand a second line under them",
          "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Faces")
@@ -2983,8 +2983,8 @@ def cell_menu(folder):
 def move_day_keeps_new_item(folder):
     """Words typed in "A new item…" on a day of a series, then "Move this
     day…": refused onto a date the series has, and moved. The words stay in
-    the box both times, made no row: moved, the editor built anew lost them
-    (round 8); refused, they were finished as a row (round 10)."""
+    the box both times, made no row: moved, the editor built anew lost them;
+    refused, they were finished as a row."""
     from datetime import date, timedelta
     print("\n-- a day moved keeps the words waiting in A new item --")
     today = date.today()
@@ -3020,14 +3020,14 @@ def move_day_keeps_new_item(folder):
         adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
         time.sleep(1.0)
     # The editor's own Reset, answered Cancel: its tap saved the box's words
-    # as a row first (round 10).
+    # as a row first.
     tap("Reset this day", wait=1.5)
     tap("Cancel", exact=True, wait=1.5)
     seek(lambda: find("Book the room") is not None)
     check("Reset this day answered Cancel keeps the words in A new item, made no row",
           rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
     # ...and "Whole series", the strip's third link, which saved them as a
-    # row before the editor built anew could carry them (round 11).
+    # row before the editor built anew could carry them.
     adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
     time.sleep(1.0)
     tap("Whole series", wait=1.5)
@@ -3036,7 +3036,7 @@ def move_day_keeps_new_item(folder):
           rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
     # A sum typed in the calculator on a day, not put in yet, then "Whole
     # series": built anew, the editor shut the calculator and the sum went
-    # with it (round 15).
+    # with it.
     back_to("Search notes")
     tap("Calendar", exact=True, wait=1.5)
     tap(said(third), wait=1.0)
@@ -3232,7 +3232,7 @@ def arranging(folder):
         return
     # The second card dragged up over the first, at the list's top, and held:
     # the trade took the list along by a card, and the card under the finger
-    # was drawn above the screen until let go (round 16).
+    # was drawn above the screen until let go.
     handle, first = find("Drag to move Note 02"), find("Note 01", exact=True)
     if not handle or not first:
         fail("the long list's first two cards not on the screen")
@@ -3247,7 +3247,7 @@ def arranging(folder):
                   placed, lambda p: not unseen and p[:2] == ["Note 02", "Note 01"], first=0)
     # The same card dragged again, one place down: its handle's gesture read
     # the list as it was at its first touch, redrew that order and wrote a
-    # place counted from it (round 17).
+    # place counted from it.
     mine, theirs = find("Drag to move Note 02"), find("Drag to move Note 01")
     if not mine or not theirs:
         fail("the first two cards' handles not on the screen after the drag")
@@ -3280,7 +3280,7 @@ def arranging(folder):
     # The same carry by a finger that never stays quite still: a trade the edge
     # scroll made lost its hold to the next move's measure, the list followed
     # its top card, and the carried card went out of sight with its drag --
-    # the note left where it was (round 23).
+    # the note left where it was.
     if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
         return
     for _ in range(4):
@@ -3305,7 +3305,7 @@ def arranging(folder):
 
     # Cards of mixed heights: a short card held past the list's foot, the
     # list scrolling under it. A taller card coming in at the edge took the
-    # short one's slot out of the viewport, and the drag went (round 17).
+    # short one's slot out of the viewport, and the drag went.
     mixed = [dict(n, body="A first line of words\nand a second line" if n["id"] % 2 == 0 else "")
              for n in many]
     if not seed_inside(mixed, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
@@ -3350,8 +3350,8 @@ def frames_since_reset(starts=False):
     A frame the render thread drew alone, for an animation of its own
     (gfxinfo's flag 2), is not listed: no code of the app ran in it. The
     ripple of a row tapped to open a dialog went on so for seven seconds
-    under it, and a template opening in half a second read as 3.2 (the walk
-    after the final audit's ninth round). Work that draws nothing is in no
+    under it, and a template opening in half a second read as 3.2. Work that
+    draws nothing is in no
     list; [held_after_tap] reads it from the log."""
     out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
     # One block per window -- a dialog is a window of its own -- each between
@@ -3400,7 +3400,7 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
     the walk's own look had the app draw again: a trivial redraw started
     5.6 ms late was kept as work, and a mutant holding the thread 2.4 s,
     drawing nothing, read 2.04 to 2.10 s -- killed by 2 to 5% over the line,
-    and let through by a look made sooner (the final audit's tenth round).
+    and let through by a look made sooner.
     And each read here is a message on the app's thread ([WALK_READ_MESSAGE]):
     with a template of 90,000 cells open it ran 40 ms, logged as slow, so
     every read was work found and the reading never went quiet -- an opening
@@ -3441,8 +3441,8 @@ def frames_once_shown(*words, within=30.0, gap=None, starts=False):
     the app's thread, so the frame that drew them has ended: read after a
     fixed pause, a frame longer than the pause was in no list yet, and the
     longest frame taken was a ripple's or the cursor's -- "Read all" with
-    round seven's slow search put back passed (the final audit's eighth
-    round). A look waits only as long as uiautomator does: one that read no
+    the old slow search put back passed. A look waits only as long as
+    uiautomator does: one that read no
     tree waited for nothing, and the frames are [99.0] -- read anyway, a
     freeze past its patience passed (the ninth). With [gap], only the frames
     that began within [gap] seconds of the first: an autosave due 800 ms
@@ -3618,8 +3618,8 @@ def answers_after_restart(folder):
         # own ending meets it: it stops one behind another app's screen when
         # that screen rests, or ten seconds later (home()), and saves its state
         # then. Ended while only paused, the app had saved nothing, and the
-        # answer was lost for the walk's reason, not the app's (the final
-        # audit's eighth round). And read that the process is gone.
+        # answer was lost for the walk's reason, not the app's. And read that
+        # the process is gone.
         held = stopped()
         pid = adb("shell", "pidof", PACKAGE).strip()
         if pid:
@@ -3773,8 +3773,7 @@ def code_read_away(folder):
 def arranged_from_the_top(folder):
     """Another sort, or a first pin, with the list at its top: the list
     starts at its new top. Keyed by note, it kept the card it had in sight,
-    and Title A–Z seemed to begin there, a pinned note above the screen
-    (wave 2, round 8)."""
+    and Title A–Z seemed to begin there, a pinned note above the screen."""
     print("\n-- a new order starts at the list's top --")
     fruit = ["Apple", "Banana", "Cherry", "Damson", "Elder", "Fig", "Grape", "Hazel",
              "Kiwi", "Lemon", "Mango", "Nectarine"]
@@ -3790,7 +3789,7 @@ def arranged_from_the_top(folder):
         tap("📌", wait=1.5)
         check("a note pinned from the list's top is shown at its new place", not says_soon("Cherry", "Apple"))
     # The top card unpinned: the list held by place, the note still pinned in
-    # sight; kept by its first card, it followed the card (round 10).
+    # sight; kept by its first card, it followed the card.
     if long_press("Banana"):
         tap("📌", wait=1.5)
     if long_press("Banana"):
@@ -3810,7 +3809,7 @@ def arranged_from_the_top(folder):
               bool(undo_at) and not says_soon("Cherry", "Apple"))
     back_to("Search notes")
     # Grouped by category, a pin rises only to the top of its own group: the
-    # top of the list was the wrong place, screens from it (round 9).
+    # top of the list was the wrong place, screens from it.
     if not seed_inside([{"id": i + 1, "uid": "walk-g%d" % i, "title": name, "body": "x",
                          "category": "General" if i < 12 else "Work",
                          "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
@@ -3825,7 +3824,7 @@ def arranged_from_the_top(folder):
               not says_soon("Work plan 6"))
     back_to("Search notes")
     # The list's own top card among those moved, and moved down by them: the
-    # list followed it, and the card now first was above the screen (round 14).
+    # list followed it, and the card now first was above the screen.
     # Filed together, the two take one stamp and fall into file order.
     plain = [{"id": i + 1, "uid": "walk-t%d" % i, "title": name, "body": "x", "category": "General",
               "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
@@ -3854,7 +3853,7 @@ def arranged_from_the_top(folder):
     back_to("Search notes")
     # A long list: past about a hundred rows the list does not follow its
     # first card, and keeps its place by index -- filed from the top of
-    # "Oldest updated", the card went last and nothing scrolled (round 15).
+    # "Oldest updated", the card went last and nothing scrolled.
     import datetime
     start = datetime.date(2026, 1, 1)
     many = [{"id": i, "uid": "walk-l%d" % i, "title": "Old %03d" % i, "body": "x", "category": "General",
@@ -3871,7 +3870,7 @@ def arranged_from_the_top(folder):
 
 
 def what_hides_the_list(folder):
-    """The final audit's second wave, on the list, by the owner's choices:
+    """What hides the list, by the owner's choices:
     a list Show leaves empty says so and offers Show all notes; the search
     finds "Crème brûlée" by "creme" and a note by its checklist's row; a new
     note Show hides is said as it closes, with Show all; text shared to the
@@ -3880,7 +3879,7 @@ def what_hides_the_list(folder):
     print("\n-- what hides the list's notes --")
     # The bars' buttons tapped here wait as Time to take action asks: on a
     # busy emulator the reads before a tap took ten seconds, the bar went,
-    # and the tap opened the card beneath (the lows wave's round 10).
+    # and the tap opened the card beneath.
     with messages_held(30_000, answered=True):
         hidden_from_the_list(folder)
 
@@ -3911,7 +3910,7 @@ def hidden_from_the_list(folder):
         type_text(words)
         # The field holds the words before the list is judged: the first search
         # after a cold boot once showed neither card for six seconds, the field
-        # holding something else (the lows wave's round 11). Said, photographed
+        # holding something else. Said, photographed
         # and typed again; a field holding them still fails on a wrong list.
         if not settle(lambda: any(t == words for t, _, _ in nodes()), bool, within=4.0, first=0):
             seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
@@ -3923,13 +3922,13 @@ def hidden_from_the_list(folder):
             type_text(words)
         # Looked for until it shows, not once a second after typing: on a busy
         # emulator the list's answer came later, and the check failed two runs
-        # in three with nothing wrong (the lows wave's round 7).
+        # in three with nothing wrong.
         on = settle(lambda: [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)],
                     lambda seen: seen == expect, within=6.0, first=0)
         if on != expect:
             # What was there instead, kept: the first search after a cold
             # boot once showed neither card for six seconds, and the failure
-            # kept nothing to say why (the lows wave's round 11).
+            # kept nothing to say why.
             seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
             print("     the search for %r shows %r" % (words, seen[:300]))
             photograph(folder, "130b-search-%s-FAILED" % words)
@@ -3953,7 +3952,7 @@ def hidden_from_the_list(folder):
     tap("Title")
     type_text("Call the dentist")
     back_to("Search notes")
-    # By name, as the desktop says it (the lows wave's round 6).
+    # By name, as the desktop says it.
     said = not says_soon("“Call the dentist” saved in General, hidden by Show: Work", "Show all", within=8.0)
     seen_at = time.time()
     shot(folder, "131-new-note-hidden-said", "hidden by Show: Work")
@@ -3967,7 +3966,7 @@ def hidden_from_the_list(folder):
           "said %s, still up after ten seconds %s" % (said, held))
     # Hidden by the search, and the list left for another tab while its word
     # shows: the word comes again with the list, and its Show all empties the
-    # search -- run on the list left, it did nothing (the lows wave's round 5).
+    # search -- run on the list left, it did nothing.
     tap("Search notes", wait=0.8)
     type_text("gruyere")
     keyboard_down()
@@ -3986,8 +3985,7 @@ def hidden_from_the_list(folder):
           "said %s, again %s" % (said, again))
     # Two new notes in a row that Show hides: their words come one at a time,
     # each asked when its turn comes -- after the first one's Show all, the
-    # second said "hidden by Show: Work" over a list showing everything (the
-    # lows wave's round 7).
+    # second said "hidden by Show: Work" over a list showing everything.
     tap("Show: All", wait=1.0)
     tap("Work", exact=True, wait=1.5)
     for title in ("Alpha errand", "Beta errand"):
@@ -4004,9 +4002,9 @@ def hidden_from_the_list(folder):
           "first said %s, the second said hidden after Show all %s" % (first, stale))
 
     # Notes the Trash's Undo puts back where Show now hides them are said,
-    # with Show all: they came back without a word (wave 2, round 11). Two,
+    # with Show all: they came back without a word. Two,
     # as one put back opens in the editor -- one in Work, one not, so the bar
-    # counts the one Show hides: it said both were (the lows wave's round 8).
+    # counts the one Show hides: it said both were.
     long_press("Crème brûlée night")
     tap("Shopping", exact=True, wait=0.6)
     tap("🗑", wait=0.8)
@@ -4083,7 +4081,7 @@ def long_lines(folder):
         opened = open_note(title, limit=30.0)
         time.sleep(1.5)
         # A row shown, not written in, says how long it is and offers to be
-        # read whole (since the final audit's sixth round); the rest say why
+        # read whole; the rest say why
         # they are shown read-only.
         says = "Read all 150,000 characters" if title == "Long row" else "too long to show here"
         if title in ("Long comments", "Long row") and screen_says(says):
@@ -4123,7 +4121,7 @@ def long_lines(folder):
 
 
 def limits_round3(folder):
-    """The final audit's third round, walked: text the layout cannot break
+    """Walked: text the layout cannot break
     that the first rule let through -- joined by no-break spaces, a hundred
     lines just under the limit, a run inside a table's cell -- each opens at
     once, shown read-only; a template saved from a note with a 150,000-letter
@@ -4207,7 +4205,7 @@ def limits_round3(folder):
     tap("Templates", exact=True, wait=1.2)
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
     tap("Row for template", exact=True, wait=0.3)
-    # Shown by its start, read whole on asking (the final audit's sixth round).
+    # Shown by its start, read whole on asking.
     missing, frames = frames_once_shown("Edit template", "Read all 150,000 characters", within=20.0)
     took = max(frames)
     check("the template editor opens within a second, the long row read-only",
@@ -4312,8 +4310,8 @@ def limits_round3(folder):
     back_to("Search notes")
 
     # A PDF that stops at forty pages says so before anything is handed
-    # over: a question since round four (limits_round4 walks its answers),
-    # where it was a bar the share sheet covered.
+    # over: a question (limits_round4 walks its answers), where it was a bar
+    # the share sheet covered.
     open_note("Forty pages", limit=30.0)
     tap("Share", exact=True, wait=1.0)
     tap("PDF", exact=True, wait=0.3)
@@ -4331,7 +4329,7 @@ def limits_round3(folder):
 
 
 def limits_round4(folder):
-    """The final audit's fourth round, walked: what one note draws, counted
+    """Walked: what one note draws, counted
     for the whole note -- ten tables of 1,000 cells, 200,000 empty lines,
     3,000 tables of two cells, "x" and "" after a spent limit, and a journal
     of 7,000 lines -- each opened and timed by the app's own frames, a
@@ -4403,9 +4401,9 @@ def limits_round4(folder):
           "%s s, %s" % (took, screen_says("more than is shown here at once", "more lines")))
     shot(folder, "101-many-lines-read-only", "more than is shown here at once")
     took = opened_in("Tiny tables")
-    # Since the fifth round a note draws 500 pieces, not 100 -- fifty weekly
-    # tables reached 100 -- and these, the hostile case, measured 1.7 to 2.7 s
-    # there (0.3 s at 100; held still before round four, past 90 s).
+    # A note draws 500 pieces, not 100 -- fifty weekly tables reached 100 --
+    # and these, the hostile case, measured 1.7 to 2.7 s there (0.3 s at 100;
+    # held still before the first limit, past 90 s).
     check("3,000 tables of two cells open within three seconds", took is not None and took < 3.0, "%s s" % took)
     took = opened_in("Alternating")
     check("'x' and '' five thousand times after a spent limit open within a second", took is not None and took < 1.0,
@@ -4422,15 +4420,14 @@ def limits_round4(folder):
     adb("shell", "input", "text", "Z")
     # Read once the letter is on the screen, the frames of the first 0.7 s
     # alone: read half a second on, a frame longer than that was in no list,
-    # and a check of "within a second" could not fail (the final audit's
-    # eighth round).
+    # and a check of "within a second" could not fail.
     _, frames = frames_once_shown("Z", within=20.0, gap=0.7)
     typed = max(frames)
     print("     Journal, a letter typed: the longest frames %s s" % ["%.2f" % f for f in sorted(frames)[-3:]])
     saved = settle(lambda: (note_by_uid("r4-5") or {}).get("body", ""), lambda b: "Z" in b, within=8.0)
     # Measured 2026-10-28 on the emulator: a letter's frames 0.1 to 0.4 s,
     # the autosave's write of the 308,000 characters 0.4 to 0.8 s after it;
-    # the build before this round held 8 s and more just opening the note.
+    # the build before the fix held 8 s and more just opening the note.
     check("... and a letter typed into it is drawn within a second, and saved",
           typed < 1.0 and "Z" in saved and len(saved) == len(journal) + 1, "%.2f s" % typed)
     back_to("Search notes")
@@ -4551,7 +4548,7 @@ def limits_round4(folder):
 
 
 def limits_round5(folder):
-    """The final audit's fifth round, walked. What an ordinary note keeps:
+    """What an ordinary note keeps, walked:
     fifty weekly tables and sixty sessions with tables, each a grid to the
     end, Find reaching their ends; a checklist of 1,000 short rows opened and
     typed into, and one of 120 rows of 150,000 letters opened within seconds,
@@ -4562,7 +4559,7 @@ def limits_round5(folder):
     hand comes out in order; a two-million-letter note typed in forty times
     keeps its memory; and the template editor saves the words left in its A
     new item box. (The Share sheet of a 5 MB note was timed too, and held
-    1.3 to 1.6 s before the round, 0.8 to 1.4 after: no check, since it
+    1.3 to 1.6 s before the fix, 0.8 to 1.4 after: no check, since it
     could not tell the two builds apart.)"""
     print("\n-- round five's limits: what an ordinary note keeps, and where the cursor goes --")
 
@@ -4660,8 +4657,7 @@ def limits_round5(folder):
     # walk's heaviest screen, raced its own reading: read once in one run of
     # two, the app having said it both times. Held for fifteen by Android's
     # own setting, which the app's messages keep; photographed as read; the
-    # Enter's frames timed, so a hold by the app is told from a slow look
-    # (the final audit's tenth round).
+    # Enter's frames timed, so a hold by the app is told from a slow look.
     with messages_held(15_000):
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
         adb("shell", "input", "keyevent", "KEYCODE_ENTER")
@@ -4710,7 +4706,7 @@ def limits_round5(folder):
     if not seed_inside([note(5, "Wide rows", body="Rows", checklist=wide_rows)], {"welcome_offered": True}, "Wide rows"):
         return
     took = opened_in("Wide rows", limit=60.0)
-    # Measured 2026-10-29: 7.07 s before the round, 1.74 after; the same text in a body, 1.63.
+    # Measured 2026-10-29: 7.07 s before the fix, 1.74 after; the same text in a body, 1.63.
     check("a checklist of 120 rows of 150,000 letters opens within two and a half seconds, each row shown short",
           took is not None and took < 2.5 and not screen_says("Read all 149,994 characters"), "%s s" % took)
     shot(folder, "110-wide-rows-short", "Rows")
@@ -4785,7 +4781,7 @@ def limits_round5(folder):
 
 
 def limits_round6(folder):
-    """The final audit's sixth round, walked. A checklist row at the
+    """Long checklist rows, walked. A checklist row at the
     desktop's 2,000 letters keeps its own words when a letter or a paste goes
     in at its start: the letter refused, the paste cut, each said. A row
     moved up or down across the line of rows not drawn, or dragged over it,
@@ -5007,7 +5003,7 @@ def limits_round6(folder):
     tap("Templates", exact=True, wait=1.5)
     took = opened_in("Thousand long", opens=lambda: tap("Thousand long", exact=True, wait=0.5, patience=20.0))
     # Measured 2026-10-29 in one session, the first opening and two more:
-    # 7.2 and 4.3 s before the round, 3.0, 1.9 and 1.4 after it.
+    # 7.2 and 4.3 s before the fix, 3.0, 1.9 and 1.4 after it.
     check("a template of 1,000 rows of 2,000 letters opens within four seconds, its rows drawn in part",
           took is not None and took < 4.0 and not screen_says("Edit template"), "%s s" % took)
     tap("Template name", exact=True, wait=0.8)
@@ -5057,7 +5053,7 @@ def limits_round6(folder):
     time.sleep(0.4)
     tap("Insert table", wait=1.2)
     # Held as the Enter's message above is: its first look here took five
-    # seconds, the four-second message gone before it (the lows wave's full walk).
+    # seconds, the four-second message gone before it.
     with messages_held(15_000):
         tap("Insert", exact=True, wait=0.3)
         said = not says_soon("Tap in its text where the table should go", within=15.0)
@@ -5091,7 +5087,7 @@ def limits_round6(folder):
 
 def days_in_the_note(folder):
     """A turned-off series' days live in one place, the note (the owner's
-    choice, the final audit's sixth round). A notebook as the phone's 0.12.0
+    choice). A notebook as the phone's 0.12.0
     left one -- the days in the series' copy alone -- has them back in the
     note at its next write; a series turned off from the Repeat sheet keeps
     a day's own text in the note, and a big delete after it makes a copy of
@@ -5221,7 +5217,7 @@ def template_draft(folder):
     shot(folder, "119-template-draft-asked", "Continue it?")
     # The question asked and Continue pressed, read: with neither, the editor
     # left open by an `am kill` that ended nothing passed this check (the
-    # walk of 2026-10-30, the final audit's eighth round).
+    # walk of 2026-10-30).
     continued = asked and tap("Continue", exact=True, wait=2.0)
     back_open = not screen_says("Packing", "Weekend", "socks", "Passport")
     check("Continue brings every field back, the words waiting in A new item among them", continued and back_open,
@@ -5254,7 +5250,7 @@ def template_draft(folder):
 
 
 def limits_round7(folder):
-    """The final audit's seventh round, walked. A checklist row of a million
+    """Very long words, walked. A checklist row of a million
     letters with no space is read in parts at once, its "Read all" and a
     search's stop in it no frame of seconds; a title, and a template's name,
     keep their own words at 200 letters, the key refused and said; a full
@@ -5287,9 +5283,9 @@ def limits_round7(folder):
             tap("CHECKLIST", wait=1.5)
 
     title_200 = "t" * 199 + "!"
-    # Five million letters, as a share code of 7 KB brings: round seven's
-    # slow search put back costs tens of seconds there, where on a million
-    # it cost 0.4 to 3.3 s, about the check's line (the final audit's eighth).
+    # Five million letters, as a share code of 7 KB brings: the old slow
+    # search put back costs tens of seconds there, where on a million
+    # it cost 0.4 to 3.3 s, about the check's line.
     notes = [note(1, "Unbroken row", body="Row", checklist=[{"text": "a" * 5_000_000, "done": False},
                                                            {"text": "milk", "done": False}]),
              note(2, title_200),
@@ -5356,7 +5352,7 @@ def limits_round7(folder):
     keys("CTRL_LEFT", "V")
     # Read on the look that finds the words: drawn just above the keyboard,
     # the message lay over the box being typed in and its Add, and took
-    # their taps for its four seconds (the final audit's ninth round).
+    # their taps for its four seconds.
     missing, covered = said_over(shortened, ("the box being typed in", lambda t, d: t.startswith("pppp")),
                                  ("its Add", lambda t, d: t == "Add"))
     first = not missing
@@ -5425,7 +5421,7 @@ def limits_round7(folder):
 
 
 def limits_round8(folder):
-    """The final audit's eighth round, walked. A category's name already
+    """Names and titles, walked. A category's name already
     used is refused and said over its sheet, which stays open -- said in the
     window under it, Save looked as if it did nothing; a title holding a line
     break takes the letters typed into it, and a tap on it writes nothing;
@@ -5547,7 +5543,7 @@ def limits_round8(folder):
 
 
 def limits_round10(folder):
-    """The final audit's tenth round, walked. A message said while a
+    """A message over a renamed row, walked. A message said while a
     checklist row is renamed stands above the row and its ✕: the row is
     brought just above the keyboard, where the window's messages stood, and
     one stood over it and took the taps meant for its ✕. Read back from the
@@ -5746,7 +5742,7 @@ def arrange_without_drag(folder):
                       lambda rows: rows == ["yeast", "flour"])
     back_to("Search notes")
     # A list longer than the screen: a card stepped past the top card went
-    # above the screen, the list following the top card by key (round 16).
+    # above the screen, the list following the top card by key.
     if not seed_inside([{"id": i, "uid": "nd-l%d" % i, "title": "Note %02d" % i, "order": i,
                          "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
                         for i in range(1, 31)],
@@ -5761,7 +5757,7 @@ def arrange_without_drag(folder):
     check("...and the top card moved down shows below the one it passed, both on screen",
           placed()[:2] == ["Note 01", "Note 02"] and not says_soon("Note 01", "Note 02"), repr(placed()[:3]))
     # A card's handle tapped again after a step: its gesture read the list as
-    # at its first touch, and the tap drew -- or wrote -- that order (round 17).
+    # at its first touch, and the tap drew -- or wrote -- that order.
     tap("Drag to move Note 04", wait=1.0)
     tap("Move up", exact=True, wait=1.5)
     tap("Drag to move Note 04", wait=1.5)
@@ -5772,7 +5768,7 @@ def arrange_without_drag(folder):
 
     # Mid-list, the card at the top of the screen stepped up, and the card
     # just above the + button stepped down: held at the index, the first went
-    # above the screen and the second below the + (round 17).
+    # above the screen and the second below the +.
     def handles():
         return sorted((centre[1], desc[len("Drag to move "):]) for _t, desc, centre in nodes()
                       if desc.startswith("Drag to move Note "))
@@ -5786,7 +5782,7 @@ def arrange_without_drag(folder):
 
     # A step menu open as the phone turns closes with its card, which the
     # shorter screen leaves out -- and it came back open by itself once the
-    # card scrolled back into sight (round 22).
+    # card scrolled back into sight.
     shown = handles()
     low = shown[-2][1] if len(shown) > 1 else None
     if low:
@@ -5814,7 +5810,7 @@ def arrange_without_drag(folder):
         unmet("the step menu through a turn: no card's handle low on the screen")
     # Back to the top, where the steps below were written to start: from where
     # the turn's swipes stopped, a search below ran past the place it looks
-    # for (the lows wave's full walk). A fling to the top ends at the top.
+    # for. A fling to the top ends at the top.
     for _ in range(3):
         adb("shell", "input", "swipe", "540", "900", "540", "2000", "80")
         time.sleep(0.6)
@@ -5837,7 +5833,7 @@ def arrange_without_drag(folder):
     check("mid-list, the card at the top of the screen moved up is still on screen",
           order.index(top_card) == was - 1 and not says_soon(top_card), repr(order[:12]))
     # A press held still on the top card's handle: the list scrolled under it
-    # at the edge, and the note moved with no move of the finger (round 17).
+    # at the edge, and the note moved with no move of the finger.
     shown, before = handles(), placed()
     at = find("Drag to move " + shown[0][1]) if shown else None
     if at:
@@ -5870,7 +5866,7 @@ def arrange_without_drag(folder):
 
     # The last card on screen, nothing under it in sight, stepped down: out of
     # the layout, it was taken to the top of the screen, a screen's jump, and
-    # the card it passed went above (round 18).
+    # the card it passed went above.
     last = None
     tried = []
     for _ in range(8):
@@ -5899,7 +5895,7 @@ def arrange_without_drag(folder):
           "%s, %s: %s" % (last, passed_by, sorted(after.items(), key=lambda kv: kv[1])[:6]))
 
     # The top card on screen dragged one place down: the edge scroll took the
-    # list up first, against the finger, and the drag landed nowhere (round 18).
+    # list up first, against the finger, and the drag landed nowhere.
     shown, pill = handles(), find("Sort: Custom order")
     # The first card whose handle the list shows whole: its top within the
     # top edge's reach, below the pills.
@@ -5920,7 +5916,7 @@ def arrange_without_drag(folder):
                       lambda: (placed().index(top_name), was, top_name, shown[:3], pill),
                       lambda got: got[0] == was + 1)
         # A tap whose finger shifts a few pixels is still a tap: any shift was
-        # a drag, and the handle's menu never opened (round 19).
+        # a drag, and the handle's menu never opened.
         shown = handles()
         tap_name = shown[1][1] if len(shown) > 1 else None
         at = find("Drag to move " + tap_name) if tap_name else None
@@ -5936,7 +5932,7 @@ def arrange_without_drag(folder):
             time.sleep(0.8)
         # The top card nudged down, a hair's recoil, then held: the recoil
         # read as a turn, the list scrolled up against the finger and the note
-        # was saved places ABOVE where it was (round 19).
+        # was saved places ABOVE where it was.
         shown, before = handles(), placed()
         reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
         if reachable and reachable[0] == shown[0]:
@@ -5954,7 +5950,7 @@ def arrange_without_drag(folder):
             unmet("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
         # The top card drawn down, put back where it was pressed and held: the
         # turn back scrolled the list under it, and the note was saved a place
-        # or two up (round 20).
+        # or two up.
         shown, before = handles(), placed()
         reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
         if reachable and reachable[0] == shown[0]:
@@ -5973,7 +5969,7 @@ def arrange_without_drag(folder):
         else:
             unmet("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
         # A press the system cancels -- a Back swipe from the edge across a
-        # handle, a call -- read as a tap: the menu opened by itself (round 25).
+        # handle, a call -- read as a tap: the menu opened by itself.
         shown, before = handles(), placed()
         at = find("Drag to move " + shown[1][1]) if len(shown) > 1 else None
         if at:
@@ -5988,7 +5984,7 @@ def arrange_without_drag(folder):
             time.sleep(0.8)
         # A fling stopped by a tap on a handle: the tap only stops it, and the
         # next tap there opens the menu. Read at the handle's last lift, the
-        # first opened it and the second did nothing (the lows wave's round 1).
+        # first opened it and the second did nothing.
         if at:
             def menu_up():
                 return find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
@@ -6009,7 +6005,7 @@ def arrange_without_drag(folder):
                     continue
                 # Stopped with the gap between two cards under the tap, the
                 # second tap opened nothing either, and failed a sound app
-                # (the lows wave's full walk): another height is tried.
+                # (in a full walk): another height is tried.
                 if first and not handle_under(at[0], y):
                     continue
                 adb("shell", "input", "tap", str(at[0]), str(y))
@@ -6030,7 +6026,7 @@ def arrange_without_drag(folder):
     back_to("Search notes")
     # A phone on its side: the top card stepped down went under the + button,
     # brought into sight with the card it passed, the two taller than the
-    # list (round 20).
+    # list.
     if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
                      "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
                     for i in range(1, 31)],
@@ -6047,7 +6043,7 @@ def arrange_without_drag(folder):
               "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
         # ...and a drag of one place there: every resting card sat in an
         # edge zone, the list slid at once, and the note landed two or three
-        # places down (round 22).
+        # places down.
         if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
                          "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
                         for i in range(1, 31)],
@@ -6105,7 +6101,7 @@ def attaching(folder):
     shot(folder, "50-attached", "walk-receipt.txt", "Remove walk-receipt.txt")
 
     # A file gone from the folder, tapped: said, as the desktop says it -- it
-    # opened nothing, without a word (wave 2, round 5).
+    # opened nothing, without a word.
     adb("shell", "run-as", PACKAGE, "rm", "%s/attachments/%s" % (NOTEBOOK, stored))
     tap("📎  walk-receipt.txt", exact=True, wait=0.5)
     check("a file gone from the folder, tapped, is said missing", not says_soon("can't be found"))
@@ -6321,7 +6317,7 @@ def sharing(folder):
     back_in()
 
     # This app is left off its own share sheet: a code sent to itself opened
-    # the import of notes already here (wave 2, round 9).
+    # the import of notes already here.
     ask("Trip")
     tap("Share code", exact=True, wait=1.0)
     sheet = handed()
@@ -6368,7 +6364,7 @@ def sharing(folder):
             adb("shell", "input", "tap", str(at[0]), str(at[1]))
             time.sleep(pause)
         told = any(message_shown() for _ in range(4))
-        # Longer than a PDF holds: since round four the first share asks
+        # Longer than a PDF holds: the first share asks
         # before it hands anything over (limits_round4 walks the question).
         if settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=20.0, first=0):
             tap("PDF, first 40 pages", exact=True, wait=0.3)
@@ -6696,12 +6692,12 @@ def paste_at_marker(folder):
     """Copied items pasted where Enter in a list leaves the cursor -- a new
     empty item -- and a whole item with its line break pasted right after an
     item's number: the item kept its number and the paste brought its own,
-    "3. 1. Kiwi" (the lows wave's verification, rounds 8 and 9). The items
+    "3. 1. Kiwi". The items
     are copied as words from a note's comments, the plain field a walk can
     fill. The cursor is placed by Ctrl+A and Left or Right, which close the
     selection at the start or the end, then Right a counted number of times:
     Up and Down, sent by adb, did not move it at all, Ctrl+Home neither, and
-    where a tap lands depends on the screen (the lows wave's walk, 2026-11-02)."""
+    where a tap lands depends on the screen (the walk of 2026-11-02)."""
     print("\n-- items pasted at an item's number --")
     if not seed_inside([
         {"id": 1, "uid": "pm-two", "title": "Two items", "body": "words", "comments": "1. Kiwi\n2. Plum",
@@ -7255,7 +7251,7 @@ def editor_corners(folder):
     back_to("Search notes")
     # A checklist, or comments, asked for from ⋮ on a new note stay through
     # its first save. Kept by the id it gets there, they went, and the words
-    # waiting in A new item went out of sight with them (round 14).
+    # waiting in A new item went out of sight with them.
     tap("+", exact=True, wait=1.5)
     tap("⋮", exact=True, wait=1.0)
     tap("☑ Add a checklist", exact=True, wait=1.5)
@@ -7861,8 +7857,8 @@ def kept_aside(folder):
     """A big delete after a share code's Update: the Update's copy -- the
     note as it was before the Update, in no other file -- stays, and the
     words the delete took become a note of their own, said with Show; typed
-    back, that note goes again (the desktop's wave 2; a big delete replaced
-    the copy here until the lows wave found it)."""
+    back, that note goes again (the desktop's rule; a big delete replaced
+    the copy here until a review found it)."""
     print("\n-- the words a big delete takes beside an Update's copy --")
     words = "Book the physio for Friday, then the bike at seven, then the plan for the knee"
     # A checklist row the note kept aside does not take: a search for it
@@ -7918,7 +7914,7 @@ def kept_aside(folder):
     check("...said", said)
     # The same slip again, put back before Show is tapped: the bar that
     # offered Show goes with the note -- left up, its Show opened an empty new
-    # note (the lows wave's round 1).
+    # note.
     tap_last(words, wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
@@ -7932,8 +7928,8 @@ def kept_aside(folder):
     back_to("Search notes")
     # With the list beside the note, the list says where it hides the note
     # kept aside, in a bar waiting behind the editor's: taken back, that one
-    # goes too -- shown, its Show all emptied the search for a note gone
-    # (the lows wave's round 2). A 14-inch tablet, as screen_sizes draws it.
+    # goes too -- shown, its Show all emptied the search for a note gone.
+    # A 14-inch tablet, as screen_sizes draws it.
     adb("shell", "wm", "size", "1848x2960")
     adb("shell", "wm", "density", "340")
     time.sleep(3.0)

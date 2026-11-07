@@ -1083,8 +1083,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * The notes [ids] as one share code, or null when it cannot be one,
      * said. Made away from the screen's thread: it is the notes' whole text
-     * deflated, and the screen stood still for it at the tap (the final
-     * audit's fifth round). From copies, taken here, which a tick in the
+     * deflated, and the screen stood still for it at the tap.
+     * From copies, taken here, which a tick in the
      * list cannot change under it meanwhile -- of [day] alone, when the
      * editor is open on one day of a series ([outgoingNote]).
      */

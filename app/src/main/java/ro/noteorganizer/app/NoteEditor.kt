@@ -446,7 +446,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * change as it was made, when the one making it knows its place: read
      * off the two texts alone ([Calculator.changeOf]), a change that begins
      * with what follows it is read as made further on, and a place right at
-     * it stayed behind (the final audit's tenth round).
+     * it stayed behind.
      */
     private fun follow(next: String, edit: Paragraphs.Edit? = null) {
         carry(listOfNotNull(edit ?: Calculator.changeOf(body, next)))
@@ -469,8 +469,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * exactly -- and the places remembered in the text with them: followed
      * as one change, a list's markers put on three lines, or Enter in a
      * numbered list above the calculator's last answer, sent its next one
-     * into a later line ("3×3=9Rent", or into "4.": the final audit's ninth
-     * round).
+     * into a later line ("3×3=9Rent", or into "4.").
      */
     private fun apply(done: Paragraphs.Done) {
         spans = if (day != null) emptyList() else done.move(spans)
@@ -639,7 +638,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val from = Paragraphs.lineStart(lines, made.line)
         // The Source line's own line break too, as the desktop's clears to
         // "{cap_line + 2}.0": a style past the table's end kept it, and its bar
-        // ran to the margin there (the final audit's thirteenth round).
+        // ran to the margin there.
         val to = minOf(from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
             lines[made.line + 1].codePointCount(0, lines[made.line + 1].length) + 1,
             made.body.codePointCount(0, made.body.length))
@@ -731,7 +730,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * there -- past what the note draws, the cursor never in it or left in
      * that part when the keyboard went -- and nothing is written, said. As
      * the calculator's sum, it went where nothing showed it, one more blank
-     * table at every tap (the final audit's sixth round).
+     * table at every tap.
      */
     fun insertTable(rows: Int, columns: Int): Int? {
         writeHeldCell()
@@ -844,7 +843,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * [write], as the app goes to the background: the words in "A new
      * item…" go in as a row, kept if Android ends the app -- and given back
      * to the box when the person returns ([backAgain]). Left as a row, a
-     * half-typed item came back finished and the box empty (wave 2).
+     * half-typed item came back finished and the box empty.
      */
     fun writeAway(): String? {
         val words = adding
@@ -893,8 +892,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * -- for the window's messages to stand above it, its ⠿, ☐ and ✕ with it
      * ([AppState.editorFootTop]); null while none is. Counted not, the row
      * was brought just above the keyboard and a message stood over it,
-     * taking the taps meant for its ✕ -- or its own Undo's (the final
-     * audit's tenth round).
+     * taking the taps meant for its ✕ -- or its own Undo's.
      */
     var renamingRow by mutableStateOf<Pair<Any, Float>?>(null)
 
@@ -913,7 +911,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * [now] typed into "A new item…". A full list takes no more, and said
      * only when Add or leaving the note tried, words waiting there were lost
      * unsaid if Android ended the app behind Home -- the save on going to
-     * the background has no one to tell (the final audit's seventh round):
+     * the background has no one to tell:
      * the cap is said as the words begin, while the person is there to read it.
      */
     fun typeAdding(now: String) {
@@ -927,7 +925,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * from the start, a break it holds shown as the space it becomes. Shown
      * with the break, the first letter typed rewrote the box under the
      * keyboard, and letters arriving in that moment were lost -- " list"
-     * came back " li" (the final audit's eighth round, the walk). The note
+     * came back " li" (the walk). The note
      * keeps its break until something is typed in.
      */
     fun titleBox(field: TextFieldValue): TextFieldValue {
@@ -1385,7 +1383,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val placed = Calculator.place(body, formula, calcMark, caret)
         // Written where no field shows it -- the end of a note past what the
         // phone draws, the cursor never in it -- the sum was out of sight,
-        // and every tap added another (the final audit's fifth round).
+        // and every tap added another.
         if (Editing.segments(placed.body).none { holds(it, placed.mark) }) {
             state.say("The end of this note is more than the phone shows at once. Tap in its text where the " +
                 "answer should go, then insert it.")
@@ -1508,7 +1506,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     private fun land(done: Pasting.Inserted) {
         // Through the paste and each marker it renumbered, one by one: as one
         // change, a paste in a list above the calculator's last answer sent
-        // its next one into a later line (the final audit's ninth round).
+        // its next one into a later line.
         carry(done.edits.ifEmpty { listOfNotNull(Calculator.changeOf(body, done.body)) })
         spans = if (day != null) emptyList() else done.spans
         props = if (day != null) Paragraphs.listDepths(done.props, done.body) else done.props
@@ -2252,7 +2250,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                    (if (keeps) " " + stringResource(R.string.restore_kept) else "") +
                    // On one day of a series, as the desktop asks: the copy is
                    // of the whole note, and "the current text" read as the
-                   // day's (the final audit's twenty-third round).
+                   // day's.
                    (if (day != null) "\n\n" + stringResource(R.string.restore_whole_note) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
@@ -2870,8 +2868,7 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
 /**
  * A key's second sign that it is on, beside its fill: a bar in the accent
  * along its foot. The fill alone differed from an off key's by 1.04 to 1.33
- * to 1, under any theme -- not a difference most eyes can rely on (the
- * final audit).
+ * to 1, under any theme -- not a difference most eyes can rely on.
  */
 private fun Modifier.onBar(colour: Color): Modifier = drawBehind {
     val bar = 3.dp.toPx()
@@ -3805,7 +3802,7 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     AppSheet(onDismissRequest = onDismiss, messages = state.snackbar) {
         // Scrolled, on a phone on its side: taller than the window there, its
         // foot was cut away -- the word count, on a repeating note Pin too --
-        // and the message under it had no room (the final audit's eighth round).
+        // and the message under it had no room.
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             // On one day, its own category and colour: said, as the desktop

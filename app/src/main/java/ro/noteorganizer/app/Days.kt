@@ -317,7 +317,7 @@ object Days {
                 }
                 // A dead move onto the date, found free, goes, as Move this day
                 // drops one: two moves onto one date gave History two rows of
-                // one key, and the list threw (the nineteenth round).
+                // one key, and the list threw.
                 for (dead in others) moved.remove(dead)
                 moved.put(gone.cameFrom, gone.day)
             }
@@ -345,7 +345,7 @@ object Days {
             if (!dayIsFree(note, day, origin)) {
                 val home = Recurrence.parseDate(origin)
                 val shown = home?.let { Recurrence.showDay(it) } ?: origin
-                // Said as it is: a day there, or an edit alone (the twelfth round).
+                // Said as it is: a day there, or an edit alone.
                 return@edit if (home != null && Recurrence.expand(note, home, home) != listOf(origin)) {
                     "This series keeps text or a colour of its own on $shown, so this day stays where it is."
                 } else {
@@ -392,8 +392,7 @@ object Days {
      * Whether the series keeps an edit of its own under [date] that it draws
      * no day on -- a day off its schedule, or one deleted with its edit
      * kept. A day moved there would take that edit's place: its words were
-     * written over, and an Undo took the day back without them (the final
-     * audit's eleventh round).
+     * written over, and an Undo took the day back without them.
      */
     fun keepsWordsOn(note: JSONObject, date: String): Boolean =
         (note.opt("overrides") as? JSONObject)?.has(date) == true

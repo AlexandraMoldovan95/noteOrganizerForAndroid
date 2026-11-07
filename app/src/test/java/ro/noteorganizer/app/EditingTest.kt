@@ -867,7 +867,7 @@ class EditingTest {
     fun `a box weighs a paste in CR LF as one letter a line, as the desktop's paste puts it in`() {
         // Windows' clipboard keeps CR LF: weighed as copied, a paste that
         // fitted was cut, said shortened, and the CR kept in the row, the
-        // template's name, the title (the final audit's eighth round).
+        // template's name, the title.
         assertEquals(Editing.Fit("Monday\n", 7, null), Editing.fitRow("", "Monday\r\n", Editing.TITLE_CHARS, "A template name"))
         val lines = (0 until 40).joinToString("\r\n") { "Item %02d: ".format(it) + "q".repeat(40) }
         assertEquals(2_038, lines.length)
@@ -888,7 +888,7 @@ class EditingTest {
     fun `Enter in a title is told by what came in, so a title holding a break takes letters`() {
         // Asked of the whole value -- one letter longer, one break in all --
         // every letter typed into "Groceries\n" was Enter: dropped, the
-        // cursor sent to the note's words (the final audit's eighth round).
+        // cursor sent to the note's words.
         assertTrue(Editing.isEnter("Groceries", "Groceries\n"))
         assertTrue(Editing.isEnter("Groceries\n", "Groceries\n\n"))
         assertTrue("over a selection", Editing.isEnter("abc", "a\nc"))
@@ -911,7 +911,7 @@ class EditingTest {
     @Test
     fun `a CR that came into a box with no cap is one line break, a CR already there stays`() {
         // The note's text, its comments, a cell and a template's text kept
-        // every CR of a plain paste in CR LF (the final audit's ninth round).
+        // every CR of a plain paste in CR LF.
         assertEquals(null, Editing.breaksCame("a", "ab"))
         assertEquals("a\nb\nc" to 5, Editing.breaksCame("a", "a\rb\r\nc", 6))
         assertEquals("what was there is not this edit's", null, Editing.breaksCame("a\rb", "a\rbX", 4))

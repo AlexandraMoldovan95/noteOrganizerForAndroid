@@ -85,7 +85,7 @@ NOT_A_DEFAULT = {
     "_set_aside": "a series' days whose earlier text waits to become notes "
                   "of their own: carried through when a note has some, as "
                   "the desktop's normalize_note carries them, and never made "
-                  "for a new note (the final audit's fifteenth round)",
+                  "for a new note",
     "order": "a note's place in Custom order: kept when it is a finite "
              "number, never defaulted -- 'not placed yet' is its own "
              "answer, and it is not in the desktop's NOTE_DEFAULTS either",
@@ -356,7 +356,7 @@ if model_py is not None:
 
 # ---- 5: the field list a reader is shown -----------------------------
 # docs/DATA_FORMAT.md said this gate held its list to the Python's, and
-# nothing read it (the final audit's third wave).
+# nothing read it.
 
 data_format = read(os.path.join(ANDROID, "docs", "DATA_FORMAT.md"))
 parts = data_format.split("\n## A note\n", 1) if data_format is not None else []

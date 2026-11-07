@@ -110,13 +110,13 @@ def fresh_tree(adb_bytes, tries=3):
     or "" when no tree was written in [tries] asks. The last dump's file goes first: a dump that
     writes nothing -- the app's thread held past uiautomator's patience --
     left the screen before it in the file, and a tool that read it judged,
-    or tapped, a screen that was gone (the final audit's ninth round).
+    or tapped, a screen that was gone.
     The asks are spaced: right after an install and `pm clear`, three made
     within a second all wrote nothing, and a part's first look failed
-    (twice in wave 2's walks, each part fine walked again). And the file is
+    (twice, each part fine walked again). And the file is
     read only when this ask's dump says it wrote it: an ask adb lost on the
     way, 21 seconds, ran neither the rm nor the dump, and the walk judged the
-    screen before a tap as the screen after it (the lows wave's round 12)."""
+    screen before a tap as the screen after it."""
     for attempt in range(tries):
         if attempt:
             time.sleep(1.5 * attempt)
