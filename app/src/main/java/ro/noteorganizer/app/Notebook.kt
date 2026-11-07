@@ -108,10 +108,13 @@ data class Note(
      */
     private val previewParts: Pair<List<String>, Int> by lazy {
         val (prose, tables) = previewText(body)
-        prose.split("\n").map { it.trim() }.filter { it.isNotEmpty() } to tables
+        // A list item with no words is a blank line too: kept, it read "· • ·".
+        prose.split("\n")
+            .filter { line -> Paragraphs.parseListMarker(line.trimStart(' ', '\t')).let { (if (it.kind != null) it.rest else line).isNotBlank() } }
+            .map { it.trim() } to tables
     }
 
-    /** Body lines worth previewing: blanks and table lines dropped. */
+    /** Body lines worth previewing: blanks, list items with no words and table lines dropped. */
     private val spokenLines: List<String> get() = previewParts.first
 
     /** How many tables the body holds -- runs of lines a person reads as a table. */

@@ -129,6 +129,17 @@ class NotebookTest {
     }
 
     @Test
+    fun `a list item with no words is left out of the snippet, as a blank line is`() {
+        // Enter at a marker leaves "• " above; kept, the card read "· • ·".
+        val json = """[{"id": 1, "title": "Packing",
+            "body": "Pack the coat\n• \n• milk\n  ◦ \n2. \n3. eggs"}]"""
+        assertEquals("Pack the coat · • milk · 3. eggs", notesFrom(json).single().snippet)
+        // ...and never borrowed as an untitled note's headline.
+        val untitled = notesFrom("""[{"id": 2, "title": "", "body": "• \n• milk"}]""").single()
+        assertEquals("• milk", untitled.headline)
+    }
+
+    @Test
     fun `table rows stay out of the preview and are counted instead`() {
         val json = """
             [{"id": 1, "body": "My list\n| a | b |\n| c | d |\nAfter the table"}]
