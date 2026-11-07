@@ -637,11 +637,15 @@ private val TABS = listOf(
 /**
  * A tab's mark, in the tab's colour. The calendar's is drawn in lines: its
  * glyph, 📅, is a coloured emoji that reads "July 17" beside two plain marks.
+ * All three in one box: a glyph's line is taller than the drawing, and the
+ * Calendar label sat higher than the other two.
  */
 @Composable
 private fun TabMark(tab: Tab, glyph: String) {
-    if (tab == Tab.CALENDAR) Icon(CALENDAR_MARK, contentDescription = null, modifier = Modifier.size(24.dp))
-    else Text(glyph, fontSize = 20.sp)
+    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+        if (tab == Tab.CALENDAR) Icon(CALENDAR_MARK, contentDescription = null, modifier = Modifier.size(24.dp))
+        else Text(glyph, fontSize = 20.sp)
+    }
 }
 
 /** A calendar page in lines: its frame, the band at its top, two rings. */
