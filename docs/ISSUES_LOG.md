@@ -7,8 +7,8 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-six of the hundred and six are
-about the checking.
+**the code**, or in **the design**. Twenty-eight of the hundred and eight
+are about the checking.
 
 Smaller lessons, each once a long comment in the code, are collected
 [at the end](#smaller-lessons-moved-out-of-the-code), by the name the code
@@ -16,6 +16,8 @@ points with.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-07](#a-message-read-after-it-went-a-tap-between-two-cards-a-list-left-mid-way) | checking | The full walk after the lows wave: a four-second message read by a five-second look, a tap that stopped a fling between two cards, and steps that search the list started where a turn of the phone had left it | A step that searches the screen starts where the step before it stopped |
+| [2026-11-07](#two-looks-that-judged-what-they-never-read) | checking | A walk's early steps failed twice and passed walked again: a search judged on words never read back, and a look that read the screen from before a tap because adb lost its dump on the way | A file on the device is evidence only when the command that wrote it says it ran |
 | [2026-11-07](#a-bars-button-tapped-after-the-bar-had-gone) | checking | A walk on a freshly booted emulator tapped a bar's Show all after the bar's ten seconds were up, opened the card beneath, and failed 25 steps from one | A check that taps something with a lifetime must own that lifetime, or the machine's speed decides the verdict |
 | [2026-11-07](#the-lists-words-merged-and-unmerged) | design | The lows wave's verification, rounds 5 to 11: what the list says of notes it hides -- one slot, then all at once, then merged, unmerged, merged again -- my own last fix found wrong five times, until each word named its note, as the desktop's does | When two fixes keep undoing each other, the choice between them is the wrong question: ask what the other program does |
 | [2026-11-06](#the-bar-that-went-with-whichever-note-was-on-screen) | code | The lows wave's verification, rounds 1 to 4: a note kept aside went and left its Show; dismissing "the bar on screen" took another action's Undo; an Undo then waited behind offers, or threw them away | Dismiss what you mean, by name: on a queue, "the current one" is a guess |
@@ -125,6 +127,90 @@ points with.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A message read after it went, a tap between two cards, a list left mid-way
+
+**2026-11-07.** The full walk after the lows wave failed two of its 940
+or so steps, and the same parts walked again failed two others. Each step
+had passed in earlier walks, and the app under them had changed only in
+its comments. All of them were the walk.
+
+Insert table, on a note of 600 tables, says where to tap for four
+seconds. Its first look took five: uiautomator waits for the screen to go
+still, and the keyboard coming back over that note kept it busy. The
+emulator's log, kept larger for the second walk, shows Insert tapped at
+04:39:01.7 and the look's file read at 07.1; no other look in the part
+took three seconds. The tenth round had held the same message, said by
+Enter on the note of 60,002 lines, for fifteen seconds with Android's own
+accessibility setting ([A day read by its date, a change read by its
+texts](#a-day-read-by-its-date-a-change-read-by-its-texts)), but not its
+two siblings: Insert table and the calculator's Insert say it on the same
+heavy notes. Both are held now.
+
+A tap that stops a fling, then a second tap at the same place: the first
+must only stop the list, the second open the step menu. Where the list
+stops cannot be read while it runs. A tap that landed on a card's words
+was already tried again at another height; one that stopped the list
+with the gap between two cards under it opened nothing either time, and
+read as a second tap that failed. That height is now tried again too, the
+handles' boxes read once the list is still. The mutant of the fix this
+step guards (AS610, the tap read at the handle's last lift), rebuilt,
+still fails it.
+
+The steps in the middle of the list look for places by small swipes --
+the last card with nothing under it and its handle clear of the + button
+is a band of 18 pixels -- and were written to start with the list at its
+top. Round 22 put a turn of the phone before them, and the turn's swipes
+leave the list wherever they stop. The list is flung back to its top
+first now. One failure was a look that held no card at all. A probe
+showed that a look taken while a step menu is open holds only the menu's
+window, nine nodes and no card, but no menu should have been open there,
+and the cause is not proven. If it comes back, it is said with the
+screen's words and a photograph; and the turn's "card left out" is now
+read with no menu up.
+
+**The lesson:** a step that searches the screen for a place starts
+wherever the step before it stopped, so a step put in front of it changes
+its start. A sweep for a fix's siblings goes by the message and the
+screen it is said on, not by the step that failed.
+
+---
+
+## Two looks that judged what they never read
+
+**2026-11-07.** Two walks of the part about what hides the list failed
+one early step each, and each step passed walked again.
+
+The first: the search for "creme" showed neither card for six seconds,
+the field holding something all the while, and the failure kept no
+picture. The step had judged the list on words it never read back. It now
+reads the field first: a field not holding the words typed is said with
+what the screen says, photographed and typed again, and a field holding
+them still fails on a wrong list. A probe that typed "crme" for "creme"
+got "No notes match your search", the same empty answer, which the step
+now catches. A letter lost on the way in is the likely cause, not a
+proven one; the typing lost in October ([A check that held by one
+frame](#a-check-that-held-by-one-frame)) may have been the same.
+
+The second was proved from the emulator's own log. "Show all notes" was
+tapped at 01:39:57.6. The walk's next look sent "remove the last dump;
+dump the screen", and adb lost it on the way: for 22 seconds the emulator
+received nothing, no dump ran, and the `cat` that followed read the file
+of the look before the tap -- "No notes match Show: Home." -- as the
+screen after it. The ninth round had put the removal in the same command
+as the dump, which mends a dump that writes nothing, not a command that
+never arrives. A look now reads the file only when its own dump says it
+wrote it ("UI hierchary dumped to"), and a photograph only when its own
+capture says so; the colour burst clears its last captures first. A probe
+with the first ask lost read the stale screen before the fix and the
+fresh one after it.
+
+**The lesson:** a file on the device is evidence of the command that
+wrote it only when that command says it ran. Clearing it in the same
+command guards against a writer that fails, never against one that never
+ran -- and a stale screen can pass a check as easily as fail one.
 
 ---
 

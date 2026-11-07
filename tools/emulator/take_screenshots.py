@@ -40,7 +40,7 @@ from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, adb, adb_bytes, fresh_tree  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, SHOT, adb, adb_bytes, capture, fresh_tree  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
@@ -384,8 +384,11 @@ def main():
                              if still else ""))
                     failed.append(name)
                     continue
-                adb("shell", "screencap", "-p", "/sdcard/shot.png")
-                data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
+                if not capture(adb_bytes):
+                    print("   the screen could not be captured -- not photographing")
+                    failed.append(name)
+                    continue
+                data = adb("exec-out", "cat", SHOT, binary=True)
                 target = os.path.join(OUT, name + ".png")
                 with open(target, "wb") as f:
                     f.write(data)

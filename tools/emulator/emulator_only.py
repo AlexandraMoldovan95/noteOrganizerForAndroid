@@ -113,12 +113,28 @@ def fresh_tree(adb_bytes, tries=3):
     or tapped, a screen that was gone (the final audit's ninth round).
     The asks are spaced: right after an install and `pm clear`, three made
     within a second all wrote nothing, and a part's first look failed
-    (twice in wave 2's walks, each part fine walked again)."""
+    (twice in wave 2's walks, each part fine walked again). And the file is
+    read only when this ask's dump says it wrote it: an ask adb lost on the
+    way, 21 seconds, ran neither the rm nor the dump, and the walk judged the
+    screen before a tap as the screen after it (the lows wave's round 12)."""
     for attempt in range(tries):
         if attempt:
             time.sleep(1.5 * attempt)
-        adb_bytes("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
+        said = adb_bytes("shell", "rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml")
+        if b"dumped to" not in said:
+            continue
         raw = adb_bytes("exec-out", "cat", "/sdcard/ui.xml").decode("utf-8", errors="replace")
         if "<?xml" in raw:
             return raw[raw.find("<?xml"):]
     return ""
+
+
+SHOT = "/sdcard/shot.png"
+
+
+def capture(adb_bytes):
+    """The screen captured into [SHOT], fresh: True when this ask's screencap
+    wrote it, to be read with `exec-out cat`. The last capture goes first,
+    as [fresh_tree]'s dump file does: an ask adb lost on the way left it in
+    place, and it was read as this one's."""
+    return b"captured" in adb_bytes("shell", "rm -f %s; screencap -p %s && echo captured" % (SHOT, SHOT))

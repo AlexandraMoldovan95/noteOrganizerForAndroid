@@ -35,7 +35,7 @@ import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, AdbTimeout, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, SHOT, AdbTimeout, capture, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -491,8 +491,10 @@ def keyboard_top():
 
 
 def photograph(folder, name):
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
-    data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
+    if not capture(lambda *a: adb(*a, binary=True)):
+        fail("photo %s: the screen could not be captured" % name)
+        return
+    data = adb("exec-out", "cat", SHOT, binary=True)
     with open(os.path.join(folder, name + ".png"), "wb") as f:
         f.write(data)
     print("     photo %s.png" % name)
@@ -509,8 +511,10 @@ def shades_while_tapping(label, frames=10):
     if at is None:
         fail("tap %r: not on the screen" % label)
         return []
-    script = ("i=0\nwhile [ $i -lt %d ]; do\n  screencap /data/local/tmp/shade_$i.raw\n"
-              "  i=$((i+1))\ndone\n" % frames)
+    # The last burst's captures go first, as [capture]'s does: a burst that
+    # never ran reads as none, not as the last one.
+    script = ("rm -f /data/local/tmp/shade_*.raw\ni=0\nwhile [ $i -lt %d ]; do\n"
+              "  screencap /data/local/tmp/shade_$i.raw\n  i=$((i+1))\ndone\n" % frames)
     local = os.path.join(os.environ.get("TEMP", "."), "walk_shades.sh")
     with open(local, "w", newline="\n") as f:
         f.write(script)
@@ -849,14 +853,18 @@ def brand_new(folder):
     # been, and the note stayed in the Trash (2026-10-23). One look finds
     # Undo; the photograph is a plain capture, with no look of its own.
     undo_at = find("Undo", exact=True)
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
+    captured = capture(lambda *a: adb(*a, binary=True))
     trash = read_file("trash.json") or []
     trashed = any(t.get("title") == "Groceries" for t in trash)
     if undo_at is not None:
         adb("shell", "input", "tap", str(undo_at[0]), str(undo_at[1]))
         time.sleep(1.5)
-    with open(os.path.join(folder, "05-undo.png"), "wb") as f:
-        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
+    if captured:
+        with open(os.path.join(folder, "05-undo.png"), "wb") as f:
+            f.write(adb("exec-out", "cat", SHOT, binary=True))
+        print("     photo 05-undo.png")
+    else:
+        fail("photo 05-undo: the screen could not be captured")
     check("Move to Trash puts the note in trash.json", trashed)
     check("...and offers Undo", undo_at is not None)
     notes = read_file("notes_data.json") or []
@@ -3102,9 +3110,7 @@ def move_day(folder):
     missing = [w for w in ("Only this day: " + said(to), "moved from " + said(second), "Moved to") if w not in shown]
     check("the editor follows the day, and the move offers its Undo", not missing and bool(offer),
           str(missing + ([] if offer else ["the offer's Undo"])))
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
-    with open(os.path.join(folder, "48-day-moved.png"), "wb") as f:
-        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
+    photograph(folder, "48-day-moved")
     if offer:
         adb("shell", "input", "tap", str(offer[-1][0]), str(offer[-1][1]))
 
@@ -3903,11 +3909,30 @@ def hidden_from_the_list(folder):
     def search(words, expect):
         tap("Search notes", wait=0.8)
         type_text(words)
+        # The field holds the words before the list is judged: the first search
+        # after a cold boot once showed neither card for six seconds, the field
+        # holding something else (the lows wave's round 11). Said, photographed
+        # and typed again; a field holding them still fails on a wrong list.
+        if not settle(lambda: any(t == words for t, _, _ in nodes()), bool, within=4.0, first=0):
+            seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+            print("     NOTE the field does not hold %r -- the screen says %r; typed again" % (words, seen[:300]))
+            photograph(folder, "130a-field-%s-not-typed" % words)
+            if find("Clear search", exact=True):
+                tap("Clear search", exact=True, wait=1.0)
+            tap("Search notes", wait=0.8)
+            type_text(words)
         # Looked for until it shows, not once a second after typing: on a busy
         # emulator the list's answer came later, and the check failed two runs
         # in three with nothing wrong (the lows wave's round 7).
         on = settle(lambda: [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)],
                     lambda seen: seen == expect, within=6.0, first=0)
+        if on != expect:
+            # What was there instead, kept: the first search after a cold
+            # boot once showed neither card for six seconds, and the failure
+            # kept nothing to say why (the lows wave's round 11).
+            seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+            print("     the search for %r shows %r" % (words, seen[:300]))
+            photograph(folder, "130b-search-%s-FAILED" % words)
         tap("Clear search", exact=True, wait=1.0)
         keyboard_down()
         return on
@@ -4659,8 +4684,10 @@ def limits_round5(folder):
     tap("🧮 Calculator", wait=1.2)
     for key in ("1", "+", "1", "="):
         tap(key, exact=True, wait=0.3)
-    tap("⬇ Insert into note", wait=0.3)
-    said = not says_soon("Tap in its text where the answer should go", within=6.0)
+    # The same message on the same screen as the Enter's: held as it is.
+    with messages_held(15_000):
+        tap("⬇ Insert into note", wait=0.3)
+        said = not says_soon("Tap in its text where the answer should go", within=15.0)
     back_to("Search notes")
     check("the calculator writes nothing where no field shows it, and says where to tap",
           said and (note_by_uid("r5-3") or {}).get("body", "") == body, str(said))
@@ -5029,8 +5056,11 @@ def limits_round6(folder):
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     time.sleep(0.4)
     tap("Insert table", wait=1.2)
-    tap("Insert", exact=True, wait=0.3)
-    said = not says_soon("Tap in its text where the table should go", within=6.0)
+    # Held as the Enter's message above is: its first look here took five
+    # seconds, the four-second message gone before it (the lows wave's full walk).
+    with messages_held(15_000):
+        tap("Insert", exact=True, wait=0.3)
+        said = not says_soon("Tap in its text where the table should go", within=15.0)
     back_to("Search notes")
     check("Insert table where the note's drawing has ended writes nothing, and says where to tap",
           said and (note_by_uid("r6-7") or {}).get("body") == before, str(said))
@@ -5747,6 +5777,13 @@ def arrange_without_drag(folder):
         return sorted((centre[1], desc[len("Drag to move "):]) for _t, desc, centre in nodes()
                       if desc.startswith("Drag to move Note "))
 
+    def unmet(what):
+        """A step whose screen was not there: said with the screen's words and
+        photographed, as a run walked again may not meet it."""
+        seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+        fail("%s -- the screen says %r" % (what, seen[:240]))
+        photograph(folder, "89x-" + re.sub(r"\W+", "-", what[:48]).strip("-"))
+
     # A step menu open as the phone turns closes with its card, which the
     # shorter screen leaves out -- and it came back open by itself once the
     # card scrolled back into sight (round 22).
@@ -5755,7 +5792,10 @@ def arrange_without_drag(folder):
     if low:
         tap("Drag to move " + low, wait=1.0)
         turn(1)
-        left_out = find("Drag to move " + low) is None
+        # Read with no menu up: a look taken while one is open holds only the
+        # menu's window, and the card in sight would read as left out.
+        seen = [part for t, d, _ in nodes() for part in (t, d)]
+        left_out = "Drag to move " + low not in seen and "Move down" not in seen and "Move up" not in seen
         for _ in range(8):
             if find("Drag to move " + low):
                 break
@@ -5771,12 +5811,23 @@ def arrange_without_drag(folder):
               left_out and back_in and not reopened,
               "left out %s, back in %s, menu open %s" % (left_out, back_in, reopened))
     else:
-        fail("the step menu through a turn: no card's handle low on the screen")
+        unmet("the step menu through a turn: no card's handle low on the screen")
+    # Back to the top, where the steps below were written to start: from where
+    # the turn's swipes stopped, a search below ran past the place it looks
+    # for (the lows wave's full walk). A fling to the top ends at the top.
+    for _ in range(3):
+        adb("shell", "input", "swipe", "540", "900", "540", "2000", "80")
+        time.sleep(0.6)
+    time.sleep(1.5)
+    shown = handles()
+    if not shown or shown[0][1] != placed()[0]:
+        unmet("mid-list: the list not back at its top, %s first on the screen" % (shown[0][1] if shown else None))
+        return
     adb("shell", "input", "swipe", "540", "1700", "540", "1150", "400")
     time.sleep(1.2)
     shown = handles()
     if not shown:
-        fail("mid-list: no card's handle on the screen")
+        unmet("mid-list: no card's handle on the screen")
         return
     top_card = shown[0][1]
     was = placed().index(top_card)
@@ -5809,7 +5860,7 @@ def arrange_without_drag(folder):
         adb("shell", "input", "swipe", "540", "1500", "540", "1400", "300")
         time.sleep(1.0)
     if not picked:
-        fail("mid-list: no card just above the + button with the next one under it")
+        unmet("mid-list: no card just above the + button with the next one under it")
         return
     tap("Drag to move " + picked, wait=1.0)
     tap("Move down", exact=True, wait=2.0)
@@ -5821,6 +5872,7 @@ def arrange_without_drag(folder):
     # the layout, it was taken to the top of the screen, a screen's jump, and
     # the card it passed went above (round 18).
     last = None
+    tried = []
     for _ in range(8):
         shown = handles()
         order = placed()
@@ -5828,13 +5880,16 @@ def arrange_without_drag(folder):
             y, name = shown[-1]
             nxt = order[order.index(name) + 1] if order.index(name) + 1 < len(order) else None
             clear_of_plus = abs(y - plus[1]) > 110
-            if nxt and clear_of_plus and screen_says(nxt) == [nxt]:
+            hidden = nxt and screen_says(nxt) == [nxt]
+            tried.append((name, y, hidden))
+            if nxt and clear_of_plus and hidden:
                 last, passed_by = name, nxt
                 break
         adb("shell", "input", "swipe", "540", "1500", "540", "1440", "300")
         time.sleep(1.0)
     if not last:
-        fail("mid-list: no last card on screen with nothing under it in sight, clear of the +")
+        unmet("mid-list: no last card on screen with nothing under it in sight, clear of the + at %s; "
+              "the last handle, its y, the next one unseen: %s" % (plus, tried))
         return
     tap("Drag to move " + last, wait=1.0)
     tap("Move down", exact=True, wait=2.0)
@@ -5896,7 +5951,7 @@ def arrange_without_drag(folder):
             check_settled("the top card nudged down, a hair back and held, moves nothing",
                           lambda: placed()[:20], lambda p: p == before[:20])
         else:
-            fail("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
+            unmet("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
         # The top card drawn down, put back where it was pressed and held: the
         # turn back scrolled the list under it, and the note was saved a place
         # or two up (round 20).
@@ -5916,7 +5971,7 @@ def arrange_without_drag(folder):
             check_settled("the top card drawn down, put back and held, moves nothing",
                           lambda: placed()[:20], lambda p: p == before[:20])
         else:
-            fail("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
+            unmet("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
         # A press the system cancels -- a Back swipe from the edge across a
         # handle, a call -- read as a tap: the menu opened by itself (round 25).
         shown, before = handles(), placed()
@@ -5940,12 +5995,23 @@ def arrange_without_drag(folder):
             # Where a handle lands after a fling cannot be read while it runs:
             # a tap on a card's words opens the note instead, and another
             # height is tried.
+            def handle_under(x, y):
+                return any(d.startswith("Drag to move Note ") and box[0] <= x <= box[2] and box[1] <= y <= box[3]
+                           for _t, d, box, _p in tree())
             outcome = None
-            for y in (1300, 1370, 1230, 1440):
+            for y in (1300, 1370, 1230, 1440, 1335, 1265, 1405, 1195):
                 adb("shell", "input", "swipe", "540", "1900", "540", "700", "80")      # a fling
                 adb("shell", "input", "tap", str(at[0]), str(y))
                 time.sleep(1.2)
                 first = not menu_up()
+                if find("ⓘ", exact=True):
+                    back_to("Search notes")
+                    continue
+                # Stopped with the gap between two cards under the tap, the
+                # second tap opened nothing either, and failed a sound app
+                # (the lows wave's full walk): another height is tried.
+                if first and not handle_under(at[0], y):
+                    continue
                 adb("shell", "input", "tap", str(at[0]), str(y))
                 time.sleep(1.2)
                 if find("ⓘ", exact=True):
@@ -5959,7 +6025,7 @@ def arrange_without_drag(folder):
             check("a tap on a handle that stops a fling only stops it, and the next tap opens the menu",
                   outcome == (True, True), "the first opened nothing, the second the menu: %s" % (outcome,))
     else:
-        fail("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
+        unmet("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))
     back_to("Search notes")
     # A phone on its side: the top card stepped down went under the + button,
