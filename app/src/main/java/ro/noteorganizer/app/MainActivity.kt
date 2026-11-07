@@ -34,11 +34,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -63,7 +65,13 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.coerceAtLeast
@@ -469,7 +477,7 @@ fun AppRoot(state: AppState, version: String) {
                             NavigationRailItem(
                                 selected = state.tab == tab,
                                 onClick = { goTo(tab) },
-                                icon = { Text(mark, fontSize = 20.sp) },
+                                icon = { TabMark(tab, mark) },
                                 label = { Text(stringResource(label)) },
                                 colors = NavigationRailItemDefaults.colors(
                                     selectedIconColor = palette.text,
@@ -520,7 +528,7 @@ fun AppRoot(state: AppState, version: String) {
                         NavigationBarItem(
                             selected = state.tab == tab,
                             onClick = { goTo(tab) },
-                            icon = { Text(mark, fontSize = 20.sp) },
+                            icon = { TabMark(tab, mark) },
                             label = { Text(stringResource(label)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = palette.text,
@@ -619,12 +627,35 @@ fun AppRoot(state: AppState, version: String) {
     }
 }
 
-/** The three places, in the bar's order and the rail's. */
+/** The three places, in the bar's order and the rail's; the calendar's mark is drawn ([TabMark]). */
 private val TABS = listOf(
     Triple(Tab.NOTES, R.string.nav_notes, "≣"),
-    Triple(Tab.CALENDAR, R.string.nav_calendar, "📅"),
+    Triple(Tab.CALENDAR, R.string.nav_calendar, ""),
     Triple(Tab.SETTINGS, R.string.nav_settings, "⚙"),
 )
+
+/**
+ * A tab's mark, in the tab's colour. The calendar's is drawn in lines: its
+ * glyph, 📅, is a coloured emoji that reads "July 17" beside two plain marks.
+ */
+@Composable
+private fun TabMark(tab: Tab, glyph: String) {
+    if (tab == Tab.CALENDAR) Icon(CALENDAR_MARK, contentDescription = null, modifier = Modifier.size(24.dp))
+    else Text(glyph, fontSize = 20.sp)
+}
+
+/** A calendar page in lines: its frame, the band at its top, two rings. */
+private val CALENDAR_MARK: ImageVector by lazy {
+    ImageVector.Builder("calendar", 24.dp, 24.dp, 24f, 24f).path(
+        stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f,
+        strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
+    ) {
+        moveTo(4f, 6f); lineTo(20f, 6f); lineTo(20f, 20f); lineTo(4f, 20f); close()
+        moveTo(4f, 10.5f); lineTo(20f, 10.5f)
+        moveTo(8.5f, 3.5f); lineTo(8.5f, 7.5f)
+        moveTo(15.5f, 3.5f); lineTo(15.5f, 7.5f)
+    }.build()
+}
 
 /** Material's medium window: the rail. */
 private val RAIL_FROM = 600.dp

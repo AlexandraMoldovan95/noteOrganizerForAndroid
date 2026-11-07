@@ -117,7 +117,15 @@ class NotebookTest {
         val note = notesFrom(json).single()
         assertFalse(note.headlineIsBorrowed)
         assertEquals("Title", note.headline)
-        assertEquals("First Second", note.snippet)
+        assertEquals("First · Second", note.snippet)
+    }
+
+    @Test
+    fun `a snippet keeps a note's lines apart, as the desktop's card does`() {
+        // Run together, two lines read as one sentence; empty lines go.
+        val json = """[{"id": 1, "title": "Reading list",
+            "body": "the book borrowed from Radu\n\n  the article about sleep  "}]"""
+        assertEquals("the book borrowed from Radu · the article about sleep", notesFrom(json).single().snippet)
     }
 
     @Test

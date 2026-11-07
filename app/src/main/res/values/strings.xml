@@ -55,7 +55,7 @@
     <string name="day_reset">↺ Reset this day</string>
     <string name="day_move">📅 Move this day…</string>
     <!-- The series view's line: the desktop's banner, in its words -->
-    <string name="series_banner">🔁 This note repeats (%1$s) — edits here apply to every day</string>
+    <string name="series_banner">🔁 This note repeats (%1$s) — edits here apply to the whole series</string>
     <plurals name="series_own_edits">
         <item quantity="one">%d day keeps its own edits (✎)</item>
         <item quantity="other">%d days keep their own edits (✎)</item>
@@ -576,8 +576,8 @@
     <string name="name_explain">Shown above your notes as “Hi Maria,”. Leave it empty for no greeting.</string>
     <string name="themes_dark">Dark</string>
     <string name="themes_light">Light</string>
-    <string name="themes_for_dark">The dark themes. Light takes the app back to the light one you wore last.</string>
-    <string name="themes_for_light">The light themes. Dark takes the app back to the dark one you wore last.</string>
+    <string name="themes_for_dark">The dark themes. Light takes the app back to the light one you used last.</string>
+    <string name="themes_for_light">The light themes. Dark takes the app back to the dark one you used last.</string>
     <string name="add_category">Add a category</string>
     <string name="category_name">Name</string>
     <string name="general_protected">“General” can\'t be renamed or deleted: it is where notes go when their category does.</string>

@@ -144,14 +144,15 @@ data class Note(
      * The rest of the note, after whatever the headline already used --
      * a glimpse, not the whole text: the card shows two lines of it, and
      * laying out tens of thousands of characters to show two lines is
-     * what made the list stutter on a phone.
+     * what made the list stutter on a phone. Its lines are kept apart, as
+     * the desktop's card keeps them: run together, two read as one sentence.
      */
     val snippet: String by lazy {
         val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
         val out = StringBuilder()
         for (line in rest) {
             if (out.length >= GLIMPSE) break
-            if (out.isNotEmpty()) out.append(' ')
+            if (out.isNotEmpty()) out.append(" · ")
             out.append(glimpse(line))
         }
         glimpse(out.toString())

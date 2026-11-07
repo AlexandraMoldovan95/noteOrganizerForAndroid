@@ -3151,10 +3151,10 @@ def off_schedule(folder):
     open_note("Yoga")
     check("the series says two days' edits are off its schedule",
           not screen_says("2 days' own edits are off the schedule"))
-    # And, above it, that its edits reach every day: the desktop's banner.
-    # Both days are off the schedule, so none is counted as keeping its own.
-    check("the series says its edits apply to every day, counting no day off the schedule as its own",
-          not screen_says("This note repeats", "edits here apply to every day")
+    # And, above it, that its edits reach the whole series: the desktop's
+    # banner. Both days are off the schedule, so none is counted as keeping its own.
+    check("the series says its edits apply to the whole series, counting no day off the schedule as its own",
+          not screen_says("This note repeats", "edits here apply to the whole series")
           and find("keep their own edits") is None and find("keeps its own edits") is None)
     tap("off the schedule", wait=1.5)
     check("one question a day, in the desktop's words", not screen_says("Day 1 of 2 off the schedule", "Yoga in the park"))
