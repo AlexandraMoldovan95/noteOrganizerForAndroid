@@ -36,7 +36,7 @@ sys.dont_write_bytecode = True      # no __pycache__ left in the desktop's tree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 RES = os.path.join(ANDROID, "app", "src", "main", "res")
 
 # The five densities a launcher icon ships at, and the pixel size each

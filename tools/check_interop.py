@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 OUT = os.path.join(ANDROID, "app", "build", "interop")
 CODE = os.path.join(OUT, "phone_code.txt")
 NOTE = os.path.join(OUT, "phone_note.json")

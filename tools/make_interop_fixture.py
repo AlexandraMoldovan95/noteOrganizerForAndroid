@@ -27,7 +27,7 @@ sys.dont_write_bytecode = True      # no __pycache__ left in the desktop's tree
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
                        "desktop_code.txt")
 

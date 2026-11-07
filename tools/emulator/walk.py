@@ -963,7 +963,7 @@ def brand_new(folder):
 
 # ---- the second walk: a notebook written for the camera ----
 
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 
 CAMERA = [
     {"id": 1, "uid": "walk-bread", "title": "Bread",

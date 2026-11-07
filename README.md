@@ -135,6 +135,11 @@ The test task prints nothing useful when it fails; the results are XML in
 `py tools\check_test_results.py` reads them — refusing any that are older
 than the code.
 
+The app builds alone, but several checks run the desktop's own Python (the
+note's shape, the days fixture, the interop gate, the mutant runner's
+guard): clone the desktop's repository beside this one, as `NoteOrganizer`,
+or name its folder in `NOTEORGANIZER_HOME`.
+
 The app keeps its notebook in its own private storage. To try it with a
 real notebook, export a backup from the desktop (Settings → Backup), put
 the `.zip` anywhere on the device, and import it from the app's

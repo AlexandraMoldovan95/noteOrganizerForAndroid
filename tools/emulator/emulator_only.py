@@ -21,13 +21,34 @@ while, on a machine where one heavy job at a time is the rule. Past the
 limit the script stops, naming the call, rather than wait on.
 """
 import os
+import shutil
 import subprocess
 import time
+
+def find_adb():
+    """adb from the SDK the build uses (local.properties' sdk.dir), then
+    ANDROID_HOME or ANDROID_SDK_ROOT, then Android Studio's own place on
+    Windows, then the PATH: a fixed path held the walk to one machine."""
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sdks = []
+    props = os.path.join(repo, "local.properties")
+    if os.path.exists(props):
+        for line in open(props, encoding="utf-8"):
+            if line.startswith("sdk.dir="):
+                sdks.append(line.split("=", 1)[1].strip().replace("\\:", ":").replace("\\\\", "\\"))
+    sdks += [os.environ.get("ANDROID_HOME"), os.environ.get("ANDROID_SDK_ROOT"),
+             os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk")]
+    name = "adb.exe" if os.name == "nt" else "adb"
+    for sdk in sdks:
+        if sdk and os.path.isfile(os.path.join(sdk, "platform-tools", name)):
+            return os.path.join(sdk, "platform-tools", name)
+    return shutil.which("adb") or os.path.join(sdks[-1], "platform-tools", name)
+
 
 # Read once, at import: the desktop's guard, which the walk takes as it
 # starts (walk.take_the_turn), points LOCALAPPDATA at an empty folder of the
 # run's own, and an adb looked for there after it is found nowhere.
-ADB = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk", "platform-tools", "adb.exe")
+ADB = find_adb()
 
 # How long one adb call may take: the slowest an emulator answers is a dump
 # of a long screen or of the log, a few seconds; an install, a minute or two.

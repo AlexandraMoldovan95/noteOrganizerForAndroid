@@ -42,7 +42,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 from desktop_fingerprint import fingerprint  # noqa: E402 -- found beside this script
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
                        "export_cases.json")
 SEED = 20261015

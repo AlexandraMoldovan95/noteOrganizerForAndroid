@@ -97,7 +97,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from desktop_fingerprint import fingerprint  # noqa: E402 -- found beside this script
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources", "days_cases.json")
 HOMES = os.path.join(ANDROID, "app", "build", "desktop-home")
 
