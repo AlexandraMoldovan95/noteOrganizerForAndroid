@@ -238,6 +238,17 @@ the author's circumstances, plans or reasons for building it. Anything
 written for a reader is framed as readability: what the next person needs
 in order to understand this code. Carried over from the desktop project.
 
+### A commit's subject names the part of the app, then what changed
+
+The owner's rule, 2026-11-07, the same as the desktop's: `area: what
+changed`, in plain words, for example `snackbar: name the note when the
+list says it`, read from `git log --oneline` by someone who never saw the
+work. A review panel found subjects such as "a word names its note as it
+is when said" unreadable there. The body tells the story. The house words
+the issues log and commit bodies use (word, bar, road, round, wave, the
+lows, mutant, the walk, a look) are explained in the desktop's CLAUDE.md,
+under "House words". Earlier history stays as it is.
+
 ### No heredocs for code containing escapes
 
 Corrupted files five or more times in the desktop project. Write the file

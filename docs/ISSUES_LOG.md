@@ -8,7 +8,9 @@ story.
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
 **the code**, or in **the design**. Twenty-eight of the hundred and eight
-are about the checking.
+are about the checking. A few words carry a sense of their own here (a
+bar's *word*, a *road*, a *look*, a *round*, *the lows*): the desktop's
+CLAUDE.md explains them, under "House words".
 
 Smaller lessons, each once a long comment in the code, are collected
 [at the end](#smaller-lessons-moved-out-of-the-code), by the name the code
