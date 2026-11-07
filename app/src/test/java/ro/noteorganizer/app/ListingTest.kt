@@ -186,6 +186,15 @@ class ListingTest {
         assertEquals(3, Showing.revealAt(pinnedFirst, setOf(5), listOf(5, 6), atTop = false, anchor = 5, lead = 0))
         // The item it kept gone from the list: counted from a card in sight that did not move.
         assertEquals(0, Showing.revealAt(flat(3, 1, 2, 4, 5, 6), setOf(3), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
+        // ...the first of them that is neither of two pinned together, both above it now.
+        assertEquals(0, Showing.revealAt(flat(3, 4, 1, 2, 5, 6), setOf(3, 4), listOf(3, 4, 5), atTop = false, anchor = 99, lead = 1))
+        // The item it kept (2, a sliver) standing still, the window counted
+        // from the row under it: a card moved one place up is in sight. Counted
+        // from the card in sight, the window started a row low...
+        assertEquals(null, Showing.revealAt(flat(1, 2, 4, 3, 5, 6), setOf(4), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
+        // ...and one moved down to the window's last row too; counted from
+        // the sliver itself, the window ended a row short.
+        assertEquals(null, Showing.revealAt(flat(1, 2, 3, 5, 4, 6), setOf(4), listOf(3, 4, 5), atTop = false, anchor = 2, lead = 1))
     }
 
     @Test
