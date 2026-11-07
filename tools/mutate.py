@@ -20,7 +20,9 @@ needs a device, so the APK is written where --apk says and the part to
 walk is named.
 
 It builds, so it takes the machine's turn first, as the walk does
-(tools/desktop_guest.py): a second heavy job waits for this one.
+(tools/desktop_guest.py): a second heavy job waits for this one. A Gradle
+run past half an hour is ended with everything it started, and reads as
+NO RUN.
 
 Exit 0 when every mutant run met its expectation.
 """
@@ -30,6 +32,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
@@ -43,6 +46,8 @@ DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ROOT
 CRLF, LF = bytes([13, 10]), bytes([10])
 # Gradle's own heap is 2 GB (gradle.properties); the ceiling leaves it room.
 PER_PROCESS_MB, ALL_TOGETHER_MB = 4096, 6144
+# One mutant's build and tests take one to three minutes on this machine.
+GRADLE_LIMIT_S = 1800
 
 
 def unpack(commit):
@@ -58,10 +63,31 @@ def unpack(commit):
 
 
 def gradle(work, *tasks):
+    """A Gradle run in the copy; one that passes GRADLE_LIMIT_S is ended and
+    reads as no results -- a NO RUN -- rather than holding the machine's turn
+    for good, as emulator_only.py limits every adb call."""
     wrapper = os.path.join(work, "gradlew.bat" if os.name == "nt" else "gradlew")
     args = (["cmd", "/c", wrapper] if os.name == "nt" else [wrapper])
-    return subprocess.run(args + ["-p", work, "--console=plain", "-q", "--no-daemon"] + list(tasks),
-                          capture_output=True, text=True, encoding="utf-8", errors="replace")
+    args += ["-p", work, "--console=plain", "-q", "--no-daemon"] + list(tasks)
+    return limited(args, GRADLE_LIMIT_S)
+
+
+def limited(args, limit):
+    """*args* run to its end or for *limit* seconds, whichever is first. Ended,
+    it is ended whole: the wrapper's own end left the java it started building
+    beside the next mutant's."""
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                            encoding="utf-8", errors="replace", start_new_session=os.name != "nt")
+    try:
+        out, err = proc.communicate(timeout=limit)
+        return subprocess.CompletedProcess(args, proc.returncode, out, err)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True)
+        else:
+            os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        return subprocess.CompletedProcess(args, 124, "", "ended after %d s" % limit)
 
 
 def mutated(work, m):

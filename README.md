@@ -169,9 +169,9 @@ at 47% of the canvas is in the
 
 The unit tests pin the rules ported from Python rather than the screens.
 A fix comes with a check watched failing: the fix broken on purpose — a
-mutant — run, read, put back. The 280 mutants of the final audit that
-still aim at today's code are in `tools/mutants.json`, run with
-`py tools/mutate.py`. A mutant that produces no test results at all is
+mutant — run, read, put back. Those that still aim at today's code are in
+`tools/mutants.json`, run with `py tools/mutate.py`
+([how many](qa/README.md#the-house-rules)). A mutant that produces no test results at all is
 not a passing one ([the story](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one)).
 
 The parts that matter most are not judged by this app at all. A note

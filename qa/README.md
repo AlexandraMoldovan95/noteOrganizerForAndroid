@@ -117,10 +117,10 @@ the file, so a "restore" that changed nothing leaves the file rewritten
 end to end. ([the story](../docs/ISSUES_LOG.md#a-mutant-runner-that-left-the-code-broken))
 `tools/mutate.py` keeps both rules by never touching the repository: it
 unpacks a commit into a folder of its own and mutates that. Its catalogue,
-`tools/mutants.json`, holds the 280 mutants written during the final audit
-that still aim at today's code (262 judged by a unit test, 18 by a part of
-the walk); 97 more were written then whose code has changed since, and
-went. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
+`tools/mutants.json`, holds the mutants written since the final audit
+began that still aim at today's code -- 281 on 7 November 2026, 263 judged
+by a unit test and 18 by a part of the walk; 97 more written during the
+audit aimed at code that has changed since, and went. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
 no longer finds its code.
 
 **A check that does the app's job proves nothing.** If the check computes
