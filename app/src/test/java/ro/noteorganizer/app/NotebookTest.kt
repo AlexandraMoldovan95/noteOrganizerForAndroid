@@ -1813,7 +1813,7 @@ class NotebookTest {
     }
 
     @Test
-    fun `round eight's copy rules, as the desktop's 947e9d3 has them`() {
+    fun `a series' copy's rules, as the desktop's 947e9d3 has them`() {
         // The days_cases fixture walks each through both programs; here each
         // rule is asked on its own.
         val weekly = JSONObject().put("freq", "weekly").put("interval", 1)

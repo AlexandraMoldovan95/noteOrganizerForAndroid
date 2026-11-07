@@ -202,7 +202,7 @@ class DaysTest {
         val shaping = System.nanoTime()
         for (i in 0 until load.raw!!.length()) Normalize.normalizeNote(load.raw!!.getJSONObject(i), daysBack = false)
         val shaped = (System.nanoTime() - shaping) / 1_000_000
-        println("1,000 notes with an Update's copy: the read $read ms; the shaping round eight's guard added, once, $shaped ms")
+        println("1,000 notes with an Update's copy: the read $read ms; the shaping its guard added, once, $shaped ms")
         assertEquals("the copy as it lies", 3, load.raw!!.getJSONObject(0).getJSONObject("_prev")
             .keys().asSequence().count { it in Notebook.DAY_FIELDS })
     }
@@ -707,7 +707,7 @@ class DaysTest {
         val all = listOf("edit", "edit", "move", "shift", "delete", "rule", "rule", "read", "share", "backup", "restore",
             "off", "back", "back", "older", "reset", "undo", "settle", "text", "trash")
         // A third of the roads keep to the turn-off and the turn-on with the
-        // days edited and deleted between: the corner the audit kept finding.
+        // days edited and deleted between: the corner the reviews kept finding.
         val offOn = listOf("edit", "edit", "delete", "delete", "off", "back", "back", "older", "rule", "read", "undo")
         // A word a person can reach: a day the calendar draws or lists off the
         // schedule (any day of a note no longer repeating). In the file alone, on
@@ -1573,7 +1573,7 @@ class DaysTest {
     }
 
     @Test
-    fun `a copy of words that carries days, as the audit's builds made, gives no words to a turn-off`() {
+    fun `a copy of words that carries days, as earlier builds made, gives no words to a turn-off`() {
         // The desktop's _turn_off_rescue_copy takes a copy of words alone;
         // one holding days is a copy of more than words.
         val load = scratch("""[{"id": 1, "uid": "s", "title": "Gym", "body": "agenda", "category": "Work",

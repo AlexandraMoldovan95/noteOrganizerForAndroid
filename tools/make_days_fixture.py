@@ -26,7 +26,8 @@ folders under app/build, checked empty afterwards: nothing it reads at
 import can be a notebook -- and under the desktop's own memory ceiling
 (`desktop_guest`).
 
-The cases, in the order they were added: a 0.12.0 Trash entry restored, then
+Past the first cases, those added later, in the order they came (the
+newest groups are named where they are built, below): a 0.12.0 Trash entry restored, then
 rewritten; 0.12.0's turn-off then turn-on as it was; an update's copy of a
 series, which never moves; the same backup imported twice; the comments
 rewritten over a big delete's copy; "Restore previous" after comments were
@@ -51,7 +52,7 @@ first one's copy of the same series, after a big delete and after the
 comments were cleared; and an arriving note read as a load reads it, its
 copy's days taken back, before both are compared bare.
 
-Then (a data fix of the desktop's): a copy's day is
+Then (the desktop's fix for the dates a day held without a word): a copy's day is
 dropped only where the note deleted that day or wrote words of its own for
 it -- 0.12.0 turned on as it was, then that very day moved, coloured (the
 desktop's patch and the phone's), or moved with another put on its date;

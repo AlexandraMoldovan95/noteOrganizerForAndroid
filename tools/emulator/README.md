@@ -27,8 +27,9 @@ pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
 | `take_screenshots.py` | writes a notebook made for the camera straight into the app's own storage, walks ten screens — three of them on its side — and photographs each one, then the same screens again in a dark theme (`NN-name-dark.png`) | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen — and those that must be gone — before the shutter opens; a screen that does not say them is not photographed |
 | `type_code.py <file> <x> <y>` | taps the field at (x, y), types the file's contents in 100-character pieces, then dumps the UI and compares what arrived against the original | `adb shell input text` truncated a 634-character share code at 181 — silently. A code cut short is indistinguishable from a damaged one, so the typing is verified rather than assumed |
 
-All five need the SDK's `adb` on the machine
-(`%LOCALAPPDATA%\Android\Sdk\platform-tools`), and all five are
+All five need the SDK's `adb` on the machine (found through
+`local.properties`' `sdk.dir`, `ANDROID_HOME` or `ANDROID_SDK_ROOT`,
+`%LOCALAPPDATA%\Android\Sdk`, then the `PATH`), and all five are
 Windows-flavoured. None of them reads or writes a real notebook. On the
 emulator they write to the app's own storage and to scratch files under
 `/sdcard` (its `Download` folder, `ui.xml`, `shot.png`) and `/data/local/tmp`; the walk also switches the
@@ -75,7 +76,7 @@ the path to adb is read before that, at import. Parts named after the
 folder (`walk.py <folder> cell_menu limits_round8`) are walked alone on the
 same road, and a part called from a script of one's own takes the turn at
 its first adb call: taken only by the whole walk, such a part walked
-beside whatever else ran (the final audit's ninth round). The screenshot
+beside whatever else ran. The screenshot
 script and the small helpers take no turn; keep them to one at a time by
 hand.
 

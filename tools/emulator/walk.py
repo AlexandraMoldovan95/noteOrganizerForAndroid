@@ -2021,7 +2021,7 @@ def _tables_opened(folder):
         opening frame still drawing was in no list; read after the look, a
         0.5 s opening could fail by a redraw
         started 5.6 ms late, and 2.4 s of work drawing nothing passed by a
-        look made sooner (the tenth)."""
+        look made sooner."""
         deadline = time.time() + 20.0
         at = find(label, exact)
         while at is None and time.time() < deadline:
@@ -3405,7 +3405,7 @@ def held_after_tap(pid, quiet=1.0, within=20.0):
     with a template of 90,000 cells open it ran 40 ms, logged as slow, so
     every read was work found and the reading never went quiet -- an opening
     of 0.6 s, read with no read during it, timed 4.5 to 8.3 s, a lone frame
-    seconds later taken in at its end (the full walk after the tenth)."""
+    seconds later taken in at its end (in a full walk)."""
     deadline = time.time() + within
     seen, still_since, spans = None, time.time(), []
     while True:
@@ -3444,7 +3444,7 @@ def frames_once_shown(*words, within=30.0, gap=None, starts=False):
     the old slow search put back passed. A look waits only as long as
     uiautomator does: one that read no
     tree waited for nothing, and the frames are [99.0] -- read anyway, a
-    freeze past its patience passed (the ninth). With [gap], only the frames
+    freeze past its patience passed. With [gap], only the frames
     that began within [gap] seconds of the first: an autosave due 800 ms
     after a letter is a frame of its own. With [starts], each as (its start,
     its length). The words missing, and the frames ([99.0] when none were
@@ -4121,7 +4121,7 @@ def long_lines(folder):
 
 
 def limits_round3(folder):
-    """Walked: text the layout cannot break
+    """What the layout cannot break, and what is quoted, walked: text
     that the first rule let through -- joined by no-break spaces, a hundred
     lines just under the limit, a run inside a table's cell -- each opens at
     once, shown read-only; a template saved from a note with a 150,000-letter
@@ -4130,7 +4130,7 @@ def limits_round3(folder):
     short; a note too long for a message says so on the Share sheet; a page
     shared of a table too large to draw is made without holding the app; and
     a PDF that stops at forty pages says so."""
-    print("\n-- round three's limits: what the layout cannot break, and what is quoted --")
+    print("\n-- limits: what the layout cannot break, and what is quoted --")
     w = "W" * 150_000
     heavy = "a" * 9_999
 
@@ -4329,7 +4329,7 @@ def limits_round3(folder):
 
 
 def limits_round4(folder):
-    """Walked: what one note draws, counted
+    """What one note draws, and what is asked before it goes, walked: counted
     for the whole note -- ten tables of 1,000 cells, 200,000 empty lines,
     3,000 tables of two cells, "x" and "" after a spent limit, and a journal
     of 7,000 lines -- each opened and timed by the app's own frames, a
@@ -4338,7 +4338,7 @@ def limits_round4(folder):
     too long says so on its card before the tap, and a PDF that would leave
     part of the note out asks first -- Cancel hands nothing over, Web page
     hands the page, the PDF is forty pages with nothing written into it."""
-    print("\n-- round four's limits: what one note draws, and what is asked before it goes --")
+    print("\n-- limits: what one note draws, and what is asked before it goes --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r4-%d" % i, "title": title, "body": "x", "category": "General",
@@ -4561,7 +4561,7 @@ def limits_round5(folder):
     new item box. (The Share sheet of a 5 MB note was timed too, and held
     1.3 to 1.6 s before the fix, 0.8 to 1.4 after: no check, since it
     could not tell the two builds apart.)"""
-    print("\n-- round five's limits: what an ordinary note keeps, and where the cursor goes --")
+    print("\n-- limits: what an ordinary note keeps, and where the cursor goes --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r5-%d" % i, "title": title, "body": "x", "category": "General",
@@ -4781,8 +4781,8 @@ def limits_round5(folder):
 
 
 def limits_round6(folder):
-    """Long checklist rows, walked. A checklist row at the
-    desktop's 2,000 letters keeps its own words when a letter or a paste goes
+    """A row's own words, rows in sight, rows read whole, walked. A checklist
+    row at the desktop's 2,000 letters keeps its own words when a letter or a paste goes
     in at its start: the letter refused, the paste cut, each said. A row
     moved up or down across the line of rows not drawn, or dragged over it,
     stays in sight; a search for one of the last rows draws no more of them.
@@ -4792,7 +4792,7 @@ def limits_round6(folder):
     1,000 rows refuses an Add and never drops the waiting words unsaid. Redo
     of a table row typed at the end puts the cursor under the grid; and
     Insert table writes nothing where it would not be seen, and says so."""
-    print("\n-- round six's limits: a row's own words, rows in sight, rows read whole --")
+    print("\n-- limits: a row's own words, rows in sight, rows read whole --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r6-%d" % i, "title": title, "body": "x", "category": "General",
@@ -5250,7 +5250,8 @@ def template_draft(folder):
 
 
 def limits_round7(folder):
-    """Very long words, walked. A checklist row of a million
+    """A long unbroken row, the boxes' caps, the template the app closed,
+    walked. A checklist row of a million
     letters with no space is read in parts at once, its "Read all" and a
     search's stop in it no frame of seconds; a title, and a template's name,
     keep their own words at 200 letters, the key refused and said; a full
@@ -5259,7 +5260,7 @@ def limits_round7(folder):
     taken off the screen by the app itself -- the reminder's notification
     tapped while the app is in front -- is kept as a draft and offered back;
     and a draft taken back by hand leaves none behind."""
-    print("\n-- round seven's limits: a long unbroken row, the boxes' caps, the template the app closed --")
+    print("\n-- limits: a long unbroken row, the boxes' caps, the template the app closed --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r7-%d" % i, "title": title, "body": "x", "category": "General",
@@ -5421,7 +5422,8 @@ def limits_round7(folder):
 
 
 def limits_round8(folder):
-    """Names and titles, walked. A category's name already
+    """Refusals over a sheet, a title holding a break, the caps' words, the
+    details on their side, walked. A category's name already
     used is refused and said over its sheet, which stays open -- said in the
     window under it, Save looked as if it did nothing; a title holding a line
     break takes the letters typed into it, and a tap on it writes nothing;
@@ -5430,7 +5432,7 @@ def limits_round8(folder):
     the note's details scroll to their foot, and the Repeat sheet's word that
     a turn-off keeps the days is seen over them. Each read back from the
     screen or the file."""
-    print("\n-- round eight's limits: refusals over a sheet, a title holding a break, the caps' words, the details on their side --")
+    print("\n-- limits: refusals over a sheet, a title holding a break, the caps' words, the details on their side --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r8-%d" % i, "title": title, "body": "x", "category": "General",
@@ -5548,7 +5550,7 @@ def limits_round10(folder):
     brought just above the keyboard, where the window's messages stood, and
     one stood over it and took the taps meant for its ✕. Read back from the
     screen, on the look that finds the words."""
-    print("\n-- round ten's limits: a message above the row being renamed --")
+    print("\n-- limits: a message above the row being renamed --")
 
     def note(i, title, **fields):
         n = {"id": i, "uid": "r10-%d" % i, "title": title, "body": "x", "category": "General",

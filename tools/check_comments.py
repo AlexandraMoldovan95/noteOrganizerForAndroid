@@ -156,7 +156,7 @@ _ORD = (r"(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|"
         r"tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|"
         r"seventeenth|eighteenth|nineteenth|twentieth|twenty-[a-z]+)")
 ROUND = re.compile(
-    r"\brounds? %s\b|\b(?:%s|%s)(?: and (?:%s|%s))? rounds?\b(?! trip)|\blows wave\b"
+    r"\brounds?[ -]%s\b|\b(?:%s|%s)(?: and (?:%s|%s))? rounds?\b(?! trip)|\blows wave\b"
     r"|\bfinal audit\b|\baudit's\b|\bwave %s\b"
     % (_NUM, _ORD, _NUM, _ORD, _NUM, _NUM), re.I)
 
