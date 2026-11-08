@@ -7,7 +7,9 @@ protection and gives none. This reads every entry and fails when:
 * an id is used twice, or a field is missing;
 * its file is gone, or its `old` text is not found exactly once there;
 * its `tests` name a unit test class with no file in app/src/test, or a
-  walk part tools/emulator/walk.py does not call.
+  walk part tools/emulator/walk.py does not call;
+* it is expected to live (equivalent, or survives) and its `why` does not
+  say so: a mutant left alive must say why it may be.
 
 When a fix reshapes the code a mutant aims at, aim the mutant at the code
 as it is now, or remove it along with the check it guarded. The desktop's
@@ -60,11 +62,15 @@ def main():
                     problems.append("%s: the walk has no part %s" % (mid, name[5:]))
             elif not os.path.isfile(os.path.join(TESTS, name + ".kt")):
                 problems.append("%s: no test class %s" % (mid, name))
+        # AS533 was marked equivalent with only what it would do, not why.
+        expect = m.get("expect", "killed")
+        if expect != "killed" and expect not in m["why"]:
+            problems.append("%s: expected to live (%s), and its why does not say so, nor why" % (mid, expect))
     for line in problems:
         print("  " + line)
     if problems:
-        print("%d mutant(s) no longer find what they mutate: aim each at the code as it "
-              "is now, or drop it with the check it guarded." % len(problems))
+        print("%d problem(s) in the catalogue: aim each mutant at the code as it is now, or "
+              "drop it with the check it guarded; one left alive says why." % len(problems))
         return 1
     print("Every one of the %d mutants has its own id and finds the code it mutates." % len(catalogue))
     return 0

@@ -146,7 +146,7 @@ first run all together that day: 257 of 263 as the catalogue said. Of the
 six others, two had been re-aimed while it ran; four had lost their test to
 a later fix, and were given one or, where two guards now overlap, marked
 equivalent with the reason. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
-no longer finds its code.
+no longer finds its code, or is left alive without saying why.
 
 **A check that does the app's job proves nothing.** If the check computes
 the expected answer the same way the app computes it, it agrees with the
