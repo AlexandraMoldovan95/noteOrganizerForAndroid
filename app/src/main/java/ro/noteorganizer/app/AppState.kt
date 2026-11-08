@@ -64,6 +64,13 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var listAside by mutableStateOf(false)
 
     /**
+     * Whether the notes list has notes selected, set by the list: on a wide
+     * screen the + stands in the rail, and steps aside then as the list's
+     * own does on a phone.
+     */
+    var listSelecting by mutableStateOf(false)
+
+    /**
      * Counts the notes opened: each gets an editor of its own, scrolled to
      * its top, its sheets shut. On a wide screen the editor stays on screen
      * from one note to the next, and a second new note is "note 0" again,

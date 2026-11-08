@@ -433,7 +433,7 @@ fun AppRoot(state: AppState, version: String) {
         val tabContent: @Composable () -> Unit = {
             tabsKept.SaveableStateProvider(state.tab.name) {
                 when (state.tab) {
-                    Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
+                    Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true }, plusInRail = wide)
                     Tab.CALENDAR -> CalendarScreen(state)
                     Tab.SETTINGS -> SettingsScreen(state, backup, version,
                         openPrivacy = { openInBrowser(context, state, Links.PRIVACY) },
@@ -472,6 +472,14 @@ fun AppRoot(state: AppState, version: String) {
                         containerColor = palette.sidebar,
                         windowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
                             .only(WindowInsetsSides.Vertical + WindowInsetsSides.Start),
+                        // The list's + at the rail's head, as the desktop's "+ New Note" heads
+                        // its sidebar: over the list's foot it covered a card, the chosen one too.
+                        // Its place kept while it steps aside, or the tabs below it jumped.
+                        header = {
+                            Box(Modifier.size(56.dp)) {
+                                if (state.tab == Tab.NOTES && tabShown && !state.listSelecting) NewNoteButton(state)
+                            }
+                        },
                     ) {
                         for ((tab, label, mark) in TABS) {
                             NavigationRailItem(
@@ -542,8 +550,8 @@ fun AppRoot(state: AppState, version: String) {
                 }
             }
         }
-        // Above the bar at the bottom, and on the list above the + too (half over
-        // a button it reads as a mistake), and above the keyboard, which covers
+        // Above the bar at the bottom, and on a phone's list above the + too (half
+        // over a button it reads as a mistake), and above the keyboard, which covers
         // both: under it, a word said while typing was drawn behind the keys.
         val listShown = state.tab == Tab.NOTES && tabShown
         val density = LocalDensity.current
@@ -569,7 +577,7 @@ fun AppRoot(state: AppState, version: String) {
                 .padding(bottom = when {
                     typing || open != null && !twoPanes -> 8.dp
                     !wide -> if (listShown) 160.dp else 80.dp
-                    else -> if (listShown) 88.dp else 16.dp
+                    else -> 16.dp
                 }.let { rule -> if (footClear == null) rule else maxOf(rule, footClear + 8.dp) }),
         )
     }

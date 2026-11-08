@@ -89,12 +89,13 @@ internal val SearchSaver = androidx.compose.runtime.saveable.Saver<String, Strin
 
 /**
  * The list of notes: search, sort and show at the top, the desktop's cards,
- * the + for a new note. Touch and hold a card to select it; while anything
- * is selected, a tap selects too, and the bar at the top acts on them all.
+ * the + for a new note -- in the rail when [plusInRail], where it covers no
+ * card. Touch and hold a card to select it; while anything is selected, a
+ * tap selects too, and the bar at the top acts on them all.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
+fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean = false) {
     val palette = LocalPalette.current
     val load = state.load
     var query by rememberSaveable(stateSaver = SearchSaver) { mutableStateOf("") }
@@ -110,6 +111,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
     var moreMenu by remember { mutableStateOf(false) }
     var choosingCategory by remember { mutableStateOf(false) }
     val selecting = selected.isNotEmpty()
+    DisposableEffect(selecting) {
+        state.listSelecting = selecting
+        onDispose { state.listSelecting = false }
+    }
 
     val today = state.today
     val shown = remember(state.revision, query, show, order, today) {
@@ -784,7 +789,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
                     }
                 }
                 else -> LazyColumn(state = listState,
-                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp)) {
+                                   contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp,
+                                                                  bottom = if (plusInRail) 16.dp else 96.dp)) {
                     items(rows, key = Showing::key) { row ->
                         when (row) {
                             is Showing.Row.Header -> GroupHeader(row, load.categories[row.category]) {
@@ -954,13 +960,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
 
         // Not while the keyboard is up: the list shrinks over it, and with the
         // phone on its side + sat on the search box. Down, it comes back.
-        if (!selecting && !WindowInsets.isImeVisible) {
-            FloatingActionButton(
-                onClick = { state.newNote() },
-                containerColor = palette.accent,
-                contentColor = palette.onAccent,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-            ) { Text("+", fontSize = 28.sp, modifier = Modifier.said(R.string.new_note_said)) }
+        if (!plusInRail && !selecting && !WindowInsets.isImeVisible) {
+            NewNoteButton(state, Modifier.align(Alignment.BottomEnd).padding(20.dp))
         }
     }
 
@@ -977,6 +978,18 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit) {
             onDismiss = { choosingCategory = false },
         )
     }
+}
+
+/** The + for a new note: over the list's foot on a phone, at the head of the rail on a wide screen. */
+@Composable
+fun NewNoteButton(state: AppState, modifier: Modifier = Modifier) {
+    val palette = LocalPalette.current
+    FloatingActionButton(
+        onClick = { state.newNote() },
+        containerColor = palette.accent,
+        contentColor = palette.onAccent,
+        modifier = modifier,
+    ) { Text("+", fontSize = 28.sp, modifier = Modifier.said(R.string.new_note_said)) }
 }
 
 private fun Set<Int>.toggle(id: Int): Set<Int> = if (id in this) this - id else this + id

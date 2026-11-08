@@ -6026,9 +6026,9 @@ def arrange_without_drag(folder):
         unmet("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))
     back_to("Search notes")
-    # A phone on its side: the top card stepped down went under the + button,
-    # brought into sight with the card it passed, the two taller than the
-    # list.
+    # A phone on its side: the top card stepped down stays in sight with the
+    # card it passed, the two taller than the list; the + stands in the rail,
+    # where it once covered the card.
     if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
                      "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
                     for i in range(1, 31)],
@@ -6039,9 +6039,9 @@ def arrange_without_drag(folder):
         shot(folder, "89-landscape-step", "Note 01")
         shown, plus = handles(), find("New note", exact=True)
         at = find("Drag to move Note 01")
-        check("on its side, the top card moved down stays on top, clear of the + button",
+        check("on its side, the top card moved down stays on top, the + in the rail beside the list",
               placed()[:2] == ["Note 02", "Note 01"] and bool(shown) and shown[0][1] == "Note 01"
-              and at is not None and plus is not None and at[1] < plus[1] - 80,
+              and at is not None and plus is not None and plus[0] < 300,
               "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
         # ...and a drag of one place there: every resting card sat in an
         # edge zone, the list slid at once, and the note landed two or three
@@ -7585,6 +7585,7 @@ def wide(folder):
     long_press("Plans")
     turn(1)
     check("a selection survives the phone turning", not screen_says("1 selected"))
+    check("...and the rail's + steps aside while notes are selected", find("New note", exact=True) is None)
     back()
     turn(0)
     open_note("Groceries")
@@ -7601,6 +7602,10 @@ def wide(folder):
           bool(notes_at and settings_at) and notes_at[0] < 300 and settings_at[0] < 300
           and notes_at[1] < settings_at[1], "%s %s" % (notes_at, settings_at))
     check("the second pane waits for a note", not screen_says("Search notes", "Pick a note"))
+    plus = find("New note", exact=True)
+    check("...and the + heads the rail, above its tabs and off the list",
+          plus is not None and bool(notes_at) and plus[0] < 300 and plus[1] < notes_at[1],
+          "the + at %s, Notes at %s" % (plus, notes_at))
     shot(folder, "44-wide-list", "Search notes", "Pick a note")
 
     open_note("Groceries")
@@ -7612,14 +7617,16 @@ def wide(folder):
     # The keyboard up, the phone on its side: the top bar, a line of words
     # and two rows of format keys took every pixel it left, and not a word
     # of the note showed; + sat on the search box (an agent playing an
-    # ordinary user, 2026-10-22). A line at least now, and no +.
+    # ordinary user, 2026-10-22). A line at least now, and + in the rail.
     box, _lines = lines_of_field("milk and eggs")
     keyboard = bar_frame("ime")
     check("on its side with the keyboard up, the note's words stay in sight above the keys",
           box is not None and keyboard is not None and keyboard[0] > 0
           and box[3] - box[1] >= body_line_px() and box[1] < keyboard[0],
           "field %s, the keyboard from %s" % (box, keyboard))
-    check("...and + keeps off the search box while the keyboard is up", find("+", exact=True) is None)
+    plus = find("New note", exact=True)
+    check("...and + keeps off the search box while the keyboard is up, in the rail",
+          plus is not None and plus[0] < 300, "the + at %s" % (plus,))
     keyboard_down()
     shot(folder, "45-wide-note", "Groceries", "milk and eggs", "ⓘ")
 
