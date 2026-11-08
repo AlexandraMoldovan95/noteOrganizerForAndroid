@@ -98,7 +98,9 @@ wrote most of the code and the documentation, working under the rules in
 [CLAUDE.md](CLAUDE.md); its commits carry a `Co-Authored-By` line. In her
 own words: [In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
 in the desktop app's repository, which also tells
-[how the final audit before the stores was run](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/AI_WORKFLOW.md#the-final-audit).
+[how the final audit before the stores was run](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/AI_WORKFLOW.md#the-final-audit)
+and keeps [the prompts its agents were given](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/audit/README.md),
+for both apps.
 
 ## Documentation
 
