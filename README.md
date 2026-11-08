@@ -63,8 +63,8 @@ for the camera rather than anybody&rsquo;s real one &mdash;
   select, pin, move, duplicate or delete several at once — with Undo.
 - **A phone or a tablet**, upright or on its side: from a small tablet's
   width the tabs become a rail down the left edge, and on a wide screen
-  the note opens beside the list. Walked on a small phone and on tablets
-  of 7, 10 and 14 inches.
+  the note opens beside the list. Walked at the sizes of a small phone and
+  of 7, 10 and 14-inch tablets, set on one emulator; no real tablet yet.
 - **The Trash**, kept for the desktop's window and emptied on its own.
 - **Your look**: the desktop's eight themes, four light and four dark,
   under one Light | Dark switch.
@@ -124,7 +124,9 @@ inventing behaviour
 ## Building and running it
 
 Requirements: Android Studio (or a JDK plus the Android SDK) and an
-emulator or a device with USB debugging on. Minimum Android 8.0 (API 26).
+emulator or a device with USB debugging on. Minimum Android 8.0 (API 26),
+the oldest it is built for; walked on Android 17 (the emulator) and used
+on Android 16 (one phone), not yet run on anything older.
 
 `gradlew` needs a JDK and will not start without one. Where no other is
 installed, point it at the one bundled inside Android Studio:

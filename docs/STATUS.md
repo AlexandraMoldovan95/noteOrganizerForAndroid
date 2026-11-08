@@ -389,8 +389,8 @@ Grouped by what the app does; when each item arrived is in the
     a pin, a category — the note shows at once and keeps. « in the note's
     top bar puts the list (or the calendar) aside for a wider note, »
     brings it back; the choice holds until the app is closed or a tab is
-    chosen. Walked on a
-    small phone and on tablets of 7, 10 and 14 inches (2026-10-24).
+    chosen. Walked at the sizes of a small phone and of 7, 10 and 14-inch
+    tablets, set on one emulator (2026-10-24).
 37. Settings: your name, appearance, categories, templates,
     **Reminders**, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
