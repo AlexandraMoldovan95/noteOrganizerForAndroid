@@ -16,7 +16,7 @@ Settings → Backup turns the app's part off, and the privacy policy
 
 Alexandra Moldovan decided what it does, used it on her own phone and
 walks its test plan; Claude Code, an AI coding agent, wrote most of the
-code under her rules, and she approves every change
+code under her rules, and she approves every push and every merge
 ([how it was built](#how-it-was-built), [how it is checked](#how-it-is-checked)).
 
 <p align="center">
