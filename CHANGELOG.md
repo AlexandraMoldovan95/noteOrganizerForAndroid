@@ -58,12 +58,28 @@ do before, not as releases anyone ran.
 
 ## [Unreleased]
 
-Kept change by change through the final audit's fifth round. The rounds
-after it (six to twenty-five) and the lows wave are written in at the
-release cut, from their stories in the [issues log](docs/ISSUES_LOG.md);
-until then this section is not the whole of what the next release carries.
+The final audit before the stores, 27 October to 8 November 2026. Its
+first five rounds were written in change by change; what the rounds
+after them, the waves of low findings, the ordinary person's week and
+the review panel found that reaches a person is written in at the
+release cut, from their stories in the [issues log](docs/ISSUES_LOG.md),
+one entry for each, however many rounds its fix took. A fix of a fix
+made inside the audit is folded into the entry it belongs to.
 
 ### Added
+
+- **A template being written is kept when Android ends the app, and
+  offered back.** Settings → Templates asks "You were writing a
+  template. Continue it?" with Continue and Discard; the draft is this
+  phone's alone, kept outside Android's backup.
+- **Text shared into the app becomes a note,** its first line the
+  title, the whole text kept; a `.txt` shared as a file is read too. A
+  share code among words is still imported. The owner's choice.
+- **The note list's search finds words in a note's checklist.** The
+  owner's choice.
+- **An empty search that one day of a repeating note would answer says
+  so,** and offers **Search the Calendar's History**, which opens it
+  searching for them.
 
 - **Settings → Backup turns off the app's part in Android's own
   backup** to the person's Google account, which stays on by default, as
@@ -79,6 +95,8 @@ until then this section is not the whole of what the next release carries.
   switch is. Asked for by the owner after the final audit, 2026-10-27.
 
 ### Fixed
+
+#### The first five rounds
 
 - **A note's words typed while the phone could not write stay "Not
   saved" until they are written.** When a save failed — a full disk —
@@ -584,6 +602,179 @@ until then this section is not the whole of what the next release carries.
   shows it; a checklist row the phone cannot write is said once, and the
   letters typed in the next row are kept. Found by the final audit's
   fifth round.
+
+#### From the sixth round on
+
+- **Redo of a table row typed at a note's end keeps the table the right
+  way up,** and Insert table in a note past what it draws says where to
+  tap, where it wrote a blank table nobody could see at every tap.
+- **A checklist row near its 2,000 letters keeps its own words.** A
+  letter or a paste anywhere but at its end pushed its last words off,
+  unsaid; an emoji counts as one letter, as on the desktop.
+- **A checklist row moved by its menu, a screen reader or a drag stays
+  in sight,** where it went among the rows not drawn and vanished.
+- **A row longer than 2,000 letters can be read,** where it showed
+  "149,994 characters in 1 lines" and not a word: "Read all N characters
+  ›" shows it whole, in parts cut on the edges of letters, at once
+  however it is written, and a search's stop opens it at its word.
+- **The template editor keeps up with a long list,** keeps its "A new
+  item…" to a row's length, and refuses a 1,001st item with a word,
+  where Save dropped it.
+- **Comments wiped keep a rescue copy,** as the same words deleted from
+  the text do.
+- **Restore previous keeps what it writes over:** comments typed since,
+  and styles laid on part of the copy's words, went to no file.
+- **An Update's copy survives a later big delete.** The words the delete
+  takes become an "(earlier text)" note, as on the desktop.
+- **What an edit takes away is counted in letters:** eight emoji
+  deleted read as sixteen, and replaced a copy holding a deleted
+  paragraph.
+- **Every box with a limit keeps its own words.** The title, a
+  template's name and title, Save as template's name and Your name cut
+  their own end when a letter or a paste went anywhere but the end; a
+  title of 150 emoji kept 100. A paste is cut to the room left, and said
+  in the box's own words where it can be seen.
+- **At a full checklist "A new item…" says so as the words begin,**
+  where Home lost them unsaid.
+- **The calculator's answer goes where you are writing,** through Undo,
+  Redo, a list's markers and Enter in a list, never glued to the
+  cursor ("2+2=43×3=9") nor into a table's box ("[x]12×3=36"); and it
+  reads a keyboard's − * x / : and a decimal comma.
+- **Insert table and the calculator's Insert write where the cursor is
+  after Undo,** not at the note's end.
+- **A title holding a line break can be typed into.** Every letter was
+  dropped, and the next ones went into the note's words.
+- **A sheet or a dialog that refuses says so over itself:** the category
+  sheet's Save looked as if it did nothing. The details and category
+  sheets scroll on a phone on its side.
+- **The app's words said while typing show above the keyboard,** and
+  are read out to a screen reader.
+- **The list's search no longer stops the app** after 262,000 letters
+  pasted and Home.
+- **A line break that comes in as CR is one line break,** in the note's
+  text, its comments, a cell and a template, as the desktop's paste
+  makes it.
+- **A hand-made repeat rule, and an id, are read as the desktop reads
+  them** ("1_0", thousands of digits, true and false in the day lists).
+- **A note id past what an Int holds is renumbered,** where every new
+  note after it was given the same id.
+- **Find matches as the desktop's find does,** two letters it folded
+  apart now folded alike.
+- **Moving a day never writes over another day's words,** and the Undo
+  of a deleted day no longer brings it back over a day moved there since.
+- **Styles stay on their words** when a table, a caption or a
+  calculator answer goes in, a letter beside its twin is deleted, a
+  column is added, or a letter is typed in a cell aligned right or
+  centred.
+- **A day's text ending in a table keeps the line under it,** as the
+  desktop stores it: the same note read as changed in an import, and its
+  Update spent the real rescue copy.
+- **History lists a day moved past a series' end, or onto a deleted
+  date,** and finds its words; a day of a year to come is filed under
+  its year.
+- **Two moves onto one date no longer crash History,** and a meeting
+  moved under 0.13.0 stays on the date it was moved to.
+- **Restore previous on a day leaves a day the series no longer draws,**
+  where what was typed next was "Saved for this day only" to a day
+  never shown.
+- **A day of a repeating note keeps its lists' levels** and takes the
+  list rules the whole note has: Enter, Backspace and a cut across two
+  items dropped a nested item's depth, and a paste renumbered a nested
+  list as one run, stored.
+- **A copy and a paste carry the looks of their own lines only:** a cut
+  across two nested items pasted back went to the margin, a line moved
+  above a centred one centred the line it went before, and a copied
+  word set the level of the item it landed in.
+- **A list item pasted where a list item stands takes its place,**
+  where it read "2. 3. Bread", "3. 1. Milk" or "3. 1. Kiwi".
+- **The Trash's row and its purge read a deletion date one way:**
+  "2020-02-30" counted down to 0 days while the entry stayed for ever.
+- **A table cell left on "[x]" or "^" keeps it,** where it kept "[x".
+- **Duplicates says everything it compares and ignores,** and its
+  clean-up keeps every file and every series' own days: files past 200
+  were hidden and purged, and cleaning up the app's own Duplicate gave
+  the kept note every file twice.
+- **A new note of comments alone is saved** by Share and Move to Trash,
+  where it was closed unsaved.
+- **Every search ignores case and accents the same way,** in the list,
+  Find and History; a Korean syllable is no longer cut to its first
+  letter, Title A–Z sorts a marked initial beside its letter, and a
+  word picked from the suggestion strip finds its note.
+- **A new note that Show, the search or a folded group hides says so,**
+  by name, with **Show all**; so do notes restored, imported or put back
+  by Undo where the list does not look, and an empty list names what
+  hides its notes.
+- **A share code pasted among words is read,** and one whose "=" was
+  lost on the way.
+- **Two deletes in a row: the Undo on screen is the second's.**
+- **Words half typed in "A new item…" stay in the box:** on the way to
+  the background, and through a save the editor stays open after.
+- **The checklist and comments asked for on a new note stay** after its
+  first save, with the words in "A new item…".
+- **Share and Export as file from one day of a series send that day,**
+  its own words and looks, not the series'; Duplicate is not offered on
+  a day, where it copied the whole series.
+- **A template used on a note started from a calendar day keeps the
+  day.**
+- **When every note left in a code or a backup looks like one here,
+  Skip them is offered,** where Cancel dropped an Update already agreed
+  to; a backup older than the notes here no longer makes Update the
+  answer that stands out.
+- **A size from the format bar is drawn as the desktop draws it,**
+  points against a 12 pt body: 14 made words smaller, 16 changed
+  nothing, a line of a larger size ran into the next, and two sizes over
+  the same letters multiplied.
+- **Notes moved to a category offer Undo,** each back where it was filed.
+- **The list keeps up with what you do:** another sort, Show or
+  grouping starts at its top; a card pinned, duplicated, filed or put
+  back by the Trash's Undo is brought into sight; and the results under
+  the keyboard can be scrolled to.
+- **Custom order's drag keeps the card under your finger and on
+  screen.** The edge scroll starts slowly and goes only the way the
+  finger heads, where a one-place drag on a phone on its side landed
+  two or three places away; a press the system cancels is no tap; a
+  step is said to a screen reader.
+- **The editor is read back only when a change touched it:** an import
+  or a day's change elsewhere emptied its Undo and dropped its cursor.
+- **Settings → Reminders says which notification is off,** the app's or
+  the reminder's own kind, opens that page, and says Android may bring
+  the reminder up to an hour late.
+- **Ctrl+Z and Ctrl+Y from a keyboard stay in a checklist row, Find or
+  the calculator** when one holds the focus, where they took back the
+  note's last typing.
+- **Smaller ones.** A duplicate gets its own "Created"; the app is left
+  off its own share sheet; a new note's first Attach files is no longer
+  dropped while the picker is open; a file gone from the note's folder is
+  said missing when tapped; the day's reminder leaves the shade at
+  midnight; the date picker opens on the phone's today, not UTC's; Your
+  name is kept when its page is left by Back; the calendar follows a day
+  moved from the editor, and back with its Undo; a new note given a
+  deleted note's id no longer opens folded as that note was; "Leave
+  anyway" tapped late sets no day on another note; "Saved for this day
+  only" no longer squeezes ⋮; the template editor's ✓ adds its item; the
+  calendar's Today goes to the day the grid marks; text shared from
+  Notepad leaves its byte-order mark out of the title; the quieter words
+  on a chosen card, row or bar button read at 4.5 to 1 in every theme,
+  where they stood at 3.50; and the words on screen say what the app
+  does (Android's backup copies the notes while it is on, "1 repeating
+  note has", "No calendar entries match.", Colour and Centre spelled
+  once, "the whole series", "used last").
+
+### Changed
+
+- **A turned-off series' days live in the note,** as the desktop keeps
+  them, and 0.12.0's come back into it. Up to 0.12.0 the Repeat sheet
+  moved them into the series' rescue copy, and the desktop's next copy
+  of words erased them. Where a day holds words of its own and a
+  series' copy holds other words for it, the copy's words become a note
+  of their own on that date, "*title* (earlier text)", said with Show.
+- **A card keeps a note's lines apart with " · ",** shows a list item's
+  words without its marker and leaves out an item with no words, as the
+  desktop's card does.
+- **The Calendar tab is drawn in lines,** like Notes and Settings beside
+  it, where it was the 📅 emoji reading "July 17".
+- **On a wide screen the + heads the rail,** as the desktop's "+ New
+  Note" heads its sidebar, where it covered the chosen card.
 
 ---
 
