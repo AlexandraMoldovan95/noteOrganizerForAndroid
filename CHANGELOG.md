@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.14.0](#0140--2026-11-08--the-final-audit) | 2026-11-08 | The final audit |
 | [0.13.0](#0130--2026-10-27--open-source-licenses) | 2026-10-27 | Open-source licenses |
 | [0.12.0](#0120--2026-10-27--sections-fold-and-the-trash-picks-all) | 2026-10-27 | Sections fold, and the Trash picks all |
 | [0.11.1](#0111--2026-10-24--a-pasted-table-fits-its-words) | 2026-10-24 | A pasted table fits its words |
@@ -56,7 +57,7 @@ do before, not as releases anyone ran.
 
 ---
 
-## [Unreleased]
+## [0.14.0] — 2026-11-08 — The final audit
 
 The final audit before the stores, 27 October to 8 November 2026. Its
 first five rounds were written in change by change; what the rounds
