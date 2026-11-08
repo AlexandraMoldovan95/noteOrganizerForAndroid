@@ -242,9 +242,10 @@ forgotten a token was ever involved.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 74 parts and about
-626 checks (the full run of 7 November 2026, on a fresh boot: all 626
-passed; the run before it failed 2 of 613, both the walk's own, both
-causes fixed). The desktop's `site/build.py` reads "N parts and about N checks"
+628 checks (the full run of 8 November 2026: 627 passed; the one that
+failed was the walk's own, a check on a phone on its side that still
+expected the list to keep room under its cards for the +, now in the
+rail; rewritten, its part walked again, all 25 passed). The desktop's `site/build.py` reads "N parts and about N checks"
 and "N tests across … suites" above, so keep their words. The parts: a brand-new notebook, a notebook copied in, the
 doors to the rest of the phone (share sheet, file picker, browser), a
 part for each Phase 2 and Phase 3 feature over a notebook written for

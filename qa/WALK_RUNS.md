@@ -1,9 +1,11 @@
 # The emulator walk's full runs, newest first
 
 A journal kept for the record; [the walk's own section](README.md#the-emulator-walk)
-dates the latest run. During the final audit (2026-10-28 to 2026-11-02)
-the walk ran part by part as each round's fixes came, and in full between
-rounds. Before it, each full run, with what was new and how it ended:
+dates the latest run. During the final audit (from 2026-10-28) the walk
+ran part by part as each round's fixes came, and in full between rounds;
+the full run of 2026-11-07 passed all 626 on a fresh boot, after one that
+failed 2 of 613, both the walk's own, both causes fixed. Before the
+audit, each full run, with what was new and how it ended:
 
 - **2026-10-27, for 0.13.0** — About's Open-source licenses read, and
   Back from them landing on About. An emulator just started; it waited 42

@@ -6026,9 +6026,9 @@ def arrange_without_drag(folder):
         unmet("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
              % (shown[:3], pill))
     back_to("Search notes")
-    # A phone on its side: the top card stepped down stays in sight with the
-    # card it passed, the two taller than the list; the + stands in the rail,
-    # where it once covered the card.
+    # A phone on its side: the top card stepped down shows under the card it
+    # passed, both in sight; the + stands in the rail, where it once covered
+    # the card, and the list's foot no longer kept room for it.
     if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
                      "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
                     for i in range(1, 31)],
@@ -6039,8 +6039,8 @@ def arrange_without_drag(folder):
         shot(folder, "89-landscape-step", "Note 01")
         shown, plus = handles(), find("New note", exact=True)
         at = find("Drag to move Note 01")
-        check("on its side, the top card moved down stays on top, the + in the rail beside the list",
-              placed()[:2] == ["Note 02", "Note 01"] and bool(shown) and shown[0][1] == "Note 01"
+        check("on its side, the top card moved down shows under the card it passed, the + in the rail beside the list",
+              placed()[:2] == ["Note 02", "Note 01"] and [t for _, t in shown[:2]] == ["Note 02", "Note 01"]
               and at is not None and plus is not None and plus[0] < 300,
               "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
         # ...and a drag of one place there: every resting card sat in an
