@@ -144,6 +144,7 @@ past the others:
     py tools/check_palettes.py         # ... and on the themes and colours
     py tools/check_english.py          # the repository is English
     py tools/check_comments.py         # comments say why; stories go to the issues log
+    py tools/check_test_plan.py        # the test plan's count in qa/README is the plan's
 
 And for a change anybody will see, the walk on the emulator
 (`py tools/emulator/walk.py <folder>`), with its photographs looked at.
@@ -162,8 +163,9 @@ each other.
 
 CI runs the first list, all but `check_interop.py`, which needs the
 tests' output beside the desktop's code
-([tests.yml](.github/workflows/tests.yml) and
-[gates.yml](.github/workflows/gates.yml)),
+([tests.yml](.github/workflows/tests.yml),
+[gates.yml](.github/workflows/gates.yml) and, for the test plan,
+[docs.yml](.github/workflows/docs.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what
 a five-second command would have said on this machine wastes the round
 trip, and the contract gate needs a token in CI that it does not need here.

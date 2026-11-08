@@ -1,0 +1,49 @@
+# The checks a change to the documents or the test plan can turn red, and
+# nothing else. gates.yml skips a change that is only words, as it should:
+# a paragraph cannot break the app. But the documents can break themselves
+# -- the test plan's count copied by hand and left behind, Romanian in a
+# public page -- and nothing ran on them.
+#
+# One Linux job of well under a minute: it starts only when a document,
+# the test plan, one of these gates or this file changes. openpyxl reads
+# the workbook; it is a tool of this check, not of the app.
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.md"
+      - "qa/*.xlsx"
+      - "tools/check_test_plan.py"
+      - "tools/check_english.py"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "**.md"
+      - "qa/*.xlsx"
+      - "tools/check_test_plan.py"
+      - "tools/check_english.py"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  documents:
+    name: The documents hold
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install the workbook reader
+        run: pip install openpyxl==3.1.5
+      - name: The test plan's numbers, where the documents give them
+        run: python tools/check_test_plan.py
+      - name: English in everything written for a developer
+        run: python tools/check_english.py

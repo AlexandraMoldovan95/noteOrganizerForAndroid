@@ -169,11 +169,14 @@ look like two.
 
 ## What runs in CI
 
-Two workflows, three jobs, answering three different questions: do the
+Three workflows, four jobs, answering four different questions: do the
 rules still hold ([tests.yml](../.github/workflows/tests.yml)); is the
-rules layer still free of Android and the repository still English; and
-do the two programs still agree about a note and about its colours
-([gates.yml](../.github/workflows/gates.yml)).
+rules layer still free of Android and the repository still English; do
+the two programs still agree about a note and about its colours
+([gates.yml](../.github/workflows/gates.yml)); and, on a change that is
+only words or the test plan, which runs neither of those, do the
+documents still give the plan's own numbers, in English
+([docs.yml](../.github/workflows/docs.yml), `tools/check_test_plan.py`).
 
 The unit-test job does not trust Gradle's exit code alone: it runs
 `tools/check_test_results.py` afterwards — with `if: always()`, so it
