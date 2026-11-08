@@ -636,6 +636,12 @@ do, each a decision or an account step for the owner:
     usage statistics when the person has allowed them for the phone; the
     app opts its WebView out in the manifest (`MetricsOptOut`, since
     0.10.0), so nothing goes from it either.
+  * Crash and "not responding" reports, and install counts, reach the
+    Play Console from Android and Google Play, not from the app's code,
+    which sends nothing: not "collected" by the form's definition
+    ("transmitting data from your app off a user's device"). The privacy
+    policy says what the Console shows the developer, and why (its "What
+    the stores tell me", since 2026-11-08).
 * **A closed test before production.** Play asks a personal developer
   account made after November 2023 to run one with at least 12 testers
   for 14 days in a row before the app can go to production — the
