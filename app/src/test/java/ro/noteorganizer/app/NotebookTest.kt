@@ -130,13 +130,24 @@ class NotebookTest {
 
     @Test
     fun `a list item with no words is left out of the snippet, as a blank line is`() {
-        // Enter at a marker leaves "• " above; kept, the card read "· • ·".
+        // Enter at a marker leaves "• " above: an empty line, left out.
         val json = """[{"id": 1, "title": "Packing",
             "body": "Pack the coat\n• \n• milk\n  ◦ \n2. \n3. eggs"}]"""
-        assertEquals("Pack the coat · • milk · 3. eggs", notesFrom(json).single().snippet)
+        assertEquals("Pack the coat · milk · eggs", notesFrom(json).single().snippet)
         // ...and never borrowed as an untitled note's headline.
         val untitled = notesFrom("""[{"id": 2, "title": "", "body": "• \n• milk"}]""").single()
-        assertEquals("• milk", untitled.headline)
+        assertEquals("milk", untitled.headline)
+    }
+
+    @Test
+    fun `a list item shows its words on a card, without its marker`() {
+        // "· • milk" read as two marks; the dot already says a new line begins.
+        val json = """[{"id": 1, "title": "Shopping",
+            "body": "• bread\n  ◦  rye flour\n▪ salt\n12. butter\n•no space"}]"""
+        assertEquals("bread · rye flour · salt · butter · •no space", notesFrom(json).single().snippet)
+        val untitled = notesFrom("""[{"id": 2, "title": "", "body": "1. call the bank\n2. pay rent"}]""").single()
+        assertEquals("call the bank", untitled.headline)
+        assertEquals("pay rent", untitled.snippet)
     }
 
     @Test
