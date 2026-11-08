@@ -299,19 +299,12 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // The cell being written in shows its words as they are now.
         cellEpoch += 1
         comments = to.comments
-        // The places remembered in the text move through the step's own edits,
-        // one by one ([Step]), as Tk's marks through Ctrl+Z and Ctrl+Y: emptied,
-        // Insert table and the calculator wrote at the note's end.
+        // The places remembered in the text move through the step's own edits
+        // ([Step]), as Tk's marks through Ctrl+Z: every change to the words keeps
+        // its edit, so a step with none changed only styles, title or comments.
         focused = null
-        if (through.isEmpty()) {
-            // A step that kept no edits, should a change come by a way that
-            // records none: the one change between the two texts.
-            caret = Calculator.follow(was, to.body, caret)
-            calcMark = Calculator.follow(was, to.body, calcMark)
-        } else {
-            caret = if (forward) Calculator.follow(through, caret) else Calculator.back(through, caret)
-            calcMark = if (forward) Calculator.follow(through, calcMark) else Calculator.back(through, calcMark)
-        }
+        caret = if (forward) Calculator.follow(through, caret) else Calculator.back(through, caret)
+        calcMark = if (forward) Calculator.follow(through, calcMark) else Calculator.back(through, calcMark)
         made.clear()
         settled = to
         steps()

@@ -390,16 +390,6 @@ object Calculator {
     }
 
     /**
-     * Where a remembered place is after an edit somewhere in the body: the
-     * edit is found by what did not change, as [remapSpans] finds it. A place
-     * before the edit stays, one after it moves with the text, and one inside
-     * it goes to the end of what was written there -- so typing right at the
-     * last insertion's end pushes the next one after the typing, as a text
-     * mark with right gravity does on the desktop.
-     */
-    fun follow(old: String, new: String, at: Int?): Int? = follow(listOfNotNull(changeOf(old, new)), at)
-
-    /**
      * The one change from [old] to [new], found by what did not change: at
      * the first place they differ, what was taken out and what was put in,
      * in code points. Null when they are the same. Exact for a change made
@@ -417,9 +407,10 @@ object Calculator {
 
     /**
      * A remembered place carried through [edits], each made in the text the
-     * one before it left, as the desktop's Tk mark moves ([Paragraphs.moveMark]).
-     * Followed as one change through a list's markers or a renumbering paste,
-     * the next answer went into a later line -- "3×3=9Rent", or into "4.".
+     * one before it left, as the desktop's Tk mark of right gravity moves
+     * ([Paragraphs.moveMark]): before an edit it stays, after it moves with the
+     * text, inside it goes to the end of what was written. Followed as one
+     * change through a list's markers, the next answer went into "4.".
      */
     fun follow(edits: List<Paragraphs.Edit>, at: Int?): Int? =
         at?.let { edits.fold(it) { x, e -> Paragraphs.moveMark(x, e) } }

@@ -363,11 +363,12 @@ class CalculatorTest {
 
     @Test
     fun `the remembered place follows edits elsewhere`() {
-        assertEquals("typing before it pushes it on", 9, Calculator.follow("ab=3\nxyz", "XYZ!!ab=3\nxyz", 4))
-        assertEquals("typing after it leaves it", 4, Calculator.follow("ab=3\nxyz", "ab=3\nxyz!!", 4))
+        fun follow(old: String, new: String, at: Int?) = Calculator.follow(listOfNotNull(Calculator.changeOf(old, new)), at)
+        assertEquals("typing before it pushes it on", 9, follow("ab=3\nxyz", "XYZ!!ab=3\nxyz", 4))
+        assertEquals("typing after it leaves it", 4, follow("ab=3\nxyz", "ab=3\nxyz!!", 4))
         assertEquals("typing right at it goes before it, like a mark with right gravity", 7,
-            Calculator.follow("ab=3\nxyz", "ab=3abc\nxyz", 4))
-        assertEquals("deleting across it brings it to the cut", 1, Calculator.follow("ab=3\nxyz", "a\nxyz", 4))
-        assertNull(Calculator.follow("a", "b", null))
+            follow("ab=3\nxyz", "ab=3abc\nxyz", 4))
+        assertEquals("deleting across it brings it to the cut", 1, follow("ab=3\nxyz", "a\nxyz", 4))
+        assertNull(follow("a", "b", null))
     }
 }
