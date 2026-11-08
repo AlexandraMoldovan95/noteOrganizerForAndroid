@@ -80,7 +80,7 @@ beside whatever else ran. The screenshot
 script and the small helpers take no turn; keep them to one at a time by
 hand.
 
-## Three traps these tools do not remove
+## Four traps these tools do not remove
 
 **A fresh emulator's stylus tutorial eats typed text.** A new Android
 image opens a full-screen *"Try out your stylus"* panel the first time a
@@ -110,6 +110,21 @@ broken pipe. Take the picture on the device and copy the finished file:
 
 The same goes for any binary a tool writes to standard output — an APK,
 a zip, a binary `logcat`: let the tool write its own file.
+
+**A launcher hung into the quick-boot snapshot hangs at every start.**
+The emulator saves `default_boot` as it is stopped, and starts from it
+next time. Stopped once while its launcher was hung (started just after
+the Linux image's run, 2026-11-08), it brought back "Pixel Launcher isn't
+responding" at every start, over a part walked alone. Started once
+without the snapshot, it was gone:
+
+    emulator -avd noteorg_test -no-snapshot-load -no-window -gpu swiftshader_indirect
+
+The walk answers another app's "isn't responding" with Wait and says so
+in its output (`nodes()` in walk.py), so a hung launcher no longer fails a
+check of an app that is fine; the same dialog about this app is left on
+the screen for the checks to fail on. Many such lines in a run's output
+mean the emulator needs that start without its snapshot.
 
 ## Two things the UI dump does not say, and three the keyboard does
 

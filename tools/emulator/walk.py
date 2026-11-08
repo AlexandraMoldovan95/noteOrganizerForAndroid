@@ -210,7 +210,30 @@ def said_over(words, *targets, within=6.0, touching=False):
 
 
 def nodes():
-    """The screen's UI tree, fresh: (text, description, centre) for each node."""
+    """The screen's UI tree, fresh: (text, description, centre) for each node.
+    Another app's "isn't responding" over it is answered Wait, said in the
+    log, and the screen read again: on an emulator just started under load
+    its own launcher hung, and a part's first check failed an app that was
+    fine. One naming this app stays on the screen, for the checks to fail."""
+    for _ in range(3):
+        out = screen_nodes()
+        hung = next((m.group(1) for t, _d, _c in out for m in [HUNG.match(t)] if m), None)
+        wait = next((c for t, _d, c in out if t == "Wait"), None)
+        if hung is None or hung == APP_LABEL or wait is None:
+            return out
+        print("     %s was not responding: Wait tapped, the screen read again" % hung)
+        adb("shell", "input", "tap", str(wait[0]), str(wait[1]))
+        time.sleep(2.0)
+    return screen_nodes()
+
+
+# Android's dialog over a hung app, and the name this app goes by on it.
+HUNG = re.compile(r"^(.+) isn.t responding$")
+APP_LABEL = "Note Organizer"
+
+
+def screen_nodes():
+    """The screen's UI tree, read once, as it is."""
     raw = screen_xml()
     try:
         root = ET.fromstring(raw)

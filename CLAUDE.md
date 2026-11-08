@@ -273,12 +273,13 @@ in a sense of their own, the same as the desktop's:
 Corrupted files five or more times in the desktop project. Write the file
 with a tool, parse it before believing it.
 
-### Three traps on this machine, told where the emulator is driven
+### Four traps on this machine, told where the emulator is driven
 
 PowerShell's `>` damages any binary it carries, Git Bash rewrites
-Android paths into Windows ones, and a fresh emulator's stylus tutorial
-eats typed text. Each, with its commands, is in
-[tools/emulator/README.md](tools/emulator/README.md#three-traps-these-tools-do-not-remove).
+Android paths into Windows ones, a fresh emulator's stylus tutorial
+eats typed text, and a launcher hung into the quick-boot snapshot hangs
+at every start. Each, with its commands, is in
+[tools/emulator/README.md](tools/emulator/README.md#four-traps-these-tools-do-not-remove).
 
 ### An emulator just started is busy for a minute and more
 
