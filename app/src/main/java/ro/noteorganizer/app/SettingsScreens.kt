@@ -808,7 +808,8 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (on) "☑" else "☐", color = palette.accentText, fontSize = 18.sp, modifier = Modifier.padding(end = 10.dp))
+                    // Chosen, the row is filled: its quieter words take the shade that reads there.
+                    Text(if (on) "☑" else "☐", color = palette.accentTextOn(on), fontSize = 18.sp, modifier = Modifier.padding(end = 10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(note.headline, color = palette.text, fontSize = 15.sp, maxLines = 1)
                         Text(
@@ -818,7 +819,7 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                                 left == 0 -> stringResource(R.string.trash_next_start)
                                 else -> pluralStringResource(R.plurals.trash_days_left, left, left)
                             },
-                            color = if (left != null && left <= 3) palette.dangerText else palette.subtext,
+                            color = if (left != null && left <= 3) palette.dangerTextOn(on) else palette.subtextOn(on),
                             fontSize = 12.sp,
                         )
                     }

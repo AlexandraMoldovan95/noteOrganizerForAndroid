@@ -19,13 +19,13 @@ lands where it can actually fail.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-988 tests across thirty-one suites on 7 November 2026 — `NotebookTest` (144),
+992 tests across thirty-one suites on 8 November 2026 — `NotebookTest` (147),
 `DaysTest` (75), `TablesTest` (72), `AppStateTest` (68), `RecurrenceTest` (51),
 `EditingTest` (49), `PastingTest` (46), `OrganizingTest` (46), `IdentityTest` (40),
 `ImportingTest` (35), `StylingTest` (34), `CalculatorTest` (34), `ParagraphsTest` (33),
 `EditorTypingTest` (32), `SharingTest` (26), `SettingsTest` (24), `BackupTest` (23),
 `TemplatesTest` (21), `ListingTest` (21), `FindingTest` (20), `ExportingTest` (16),
-`EditorTableTest` (16), `StartupTest` (15), `OutgoingTest` (12), `ThemesTest` (9),
+`EditorTableTest` (16), `StartupTest` (15), `OutgoingTest` (12), `ThemesTest` (10),
 `EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (4), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). This is the one place the count is
 kept; the other documents link here. No device, no emulator:
@@ -118,8 +118,8 @@ end to end. ([the story](../docs/ISSUES_LOG.md#a-mutant-runner-that-left-the-cod
 `tools/mutate.py` keeps both rules by never touching the repository: it
 unpacks a commit into a folder of its own and mutates that. Its catalogue,
 `tools/mutants.json`, holds the mutants written since the final audit
-began that still aim at today's code -- 282 on 7 November 2026, 264 judged
-by a unit test and 18 by a part of the walk; 97 more written during the
+began that still aim at today's code -- 286 on 8 November 2026, 266 judged
+by a unit test and 20 by a part of the walk; 97 more written during the
 audit aimed at code that has changed since, and went. The unit ones were
 first run all together that day: 257 of 263 as the catalogue said. Of the
 six others, two had been re-aimed while it ran; four had lost their test to

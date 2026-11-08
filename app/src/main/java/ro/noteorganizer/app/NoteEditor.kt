@@ -4193,6 +4193,8 @@ private fun Choice(label: String, danger: Boolean = false, onClick: () -> Unit) 
 private fun BarButton(mark: String, word: String, open: Boolean, modifier: Modifier, danger: Boolean = false,
                       onClick: () -> Unit) {
     val palette = LocalPalette.current
+    // Open, it is filled: its warning and its word take the shade that reads there.
+    val warning = palette.dangerTextOn(open)
     Column(
         modifier.clip(RoundedCornerShape(10.dp)).background(if (open) palette.calendarHasNotes else Color.Transparent)
             .clickable(onClick = onClick).padding(vertical = 5.dp),
@@ -4201,9 +4203,9 @@ private fun BarButton(mark: String, word: String, open: Boolean, modifier: Modif
         // The marks' own heights differ ("＋" stands taller than "⊞"): one
         // box for all, so the words beneath sit on one line.
         Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
-            Text(mark, fontSize = 18.sp, color = if (danger) palette.dangerText else palette.text)
+            Text(mark, fontSize = 18.sp, color = if (danger) warning else palette.text)
         }
-        Text(word, fontSize = 11.sp, color = if (danger) palette.dangerText else palette.subtext, maxLines = 1,
+        Text(word, fontSize = 11.sp, color = if (danger) warning else palette.subtextOn(open), maxLines = 1,
              softWrap = false)
     }
 }

@@ -46,6 +46,20 @@ class ThemesTest {
     }
 
     @Test
+    fun `the quieter words on a chosen card, row or bar button read four and a half to one, in every theme`() {
+        // On the fill a chosen card takes, its first words stood 4.1 to 1 in
+        // Light and its category 3.5; the five categories a notebook starts with.
+        val picked = listOf("#7c5cff", "#4cc9f0", "#f9c74f", "#f77f00", "#ff5c7c")
+        for ((name, theme) in Themes.THEMES) {
+            val fill = theme.getValue("calendar_has_notes")
+            for (colour in listOf("subtext", "accent_text", "danger_text").map(theme::getValue) + picked) {
+                val ratio = Themes.contrastRatio(Themes.onChosen(colour, theme), fill)!!
+                assertTrue("$name: $colour on the chosen fill is $ratio to 1", ratio >= 4.5)
+            }
+        }
+    }
+
+    @Test
     fun blendMatchesTheDesktop() {
         assertEquals("#8e8e97", Themes.blend("#1e1e2f", "#ffffff", 0.5))
         assertEquals("#3c3c54", Themes.blend("#2e2e48", "#f2f2f7", 0.07))

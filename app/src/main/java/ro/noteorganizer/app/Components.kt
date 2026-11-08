@@ -336,6 +336,9 @@ fun NoteCard(
 ) {
     val palette = LocalPalette.current
     val stripe = hexColor(colour)
+    // Filled when selected: its quieter words take the shade that reads on the fill.
+    val quiet = palette.subtextOn(selected)
+    val tags = if (selected) palette.onChosen(colour) else palette.legibleOnCard(colour)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -356,11 +359,11 @@ fun NoteCard(
         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (selecting) {
-                    Text(if (selected) "☑ " else "☐ ", color = palette.accentText, fontSize = 16.sp)
+                    Text(if (selected) "☑ " else "☐ ", color = palette.accentTextOn(selected), fontSize = 16.sp)
                 }
                 Text(
                     text = badges(note) + note.headline,
-                    color = if (note.headlineIsBorrowed) palette.subtext else palette.text,
+                    color = if (note.headlineIsBorrowed) quiet else palette.text,
                     fontSize = 15.sp,
                     fontWeight = if (note.headlineIsBorrowed) FontWeight.Normal else FontWeight.Medium,
                     maxLines = 1,
@@ -370,7 +373,7 @@ fun NoteCard(
             if (note.snippet.isNotEmpty()) {
                 Text(
                     text = note.snippet,
-                    color = palette.subtext,
+                    color = quiet,
                     fontSize = 13.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -379,7 +382,7 @@ fun NoteCard(
             }
             Text(
                 text = note.tagLine(),
-                color = palette.legibleOnCard(colour),
+                color = tags,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

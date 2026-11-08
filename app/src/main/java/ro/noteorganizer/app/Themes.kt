@@ -285,6 +285,15 @@ object Themes {
     fun barAction(theme: Map<String, String>): String =
         legibleOn(theme.getValue("accent"), theme.getValue("text"), theme.getValue("bg"))
 
+    /**
+     * [colour] -- the subtext, the accent's or the warning's words, a
+     * category's -- as words on the fill a chosen card, row or bar button
+     * takes: on a chosen card the subtext stood 4.1 to 1 in Light, a
+     * category 3.5. Itself where it reads, else its nearest shade that does.
+     */
+    fun onChosen(colour: String, theme: Map<String, String>): String =
+        legibleOn(colour, theme.getValue("calendar_has_notes"), theme.getValue("text"))
+
     /** WCAG 2.1 relative luminance. */
     fun relativeLuminance(hex: String): Double? {
         val c = channels(hex) ?: return null

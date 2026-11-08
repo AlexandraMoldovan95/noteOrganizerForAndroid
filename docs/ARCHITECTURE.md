@@ -16,6 +16,7 @@ the surprises live.
 - [Decision: `org.json`, and the trap that comes with it](#decision-orgjson-and-the-trap-that-comes-with-it)
 - [Decision: a paste is recognised under the field, not taken from the menu](#decision-a-paste-is-recognised-under-the-field-not-taken-from-the-menu)
 - [The desktop is the specification](#the-desktop-is-the-specification)
+- [Words on the phone's own surfaces, measured](#words-on-the-phones-own-surfaces-measured)
 - [Where this will hurt next](#where-this-will-hurt-next)
 
 ## The short version
@@ -434,6 +435,36 @@ a check that quietly could not run reads exactly like a check that
 passed. Reading a private repository from another one needs a token:
 [qa/README.md](../qa/README.md#what-runs-in-ci) says which, and
 where it goes.
+
+## Words on the phone's own surfaces, measured
+
+The themes are the desktop's, and the desktop's `tools/check_contrast.py`
+measures every pair of words and ground it draws, all at WCAG AA. The
+phone draws a few the desktop never does, so they were measured too, on
+8 November 2026, from the hex values (WCAG 2.1; small words owe 4.5 to 1).
+
+A chosen card, a chosen row in Recently deleted and an open button of the
+table's bar are filled with the theme's calendar colour. There a card's
+first words stood as low as 4.14 to 1 and its category as low as 3.50.
+They now take the nearest shade that reads on the fill
+(`Themes.onChosen`, held by `ThemesTest`), as a category's colour already
+did on a card. The arrows are before and after; the rest did not change.
+
+| Theme | First words on a card | Section names on the page | A tab not chosen | On a chosen card: first words | ...its category, the lowest |
+|---|---|---|---|---|---|
+| Dark | 5.18 | 6.46 | 5.79 | 4.51 → 4.72 | 4.07 → 4.66 |
+| Dark Ocean | 5.23 | 7.05 | 6.14 | 4.22 → 4.81 | 3.77 → 4.70 |
+| Dark Forest | 5.40 | 7.55 | 6.34 | 4.36 → 4.69 | 3.72 → 4.78 |
+| Dark Slate | 5.76 | 7.18 | 6.36 | 5.52 → 5.52 | 4.57 → 4.63 |
+| Light | 5.49 | 5.05 | 4.55 | 4.14 → 4.60 | 3.50 → 4.62 |
+| Light Sky | 5.54 | 5.09 | 4.56 | 4.37 → 4.63 | 3.66 → 4.60 |
+| Light Mint | 5.46 | 5.09 | 4.55 | 4.40 → 4.60 | 3.74 → 4.61 |
+| Light Warm | 5.51 | 5.12 | 4.51 | 4.35 → 4.63 | 3.66 → 4.60 |
+
+A category is measured in the five colours a notebook starts with; one a
+person picks is shaded the same way. A ratio says nothing of size: the
+card's first words are 13 sp and the tags 11 sp, which only an eye on the
+phone can judge (the test plan's case for it).
 
 ## Where this will hurt next
 
