@@ -159,6 +159,8 @@ ROUND = re.compile(
     r"\brounds?[ -]%s\b|\b(?:%s|%s)(?: and (?:%s|%s))? rounds?\b(?! trip)|\blows wave\b"
     r"|\bfinal audit\b|\baudit's\b|\bwave %s\b"
     % (_NUM, _ORD, _NUM, _ORD, _NUM, _NUM), re.I)
+# The same, in a function's or a class's name: "limits_round8", "round_9".
+ROUND_NAME = re.compile(r"(?:^|_)rounds?_?\d+(?:_|$)", re.I)
 
 # Where a KDoc's prose ends and its block tags begin.
 TAG = re.compile(r"^@(param|return|property|throws|exception|see|sample|"
@@ -437,6 +439,11 @@ def python_rounds():
                     doc = ast.get_docstring(node)
                     if doc:
                         texts.append([node.body[0].lineno, doc])
+                # A name is read as often as a comment: seven walk parts kept
+                # limits_round3 to limits_round10 after the comments lost theirs.
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if ROUND_NAME.search(node.name):
+                        found.append((rel, node.lineno, node.name))
             for line, text in texts:
                 named = ROUND.search(STORY.sub("", " ".join(text.split())))
                 if named:

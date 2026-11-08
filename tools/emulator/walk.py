@@ -14,7 +14,7 @@ folder given.
     py tools/emulator/walk.py <photos folder>
     py tools/emulator/walk.py <photos folder> <part> [<part> ...]
 
-The second walks the parts named -- `cell_menu`, `limits_round8` -- alone,
+The second walks the parts named -- `cell_menu`, `long_lines` -- alone,
 on the same road: the machine's turn, the wait for the emulator, the
 install. A part called from a script of its own takes the turn at its first
 adb call.
@@ -769,15 +769,15 @@ def main():
     day_turns_open(folder)
     template_long_comments(folder)
     answers_after_restart(folder)
-    limits_round3(folder)
-    limits_round4(folder)
-    limits_round5(folder)
-    limits_round6(folder)
+    text_the_layout_cannot_break(folder)
+    one_note_drawn_and_sent(folder)
+    an_ordinary_note_at_its_size(folder)
+    a_rows_own_words(folder)
     days_in_the_note(folder)
     template_draft(folder)
-    limits_round7(folder)
-    limits_round8(folder)
-    limits_round10(folder)
+    unbroken_rows_and_caps(folder)
+    refusals_and_caps_said(folder)
+    message_over_a_renamed_row(folder)
     # Written with their fixes on 2026-10-28 and walked alone then; the full
     # walk is the check before an install, so they belong in it.
     hostile_backups(folder)
@@ -4120,7 +4120,7 @@ def long_lines(folder):
     back_to("Search notes")
 
 
-def limits_round3(folder):
+def text_the_layout_cannot_break(folder):
     """What the layout cannot break, and what is quoted, walked: text
     that the first rule let through -- joined by no-break spaces, a hundred
     lines just under the limit, a run inside a table's cell -- each opens at
@@ -4310,7 +4310,7 @@ def limits_round3(folder):
     back_to("Search notes")
 
     # A PDF that stops at forty pages says so before anything is handed
-    # over: a question (limits_round4 walks its answers), where it was a bar
+    # over: a question (one_note_drawn_and_sent walks its answers), where it was a bar
     # the share sheet covered.
     open_note("Forty pages", limit=30.0)
     tap("Share", exact=True, wait=1.0)
@@ -4328,7 +4328,7 @@ def limits_round3(folder):
     back_to("Search notes")
 
 
-def limits_round4(folder):
+def one_note_drawn_and_sent(folder):
     """What one note draws, and what is asked before it goes, walked: counted
     for the whole note -- ten tables of 1,000 cells, 200,000 empty lines,
     3,000 tables of two cells, "x" and "" after a spent limit, and a journal
@@ -4547,7 +4547,7 @@ def limits_round4(folder):
     back_to("Search notes")
 
 
-def limits_round5(folder):
+def an_ordinary_note_at_its_size(folder):
     """What an ordinary note keeps, walked:
     fifty weekly tables and sixty sessions with tables, each a grid to the
     end, Find reaching their ends; a checklist of 1,000 short rows opened and
@@ -4780,7 +4780,7 @@ def limits_round5(folder):
     back_to("Search notes")
 
 
-def limits_round6(folder):
+def a_rows_own_words(folder):
     """A row's own words, rows in sight, rows read whole, walked. A checklist
     row at the desktop's 2,000 letters keeps its own words when a letter or a paste goes
     in at its start: the letter refused, the paste cut, each said. A row
@@ -5249,7 +5249,7 @@ def template_draft(folder):
     back_to("Search notes")
 
 
-def limits_round7(folder):
+def unbroken_rows_and_caps(folder):
     """A long unbroken row, the boxes' caps, the template the app closed,
     walked. A checklist row of a million
     letters with no space is read in parts at once, its "Read all" and a
@@ -5421,7 +5421,7 @@ def limits_round7(folder):
     back_to("Search notes")
 
 
-def limits_round8(folder):
+def refusals_and_caps_said(folder):
     """Refusals over a sheet, a title holding a break, the caps' words, the
     details on their side, walked. A category's name already
     used is refused and said over its sheet, which stays open -- said in the
@@ -5544,7 +5544,7 @@ def limits_round8(folder):
     back_to("Search notes")
 
 
-def limits_round10(folder):
+def message_over_a_renamed_row(folder):
     """A message over a renamed row, walked. A message said while a
     checklist row is renamed stands above the row and its ✕: the row is
     brought just above the keyboard, where the window's messages stood, and
@@ -6367,7 +6367,7 @@ def sharing(folder):
             time.sleep(pause)
         told = any(message_shown() for _ in range(4))
         # Longer than a PDF holds: the first share asks
-        # before it hands anything over (limits_round4 walks the question).
+        # before it hands anything over (one_note_drawn_and_sent walks the question).
         if settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=20.0, first=0):
             tap("PDF, first 40 pages", exact=True, wait=0.3)
         time.sleep(5.0)

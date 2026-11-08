@@ -1363,7 +1363,7 @@ that stays open over a refusal shows the app's messages over itself, the
 details and the category sheets scroll, and words said under a box are a
 live region. A paste is weighed as the desktop puts it in. The walk takes
 its turn as it starts, reads every frame after a look at the screen, and
-reads its premises back; and `limits_round8` walks the round. Each with a
+reads its premises back; and `refusals_and_caps_said` walks the round. Each with a
 test and a mutant watched failing: AS260 to AS277 for the phone's own
 findings, AS278 to AS286 for the desktop's rules. `days_cases.json`,
 rebuilt from the desktop's core at 947e9d3, holds 37 cases: six new -- a
@@ -1428,7 +1428,7 @@ probe wrote down what Android said around every Home.
   part that had passed for weeks. Every Home in the walk now waits until
   Android says the app is stopped (`home()`), and every ending reads that
   the process is gone (`kill_behind()`).
-- **Checks never run.** Round seven's `limits_round7` was written with
+- **Checks never run.** Round seven's `unbroken_rows_and_caps` was written with
   the round and left for the emulator. It looked for "Show less" under a
   row of a million letters, seventy lines below the screen; tapped a full
   list's "A new item…" without scrolling past its 205 rows; and left that
@@ -1539,7 +1539,7 @@ the desktop's own core at cdbb89e, holds 31 cases now, the ten new ones
 the Trash, 0.12.0's turn-on, the same backup twice, the comments over a
 body's copy, a restore after comments and after bold; the 21 before it
 answered as they did. Each fix with a test and a mutant watched failing
-(AS237 to AS257, all 21 killed), and the walk's new `limits_round7`,
+(AS237 to AS257, all 21 killed), and the walk's new `unbroken_rows_and_caps`,
 written with the round and left for the emulator. The tools came out of
 the round holding to the computer they run on: no Gradle or Kotlin
 daemon left after a build, every adb call timed, the desktop's code run
@@ -1691,9 +1691,9 @@ a row not drawn. And the comments are weighed as a text of their own, as
 the desktop now weighs them -- added to the body's text, a long comment
 would make a whole body deleted read as a small share. Each with a test
 and a mutant watched failing (AS206 to AS225, all twenty killed), and the
-walk's new `limits_round6` part.
+walk's new `a_rows_own_words` part.
 
-Against the build before the round, `limits_round6` failed fourteen of its
+Against the build before the round, `a_rows_own_words` failed fourteen of its
 checks -- all but the three that guard against a loss: the file kept
 whole, nothing saved over a template, a row moved back. The template of
 1,000 rows of 2,000 letters, opened on the emulator in one session: 7.2 s,
@@ -1814,14 +1814,14 @@ none, the keyboard goes and the note says why. A list's markers are no
 words, as the desktop's _words has it since its own fix, and a series
 turned back on from another start drops its old deleted days, as its
 kept_days_fit does. Each with a test and a mutant watched failing (AS172
-to AS204), and the walk's new `limits_round5` part.
+to AS204), and the walk's new `an_ordinary_note_at_its_size` part.
 
 Against the build before the round the emulator showed both highs: the
 120 long rows held the screen 7.1 seconds, and the two-million-letter note
 stopped the app at its twentieth burst of typing. After it the same rows
 open in 1.7 s -- the same text in a body takes 1.6 -- 1,000 short rows in
 2.0 instead of 6.5, a letter in a row draws in 0.2 instead of 1.1, the
-heap stays between 67 and 98 MB through forty bursts, and `limits_round5`
+heap stays between 67 and 98 MB through forty bursts, and `an_ordinary_note_at_its_size`
 passes its twenty checks. The letters' budget alone had left the 1,000
 short rows at 5.3 s: every row is a piece of the screen, whatever it holds,
 so the rows drawn are counted too. The Share sheet of a 5 MB note could
@@ -1899,7 +1899,7 @@ that would leave part of a note out asks before anything is handed over
 -- the web page, the PDF as it is, or Cancel -- with nothing written
 into the PDF any more. A restore that ends the repeat leaves the day for
 the whole note. Each with a test and a mutant watched failing (AS147 to
-AS171), and the walk's new `limits_round4` part.
+AS171), and the walk's new `one_note_drawn_and_sent` part.
 
 Against the build before this round, the emulator measured what the
 audit had reasoned: ten tables of 1,000 cells held the screen 9.4 seconds
@@ -1964,7 +1964,7 @@ across lines and a table's cells together. Every message quotes at most
 80 characters, a file keeping its type, and no bar or question takes more
 than 1,000. The import finds each note by its identity. The agent asks
 the page's own rule, the mark included. Each with a test and a mutant
-watched failing (AS114 to AS146), and the walk's new `limits_round3`
+watched failing (AS114 to AS146), and the walk's new `text_the_layout_cannot_break`
 part on the emulator. Against the build before this round, that part
 measured what the audit had only reasoned: the no-break-space note held
 the screen 7.6 seconds as it opened, the note with the long cell did not
@@ -4385,7 +4385,7 @@ whether that is what the dialog should show.
   desktop's Python may not share for letters newer than either.
 - **The renamed row's place at the editor's foot and the deepest host's
   drawing have no unit test that reaches the drawing**; the full walk
-  reads the first (`limits_round10`, photo 127). Its mutant -- the row
+  reads the first (`message_over_a_renamed_row`, photo 127). Its mutant -- the row
   left out of the foot -- passes on the emulator's screen, where the
   message already stands above the row by its own margin.
 - **The comments being typed in are still not counted at the editor's
@@ -4455,7 +4455,7 @@ whether that is what the dialog should show.
   phone unable to write with the sheet open), the calculator after ↶ and ↷
   (neither is scripted), a CR LF paste (the emulator's clipboard cannot be
   given one by a script), and TalkBack's reading of the words under a box.
-  `limits_round8` was written with the round and left for the emulator.
+  `refusals_and_caps_said` was written with the round and left for the emulator.
   **Closed 2026-10-30**: the full walk after the round ran it, and its ten
   failures were the round's own, fixed.
 - **PASS after a failed premise.** The two named in the walk read their

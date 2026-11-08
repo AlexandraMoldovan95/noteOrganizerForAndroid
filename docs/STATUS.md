@@ -864,16 +864,16 @@ The first test on a real phone added eight parts and grew seven:
 The final audit (2026-10-27 to 2026-11-02) added a part for each round's
 limits, the same way:
 
-* **`limits_round3`** (19 checks): text the layout cannot break, a
+* **`text_the_layout_cannot_break`** (19 checks): text the layout cannot break, a
   template's long row, what a bar quotes, what Share hands over and what a
   PDF leaves out; and two more in `google_backup`, a backup run on a
   restored phone before its first start.
-* **`limits_round4`**: what one note draws — ten tables of 1,000 cells,
+* **`one_note_drawn_and_sent`**: what one note draws — ten tables of 1,000 cells,
   200,000 empty lines, 3,000 tiny tables, a journal of 7,000 lines and a
   letter typed in it, timed by the app's frames; a Chinese note refused on
   Share → Text by what Android carries; a code too long greyed on its
   card; and the PDF's question, each answer walked.
-* **`limits_round5`** (20 checks): fifty weekly tables and sixty sessions
+* **`an_ordinary_note_at_its_size`** (20 checks): fifty weekly tables and sixty sessions
   drawn to their ends and found there; a word in the read-only rest of a
   note of 60,000 lines found, its line shown, read on; Enter past what is
   drawn letting the keyboard go, nothing glued above; the calculator
@@ -881,7 +881,7 @@ limits, the same way:
   150,000 letters opened and timed; a table typed row by row; a
   two-million-letter note typed in forty times, its heap read; a
   template's "A new item…" saved.
-* **`limits_round6`** (20 checks): a letter and a paste at the start of a
+* **`a_rows_own_words`** (20 checks): a letter and a paste at the start of a
   checklist row at the desktop's 2,000 letters, the row's own words kept
   and the cap said; rows moved and dragged across the line of rows not
   drawn, still in sight; a search for one of the last rows drawing no
@@ -897,14 +897,14 @@ limits, the same way:
   day back in the note at the next write; a turn-off from the Repeat sheet
   keeping a day's own text in the note; a big delete after it, a copy of
   words alone.
-* **`limits_round7`** (9 checks): "Read all" on a checklist row of a
+* **`unbroken_rows_and_caps`** (9 checks): "Read all" on a checklist row of a
   million letters with no space, timed by the app's frames; a letter at
   the start of a title and of a template's name of 200 letters, refused
   and said; a full list's box told so as words begin; a second long paste
   into "A new item…" after Add said again; the reminder's own intent sent
   while a template is written, the draft kept and offered back; a draft
   whose change was taken back by hand gone at the next Home.
-* **`limits_round8`** (8 checks): a category's name already used said
+* **`refusals_and_caps_said`** (8 checks): a category's name already used said
   over its sheet; a paste cut to Your name's and to Save as template's
   name said under the box; a title of 170 emoji counted 170 of 200; a tap
   on a title holding a line break writing nothing, and letters typed after
@@ -913,7 +913,7 @@ limits, the same way:
   all" is checked on a row of five million letters, and that Continue and
   Discard were pressed and Android had stopped the app before it is ended
   behind a picker is read back.
-* **`limits_round10`**: a message said while a checklist row is renamed
+* **`message_over_a_renamed_row`**: a message said while a checklist row is renamed
   stands above the row and its ✕, not over them.
 * **`hostile_backups`**, **`code_read_away`** and **`long_lines`**,
   written on 2026-10-28 and walked alone until the audit's third wave put

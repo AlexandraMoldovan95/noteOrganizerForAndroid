@@ -73,7 +73,7 @@ run (the export part), the walk ran sixteen parts beside a suite before it
 waited. From the start the desktop's code the walk runs is under its memory
 ceiling, and APPDATA and LOCALAPPDATA name empty folders of the run's own:
 the path to adb is read before that, at import. Parts named after the
-folder (`walk.py <folder> cell_menu limits_round8`) are walked alone on the
+folder (`walk.py <folder> cell_menu long_lines`) are walked alone on the
 same road, and a part called from a script of one's own takes the turn at
 its first adb call: taken only by the whole walk, such a part walked
 beside whatever else ran. The screenshot
