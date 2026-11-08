@@ -14,6 +14,11 @@ Settings → Backup turns the app's part off, and the privacy policy
 
 ---
 
+Alexandra Moldovan decided what it does, used it on her own phone and
+walks its test plan; Claude Code, an AI coding agent, wrote most of the
+code under her rules, and she approves every change
+([how it was built](#how-it-was-built), [how it is checked](#how-it-is-checked)).
+
 <p align="center">
   <img src="docs/screenshots/01-note-list.png" alt="The note list" width="270">
   <img src="docs/screenshots/06-dark.png" alt="The same list in a dark theme" width="270">
@@ -160,18 +165,13 @@ at 47% of the canvas is in the
 
 ## How it is checked
 
-| Check | Run it with | What it catches |
-|---|---|---|
-| Unit tests, on the JVM ([how many, by suite](qa/README.md#the-unit-tests)) | `gradlew.bat testDebugUnitTest` | A rule ported from Python that does not match the Python |
-| The note-shape gate | `py tools/check_note_shape.py` | The two programs quietly disagreeing about what a note *is* |
-| The palette gate | `py tools/check_palettes.py` | A theme or a colour drifting from the desktop's |
-| The layering gate | `py tools/check_layering.py` | Android leaking into the rules layer, which would push its tests onto a device |
-| The language gate | `py tools/check_english.py` | Romanian reaching the repository, the app included |
-| The release gate | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
-| The licenses gate | `py tools/make_licenses.py --check`, after `gradlew.bat assembleRelease` | A library in the APK that Settings → About → Open-source licenses does not name |
-| The interop gate | `py tools/check_interop.py`, after the unit tests | A share code made on the phone that the desktop's own Python reads differently |
-| The emulator walk | `py tools/emulator/walk.py <folder>` | A rule that is right and a screen that is wrong — [its parts and checks](qa/README.md#the-emulator-walk), each reading the file the app wrote |
-| The test plan | `qa/NoteOrganizer_Android_TestPlan.xlsx` | What only a person with a real phone in their hand can judge |
+Four layers, each for what the one below cannot see: unit tests on the
+computer for the rules ported from Python; gates that read the desktop's
+own Python as the specification; a scripted walk of the built app on an
+emulator, reading back the file the app wrote; and a test plan for what
+only a person with the phone in hand can judge.
+[qa/README.md](qa/README.md) gives, in half a screen, what could go wrong
+and what holds it, then every check and how to run it.
 
 The unit tests pin the rules ported from Python rather than the screens.
 A fix comes with a check watched failing: the fix broken on purpose — a

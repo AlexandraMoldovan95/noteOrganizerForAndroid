@@ -535,12 +535,18 @@ What is left after Phase 3, as a list, so nothing is pretended:
   desktop writes one span per line
   ([open](ISSUES_LOG.md#on-the-phone-a-highlight-from-the-format-bar-covers-a-lines-end)).
 * A code can be typed, pasted or shared in, but not scanned.
+* **After the stores** (the owner's call, 2026-11-08, from the final
+  audit's panel of reviewers): the interface's own marks drawn in lines
+  in the text's colour — the pin, the repeat and the date on a card, the
+  search box's 🔍, the calendar's 📋 History — as the Calendar tab
+  already is, with emoji left to what a person chooses, as a day's 🎂.
 
 Built since the list was first written — in Phase 2: the calendar,
 repeating notes and one day of a series, the whole format bar,
 templates, the remaining sorts and filters with grouping, find, the
 calculator, export, statistics, and wide screens, where the + button no
-longer covers the last card. In Phase 3: Custom order arranged by hand,
+longer covers the last card (and since the final audit stands in the
+rail). In Phase 3: Custom order arranged by hand,
 one day moved and days off the schedule settled, attachments added and
 taken off, the duplicates finder, a table's caption, column widths and a
 line above it, undo and redo, and copy and paste with the formatting.
