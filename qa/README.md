@@ -242,10 +242,9 @@ forgotten a token was ever involved.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 74 parts and about
-628 checks (the full run of 8 November 2026: 627 passed; the one that
-failed was the walk's own, a check on a phone on its side that still
-expected the list to keep room under its cards for the +, now in the
-rail; rewritten, its part walked again, all 25 passed).
+628 checks (the full run of 9 November 2026, for 0.14.0: all 628 passed,
+every part in `main()`'s order, in eight groups, each on an emulator
+started cold and stopped after it; see below why).
 <!-- The desktop's site/build.py reads "N parts and about N checks" and
 "N tests across … suites" in this file: keep their words. -->
 The parts: a brand-new notebook, a notebook copied in, the
@@ -271,6 +270,17 @@ the whole hour. A part called from a script of one's own (`import walk`,
 by the whole walk, a part walked that way ran beside whatever else ran,
 and took the turn halfway, at the export part (the final audit's ninth
 round).
+
+The whole walk can be walked the same way, in groups of parts, each on
+an emulator started for it and stopped after it: every part writes the
+notebook it walks on, so a part walks the same in a group as in the
+whole run. On a laptop of 16 GB, where the emulator takes about 4, one
+emulator kept up for the whole walk was lost twice in a row on 8
+November 2026, its own process no longer answering after 10 to 40
+minutes; the groups, none longer than 40 minutes, walked all 628. Whatever
+drives it bounds every adb call with a time limit: `adb emu kill` sent
+to an emulator that no longer answers waits for ever, and held the
+machine's turn for 13 hours.
 
 Two house rules came out of it:
 

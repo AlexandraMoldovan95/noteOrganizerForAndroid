@@ -4,8 +4,37 @@ A journal kept for the record; [the walk's own section](README.md#the-emulator-w
 dates the latest run. During the final audit (from 2026-10-28) the walk
 ran part by part as each round's fixes came, and in full between rounds;
 the full run of 2026-11-07 passed all 626 on a fresh boot, after one that
-failed 2 of 613, both the walk's own, both causes fixed. Before the
-audit, each full run, with what was new and how it ended:
+failed 2 of 613, both the walk's own, both causes fixed. The morning of
+2026-11-08, 627 of 628: the one was the walk's own, a check on a phone
+on its side that still expected the list to keep room under its cards
+for the +, now in the rail; rewritten, its part walked again, all 25
+passed.
+
+For the release cut, 0.14.0, on 2026-11-08 and 09, five runs:
+
+- The first lost the emulator after about 155 checks: it stopped
+  writing its screen's tree, then crashed.
+- The second, started cold, passed 621 of 627. All six failures were the
+  walk's own. One title came back typed "GGroceries" and took its part's
+  next three checks with it; it was not seen again in 32 tries, and
+  whether the keyboard or the app doubled the letter was not proved. Two
+  checks read the screen once, a fixed moment after Back or Show, and
+  the bar they looked for came a moment later: photographed, it was
+  there, and Show opened the note it named. Both now wait for what they
+  look for, and so does every check of that kind, about 75 of them; nine
+  still read once on purpose (a loop that reads again itself, an
+  absence, a bar that must still be up at a given second).
+- The third lost the emulator again, after 134 checks, all passed. The
+  script that ran it then waited 13 hours on `adb emu kill`.
+- The fourth, from the quick-boot snapshot, was stopped after three
+  failures: the emulator's System UI hung and a long press was read as a
+  tap, on a laptop with under 1 GB free. The app had done each step; the
+  welcome note was there in the photograph.
+- The fifth walked every part in `main()`'s order in eight groups, each
+  on an emulator started cold and stopped after it: all 628 passed, no
+  group walked twice.
+
+Before the audit, each full run, with what was new and how it ended:
 
 - **2026-10-27, for 0.13.0** — About's Open-source licenses read, and
   Back from them landing on About. An emulator just started; it waited 42
