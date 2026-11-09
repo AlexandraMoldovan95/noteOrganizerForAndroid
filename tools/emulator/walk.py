@@ -839,7 +839,7 @@ def brand_new(folder):
 
     # ---- writing a note ----
     tap("+", exact=True, wait=1.5)
-    check("+ opens an empty editor", not screen_says("Title"), str(screen_says("Title")))
+    check("+ opens an empty editor", not says_soon("Title"), str(screen_says("Title")))
     tap("Title")
     type_text("Groceries")
     tap("Write your note")
@@ -900,7 +900,7 @@ def brand_new(folder):
     # In the editor, not on the list: the list says "Groceries" too, and an
     # earlier form of this check passed there.
     check("Undo opens the note it brought back",
-          not screen_says("Groceries") and bool(screen_says("Search notes")))
+          not says_soon("Groceries") and bool(screen_says("Search notes")))
     back_to("Search notes")
 
     # ---- Settings ----
@@ -919,7 +919,7 @@ def brand_new(folder):
     tap("Light", exact=True, wait=1.5)
     shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "The light themes.")
     check("in Light, the page shows the light themes and not the dark",
-          not screen_says("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
+          not says_soon("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
     # The change dissolves: captured as fast as the emulator can while Dark
     # is tapped, the page passes through a shade between the light one and
     # the dark one. Cut in one frame, as it was, no capture can hold one.
@@ -938,7 +938,7 @@ def brand_new(folder):
     settings = read_file("settings.json") or {}
     check("Dark puts the app in the dark original at once, and shows the dark themes",
           settings.get("theme") == "dark"
-          and not screen_says("Midnight Purple", "Warm Charcoal", "The dark themes.")
+          and not says_soon("Midnight Purple", "Warm Charcoal", "The dark themes.")
           and screen_says("Soft Lavender") == ["Soft Lavender"], json.dumps(settings)[:200])
     tap("Forest Green", wait=1.5)
     settings = read_file("settings.json") or {}
@@ -959,7 +959,7 @@ def brand_new(folder):
     time.sleep(1.5)
     settings = read_file("settings.json") or {}
     check("the phone's own dark mode, turned on and off, leaves the theme alone",
-          settings.get("theme") == "dark_ocean" and not screen_says("Ocean Blue", "Forest Green"))
+          settings.get("theme") == "dark_ocean" and not says_soon("Ocean Blue", "Forest Green"))
     shot(folder, "08-ocean-blue", "Ocean Blue")
     back_to("Your name", "Appearance")
     tap("Your name")
@@ -979,7 +979,7 @@ def brand_new(folder):
     # for together with the list's own search box.
     keyboard_down()
     tap("Notes", exact=True)
-    check("the list greets by name", not screen_says("Hi Maria,", "Search notes"),
+    check("the list greets by name", not says_soon("Hi Maria,", "Search notes"),
           str(screen_says("Hi Maria,", "Search notes")))
     shot(folder, "09-greeting", "Hi Maria,", "Search notes")
 
@@ -1177,7 +1177,7 @@ def seeded(folder):
         opened = tap("Open", exact=True, wait=1.5, patience=2.0)
         check("a code the desktop made is read and added", note_by_uid("from-desktop") is not None)
         check("...and the one note that came is offered to open, and opens",
-              opened and find("ⓘ", exact=True) is not None and not screen_says("From the desktop"),
+              opened and find("ⓘ", exact=True) is not None and not says_soon("From the desktop"),
               str(screen_says("From the desktop")))
 
     # Trash, from Settings.
@@ -1205,7 +1205,7 @@ def seeded(folder):
             if foreground() == PACKAGE:
                 break
         time.sleep(1.0)
-        check("...and cancelled, the Trash page is back", not screen_says("Kept for"), str(screen_says("Kept for")))
+        check("...and cancelled, the Trash page is back", not says_soon("Kept for"), str(screen_says("Kept for")))
     trash = read_file("trash.json") or []
     if not trash:
         fail("a note restored from the Trash page: the delete before it put nothing in the Trash")
@@ -1267,7 +1267,7 @@ def seeded(folder):
     asked = False
     if mine and tap(mine, exact=True, wait=3.0):
         tap("Continue", exact=True, wait=1.5)
-        asked = not screen_says("Already here, unchanged", "Add copies anyway")
+        asked = not says_soon("Already here, unchanged", "Add copies anyway")
         shot(folder, "17-unchanged-question", "Already here, unchanged", "Add copies anyway")
         tap("Skip the", wait=2.0)
     check("re-importing your own backup asks, and skipping changes nothing",
@@ -1453,7 +1453,7 @@ def calendar(folder):
     # One day of the series, on its own.
     tap(said(second), wait=1.0)
     open_note("Stand-up")
-    check("a day of a series opens in day mode", not screen_says("Only this day"))
+    check("a day of a series opens in day mode", not says_soon("Only this day"))
     shot(folder, "25-day-mode", "Only this day", "Whole series")
     tap("Stand-up", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
@@ -1511,7 +1511,7 @@ def calendar(folder):
     # The History.
     tap("History", wait=1.5)
     check("the History lists the dated note and the series",
-          not screen_says("Dentist", "Stand-up"), str(screen_says("Dentist", "Stand-up")))
+          not says_soon("Dentist", "Stand-up"), str(screen_says("Dentist", "Stand-up")))
     shot(folder, "28-history", "Dentist", "Stand-up")
     tap("📅 Calendar", wait=1.0)
 
@@ -1745,7 +1745,7 @@ def trash_select(folder):
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
     check("with the window not known, moving duplicates promises no number of days",
-          not screen_says("You can restore them from there.") and find("within 30 days") is None,
+          not says_soon("You can restore them from there.") and find("within 30 days") is None,
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=1.0)
     back_to("Your name")
@@ -1839,7 +1839,7 @@ def failed_save(folder):
         keyboard_down()
         back(wait=1.2)
         check("Back keeps the unsaved note open, and offers to leave anyway",
-              not screen_says("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs"),
+              not says_soon("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs"),
               str(screen_says("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs")))
         shot(folder, "83-not-saved-stays-open", "Leave anyway")
         writes_fail(False)
@@ -1856,8 +1856,11 @@ def failed_save(folder):
         time.sleep(1.5)
         keyboard_down()
         back(wait=1.2)
-        check("a new note that cannot be saved stays open on Back",
-              not screen_says("Call the dentist", "Leave anyway"))
+        # Waited for, not read once: on an emulator started cold the bar came
+        # after a read 1.2 s past Back, in every run, and was there a moment
+        # later (2026-11-08).
+        missing = says_soon("Call the dentist", "Leave anyway")
+        check("a new note that cannot be saved stays open on Back", not missing, str(missing))
         tap("Leave anyway", exact=True, wait=1.5)
         check("Leave anyway leaves it", not says_soon("Search notes"))
     finally:
@@ -1903,7 +1906,7 @@ def checklist_words_kept(folder):
     start_app()
     if open_note("Bread"):
         check("... and they are there after Android ended the process",
-              ended and not screen_says("flour 500g", "yeast 7g", "salt"),
+              ended and not says_soon("flour 500g", "yeast 7g", "salt"),
               "ended %s, missing %s" % (ended, screen_says("flour 500g", "yeast 7g", "salt")))
         shot(folder, "84-checklist-words-kept", "flour 500g", "salt")
     back_to("Search notes")
@@ -2090,7 +2093,7 @@ def _tables_opened(folder):
     check("a note with a 300 by 300 table is drawn within two seconds (0.5 s on 2026-10-27)",
           took is not None and took < 2.0, str(took))
     check("... the table said too large to draw, its first lines shown",
-          not screen_says("Opening words", "too large to draw here", "| r0c0 | r0c1 |"),
+          not says_soon("Opening words", "too large to draw here", "| r0c0 | r0c1 |"),
           str(screen_says("Opening words", "too large to draw here", "| r0c0 | r0c1 |")))
     shot(folder, "86-big-table-as-text", "too large to draw here")
     back_to("Search notes")
@@ -2103,7 +2106,7 @@ def _tables_opened(folder):
     back_to("Search notes")
     took = drawn_in("Ragged table", "Ragged")
     check("a ragged table drawn as 125,500 cells is weighed so, and drawn within two seconds",
-          took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
+          took is not None and took < 2.0 and not says_soon("too large to draw here"), str(took))
     back_to("Search notes")
 
     # The page first, so the frames timed are the template's alone.
@@ -2111,7 +2114,7 @@ def _tables_opened(folder):
     tap("Templates", exact=True, wait=1.5)
     took = drawn_in("Big template", "too large to draw here", exact=True)
     check("a template holding the 300 by 300 table opens within two seconds, the table said too large",
-          took is not None and took < 2.0 and not screen_says("too large to draw here"), str(took))
+          took is not None and took < 2.0 and not says_soon("too large to draw here"), str(took))
     shot(folder, "86b-big-table-in-template", "too large to draw here")
     back_to("Search notes")
 
@@ -2143,7 +2146,7 @@ def code_started_once(folder):
     ended = kill_behind()
     start_app()
     check("ended in the background and opened again, the app does not offer the code again",
-          ended and bool(screen_says("Import a code")) and not screen_says("Already here", "Shared once"),
+          ended and bool(screen_says("Import a code")) and not says_soon("Already here", "Shared once"),
           "ended %s: " % ended + " | ".join(t for t, d, _ in nodes() if t)[:160])
     shot(folder, "87-code-offered-once", "Already here", "Shared once")
     back_to("Search notes")
@@ -2211,7 +2214,7 @@ def google_backup(folder):
     tap("Backup", exact=True, wait=1.2)
     adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
     time.sleep(1.0)
-    check("the page says the switch is on", not screen_says("Android's backup to your Google account",
+    check("the page says the switch is on", not says_soon("Android's backup to your Google account",
                                                              "On: Android may copy", "25 MB"))
     tap("Android's backup to your Google account", wait=1.2)
     check_settled("turned off, the file says so", lambda: (read_file("settings.json") or {}).get("phone_google_backup"),
@@ -2278,7 +2281,7 @@ def statistics(folder):
     tap("Settings", exact=True, wait=1.2)
     tap("Statistics", wait=1.5)
     check("the page counts the notebook's notes and says since when",
-          not screen_says("Total notes", "Using Note Organizer since 01.09.2026"),
+          not says_soon("Total notes", "Using Note Organizer since 01.09.2026"),
           str(screen_says("Total notes", "Using Note Organizer since 01.09.2026")))
     shot(folder, "31-statistics", "Total notes")
     back_to("Search notes")
@@ -2327,11 +2330,11 @@ def calculator(folder):
             tap(key, exact=True, wait=0.3)
 
     insert = "⬇ Insert into note"
-    check("the menu opens the panel, Insert waiting for an answer", not screen_says(insert, "More functions"))
+    check("the menu opens the panel, Insert waiting for an answer", not says_soon(insert, "More functions"))
     press("1", "2", "0", "+", "4", "5", ".", "5", "=")
     check("equals shows the answer", bool(find("165.5", exact=True)))
     tap(insert)
-    check("Insert says what it put in the note", not screen_says("Added to the note: 120+45.5=165.5"))
+    check("Insert says what it put in the note", not says_soon("Added to the note: 120+45.5=165.5"))
     press("×", "2", "=")
     tap(insert)
     shot(folder, "32-calculator", insert, "Fuel and tolls:")
@@ -2342,7 +2345,7 @@ def calculator(folder):
     # The keyboard up is the premise: on any screen without it, the button
     # missing passed.
     check("the panel stands aside while the keyboard is up for the note",
-          keyboard_shown() and bool(screen_says(insert)) and not screen_says("Fuel and tolls:"))
+          keyboard_shown() and bool(screen_says(insert)) and not says_soon("Fuel and tolls:"))
     # Down for certain, then looked for until it is there: one look 1.5 s
     # after Back, on an emulator just started, came before the keyboard
     # had gone (2026-10-23).
@@ -2355,13 +2358,13 @@ def calculator(folder):
     check("a division by zero says Error", bool(find("Error", exact=True)))
     tap("History")
     check("the history keeps the answers, newest first, and says what a tap does",
-          not screen_says("√9=3", "165.5×2=331", "120+45.5=165.5", "Tap a line to insert it into the note"))
+          not says_soon("√9=3", "165.5×2=331", "120+45.5=165.5", "Tap a line to insert it into the note"))
     shot(folder, "33-calculator-history", "√9=3", "Tap a line to insert it into the note")
     tap("120+45.5=165.5", exact=True)
 
     back(wait=1.2)
     check("Back closes the panel and leaves the note open",
-          bool(screen_says(insert)) and not screen_says("Fuel and tolls:"))
+          bool(screen_says(insert)) and not says_soon("Fuel and tolls:"))
     back_to("Search notes")
     notes = read_file("notes_data.json") or []
     body = notes[0].get("body") if notes else None
@@ -2416,11 +2419,11 @@ def finding(folder):
             break
         back(wait=1.2)
     check("Back closes the bar and leaves the note open",
-          not find("0/0", exact=True) and not screen_says("Shopping"),
+          not find("0/0", exact=True) and not says_soon("Shopping"),
           " | ".join(t or d for t, d, _ in nodes())[:200])
     tap("⋮", exact=True)
     tap("🔍 Find in note", wait=1.2)
-    check("the bar opens again with the last search", not screen_says("milkzzz"))
+    check("the bar opens again with the last search", not says_soon("milkzzz"))
     back_to("Search notes")
     notes = read_file("notes_data.json") or []
     check("finding never changed the note", bool(notes) and notes[0].get("body") == body,
@@ -2476,7 +2479,7 @@ def exporting(folder):
             fail("the phone's picker offered no Save (%s)" % fmt)
         made = settle(lambda: sorted(f for f in downloads() - earlier if f.endswith(ext)), lambda m: len(m) == 1)
         check("one %s file is where the picker put it" % fmt, len(made) == 1, str(made))
-        check("the message says where it went", not screen_says("Exported to"))
+        check("the message says where it went", not says_soon("Exported to"))
         if fmt == "html":
             shot(folder, "36-exported", "Exported to")
         if len(made) == 1:
@@ -2582,7 +2585,7 @@ def templates(folder):
     tap("⋮", exact=True)
     tap("🧩 Save as template", wait=1.2)
     tap("Save", exact=True, wait=1.2)
-    check("a name already taken asks first", not screen_says("Template name taken"))
+    check("a name already taken asks first", not says_soon("Template name taken"))
     tap("Replace", exact=True, wait=1.2)
     check("replaced, still one", len(on_disk()) == 1)
 
@@ -2638,7 +2641,7 @@ def templates(folder):
               t.get("body", "").startswith("Hi • call mum") and moved == ["call"]
               and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}], repr(t)[:300])
     tap("Delete template", wait=1.2)
-    check("deleting asks, and says it is for good", not screen_says("for good"))
+    check("deleting asks, and says it is for good", not says_soon("for good"))
     tap("Delete", exact=True, wait=1.2)
     check("gone", on_disk() == [], repr(on_disk()))
     back_to("Search notes")
@@ -2752,7 +2755,7 @@ def new_table(folder):
     tap("Insert", exact=True, wait=1.5)
     # The first cell written in place, the table's bar over the keyboard.
     check("the new table's first cell is open for typing, the table's bar at hand",
-          find("Cell", exact=True) is not None and not screen_says("Row", "Column", "More"))
+          find("Cell", exact=True) is not None and not says_soon("Row", "Column", "More"))
     type_text("Day")
     back_to("Search notes")
     body = ((read_file("notes_data.json") or [{}])[0]).get("body") or ""
@@ -2996,7 +2999,7 @@ def cell_menu(folder):
     choose_cell("Cells", "fuel")
     tap("Delete", exact=True, wait=0.8)
     tap("The whole table", exact=True, wait=1.0)
-    check("deleting the table asks first", not screen_says("Delete this table and everything in it?"))
+    check("deleting the table asks first", not says_soon("Delete this table and everything in it?"))
     tap_last("Delete", wait=1.2)
     back_to("Search notes")
     gone = note().get("body")
@@ -3111,7 +3114,7 @@ def move_day(folder):
     tap(picker_day(third), wait=0.6)
     tap("OK", exact=True, wait=1.5)
     check("a day cannot move onto another day of its series",
-          not screen_says("already has a day on") and not (series().get("moved") or {}),
+          not says_soon("already has a day on") and not (series().get("moved") or {}),
           json.dumps(series().get("moved")))
 
     tap("Move this day", wait=1.5)
@@ -3167,26 +3170,26 @@ def off_schedule(folder):
     tap("Yoga", wait=1.2)
     tap("off the schedule", wait=2.0)
     check("a History row off the schedule opens the series, not that day",
-          find("Only this day") is None and not screen_says("2 days' own edits are off the schedule"),
+          find("Only this day") is None and not says_soon("2 days' own edits are off the schedule"),
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=1.0)
     tap("Notes", exact=True, wait=1.5)
     open_note("Yoga")
     check("the series says two days' edits are off its schedule",
-          not screen_says("2 days' own edits are off the schedule"))
+          not says_soon("2 days' own edits are off the schedule"))
     # And, above it, that its edits reach the whole series: the desktop's
     # banner. Both days are off the schedule, so none is counted as keeping its own.
     check("the series says its edits apply to the whole series, counting no day off the schedule as its own",
-          not screen_says("This note repeats", "edits here apply to the whole series")
+          not says_soon("This note repeats", "edits here apply to the whole series")
           and find("keep their own edits") is None and find("keeps its own edits") is None)
     tap("off the schedule", wait=1.5)
-    check("one question a day, in the desktop's words", not screen_says("Day 1 of 2 off the schedule", "Yoga in the park"))
+    check("one question a day, in the desktop's words", not says_soon("Day 1 of 2 off the schedule", "Yoga in the park"))
     shot(folder, "54-off-schedule", "Day 1 of 2 off the schedule")
     tap("Make it a note", exact=True, wait=1.5)
-    check("then the next", not screen_says("Day 2 of 2 off the schedule", "Yoga at home"))
+    check("then the next", not says_soon("Day 2 of 2 off the schedule", "Yoga at home"))
     tap("Move to the Trash", exact=True, wait=1.0)
     # At once: the message lasts a few seconds.
-    check("and what was done is said", not screen_says("1 made a note of its own, 1 moved to the Trash"))
+    check("and what was done is said", not says_soon("1 made a note of its own, 1 moved to the Trash"))
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []
     series = next((n for n in notes if n.get("uid") == "os-series"), {})
@@ -4411,7 +4414,7 @@ def one_note_drawn_and_sent(folder):
           "%s s, one alone %.2f s" % (took, one))
     took = opened_in("Wide then small")
     check("a table under one that drew 1,000 cells is shown as its lines, and says why",
-          took is not None and took < 1.5 * one + 1.0 and not screen_says("already fill the 1,000 cells"), "%s s" % took)
+          took is not None and took < 1.5 * one + 1.0 and not says_soon("already fill the 1,000 cells"), "%s s" % took)
     shot(folder, "100-table-past-the-others", "already fill")
     took = opened_in("Many lines")
     check("200,000 empty lines open within two seconds", took is not None and took < 2.0 and find("Above") is not None,
@@ -4420,7 +4423,7 @@ def one_note_drawn_and_sent(folder):
     if screen_says("more than is shown here at once") and screen_says("Comments") == []:
         tap("Comments", wait=1.5)       # folded away under its label
     check("... and comments of 200,000 lines are shown read-only, with how many lines they hold",
-          took is not None and took < 1.0 and not screen_says("more than is shown here at once", "more lines"),
+          took is not None and took < 1.0 and not says_soon("more than is shown here at once", "more lines"),
           "%s s, %s" % (took, screen_says("more than is shown here at once", "more lines")))
     shot(folder, "101-many-lines-read-only", "more than is shown here at once")
     took = opened_in("Tiny tables")
@@ -4537,7 +4540,7 @@ def one_note_drawn_and_sent(folder):
 
     asked = ask_pdf("Forty pages", "PDF, first 40 pages")
     check("a PDF of more than forty pages asks first, with the web page, the forty pages and Cancel",
-          asked is not None and not screen_says("Not all of this note fits a PDF", "only its first 40 pages",
+          asked is not None and not says_soon("Not all of this note fits a PDF", "only its first 40 pages",
                                                  "Web page", "Cancel"))
     shot(folder, "104-pdf-asks-first", "Not all of this note fits a PDF")
     tap("Cancel", exact=True, wait=1.5)
@@ -4564,7 +4567,7 @@ def one_note_drawn_and_sent(folder):
     back_to("Search notes")
     asked = ask_pdf("Wide table", "PDF, cut at the edge")
     check("a note wider than the page asks the same, the PDF cut at the edge",
-          asked is not None and not screen_says("cut at the page's edge"))
+          asked is not None and not says_soon("cut at the page's edge"))
     shot(folder, "105-pdf-wide-asks", "cut at the page's edge")
     tap("Cancel", exact=True, wait=1.5)
     back_to("Search notes")
@@ -4663,7 +4666,7 @@ def an_ordinary_note_at_its_size(folder):
     find_in_note("needle")
     check("a word in a note's read-only rest is found, its line shown",
           counter() == "1/1" and find("line 50000 needle") is not None
-          and not screen_says("Lines 10,000 to 10,002 of 20,000"),
+          and not says_soon("Lines 10,000 to 10,002 of 20,000"),
           "%s, %s" % (counter(), screen_says("Lines 10,000 to 10,002 of 20,000")))
     shot(folder, "108-rest-found", "line 50000 needle")
     tap("Read on ›", exact=True, wait=1.5)
@@ -4731,7 +4734,7 @@ def an_ordinary_note_at_its_size(folder):
     took = opened_in("Wide rows", limit=60.0)
     # Measured 2026-10-29: 7.07 s before the fix, 1.74 after; the same text in a body, 1.63.
     check("a checklist of 120 rows of 150,000 letters opens within two and a half seconds, each row shown short",
-          took is not None and took < 2.5 and not screen_says("Read all 149,994 characters"), "%s s" % took)
+          took is not None and took < 2.5 and not says_soon("Read all 149,994 characters"), "%s s" % took)
     shot(folder, "110-wide-rows-short", "Rows")
     back_to("Search notes")
     kept = read_file("notes_data.json") or []
@@ -5028,7 +5031,7 @@ def a_rows_own_words(folder):
     # Measured 2026-10-29 in one session, the first opening and two more:
     # 7.2 and 4.3 s before the fix, 3.0, 1.9 and 1.4 after it.
     check("a template of 1,000 rows of 2,000 letters opens within four seconds, its rows drawn in part",
-          took is not None and took < 4.0 and not screen_says("Edit template"), "%s s" % took)
+          took is not None and took < 4.0 and not says_soon("Edit template"), "%s s" % took)
     tap("Template name", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
@@ -5046,7 +5049,7 @@ def a_rows_own_words(folder):
     # Under the 205 rows drawn: scrolled to, as a person would.
     seek(lambda: find("A new item") is not None, tries=40, fast=True)
     check("a template of 1,000 rows draws its first 200 and its last five, the line between saying so",
-          not screen_says("795 more rows here, not drawn yet. Show 200 of them", "row 999"),
+          not says_soon("795 more rows here, not drawn yet. Show 200 of them", "row 999"),
           str(screen_says("795 more rows here, not drawn yet. Show 200 of them", "row 999")))
     tap("A new item", wait=0.8)
     type_text("Passport")
@@ -5242,7 +5245,7 @@ def template_draft(folder):
     # left open by an `am kill` that ended nothing passed this check (the
     # walk of 2026-10-30).
     continued = asked and tap("Continue", exact=True, wait=2.0)
-    back_open = not screen_says("Packing", "Weekend", "socks", "Passport")
+    back_open = not says_soon("Packing", "Weekend", "socks", "Passport")
     check("Continue brings every field back, the words waiting in A new item among them", continued and back_open,
           "continued %s, missing %s" % (continued, screen_says("Packing", "Weekend", "socks", "Passport")))
     shot(folder, "120-template-draft-continued", "Passport")
@@ -5267,7 +5270,7 @@ def template_draft(folder):
     discarded = asked_again and tap("Discard", exact=True, wait=1.5)
     trip = next((t for t in read_file("templates.json") or [] if t.get("name") == "Trip"), {})
     check("Discard leaves no draft, and the template as it was saved",
-          discarded and draft() is None and trip.get("title") == "Trip list" and not screen_says("Trip")
+          discarded and draft() is None and trip.get("title") == "Trip list" and not says_soon("Trip")
           and screen_says("You were writing a template"), "discarded %s, %s" % (discarded, json.dumps(trip)[:200]))
     back_to("Search notes")
 
@@ -5482,7 +5485,7 @@ def refusals_and_caps_said(folder):
     tap("Save", exact=True, wait=0.3)
     said = not shot_as_said(folder, "123-category-refused-over-its-sheet", "There is already a category called",
                             over_keys=True)
-    stays = not screen_says("Add a category", "Name")
+    stays = not says_soon("Add a category", "Name")
     check("a category's name already used is refused and said over its sheet, which stays open",
           said and stays, "said %s, the sheet open %s" % (said, stays))
     back_to("Your name")
@@ -5916,7 +5919,7 @@ def arrange_without_drag(folder):
     tap("Move down", exact=True, wait=2.0)
     after = dict((name, y) for y, name in handles())
     check("the last card on screen moved down shows just under the card it passed, both in sight",
-          last in after and not screen_says(passed_by) and placed().index(last) == placed().index(passed_by) + 1,
+          last in after and not says_soon(passed_by) and placed().index(last) == placed().index(passed_by) + 1,
           "%s, %s: %s" % (last, passed_by, sorted(after.items(), key=lambda kv: kv[1])[:6]))
 
     # The top card on screen dragged one place down: the edge scroll took the
@@ -6132,7 +6135,7 @@ def attaching(folder):
     check("a file gone from the folder, tapped, is said missing", not says_soon("can't be found"))
 
     tap("Remove walk-receipt.txt", wait=1.2)
-    check("removing a file asks first, and says the copy goes", not screen_says("can't be undone"))
+    check("removing a file asks first, and says the copy goes", not says_soon("can't be undone"))
     tap_last("Remove", wait=1.5)
     gone = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
     check("removed: off the note, and its stored copy deleted",
@@ -7030,13 +7033,13 @@ def duplicates(folder):
     put_bytes_inside("attachments/dp_map.png", b"MAP")
     tap("Settings", exact=True, wait=1.2)
     tap("Duplicates", exact=True, wait=1.5)
-    check("two groups found, by the desktop's key", not screen_says("Found 2 group(s)", "“Trip” — 2 copies"),
+    check("two groups found, by the desktop's key", not says_soon("Found 2 group(s)", "“Trip” — 2 copies"),
           str(screen_says("Found 2 group(s)", "“Trip” — 2 copies")))
-    check("the group with a file says it will be merged", not screen_says("differing attachments"))
+    check("the group with a file says it will be merged", not says_soon("differing attachments"))
     shot(folder, "51-duplicates", "Found 2 group(s)")
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
-    check("cleaning up asks first", not screen_says("Move 1 selected note(s) to the Trash?"))
+    check("cleaning up asks first", not says_soon("Move 1 selected note(s) to the Trash?"))
     tap_last("Move to Trash", wait=1.5)
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []
@@ -7520,7 +7523,7 @@ def reminders(folder):
                          "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Dentist"):
         return
     check("on a day with a note, the bar says so above the notes",
-          not screen_says("You have 1 note for today"), " | ".join(t for t, d, _ in nodes() if t)[:200])
+          not says_soon("You have 1 note for today"), " | ".join(t for t, d, _ in nodes() if t)[:200])
     check("...and its day is written where the desktop writes it",
           (read_file("settings.json") or {}).get("reminder_last_shown") == today,
           repr((read_file("settings.json") or {}).get("reminder_last_shown")))
@@ -7530,14 +7533,14 @@ def reminders(folder):
     adb("shell", "am", "force-stop", PACKAGE)
     start_app()
     check("a second start the same day shows no bar", find("You have 1 note for today") is None
-          and not screen_says("Dentist"))
+          and not says_soon("Dentist"))
     # The day forgotten, the bar back, and tapped.
     adb("shell", "am", "force-stop", PACKAGE)
     put_inside("settings.json", {"welcome_offered": True})
     start_app()
     tap("You have 1 note for today", wait=1.5)
     check("a tap on the bar opens the day on the calendar",
-          not screen_says("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
+          not says_soon("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
 
     # The notification: off until turned on, Android asked first.
     tap("Settings", exact=True, wait=1.2)
@@ -7554,7 +7557,7 @@ def reminders(folder):
         adb("shell", "input", "tap", str(allow[0]), str(allow[1]))
         time.sleep(1.5)
     check("turned on, after Android asked: the setting saved, an hour shown",
-          (read_file("settings.json") or {}).get("phone_reminder_notify") is True and not screen_says("09:00"),
+          (read_file("settings.json") or {}).get("phone_reminder_notify") is True and not says_soon("09:00"),
           repr(read_file("settings.json")))
     check("...and the next one set as an alarm", our_alarm())
     adb("shell", "am", "broadcast", "-n", PACKAGE + "/.ReminderReceiver", "-a", "ro.noteorganizer.app.REMIND")
@@ -7568,7 +7571,7 @@ def reminders(folder):
     time.sleep(1.5)
     if tap("You have 1 note for today", wait=2.5):
         check("a tap on the notification opens the day on the calendar",
-              not screen_says("📋 History", "Dentist", "+ Add note"))
+              not says_soon("📋 History", "Dentist", "+ Add note"))
     adb("shell", "cmd", "statusbar", "collapse")
     time.sleep(1.0)
     tap("Settings", exact=True, wait=1.2)
@@ -7607,7 +7610,7 @@ def wide(folder):
     # not be built again, which would drop both.
     long_press("Plans")
     turn(1)
-    check("a selection survives the phone turning", not screen_says("1 selected"))
+    check("a selection survives the phone turning", not says_soon("1 selected"))
     check("...and the rail's + steps aside while notes are selected", find("New note", exact=True) is None)
     back()
     turn(0)
@@ -7616,7 +7619,7 @@ def wide(folder):
     tap("Find in note", wait=1.0)
     type_text("milk")
     turn(1)
-    check("an open find bar survives the phone turning", not screen_says("Close find"))
+    check("an open find bar survives the phone turning", not says_soon("Close find"))
     back_to("Pick a note")
 
     turn(1)
@@ -7624,7 +7627,7 @@ def wide(folder):
     check("on its side the bar is a rail down the left edge",
           bool(notes_at and settings_at) and notes_at[0] < 300 and settings_at[0] < 300
           and notes_at[1] < settings_at[1], "%s %s" % (notes_at, settings_at))
-    check("the second pane waits for a note", not screen_says("Search notes", "Pick a note"))
+    check("the second pane waits for a note", not says_soon("Search notes", "Pick a note"))
     plus = find("New note", exact=True)
     check("...and the + heads the rail, above its tabs and off the list",
           plus is not None and bool(notes_at) and plus[0] < 300 and plus[1] < notes_at[1],
@@ -7632,7 +7635,7 @@ def wide(folder):
     shot(folder, "44-wide-list", "Search notes", "Pick a note")
 
     open_note("Groceries")
-    check("a note opens beside the list, which stays", not screen_says("Search notes", "Plans", "ⓘ"))
+    check("a note opens beside the list, which stays", not says_soon("Search notes", "Plans", "ⓘ"))
     # The editor's body, not the card's first words: the last of the two.
     tap_last("milk", wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
@@ -7691,21 +7694,21 @@ def wide(folder):
     wider = bounds("Plans")
     check("« puts the list aside: the note takes its width, its find bar still open",
           find("Search notes") is None and narrow is not None and len(wider) == 1
-          and wider[0][0] < narrow[0] - 200 and not screen_says("Close find"),
+          and wider[0][0] < narrow[0] - 200 and not says_soon("Close find"),
           "the title from %s, then %s" % (narrow, wider))
     shot(folder, "70-wide-list-aside", "trip", "Show the list")
     tap("Show the list", exact=True, wait=1.5)
     check("» brings the list back beside the note, the find bar still open",
-          not screen_says("Search notes", "Groceries", "Close find", "Hide the list"))
+          not says_soon("Search notes", "Groceries", "Close find", "Hide the list"))
     tap("Hide the list", exact=True, wait=1.5)
     tap("←", exact=True, wait=1.5)
-    check("with the list aside, closing the note shows the list", not screen_says("Search notes", "Pick a note"))
+    check("with the list aside, closing the note shows the list", not says_soon("Search notes", "Pick a note"))
     tap("Plans", exact=True, wait=1.5)
     check("...and the next note opens with the list still aside, until the app is closed",
-          find("Search notes") is None and not screen_says("Show the list"))
+          find("Search notes") is None and not says_soon("Show the list"))
     tap("Notes", exact=True, wait=1.5)
     check("the rail's Notes brings the list back beside the note",
-          not screen_says("Search notes", "Hide the list"))
+          not says_soon("Search notes", "Hide the list"))
 
     tap("Calendar", exact=True, wait=1.5)
     check("the note stays open beside the calendar", not says_soon("📋 History", "ⓘ", "trip"))
@@ -7724,7 +7727,7 @@ def wide(folder):
           and len(header) == 1 and len(again) == 1 and abs(again[0][1] - header[0][1]) <= 8,
           "Mon at %s, then %s; + Add note at %s, after the History %s" % (days, gone, header, again))
     tap("Settings", exact=True, wait=1.5)
-    check("Settings has no note beside it: the note is closed", not screen_says("Your name") and find("ⓘ") is None)
+    check("Settings has no note beside it: the note is closed", not says_soon("Your name") and find("ⓘ") is None)
     # Its list keeps its place while a page is open: on its side the list
     # scrolls, and Back from the Trash came back at its top, the row just
     # left below the screen (the owner's phone, 2026-10-23).
@@ -7745,7 +7748,7 @@ def wide(folder):
     # the list's tab.
     tap("Calendar", exact=True, wait=1.5)
     check("beside the calendar the empty pane points to the day's notes, not to a + it has not",
-          not screen_says("Pick a note of the day") and find("tap +") is None)
+          not says_soon("Pick a note of the day") and find("tap +") is None)
     tap("Notes", exact=True, wait=1.2)
 
     # Two new notes in a row: the second + must give a second, empty note
@@ -7779,7 +7782,7 @@ def wide(folder):
         time.sleep(2.5)
         tap("Import", exact=True, wait=1.5)
         tap("Update this note", wait=1.5)
-        check("the open note shows the update", not screen_says("milk, from the desktop", "ⓘ"))
+        check("the open note shows the update", not says_soon("milk, from the desktop", "ⓘ"))
         tap_last("milk, from the desktop", wait=0.6)
         adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
         type_text(" ok")
@@ -7798,7 +7801,7 @@ def wide(folder):
           find("Search notes") is None and find("Settings", exact=True) is not None)
     shot(folder, "47-medium-note", "milk, from the desktop", "ⓘ")
     tap("Notes", exact=True, wait=1.5)
-    check("the rail leaves the note for the list", not screen_says("Search notes") and find("ⓘ") is None)
+    check("the rail leaves the note for the list", not says_soon("Search notes") and find("ⓘ") is None)
     adb("shell", "wm", "size", "reset")
     turn(0)
 
@@ -7865,10 +7868,10 @@ def screen_sizes(folder):
             shot(folder, "80-size-%s-list" % tag, "Search notes", "Groceries")
             open_note("Groceries")
             if beside:
-                check("...a note opens beside the list, upright", not screen_says("Search notes", "Plans", "milk and eggs"))
+                check("...a note opens beside the list, upright", not says_soon("Search notes", "Plans", "milk and eggs"))
             else:
                 check("...a note opens in the list's place", find("Search notes") is None
-                      and not screen_says("milk and eggs"))
+                      and not says_soon("milk and eggs"))
             shot(folder, "81-size-%s-note" % tag, "Groceries", "ⓘ")
             back_to("Search notes", "Groceries")
             tap("Calendar", exact=True, wait=1.5)
@@ -7923,11 +7926,14 @@ def kept_aside(folder):
     adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
     # Read the moment it comes, the keyboard still up: the bar goes on its
     # own, and putting the keyboard down first left too little of its time.
-    said = not says_soon("kept as a note of their own", "Show", within=10.0)
+    # Up to twenty seconds: on an emulator started cold the bar came after
+    # the first ten, in every run of 2026-11-08, and Show still opened it.
+    unsaid = says_soon("kept as a note of their own", "Show", within=20.0)
     shot(folder, "128-words-kept-aside", "kept as a note of their own")
     tap("Show", exact=True, wait=1.5)
-    check("...said, with a Show that opens the note kept aside",
-          said and not says_soon("Trip (earlier text)", words[:20], "ⓘ"))
+    unopened = says_soon("Trip (earlier text)", words[:20], "ⓘ")
+    check("...said, with a Show that opens the note kept aside", not unsaid and not unopened,
+          "missing from the bar %s, from the note Show opened %s" % (unsaid, unopened))
     keyboard_down()
     check_settled("a big delete after it keeps the Update's copy, the note as it was before",
                   lambda: ((note_by_uid("ka-trip") or {}).get("body"),
