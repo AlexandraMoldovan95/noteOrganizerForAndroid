@@ -386,7 +386,11 @@ def screen_says(*words):
 
 
 def check(what, ok, detail=""):
-    print(("PASS " if ok else "FAIL ") + what + (("  -- " + detail) if detail and not ok else ""))
+    # One line, whatever the detail quotes (a screen's text holds line
+    # breaks): walk_groups reads the lines that are not a check's as the
+    # walk's own, and a quoted "adb did not answer" there read as stuck.
+    line = ("PASS " if ok else "FAIL ") + what + (("  -- " + str(detail)) if detail and not ok else "")
+    print(" / ".join(line.splitlines()))
     if ok:
         passed[0] += 1
     else:
@@ -442,7 +446,7 @@ def route_pids(app, sheet):
 
 
 def fail(what):
-    print("FAIL " + what)
+    print("FAIL " + " / ".join(str(what).splitlines()))     # one line, as check()'s
     failures.append(what)
 
 
@@ -8085,8 +8089,16 @@ def write_summary(folder):
     summary = {"commit": commit, "apk_sha256": apk, "written": time.strftime("%Y-%m-%d %H:%M:%S"),
                "passed": passed[0], "failed": len(failures), "failures": list(failures),
                "parts": [{"part": name, "passed": good, "failed": bad} for name, good, bad in walked]}
-    with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as fh:
-        json.dump(summary, fh, indent=1, ensure_ascii=False)
+    # Whole or not at all: a Ctrl-C in the middle left half a file that
+    # walk_groups could not read.
+    path = os.path.join(folder, "summary.json")
+    try:
+        with open(path + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, indent=1, ensure_ascii=False)
+        os.replace(path + ".tmp", path)
+    except OSError as stop:
+        # Said, and never in place of the part's own error.
+        print("summary.json could not be written: %s" % stop)
 
 
 def _settled(part):
@@ -8105,8 +8117,10 @@ def _settled(part):
             raise
         finally:
             walked.append((part.__name__, passed[0] - good, len(failures) - bad))
-            settle_device()
-            write_summary(folder)
+            try:
+                settle_device()
+            finally:
+                write_summary(folder)      # a Ctrl-C in settle_device still counts
     return walked_part
 
 

@@ -403,14 +403,19 @@ def main():
         # emulator on its side, its own turning off.
         # A key that was never set reads "null": it is unset again, not left
         # at the run's value. One that fails does not keep the other back.
+        # Read back, and said when it is not as found: adb's settings
+        # command does not fail on a write it refused.
         for key, value in found.items():
             try:
                 if value.isdigit():
                     adb("shell", "settings", "put", "system", key, value)
                 elif value == "null":
                     adb("shell", "settings", "delete", "system", key)
+                now = adb("shell", "settings", "get", "system", key).strip()
             except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
-                continue
+                now = "(adb did not answer)"
+            if now != value:
+                print("the emulator's %s is %s, not %r as found: set it back by hand" % (key, now, value))
         demo_status_bar(False)
 
     print()
