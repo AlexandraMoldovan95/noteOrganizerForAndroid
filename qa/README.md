@@ -288,8 +288,8 @@ It reports a pass only when every part main() names was walked and no
 check failed on any try (a check that failed on a try that got stuck is
 exit 7, though the retry passed it), and it uses and stops only the
 emulator it started (on its own port, naming its own AVD, its process
-still running). Four review rounds on 12 November 2026 found it able to
-do otherwise, one way after another; each way is a scenario in
+still running). Review rounds on 12 November 2026 found it able to do
+otherwise, one way after another; each way is a scenario in
 `py -I tools/emulator/walk_groups_selftest.py`, which fakes the emulator,
 adb and the walk, so it starts nothing, and `--mutants` breaks each
 promise in a copy to watch a scenario fail. Run both after any change to

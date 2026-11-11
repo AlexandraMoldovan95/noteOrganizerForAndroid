@@ -10,8 +10,18 @@ walk.py itself, so a new part joins without a list kept here. A group whose
 emulator got stuck is walked once more on a fresh one, and says so. Each
 group writes into <folder>/gN, its own summary.json there (walk.py's), and
 the run's into <folder>/summary.json. Exit 0 only when every part main()
-names was walked and no check failed, on any try: a check that failed on a
-try that got stuck is exit 7 though the retry passed it.
+names was walked and no check failed, on any try. Otherwise:
+
+    1   a check failed, or a part was not walked (the summary names them)
+    2   refused before walking: no emulator binary, an emulator already
+        running, adb not answering, no parts read; or walk.py refused
+    4   a group's emulator got stuck, or did not start, on both tries
+    5   a walk ended from outside (a signal, a memory ceiling)
+    6   an emulator this run did not start appeared, or adb went silent,
+        before a group or its second try: the run stopped
+    7   every check passed in the end, but one failed on a try that got
+        stuck: read failed_on_stuck_tries
+    75  walk.py did not get the machine's turn
 
 walk_groups_selftest.py, beside it, proves these promises with the
 emulator, adb and the walk faked: run it after any change here.

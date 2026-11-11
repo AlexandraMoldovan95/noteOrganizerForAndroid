@@ -4,9 +4,9 @@ the walk are all faked, so this starts nothing and touches no device.
     py -I tools/emulator/walk_groups_selftest.py              the scenarios
     py -I tools/emulator/walk_groups_selftest.py --mutants    and its mutants
 
-Run it after any change to walk_groups.py, and before a full walk. Four
-review rounds in a row (12 November 2026) found the runner able to report a
-pass for parts it never walked, or to stop an emulator it had not started;
+Run it after any change to walk_groups.py, and before a full walk. Review
+rounds in a row (12 November 2026) found the runner able to report a pass
+for parts it never walked, or to stop an emulator it had not started;
 each case they found is a scenario here, and the version before each fix
 failed it. Exit 0 when every scenario holds. With --mutants, each of
 MUTANTS breaks one promise in a fresh copy (the source is only read, as
@@ -60,6 +60,9 @@ MUTANTS = [
      b"if line.startswith(\"FAIL \")]", "the part a stuck emulator ended is read as a failed check"),
     ("walk_groups.py", b"    if combined[\"failed\"]:\n        return 1", b"    if False:\n        return 1",
      "a failed check in a summary whose walk exited 0 passes"),
+    ("walk_groups.py", b"    if ours(proc, avd):\n        adb_quiet(\"emu\", \"kill\"",
+     b"    if proc.poll() is None:\n        adb_quiet(\"emu\", \"kill\"",
+     "stop() kills whatever is at the serial while its own process runs"),
 ]
 
 
@@ -289,6 +292,8 @@ def clean(group, attempt):
 def main():
     ownership("its own emulator: used, then stopped by emu kill", AVD, None, want_proc=True, want_kill=True)
     ownership("another AVD's emulator at the serial: not used, not stopped", "someone_else", 6)
+    ownership("another AVD's at the serial, its own process alive throughout: not used, not stopped",
+              "someone_else", None)
     ownership("its launcher ended at once (the port taken): the one there is not stopped", AVD, 1)
     ownership("a Ctrl-C while it starts: its emulator is stopped", AVD, None, interrupt=True, want_kill=True)
     ownership("it never finishes starting: given up after five minutes, and stopped", AVD, None,
