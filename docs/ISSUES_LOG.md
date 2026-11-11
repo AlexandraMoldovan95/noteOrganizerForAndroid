@@ -4599,7 +4599,7 @@ phone matches the desktop wherever the difference is not a fault.
   column. **Closed 2026-11-11** by the desktop's 5f82daa.
 * **A table inserted right above another leaves two blank lines** between
   them. **Closed 2026-11-11** by the desktop's 495fdf2 -- and on the phone,
-  which had copied the rule, in 0.14.1.
+  which had copied the rule, the same day (b2f1420).
 
 ### Two DESKTOP findings from porting Phase 3
 
