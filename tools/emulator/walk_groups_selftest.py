@@ -40,6 +40,26 @@ MUTANTS = [
      "a refusal walks on"),
     ("walk_groups.py", b"    if not parts:\n        print(\"no parts",
      b"    if False:\n        print(\"no parts", "no parts read is walked as a pass"),
+    ("walk_groups.py", b"        raise\n    stop(proc, avd)\n    return None",
+     b"        raise\n    return None", "one that never finishes starting is left running"),
+    ("walk_groups.py", b"        if os.name == \"nt\":\n            subprocess.run([\"taskkill\", \"/T\", \"/F\", \"/PID\","
+                       b" str(proc.pid)],\n                           capture_output=True, timeout=30)\n"
+                       b"        else:\n            os.killpg(proc.pid, 9)",
+     b"        if True:\n            pass", "one that does not go is not ended"),
+    ("walk_groups.py", b"os.remove(old)", b"pass", "a group's summary from an earlier run is kept"),
+    ("walk_groups.py", b"while time.time() < deadline and SERIAL in (listed() or \"\"):", b"while False:",
+     "stop() does not wait for the serial to go"),
+    ("walk_groups.py", b"timeout=GROUP_SECONDS,", b"timeout=None,", "a walk with no time limit"),
+    ("walk_groups.py", b"if devices is None or \"emulator-\" in devices:", b"if \"emulator-\" in (devices or \"\"):",
+     "adb not answering between groups read as no emulator"),
+    ("walk_groups.py", b"return bool(named) and named[0].strip() == avd", b"return True",
+     "ours() does not ask the AVD's name"),
+    ("walk_groups.py", b"if proc is None or proc.poll() is not None:\n        return False\n    named",
+     b"if proc is None:\n        return False\n    named", "ours() does not ask whether its process runs"),
+    ("walk_groups.py", b"if line.startswith(\"FAIL \") and \" ended early: AdbTimeout\" not in line]",
+     b"if line.startswith(\"FAIL \")]", "the part a stuck emulator ended is read as a failed check"),
+    ("walk_groups.py", b"    if combined[\"failed\"]:\n        return 1", b"    if False:\n        return 1",
+     "a failed check in a summary whose walk exited 0 passes"),
 ]
 
 
@@ -79,17 +99,22 @@ AVD = "noteorg_test"
 results = []
 serials = []
 boots, stops = [], []      # the fake emulators walk_group started, and stopped
+limits = []                # the time limit each walk was given
 
 
 def note(ok, what, got):
     results.append((bool(ok), what, got))
 
 
-class FakeProc:
-    """An emulator's process: alive for [lives] polls, or for ever."""
+FAKE_PID = 987654321       # no process of the machine's: a kill aimed at it reaches nothing
 
-    def __init__(self, lives=None):
-        self.lives, self.pid = lives, 0
+
+class FakeProc:
+    """An emulator's process: alive for [lives] polls, or for ever; one
+    that will not go waits out [stubborn] waits first."""
+
+    def __init__(self, lives=None, stubborn=0):
+        self.lives, self.stubborn, self.pid = lives, stubborn, FAKE_PID
 
     def poll(self):
         if self.lives is None:
@@ -98,30 +123,56 @@ class FakeProc:
         return None if self.lives > 0 else 1
 
     def wait(self, timeout=None):
+        if self.stubborn:
+            self.stubborn -= 1
+            raise g.subprocess.TimeoutExpired("emulator", timeout)
         return 0
 
 
-def ownership(what, name, lives, interrupt=False, want_proc=False, want_kill=False):
-    """boot() then stop() against a device at the serial naming [name]."""
-    real = (time.sleep, g.subprocess.Popen, g.adb_quiet, g.subprocess.run)
-    sent = []
+def ownership(what, name, lives, interrupt=False, want_proc=False, want_kill=False,
+              boots_up=True, stubborn=0, want_ended=False):
+    """boot() then stop() against a device at the serial naming [name]: on
+    a clock of its own, so five minutes pass in no time, with the serial
+    listed by adb until a few asks after emu kill. [want_ended]: its own
+    process tree ended, as it did not go."""
+    real = (time.sleep, time.time, g.subprocess.Popen, g.adb_quiet, g.subprocess.run,
+            g.listed, getattr(os, "killpg", None))
+    sent, ended, asks = [], [], {"after_kill": 0}
+    clock = [1000.0]
 
     def quiet(*args, timeout=30):
         sent.append(args)
         if args[:2] == ("shell", "getprop"):
             if interrupt:
                 raise KeyboardInterrupt
-            return "1\n"
+            return "1\n" if boots_up else "\n"
         if args[:3] == ("emu", "avd", "name"):
             return name + "\r\nOK\r\n"
         return ""
-    proc = FakeProc(lives)
+
+    def devices():
+        if ("emu", "kill") in sent:
+            asks["after_kill"] += 1
+            if asks["after_kill"] < 3:
+                return "emulator-5554\tdevice\n"      # still on its way out
+        return "List of devices attached\n\n"
+
+    def tick(seconds=0):
+        clock[0] += max(seconds, 1)
+
+    def fake_run(args, **k):
+        if args and args[0] == "taskkill":
+            ended.append(args)
+        return type("R", (), {"returncode": 0, "stdout": ""})()
+    proc = FakeProc(lives, stubborn)
     folder = tempfile.mkdtemp(prefix="wg-selftest-")
     started = []
-    time.sleep = lambda s: None
+    time.sleep, time.time = tick, lambda: clock[0]
     g.subprocess.Popen = lambda args, **k: started.append(list(args)) or proc
     g.adb_quiet = quiet
-    g.subprocess.run = lambda *a, **k: type("R", (), {"returncode": 0, "stdout": ""})()
+    g.subprocess.run = fake_run
+    g.listed = devices
+    os.killpg = lambda pid, sig: ended.append(("killpg", pid))
     try:
         try:
             got = g.boot(AVD, os.path.join(folder, "emulator.log"))
@@ -132,7 +183,9 @@ def ownership(what, name, lives, interrupt=False, want_proc=False, want_kill=Fal
     except Exception as exc:  # noqa: BLE001 -- a crash is this scenario's answer
         got = "crash: %s: %s" % (type(exc).__name__, exc)
     finally:
-        time.sleep, g.subprocess.Popen, g.adb_quiet, g.subprocess.run = real
+        (time.sleep, time.time, g.subprocess.Popen, g.adb_quiet, g.subprocess.run, g.listed, killpg) = real
+        if killpg is not None:
+            os.killpg = killpg
         shutil.rmtree(folder, ignore_errors=True)
     used = got is proc
     killed = ("emu", "kill") in sent
@@ -140,26 +193,36 @@ def ownership(what, name, lives, interrupt=False, want_proc=False, want_kill=Fal
     args = started[0] if started else []
     shaped = all(a in args for a in ("-port", getattr(g, "PORT", "?"), "-no-window",
                                      "-no-snapshot-load", "-no-snapshot-save", AVD))
-    note(used == want_proc and killed == want_kill and shaped and not str(got).startswith("crash"),
-         what, "used %s, emu kill sent %s, started %s (%s)" % (used, killed, args[1:], got))
+    # After emu kill, stopped means gone from adb's list, not only asked to go.
+    gone = not killed or asks["after_kill"] >= 3
+    tree = bool(ended) == want_ended and all(FAKE_PID in e or str(FAKE_PID) in e for e in ended)
+    note(used == want_proc and killed == want_kill and shaped and gone and tree
+         and not str(got).startswith("crash"),
+         what, "used %s, emu kill sent %s, waited until gone %s, tree ended %s, started %s (%s)"
+         % (used, killed, gone, ended, args[1:], got))
 
 
 def scenario(what, parts, behaviour, devices=lambda n: "List of devices attached\n\n",
-             want_exit=None, want=lambda s: True, size=2, starts=True):
+             want_exit=None, want=lambda s: True, size=2, starts=True, stale_group=None):
     """main() over [parts], each walk answering [behaviour](group, try) with
     (its lines, its summary dict / "cut" / None, its exit code), or raising.
     A summary's parts are the group's own, in order, as many as it lists.
     The emulators are fakes that walk_group itself stops ([starts] False:
-    none ever starts)."""
+    none ever starts). [stale_group]: g1's summary.json from an earlier run."""
     real = (g.walk_parts, g.listed, g.boot, g.stop, g.EMULATOR, g.subprocess.run, sys.argv)
     folder = tempfile.mkdtemp(prefix="wg-selftest-")
     with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as fh:
         json.dump({"passed": 999, "failed": 0}, fh)        # an earlier run's
+    if stale_group is not None:
+        os.makedirs(os.path.join(folder, "g1"))
+        with open(os.path.join(folder, "g1", "summary.json"), "w", encoding="utf-8") as fh:
+            json.dump(stale_group, fh)
     walks = {"n": 0, "tries": {}}
-    del boots[:], stops[:]
+    del boots[:], stops[:], limits[:]
 
     def fake_walk(cmd, stdout=None, stderr=None, timeout=None, env=None):
         serials.append((env or {}).get("ANDROID_SERIAL"))
+        limits.append(timeout)
         target, names = cmd[4], cmd[5:]
         group = os.path.basename(target)
         walks["n"] += 1
@@ -206,14 +269,17 @@ def scenario(what, parts, behaviour, devices=lambda n: "List of devices attached
         with open(path, encoding="utf-8") as fh:
             combined = json.load(fh)
     shutil.rmtree(folder, ignore_errors=True)
-    # In every scenario, however it ended: each emulator started was stopped.
+    # In every scenario, however it ended: each emulator started was stopped,
+    # and each walk had the group's time limit (a stuck one is ended by it).
     left = [b for b in boots if not any(s is b for s in stops)]
+    unlimited = [t for t in limits if t != g.GROUP_SECONDS]
     try:
         exit_ok = want_exit(code) if callable(want_exit) else (want_exit is None or code == want_exit)
-        ok = exit_ok and bool(want(combined)) and not left
+        ok = exit_ok and bool(want(combined)) and not left and not unlimited
     except Exception:  # noqa: BLE001 -- a summary of another shape is a miss
         ok = False
-    note(ok, what, "exit %s, %d of %d emulators left running" % (code, len(left), len(boots)))
+    note(ok, what, "exit %s, %d of %d emulators left running, limits %s"
+         % (code, len(left), len(boots), sorted(set(map(str, limits)))))
 
 
 def clean(group, attempt):
@@ -225,6 +291,10 @@ def main():
     ownership("another AVD's emulator at the serial: not used, not stopped", "someone_else", 6)
     ownership("its launcher ended at once (the port taken): the one there is not stopped", AVD, 1)
     ownership("a Ctrl-C while it starts: its emulator is stopped", AVD, None, interrupt=True, want_kill=True)
+    ownership("it never finishes starting: given up after five minutes, and stopped", AVD, None,
+              boots_up=False, want_kill=True)
+    ownership("it does not go after emu kill: its own process tree is ended", AVD, None,
+              want_proc=True, want_kill=True, stubborn=1, want_ended=True)
 
     four = ["a", "b", "c", "d"]
     scenario("every group clean: a pass", four, clean, want_exit=0,
@@ -237,9 +307,28 @@ def main():
              if grp == "g2" else clean(grp, a),
              want_exit=4, want=lambda s: any(x["group"] == "g2" and x["tries"] == 2 and x.get("unwalked")
                                              for x in s["groups"]))
+    # As walk.py writes a stuck emulator: _settled's FAIL for the part it
+    # ended, then the AdbTimeout's own words under the traceback.
+    stuck_lines = ["PASS one", "FAIL b ended early: AdbTimeout adb did not answer within 120 s: shell",
+                   "Traceback (most recent call last):",
+                   "emulator_only.AdbTimeout: adb did not answer within 120 s: shell input tap 1 2",
+                   "The emulator is stuck: stop it (adb emu kill) before anything else runs"]
     scenario("stuck once, clean on the retry: a pass that says it took two tries", ["a", "b"],
-             lambda grp, a: (["the emulator is stuck"], None, 3) if a == 1 else clean(grp, a),
-             want_exit=0, want=lambda s: s["groups"][0]["tries"] == 2)
+             lambda grp, a: (stuck_lines, {"passed": 1, "failed": 1, "parts": [{"part": "x"}]}, 1)
+             if a == 1 else clean(grp, a),
+             want_exit=0, want=lambda s: s["groups"][0]["tries"] == 2
+             and s["groups"][0]["failed_on_stuck_tries"] == [])
+    scenario("a group's summary left by an earlier run is not this run's", ["a", "b"],
+             lambda grp, a: (["PASS one"], None, 0),
+             stale_group={"passed": 2, "failed": 0, "parts": [{"part": "a"}, {"part": "b"}]},
+             want_exit=1, want=lambda s: s["groups"][0]["unwalked"] == ["a", "b"])
+    scenario("adb not answering between groups is not 'no emulator': the run stops", ["a", "b", "c", "d"],
+             clean, devices=lambda n: None if n >= 1 else "List of devices attached\n",
+             want_exit=6, want=lambda s: s["not_reached"] == [])
+    scenario("a walk that exits 0 with a failed check in its summary: not a pass", ["a", "b"],
+             lambda grp, a: (["PASS one", "FAIL two"],
+                             {"passed": 1, "failed": 1, "parts": [{"part": "x"}, {"part": "y"}]}, 0),
+             want_exit=1)
     scenario("a check failed on a stuck try, the retry clean: kept, and not a pass (exit 7)", ["a", "b"],
              lambda grp, a: (["FAIL lost", "The emulator is stuck"], None, 3) if a == 1 else clean(grp, a),
              want_exit=7, want=lambda s: s["groups"][0]["failed_on_stuck_tries"] == ["try 1: lost"])

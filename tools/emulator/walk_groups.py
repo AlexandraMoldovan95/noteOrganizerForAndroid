@@ -187,8 +187,12 @@ def walk_group(name, parts, folder, avd):
                 path = os.path.join(target, kept)
                 if os.path.isfile(path):
                     os.replace(path, path + ".try%d" % attempt)
-            # Kept and said: a retry that passes does not make them not have been.
-            earlier += ["try %d: %s" % (attempt, line[5:]) for line in lines if line.startswith("FAIL ")]
+            # Kept and said: a retry that passes does not make them not have
+            # been. All but the part the stuck emulator ended (walk.py's
+            # _settled: "<part> ended early: AdbTimeout ..."): that is the
+            # emulator's failure, the one the retry is for, not a check's.
+            earlier += ["try %d: %s" % (attempt, line[5:]) for line in lines
+                        if line.startswith("FAIL ") and " ended early: AdbTimeout" not in line]
             print("   %s, try %d: the emulator got stuck after %d passed, %d failed checks"
                   % (name, attempt, good, bad))
             continue
