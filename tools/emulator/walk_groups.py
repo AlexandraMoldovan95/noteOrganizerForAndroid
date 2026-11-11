@@ -9,7 +9,12 @@ Every part main() names is walked once, in main()'s order, read from
 walk.py itself, so a new part joins without a list kept here. A group whose
 emulator got stuck is walked once more on a fresh one, and says so. Each
 group writes into <folder>/gN, its own summary.json there (walk.py's), and
-the run's into <folder>/summary.json. Exit 0 when every check passed.
+the run's into <folder>/summary.json. Exit 0 only when every part main()
+names was walked and no check failed, on any try: a check that failed on a
+try that got stuck is exit 7 though the retry passed it.
+
+walk_groups_selftest.py, beside it, proves these promises with the
+emulator, adb and the walk faked: run it after any change here.
 
 Like the emulator it starts, this takes no turn on the machine (CLAUDE.md):
 each walk.py takes it as it starts. Run nothing heavy beside it.
@@ -40,6 +45,7 @@ GROUP_SECONDS = 2 * 60 * 60
 # refused the same; 6 is this runner's own "an emulator not its own".
 REFUSED = (2, 75)
 NOT_OURS = 6
+FAILED_ON_A_STUCK_TRY = 7
 
 
 def walk_parts():
@@ -246,6 +252,10 @@ def main():
             # Said in the run's summary, not only in its exit code.
             summary = {"passed": 0, "failed": 0, "parts": [], "unwalked": list(group)}
             print("   %s: no summary of its own was written" % name)
+        else:
+            # The parts after one that died are named, not left to a count.
+            started = {p.get("part") for p in summary.get("parts", []) if isinstance(p, dict)}
+            summary["unwalked"] = [p for p in group if p not in started]
         combined["groups"].append(dict(summary, group=name, tries=tries, exit=code,
                                        failed_on_stuck_tries=earlier))
         if code == NOT_OURS or code in REFUSED:
@@ -268,12 +278,16 @@ def main():
         print("%d checks failed on tries that got stuck and were walked again: each is in its"
               " group's summary (failed_on_stuck_tries) -- read them, a pass on the retry is not"
               " an answer" % stuck_fails)
+    unwalked = [p for g in combined["groups"] for p in g.get("unwalked", [])]
+    unwalked += combined.get("not_reached", [])
     if worst:
         return worst
-    if combined["parts_walked"] < len(parts):
-        print("not every part was walked: the run is not a pass")
+    if unwalked or combined["parts_walked"] < len(parts):
+        print("not every part was walked (%s): the run is not a pass" % ", ".join(unwalked[:8]))
         return 1
-    return 1 if combined["failed"] else 0
+    if combined["failed"]:
+        return 1
+    return FAILED_ON_A_STUCK_TRY if stuck_fails else 0
 
 
 if __name__ == "__main__":

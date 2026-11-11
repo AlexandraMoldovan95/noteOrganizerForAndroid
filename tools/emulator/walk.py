@@ -8071,10 +8071,18 @@ def settle_device():
                  ("cmd", "uimode", "night", "no"),
                  ("wm", "size", "reset"),
                  ("wm", "density", "reset")):
+        # One that fails does not keep the rest back; a stuck emulator ends
+        # it, as every next call would wait out its time limit. Said either
+        # way, by the error's name only: its words are the walk's "stuck"
+        # phrase, and a group whose checks had all been read would be
+        # walked again for a reset after them.
         try:
             adb("shell", *args)
-        except (Exception, AdbTimeout):  # noqa: BLE001 -- under the part's own error
+        except AdbTimeout:
+            print("settings not all put back: the emulator stopped answering (%s)" % args[0])
             return
+        except Exception as stop:  # noqa: BLE001 -- under the part's own error
+            print("settings: %s not put back (%s)" % (" ".join(args[:2]), type(stop).__name__))
 
 
 def write_summary(folder):
