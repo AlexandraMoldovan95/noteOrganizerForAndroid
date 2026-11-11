@@ -782,6 +782,8 @@ def main():
     backup_too_large(folder)
     big_table(folder)
     code_started_once(folder)
+    second_code_while_open(folder)
+    blank_note_menu(folder)
     symbol_labels(folder)
     google_backup(folder)
     arrange_without_drag(folder)
@@ -2149,6 +2151,52 @@ def code_started_once(folder):
           ended and bool(screen_says("Import a code")) and not says_soon("Already here", "Shared once"),
           "ended %s: " % ended + " | ".join(t for t, d, _ in nodes() if t)[:160])
     shot(folder, "87-code-offered-once", "Already here", "Shared once")
+    back_to("Search notes")
+
+
+def second_code_while_open(folder):
+    """A second code shared in while the first one's dialog is still open
+    takes its place: the dialog kept the first code's text, Import brought
+    that one, and the second was dropped without a word."""
+    print("\n-- a second code shared in over an open code dialog --")
+    first = desktop_code({"uid": "walk-first", "title": "First code", "body": "a", "category": "General"})
+    second = desktop_code({"uid": "walk-second", "title": "Second code", "body": "b", "category": "General"})
+    if not first or not second:
+        fail("a second code: the desktop's encoder could not be used, so nothing was tried")
+        return
+    if not seed_inside([{"id": 1, "uid": "walk-s1", "title": "Already here", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Already here"):
+        return
+    for code in (first, second):
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+        time.sleep(3.0)
+    tap("Import", exact=True, wait=2.0)
+    check("the code shared in second is the one imported",
+          note_by_uid("walk-second") is not None and note_by_uid("walk-first") is None,
+          "first %s, second %s" % (note_by_uid("walk-first") is not None,
+                                   note_by_uid("walk-second") is not None))
+    back_to("Search notes")
+
+
+def blank_note_menu(folder):
+    """Duplicate and Export on a new note with nothing in it write nothing,
+    and say why, as Share does: forced past the blank-note rule, they wrote
+    an empty note -- Duplicate its copy too."""
+    print("\n-- Duplicate and Export on a blank new note --")
+    if not seed_inside([{"id": 1, "uid": "walk-b1", "title": "Kept", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Kept"):
+        return
+    tap("New note", wait=1.5)
+    for item, word in (("Duplicate", "Nothing to duplicate yet"), ("Export as file", "Nothing to export yet")):
+        tap("More options", wait=1.0)
+        tap(item, wait=1.0)
+        stored = read_file("notes_data.json") or []
+        check("%s on a blank new note writes nothing, and says why" % item,
+              len(stored) == 1 and not says_soon(word),
+              "%d notes stored; %s" % (len(stored), " | ".join(t for t, d, _ in nodes() if t)[:160]))
     back_to("Search notes")
 
 
