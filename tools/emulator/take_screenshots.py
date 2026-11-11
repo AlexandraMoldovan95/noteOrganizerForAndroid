@@ -355,6 +355,9 @@ def main():
         print("No emulator running. Start one and try again.")
         return 2
     os.makedirs(OUT, exist_ok=True)
+    # The turning as found, put back in the finally below.
+    found = {key: adb("shell", "settings", "get", "system", key).strip()
+             for key in ("accelerometer_rotation", "user_rotation")}
 
     failed = []
     try:
@@ -396,6 +399,14 @@ def main():
             # Upright again: the dark pass ends on its side, at 08-wide.
             act(("turn", 0))
     finally:
+        # However the run ended: a failed seed or a stuck adb left the
+        # emulator on its side, its own turning off.
+        for key, value in found.items():
+            if value.isdigit():
+                try:
+                    adb("shell", "settings", "put", "system", key, value)
+                except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+                    break
         demo_status_bar(False)
 
     print()

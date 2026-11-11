@@ -23,6 +23,9 @@ Needs: a running emulator, and the debug APK built
 (gradlew assembleDebug). Exit code 1 when any step's check fails.
 """
 import contextlib
+import functools
+import hashlib
+import inspect
 import io
 import json
 import os
@@ -44,6 +47,9 @@ APK = os.path.join(ANDROID, "app", "build", "outputs", "apk", "debug", "app-debu
 NOTEBOOK = "files/notebook"
 
 failures = []
+# Checks passed so far, and each part's tally as it ends: summary.json.
+passed = [0]
+walked = []
 
 
 # Whether this run holds the machine's turn ([take_the_turn]).
@@ -381,7 +387,9 @@ def screen_says(*words):
 
 def check(what, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + what + (("  -- " + detail) if detail and not ok else ""))
-    if not ok:
+    if ok:
+        passed[0] += 1
+    else:
         failures.append(what)
 
 
@@ -8043,6 +8051,63 @@ def kept_aside(folder):
         adb("shell", "wm", "size", "reset")
         adb("shell", "wm", "density", "reset")
     back_to("Search notes")
+
+
+def settle_device():
+    """The emulator's settings put back after every part, however it ended:
+    a part that enlarges the letters, turns the phone or resizes it put them
+    back only on its good path, and a check that raised left the next part
+    (and the quick-boot snapshot) at 130% or on its side."""
+    for args in (("settings", "put", "system", "font_scale", "1.0"),
+                 ("settings", "put", "secure", "font_weight_adjustment", "0"),
+                 ("settings", "put", "system", "user_rotation", "0"),
+                 ("cmd", "uimode", "night", "no"),
+                 ("wm", "size", "reset"),
+                 ("wm", "density", "reset")):
+        try:
+            adb("shell", *args)
+        except (Exception, AdbTimeout):  # noqa: BLE001 -- under the part's own error
+            return
+
+
+def write_summary(folder):
+    """The run so far, part by part, beside its photographs: summary.json,
+    written after every part, so a walk that dies still says where."""
+    try:
+        commit = subprocess.run(["git", "-C", ANDROID, "rev-parse", "--short", "HEAD"],
+                                capture_output=True, text=True, timeout=20).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = ""
+    try:
+        with open(APK, "rb") as fh:
+            apk = hashlib.sha256(fh.read()).hexdigest()[:16]
+    except OSError:
+        apk = ""
+    summary = {"commit": commit, "apk_sha256": apk, "written": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "passed": passed[0], "failed": len(failures), "failures": list(failures),
+               "parts": [{"part": name, "passed": good, "failed": bad} for name, good, bad in walked]}
+    with open(os.path.join(folder, "summary.json"), "w", encoding="utf-8") as fh:
+        json.dump(summary, fh, indent=1, ensure_ascii=False)
+
+
+def _settled(part):
+    """A part as main() runs it: its checks counted, the summary written, and
+    the emulator's settings put back, whatever way it ends."""
+    @functools.wraps(part)
+    def walked_part(folder):
+        good, bad = passed[0], len(failures)
+        try:
+            return part(folder)
+        finally:
+            walked.append((part.__name__, passed[0] - good, len(failures) - bad))
+            settle_device()
+            write_summary(folder)
+    return walked_part
+
+
+# Every part main() names, wrapped: one place, rather than a finally in each.
+for _part in re.findall(r"^    (\w+)\(folder\)$", inspect.getsource(main), re.M):
+    globals()[_part] = _settled(globals()[_part])
 
 
 if __name__ == "__main__":

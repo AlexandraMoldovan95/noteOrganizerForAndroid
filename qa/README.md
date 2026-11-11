@@ -277,10 +277,18 @@ notebook it walks on, so a part walks the same in a group as in the
 whole run. On a laptop of 16 GB, where the emulator takes about 4, one
 emulator kept up for the whole walk was lost twice in a row on 8
 November 2026, its own process no longer answering after 10 to 40
-minutes; the groups, none longer than 40 minutes, walked all 628. Whatever
-drives it bounds every adb call with a time limit: `adb emu kill` sent
-to an emulator that no longer answers waits for ever, and held the
-machine's turn for 13 hours.
+minutes; the groups, none longer than 40 minutes, walked all 628.
+`py -I tools/emulator/walk_groups.py <folder>` walks it that way: the parts
+read from `main()` in its order, ten to a cold emulator stopped after
+them, a stuck group walked once more and said. Every adb call it makes has
+a time limit: `adb emu kill` sent to an emulator that no longer answers
+waits for ever, and held the machine's turn for 13 hours.
+
+Every part, however it ends, puts the emulator's settings back (letter
+size, bold text, rotation, dark mode, window size: `settle_device`), and
+writes `summary.json` beside the photographs: each part's checks passed
+and failed, the commit and the APK it walked. A walk that dies still says
+how far it went; WALK_RUNS.md's line for a run is read from it.
 
 Two house rules came out of it:
 
