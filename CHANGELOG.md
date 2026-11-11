@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.14.1](#0141--2026-11-12--what-a-full-reading-found) | 2026-11-12 | What a full reading found |
 | [0.14.0](#0140--2026-11-08--the-final-audit) | 2026-11-08 | The final audit |
 | [0.13.0](#0130--2026-10-27--open-source-licenses) | 2026-10-27 | Open-source licenses |
 | [0.12.0](#0120--2026-10-27--sections-fold-and-the-trash-picks-all) | 2026-10-27 | Sections fold, and the Trash picks all |
@@ -54,6 +55,33 @@ do before, not as releases anyone ran.
 | [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
 | [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
 | [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
+---
+
+## [0.14.1] — 2026-11-12 — What a full reading found
+
+Read-only readers went through both apps' code and documents on
+11 November 2026, before the audit's pull request; what they found that
+reaches a person is fixed below.
+
+### Fixed
+
+- **A table inserted right above another leaves one empty line between
+  them,** not two, as the desktop does now.
+- **A second share code sent in while the first one's dialog is open
+  takes its place.** The dialog kept the first code's text, Import
+  brought that one, and the second was dropped without a word.
+- **Duplicate and Export as file on a new note with nothing in it write
+  nothing, and say why,** as Share does. They wrote an empty note, and
+  Duplicate its copy too.
+- **Paste as plain text keeps the blank lines and line ends of text that
+  is not a column,** as the desktop's does now. Every run of empty lines
+  closed to one, and each line lost its trailing spaces.
+- **Three texts say what is true.** Removing an attached file deletes the
+  stored copy only when no other note uses it; a reminder can come later
+  than an hour in Battery saver; and Settings → About names the file
+  Settings → Backup saves as the copy you can open, Android's own backup
+  being told there.
 
 ---
 
