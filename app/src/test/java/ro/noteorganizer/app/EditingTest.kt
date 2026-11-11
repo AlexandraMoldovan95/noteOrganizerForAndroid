@@ -469,10 +469,11 @@ class EditingTest {
         val under = Editing.insertTable("| a | b |\n", 10, 1, 2)
         assertEquals("a line between it and the table above", "| a | b |\n\n$row\n", under.body)
         assertEquals(2, under.firstLine)
-        // Two blank lines, as the desktop's _insert_table leaves them: its
-        // "\n\n" after the table, and the line break that was already there.
+        // One blank line, as the desktop's _insert_table leaves it since its
+        // 495fdf2: the line break that was already there is the empty line.
         val over = Editing.insertTable("x\n| a | b |", 1, 1, 2)
-        assertEquals("and the table below", "x\n$row\n\n\n| a | b |", over.body)
+        assertEquals("and one empty line to the table below", "x\n$row\n\n| a | b |", over.body)
+        assertEquals(tableBlocks(over.body).size, 2)
         val after = Editing.insertTable("| a | b |", 10, 1, 2)
         assertEquals("the empty field under a closing table", "| a | b |\n\n$row\n", after.body)
         assertEquals(tableBlocks(after.body).size, 2)

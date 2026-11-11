@@ -1097,9 +1097,10 @@ object Editing {
     /**
      * `_insert_table`: a blank table at the cursor ([caret], in code points),
      * on lines of its own -- a break before it when the cursor's line holds
-     * something or a table sits right above, so two tables never fuse; a
-     * break after it, to carry on writing, and a second when a table follows
-     * below. A cursor past the end (under a closing table) is a new line there.
+     * something or a table sits right above, so two tables never fuse; one
+     * break after it, to carry on writing -- with a table below, the break
+     * that ended the cursor's line is the empty line between them. A cursor
+     * past the end (under a closing table) is a new line there.
      */
     fun insertTable(body: String, caret: Int, rows: Int, columns: Int): Inserted {
         val r = rows.coerceIn(1, TABLE_ROWS * 4)
@@ -1116,9 +1117,8 @@ object Editing {
         val lineNo = text.substring(0, cut).count { it == '\n' }
         val line = lines[lineNo]
         val above = lines.getOrElse(lineNo - 1) { "" }
-        val below = lines.getOrElse(lineNo + 1) { "" }
         val before = if (PyText.strip(line).isNotEmpty() || isTableRow(above)) "\n" else ""
-        val after = "\n" + if (isTableRow(below)) "\n" else ""
+        val after = "\n"
         val block = blankTable(r, c).joinToString("\n")
         return Inserted(text.substring(0, cut) + before + block + after + text.substring(cut),
                         lineNo + if (before.isNotEmpty()) 1 else 0)
