@@ -1538,6 +1538,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val templateNone = stringResource(R.string.template_none)
     val templateNothing = stringResource(R.string.template_nothing)
     val templateStarted = stringResource(R.string.template_started)
+    val duplicateNothing = stringResource(R.string.duplicate_nothing_yet)
+    val exportNothing = stringResource(R.string.export_nothing_yet)
     val find = remember { FindState() }
     val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -1818,7 +1820,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             text = { Text(stringResource(R.string.menu_duplicate)) },
                             onClick = {
                                 menu = false
-                                if (model.save(force = model.id == 0)) state.duplicate(model.id)
+                                // A blank new note is not saved to be copied, as
+                                // Share refuses it: forced, it wrote two empty notes.
+                                if (model.id == 0 && model.blank) state.say(duplicateNothing)
+                                else if (model.save(force = model.id == 0)) state.duplicate(model.id)
                             },
                         )
                     }
@@ -1826,8 +1831,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         text = { Text(stringResource(R.string.note_export)) },
                         onClick = {
                             menu = false
-                            // The note as saved is what goes out: saved first.
-                            if (model.save(force = model.id == 0)) exportAsk = true
+                            // The note as saved is what goes out: saved first --
+                            // but a blank new note is not saved to be exported.
+                            if (model.id == 0 && model.blank) state.say(exportNothing)
+                            else if (model.save(force = model.id == 0)) exportAsk = true
                         },
                     )
                     if (day != null) {

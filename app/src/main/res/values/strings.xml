@@ -432,6 +432,8 @@
     <string name="share_no_app">No app on this phone can take it.</string>
     <string name="share_failed">The note couldn\'t be made ready to share.</string>
     <string name="share_nothing_yet">Nothing to share yet: write something first.</string>
+    <string name="duplicate_nothing_yet">Nothing to duplicate yet: write something first.</string>
+    <string name="export_nothing_yet">Nothing to export yet: write something first.</string>
     <string name="share_busy">Still getting the last one ready: the share sheet opens in a moment.</string>
 
     <!-- Find in note -->
