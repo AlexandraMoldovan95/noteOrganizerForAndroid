@@ -38,10 +38,12 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
 fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
     val palette = LocalPalette.current
     val clipboard = LocalClipboardManager.current
-    var draft by remember { mutableStateOf(initial) }
-    var problem by remember { mutableStateOf<String?>(null) }
-    var read by remember { mutableStateOf<CodeRead?>(null) }
-    var reading by remember { mutableStateOf(false) }
+    // Keyed by the code: one shared in while the dialog was open kept the
+    // first one's text, and Import brought that one, the new code dropped.
+    var draft by remember(initial) { mutableStateOf(initial) }
+    var problem by remember(initial) { mutableStateOf<String?>(null) }
+    var read by remember(initial) { mutableStateOf<CodeRead?>(null) }
+    var reading by remember(initial) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val unreadable = stringResource(R.string.code_unreadable)
 
