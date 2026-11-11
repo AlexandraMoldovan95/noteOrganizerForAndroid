@@ -447,7 +447,7 @@ def route_pids(app, sheet):
 
 def fail(what):
     print("FAIL " + " / ".join(str(what).splitlines()))     # one line, as check()'s
-    failures.append(what)
+    failures.append(str(what))                               # and JSON's to write
 
 
 def shot(folder, name, *must_say, patience=6.0):
@@ -2203,11 +2203,15 @@ def blank_note_menu(folder):
     tap("New note", wait=1.5)
     for item, word in (("Duplicate", "Nothing to duplicate yet"), ("Export as file", "Nothing to export yet")):
         tap("More options", wait=1.0)
-        tap(item, wait=1.0)
+        tap(item, wait=0.5)
+        missing = says_soon(word)
+        # Nothing written is read only once a write would have landed: the
+        # editor's autosave waits 800 ms (NoteEditor.kt), here three times over.
+        time.sleep(2.5)
         stored = read_file("notes_data.json") or []
         check("%s on a blank new note writes nothing, and says why" % item,
-              len(stored) == 1 and not says_soon(word),
-              "%d notes stored; %s" % (len(stored), " | ".join(t for t, d, _ in nodes() if t)[:160]))
+              len(stored) == 1 and not missing,
+              "%d notes stored; missing %s" % (len(stored), missing))
     back_to("Search notes")
 
 

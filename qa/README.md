@@ -284,6 +284,15 @@ them, a stuck group walked once more and said. Every adb call it makes has
 a time limit: `adb emu kill` sent to an emulator that no longer answers
 waits for ever, and held the machine's turn for 13 hours.
 
+It reports a pass only when every part main() names was walked and no
+check failed, and it uses and stops only the emulator it started (on its
+own port, naming its own AVD, its process still running). Three review
+rounds on 12 November 2026 found it able to do otherwise, one way after
+another; each way is a scenario in
+`py -I tools/emulator/walk_groups_selftest.py`, which fakes the emulator,
+adb and the walk, so it starts nothing. Run it after any change to the
+runner, and before a full walk.
+
 Every part, however it ends, puts the emulator's settings back (letter
 size, bold text, rotation, dark mode, window size: `settle_device`), and
 writes `summary.json` beside the photographs: each part's checks passed
