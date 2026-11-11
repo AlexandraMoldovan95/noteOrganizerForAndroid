@@ -269,7 +269,7 @@
     <string name="attach_files">📎 Attach files</string>
     <string name="attach_remove_said">Remove %1$s</string>
     <string name="attach_remove_title">Remove attachment</string>
-    <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it — this can\'t be undone.</string>
+    <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it, unless another note still uses it — this can\'t be undone.</string>
     <string name="attach_remove_confirm">Remove</string>
     <string name="attach_full">A note can keep %1$d attached files. Remove one to add another, or split this into two notes.</string>
     <string name="attach_too_many_title">More files than this note can hold</string>
@@ -567,7 +567,7 @@
     <string name="reminder_notify">Notify me about today\'s notes</string>
     <string name="reminder_notify_sub">A notification at the hour below, even with the app closed, on a day that has notes. It says how many, never their words.</string>
     <string name="reminder_at">At</string>
-    <string name="reminder_inexact">The phone may bring it up to an hour late, to save its battery.</string>
+    <string name="reminder_inexact">The phone may bring it up to an hour late to save its battery, and later still in Battery saver.</string>
     <string name="reminder_denied">The phone does not allow Note Organizer to send notifications, so the reminder stays off.</string>
     <string name="reminder_blocked">Notifications are turned off for Note Organizer on this phone.</string>
     <string name="reminder_channel_blocked">The reminder\'s own notifications, “Today\'s notes”, are turned off on this phone.</string>
@@ -657,7 +657,7 @@
     <string name="keep_for_days">Keep for %1$d days</string>
     <string name="about_version">Note Organizer for Android, version %1$s</string>
     <string name="about_terms">Free software under the MIT license, provided as is.</string>
-    <string name="about_storage">Your notes are kept on this phone, in the app\'s own storage, where no other app can read them. Uninstalling the app removes them too, so Settings → Backup is the way to keep a copy, or to move them.</string>
+    <string name="about_storage">Your notes are kept on this phone, in the app\'s own storage, where no other app can read them. Uninstalling the app removes them too, so the file Settings → Backup saves is the way to keep a copy you can open, or to move them; Android\'s own backup, while it is on, is told there.</string>
     <string name="welcome_note">Welcome note</string>
     <string name="welcome_note_sub">The note this app opened with on its first start. Bring it back here if you deleted it.</string>
     <string name="feedback">Feedback</string>
