@@ -1574,7 +1574,7 @@ object Pasting {
     private const val CLEARLY_SHORT = 0.7
     private val SENTENCE_END = setOf('.'.code, '!'.code, '?'.code, ':'.code, ';'.code, '"'.code, '\''.code,
         ')'.code, ']'.code, 0x2019, 0x201D)
-    private val BLANK_LINE = Regex("\\n[ \\t]*\\n")
+    private val BLANK_RUN = Regex("\\n[ \\t]*\\n(?:[ \\t]*\\n)*")
 
     private fun leading(c: IntArray): Int {
         var k = 0
@@ -1654,43 +1654,50 @@ object Pasting {
 
     /**
      * `reflow_wrapped`: lines a fixed-width column broke, joined again; real
-     * breaks left alone. A run that does not look wrapped comes back as it
-     * went in.
+     * breaks left alone. Every blank line, and a run that does not look
+     * wrapped, comes back as it went in.
      */
     fun reflowWrapped(text: String?): String {
-        val blocks = ArrayList<String>()
-        for (block in BLANK_LINE.split(text ?: "")) {
-            val lines = block.split("\n").map(::cps).filter { line -> stripped(line).let { it.second > it.first } }
-                .map(::rstripped)
-            if (lines.isEmpty()) continue
-            if (!looksWrapped(lines)) {
-                blocks.add(lines.joinToString("\n") { String(it, 0, it.size) })
+        // The blank runs between blocks are kept as found, and a block that
+        // is not a column as it came: rebuilt, it lost its blank lines and ends.
+        val source = text ?: ""
+        val out = StringBuilder()
+        var from = 0
+        for (gap in BLANK_RUN.findAll(source)) {
+            out.append(reflowBlock(source.substring(from, gap.range.first))).append(gap.value)
+            from = gap.range.last + 1
+        }
+        return out.append(reflowBlock(source.substring(from))).toString()
+    }
+
+    private fun reflowBlock(block: String): String {
+        val lines = block.split("\n").map(::cps).filter { line -> stripped(line).let { it.second > it.first } }
+            .map(::rstripped)
+        if (lines.isEmpty() || !looksWrapped(lines)) return block
+        val lead = block.substring(0, block.length - block.trimStart('\n').length)
+        val tail = block.substring(block.trimEnd('\n').length)
+        val width = lines.maxOf { it.size }
+        // A first line indented past the block's edge starts a paragraph.
+        val edge = lines.minOf { leading(it) }
+        val paragraphs = ArrayList<List<IntArray>>()
+        var current = ArrayList<IntArray>()
+        for ((i, line) in lines.withIndex()) {
+            current.add(line)
+            if (i == lines.lastIndex) {
+                paragraphs.add(current)
+                current = ArrayList()
                 continue
             }
-            val width = lines.maxOf { it.size }
-            // A first line indented past the block's edge starts a paragraph.
-            val edge = lines.minOf { leading(it) }
-            val paragraphs = ArrayList<List<IntArray>>()
-            var current = ArrayList<IntArray>()
-            for ((i, line) in lines.withIndex()) {
-                current.add(line)
-                if (i == lines.lastIndex) {
-                    paragraphs.add(current)
-                    current = ArrayList()
-                    continue
-                }
-                val following = lines[i + 1]
-                val indented = leading(following) > edge
-                val couldFit = !forcedBreak(line, following, width, COLUMN_SLACK)
-                if (indented || (couldFit && endsAParagraph(line, width))) {
-                    paragraphs.add(current)
-                    current = ArrayList()
-                }
+            val following = lines[i + 1]
+            val indented = leading(following) > edge
+            val couldFit = !forcedBreak(line, following, width, COLUMN_SLACK)
+            if (indented || (couldFit && endsAParagraph(line, width))) {
+                paragraphs.add(current)
+                current = ArrayList()
             }
-            if (current.isNotEmpty()) paragraphs.add(current)
-            blocks.add(paragraphs.joinToString("\n") { joinWrapped(it) })
         }
-        return blocks.joinToString("\n\n")
+        if (current.isNotEmpty()) paragraphs.add(current)
+        return lead + paragraphs.joinToString("\n") { joinWrapped(it) } + tail
     }
 
     /**

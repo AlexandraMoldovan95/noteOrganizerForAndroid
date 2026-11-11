@@ -572,15 +572,16 @@ class PastingTest {
     }
 
     @Test
-    fun `the phone parts from the desktop only where a second table's styles land beside their words`() {
+    fun `a page of two tables or more answers as the desktop's, every style on its words`() {
         val cases = fixture().getJSONArray("cases")
-        val parted = (0 until cases.length()).map { cases.getJSONObject(it) }.filter { it.has("desktop_formatting") }
-        assertTrue("the fault is in the fixture, so the difference is checked", parted.size >= 2)
-        for (case in parted) {
-            val lines = case.getString("text").split("\n")
-            val blocks = lines.indices.count { i -> Pasting.isRow(lines[i]) && (i == 0 || !Pasting.isRow(lines[i - 1])) }
-            assertTrue("a difference without two tables: ${case.getString("html").take(120)}", blocks >= 2)
+        val all = (0 until cases.length()).map { cases.getJSONObject(it) }
+        val several = all.filter { case ->
+            val lines = case.optString("text").split("\n")
+            lines.indices.count { i -> Pasting.isRow(lines[i]) && (i == 0 || !Pasting.isRow(lines[i - 1])) } >= 2
         }
+        assertTrue("pages of two tables or more, so the agreement is checked", several.size >= 2)
+        // The desktop parted here until its cb12941; the fixture keeps no answer of its own now.
+        assertTrue("no case parts from the desktop", all.none { it.has("desktop_formatting") })
     }
 
     @Test
