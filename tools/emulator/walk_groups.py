@@ -31,7 +31,6 @@ from emulator_only import ADB, AdbTimeout, run  # noqa: E402 -- adb held to a ti
 SDK = os.path.dirname(os.path.dirname(ADB))
 EMULATOR = os.path.join(SDK, "emulator", "emulator.exe" if os.name == "nt" else "emulator")
 SERIAL = "emulator-5554"
-QEMU = "qemu-system-x86_64-headless.exe"
 # The walk's own words when the emulator, not the app, failed it.
 STUCK = ("The emulator is stuck", "did not finish starting", "adb did not answer")
 GROUP_SECONDS = 2 * 60 * 60
@@ -51,40 +50,44 @@ def adb_quiet(*args, timeout=30):
         return ""
 
 
+def listed():
+    try:
+        return run([ADB, "devices"], timeout=20, capture_output=True, text=True).stdout
+    except (AdbTimeout, OSError):
+        return ""
+
+
 def boot(avd, log):
-    """A cold emulator, without a window and saving no snapshot; False when
-    it did not report itself started within five minutes."""
+    """A cold emulator, without a window and saving no snapshot: its process,
+    or None when it did not report itself started within five minutes."""
     with open(log, "w", encoding="utf-8") as out:
-        subprocess.Popen([EMULATOR, "-avd", avd, "-no-snapshot-load", "-no-snapshot-save",
-                          "-no-window", "-gpu", "swiftshader_indirect"],
-                         stdout=out, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen([EMULATOR, "-avd", avd, "-no-snapshot-load", "-no-snapshot-save",
+                                 "-no-window", "-gpu", "swiftshader_indirect"],
+                                stdout=out, stderr=subprocess.STDOUT)
     deadline = time.time() + 300
     while time.time() < deadline:
         if adb_quiet("shell", "getprop", "sys.boot_completed").strip() == "1":
             adb_quiet("logcat", "-G", "64M")
-            return True
+            return proc
         time.sleep(3)
-    return False
+    stop(proc)
+    return None
 
 
-def stop():
-    """The emulator stopped, and its process ended if it did not go."""
+def stop(proc):
+    """The emulator this run started stopped, and only its own process tree
+    ended if it did not go: never another emulator on the machine."""
     adb_quiet("emu", "kill", timeout=60)
     deadline = time.time() + 60
-    while time.time() < deadline:
-        try:
-            listed = run([ADB, "devices"], timeout=20, capture_output=True, text=True).stdout
-        except (AdbTimeout, OSError):
-            listed = ""
-        if SERIAL not in listed:
-            break
+    while time.time() < deadline and SERIAL in listed():
         time.sleep(2)
-    if os.name == "nt":
-        found = subprocess.run(["tasklist", "/FI", "IMAGENAME eq %s" % QEMU],
-                               capture_output=True, text=True, timeout=30).stdout
-        if QEMU.lower() in found.lower():
-            subprocess.run(["taskkill", "/IM", QEMU, "/F"], capture_output=True, timeout=30)
-            print("   the emulator did not stop; its process was ended")
+    if proc is not None and proc.poll() is None:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
+                           capture_output=True, timeout=30)
+        else:
+            proc.kill()
+        print("   the emulator did not stop; its own process was ended")
 
 
 def walk_group(name, parts, folder, avd):
@@ -93,9 +96,9 @@ def walk_group(name, parts, folder, avd):
     target = os.path.join(folder, name)
     os.makedirs(target, exist_ok=True)
     for attempt in (1, 2):
-        if not boot(avd, os.path.join(target, "emulator-%d.log" % attempt)):
+        proc = boot(avd, os.path.join(target, "emulator-%d.log" % attempt))
+        if proc is None:
             print("   %s, try %d: the emulator did not start" % (name, attempt))
-            stop()
             continue
         out_path = os.path.join(target, "walk.out")
         with open(out_path, "w", encoding="utf-8") as out:
@@ -106,15 +109,22 @@ def walk_group(name, parts, folder, avd):
             except subprocess.TimeoutExpired:
                 code = 3
                 out.write("\nThe emulator is stuck: the group ran past %d s\n" % GROUP_SECONDS)
-        stop()
+        stop(proc)
         with open(out_path, encoding="utf-8", errors="replace") as fh:
-            said = fh.read()
-        if any(word in said for word in STUCK):
-            os.replace(out_path, out_path + ".try%d" % attempt)
+            lines = fh.read().splitlines()
+        good = sum(1 for line in lines if line.startswith("PASS "))
+        bad = sum(1 for line in lines if line.startswith("FAIL "))
+        # Read off the walk's own lines, never a check's words, which may quote one.
+        if any(word in line for line in lines if not line.startswith(("PASS ", "FAIL "))
+               for word in STUCK):
+            for kept in ("walk.out", "summary.json"):
+                path = os.path.join(target, kept)
+                if os.path.isfile(path):
+                    os.replace(path, path + ".try%d" % attempt)
             print("   %s, try %d: the emulator got stuck after %d passed checks"
-                  % (name, attempt, said.count("\nPASS ")))
+                  % (name, attempt, good))
             continue
-        print("   %s: %d passed, %d failed" % (name, said.count("\nPASS "), said.count("\nFAIL ")))
+        print("   %s: %d passed, %d failed" % (name, good, bad))
         return code
     return 4
 
@@ -127,6 +137,10 @@ def main():
     args = parser.parse_args()
     if not os.path.isfile(EMULATOR):
         print("the emulator is not at %s" % EMULATOR)
+        return 2
+    if "emulator-" in listed():
+        # One it did not start is not its to stop between groups.
+        print("An emulator is already running: stop it first (adb emu kill), then run this again.")
         return 2
     parts = walk_parts()
     groups = [parts[i:i + args.size] for i in range(0, len(parts), args.size)]
