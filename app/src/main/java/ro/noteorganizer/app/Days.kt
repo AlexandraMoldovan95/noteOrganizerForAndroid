@@ -378,10 +378,10 @@ object Days {
 
     /**
      * Whether [note]'s day now on [day] may be held on [to]: a date no other
-     * day of the series is on. Unlike the desktop's `_day_is_free`, its own
-     * date is free only when empty: while a day is away another can be moved
-     * onto its date, and the first one's return hid the second, its move
-     * still in the file and drawn nowhere.
+     * day of the series is on. As the desktop's `_day_is_free`, its own date
+     * is free only when empty: while a day is away another can be moved onto
+     * its date, and the first one's return hid the second, its move still in
+     * the file and drawn nowhere.
      */
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false

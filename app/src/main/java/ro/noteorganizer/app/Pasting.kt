@@ -1434,10 +1434,9 @@ object Pasting {
     /**
      * `tables.align`: every table re-padded, and where characters went in
      * or came out -- every offset counted in the text as it came, which is
-     * what `shift_spans` judges them against. The desktop counts a second
-     * table's offsets in the text the first one's padding has already
-     * changed, and a style in that table lands beside its words: a desktop
-     * finding, not copied (ISSUES_LOG).
+     * what `shift_spans` judges them against -- as the desktop's does since
+     * its cb12941, which counted a second table in text the first one's
+     * padding had changed (a desktop finding from this port, ISSUES_LOG).
      */
     private fun align(text: String): Pair<String, List<Pair<Int, Int>>> {
         val raw = text.split("\n")

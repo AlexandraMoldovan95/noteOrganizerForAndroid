@@ -2825,8 +2825,8 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Every column drawn, so the squares lit are the table's shape;
-                // the first chooses two, the least a table has (the desktop's grid
-                // starts at its second, lighting one column for two).
+                // the first chooses two, the least a table has -- as the
+                // desktop's grid does since its 5f82daa.
                 for (r in 1..Editing.TABLE_ROWS) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         for (c in 1..Editing.TABLE_COLUMNS) {

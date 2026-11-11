@@ -226,9 +226,10 @@ object Settings {
     }
 
     /**
-     * The retention window, clamped the way the desktop clamps it: a
-     * hand-edited 0, or -3, or "forever" must not make anything look due
-     * for deletion. Anything unusable reads as the default.
+     * The retention window as the Trash page shows it: a hand-edited 0, or
+     * -3, or "forever" reads as the default, and a whole number is held to
+     * 1..365. What the start's purge goes by is [purgeWindow], which, as the
+     * desktop's `trash_retention_days`, refuses an unusable window.
      */
     fun retentionDays(raw: JSONObject): Int {
         // A whole number only, as `isinstance(days, int)` asks: 7.5 and 7.0 are

@@ -8,8 +8,8 @@ package ro.noteorganizer.app
  * count only when asked ("Aa", [searchFold]); matches may overlap ("aa" twice
  * in "aaa"); a cell is one match, read with a line break as a space and no
  * merge marker or checkbox as a word; at most [CAP] matches, then a "+".
- * One rule differs on purpose: the desktop steps through a table column by
- * column, a side effect of its sort; the phone goes row by row, as it reads.
+ * A table is stepped through row by row, as it is read -- as the desktop's
+ * is since its 15d6dae, which went down each column (a finding of this port).
  */
 object Finding {
 

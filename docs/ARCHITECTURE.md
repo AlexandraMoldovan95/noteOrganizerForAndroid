@@ -50,18 +50,18 @@ here.
 
 ## The map
 
-About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
-16,200 of them, in files that import nothing from Android; the drawing is
-12,300, in files that may.
+About 28,800 lines of Kotlin, measured on 11 November 2026. The rules are
+15,500 of them, in files that import nothing from Android; the drawing is
+13,300, in files that may. Each file's count below is rounded.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
 | `Notebook.kt` | 2,900 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
-| `Pasting.kt` | 1,870 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
+| `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 1,020 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
-| `Organizing.kt` | 920 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
+| `Organizing.kt` | 1,000 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 730 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 950 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
 | `Importing.kt` | 720 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
@@ -74,9 +74,9 @@ About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
 | `Styling.kt` | 360 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 390 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 350 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
-| `Editing.kt` | 1,270 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
+| `Editing.kt` | 1,130 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
 | `Sharing.kt` | 300 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
-| `Finding.kt` | 240 | Find in note: matches in prose and cells, the count, stepping | the find bar |
+| `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
 | `Files.kt` | 220 | The atomic write, and keeping a broken file aside | `storage.py` |
@@ -90,12 +90,12 @@ About 28,500 lines of Kotlin, measured on 2 November 2026. The rules are
 
 | File | Lines | What lives there |
 |---|---|---|
-| `NoteEditor.kt` | 4,220 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
+| `NoteEditor.kt` | 4,320 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
 | `SettingsScreens.kt` | 1,040 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 600 | The month, the day's notes, a day's menu, the History |
-| `NotesScreen.kt` | 690 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
-| `AppState.kt` | 850 | The app's state, and every action a screen can take on the notebook |
-| `MainActivity.kt` | 680 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
+| `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
+| `AppState.kt` | 1,270 | The app's state, and every action a screen can take on the notebook |
+| `MainActivity.kt` | 740 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
 | `TemplateScreens.kt` | 770 | Choosing and saving a template, Settings → Templates, the template editor |
 | `ImportFlow.kt` | 400 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
@@ -222,14 +222,17 @@ Three things it does on purpose:
   0.8 seconds after the last change, on Back, and in `onStop` — because
   most notes on a phone are left by Home or by switching apps, not by
   Back.
-- **Every change to a note from outside the editor goes through one
-  door**, `outside()`. The editor holds its own copy of every field and
-  writes them all back when it saves, so when the open note is among the
-  notes a change touches, the door saves what the editor holds first and
-  has the editor read the note back after. A pin from the list beside
-  the note, a code shared in over it and applied as an update — each was
-  once [put back by the editor's next save](ISSUES_LOG.md#an-update-the-editor-put-back).
-  A new action that writes notes belongs behind that door.
+- **Every change from outside the editor to a field the editor holds
+  goes through one door**, `outside()`. The editor holds its own copy of
+  those fields and writes them all back when it saves, so when the open
+  note is among the notes a change touches, the door saves what the editor
+  holds first and has the editor read the note back after. A pin from the
+  list beside the note, a code shared in over it and applied as an update —
+  each was once [put back by the editor's next save](ISSUES_LOG.md#an-update-the-editor-put-back).
+  A file attached or taken off, a checklist row removed, a place in Custom
+  order or a sort's placing write fields the editor does not hold, and go
+  straight to the rules. A new action that writes a field the editor holds
+  belongs behind that door.
 
 ## Decision: one layout at every width
 
@@ -423,8 +426,9 @@ method that cannot be imported, the tool copies them and fingerprints
 the original, and stops when the original changes. Where the phone
 deliberately answers differently, the tool makes the phone's answers by
 the smallest change to the desktop's own function, run in its own
-process — the paste fixture's second-table rule is two lines — and stops
-when the line it changes is no longer there. Reading the spec by hand
+process, and stops when the line it changes is no longer there -- as the
+paste fixture's second-table rule did until 2026-11-11, when the desktop
+took the phone's answer and the change went. Reading the spec by hand
 instead was [wrong twice](ISSUES_LOG.md#the-answer-written-by-hand-wrong-twice).
 
 The first two run in CI (`check_interop.py` does not: it reads the unit tests' output), in [gates.yml](../.github/workflows/gates.yml), kept apart
@@ -478,7 +482,7 @@ Named here so nobody has to discover them by surprise:
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.
-- **`Notebook.kt` is about 2,900 lines, `NoteEditor.kt` 4,220 (2 November 2026).** The first is
+- **`Notebook.kt` is about 2,900 lines, `NoteEditor.kt` 4,320 (11 November 2026).** The first is
   the note model and every write to a note; the seam to split on is the
   day a group of writes needs state the others do not — not before, and
   not by line count. The second holds the editor's model, its clipboard

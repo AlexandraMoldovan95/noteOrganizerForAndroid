@@ -4566,6 +4566,10 @@ checking in the same change.
 
 ### Seven DESKTOP findings from porting Phase 2
 
+**Closed**, all seven: the last five on 2026-11-11, before the final
+audit's pull request, each with a check and its mutant (the desktop's
+PF03–PF06, and its wave 2 for the calculator); kept here as found.
+
 Porting a feature means reading its Python closely enough to answer as
 it answers, and running it over hundreds of generated cases. That turned
 up seven things in the desktop, each left for its own repository; the
@@ -4574,26 +4578,28 @@ phone matches the desktop wherever the difference is not a fault.
 * **"Title Z–A" puts the untitled notes first.** Its sort reverses the
   whole key of "Title A–Z", whose comment says untitled notes sink to the
   bottom — so reversed, they rise to the top. The phone keeps them at the
-  bottom in both orders, as that comment means
-  ([a deliberate difference](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+  bottom in both orders, as that comment means. **Closed 2026-11-11** by
+  the desktop's 3ea673c.
 * **The calculator raises `RecursionError` at about 190 nested
   brackets** instead of returning `None` like every other failure. The
   phone shows Error there. **Closed 2026-10-27** by the desktop's
   fface5e: its calculator catches it and answers `None`.
 * **The calculator's display refuses `-`, `*` and `/` typed on a
-  keyboard**, taking only its own `−`, `×` and `÷`.
+  keyboard**, taking only its own `−`, `×` and `÷`. **Closed** in the
+  final audit's second wave (the desktop's 2a31b35).
 * **Find steps through a table's matches column by column** — a side
   effect of how it sorts them. The phone goes row by row, as a table is
-  read.
+  read. **Closed 2026-11-11** by the desktop's 15d6dae.
 * **The export raises `IndexError` on a `^` merge under a shorter row**
   (`merge_map` reads a cell without asking whether it exists): 3 of the
   400 fixture notes. The phone writes those notes. **Closed 2026-10-28**
   by the desktop's f8818dd: `merge_map` asks first.
 * **The table size grid lights a single column for a two-column table**,
   because it starts at its second column. The phone's grid draws every
-  column.
+  column. **Closed 2026-11-11** by the desktop's 5f82daa.
 * **A table inserted right above another leaves two blank lines** between
-  them.
+  them. **Closed 2026-11-11** by the desktop's 495fdf2 -- and on the phone,
+  which had copied the rule, in 0.14.1.
 
 ### Two DESKTOP findings from porting Phase 3
 
@@ -4615,9 +4621,10 @@ phone matches the desktop wherever the difference is not a fault.
   already changed — so a bold word in a second table lands on the spaces
   next to it, and every style after it slides too. 20 of the 567
   fragments in the paste fixture show it. The phone counts them in the
-  text as it came; the fixture's generator makes the phone's answers by
+  text as it came; the fixture's generator made the phone's answers by
   that same two-line change to the desktop's own function, run in its
-  own process, and keeps the desktop's answer beside each of the 20.
+  own process, and kept the desktop's answer beside each of the 20.
+  **Closed 2026-11-11** by the desktop's cb12941: the two now answer alike.
 
 The desktop's `remove_attachment` deleting a file another note still
 uses was the second half of

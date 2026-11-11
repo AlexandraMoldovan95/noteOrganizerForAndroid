@@ -403,9 +403,11 @@ Grouped by what the app does; when each item arrived is in the
 
 39. The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests)),
     mutation-tested; seven ports held to fixtures the desktop's own Python
-    wrote; five gates against drift (the note's shape and the palettes
+    wrote; eight gates against drift (the note's shape and the palettes
     against the desktop's Python, the rules layer free of Android, the
-    repository in English, test results no older than the code), one on
+    repository in English, comments that say why, every mutant aimed at
+    today's code, the test plan's count, test results no older than the
+    code), one on
     what the tests write out (a share code made here, read back by the
     desktop's own Python), and two on the built release APK (every file
     its code looks up by name, found where the shrunk code will look;
@@ -469,29 +471,33 @@ the two now agree.
 tour that is itself a note — but written for a phone: tap, long press,
 the share sheet, Settings at the bottom.
 
-Phase 2 added five more (two since closed by the desktop, marked below), each where the desktop's answer is a side
-effect or a fault rather than a rule — all five are
-[desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2):
+Phase 2 added five more, each where the desktop's answer was a side
+effect or a fault rather than a rule — all five
+[desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2),
+and all five since closed by the desktop:
 
-* **Untitled notes stay at the bottom of "Title Z–A"** as of "Title A–Z".
-  The desktop reverses A–Z's whole order, so its untitled notes rise to
-  the top of Z–A, against the comment that says they sink.
-* **Find steps through a table row by row**, as a table is read; the
-  desktop goes column by column, because of how it sorts its matches.
+* **Untitled notes stay at the bottom of "Title Z–A"** -- no longer a
+  difference: the desktop reversed A–Z's whole order, so its untitled notes
+  rose to the top of Z–A, until its 3ea673c (2026-11-11).
+* **Find steps through a table row by row**, as a table is read -- no
+  longer a difference: the desktop went column by column, because of how it
+  sorted its matches, until its 15d6dae (2026-11-11).
 * **A sum nested past about 190 brackets shows Error** -- no longer a
   difference: the desktop's parser raised `RecursionError` there, and
   since its fface5e (2026-10-27) answers nothing, which it shows as Error
   too.
 * **The table size grid draws every column**, so the squares lit are the
-  table's shape. The desktop's starts at its second column and lights a
-  single one for a two-column table.
+  table's shape -- no longer a difference: the desktop's started at its
+  second column, lighting one square for a two-column table, until its
+  5f82daa (2026-11-11).
 * **The export writes a note with a `^` merge under a shorter row** -- no
   longer a difference: the desktop's renderer raised `IndexError` on it,
   and since its f8818dd (2026-10-28) reads the marker as content, as the
   phone does.
 
 Phase 3 added three, for the same reason —
-[desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3):
+[desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3),
+all three since closed by the desktop:
 
 * **A day comes home only to an empty date** -- no longer a difference:
   the desktop asks the same since the final audit's eleventh round, and
@@ -503,9 +509,10 @@ Phase 3 added three, for the same reason —
 * **Taking a file off a note keeps the stored file while another note
   uses it** -- no longer a difference: the desktop spares it too since
   its 0.95.391.
-* **A pasted page's second table keeps its styles on their words.** The
-  desktop counts that table's padding in text the first table has
-  already changed, and its styles land beside their words.
+* **A pasted page's second table keeps its styles on their words** -- no
+  longer a difference: the desktop counted that table's padding in text the
+  first table had already changed, and its styles landed beside their
+  words, until its cb12941 (2026-11-11).
 
 The audit of 2026-10-19 added one more, and the phone's own
 simplifications of the table:
@@ -692,7 +699,7 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-70 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+74 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
 It takes the machine's one turn as it starts, waits for an emulator just
 started to settle, and reads every frame check after a look at the
 screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
@@ -949,13 +956,13 @@ the desktop's source and never write to it.
 | Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | fragments read -- the app's own copies with their HTML among them -- plain texts, markdown tables |
 | A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
 
-Pasting is the one port where the phone answers differently on
+Pasting was the one port where the phone answered differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
-second table, which the desktop puts beside its words
+second table, which the desktop put beside its words
 ([the finding](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3)).
-Those answers are made by the same two-line change to the desktop's own
-function, run in the fixture tool's process, and the desktop's answer is
-kept beside each one; a test fails if the two ever differ anywhere else.
+Since the desktop's cb12941 (2026-11-11) the two answer alike there too,
+every answer in the fixture is the desktop's own, and a test fails if one
+ever parts from it.
 
 The four sorts new to the phone were checked against the desktop's
 `_sort_notes` on the same notes, and the round trip that found
