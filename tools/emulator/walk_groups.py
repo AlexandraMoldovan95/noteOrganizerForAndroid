@@ -81,13 +81,22 @@ def stop(proc):
     deadline = time.time() + 60
     while time.time() < deadline and SERIAL in listed():
         time.sleep(2)
-    if proc is not None and proc.poll() is None:
+    if proc is None:
+        return
+    try:
+        proc.wait(timeout=15)     # one still on its way out is not "stuck"
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
         if os.name == "nt":
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
                            capture_output=True, timeout=30)
         else:
             proc.kill()
-        print("   the emulator did not stop; its own process was ended")
+    except (OSError, subprocess.SubprocessError):
+        pass
+    print("   the emulator did not stop; its own process was ended")
 
 
 def walk_group(name, parts, folder, avd):
@@ -96,27 +105,34 @@ def walk_group(name, parts, folder, avd):
     target = os.path.join(folder, name)
     os.makedirs(target, exist_ok=True)
     for attempt in (1, 2):
+        # A summary left by an earlier run in this folder is not this one's.
+        old = os.path.join(target, "summary.json")
+        if os.path.isfile(old):
+            os.remove(old)
         proc = boot(avd, os.path.join(target, "emulator-%d.log" % attempt))
         if proc is None:
             print("   %s, try %d: the emulator did not start" % (name, attempt))
             continue
         out_path = os.path.join(target, "walk.out")
-        with open(out_path, "w", encoding="utf-8") as out:
-            try:
-                code = subprocess.run([sys.executable, "-I", "-u", os.path.join(HERE, "walk.py"),
-                                       target] + parts, stdout=out, stderr=subprocess.STDOUT,
-                                      timeout=GROUP_SECONDS).returncode
-            except subprocess.TimeoutExpired:
-                code = 3
-                out.write("\nThe emulator is stuck: the group ran past %d s\n" % GROUP_SECONDS)
-        stop(proc)
+        try:
+            with open(out_path, "w", encoding="utf-8") as out:
+                try:
+                    code = subprocess.run([sys.executable, "-I", "-u", os.path.join(HERE, "walk.py"),
+                                           target] + parts, stdout=out, stderr=subprocess.STDOUT,
+                                          timeout=GROUP_SECONDS).returncode
+                except subprocess.TimeoutExpired:
+                    code = 3
+                    out.write("\nThe emulator is stuck: the group ran past %d s\n" % GROUP_SECONDS)
+        finally:
+            stop(proc)        # however this ends: a Ctrl-C left it running
         with open(out_path, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
         good = sum(1 for line in lines if line.startswith("PASS "))
         bad = sum(1 for line in lines if line.startswith("FAIL "))
-        # Read off the walk's own lines, never a check's words, which may quote one.
-        if any(word in line for line in lines if not line.startswith(("PASS ", "FAIL "))
-               for word in STUCK):
+        # Read off the walk's own lines, never a check's words, which may quote
+        # one; in any case, as walk.py writes the phrase both ways.
+        if any(word.lower() in line.lower() for line in lines
+               if not line.startswith(("PASS ", "FAIL ")) for word in STUCK):
             for kept in ("walk.out", "summary.json"):
                 path = os.path.join(target, kept)
                 if os.path.isfile(path):

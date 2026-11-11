@@ -401,12 +401,16 @@ def main():
     finally:
         # However the run ended: a failed seed or a stuck adb left the
         # emulator on its side, its own turning off.
+        # A key that was never set reads "null": it is unset again, not left
+        # at the run's value. One that fails does not keep the other back.
         for key, value in found.items():
-            if value.isdigit():
-                try:
+            try:
+                if value.isdigit():
                     adb("shell", "settings", "put", "system", key, value)
-                except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
-                    break
+                elif value == "null":
+                    adb("shell", "settings", "delete", "system", key)
+            except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+                continue
         demo_status_bar(False)
 
     print()

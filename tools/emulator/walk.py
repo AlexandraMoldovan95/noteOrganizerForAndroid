@@ -2180,11 +2180,10 @@ def second_code_while_open(folder):
         adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
             "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
         time.sleep(3.0)
-    tap("Import", exact=True, wait=2.0)
-    check("the code shared in second is the one imported",
-          note_by_uid("walk-second") is not None and note_by_uid("walk-first") is None,
-          "first %s, second %s" % (note_by_uid("walk-first") is not None,
-                                   note_by_uid("walk-second") is not None))
+    tap("Import", exact=True, wait=1.0)
+    check_settled("the code shared in second is the one imported",
+                  lambda: (note_by_uid("walk-first") is not None, note_by_uid("walk-second") is not None),
+                  lambda seen: seen == (False, True))
     back_to("Search notes")
 
 
@@ -8098,6 +8097,12 @@ def _settled(part):
         good, bad = passed[0], len(failures)
         try:
             return part(folder)
+        except BaseException as stop:
+            # Said as a failure, so summary.json does not count a part that
+            # died halfway as walked clean; the walk still stops as before.
+            fail("%s ended early: %s %s" % (part.__name__, type(stop).__name__,
+                                            str(stop).split("\n")[0][:120]))
+            raise
         finally:
             walked.append((part.__name__, passed[0] - good, len(failures) - bad))
             settle_device()
