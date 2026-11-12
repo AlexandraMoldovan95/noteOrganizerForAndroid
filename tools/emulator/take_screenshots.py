@@ -297,13 +297,21 @@ def screen_text():
     return "   ".join(t or d for t, d, _c, _k in nodes())
 
 
-def tap(label, exact=False):
-    for text, desc, centre, _kind in nodes():
-        for value in (text, desc):
-            if value and ((value == label) if exact else (label in value)):
-                adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
-                time.sleep(1.5)
-                return True
+def tap(label, exact=False, patience=3.0):
+    """Tap what says [label], looked for again for a moment before giving
+    up, as the walk's tap: a screen still arriving answers one read
+    without it."""
+    deadline = time.time() + patience
+    while True:
+        for text, desc, centre, _kind in nodes():
+            for value in (text, desc):
+                if value and ((value == label) if exact else (label in value)):
+                    adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
+                    time.sleep(1.5)
+                    return True
+        if time.time() > deadline:
+            break
+        time.sleep(0.4)
     print("   not found on screen: %r" % label)
     return False
 
@@ -344,13 +352,18 @@ def act(step):
         return True
     if kind == "back_to":
         # Back until the screen says it; the first Back with the keyboard
-        # up only closes the keyboard.
+        # up only closes the keyboard. Each Back is given three seconds to
+        # arrive before the next: one sent past a slow screen leaves the app.
         for _ in range(4):
             if step[1] in screen_text():
                 return True
             adb("shell", "input", "keyevent", "KEYCODE_BACK")
-            time.sleep(1.2)
-        return step[1] in screen_text()
+            deadline = time.time() + 3
+            while time.time() < deadline:
+                time.sleep(0.4)
+                if step[1] in screen_text():
+                    return True
+        return False
     if kind == "clear_search":
         # The search box keeps its words; select them all and delete, so
         # the next screen is not reached through a filtered list.

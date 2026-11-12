@@ -102,5 +102,7 @@ a table, its figures right-aligned by the spaces before them (a markdown
 the header was drawn "How…" — the 2026-10-23 retake). Against that
 day's light set, these differ by the date the calendar opens on and the
 dates worked out from it. `demo.gif` was made the same day for 0.14.2
-(the review panel's ask). Update this line whenever the set is
-recaptured.
+(the review panel's ask), and the whole set taken again that evening on
+0.14.2, to prove the tool's new waits: the dark pictures came out the
+same to the byte, the light ones differ only where the status bar's
+clock sits. Update this line whenever the set is recaptured.
