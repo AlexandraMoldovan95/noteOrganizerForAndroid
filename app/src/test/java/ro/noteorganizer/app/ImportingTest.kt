@@ -329,6 +329,46 @@ class ImportingTest {
     }
 
     @Test
+    fun `a note with no created stamp was made when it last changed, as normalize_note has it`() {
+        val load = notebook("[]")
+        val plan = backupPlan(load, """
+            [{"uid": "a", "title": "Old", "updated": "2025-03-04 10:00:00"},
+             {"uid": "b", "title": "Bare"}]
+        """.trimIndent())
+        assertTrue(Importing.apply(load, plan, Importing.Answers(), null) is Importing.Result.Done)
+        val old = onDisk(load).getJSONObject(0)
+        assertEquals("2025-03-04 10:00:00", old.getString("created"))
+        val bare = onDisk(load).getJSONObject(1)
+        assertTrue(bare.getString("updated").isNotEmpty())
+        assertEquals("both stamps the import's", bare.getString("updated"), bare.getString("created"))
+    }
+
+    @Test
+    fun `a backup whose notes cannot be written takes back the files it brought, and says what came in`() {
+        // The templates were written, the notes were not: the file moved in for
+        // a note stayed with nothing naming it, and the reason was all that was said.
+        val load = notebook("[]")
+        val attachments = File(dirOf(load), "attachments").apply { mkdirs() }
+        File(attachments, "older.txt").writeText("HERE BEFORE")
+        File(dirOf(load), "templates.json").writeText("[]")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        // The notes' write fails: its temporary file's name is taken by a folder.
+        File(dirOf(load), "notes_data.json.tmp").mkdir()
+        val result = Importing.apply(load, plan, Importing.Answers(), attachments,
+            Importing.Extras(attachments = unpacked, templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        val reason = (result as Importing.Result.Failed).reason
+        assertTrue(reason, reason.startsWith("Your notes could not be written:"))
+        assertTrue(reason, "None of the backup's notes came in" in reason && "importing it again adds only the rest" in reason)
+        assertFalse("the file it brought is taken back", File(attachments, "photo.jpg").exists())
+        assertEquals("a file here before is left alone", "HERE BEFORE", File(attachments, "older.txt").readText())
+        assertEquals("the notes are as they were", 0, onDisk(load).length())
+    }
+
+    @Test
     fun `a backup's new notes keep their rescue copies, a code's never take one`() {
         // A notebook moved to a new phone by a backup lost every "Restore previous".
         val load = notebook("""[]""")
