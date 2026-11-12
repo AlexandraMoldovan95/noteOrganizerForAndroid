@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
         val fresh = savedInstanceState == null &&
             ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
         if (fresh) {
-            incoming.value = codeIn(intent)
+            takeIn(intent)
             if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
         }
         setContent {
@@ -244,7 +245,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        codeIn(intent)?.let { incoming.value = it }
+        takeIn(intent)
         if (intent.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
     }
 
@@ -259,16 +260,26 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    private fun codeIn(intent: Intent?): String? =
-        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
-            // As any text: a sender sharing styled text puts a CharSequence
-            // with spans, and getStringExtra gave null for it -- the code
-            // never arrived, and nothing was said.
-            intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
-                ?: sharedFile(intent)
-        } else {
-            null
+    /**
+     * What a share handed the app, taken in: its words at once, a shared
+     * file read away from the screen's thread. A .txt from Drive is fetched
+     * as it is read, and read on that thread the screen froze while it came
+     * (an "isn't responding", which Play counts against the app).
+     */
+    private fun takeIn(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return
+        // As any text: a sender sharing styled text puts a CharSequence with
+        // spans, and getStringExtra gave null for it -- the code never
+        // arrived, and nothing was said.
+        val words = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
+        if (words != null) {
+            incoming.value = words
+            return
         }
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) { sharedFile(intent) }?.let { incoming.value = it }
+        }
+    }
 
     /**
      * Text shared as a file -- a .txt from Files, a mail's attachment -- with
