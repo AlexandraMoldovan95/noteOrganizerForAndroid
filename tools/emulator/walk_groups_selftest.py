@@ -63,6 +63,10 @@ MUTANTS = [
     ("walk_groups.py", b"    if ours(proc, avd):\n        adb_quiet(\"emu\", \"kill\"",
      b"    if proc.poll() is None:\n        adb_quiet(\"emu\", \"kill\"",
      "stop() kills whatever is at the serial while its own process runs"),
+    ("walk_groups.py", b"            stop(proc, avd)   # however this ends", b"            stop(proc)   # however this ends",
+     "walk_group's finally calls stop() short of the AVD, so it fails there"),
+    ("walk_groups.py", b"return bool(named) and named[0].strip() == avd", b"return bool(named) and avd in named[0]",
+     "ours() takes a name that only contains this run's AVD"),
 ]
 
 
@@ -250,7 +254,7 @@ def scenario(what, parts, behaviour, devices=lambda n: "List of devices attached
     g.walk_parts = lambda: list(parts)
     g.listed = lambda: devices(walks["n"])
     g.boot = fake_boot
-    g.stop = lambda proc, avd=None: stops.append(proc)
+    g.stop = lambda proc, avd: stops.append(proc)     # its real signature: a call short of avd fails
     g.EMULATOR = sys.executable                             # "is there"
     g.subprocess.run = fake_walk
     sys.argv = ["walk_groups.py", folder, "--size", str(size)]
@@ -294,6 +298,8 @@ def main():
     ownership("another AVD's emulator at the serial: not used, not stopped", "someone_else", 6)
     ownership("another AVD's at the serial, its own process alive throughout: not used, not stopped",
               "someone_else", None)
+    ownership("an AVD whose name only begins with this run's: not used, not stopped",
+              AVD + "_old", None)
     ownership("its launcher ended at once (the port taken): the one there is not stopped", AVD, 1)
     ownership("a Ctrl-C while it starts: its emulator is stopped", AVD, None, interrupt=True, want_kill=True)
     ownership("it never finishes starting: given up after five minutes, and stopped", AVD, None,
