@@ -25,6 +25,11 @@ concurrency:
   group: gates-${{ github.ref }}
   cancel-in-progress: true
 
+# The token GitHub gives each run may read this repository and nothing
+# more; the desktop's is read with a token of its own (below).
+permissions:
+  contents: read
+
 jobs:
   # Three boundaries that are easy to cross without noticing, in one cheap
   # job: Android must stay out of the rules layer, Romanian out of anything

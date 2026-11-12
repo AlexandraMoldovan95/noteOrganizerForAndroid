@@ -198,6 +198,10 @@ the two programs still agree about a note and about its colours
 only words or the test plan, which runs neither of those, do the
 documents still give the plan's own numbers, in English
 ([docs.yml](../.github/workflows/docs.yml), `tools/check_test_plan.py`).
+Each workflow's token may only read this repository (`permissions:
+contents: read`): nothing in CI pushes, comments or publishes. The
+desktop's code is read with a token of its own, Contents: Read-only on
+that one repository.
 
 The unit-test job does not trust Gradle's exit code alone: it runs
 `tools/check_test_results.py` afterwards — with `if: always()`, so it

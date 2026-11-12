@@ -45,6 +45,12 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+# The token GitHub gives each run may read the code and nothing more:
+# nothing here pushes, comments or publishes; the results are kept by the
+# artifact store, which needs none of its rights.
+permissions:
+  contents: read
+
 jobs:
   unit:
     name: Unit tests on the JVM
