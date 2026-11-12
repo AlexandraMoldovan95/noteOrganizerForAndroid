@@ -75,6 +75,27 @@ data class Note(
     val checklistDone: Int get() = checklist.count { it.done }
 
     /**
+     * Who this note is, for state kept while the notebook changes under it
+     * (the list's selection, the History's open series): its [uid], else its
+     * id. An id freed by a delete is taken by the next note added, and that
+     * note always has a uid of its own, as the desktop's `_order_identity`.
+     */
+    val identity: String get() = uid.ifEmpty { "id:$id" }
+
+    companion object {
+        /** [ids] with the note each holds now ([identity]): a selection, as it is made. */
+        fun picked(ids: Set<Int>, byId: Map<Int, Note>): Map<Int, String> =
+            ids.associateWith { byId[it]?.identity.orEmpty() }
+
+        /**
+         * The ids in [picked] that still hold the notes they were picked as:
+         * one whose note went drops out, and so does a new note given its id.
+         */
+        fun stillPicked(picked: Map<Int, String>, byId: Map<Int, Note>): Set<Int> =
+            picked.filter { (id, who) -> byId[id]?.identity == who }.keys
+    }
+
+    /**
      * Everything this note can be found by, folded ([searchFold]), computed once.
      *
      * Once, because the alternative is stripping a 107,000-character
@@ -111,9 +132,11 @@ data class Note(
         // A list item keeps its words without its marker: the dot already
         // says a new line begins, and "· • milk" read as two marks. One with
         // no words is a blank line, left out.
+        // Each line's spaces squeezed, as the desktop's lines_apart: trimmed
+        // alone, a run of spaces inside a line reached the card whole.
         Pasting.stripListMarkers(prose).split("\n")
-            .filter { it.isNotBlank() }
-            .map { it.trim() } to tables
+            .map { PyText.split(it).joinToString(" ") }
+            .filter { it.isNotEmpty() } to tables
     }
 
     /** Body lines worth previewing, list markers taken off: blanks, list items with no words and table lines dropped. */
@@ -2377,10 +2400,20 @@ object Notebook {
         if (spent(note, previous)) note.remove("_prev")
     }
 
-    /** Whether [note] holds again everything [previous] kept: the desktop's `rescue_copy_spent`. */
-    private fun spent(note: JSONObject, previous: JSONObject): Boolean =
-        PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+    /**
+     * Whether [note] holds again everything [previous] kept: the desktop's
+     * `rescue_copy_spent`, which compares the styles and the lines' looks
+     * normalized -- compared as stored, a style the desktop drops as
+     * invalid kept the copy unspent here, and its button stayed.
+     */
+    private fun spent(note: JSONObject, previous: JSONObject): Boolean {
+        val lines = (note.opt("body") as? String ?: "").split("\n").size
+        return listOf("title", "body", "comments").all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+            Exporting.normalizeFormatting(note.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+            Exporting.normalizeParagraphs(note.opt("paragraphs"), lines) ==
+                Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines) &&
             PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || copyFieldHeld(note, previous, field) }
+    }
 
     /**
      * Whether [note] holds [previous]'s [field] again: a repeat rule by the

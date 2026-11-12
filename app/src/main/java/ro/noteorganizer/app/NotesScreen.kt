@@ -105,7 +105,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
     val show = Showing.valid(state.settings.opt(Settings.NOTE_FILTER) as? String, load.categories.keys)
     val grouped = state.settings.opt(Settings.GROUP_BY_CATEGORY) == true
     val collapsed = Settings.collapsedGroups(state.settings)
-    var selected by remember { mutableStateOf(setOf<Int>()) }
+    // Kept by the note, not by its id: a selected note put in the Trash from
+    // the editor beside the list freed its id, and a note arriving from a
+    // share code took it, ticked, into the selection's own Trash.
+    var picked by remember { mutableStateOf(mapOf<Int, String>()) }
+    val byId = remember(state.revision, load) { load.notes.associateBy { it.id } }
+    val selected = Note.stillPicked(picked, byId)
+    fun select(ids: Set<Int>) { picked = Note.picked(ids, byId) }
     var sortMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
@@ -127,7 +133,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
         }
     }
     val laidOut = Showing.rows(shown, grouped, collapsed, load.categories.keys.toList())
-    BackHandler(enabled = selecting) { selected = emptySet() }
+    BackHandler(enabled = selecting) { select(emptySet()) }
 
     // Custom order: a card's handle drags it, trading places with neighbours as
     // it passes, so its slot follows the finger (left at its old slot, a long
@@ -568,7 +574,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                 TopAppBar(
                     title = { Text(pluralStringResource(R.plurals.selected_count, selected.size, selected.size)) },
                     navigationIcon = {
-                        IconButton(onClick = { selected = emptySet() }, modifier = Modifier.said(R.string.clear_selection_said)) {
+                        IconButton(onClick = { select(emptySet()) }, modifier = Modifier.said(R.string.clear_selection_said)) {
                             Text("✕", fontSize = 18.sp)
                         }
                     },
@@ -578,7 +584,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                                        if (allPinned) holdByIndex()
                                        state.setPinned(selected, !allPinned)
                                        if (!allPinned) revealLater(selected)
-                                       selected = emptySet()
+                                       select(emptySet())
                                    },
                                    modifier = Modifier.said(if (allPinned) R.string.unpin else R.string.pin)) {
                             Text("📌", fontSize = 18.sp)
@@ -586,7 +592,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                         IconButton(onClick = { choosingCategory = true }, modifier = Modifier.said(R.string.move_to_category_said)) {
                             Text("🗂", fontSize = 18.sp)
                         }
-                        IconButton(onClick = { state.trash(selected); selected = emptySet() },
+                        IconButton(onClick = { state.trash(selected); select(emptySet()) },
                                    modifier = Modifier.said(R.string.move_to_trash)) {
                             Text("🗑", fontSize = 18.sp)
                         }
@@ -601,7 +607,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                                     if (allPinned) holdByIndex()
                                     state.setPinned(selected, !allPinned)
                                     if (!allPinned) revealLater(selected)
-                                    selected = emptySet()
+                                    select(emptySet())
                                 },
                             )
                             if (selected.size == 1) {
@@ -611,7 +617,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                                         moreMenu = false
                                         // The copy, shown where the sort puts it.
                                         revealLater(setOfNotNull(state.duplicate(selected.single())))
-                                        selected = emptySet()
+                                        select(emptySet())
                                     },
                                 )
                             }
@@ -630,7 +636,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                                 // the search, the filter or a folded group is hiding.
                                 onClick = {
                                     moreMenu = false
-                                    selected = if (selected.containsAll(everything)) emptySet() else everything
+                                    select(if (selected.containsAll(everything)) emptySet() else everything)
                                 },
                             )
                         }
@@ -816,9 +822,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                                         selected = note.id in selected,
                                         selecting = selecting,
                                         onClick = {
-                                            if (selecting) selected = selected.toggle(note.id) else state.openNote(note.id)
+                                            if (selecting) select(selected.toggle(note.id)) else state.openNote(note.id)
                                         },
-                                        onLongClick = { selected = selected.toggle(note.id) },
+                                        onLongClick = { select(selected.toggle(note.id)) },
                                         // Seen only where the list stays beside the
                                         // note: on a phone the note covers it.
                                         open = note.id == state.openId,
@@ -973,7 +979,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                 choosingCategory = false
                 state.moveToCategory(selected, name)
                 revealLater(selected)
-                selected = emptySet()
+                select(emptySet())
             },
             onDismiss = { choosingCategory = false },
         )

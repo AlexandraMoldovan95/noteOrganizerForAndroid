@@ -23,6 +23,33 @@ import org.junit.Test
  */
 class NotebookTest {
 
+    // ---- the list's selection, kept by the note ----
+
+    @Test
+    fun `a selection is kept by the note, so a new note given a freed id is not ticked`() {
+        val a = Note(id = 5, uid = "uid-a")
+        val b = Note(id = 6)
+        val picked = Note.picked(setOf(5, 6), mapOf(5 to a, 6 to b))
+        assertEquals("both, while they are the notes picked", setOf(5, 6), Note.stillPicked(picked, mapOf(5 to a, 6 to b)))
+        // 5 went to the Trash from the editor beside the list; a code shared in took its id.
+        val newcomer = Note(id = 5, uid = "uid-new")
+        assertEquals("the newcomer is not ticked", setOf(6), Note.stillPicked(picked, mapOf(5 to newcomer, 6 to b)))
+        assertEquals("notes that went drop out", emptySet<Int>(), Note.stillPicked(picked, emptyMap()))
+    }
+
+    // ---- the rescue copy, spent as the desktop spends it ----
+
+    @Test
+    fun `a rescue copy whose only difference is a style the desktop drops is spent`() {
+        // The desktop's rescue_copy_spent says True here (asked 2026-11-12):
+        // it compares the styles normalized, and the two invalid ones go.
+        val note = JSONObject("""{"title": "t", "body": "bold text",
+            "formatting": [{"start": 0, "end": 4, "style": "bold"}],
+            "_prev": {"title": "t", "body": "bold text", "formatting": [{"start": 0, "end": 4, "style": "bold"},
+                {"start": 3, "end": 1, "style": "italic"}, {"start": 0, "end": 2, "style": "blink"}]}}""")
+        assertFalse(Notebook.holdsUnspentCopy(note))
+    }
+
     // ---- is_table_row, from core/tables.py ----
 
     @Test
@@ -126,6 +153,13 @@ class NotebookTest {
         val json = """[{"id": 1, "title": "Reading list",
             "body": "the book borrowed from Radu\n\n  the article about sleep  "}]"""
         assertEquals("the book borrowed from Radu · the article about sleep", notesFrom(json).single().snippet)
+    }
+
+    @Test
+    fun `a snippet squeezes each line's spaces, as the desktop's lines_apart`() {
+        // The desktop's lines_apart, asked: "milk    and eggs" -> "milk and eggs".
+        val json = """[{"id": 1, "title": "Shop", "body": "milk    and eggs\n\u0085\nbread"}]"""
+        assertEquals("milk and eggs · bread", notesFrom(json).single().snippet)
     }
 
     @Test
