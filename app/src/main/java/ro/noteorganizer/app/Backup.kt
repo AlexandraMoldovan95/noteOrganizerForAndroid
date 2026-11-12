@@ -43,10 +43,18 @@ object Backup {
     /** One entry as the guards see it. */
     data class Entry(val name: String, val size: Long, val packed: Long)
 
-    /** A byte count as people read it: 350 MB, 1.2 GB. The desktop's size_text. */
+    /**
+     * A byte count as people read it: 350 MB, 1.2 GB. The desktop's
+     * size_text, rounded as Python rounds: a half to the even figure, of the
+     * number as the computer holds it. Math.round and %.1f round halves up,
+     * and 2.5 MB read "3 MB" here, "2 MB" there.
+     */
     fun sizeText(n: Long): String =
-        if (n >= 1_000_000_000) "%.1f GB".format(java.util.Locale.US, n / 1e9)
-        else "%d MB".format(maxOf(1L, Math.round(n / 1e6)))
+        if (n >= 1_000_000_000) {
+            java.math.BigDecimal(n / 1e9).setScale(1, java.math.RoundingMode.HALF_EVEN).toPlainString() + " GB"
+        } else {
+            "%d MB".format(maxOf(1L, Math.rint(n / 1e6).toLong()))
+        }
 
     /**
      * Why these entries cannot be imported, whatever room there is -- or

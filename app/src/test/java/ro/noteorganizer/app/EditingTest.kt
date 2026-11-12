@@ -417,6 +417,7 @@ class EditingTest {
     @Test
     fun `words and reading time are the desktop's`() {
         assertEquals(4, Editing.wordCount("one two\n| three | four |\n| --- | --- |"))
+        assertEquals("a non-breaking space parts words, as str.split()", 3, Editing.wordCount("one two three"))
         assertEquals("", Editing.readingTime(0))
         assertEquals("under a minute to read", Editing.readingTime(199))
         assertEquals("about 1 minute to read", Editing.readingTime(200))

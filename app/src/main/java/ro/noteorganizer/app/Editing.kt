@@ -894,10 +894,11 @@ object Editing {
 
     /**
      * Words a person wrote: a table's pipes and dashes are not words, so
-     * the count reads the body the way search does.
+     * the count reads the body the way search does. Split as the desktop's
+     * `str.split()`: Java's \s is ASCII alone, and two words a web page
+     * joined with a non-breaking space counted as one.
      */
-    fun wordCount(body: String): Int =
-        contentText(body).split(Regex("\\s+")).count { it.isNotEmpty() }
+    fun wordCount(body: String): Int = PyText.split(contentText(body)).size
 
     private const val WORDS_A_MINUTE = 200
 

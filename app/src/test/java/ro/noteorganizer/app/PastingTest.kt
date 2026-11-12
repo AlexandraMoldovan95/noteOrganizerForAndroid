@@ -540,6 +540,21 @@ class PastingTest {
     }
 
     @Test
+    fun `a pasted table narrower than its separator is laid out as the desktop lays it out`() {
+        // The desktop's html_to_note, asked on 2026-11-12: a column narrower
+        // than its separator's marker, aligned, and a table pasted as text.
+        val desktop = mapOf(
+            "<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>" to
+                "| a        | b        |\n| 1        | 2        |",
+            "<table><tr><th align=right>a</th><th>bb</th></tr><tr><td align=right>1</td><td>2</td></tr></table>" to
+                "| a        | bb       |\n| 1        | 2        |",
+            "<p>| a | b |<br>|:-:|---:|<br>| 1 | 2 |</p>" to
+                "| a        | b        |\n| :-:      | --:      |\n| 1        | 2        |",
+        )
+        for ((html, said) in desktop) assertEquals(html, said, Pasting.htmlToNote(html).text)
+    }
+
+    @Test
     fun `every fragment in the fixture is read as the desktop read it`() {
         val cases = fixture().getJSONArray("cases")
         assertTrue("the fixture is too small to mean anything", cases.length() > 500)

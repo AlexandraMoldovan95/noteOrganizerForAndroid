@@ -80,8 +80,12 @@ object PyText {
     fun lstrip(text: String): String = text.substring(spacesEnd(text))
 
     /** `str.strip()`. */
-    fun strip(text: String): String {
-        val from = spacesEnd(text)
+    fun strip(text: String): String = rstripFrom(text, spacesEnd(text))
+
+    /** `str.rstrip()`. */
+    fun rstrip(text: String): String = rstripFrom(text, 0)
+
+    private fun rstripFrom(text: String, from: Int): String {
         var to = text.length
         while (to > from) {
             val cp = text.codePointBefore(to)

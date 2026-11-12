@@ -36,6 +36,15 @@ class BackupTest {
     }
 
     @Test
+    fun `a size reads as the desktop's size_text, halves to the even figure`() {
+        // The desktop's own answers (core/sharing.py's size_text, 2026-11-12).
+        val desktop = mapOf(2_500_000L to "2 MB", 3_500_000L to "4 MB", 400_000L to "1 MB",
+            1_250_000_000L to "1.2 GB", 1_350_000_000L to "1.4 GB", 1_150_000_000L to "1.1 GB",
+            999_999_999L to "1000 MB")
+        for ((bytes, said) in desktop) assertEquals("$bytes", said, Backup.sizeText(bytes))
+    }
+
+    @Test
     fun `an attached file named longer than the phone's storage holds comes in under a name it holds`() {
         // 161 UTF-16 units, which Windows takes, and 279 UTF-8 bytes, which
         // Android's storage refuses: the whole backup was refused for it,

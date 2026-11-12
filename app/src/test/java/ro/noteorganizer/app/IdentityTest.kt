@@ -25,6 +25,18 @@ class IdentityTest {
     private fun ready(load: Notebook.Load, code: String) =
         Notebook.inspectShareCode(load, code) as Notebook.Inspection.Ready
 
+    // ---- Python's spaces, as the desktop strips them ----
+
+    @Test
+    fun `a uid and a note's words are stripped of Python's spaces, U+0085 among them`() {
+        // trim() kept the next-line mark: the desktop's strip() takes it.
+        val marked = Normalize.normalizeNote(JSONObject().put("uid", "u-1\u0085").put("title", "Milk\u0085").put("body", "x"))
+        val plain = Normalize.normalizeNote(JSONObject().put("uid", "u-1").put("title", "Milk").put("body", "x"))
+        assertEquals("u-1", marked.getString("uid"))
+        assertEquals(Normalize.contentSignature(plain), Normalize.contentSignature(marked))
+        assertEquals("str.rstrip()", " Milk", PyText.rstrip(" Milk\u0085 "))
+    }
+
     // ---- minting, and NOT minting ----
 
     @Test

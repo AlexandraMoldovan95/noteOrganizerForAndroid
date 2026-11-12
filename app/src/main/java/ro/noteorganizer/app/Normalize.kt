@@ -54,7 +54,7 @@ object Normalize {
         // The load gives it a new number ([Organizing.repairIds]).
         val whole = if (id is Int || id is Long || id is Short || id is Byte) (id as Number).toLong() else null
         out.put("id", if (whole != null && whole in Int.MIN_VALUE..Int.MAX_VALUE) whole.toInt() else 0)
-        val uid = (raw.opt("uid") as? String)?.trim().orEmpty()
+        val uid = PyText.strip(raw.opt("uid") as? String ?: "")
         out.put("uid", uid.ifEmpty { java.util.UUID.randomUUID().toString() })
         for (field in TEXT_FIELDS) out.put(field, raw.opt(field) as? String ?: "")
         out.put("category", (raw.opt("category") as? String)?.ifEmpty { null } ?: "General")
@@ -436,7 +436,7 @@ object Normalize {
         val out = ArrayList<String>()
         for (i in 0 until list.length()) {
             val item = list.opt(i) as? JSONObject ?: continue
-            out.add(stable(JSONArray().put((item.opt("text") as? String)?.trim() ?: "")
+            out.add(stable(JSONArray().put(PyText.strip(item.opt("text") as? String ?: ""))
                 .put(item.opt("done") == true)))
         }
         return out.joinToString(",", "[", "]")
@@ -460,8 +460,8 @@ object Normalize {
     }
 
     private fun stripCopySuffix(title: String): String {
-        var t = title.trim()
-        while (t.lowercase().endsWith("(copy)")) t = t.dropLast("(copy)".length).trimEnd()
+        var t = PyText.strip(title)
+        while (t.lowercase().endsWith("(copy)")) t = PyText.rstrip(t.dropLast("(copy)".length))
         return t
     }
 
@@ -505,9 +505,11 @@ object Normalize {
      * entry that is already in this Trash.
      */
     fun contentSignature(note: JSONObject): String = listOf(
-        str(note, "title").trim(),
-        str(note, "body").trim(),
-        str(note, "comments").trim(),
+        // Python's strip(), as the desktop's signature: trim() kept U+0085,
+        // and a note ending in it read as changed between the two programs.
+        PyText.strip(str(note, "title")),
+        PyText.strip(str(note, "body")),
+        PyText.strip(str(note, "comments")),
         (note.opt("category") ?: "").toString(),
         (note.opt("date") ?: "").toString(),
         checklistSignature(note.opt("checklist")),
@@ -519,6 +521,6 @@ object Normalize {
         stable(note.opt("exceptions")),
         stable(note.opt("moved")),
         (note.opt("pinned") == true).toString(),
-        str(note, "color").trim(),
+        PyText.strip(str(note, "color")),
     ).joinToString("\u0001")
 }

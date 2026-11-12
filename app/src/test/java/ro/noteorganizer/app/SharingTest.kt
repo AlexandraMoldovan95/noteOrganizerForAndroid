@@ -112,10 +112,25 @@ class SharingTest {
         assertFalse(back.has("attachments"))
     }
 
+    @Test
+    fun `a code holding a list holds no notes, as the desktop says, and a bare word is damage`() {
+        // decode_share_code's own answers: a list is whole JSON with no
+        // notes in it; text Python's reader refuses is damage.
+        for (text in listOf("[]", " [1, 2]")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertEquals(text, "This share code doesn't contain any notes.", result.reason)
+        }
+        val word = Sharing.decode(codeOfText("abc")) as Sharing.Decoded.Failed
+        assertTrue(word.reason, word.reason.startsWith("This share code is damaged"))
+    }
+
     /** Builds a code around an arbitrary payload, the way a forger would. */
-    private fun codeOf(payload: JSONObject): String {
+    private fun codeOf(payload: JSONObject): String = codeOfText(payload.toString())
+
+    /** ...or around any text at all. */
+    private fun codeOfText(text: String): String {
         val deflate = java.util.zip.Deflater(9)
-        val raw = payload.toString().toByteArray(Charsets.UTF_8)
+        val raw = text.toByteArray(Charsets.UTF_8)
         deflate.setInput(raw)
         deflate.finish()
         val out = java.io.ByteArrayOutputStream()
