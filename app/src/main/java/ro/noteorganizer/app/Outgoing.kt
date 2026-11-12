@@ -77,7 +77,7 @@ object Outgoing {
         var plain = "$title\n\n$body"
         if (checklist.isNotEmpty()) {
             plain += "\n\nChecklist:\n" + checklist.joinToString("\n") {
-                "${if (Exporting.truthy(it.opt("done"))) "☑" else "☐"} ${it.opt("text") as? String ?: ""}"
+                "${if (it.opt("done") == true) "☑" else "☐"} ${it.opt("text") as? String ?: ""}"
             }
         }
         if (comments.isNotEmpty()) plain += "\n\nComments:\n$comments"

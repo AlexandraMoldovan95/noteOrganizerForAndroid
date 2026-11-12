@@ -675,7 +675,8 @@ object Exporting {
             if (checklist.isNotEmpty()) {
                 // Glyphs, not form controls: a character renders everywhere.
                 val items = checklist.joinToString("\n") {
-                    "<div>${if (truthy(it.opt("done"))) "☑" else "☐"} ${escape(it.opt("text") as? String ?: "")}</div>"
+                    // Ticked only by true, as the list shows it and normalize_note keeps it.
+                    "<div>${if (it.opt("done") == true) "☑" else "☐"} ${escape(it.opt("text") as? String ?: "")}</div>"
                 }
                 fragment += "<hr>\n<div><i>Checklist</i></div>\n$items"
             }
@@ -685,7 +686,7 @@ object Exporting {
             var plain = "$title\n\n$body"
             if (checklist.isNotEmpty()) {
                 plain += "\n\nChecklist:\n" + checklist.joinToString("\n") {
-                    "[${if (truthy(it.opt("done"))) "x" else " "}] ${it.opt("text") as? String ?: ""}"
+                    "[${if (it.opt("done") == true) "x" else " "}] ${it.opt("text") as? String ?: ""}"
                 }
             }
             if (comments.isNotEmpty()) plain += "\n\nComments:\n$comments"

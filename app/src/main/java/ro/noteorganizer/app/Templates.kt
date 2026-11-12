@@ -38,15 +38,6 @@ object Templates {
     fun full(templates: List<JSONObject>, name: String, edited: Int? = null): Boolean =
         edited == null && templates.size >= MAX_TEMPLATES && templates.none { it.optString("name") == name }
 
-    private fun truthy(value: Any?): Boolean = when (value) {
-        null, JSONObject.NULL -> false
-        is Boolean -> value
-        is Number -> value.toDouble() != 0.0
-        is String -> value.isNotEmpty()
-        is JSONArray -> value.length() > 0
-        is JSONObject -> value.length() > 0
-        else -> true
-    }
 
     /** Styles as the file holds them: a size as a number, the rest as text. */
     internal fun spansJson(spans: List<FormatSpan>): JSONArray {
@@ -83,14 +74,16 @@ object Templates {
                 val item = list.opt(i) as? JSONObject ?: continue
                 checklist.put(JSONObject()
                     .put("text", item.opt("text") as? String ?: "")
-                    .put("done", truthy(item.opt("done"))))
+                    .put("done", item.opt("done") == true))
             }
         }
         return JSONObject()
             .put("name", text("name").ifEmpty { UNTITLED })
             .put("title", text("title"))
             .put("body", body)
-            .put("formatting", spansJson(Exporting.normalizeFormatting(tpl.opt("formatting"))))
+            // Clamped by the line as a note's are (clamp_spans_per_line):
+            // a hand-edited templates.json could pile thousands on one line.
+            .put("formatting", spansJson(Normalize.clampSpansPerLine(body, Exporting.normalizeFormatting(tpl.opt("formatting")))))
             .put("paragraphs", paragraphsJson(Exporting.normalizeParagraphs(tpl.opt("paragraphs"), body.split("\n").size)))
             .put("comments", text("comments"))
             .put("category", text("category").ifEmpty { "General" })

@@ -32,8 +32,10 @@ class OutgoingTest {
 
     @Test
     fun `the words go with the checklist's boxes drawn, and the comments`() {
+        // Ticked by true alone, as the list and normalize_note have it: a 1
+        // written by hand is no tick (it was one here, and on the desktop).
         val note = JSONObject("""{"title": "Shop", "body": "milk\neggs", "comments": "  from Ana  ",
-            "checklist": [{"text": "bread", "done": 1}, {"text": "jam", "done": 0}]}""")
+            "checklist": [{"text": "bread", "done": true}, {"text": "jam", "done": 1}]}""")
         assertEquals("Shop\n\nmilk\neggs\n\nChecklist:\n☑ bread\n☐ jam\n\nComments:\nfrom Ana\n",
                      Outgoing.text(note, "Shop"))
     }
