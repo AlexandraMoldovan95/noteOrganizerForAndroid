@@ -10,6 +10,13 @@ on its side that still expected the list to keep room under its cards
 for the +, now in the rail; rewritten, its part walked again, all 25
 passed.
 
+For 0.14.2, on 2026-11-12, one fix and no full run: the walk's
+Statistics part, which now reads the Total notes and Categories tiles,
+passed on 0.14.2's debug build, failed its Categories check on mutant
+AS656's (the tile said 3 over four categories, one holding no note), and
+passed again with the real build put back. The rest of the app is
+0.14.1's, walked in full the same day.
+
 For 0.14.1, on 2026-11-12, one run: `py -I tools/emulator/walk_groups.py`,
 its self-test first (30 of 30), walked all 76 parts in eight groups, each
 on an emulator started cold on its own port and stopped after it: all 633
