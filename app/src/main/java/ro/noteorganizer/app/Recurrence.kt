@@ -814,6 +814,8 @@ object Recurrence {
             val autoExpand: Boolean,
             /** Where a series with no days to unfold leads on the calendar. */
             val jumpDate: String?,
+            /** Who the series is ([Note.identity]): what its open group is kept by. */
+            val identity: String = "id:$noteId",
         ) : HistoryEntry()
     }
 
@@ -952,6 +954,7 @@ object Recurrence {
                         off = days.count { it.offSchedule },
                         moved = days.count { !it.movedFrom.isNullOrEmpty() },
                         autoExpand = anyChildMatch, jumpDate = jump,
+                        identity = (note.opt("uid") as? String).orEmpty().ifEmpty { "id:$id" },
                     ))
                 }
             } else {

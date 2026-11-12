@@ -95,6 +95,21 @@ class RecurrenceTest {
         assertTrue("read ${Recurrence.movesRead} times", Recurrence.movesRead <= 6)
     }
 
+    @Test
+    fun `a History series is known by its uid, so a series given a freed id is not opened`() {
+        val today = d(2026, 10, 28)
+        val kept = note("""{"id":4,"uid":"uid-old","date":"2026-10-01","title":"Gym","recurrence":{"freq":"weekly","weekdays":[0]}}""")
+        val old = note("""{"id":5,"date":"2026-10-01","title":"Plants","recurrence":{"freq":"weekly","weekdays":[2]}}""")
+        val ids = Recurrence.history(listOf(kept, old), today = today)
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().associate { it.noteId to it.identity }
+        assertEquals("by its uid, and by its id where it has none", mapOf(4 to "uid-old", 5 to "id:5"), ids)
+        // Note 4 deleted, and a series made after it took the id: the open group was 4's.
+        val newcomer = note("""{"id":4,"uid":"uid-new","date":"2026-10-01","title":"Run","recurrence":{"freq":"weekly","weekdays":[1]}}""")
+        val now = Recurrence.history(listOf(newcomer), today = today)
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().single()
+        assertTrue("the newcomer is someone else", now.identity != "uid-old")
+    }
+
     // ---- the frequencies ----
 
     @Test

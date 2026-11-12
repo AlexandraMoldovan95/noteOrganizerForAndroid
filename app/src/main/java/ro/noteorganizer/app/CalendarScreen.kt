@@ -495,7 +495,9 @@ private fun History(state: AppState) {
     androidx.compose.runtime.LaunchedEffect(state.historyQuery) {
         state.historyQuery?.let { query = it; bucket = "All"; state.historyQuery = null }
     }
-    val open = remember { mutableStateListOf<Int>() }
+    // Kept by the series, not by its id: a series made beside a deleted one
+    // took its id and opened unfolded, as on the desktop before its fix.
+    val open = remember { mutableStateListOf<String>() }
     val entries = remember(state.revision, query, bucket) {
         Recurrence.history(state.rawNotes(), query.trim(), bucket)
     }
@@ -542,7 +544,7 @@ private fun History(state: AppState) {
                     }
                 }
                 is Recurrence.HistoryEntry.Series -> {
-                    val expanded = entry.noteId in open || entry.autoExpand
+                    val expanded = entry.identity in open || entry.autoExpand
                     item(key = "s${entry.noteId}") {
                         val count = if (entry.days.isNotEmpty()) pluralStringResource(R.plurals.history_days, entry.days.size, entry.days.size) else ""
                         HistoryRow(
@@ -561,7 +563,7 @@ private fun History(state: AppState) {
                                     state.selectedDay = Recurrence.formatDate(day)
                                     state.showHistory = false
                                 }
-                            } else if (entry.noteId in open) open.remove(entry.noteId) else open.add(entry.noteId)
+                            } else if (entry.identity in open) open.remove(entry.identity) else open.add(entry.identity)
                         }
                     }
                     if (expanded) {
