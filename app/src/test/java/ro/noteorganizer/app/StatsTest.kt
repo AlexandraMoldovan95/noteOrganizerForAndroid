@@ -45,12 +45,21 @@ class StatsTest {
         val snap = Stats.of(list, trash = 4, templates = 2, categoryOrder = listOf("General", "Work"),
                             settings = JSONObject().put("first_launch_date", "2026-09-01"), today = today)
         assertEquals(listOf("General" to 2, "Work" to 2, "Gone" to 1), snap.byCategory)
-        assertEquals(3, snap.categories)
+        assertEquals("the tile is Settings' categories; a stray name is listed below it", 2, snap.categories)
         assertEquals(1, snap.withChecklist)
         assertEquals(4, snap.inTrash)
         assertEquals(2, snap.templates)
         assertEquals("01.09.2026", snap.since)
         assertEquals("—", Stats.of(list, 0, 0, emptyList(), JSONObject(), today).since)
+    }
+
+    @Test
+    fun `the Categories tile counts every category, those holding no note too, as the desktop's`() {
+        val list = notes("""[{"category": "General"}, {"category": "General"}, {}]""")
+        val order = listOf("General", "Work", "Personal", "Ideas", "Urgent")
+        val snap = Stats.of(list, trash = 0, templates = 0, categoryOrder = order, settings = null, today = today)
+        assertEquals(5, snap.categories)
+        assertEquals("the list below still shows only those holding notes", listOf("General" to 3), snap.byCategory)
     }
 
     @Test

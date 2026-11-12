@@ -7,7 +7,7 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-eight of the hundred and eight
+**the code**, or in **the design**. Twenty-eight of the hundred and nine
 are about the checking. A few words carry a sense of their own here (a
 bar's *word*, a *road*, a *look*, a *round*, *the lows*):
 [the house words](../CLAUDE.md#house-words).
@@ -22,6 +22,7 @@ points with.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-12](#a-desktop-fix-the-port-was-never-asked-about) | code | The desktop's Statistics began counting every category on 11 November; the phone, whose tile was a port of the old rule, still counted those holding notes, and nothing compared the two | When the desktop changes a rule the phone ports, the phone is asked in the same change: a sweep by the fix's question crosses the repositories |
 | [2026-11-07](#a-message-read-after-it-went-a-tap-between-two-cards-a-list-left-mid-way) | checking | The full walk after the lows wave: a four-second message read by a five-second look, a tap that stopped a fling between two cards, and steps that search the list started where a turn of the phone had left it | A step that searches the screen starts where the step before it stopped |
 | [2026-11-07](#two-looks-that-judged-what-they-never-read) | checking | A walk's early steps failed twice and passed walked again: a search judged on words never read back, and a look that read the screen from before a tap because adb lost its dump on the way | A file on the device is evidence only when the command that wrote it says it ran |
 | [2026-11-07](#a-bars-button-tapped-after-the-bar-had-gone) | checking | A walk on a freshly booted emulator tapped a bar's Show all after the bar's ten seconds were up, opened the card beneath, and failed 25 steps from one | A check that taps something with a lifetime must own that lifetime, or the machine's speed decides the verdict |
@@ -133,6 +134,47 @@ points with.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A desktop fix the port was never asked about
+
+**2026-11-12.** The phone's release build of 0.14.1 was walked on the
+emulator, and its photograph of Settings → Statistics said "1
+Categories" over a notebook whose Categories page listed five. The tile
+was right by the rule it was ported from: the desktop's Statistics
+counted the categories notes were filed under. On 11 November the owner
+chose that it count every category, and the desktop changed (its
+`01cec1e`); the phone, ported from the old line, kept the old answer.
+
+The desktop's fixes of that week that the phone had found were carried
+over the same night, each place here that still called them differences
+closed. The fixes the desktop's own full reading found were not asked
+about here at all, and the Statistics tile was one of them. Nothing
+compares the two tiles: the interop fixture holds notes and files, not
+what a page counts.
+
+The tile now counts the categories the notebook has, Settings' list with
+any name a note brought in, as the desktop's `len(CATEGORY_COLORS)`
+does; the list below it still holds only the categories with notes.
+`StatsTest` pins it with five categories and notes in one, and the walk's
+Statistics part reads two tiles off the screen: Total notes, and
+Categories counting one that holds no note. Mutants AS655 (the unit
+test) and AS656 (the walk) are the old line put back.
+
+The rest of that reading's desktop fixes were then asked here one by one.
+A file taken off a note or deleted from the Trash for good is already
+deleted only after the write that stops naming it; the month's buttons
+are hidden while the History is open, so they cannot move a month behind
+it; and the phone has no bulk export. Two lows of the same class as the
+desktop's Share panel fix, state kept by an id a new note can take, are
+written down under [Still open](#state-kept-by-an-id-a-new-note-can-take),
+not fixed.
+
+**The lesson:** a port is a second copy of every rule, and the desktop's
+fixes change rules. When the desktop changes one the phone ports, the
+phone is asked in the same change: a sweep by the fix's question does not
+stop at the repository's edge.
 
 ---
 
@@ -4350,6 +4392,24 @@ whether that is what the dialog should show.
   sixth round's, now in the title and the template's boxes too: a
   suggestion or a swiped word that does not fit is cut to the room left,
   and a paste's words said.
+
+### State kept by an id a new note can take
+
+Two lows, found on 2026-11-12 while asking the desktop's fixes of
+11 November here ([the story](#a-desktop-fix-the-port-was-never-asked-about)).
+A new note takes one more than the highest id, so a note deleted from
+the top frees an id the next one takes; the desktop's Share panel and
+History learned to keep their state by the note, not the id.
+
+- **The list's selection is kept by id.** On a wide screen, a selected
+  note moved to the Trash from the editor beside the list leaves its id
+  selected; a note arriving meanwhile, from a share code sent in, takes
+  that id and shows ticked, and the selection's Trash takes it with the
+  rest. The + button is hidden while a selection is on, so a new note
+  from the list cannot reach it; the Trash gives back what it took.
+- **The History's open series are kept by id,** for as long as the
+  History is on screen: a series made there, beside a deleted one, could
+  open unfolded. Nothing is changed or lost.
 
 ### What the audit's tenth round left
 

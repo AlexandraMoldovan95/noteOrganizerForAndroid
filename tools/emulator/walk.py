@@ -2340,14 +2340,32 @@ def statistics(folder):
         {"id": 3, "uid": "walk-s3", "title": "Three", "category": "Personal",
          "created": "2025-06-01 09:00", "updated": "2025-06-01 09:00"},
     ], {"welcome_offered": True, "first_launch_date": "2026-09-01",
-        "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f"}}, "Three")
+        "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f",
+                       "Ideas": "#90be6d"}}, "Three")
     tap("Settings", exact=True, wait=1.2)
     tap("Statistics", wait=1.5)
     check("the page counts the notebook's notes and says since when",
           not says_soon("Total notes", "Using Note Organizer since 01.09.2026"),
           str(screen_says("Total notes", "Using Note Organizer since 01.09.2026")))
+    total = tile_figure("Total notes")
+    check("the Total notes tile says 3", total == "3", str(total))
+    # Four categories, notes in three: Ideas holds none and still counts.
+    kinds = tile_figure("Categories")
+    check("the Categories tile counts every category, the empty one too", kinds == "4", str(kinds))
     shot(folder, "31-statistics", "Total notes")
     back_to("Search notes")
+
+
+def tile_figure(caption):
+    """The figure printed over [caption] in a Statistics tile: the nearest
+    number above it in its own column, as the screen draws it."""
+    seen = nodes()
+    under = next((c for t, _d, c in seen if t == caption), None)
+    if under is None:
+        return None
+    above = [(under[1] - c[1], t) for t, _d, c in seen
+             if t.isdigit() and abs(c[0] - under[0]) < 150 and 0 < under[1] - c[1] < 250]
+    return min(above)[1] if above else None
 
 
 def calculator_in_cell(folder):

@@ -740,8 +740,10 @@ it and read back from the file:
   History; a repeat chosen on the sheet.
 * **The list**: Show 📅 Dated, grouping, a folded group — the choices kept
   under the desktop's own keys.
-* **Statistics** over a notebook whose figures are known: the page and its
-  first-use date are read; its counts are the unit tests' (`StatsTest`).
+* **Statistics** over a notebook whose figures are known: the page, its
+  first-use date and two tiles are read — Total notes, and Categories
+  counting one that holds no note; the other counts are the unit tests'
+  (`StatsTest`).
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
