@@ -10,6 +10,15 @@ on its side that still expected the list to keep room under its cards
 for the +, now in the rail; rewritten, its part walked again, all 25
 passed.
 
+For 0.14.1, on 2026-11-12, one run: `py -I tools/emulator/walk_groups.py`,
+its self-test first (30 of 30), walked all 76 parts in eight groups, each
+on an emulator started cold on its own port and stopped after it: all 633
+passed, no group walked twice, no emulator left running after. The two
+parts new since 0.14.0, a second code over the open dialog and the menu
+on a blank new note, passed in it. One APK throughout; its summary names
+two commits because the self-test was committed while the walk ran,
+nothing of the app between them.
+
 For the release cut, 0.14.0, on 2026-11-08 and 09, five runs:
 
 - The first lost the emulator after about 155 checks: it stopped

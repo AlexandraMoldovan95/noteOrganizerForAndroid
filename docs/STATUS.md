@@ -699,7 +699,7 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-74 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+76 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
 It takes the machine's one turn as it starts, waits for an emulator just
 started to settle, and reads every frame check after a look at the
 screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
