@@ -528,12 +528,9 @@ object Importing {
         if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
 
         val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
-        // Days a series' copy set aside (an Update replacing another series'
-        // copy, a backup's note read) become notes of their own, and are
-        // said; an older notebook's came in unsaid otherwise. Worked out
-        // before the first write, with the rest: one failing after it left the
-        // settings, templates and Trash written and said "your notes are as
-        // they were".
+        // Days a series' copy set aside become notes of their own, and are
+        // said; worked out before the first write, as all the work is, so a
+        // failure in it leaves nothing written.
         val earlierText = if (changed) Notebook.settleAside(candidate) else 0
 
         // The writes, in the desktop's order: settings, templates, Trash,

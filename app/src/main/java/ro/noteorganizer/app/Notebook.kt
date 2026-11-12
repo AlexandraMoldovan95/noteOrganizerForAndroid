@@ -129,11 +129,8 @@ data class Note(
      */
     private val previewParts: Pair<List<String>, Int> by lazy {
         val (prose, tables) = previewText(body)
-        // A list item keeps its words without its marker: the dot already
-        // says a new line begins, and "· • milk" read as two marks. One with
-        // no words is a blank line, left out.
-        // Each line's spaces squeezed, as the desktop's lines_apart: trimmed
-        // alone, a run of spaces inside a line reached the card whole.
+        // As the desktop's lines_apart: list markers off ("· • milk" read as
+        // two marks), each line's spaces squeezed, a line of none left out.
         Pasting.stripListMarkers(prose).split("\n")
             .map { PyText.split(it).joinToString(" ") }
             .filter { it.isNotEmpty() } to tables

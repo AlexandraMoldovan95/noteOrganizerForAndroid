@@ -222,10 +222,9 @@ object Sharing {
                     "sender to send it again, or to send a backup instead (Settings → " +
                     "Backup → Export).")
 
-        // A code holding a list is whole but holds no notes, as
-        // decode_share_code says: read as an object alone, it was called
-        // damaged here. (org.json's own reader takes a bare word for text,
-        // where Python's refuses it, so a list is asked of by name.)
+        // A code holding a list is whole but holds no notes, as decode_share_code
+        // says; a list is asked of by name, since org.json's own reader takes a
+        // bare word for text where Python's refuses it.
         val payload = try {
             val text = Files.utf8(raw)
             if (PyText.lstrip(text).startsWith("[")) {
