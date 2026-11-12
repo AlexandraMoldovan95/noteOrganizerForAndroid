@@ -156,7 +156,10 @@ object Sharing {
 
     /** What a chat app wraps a code with: whitespace, and the invisible break marks. */
     private fun wrapping(c: Char) =
-        c.isWhitespace() || c == '­' || c in '​'..'‍' || c == '⁠' || c == '﻿'
+        // Written by their numbers: the marks themselves are invisible, and an
+        // editor may drop one without a trace (lint read the last as a BOM).
+        c.isWhitespace() || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
+            c == Char(0xFEFF)
 
     /**
      * The share code inside [text], its wrapping taken out -- the desktop's

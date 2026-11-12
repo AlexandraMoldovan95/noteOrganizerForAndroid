@@ -2497,8 +2497,11 @@ private const val INDENT_STEP = 24
 private const val BODY_SIZE = 16
 private const val BODY_LINE_HEIGHT = 24
 
-/** What a painted line break, and an empty last line, are drawn as: a zero-width space. */
-const val STAND_IN = '​'
+/**
+ * What a painted line break, and an empty last line, are drawn as: a
+ * zero-width space, written by its number -- typed in, it is invisible here.
+ */
+val STAND_IN = Char(0x200B)
 
 /**
  * The lines of one field with their indent and alignment, and a list
