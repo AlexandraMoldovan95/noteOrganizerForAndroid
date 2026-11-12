@@ -8,10 +8,15 @@ asks the desktop app's own drawing for Android's sizes.
 
 ## They are taken by a script, not by hand
 
-    py tools/emulator/take_screenshots.py
+    py tools/emulator/take_screenshots.py          the stills, both themes
+    py tools/emulator/take_screenshots.py --gif    demo.gif, the README's moving picture
 
 One command remakes the whole set, which is the point: a set refreshed by
-hand is a set that quietly goes half-stale, one picture at a time.
+hand is a set that quietly goes half-stale, one picture at a time. The
+GIF is ten frames of the same kind, each taken only when the screen says
+what it must; a note is written in it, its keyboard left in those frames
+because that is what a person writing sees, and the note is read back
+from the file before the GIF is written.
 
 The script does four things worth knowing about:
 
@@ -74,6 +79,7 @@ white signal icon.
 | `09-wide-calendar-dark.png` | On its side in Midnight Purple: the calendar, the note's day chosen in the month and the series' days marked, the note open beside it |
 | `10-wide-settings-dark.png` | On its side in Midnight Purple: Settings with Categories open, each category's colour and how many notes it holds |
 | `11-empty-dark.png` | The empty list in Midnight Purple, saying how to begin |
+| `demo.gif` | The README's moving picture: the list, the bread note and its checklist, the expenses table, a note written on the phone's keyboard ("Weekend trip"), the list with it, the month on the calendar, and the list in Midnight Purple |
 
 The files ending in `-dark` are the same screens taken again in Midnight
 Purple, by the same run, after the light ones: the website shows every
@@ -95,5 +101,6 @@ a table, its figures right-aligned by the spaces before them (a markdown
 `---:` under them read as a column set by hand to four characters, and
 the header was drawn "How…" — the 2026-10-23 retake). Against that
 day's light set, these differ by the date the calendar opens on and the
-dates worked out from it. Update this line whenever the set is
+dates worked out from it. `demo.gif` was made the same day for 0.14.2
+(the review panel's ask). Update this line whenever the set is
 recaptured.

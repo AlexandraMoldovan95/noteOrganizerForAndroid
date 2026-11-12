@@ -22,7 +22,8 @@ does not say so is not saved. A screenshot tool that photographs whatever
 happens to be there is how a wrong picture ends up in the documentation
 looking like proof.
 
-    py tools/emulator/take_screenshots.py
+    py tools/emulator/take_screenshots.py          the stills, both themes
+    py tools/emulator/take_screenshots.py --gif    demo.gif alone (needs Pillow)
 
 Needs: a running emulator with the debug app installed, and adb on the
 SDK path. Writes the app's own storage and scratch files on the emulator,
@@ -179,6 +180,29 @@ SHOTS = [
      [("notes", NOTES), ("settings", DARK)],
      ["Hi Maria,", "Home-made bread", "To read"], []),
 ]
+
+# The README's moving picture (--gif; the review panel's ask, 2026-11-08):
+# one frame after each step, on the same notebook and with the same guard
+# as every shot. A note is written in it, so the keyboard stays up while
+# its words are typed -- that is what a person writing sees -- and is
+# put away for every other frame. Each frame: how long it shows (ms), the
+# steps, what the screen must say, what it must not, and whether the
+# keyboard may be in it.
+GIF_FRAMES = [
+    (1800, [], ["Hi Maria,", "Home-made bread", "To read"], [], False),
+    (1800, [("tap", "Home-made bread")], ["Home-made bread", "500 g flour", "yeast"], [], False),
+    (1800, [("back_to", "Search notes"), ("tap", "September expenses")],
+     ["September expenses", "electricity", "1500"], [], False),
+    (700, [("back_to", "Search notes"), ("tap_exact", "+"), ("tap", "Title"), ("type", "Weekend")],
+     ["Weekend"], [], True),
+    (700, [("type", " trip")], ["Weekend trip"], [], True),
+    (700, [("tap", "Write your note"), ("type", "Pack the tent")], ["Pack the tent"], [], True),
+    (1300, [("type", " and the stove.")], ["Pack the tent and the stove."], [], True),
+    (1800, [("back_to", "Search notes")], ["Weekend trip", "Home-made bread"], [], False),
+    (1800, [("tap_exact", "Calendar")], ["📋 History", "Mon", "🎂"], [], False),
+    (2200, [("tap_exact", "Notes"), ("settings", DARK)], ["Hi Maria,", "Weekend trip"], [], False),
+]
+GIF_WIDTH = 360
 
 
 def put(name, value):
@@ -359,6 +383,79 @@ def act(step):
     raise ValueError(kind)
 
 
+def shutter(present, absent, keyboard=False):
+    """The screen as PNG bytes, once it says every word in [present] and
+    none in [absent]; None otherwise, said why, with what it said. The
+    keyboard is put away first unless [keyboard] lets it be in the picture.
+
+    Read again for up to ten seconds, not once: a screen read a fixed
+    moment after its step is the walk's old flake (its says_soon, 8 Nov),
+    and the first frame of the GIF, the app's first start on a cold
+    emulator, was refused by one read that came before the list."""
+    if not keyboard:
+        hide_keyboard()
+    time.sleep(0.8)
+    deadline = time.time() + 10
+    late = False
+    while True:
+        text = screen_text()
+        missing = [w for w in present if w not in text]
+        still = [w for w in absent if w in text]
+        if not (missing or still) or time.time() > deadline:
+            break
+        time.sleep(0.5)
+        late = True
+    if missing or still:
+        print("   the screen does not say %s%s -- not photographing; it says: %s"
+              % (", ".join(repr(m) for m in missing),
+                 (" and still says %s" % ", ".join(repr(s) for s in still))
+                 if still else "", text[:300] or "(nothing read)"))
+        return None
+    if late:
+        time.sleep(0.6)  # arrived during the wait: let its animation end
+    if not capture(adb_bytes):
+        print("   the screen could not be captured -- not photographing")
+        return None
+    return adb("exec-out", "cat", SHOT, binary=True)
+
+
+def take_gif():
+    """docs/screenshots/demo.gif from GIF_FRAMES; what failed, or nothing.
+    One frame that fails, or a note not saved as typed, writes no GIF: the
+    one there stays as it was."""
+    try:
+        from PIL import Image
+    except ImportError:
+        print("--gif needs Pillow (py -m pip install Pillow)")
+        return ["Pillow"]
+    if not seed(SETTINGS):
+        return ["seed"]
+    demo_status_bar(True)
+    frames = []
+    for number, (ms, steps, present, absent, keyboard) in enumerate(GIF_FRAMES, 1):
+        print("-- frame %d" % number)
+        if not all(act(step) for step in steps):
+            return ["frame %d" % number]
+        data = shutter(present, absent, keyboard)
+        if data is None:
+            return ["frame %d" % number]
+        image = Image.open(io.BytesIO(data)).convert("RGB")
+        height = round(image.height * GIF_WIDTH / image.width)
+        frames.append((image.resize((GIF_WIDTH, height), Image.LANCZOS), ms))
+    # The words typed in the picture, read back from the file the app wrote.
+    written = [n for n in read("notes_data.json") or [] if n.get("title") == "Weekend trip"]
+    if len(written) != 1 or written[0].get("body") != "Pack the tent and the stove.":
+        print("   the note written in the picture was not saved as typed: %r" % written)
+        return ["the written note"]
+    images = [im.convert("P", palette=Image.ADAPTIVE, colors=128) for im, _ms in frames]
+    path = os.path.join(OUT, "demo.gif")
+    images[0].save(path, save_all=True, append_images=images[1:],
+                   duration=[ms for _im, ms in frames], loop=0, optimize=True)
+    print("   %s: %d frames, %d KB" % (os.path.relpath(path, ANDROID), len(frames),
+                                     os.path.getsize(path) // 1024))
+    return []
+
+
 def main():
     if not os.path.exists(ADB):
         print("adb is not at %s" % ADB)
@@ -371,9 +468,11 @@ def main():
     found = {key: adb("shell", "settings", "get", "system", key).strip()
              for key in ("accelerometer_rotation", "user_rotation")}
 
+    gif = "--gif" in sys.argv[1:]
+    passes = () if gif else ((SETTINGS, ""), (DARK, "-dark"))
     failed = []
     try:
-        for settings, suffix in ((SETTINGS, ""), (DARK, "-dark")):
+        for settings, suffix in passes:
             if not seed(settings):
                 return 1
             demo_status_bar(True)
@@ -387,29 +486,18 @@ def main():
                 if not all(act(step) for step in steps):
                     failed.append(name)
                     continue
-                hide_keyboard()
-                time.sleep(0.8)
-                text = screen_text()
-                missing = [w for w in present if w not in text]
-                still = [w for w in absent if w in text]
-                if missing or still:
-                    print("   the screen does not say %s%s -- not photographing"
-                          % (", ".join(repr(m) for m in missing),
-                             (" and still says %s" % ", ".join(repr(s) for s in still))
-                             if still else ""))
+                data = shutter(present, absent)
+                if data is None:
                     failed.append(name)
                     continue
-                if not capture(adb_bytes):
-                    print("   the screen could not be captured -- not photographing")
-                    failed.append(name)
-                    continue
-                data = adb("exec-out", "cat", SHOT, binary=True)
                 target = os.path.join(OUT, name + ".png")
                 with open(target, "wb") as f:
                     f.write(data)
                 print("   %s" % os.path.relpath(target, ANDROID))
             # Upright again: the dark pass ends on its side, at 08-wide.
             act(("turn", 0))
+        if gif:
+            failed = take_gif()
     finally:
         # However the run ended: a failed seed or a stuck adb left the
         # emulator on its side, its own turning off.
