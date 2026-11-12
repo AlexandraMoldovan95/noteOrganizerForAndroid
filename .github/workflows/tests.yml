@@ -57,9 +57,9 @@ jobs:
     runs-on: ubuntu-latest     # Windows costs 2x a minute, macOS 10x
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: "21"
@@ -74,13 +74,13 @@ jobs:
       # whole step dies on "Failed to find package 'tools'". Every step
       # after it is then skipped, including the tests. We do not use that
       # package; the platform itself is downloaded by the build.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
           packages: ''
 
       # Caches Gradle itself and the dependencies, so the runs after the
       # first are minutes shorter -- the cheapest saving available.
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
 
       - run: chmod +x gradlew
 
@@ -96,7 +96,7 @@ jobs:
 
       - name: Keep the results, so a failure can be read
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-results
           path: app/build/test-results/testDebugUnitTest/

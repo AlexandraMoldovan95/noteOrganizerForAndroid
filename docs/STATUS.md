@@ -403,10 +403,11 @@ Grouped by what the app does; when each item arrived is in the
 
 39. The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests)),
     mutation-tested; seven ports held to fixtures the desktop's own Python
-    wrote; eight gates against drift (the note's shape and the palettes
+    wrote; nine gates against drift (the note's shape and the palettes
     against the desktop's Python, the rules layer free of Android, the
     repository in English, comments that say why, every mutant aimed at
-    today's code, the test plan's count, test results no older than the
+    today's code, CI's token read-only and its actions pinned, the test
+    plan's count, test results no older than the
     code), one on
     what the tests write out (a share code made here, read back by the
     desktop's own Python), and two on the built release APK (every file

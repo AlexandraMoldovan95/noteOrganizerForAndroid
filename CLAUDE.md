@@ -145,6 +145,7 @@ past the others:
     py tools/check_english.py          # the repository is English
     py tools/check_comments.py         # comments say why; stories go to the issues log
     py tools/check_mutant_targets.py   # every mutant finds its code, and one left alive says why
+    py tools/check_workflows.py        # CI's token only reads; every action is pinned to a commit
     py tools/check_test_plan.py        # the test plan's count in qa/README is the plan's
 
 And for a change anybody will see, the walk on the emulator

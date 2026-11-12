@@ -34,14 +34,15 @@ jobs:
   # Three boundaries that are easy to cross without noticing, in one cheap
   # job: Android must stay out of the rules layer, Romanian out of anything
   # written for a developer, and stories out of the comments. All three
-  # were crossed once.
+  # were crossed once. With them: every mutant aimed at today's code, and
+  # CI's own rights (a token that only reads, actions pinned to a commit).
   boundaries:
     name: The boundaries hold
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.x"
       - name: Android stays out of the rules layer
@@ -52,13 +53,15 @@ jobs:
         run: python tools/check_comments.py
       - name: Every mutant finds the code it mutates
         run: python tools/check_mutant_targets.py
+      - name: CI may only read, and runs only the actions it pinned
+        run: python tools/check_workflows.py
 
   contract:
     name: The two programs still agree
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Both repositories are private, so reading the desktop app needs a
       # token of its own: a fine-grained personal access token with
@@ -84,14 +87,14 @@ jobs:
       # The desktop app is the specification. It is READ here and never
       # written to, exactly as on a development machine.
       - name: Fetch the desktop app, as the specification
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: AlexandraMoldovan95/noteOrganizer
           path: .desktop
           token: ${{ secrets.DESKTOP_REPO_TOKEN }}
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.x"
 

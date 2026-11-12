@@ -27,7 +27,7 @@ failure.
 | **Unit tests on the JVM** ([how many](#the-unit-tests)) | `gradlew.bat testDebugUnitTest`, then `py tools/check_test_results.py` | A rule ported from Python that does not match the Python — held, where the rule can be run on its own, to answers the desktop's own Python wrote |
 | **The note-shape and palette gates** | `py tools/check_note_shape.py`, `py tools/check_palettes.py` | The two programs quietly disagreeing about what a note *is*, or what a theme looks like |
 | **The interop gate** | `py tools/check_interop.py`, after the unit tests (not in CI) | The desktop's own Python reading a code made here differently |
-| **The boundaries** | `py tools/check_layering.py`, `check_english.py`, `check_comments.py`, `check_mutant_targets.py` | Android leaking into the rules layer, which would push its tests onto a device; Romanian in the repository; a story told in a comment; a mutant that no longer finds its code |
+| **The boundaries** | `py tools/check_layering.py`, `check_english.py`, `check_comments.py`, `check_mutant_targets.py`, `check_workflows.py` | Android leaking into the rules layer, which would push its tests onto a device; Romanian in the repository; a story told in a comment; a mutant that no longer finds its code; a workflow whose token may write, or an action not pinned to a commit |
 | **The test plan's count** | `py tools/check_test_plan.py` | The plan's numbers written down wrong where this page gives them |
 | **The release gate** | `py tools/check_release_lookups.py`, after `gradlew.bat assembleRelease` | Code the shrinker renamed, still looking a file up by its old place |
 | **The licenses gate** | `py tools/make_licenses.py --check`, after `gradlew.bat assembleRelease` | A library the app carries that its Open-source licenses page does not name |
@@ -201,7 +201,10 @@ documents still give the plan's own numbers, in English
 Each workflow's token may only read this repository (`permissions:
 contents: read`): nothing in CI pushes, comments or publishes. The
 desktop's code is read with a token of its own, Contents: Read-only on
-that one repository.
+that one repository. Every action is pinned to the commit its tag named
+when it was chosen, the tag beside it; `tools/check_workflows.py`, in the
+boundaries job, holds both, and says how to move an action to a newer
+release.
 
 The unit-test job does not trust Gradle's exit code alone: it runs
 `tools/check_test_results.py` afterwards — with `if: always()`, so it
