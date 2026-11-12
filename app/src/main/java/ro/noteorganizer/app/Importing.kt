@@ -41,13 +41,15 @@ object Importing {
     private fun positions(notebook: JSONArray): Map<String, Int> {
         val byUid = HashMap<String, Int>()
         for (i in 0 until notebook.length()) {
-            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.trim()
+            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.let { PyText.strip(it) }
             if (!uid.isNullOrEmpty()) byUid.putIfAbsent(uid, i)
         }
         return byUid
     }
 
-    private fun uidOf(note: JSONObject): String? = (note.opt("uid") as? String)?.trim()?.ifEmpty { null }
+    // Stripped as normalize_note strips it (Python's spaces), or a uid kept
+    // with a U+0085 by one program was another note to the other.
+    private fun uidOf(note: JSONObject): String? = (note.opt("uid") as? String)?.let { PyText.strip(it) }?.ifEmpty { null }
 
     data class Plan(
         val source: Source,
@@ -349,6 +351,9 @@ object Importing {
         val trash = load.trashRaw ?: JSONArray()
         val now = Files.now()
         val settings = load.settings
+        // The files here before the import: a write that fails takes back
+        // only what the import brought ([dropBrought]).
+        val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
 
         // 1. The backup's categories, added -- a name already here keeps
         //    its own colour -- and refused whole where the loader would drop
@@ -442,8 +447,10 @@ object Importing {
             val nextId = newIds.next()
             note.put("id", nextId)
             if (firstId == 0) firstId = nextId
-            if (note.optString("created").isEmpty()) note.put("created", now)
+            // In normalize_note's order: a note with no "created" was made
+            // when it was last changed, not when it was imported.
             if (note.optString("updated").isEmpty()) note.put("updated", now)
+            if (note.optString("created").isEmpty()) note.put("created", note.optString("updated"))
             candidate.put(note)
         }
 
@@ -520,33 +527,50 @@ object Importing {
             (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
         if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
 
+        val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
+        // Days a series' copy set aside (an Update replacing another series'
+        // copy, a backup's note read) become notes of their own, and are
+        // said; an older notebook's came in unsaid otherwise. Worked out
+        // before the first write, with the rest: one failing after it left the
+        // settings, templates and Trash written and said "your notes are as
+        // they were".
+        val earlierText = if (changed) Notebook.settleAside(candidate) else 0
+
         // The writes, in the desktop's order: settings, templates, Trash,
-        // and the notes last.
+        // and the notes last. One that fails takes back the files nothing
+        // uses, and says what came in.
+        var wroteExtras = false
+        var trashNow = trash
+        fun stopped(problem: String): Result {
+            dropBrought(attachmentsDir, filesBefore, notebook, trashNow)
+            return Result.Failed(problem + " None of the backup's notes came in" +
+                (if (wroteExtras) "; what it brings besides them was kept, and importing it again adds only the rest." else "."))
+        }
         if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0 || adoptsWindow)) {
             Files.writeAtomic(settings.file, settingsCandidate.toString(2))?.let {
-                return Result.Failed("settings.json could not be written: $it")
+                return stopped("settings.json could not be written: $it.")
             }
             for (key in settingsCandidate.keys()) settings.raw.put(key, settingsCandidate.opt(key))
+            wroteExtras = true
         }
         if (templatesCandidate != null && templatesFile != null) {
             Files.writeAtomic(templatesFile, templatesCandidate.toString(2))?.let {
-                return Result.Failed("templates.json could not be written: $it")
+                return stopped("templates.json could not be written: $it.")
             }
+            wroteExtras = true
         }
         if (trashCandidate != null && trashFile != null) {
             Files.writeAtomic(trashFile, trashCandidate.toString(2))?.let {
-                return Result.Failed("The Trash could not be written: $it")
+                return stopped("The Trash could not be written: $it.")
             }
             load.trashRaw?.let { live -> replaceContents(live, trashCandidate) }
+            trashNow = trashCandidate
+            wroteExtras = true
         }
-        val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
-        var earlierText = 0
         if (changed) {
-            // Days a series' copy set aside (an Update replacing another
-            // series' copy, a backup's note read) become notes of their own,
-            // and are said; an older notebook's came in unsaid otherwise.
-            earlierText = Notebook.settleAside(candidate)
-            Files.writeAtomic(notesFile, candidate.toString(2))?.let { return Result.Failed(it) }
+            Files.writeAtomic(notesFile, candidate.toString(2))?.let {
+                return stopped("Your notes could not be written: $it.")
+            }
             replaceContents(notebook, candidate)
         }
         return Result.Done(Outcome(
@@ -563,6 +587,22 @@ object Importing {
             earlierText = earlierText,
             filesOnly = filesOnly,
         ))
+    }
+
+    /**
+     * The files an import brought into [attachmentsDir] that no note and no
+     * Trash entry uses, after a write that failed: the desktop's
+     * `_drop_unclaimed_import_files`. A file here before it is never touched.
+     */
+    private fun dropBrought(attachmentsDir: File?, before: Set<String>, notes: JSONArray, trash: JSONArray) {
+        val dir = attachmentsDir ?: return
+        val used = HashSet<String>()
+        for (list in listOf(notes, trash)) {
+            for (i in 0 until list.length()) (list.opt(i) as? JSONObject)?.let { used += storedNames(it) }
+        }
+        for (name in dir.list().orEmpty()) {
+            if (name !in before && name !in used) File(dir, name).delete()
+        }
     }
 
     private fun replaceContents(live: JSONArray, from: JSONArray) {
