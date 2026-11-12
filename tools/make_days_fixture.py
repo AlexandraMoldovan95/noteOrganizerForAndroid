@@ -132,9 +132,9 @@ REGIONS = {
                          "5bf13b7ba649ec352d859841e0099bf005bba52d"),
     "_take_back_aside": ("    def _take_back_aside(self, note):",
                          "            del self._kept_asides[note.get(\"uid\")]\n",
-                         "4d24c617f68c2a3ca0e23412fe0138f37c8b502f"),
+                         "dd9e751d762760dcc8ccfde407dad663ba861206"),
     "_set_aside_days": ("    def _set_aside_days(self, say=True):", "        return made\n",
-                        "89a665cc3ec167a38c3714fb709ac87b868653ba"),
+                        "79f847a35fdf789a646cc92b5fc8814bbc525e52"),
     "save_notes' head": ("    def save_notes(self):", "        self._set_aside_days()\n",
                          "750c23787a4014458cb007cad0ae1964e4b1c478"),
     # ...and what the copy below writes out by hand (PREV_EXTRA_KEYS, the
