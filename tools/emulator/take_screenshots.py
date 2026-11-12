@@ -170,8 +170,13 @@ SHOTS = [
     ("10-wide-settings", "On its side: Settings, Categories open",
      [("tap_exact", "Settings"), ("tap_exact", "Categories")],
      ["General", "Work", "Personal", "Ideas", "Urgent", "1 note"], ["500 g flour", "Your name"]),
+    # What a person meets before writing anything (the review panel's ask,
+    # 2026-11-08): the notebook emptied, in the pass's own theme.
+    ("11-empty", "A notebook with no notes yet: the list says how to begin",
+     [("turn", 0), ("notes", [])],
+     ["Hi Maria,", "No notes yet. Tap + to write your first."], ["Home-made bread", "To read"]),
     ("06-dark", "The same list in Midnight Purple",
-     [("turn", 0), ("settings", DARK)],
+     [("notes", NOTES), ("settings", DARK)],
      ["Hi Maria,", "Home-made bread", "To read"], []),
 ]
 
@@ -338,6 +343,13 @@ def act(step):
         put("settings.json", step[1])
         restart()
         return True
+    if kind == "notes":
+        # The notebook written again, and read back as written: an empty
+        # one for the first screen, the camera's own to go on after it.
+        put("notes_data.json", step[1])
+        restart()
+        stored = read("notes_data.json")
+        return [n.get("uid") for n in stored or []] == [n["uid"] for n in step[1]]
     if kind == "turn":
         # 0 upright, 1 on its side; the phone's own turning held off.
         adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")

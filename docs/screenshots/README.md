@@ -63,6 +63,7 @@ white signal icon.
 | `08-wide.png` | The phone on its side: the rail at the left, the list, and the note open beside it, its card outlined |
 | `09-wide-calendar.png` | On its side: the calendar, the note's day chosen in the month and the series' days marked, the note still open beside it |
 | `10-wide-settings.png` | On its side: Settings with Categories open across the width, each category's colour and how many notes it holds |
+| `11-empty.png` | What a person meets before writing anything: the greeting, search, and "No notes yet. Tap + to write your first." over an empty list |
 | `01-note-list-dark.png` | The note list in Midnight Purple: the greeting, search, sort and show, and the same cards with their stripes and badges, the pinned note at the top |
 | `02-a-note-dark.png` | The bread note open in Midnight Purple, its bold first line and its checklist below, ticked rows struck through |
 | `03-a-table-dark.png` | The expenses table in Midnight Purple, drawn as a grid, its figures right-aligned |
@@ -72,6 +73,7 @@ white signal icon.
 | `08-wide-dark.png` | On its side in Midnight Purple: the rail, the list, and the note open beside it |
 | `09-wide-calendar-dark.png` | On its side in Midnight Purple: the calendar, the note's day chosen in the month and the series' days marked, the note open beside it |
 | `10-wide-settings-dark.png` | On its side in Midnight Purple: Settings with Categories open, each category's colour and how many notes it holds |
+| `11-empty-dark.png` | The empty list in Midnight Purple, saying how to begin |
 
 The files ending in `-dark` are the same screens taken again in Midnight
 Purple, by the same run, after the light ones: the website shows every
@@ -84,8 +86,9 @@ The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
 month's notes in it would be an empty grid.
 
-**Current set:** captured 2026-10-24 on the emulator, in English, for
-0.11.0, the light set and the dark one in one run. The notebook marks the
+**Current set:** captured 2026-11-12 on the emulator, in English, for
+0.14.1, the light set and the dark one in one run, with the empty list
+new in it (the review panel's ask). The notebook marks the
 day's reminder as already shown, so a day the series falls on does not
 put its bar over the list; the table's seed is written as the app writes
 a table, its figures right-aligned by the spaces before them (a markdown

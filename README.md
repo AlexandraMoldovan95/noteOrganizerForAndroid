@@ -20,6 +20,7 @@ code under her rules, and she approves every push and every merge
 ([how it was built](#how-it-was-built), [how it is checked](#how-it-is-checked)).
 
 <p align="center">
+  <img src="docs/screenshots/11-empty.png" alt="Before the first note: the list says how to begin" width="270">
   <img src="docs/screenshots/01-note-list.png" alt="The note list" width="270">
   <img src="docs/screenshots/06-dark.png" alt="The same list in a dark theme" width="270">
 </p>
