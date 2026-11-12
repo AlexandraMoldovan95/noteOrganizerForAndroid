@@ -132,8 +132,9 @@ inventing behaviour
 
 Requirements: Android Studio (or a JDK plus the Android SDK) and an
 emulator or a device with USB debugging on. Minimum Android 8.0 (API 26),
-the oldest it is built for; walked on Android 17 (the emulator) and used
-on Android 16 (one phone), not yet run on anything older.
+the oldest it is built for; walked on Android 17 (the emulator), its
+[short walk for older systems](tools/emulator/README.md#older-androids)
+run on 8.0, 11 and 13 as well, and used on Android 16 (one phone).
 
 `gradlew` needs a JDK and will not start without one. Where no other is
 installed, point it at the one bundled inside Android Studio:

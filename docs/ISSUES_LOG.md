@@ -7,7 +7,7 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-eight of the hundred and nine
+**the code**, or in **the design**. Twenty-eight of the hundred and eleven
 are about the checking. A few words carry a sense of their own here (a
 bar's *word*, a *road*, a *look*, a *round*, *the lows*):
 [the house words](../CLAUDE.md#house-words).
@@ -22,6 +22,8 @@ points with.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-13](#a-keyboard-nobody-asked-for-on-android-8) | code | The app says it runs from Android 8.0 and had run on 16 and 17 only; on an 8.0 emulator every start opened the keyboard over the list, the search box given the focus by the system | A version the app says it supports is one it has been run on; a tool written for one system judges that system |
+| [2026-11-13](#the-lows-and-the-second-copy-fixed-before-the-stores) | code | The full reading's lows, fixed before the stores: state kept by an id, an import failing halfway, a day trashed twice, a shared file read on the screen's thread, a name lost behind Home -- and the answers the second copy gave otherwise than the desktop | A low is written down to be fixed, not lived with; ask the first copy the odd questions too |
 | [2026-11-12](#a-desktop-fix-the-port-was-never-asked-about) | code | The desktop's Statistics began counting every category on 11 November; the phone, whose tile was a port of the old rule, still counted those holding notes, and nothing compared the two | When the desktop changes a rule the phone ports, the phone is asked in the same change: a sweep by the fix's question crosses the repositories |
 | [2026-11-07](#a-message-read-after-it-went-a-tap-between-two-cards-a-list-left-mid-way) | checking | The full walk after the lows wave: a four-second message read by a five-second look, a tap that stopped a fling between two cards, and steps that search the list started where a turn of the phone had left it | A step that searches the screen starts where the step before it stopped |
 | [2026-11-07](#two-looks-that-judged-what-they-never-read) | checking | A walk's early steps failed twice and passed walked again: a search judged on words never read back, and a look that read the screen from before a tap because adb lost its dump on the way | A file on the device is evidence only when the command that wrote it says it ran |
@@ -134,6 +136,95 @@ points with.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## A keyboard nobody asked for, on Android 8
+
+**2026-11-13.** The app says it runs from Android 8.0 (API 26), and had
+run on 16 and 17 only. Asked whether it was ready for the stores as a
+senior team would ask it, the owner had the older systems tried: Google's
+emulator images for 8.0, 11 and 13 were made into emulators of the same
+screen as the walk's.
+
+The whole walk, run on 8.0, failed 132 of its first group's checks, and
+almost all of them were the tool: it reads the system's own accounts
+(`dumpsys`, the keyboard's insets) as Android 17 writes them, and once a
+step lost its way every step after it did. A short walk was written for
+what an older system could break instead -- `tools/emulator/older_android.py`,
+plain taps and typing, the file read back, Android's crash log read for
+the app after every step.
+
+Its first photograph on 8.0 showed the list with the search box focused
+and the keyboard open over the list's buttons. Nobody had touched
+anything: Android 8 gives the window's first view that takes focus by
+touch the focus as it starts, and the search box was that view; Android 9
+stopped doing so, which is why 11, 13, 16 and 17 never showed it. Every
+start on an Android 8 phone opened the keyboard.
+
+On Android 8 alone an empty view now comes first in the window and
+catches that focus; a tap still focuses whatever it lands on. The short
+walk's check that no keyboard opens at the start failed on the build
+before the fix and passes after it; on 8.0, 11, 13 and 17 it walks 18 of
+18 steps. Android Lint, run the same day, found no call newer than
+API 26 anywhere in the app.
+
+**The lesson:** a version the app says it supports is a version it has
+been run on, or the claim is a guess. And a tool written for one system
+judges that system: on another, read its failures as the tool's before
+the app's, and write the small walk the other system needs.
+
+---
+
+## The lows and the second copy, fixed before the stores
+
+**2026-11-13.** The full reading of 11 November left findings of low
+severity, which the audit's rule leaves for a wave of their own; the
+owner chose to fix every one before the stores, or say why not.
+
+- **State kept by an id a new note can take**: the list's selection and
+  the History's open series (written down under Still open the day
+  before). Both now keep who the note is -- its uid, else its id, as the
+  desktop's `_order_identity` -- and a pick whose note is gone, or whose
+  id a new note took, drops out (`Note.identity`, `Note.stillPicked`).
+- **A backup's import that failed halfway** left its settings, templates
+  and Trash written, the files it had moved in for the notes named by
+  nothing, and said only the write's error -- or, for a failure in the
+  work done after the first write, "your notes are as they were". All the
+  work now comes before the first write, a failed write takes back the
+  files the import brought, and the words say what came in.
+- **A day off the schedule sent to the Trash went in twice** when the
+  notes' write after the Trash's failed, or the phone stopped between
+  them; the Trash skips a day it already holds. The desktop had the same.
+- **A text file shared from Drive was read on the screen's thread**, and
+  Drive fetches as it is read: the screen waited. It is read on
+  `Dispatchers.IO` now.
+- **The name typed in Settings was lost** when Android ended the app
+  behind Home; it is kept as the app goes to the background, as the
+  template's draft is.
+
+And the second copy of every rule: answers the phone gave otherwise than
+the desktop's Python, on data a person or another program wrote. Each was
+asked of the desktop and brought into line -- Python's spaces in a uid and
+a signature (Kotlin's `trim()` keeps U+0085), words counted across a
+non-breaking space, a file's size rounded as Python rounds, a share code
+holding a list, a template's styles clamped by the line, a card's line
+squeezed, a rescue copy spent by its styles normalized, a note's created
+stamp at import. One went the other way: a pin and a tick count only when
+they are `true`, on both apps now, where the desktop's `bool()` counted a
+hand-written "false".
+
+Two of the phone's own tools went the same way. The days fixture maker
+had stopped on two fingerprints since 6 November: read code only, the
+desktop had changed only how its banner waits behind an Undo, and the
+fingerprints moved with no case changing. And the tests' temporary folder,
+emptied at each run, kept 276 of the last run's folders once when Lint ran
+beside the tests; the emptying is asked again, and a folder it cannot
+empty stops the build saying so.
+
+**The lesson:** a low is written down to be fixed, not lived with. And
+the second copy drifts in the corners nobody types into: ask the first
+copy the odd questions too.
 
 ---
 
@@ -4407,9 +4498,11 @@ History learned to keep their state by the note, not the id.
   that id and shows ticked, and the selection's Trash takes it with the
   rest. The + button is hidden while a selection is on, so a new note
   from the list cannot reach it; the Trash gives back what it took.
+  **Closed 2026-11-13** by 4cad569: a pick keeps who its note is.
 - **The History's open series are kept by id,** for as long as the
   History is on screen: a series made there, beside a deleted one, could
-  open unfolded. Nothing is changed or lost.
+  open unfolded. Nothing is changed or lost. **Closed 2026-11-13** by
+  6ebc82f: kept by the series' uid.
 
 ### What the audit's tenth round left
 

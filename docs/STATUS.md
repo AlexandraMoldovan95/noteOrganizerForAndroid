@@ -701,6 +701,8 @@ or the phone itself.
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
 | [The rules](#the-unit-tests-and-their-mutants) | The JVM unit tests ([how many](../qa/README.md#the-unit-tests)), each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
+| [The older Androids](../tools/emulator/README.md#older-androids) | A short walk of what an older system could break, on Android 8.0, 11, 13 and 17, Android's crash log read after every step: 18 of 18 on each, after the fix to the keyboard Android 8 opened at every start; and Android Lint, no call newer than API 26 |
+| A big notebook | 100, 1,000 and 5,000 notes on an emulator held to two cores: start 1.5, 1.6 and 1.9 s, scrolling, typing and saving the same at every size, memory 82 to 105 MB (2026-11-13). The emulator runs on the computer's processor, so a slow phone will be slower; what matters is that nothing grows with the notebook |
 
 ### An emulator walk that reads the files
 
