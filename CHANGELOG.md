@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.14.2](#0142--2026-11-12--every-category-counted) | 2026-11-12 | Every category counted |
 | [0.14.1](#0141--2026-11-12--what-a-full-reading-found) | 2026-11-12 | What a full reading found |
 | [0.14.0](#0140--2026-11-08--the-final-audit) | 2026-11-08 | The final audit |
 | [0.13.0](#0130--2026-10-27--open-source-licenses) | 2026-10-27 | Open-source licenses |
@@ -55,6 +56,17 @@ do before, not as releases anyone ran.
 | [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
 | [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
 | [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
+---
+
+## [0.14.2] — 2026-11-12 — Every category counted
+
+### Fixed
+
+- **Settings → Statistics' Categories tile counts every category,**
+  those holding no note too, as the desktop's does now. It counted only
+  the categories notes were filed under: five categories, notes in one,
+  and it said 1. The list below it still shows how many notes each holds.
 
 ---
 
