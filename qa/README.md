@@ -40,14 +40,14 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-992 tests across thirty-one suites on 8 November 2026 — `NotebookTest` (147),
+993 tests across thirty-one suites on 12 November 2026 — `NotebookTest` (147),
 `DaysTest` (75), `TablesTest` (72), `AppStateTest` (68), `RecurrenceTest` (51),
 `EditingTest` (49), `PastingTest` (46), `OrganizingTest` (46), `IdentityTest` (40),
 `ImportingTest` (35), `StylingTest` (34), `CalculatorTest` (34), `ParagraphsTest` (33),
 `EditorTypingTest` (32), `SharingTest` (26), `SettingsTest` (24), `BackupTest` (23),
 `TemplatesTest` (21), `ListingTest` (21), `FindingTest` (20), `ExportingTest` (16),
 `EditorTableTest` (16), `StartupTest` (15), `OutgoingTest` (12), `ThemesTest` (10),
-`EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (4), `LinksTest` (3),
+`EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (5), `LinksTest` (3),
 `InteropTest` (2) and `TempPlaceTest` (2). This is the one place the count is
 kept; the other documents link here. No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see
