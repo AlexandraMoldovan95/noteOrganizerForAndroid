@@ -1389,6 +1389,24 @@ class DaysTest {
     }
 
     @Test
+    fun `a day the Trash already holds, its notes write lost, is not put in a second time`() {
+        // The Trash is written first: a notes write that failed, or a phone
+        // stopped between the two, left the day in both, and sending it again
+        // put a second copy in the Trash.
+        val load = scratch(offTheSchedule)
+        val notesBefore = load.file!!.readText()
+        assertTrue(Days.settleOffScheduleDay(load, 1, "2026-10-12", Days.Settle.TRASH) is SaveResult.Ok)
+        val trashedOnce = load.trashFile!!.readText()
+        load.file!!.writeText(notesBefore)
+        val again = Notebook.load(dirOf(load))
+        assertEquals("fixture: the day is still on the series", listOf("2026-10-12"), Recurrence.offScheduleDays(firstOnDisk(again)))
+        assertTrue(Days.settleOffScheduleDay(again, 1, "2026-10-12", Days.Settle.TRASH) is SaveResult.Ok)
+        assertEquals("one copy in the Trash", 1, JSONArray(again.trashFile!!.readText()).length())
+        assertEquals(trashedOnce, again.trashFile!!.readText())
+        assertTrue("and the day has left the series", Recurrence.offScheduleDays(firstOnDisk(again)).isEmpty())
+    }
+
+    @Test
     fun `a day moved there takes its move with it`() {
         // Monday the 12th was held on Wednesday the 14th; the repeat, now on
         // Tuesdays, gives the 12th no more, so the move draws nothing.
