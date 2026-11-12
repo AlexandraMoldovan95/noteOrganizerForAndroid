@@ -167,6 +167,7 @@ class MainActivity : ComponentActivity() {
                 flush = {
                     (state.flushAway ?: state.flush)?.invoke()
                     state.keepTemplateDraft?.invoke()
+                    state.keepNameDraft?.invoke()
                 }
             }
             val waiting by incoming

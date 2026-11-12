@@ -317,6 +317,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     var keepTemplateDraft: (() -> Unit)? = null
 
     /**
+     * Saves the name typed in Settings → General: registered by its page
+     * while it is open, called by the activity as the app goes to the
+     * background, beside [flush]. The page saved it on Save, Done or leaving
+     * it, and Android may end the app in the background with none of those.
+     */
+    var keepNameDraft: (() -> Unit)? = null
+
+    /**
      * Where that draft waits: the app's own storage that Android's backup
      * leaves out -- a draft is this phone's, for a moment. The activity
      * gives it Android's no-backup folder; on the computer, beside the notebook.

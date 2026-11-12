@@ -996,6 +996,17 @@ def brand_new(folder):
     check("the list greets by name", not says_soon("Hi Maria,", "Search notes"),
           str(screen_says("Hi Maria,", "Search notes")))
     shot(folder, "09-greeting", "Hi Maria,", "Search notes")
+    # Typed and left behind Home, never saved: the page saved on Save, Done
+    # or leaving it, and an app Android ended behind Home took the name along.
+    tap("Settings", exact=True)
+    tap("Your name")
+    tap("Name", exact=True)
+    type_text(" Pop")
+    home()
+    check("a name typed and left behind Home is kept when Android ends the app there",
+          kill_behind() and (read_file("settings.json") or {}).get("username") == "Maria Pop",
+          str((read_file("settings.json") or {}).get("username")))
+    start_app()
 
 
 # ---- the second walk: a notebook written for the camera ----
