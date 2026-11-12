@@ -96,6 +96,25 @@ writes to the user's real data.
 Explain what the command will do in plain words before asking — not just
 a summary, the actual effect.
 
+### Code that arrives from GitHub is read before it runs
+
+The owner's rule, 2026-11-12, as on the desktop. This repository's code
+runs here all day (Gradle executes the build scripts, the walk and the
+tools run Python), and pulling asks nothing. A commit nobody here wrote,
+reaching `main` through a stolen account or a pull request merged
+unread, would run on the owner's computer with her rights.
+
+- After every `pull` or `fetch`, and after the owner merges on GitHub,
+  show what arrived (`git log --format='%h %an <%ae> %s' OLD..NEW` and
+  `git diff --stat OLD..NEW`) **before** building or running anything.
+- Expected: what was pushed from here, and the owner's merge of it. A
+  commit that is neither (another author, or a change nobody here made,
+  above all to the workflows, `gradlew`, `gradle/` or a `*.gradle.kts`
+  file, or `tools/`) means stop and ask before anything runs.
+- A stranger's pull request is read on GitHub, never checked out and run
+  here. CI runs it on GitHub's machines, with a token that can only read
+  (`tools/check_workflows.py`).
+
 ### Measure before believing
 
 The desktop project's hardest-won lesson, and it applies here too: when
