@@ -9,15 +9,16 @@ mechanically is proved on the real app before it is called done, and the
 judgement calls a script cannot make are named out loud instead. These
 are the hands that do the first half.
 
-## The five tools
+## The tools
 
 Each one is kept because it survives a specific way the emulator lies to
 a script. The first two were written during the identity work and lived
 in a temporary folder until 2026-09-13, which meant the next session
 would have written them again; the third came with the documentation
-pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
-`emulator_only.py`, the door the other four send adb through, on
-2026-10-16.
+pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15;
+`emulator_only.py`, the door the others send adb through, on 2026-10-16;
+the group runner on 2026-11-11; and the walk for older Androids on
+2026-11-13.
 
 | Tool | What it does | Why it exists |
 |---|---|---|
@@ -27,10 +28,11 @@ pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15; and
 | `walk_groups.py` | walks the whole walk in groups of ten parts, each on an emulator it starts cold, on its own port and without a window, and stops after; a group whose emulator, not the app, got stuck is walked once more. It writes one summary and an exit code that is 0 only when every part was walked and every check passed. `walk_groups_selftest.py` proves those promises against a fake emulator, adb and walk, and `--mutants` breaks each on purpose | a whole walk on one emulator lost it twice in five runs; the runner uses and stops only the emulator it started ([how it is run](../../qa/README.md#the-emulator-walk)) |
 | `take_screenshots.py` | writes a notebook made for the camera straight into the app's own storage, walks eleven screens — three of them on its side — and photographs each one, then the same screens again in a dark theme (`NN-name-dark.png`). With `--gif`, the README's `demo.gif` instead: ten frames on the same notebook, a note written in it and read back from the file | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen — and those that must be gone — before the shutter opens, waiting up to ten seconds for them; a screen that does not say them is not photographed |
 | `type_code.py <file> <x> <y>` | taps the field at (x, y), types the file's contents in 100-character pieces, then dumps the UI and compares what arrived against the original | `adb shell input text` truncated a 634-character share code at 181 — silently. A code cut short is indistinguishable from a damaged one, so the typing is verified rather than assumed |
+| `older_android.py <folder> --avd <name> [--avd ...]` | on each emulator named, started cold and stopped after: the first start (and that no keyboard opens), a note written and read back, the calendar, a dark theme, the phone turned, the share sheet, the reminders page, the system's file picker, a restart, with Android's crash log read for the app after every step ([older Androids](#older-androids)) | the app says it runs from Android 8.0 and had run on 16 and 17 only; the whole walk reads the Android it was written on and loses its way on 8. Its first run found the search box's keyboard opening at every start on Android 8 |
 
-All six need the SDK's `adb` on the machine (found through
+All seven need the SDK's `adb` on the machine (found through
 `local.properties`' `sdk.dir`, `ANDROID_HOME` or `ANDROID_SDK_ROOT`,
-`%LOCALAPPDATA%\Android\Sdk`, then the `PATH`), and all six are
+`%LOCALAPPDATA%\Android\Sdk`, then the `PATH`), and all seven are
 Windows-flavoured. None of them reads or writes a real notebook. On the
 emulator they write to the app's own storage and to scratch files under
 `/sdcard` (its `Download` folder, `ui.xml`, `shot.png`) and `/data/local/tmp`; the walk also switches the
@@ -47,6 +49,30 @@ software: drawn by the graphics card, it fell over mid-walk (exit 139,
 2026-10-29). Drawn in software, its launcher never rests, so Android
 stops an app sent Home ten seconds later rather than at once; the walk
 waits for that stop (`home()` in `walk.py`), never for a fixed time.
+
+## Older Androids
+
+The app is built for Android 8.0 and later (API 26). Its walks run on
+Android 17 and it is used on 16; `older_android.py` walks what an older
+system could break on 8.0, 11 and 13, as 13 November 2026's run did
+(18 of 18 steps on each, after the fix to the keyboard Android 8 opened
+at every start). Android Lint, run the same day, found no call newer
+than API 26 anywhere.
+
+The emulators are made from Google's images, one per version, through
+the SDK's own tools. Written with slashes, as the SDK's list writes them:
+Git Bash rewrites an argument holding semicolons as a list of paths, and
+the image is not found.
+
+    sdkmanager.bat "system-images/android-26/google_apis/x86_64"
+    avdmanager.bat create avd -n noteorg_api26 -k "system-images;android-26;google_apis;x86_64" -d medium_phone
+
+(`avdmanager` wants the semicolons: give it `MSYS2_ARG_CONV_EXCL="*"` and
+`cmd /c`.) Each AVD then takes `noteorg_test`'s screen and memory: 1080 by
+2400 at 420 dpi, 2 GB. The images are large -- 3.2 GB for Android 8.0,
+3.3 GB for 11, 8.2 GB for 13 -- so they are removed when the walk is done
+(`sdkmanager.bat --uninstall` with the same names, and `avdmanager.bat
+delete avd -n <name>`), and made again the next time.
 
 ## One heavy job at a time, and the emulator stopped after it
 

@@ -217,6 +217,16 @@ class MainActivity : ComponentActivity() {
                 AppTheme(palette) { veil.Over { AppRoot(state, versionName()) } }
             }
         }
+        // Android 8 focuses the first focusable view as the window starts: the
+        // search box, whose keyboard covered the list's buttons at every start.
+        // An empty view first catches it (Android 9 and later focus none).
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.P) {
+            findViewById<android.view.ViewGroup>(android.R.id.content).addView(android.view.View(this).apply {
+                isFocusable = true
+                isFocusableInTouchMode = true
+                importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, 0, android.view.ViewGroup.LayoutParams(0, 0))
+        }
     }
 
     private var barsDark: Boolean? = null
