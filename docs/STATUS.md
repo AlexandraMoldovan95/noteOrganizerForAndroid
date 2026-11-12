@@ -471,6 +471,13 @@ the two now agree.
 tour that is itself a note — but written for a phone: tap, long press,
 the share sheet, Settings at the bottom.
 
+**A card's signs stay in one row.** Since its 0.100.524 the desktop's
+card sets its signs on two fixed lines: first where the note belongs
+(its category, its date or its repeat), then what it holds (comments,
+files, tables, a checklist), never a sign split between them. The
+phone's card keeps its badges in one row under the preview, as before:
+the owner's choice, for now (2026-11-12).
+
 Phase 2 added five more, each where the desktop's answer was a side
 effect or a fault rather than a rule — all five
 [desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2),
