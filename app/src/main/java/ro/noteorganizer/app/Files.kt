@@ -31,6 +31,11 @@ object Files {
 
     internal fun writesHeld(file: File): Boolean = heldKey(file) in writesHeld
 
+    /** Why a held [file] takes no write, in the words every refusal of it uses. */
+    internal fun heldReason(file: File): String =
+        "${file.name} could not be read or copied aside, so nothing is written over it until " +
+            "the app is closed and opened again"
+
     /**
      * Files whose last read found them unreadable and set them aside: the
      * desktop's `_UNREAD_AT_LOAD`. A run that holds none of the notes file's
@@ -54,10 +59,7 @@ object Files {
      * @return null when it worked, otherwise the reason.
      */
     fun writeAtomic(file: File, bytes: ByteArray): String? {
-        if (writesHeld(file)) {
-            return "${file.name} could not be read or copied aside, so nothing is written over " +
-                "it until the app is closed and opened again"
-        }
+        if (writesHeld(file)) return heldReason(file)
         val tmp = File(file.parentFile, file.name + ".tmp")
         try {
             FileOutputStream(tmp).use { out ->
@@ -88,12 +90,13 @@ object Files {
      *
      * @return the copy (an earlier one holding the same bytes, if there is
      *   one), or null if even the copy failed -- and then nothing is written
-     *   over the original for the rest of the run ([holdWrites]), or until a
-     *   later read in it copies the file aside after all (space freed).
+     *   over the original for the rest of the run ([holdWrites]), as on the
+     *   desktop: a hold ended by a later copy let the next write drop the
+     *   marks the start could not write (the Trash's window, the backup's off).
      */
     fun preserveCorrupt(file: File): File? {
         val kept = copyAside(file)
-        if (kept == null) holdWrites(file) else writesHeld.remove(heldKey(file))
+        if (kept == null) holdWrites(file)
         return kept
     }
 
