@@ -6150,9 +6150,11 @@ def calendar_large_letters(folder):
                 tap("Previous month", exact=True, wait=0.8)
         narrowest = bounds(september)
         drawn = glyphs_drawn(narrowest[0]) if narrowest else None
+        # The button's words are "📋" alone, read out as "📋 History": shown
+        # whole, no node says "📋" by itself.
         check("...and on a 320 dp phone too, History its mark alone",
-              drawn == len(september.replace(" ", "")) and find("History") is not None
-              and find("History", exact=True) is None,
+              drawn == len(september.replace(" ", "")) and find("📋", exact=True) is not None
+              and find("History") is not None,
               "%s, %s letters of %r" % (narrowest, drawn, september))
         shot(folder, "90c-calendar-320dp", "September")
         # ...where the weekdays and the bottom bar's word broke inside the
@@ -6162,6 +6164,17 @@ def calendar_large_letters(folder):
         bar = glyphs_drawn(word[0]) if word else None
         check("...and there the weekdays and the bottom bar's word stay whole",
               heads == [3, 3] and bar == 8, "weekdays %r, Calendar %s" % (heads, bar))
+        # The repeat sheet there: its weekdays in a Row left Sa and Su slivers
+        # no thumb could tap. Su whole, and wider than ten dp.
+        open_note("Dentist")
+        tap("ⓘ", wait=1.2)
+        tap("Does not repeat", wait=1.5)
+        tap("Weekly", exact=True, wait=0.8)
+        sunday = bounds("Su")
+        su = glyphs_drawn(sunday[0]) if sunday else None
+        check("...and the repeat sheet's weekdays stay whole there, Sunday tappable",
+              su == 2 and sunday[0][2] - sunday[0][0] > 10 * 540 / 160.0, "%r, %s letters" % (sunday, su))
+        shot(folder, "90d-repeat-sheet-320dp", "Su")
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "wm", "density", "reset")
@@ -6192,12 +6205,18 @@ def glyphs_drawn(box):
         return 0.299 * raw[at] + 0.587 * raw[at + 1] + 0.114 * raw[at + 2]
 
     ground = sorted(light(x, y) for x in (left + 1, right - 2) for y in (top + 1, bottom - 2))[2]
-    runs, inked = 0, False
+    # Each run's height too: an ellipsis's three dots are runs as well, and
+    # "Calen…" counted eight, as "Calendar" does. A dot is far shorter than a letter.
+    runs, inked = [], False
     for x in range(left, right):
-        ink = any(abs(light(x, y) - ground) > 60 for y in range(top, bottom))
-        runs += ink and not inked
-        inked = ink
-    return runs
+        rows = [y for y in range(top, bottom) if abs(light(x, y) - ground) > 60]
+        if rows and not inked:
+            runs.append([min(rows), max(rows)])
+        elif rows:
+            runs[-1] = [min(runs[-1][0], min(rows)), max(runs[-1][1], max(rows))]
+        inked = bool(rows)
+    tallest = max((b - a for a, b in runs), default=0)
+    return sum(1 for a, b in runs if b - a >= 0.4 * tallest)
 
 
 def bounds_of_desc(start):
