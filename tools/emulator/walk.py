@@ -820,6 +820,7 @@ def main():
     hostile_backups(folder)
     code_read_away(folder)
     shared_files(folder)
+    trash_wide(folder)
     long_lines(folder)
     kept_aside(folder)
 
@@ -3899,9 +3900,10 @@ def shared_files(folder):
     (500,000 characters) is said cut, where the rest went without a word;
     and words shared while a file is read wait their turn, so the file's
     note comes first -- proved on a pipe the read waits on, as a plain file
-    is read before the words could come. The files are offered through the
-    app's own provider, written into its cache by run-as once the app is up
-    (a start empties that folder)."""
+    is read before the words could come. A file the app cannot open is said,
+    and holds back nothing after it. The files are offered through the app's
+    own provider, written into its cache by run-as once the app is up, and
+    removed after."""
     print("\n-- text shared as a file --")
     if not seed_inside([{"id": 1, "uid": "sf-1", "title": "Here", "body": "x", "category": "General",
                          "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
@@ -3958,8 +3960,10 @@ def shared_files(folder):
     adb("push", source, "/data/local/tmp/walk_slow_src.txt")
     os.remove(source)
     adb("shell", "chmod", "644", "/data/local/tmp/walk_slow_src.txt")
+    # Bounded: an app that never opened the pipe left the write blocked, and
+    # the walk said the emulator was stuck instead of failing a check.
     adb("shell", "run-as", PACKAGE, "sh", "-c",
-        "'cat /data/local/tmp/walk_slow_src.txt > cache/share/walk_slow.txt'")
+        "'timeout 20 sh -c \"cat /data/local/tmp/walk_slow_src.txt > cache/share/walk_slow.txt\"'")
     adb("shell", "rm", "-f", "/data/local/tmp/walk_slow_src.txt")
     both = settle(lambda: notes_titled("The slow file, read in the end", "Words shared while the file was read"),
                   lambda notes: len(notes) == 2, within=20.0, first=1.0)
@@ -3970,6 +3974,64 @@ def shared_files(folder):
           repr([(n.get("id"), n.get("title")) for n in both]))
     adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_slow.txt")
     back_to("Search notes")
+
+    # A file the provider cannot open (no such name): said, where it went
+    # without a word, and its place does not hold back the words after it.
+    share_file("walk_missing.txt")
+    unread = not shot_as_said(folder, "131-shared-file-unread",
+                              "Nothing could be read from what was shared", within=20.0)
+    check("a shared file that cannot be opened is said, not dropped", unread)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", "'Words after a file that could not be read'",
+        "-n", PACKAGE + "/.MainActivity")
+    after = settle(lambda: notes_titled("Words after a file that could not be read"),
+                   lambda notes: len(notes) == 1, within=20.0, first=1.0)
+    check("...and words shared after it still become a note", len(after) == 1, repr(after)[:120])
+    back_to("Search notes")
+
+
+def trash_wide(folder):
+    """The Trash page on a phone on its side. Its top (the window's days,
+    the backup, Select all) scrolls with its list: held above it, it left
+    the list less than a row and squeezed the buttons at the page's foot."""
+    print("\n-- the Trash on its side --")
+    if not seed_inside([{"id": 1, "uid": "tw-living", "title": "Living", "category": "General",
+                         "updated": "2026-10-01 09:00:00"}],
+                       {"welcome_offered": True, "trash_retention_days": 30}, "Living"):
+        return
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    put_inside("trash.json", [
+        {"id": 2, "uid": "tw-a", "title": "Sideways one", "category": "General", "deleted_at": now},
+        {"id": 3, "uid": "tw-b", "title": "Sideways two", "category": "General", "deleted_at": now}])
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    # Opened upright, then turned on the page: on its side Settings' own
+    # list holds Trash below the screen.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Trash", exact=True, wait=1.5)
+    turn(1)
+    # As a person would: the list pushed up, to bring its rows into sight.
+    adb("shell", "input", "swipe", "1400", "800", "1400", "250", "400")
+    time.sleep(1.0)
+    row = bounds("Sideways one")
+    foot = bounds("Empty Trash")
+    check("on its side the Trash's rows can be brought into sight above its buttons",
+          bool(row) and bool(foot) and row[0][3] - row[0][1] >= 40 and row[0][3] <= foot[0][1],
+          "row %s, foot %s" % (row, foot))
+    shot(folder, "132-trash-wide", "Sideways one", "Empty Trash")
+    tap("Sideways one", exact=True, wait=1.0)
+    # The button's own box: 40 dp tall when it is not squeezed.
+    px = int((re.findall(r"\d+", adb("shell", "wm", "density")) or ["420"])[-1]) / 160.0
+    restore = tappable_box("↩ Restore 1 selected")
+    check("...and its Restore button is whole, not squeezed",
+          restore is not None and restore[3] - restore[1] >= 38 * px,
+          "%s at %.2f px a dp" % (restore, px))
+    tap("↩ Restore 1 selected", exact=True, wait=1.5)
+    left = [e.get("title") for e in read_file("trash.json") or []]
+    check("...and restores from there", left == ["Sideways two"], repr(left))
+    turn(0)
+    back(wait=1.0)
+    back(wait=1.0)
 
 
 def arranged_from_the_top(folder):
@@ -7257,6 +7319,25 @@ def bounds(label):
             if len(box) == 4:
                 out.append(tuple(box))
     return out
+
+
+def tappable_box(label):
+    """The box of the tappable node around the words [label]: a button's own
+    size, where [bounds] gives its words' line. None when there is none."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return None
+    parent = {child: node for node in root.iter() for child in node}
+    for node in root.iter("node"):
+        if node.get("text", "") == label:
+            at = node
+            while at is not None and at.get("clickable") != "true":
+                at = parent.get(at)
+            box = list(map(int, re.findall(r"\d+", at.get("bounds", "")))) if at is not None else []
+            if len(box) == 4:
+                return tuple(box)
+    return None
 
 
 def picker_save_button(within=15.0):
