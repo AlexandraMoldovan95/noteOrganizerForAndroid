@@ -248,9 +248,10 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 76 parts and about
-636 checks (the full run of 13 November 2026, for wave 6's fixes: 634
-passed, every part in `main()`'s order, in eight groups, each on an
+notebook the app wrote is read back through `run-as`. 77 parts and about
+636 checks (the full run of 13 November 2026, for wave 6's fixes, before
+the 77th, `shared_files`, was written: 634 passed, every part in
+`main()`'s order, in eight groups, each on an
 emulator started cold and stopped after it, by `walk_groups.py`; see
 below why. The two that failed were the walk's own, fixed, and their
 parts walked again: [the run](WALK_RUNS.md)).
@@ -412,7 +413,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 501 cases on 13 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 503 cases on 13 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and

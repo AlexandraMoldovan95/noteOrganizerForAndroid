@@ -715,7 +715,7 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-76 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+77 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
 It takes the machine's one turn as it starts, waits for an emulator just
 started to settle, and reads every frame check after a look at the
 screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
@@ -740,7 +740,9 @@ Phase 1's four:
   remembered; that same backup imported again — the question seen, and
   skipping it changing nothing.
 * **The doors to the rest of the phone**: a code shared in from another
-  app, a note shared out through Android's share sheet, the privacy
+  app; a text file shared in (its own part, `shared_files`, added in wave
+  6), one past 500,000 characters said cut and words shared while a file
+  is read waiting their turn; a note shared out through Android's share sheet, the privacy
   policy opening a browser rather than the app, and About with no
   Feedback section before the app is on Google Play.
 * **The phone changing under an open note**: its dark mode coming on,

@@ -273,13 +273,28 @@ reader taking a comment after a code's object.
 Two more came from the walk, not the reviewers. Two of the first round's
 commits said "the walk's shared-file part goes on reading a file into a
 note": no part of the walk had ever shared a file. One does now
-(`shared_files`, through the app's own provider), and it checks the cut
-and the order above. And the walk's restore from the Trash failed three
-times in a row: a note picked there right after it was deleted showed no
-Restore button, because the delete's "Moved to Trash · Undo" bar lay over
-it for its ten seconds -- passed before only because the bar had gone by
-then. Picking in the Trash now dismisses that bar; picking is its Undo's
-work.
+(`shared_files`, through the app's own provider), and it checks the cut.
+Its first check of the order could not fail -- a plain file is read in
+milliseconds, before the words could come, under the old order too -- as
+the third round showed; it shares a pipe now, which the read waits on
+until the walk writes into it, and checks that the words wait. And the
+walk's restore from the Trash failed three times in a row: a note picked
+there right after it was deleted showed no Restore button, because the
+delete's "Moved to Trash · Undo" bar lay over it for its ten seconds --
+passed before only because the bar had gone by then. Dismissing the bar
+on a pick, the first answer, also dismissed Undos that were the only way
+back (a day's words); the third round said so, and the Trash page now
+tells the window where its buttons are, and messages are drawn above them,
+as above the editor's foot.
+
+The third round also found: a shared file that could not be read, or held
+no text, dropped without a word, and one whose read never returned
+holding back every share after it (each is said now, given up after half
+a minute); a share code cut off with its file called damaged (said as cut
+now); and the second copy's last corners -- categories adopted from notes
+and a title of one mark judged by `trim()`, a restored note with no stamps
+left unstamped, and the code question's catch narrower than Android's
+JSONException.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
