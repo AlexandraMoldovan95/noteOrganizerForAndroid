@@ -50,20 +50,21 @@ here.
 
 ## The map
 
-About 28,800 lines of Kotlin, measured on 11 November 2026. The rules are
-15,500 of them, in files that import nothing from Android; the drawing is
-13,300, in files that may. Each file's count below is rounded.
+About 29,600 lines of Kotlin on 13 November 2026, the rules a little over
+half of them, in files that import nothing from Android, and the drawing
+the rest, in files that may. Each file's count below is rounded, and moves
+with every change: `wc -l` on the folder gives today's.
 
 **The rules** — ported from the desktop's Python, tested on the JVM:
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
-| `Notebook.kt` | 2,900 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Notebook.kt` | 3,050 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
-| `Recurrence.kt` | 1,020 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
+| `Recurrence.kt` | 970 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
 | `Organizing.kt` | 1,000 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 730 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
-| `Tables.kt` | 950 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
+| `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
 | `Importing.kt` | 720 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 640 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 440 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
@@ -75,11 +76,11 @@ About 28,800 lines of Kotlin, measured on 11 November 2026. The rules are
 | `Settings.kt` | 390 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 350 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
 | `Editing.kt` | 1,130 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
-| `Sharing.kt` | 300 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
+| `Sharing.kt` | 380 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
-| `Files.kt` | 220 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Files.kt` | 280 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 180 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 90 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
@@ -91,11 +92,11 @@ About 28,800 lines of Kotlin, measured on 11 November 2026. The rules are
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 4,320 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 1,040 | Settings and its ten pages, Duplicates and Reminders among them |
+| `SettingsScreens.kt` | 1,140 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 600 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 1,270 | The app's state, and every action a screen can take on the notebook |
-| `MainActivity.kt` | 740 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
+| `MainActivity.kt` | 820 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
 | `TemplateScreens.kt` | 770 | Choosing and saving a template, Settings → Templates, the template editor |
 | `ImportFlow.kt` | 400 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
@@ -117,7 +118,8 @@ Four hold drawing-side classes: `AppStateTest`, the order of the saves
 around the open note, which no emulator tap can time
 ([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)), and
 `EditorCopyTest`, `EditorTableTest` and `EditorTypingTest`, the editor's
-model. One holds the test run itself: `TempPlaceTest`, where its
+model; two more reach into that side once, `OutgoingTest` building an
+`AppState` and `NotebookTest` `RichText`'s `blend`. One holds the test run itself: `TempPlaceTest`, where its
 temporary folders go.
 
 ## Decision: a note has two representations, on purpose
@@ -125,8 +127,10 @@ temporary folders go.
 This is the one that explains the most code.
 
 `Notebook.load()` returns a `Load` holding **both** a `List<Note>` — the
-model the screen draws — and `raw: JSONArray`, the array exactly as it
-was parsed from the file.
+model the screen draws — and `raw: JSONArray`, the array as it was
+parsed from the file, with what the load itself mends (a copy's days
+brought back, moves the calendar hides dropped, notes set aside made
+notes), which the next write keeps.
 
 `Note` deliberately reads only what the screen needs. It does not carry
 every field of `exceptions` or `overrides`, and it cannot carry a field
@@ -148,7 +152,9 @@ the guards every write carries, in
 
 ## Decision: write to a copy, then to disk, then to the screen
 
-Every write in the rules layer follows the same three steps:
+Every write in the rules layer follows the same three steps, but for
+`Notebook.createNote`, which appends to the live array, writes, and takes
+the note back out when the write fails:
 
 1. build a **candidate** — a copy of the array, with the change applied;
 2. write the candidate to a sibling `.tmp`, `sync()` it, rename it over
@@ -297,8 +303,9 @@ The share sheet lists the apps itself, so the app declares no `<queries>`
 and never looks at what is installed. A backup is written and read on
 `Dispatchers.IO`, and so is a shared PDF's file — forty pages written on
 the main thread held it 1.2 s
-([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been));
-everything else is small enough for the main thread
+([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-would-have-been)),
+a note exported as a file, a file shared into the app and attached files
+being copied; everything else is small enough for the main thread
 ([for now](#where-this-will-hurt-next)).
 
 ## Decision: `org.json`, and the trap that comes with it
@@ -421,7 +428,7 @@ templates and renumbering are held that way
 ([the ports](STATUS.md#the-phase-2-ports-answer-as-the-desktop-answers)),
 since Phase 3 pasting too — the reader, Python's parser under it and
 the HTML a copy writes — and since the final audit a series' days and
-their rescue copy: seven fixtures ([listed](../qa/README.md#fixtures-the-desktop-wrote)). Where the desktop's lines live inside a window
+their rescue copy, and the fields a newer version wrote: eight fixtures ([listed](../qa/README.md#fixtures-the-desktop-wrote)). Where the desktop's lines live inside a window
 method that cannot be imported, the tool copies them and fingerprints
 the original, and stops when the original changes. Where the phone
 deliberately answers differently, the tool makes the phone's answers by

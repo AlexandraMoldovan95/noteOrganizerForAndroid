@@ -522,6 +522,30 @@ a double compared by its printing, not its value (AS744); the stepper's −
 and + under a thumb's 48 dp; "After 1 times"; and Android's reader
 changing integers below −2^63 as well, said now in DATA_FORMAT.
 
+The twelfth round corrected two of the eleventh's sentences. The two
+hundred thousand texts read or were refused alike, but not always in the
+same words: a code cut within its first sixty characters, before any of
+its stream came out, was called too large to import, where the desktop
+says damaged or incomplete (alike now, AS748). And AS743 was fixed on the
+Import alone: shared in from a chat app, the same newer version's code
+behind a broken prefix was still saved as a note (AS745), and from a file
+read only in part a whole one was called incomplete (AS749). Its medium:
+a settings.json or templates.json that would not read and could not be
+copied aside either was written over, at the next start or the next
+template saved, where the desktop holds such a file (`Files.holdWrites`
+now, both: AS746, AS747; a template's draft held is not deleted either,
+AS750). Its second reader read DATA_FORMAT and
+ARCHITECTURE whole, and found DATA_FORMAT promising more than both apps
+do: a backup carrying the person's choices both ways (it carries the
+categories, the calendar's marks and the Trash window), a short "#rgb"
+text colour widened where both apps leave it out, a set-aside day titled
+with the series' name before its own, styling in a table said unshown
+where a cell's highlight is its fill, and no size cap on a backup where
+the phone refuses one larger than a sixteenth of its memory. Its
+ARCHITECTURE: seven fixtures where there are eight, and line counts that
+did not match the day they were measured on. "Every week, 1 times" under
+the stepper that says "1 time" went on both apps' series line.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

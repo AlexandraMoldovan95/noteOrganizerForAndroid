@@ -40,15 +40,15 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-993 tests across thirty-one suites on 12 November 2026 — `NotebookTest` (147),
-`DaysTest` (75), `TablesTest` (72), `AppStateTest` (68), `RecurrenceTest` (51),
-`EditingTest` (49), `PastingTest` (46), `OrganizingTest` (46), `IdentityTest` (40),
-`ImportingTest` (35), `StylingTest` (34), `CalculatorTest` (34), `ParagraphsTest` (33),
-`EditorTypingTest` (32), `SharingTest` (26), `SettingsTest` (24), `BackupTest` (23),
-`TemplatesTest` (21), `ListingTest` (21), `FindingTest` (20), `ExportingTest` (16),
-`EditorTableTest` (16), `StartupTest` (15), `OutgoingTest` (12), `ThemesTest` (10),
-`EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (5), `LinksTest` (3),
-`InteropTest` (2) and `TempPlaceTest` (2). This is the one place the count is
+1,041 tests across thirty-two suites on 13 November 2026 — `NotebookTest` (153),
+`DaysTest` (76), `TablesTest` (72), `AppStateTest` (69), `RecurrenceTest` (52),
+`OrganizingTest` (50), `EditingTest` (49), `PastingTest` (47), `IdentityTest` (43),
+`ImportingTest` (39), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
+`ParagraphsTest` (33), `EditorTypingTest` (32), `BackupTest` (25), `SettingsTest` (25),
+`ListingTest` (22), `TemplatesTest` (21), `FindingTest` (20), `EditorTableTest` (16),
+`ExportingTest` (16), `StartupTest` (15), `OutgoingTest` (12), `UnknownFieldsTest` (11),
+`ThemesTest` (10), `EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (5),
+`LinksTest` (3), `InteropTest` (2) and `TempPlaceTest` (2). This is the one place the count is
 kept; the other documents link here. No device, no emulator:
 they test the twenty-seven files that contain no Android at all (see
 [ARCHITECTURE](../docs/ARCHITECTURE.md#decision-the-rules-layer-knows-nothing-about-android)),

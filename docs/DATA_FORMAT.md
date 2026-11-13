@@ -91,8 +91,10 @@ unpacked or ignores (since 2026-10-27).
 
 `settings.json` is read with the desktop's own keys — `username`,
 `theme`, `note_sort`, `note_filter`, `categories`, `trash_retention_days`,
-`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a backup
-carries the person's choices both ways. A key the phone does not use is
+`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a notebook's
+files mean the same choices on either device. A backup's import takes
+only the categories, the day colours and markers and the Trash's window;
+the rest is each device's own, on both apps. A key the phone does not use is
 kept, never dropped.
 
 Phase 2 reads and writes five more, and two old ones with every value
@@ -162,7 +164,7 @@ never a rescue copy or a purge.
 
 The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
-are adopted with a colour, as the desktop's `load_categories` does.
+are adopted with a colour, as the desktop's `adopt_categories_of` does.
 
 ## A note
 
@@ -188,8 +190,9 @@ list and the Python's stop agreeing:
   "date": "",               // "" or "YYYY-MM-DD"
   "color": "",              // "" or "#rrggbb"; a "#rgb" that arrives is
                             //   written back as "#rrggbb", as the desktop's
-                            //   sanitize_color expands it -- in a day's colour,
-                            //   a category's and a text colour too
+                            //   sanitize_color expands it -- in a day's colour
+                            //   and a category's too; a text colour or a
+                            //   highlight written short is dropped by both apps
   "attachments": [],        // [{"filename": str, "stored_as": str}, ...];
                             //   filename is a label: normalized to end in
                             //   stored_as's type, hidden and bidi characters
@@ -277,7 +280,7 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   known fields.
 - **On a phone**, Android's JSON reader holds an integer outside 64 bits
   (from 2^63 up, or below −2^63) as a double, so such a field holding one
-  comes back as another number: its digits rounded, or ±9223372036854775807
+  comes back as another number: its digits rounded, or 9223372036854775807
   or −9223372036854775808 where it rounds to the edge (the desktop and the
   unit tests keep it whole); it writes 1.0 back as 1 and
   -0.0 as -0, which Python reads as whole numbers; it refuses a whole
@@ -333,12 +336,9 @@ A repeating note is stored **once**. The rule:
 the dict is non-empty.** `normalize_note` fills every note's rule with
 the defaults above, so in a real saved file *all* notes carry a full
 `recurrence` object and an emptiness test marks the entire notebook as
-repeating. The desktop app's own test is one line, in
-`noteorganizer/core/recurrence.py`:
-
-```python
-return bool((note.get("recurrence") or {}).get("freq"))
-```
+repeating. The desktop app's own test, `is_recurring` in
+`noteorganizer/core/recurrence.py`, asks whether the rule is a dict whose
+`freq` is not empty.
 
 Measured against a real 77-note file: emptiness said 77 recurring,
 `freq` said 0. Copy the Python's test, not the field list's shape.
@@ -350,7 +350,7 @@ day") and `moved` (a day of the series held on another date).
 Their dates are written `YYYY-MM-DD`, zero-padded, in ASCII digits, by
 both apps. The desktop's reader (Python's `strptime`) also takes a few
 forms neither app writes -- a space before a one-digit day, full-width
-digits, a trailing NEL -- and the phone's does not: a
+digits -- and the phone's does not: a
 day kept under such a key in a backup made by hand reads on the desktop
 and is left out on the phone. Nothing the apps write reaches it, so it is
 left, as known.
@@ -437,8 +437,8 @@ writes them:
   A note that does not repeat keeps its copy's days.
 - **A copy's words for a day that holds words of its own, or that the note
   deleted,** are not added to the day: they are set aside, in `_set_aside`, and become a note of
-  their own on that date, titled with the series' name and "(earlier
-  text)". So are the days with words of another series' copy, before a
+  their own on that date, titled with the day's own title (the series'
+  when the day has none) and "(earlier text)". So are the days with words of another series' copy, before a
   turn-off, a big delete or an Update replaces it. Each entry is the day's
   five fields as text and its `day`; a read keeps the entries with a real
   date and a word. The desktop makes the notes at its start and at every
@@ -645,8 +645,7 @@ The stored colour is a palette swatch chosen against a white page. Paint
 it solid on a dark one and it becomes a pale wash that buries the text.
 The desktop hit this and fixed it by painting the colour at 45% over the
 current theme's surface (`_blend_hex(colour, surface, 0.45)`; the phone's
-`blend` in `RichText.kt`) while the **data keeps the pure colour**; its own
-comment is blunt: *"the solid palette fill buried the text under it."*
+`blend` in `RichText.kt`) while the **data keeps the pure colour**.
 Re-blend per theme, never rewrite the note.
 
 ### A format bar has two enemies on a phone, and both are the system's
@@ -712,9 +711,9 @@ its text and where it starts, counted in code points as the formatting
 spans are, so a run's spans are the note's own, shifted by its start
 ([why the counting matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
 
-Cell text is drawn plain: a cell is not a slice of the body once the row
-has been taken apart, so styling inside a table is not shown. The screen
-says so, and only when the note has both.
+Cell text is drawn plain, a highlight aside, which is drawn as the cell's
+fill: a cell is not a slice of the body once the row has been taken
+apart, so the other styling inside a table stays in the file, not drawn.
 
 ### Editing one cell must not rewrite the whole table
 
@@ -922,8 +921,10 @@ notes](#a-copy-of-the-array-is-not-a-copy-of-the-notes).
 
 A backup is the whole notebook in one `.zip`, the same file the desktop's
 Settings → Backup writes and reads, so a backup made on either device
-restores on the other. It is how a notebook moves; a share code is how a
-note does.
+restores on the other -- the phone's memory permitting: a notes, Trash,
+settings or templates file larger than a sixteenth of what Android lets
+the app hold (about 16 MB) is refused on the phone (below). It is how a
+notebook moves; a share code is how a note does.
 
 ### What a backup holds
 
@@ -931,19 +932,23 @@ note does.
 every attached file under `attachments/`. An export is built in a scratch
 folder first and checked by the import's own rules before it is handed
 to the file picker: a backup this app wrote must be one it agrees to read
-back.
+back. One it could not read back, a JSON file past the phone's memory
+ceiling, is still written -- the only copy is never withheld -- and the
+phone says so.
 
 ### The guards on the way in
 
 A backup arrives from anywhere, so reading one is guarded as the
 desktop's `_safe_extract_zip` guards it, with the desktop's numbers —
-these are what a hostile archive could do, not a size cap:
+these are what a hostile archive could do — and one the phone adds, a
+size cap the desktop has not:
 
 | Guard | Value |
 |---|---|
 | `MAX_BACKUP_FILES` | 100,000 entries |
 | Decompression bomb | any entry, or the backup as a whole, expanding to over 50 MB **and** to more than 100 times its packed size |
 | Disk margin | 200 MB must stay free after unpacking — the attached files counted twice, since on a phone the unpacking and the notebook share one disk |
+| The phone's memory (phone only) | each JSON file at most a sixteenth of the app's heap (`Backup.jsonCeiling`, about 16 MB of 256) |
 
 And one step stricter than the desktop: **only the names a backup is made
 of are unpacked at all** — the four data files by their exact names, and
@@ -991,7 +996,9 @@ Every write carries the desktop's guards:
 
 * work on the array that was READ — append to it, or replace one entry
   inside it — and never rebuild the file from the partial Kotlin model;
-* refuse to overwrite a file that exists but would not parse;
+* copy a file that exists but would not parse aside before anything writes
+  over it, and write nothing over it at all when even the copy fails
+  (`Files.holdWrites`, the desktop's `hold_writes`);
 * mend unpaired surrogates;
 * write to a sibling `.tmp`, `sync()` it, then rename over the real file;
 * return the reason on failure instead of looking like it saved.
