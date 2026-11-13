@@ -483,7 +483,7 @@ object Organizing {
         write(file, candidate)?.let { return SaveResult.Failed(it) }
         replace(array, candidate)
         deleteFiles(listOf(JSONObject().put("attachments", JSONArray().put(removed))),
-                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir)
+                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir, load.file)
         return SaveResult.Ok(id)
     }
 
@@ -849,10 +849,13 @@ object Organizing {
     /**
      * The files these entries use, deleted -- except any a note, or
      * another entry, still uses ([spare]), and any whose name tries to
-     * leave the attachments folder. Only for PERMANENT deletion.
+     * leave the attachments folder. Only for PERMANENT deletion. None at all
+     * while the notes file is held or was set aside unreadable: its notes,
+     * never read, may use any of them (the desktop's `_UNREAD_AT_LOAD`).
      */
-    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?) {
+    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?, notesFile: File?) {
         val dir = attachmentsDir ?: return
+        if (notesFile != null && (Files.writesHeld(notesFile) || Files.unreadAtLoad(notesFile))) return
         for (name in storedNames(entries)) {
             if (name in spare) continue
             val bare = Normalize.bareFileName(name)
@@ -915,7 +918,7 @@ object Organizing {
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         if (write(trashFile, candidate) != null) return 0
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load.file)
         return gone.size
     }
 
@@ -931,7 +934,7 @@ object Organizing {
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         write(trashFile, candidate)?.let { return SaveResult.Failed(it) }
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load.file)
         return SaveResult.Ok(0, imported = gone.size)
     }
 

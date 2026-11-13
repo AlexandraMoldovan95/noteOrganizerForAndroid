@@ -69,8 +69,10 @@ object Startup {
         // to Android's backup: marked lost before a fresh file reads them as
         // 30 days and on. Unknown, the backup is off until the person says.
         load.settings?.let {
-            if (it.problem != null) {
-                Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true, Settings.PHONE_GOOGLE_BACKUP to false))
+            // Held (neither read nor copied aside), nothing can be turned on this
+            // run: its own line says so, and no advice that would be refused.
+            if (it.problem != null && Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true,
+                    Settings.PHONE_GOOGLE_BACKUP to false)) is SaveResult.Ok) {
                 lines.add("Android's backup of the app is off until you turn it on again in Settings → Backup.")
             }
         }
@@ -95,8 +97,9 @@ object Startup {
                           else "$purged notes older than $window days were removed from the Trash.")
             }
         } else if (window == null && Organizing.pastWindow(load, Settings.TRASH_RETENTION_DAYS) > 0) {
-            lines.add("Nothing was removed from the Trash: how long it keeps notes could not be read. " +
-                      "Choose it again in Settings → Trash.")
+            lines.add("Nothing was removed from the Trash: how long it keeps notes could not be read." +
+                      (if (load.settings?.let { Files.writesHeld(it.file) } == true) ""
+                       else " Choose it again in Settings → Trash."))
         }
         return lines.joinToString("\n").ifEmpty { null }
     }

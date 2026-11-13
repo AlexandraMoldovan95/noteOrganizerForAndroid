@@ -180,14 +180,20 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * The bar, once a day: shown when notes fall on [today] and it was not
      * shown yet that day -- marked as shown when it shows, as the desktop
      * marks it, so a second start that day says nothing. A mark that could
-     * not be written still shows the bar; it may show once more.
+     * not be written still shows the bar; it may show once more at a start,
+     * never at each return to the app ([reminderShownOn]).
      */
     fun checkReminder(today: String) {
+        if (reminderShownOn == today) return
         val due = Reminders.dueOn(rawNotes(), today)
         if (!Reminders.barDue(settings, today, due)) return
         load.settings?.let { Settings.put(it, Reminders.LAST_SHOWN, today) }
+        reminderShownOn = today
         reminderDue = due
     }
+
+    /** The day the bar last showed in this run, kept here too: a held settings file keeps no mark. */
+    private var reminderShownOn: String? = null
 
     /** The calendar on [today], the bar gone: what the bar and the notification open. */
     fun showToday(today: String) {
@@ -1270,7 +1276,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * phone's mode no longer changes the app's.
      */
     fun settleTheme(phoneIsDark: Boolean) {
-        if (load.settings != null && Settings.followsPhone(settings)) chooseTheme(themeName(phoneIsDark))
+        // Not over a held file: it would be refused, and said, at every activity made.
+        val held = load.settings?.let { Files.writesHeld(it.file) } ?: true
+        if (!held && Settings.followsPhone(settings)) chooseTheme(themeName(phoneIsDark))
     }
 }
 

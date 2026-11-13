@@ -55,6 +55,12 @@ class SettingsTest {
         val unreadable = File(folder, "templates.json").apply { mkdir() }
         assertNull(Files.preserveCorrupt(unreadable))
         assertTrue(Files.writesHeld(unreadable))
+        // ...until a later read in the same run copies it aside after all (space
+        // freed, the activity made again): writes go on then.
+        unreadable.delete()
+        unreadable.writeText("[{")
+        assertNotNull(Files.preserveCorrupt(unreadable))
+        assertFalse("copied aside at last, it is no longer held", Files.writesHeld(unreadable))
         // A template's draft held is not deleted either, when its editor closes.
         val draft = File(folder, Templates.DRAFT).apply { writeText("""{"fields": {"title": "Shop""") }
         Files.holdWrites(draft)

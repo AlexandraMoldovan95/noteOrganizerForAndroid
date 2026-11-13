@@ -32,6 +32,19 @@ object Files {
     internal fun writesHeld(file: File): Boolean = heldKey(file) in writesHeld
 
     /**
+     * Files whose last read found them unreadable and set them aside: the
+     * desktop's `_UNREAD_AT_LOAD`. A run that holds none of the notes file's
+     * notes deletes no attached file one of them may use.
+     */
+    private val unreadAtLoad = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    internal fun markUnread(file: File, unread: Boolean) {
+        if (unread) unreadAtLoad.add(heldKey(file)) else unreadAtLoad.remove(heldKey(file))
+    }
+
+    internal fun unreadAtLoad(file: File): Boolean = heldKey(file) in unreadAtLoad
+
+    /**
      * Dump to a sibling `.tmp`, force it to the disk, then rename over the
      * real file: rename is atomic within a filesystem, so a crash leaves the
      * old file whole and a half-written one never carries the real name. The
@@ -42,8 +55,8 @@ object Files {
      */
     fun writeAtomic(file: File, bytes: ByteArray): String? {
         if (writesHeld(file)) {
-            return "${file.name} could not be read or copied aside at the start, so nothing is " +
-                "written over it until the app starts again"
+            return "${file.name} could not be read or copied aside, so nothing is written over " +
+                "it until the app is closed and opened again"
         }
         val tmp = File(file.parentFile, file.name + ".tmp")
         try {
@@ -75,11 +88,12 @@ object Files {
      *
      * @return the copy (an earlier one holding the same bytes, if there is
      *   one), or null if even the copy failed -- and then nothing is written
-     *   over the original for the rest of the run ([holdWrites]).
+     *   over the original for the rest of the run ([holdWrites]), or until a
+     *   later read in it copies the file aside after all (space freed).
      */
     fun preserveCorrupt(file: File): File? {
         val kept = copyAside(file)
-        if (kept == null) holdWrites(file)
+        if (kept == null) holdWrites(file) else writesHeld.remove(heldKey(file))
         return kept
     }
 

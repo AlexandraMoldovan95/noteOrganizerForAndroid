@@ -151,7 +151,7 @@ object Settings {
             file, JSONObject(),
             if (kept != null) "settings.json could not be read; a copy was kept as ${kept.name}"
             else "settings.json could not be read, and could not be copied aside: nothing is written " +
-                "over it until the app starts again",
+                "over it until the app is closed and opened again",
         )
     }
 

@@ -397,6 +397,19 @@ class OrganizingTest {
     }
 
     @Test
+    fun `with the notes file set aside unreadable, deleting for good keeps every file, as the desktop's`() {
+        // The notes this run never read may use the Trash's files: the desktop
+        // keeps every file until a run that has read them.
+        val load = notebook("""[{"id": 1, "title": "unread", "attachments": [{"filename": "s", "stored_as": "shared.png"}]""",
+            trash = """[{"id": 2, "title": "x", "deleted_at": "2026-10-01 10:00:00",
+                        "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""")
+        File(attachments(load), "shared.png").writeText("S")
+        Organizing.deleteForever(load, listOf(Organizing.TrashKey(2, "2026-10-01 10:00:00")), attachments(load))
+        assertEquals("the entry went", 0, trashOnDisk(load).length())
+        assertTrue("its file, which an unread note may use, stayed", File(attachments(load), "shared.png").exists())
+    }
+
+    @Test
     fun `a file name that tries to leave the folder is never deleted`() {
         val outside = NioFiles.createTempDirectory("outside").toFile()
         val victim = File(outside, "victim.txt").apply { writeText("keep") }

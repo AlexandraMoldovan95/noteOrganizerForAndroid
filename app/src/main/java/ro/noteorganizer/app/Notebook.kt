@@ -1173,12 +1173,12 @@ object Notebook {
      * only when it exists, cannot be read AND could not be copied aside.
      */
     private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
-        if (!file.isFile) return JSONArray()
-        val parsed = try {
+        val parsed = if (!file.isFile) JSONArray() else try {
             Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
             null
         }
+        Files.markUnread(file, parsed == null)
         if (parsed != null) return parsed
         val kept = Files.preserveCorrupt(file)
         if (kept == null) {

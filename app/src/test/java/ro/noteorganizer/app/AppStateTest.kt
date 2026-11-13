@@ -429,6 +429,21 @@ class AppStateTest {
     }
 
     @Test
+    fun `over a settings file held, the theme is not written at each start, and the reminder bar shows once a run`() {
+        val state = state()
+        Files.holdWrites(File(state.dir, "settings.json"))
+        // The theme kept is refused over a held file, and was said at every activity made.
+        state.settleTheme(phoneIsDark = true)
+        assertNull("nothing asked of a held file, nothing said", state.snackbar.currentSnackbarData)
+        // The bar's mark cannot be written: it came back at every return to the app.
+        state.checkReminder("2026-10-05")
+        assertEquals(1, state.reminderDue)
+        state.reminderDue = null
+        state.checkReminder("2026-10-05")
+        assertNull("once a run, its mark held in memory", state.reminderDue)
+    }
+
+    @Test
     fun `Light and Dark go back to the last theme worn in each mode`() {
         val state = state()
         state.settleTheme(phoneIsDark = false)
