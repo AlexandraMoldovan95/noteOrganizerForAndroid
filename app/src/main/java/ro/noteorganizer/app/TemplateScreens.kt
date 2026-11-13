@@ -144,7 +144,7 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
         onDismissRequest = onDone,
         title = { Text(stringResource(R.string.template_save_title)) },
         text = {
-            Column {
+            DialogBody {
                 OutlinedTextField(
                     value = nameField,
                     onValueChange = { next ->
@@ -297,7 +297,7 @@ fun TemplatesPage(state: AppState) {
         AlertDialog(
             onDismissRequest = { askDraft = false; thenOpen = null },
             title = { Text(stringResource(R.string.template_draft_title)) },
-            text = { Text(stringResource(R.string.template_draft_text)) },
+            text = { DialogBody { Text(stringResource(R.string.template_draft_text)) } },
             confirmButton = {
                 TextButton(onClick = {
                     askDraft = false
@@ -652,7 +652,7 @@ private fun TemplateEditor(
             AlertDialog(
                 onDismissRequest = { askName = false },
                 title = { Text(stringResource(R.string.template_name_needed_title)) },
-                text = { Text(stringResource(R.string.template_name_needed)) },
+                text = { DialogBody { Text(stringResource(R.string.template_name_needed)) } },
                 confirmButton = { TextButton(onClick = { askName = false }) { Text(stringResource(R.string.ok)) } },
                 containerColor = palette.card,
             )
@@ -667,7 +667,7 @@ private fun TemplateEditor(
             AlertDialog(
                 onDismissRequest = { askClose = false },
                 title = { Text(stringResource(R.string.template_save_changes_title)) },
-                text = { Text(stringResource(R.string.template_save_changes_text)) },
+                text = { DialogBody { Text(stringResource(R.string.template_save_changes_text)) } },
                 confirmButton = {
                     TextButton(onClick = { askClose = false; save() }) {
                         Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium)

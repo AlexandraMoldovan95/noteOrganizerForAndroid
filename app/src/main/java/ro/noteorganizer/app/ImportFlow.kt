@@ -61,7 +61,9 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
         onDismissRequest = onClose,
         title = { Text(stringResource(R.string.import_code)) },
         text = {
-            Column {
+            // Scrolled, the field held to a height: grown with a long code, it
+            // took the whole room and hid the problem line and Paste below it.
+            DialogBody {
                 Text(stringResource(R.string.import_code_explain), color = palette.subtext, fontSize = 13.sp)
                 // A code is one unbroken word, which a field lays out letter by
                 // letter: 120,000 shared to the app froze the screen. A long one
@@ -84,7 +86,7 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
                     // keep its hands off.
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None),
                     textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp).padding(top = 10.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp, max = 180.dp).padding(top = 10.dp),
                     placeholder = { Text(stringResource(R.string.import_code_hint, Sharing.PREFIX)) },
                 )
                 // Said in the dialog alone, so read out as it appears ([saidAloud]).

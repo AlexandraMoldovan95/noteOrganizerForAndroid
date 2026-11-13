@@ -152,11 +152,12 @@ fun ExportDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.note_export_title)) },
         text = {
-            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+            DialogBody {
                 Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp)
                 OptionCard("🌐", stringResource(R.string.note_export_html), stringResource(R.string.note_export_html_sub)) {
                     onPick(Exporting.HTML)
                 }
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 10.dp))
                 OptionCard("📄", stringResource(R.string.note_export_txt), stringResource(R.string.note_export_txt_sub)) {
                     onPick(Exporting.TXT)
                 }

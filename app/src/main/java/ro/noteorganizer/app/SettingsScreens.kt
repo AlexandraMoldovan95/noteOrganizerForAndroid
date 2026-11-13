@@ -663,10 +663,12 @@ private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(R.string.delete_category)) },
         text = {
-            Text(
-                if (filed == 0) stringResource(R.string.delete_category_empty, name) + dayLine
-                else pluralStringResource(R.plurals.delete_category_with, filed, name, filed) + dayLine,
-            )
+            DialogBody {
+                Text(
+                    if (filed == 0) stringResource(R.string.delete_category_empty, name) + dayLine
+                    else pluralStringResource(R.plurals.delete_category_with, filed, name, filed) + dayLine,
+                )
+            }
         },
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {

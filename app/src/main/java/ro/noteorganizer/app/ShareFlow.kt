@@ -151,7 +151,7 @@ fun PdfQuestionDialog(question: AppState.PdfQuestion, onAnswer: (AppState.PdfCho
     AlertDialog(
         onDismissRequest = { onAnswer(AppState.PdfChoice.CANCEL) },
         title = { Text(stringResource(R.string.pdf_ask_title)) },
-        text = { Text(text) },
+        text = { DialogBody { Text(text) } },
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {
                 TextButton(onClick = { onAnswer(AppState.PdfChoice.PAGE) }) {

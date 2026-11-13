@@ -408,6 +408,18 @@ fun noteColour(note: Note, categories: Map<String, String>, accentHex: String): 
     note.color.ifEmpty { categories[note.category] ?: accentHex }
 
 /**
+ * A dialog's text, scrolled: Material's AlertDialog gives it the room its
+ * buttons leave and no scroll, and at the largest letters or on a phone on
+ * its side its end was cut under them. [key] starts a new question at its top.
+ */
+@Composable
+fun DialogBody(key: Any? = null, content: @Composable ColumnScope.() -> Unit) {
+    androidx.compose.runtime.key(key) {
+        Column(Modifier.verticalScroll(rememberScrollState()), content = content)
+    }
+}
+
+/**
  * A question with a safe answer. The safe one is the highlighted button,
  * as on the desktop -- Enter there, the thumb's first landing here -- and
  * the one that cannot be taken back is quieter, in the warning colour.

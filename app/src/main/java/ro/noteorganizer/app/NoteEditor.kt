@@ -3934,10 +3934,13 @@ private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, o
         onDismissRequest = { answer(null) },
         title = { Text(stringResource(R.string.off_schedule_title, next + 1, days.size)) },
         text = {
-            Text(stringResource(R.string.off_schedule_text, whenDay, title,
-                                if (text.isEmpty()) "" else "\n$text", Recurrence.describe(raw),
-                                state.trashWindow?.let { stringResource(R.string.off_schedule_trash_days, it) }
-                                    ?: stringResource(R.string.off_schedule_trash_kept)))
+            // Keyed by the day: one dialog asks day after day, each from its top.
+            DialogBody(key = next) {
+                Text(stringResource(R.string.off_schedule_text, whenDay, title,
+                                    if (text.isEmpty()) "" else "\n$text", Recurrence.describe(raw),
+                                    state.trashWindow?.let { stringResource(R.string.off_schedule_trash_days, it) }
+                                        ?: stringResource(R.string.off_schedule_trash_kept)))
+            }
         },
         confirmButton = {
             TextButton(onClick = { answer(Days.Settle.NOTE) }) {
