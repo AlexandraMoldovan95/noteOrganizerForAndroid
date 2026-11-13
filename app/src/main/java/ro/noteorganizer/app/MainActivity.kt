@@ -204,12 +204,12 @@ class MainActivity : ComponentActivity() {
                 }
                 // None, or a file still being read: what came after it waits.
                 val text = shared.text ?: return@LaunchedEffect
-                // A code, with words around it or not, is imported; other text
-                // is a note (the owner's choice). A code cut off with its file
-                // is said cut, not called damaged; one whole in it goes on.
+                // A code, with words around it or not, is imported; other text is a
+                // note (the owner's choice). A code cut off with its file is said cut;
+                // one whole in it goes on, refused or not, and the Import says why.
                 val isCode = withContext(Dispatchers.Default) { Sharing.holdsCode(text) }
                 val cutCode = isCode && shared.cut &&
-                    withContext(Dispatchers.Default) { Sharing.decode(text) is Sharing.Decoded.Failed }
+                    withContext(Dispatchers.Default) { Sharing.cutShort(text) }
                 when {
                     cutCode -> state.say("The shared file was longer than $first characters and only " +
                         "its start was read, so the share code in it is incomplete. Ask for a backup " +

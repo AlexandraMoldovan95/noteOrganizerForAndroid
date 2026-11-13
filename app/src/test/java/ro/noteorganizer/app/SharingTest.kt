@@ -275,6 +275,17 @@ class SharingTest {
         val v2 = Sharing.PREFIX + java.util.Base64.getUrlEncoder().encodeToString(packed.toByteArray())
         val newer = Sharing.decode("${v2.take(4)}\n${v2.drop(4)}")
         assertTrue("$newer", newer is Sharing.Decoded.Failed && newer.reason.contains("newer version"))
+        // ...and shared in, it is a code (said as a newer version's), not a note.
+        assertTrue(Sharing.holdsCode("${v2.take(4)}\n${v2.drop(4)}"))
+        // From a file only the start of which was read, a whole newer-version code
+        // goes on to the Import (which says why), not called incomplete; a cut one is.
+        assertFalse("a whole newer code is not cut", Sharing.cutShort("Hi $v2 thanks"))
+        // Cut through its words, not only its checksum (which neither app reads).
+        assertTrue("a cut code is", Sharing.cutShort(v2.take(v2.length / 2)))
+        // A code cut before any of its stream came out is said as the desktop says
+        // it, "damaged or incomplete", not "too large to import safely".
+        val cut = Sharing.decode(stray.take(12))
+        assertTrue("$cut", cut is Sharing.Decoded.Failed && cut.reason.startsWith("This share code is damaged or incomplete"))
     }
 
     @Test

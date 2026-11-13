@@ -199,11 +199,19 @@ object Sharing {
 
     /**
      * Whether [text] holds a share code: its prefix whole, or hidden by the
-     * wrapping and leading to a code that reads. Words that say "NOTE 1:"
-     * are a note, shared in as one.
+     * wrapping and leading to bytes a code holds, refused or not (a newer
+     * version's was saved as a note). Words that say "NOTE 1:" are a note.
      */
     internal fun holdsCode(text: String): Boolean =
-        text.contains(PREFIX) || (prefixHidden(text) && decode(text) is Decoded.Notes)
+        text.contains(PREFIX) || (prefixHidden(text) && (decode(text) as? Decoded.Failed)?.reason != NOT_A_CODE)
+
+    /**
+     * Whether the code in [text], from a file only the start of which was
+     * read, is cut: its bytes do not read. A whole code the app refuses (a
+     * newer version's, one holding no notes) goes on to the Import, which says
+     * why; calling it incomplete sent its sender to copy it again.
+     */
+    internal fun cutShort(text: String): Boolean = (decode(text) as? Decoded.Failed)?.unreadable == true
 
     /**
      * The share code inside [text], its wrapping taken out -- the desktop's
@@ -376,7 +384,8 @@ object Sharing {
         } finally {
             inflater.end()
         }
-        if (out.size() == 0) return null
+        // A stream that ended before any of it came out reads on as nothing, as
+        // Python's does: its JSON then fails, "damaged or incomplete", both apps.
         return out.toByteArray()
     }
 }
