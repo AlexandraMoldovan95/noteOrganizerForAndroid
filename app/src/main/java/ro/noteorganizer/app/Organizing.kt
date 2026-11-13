@@ -970,8 +970,11 @@ object Organizing {
             Notebook.settleAsRead(note)
             val nextId = fresh.next()
             note.put("id", nextId)
-            val uid = note.opt("uid") as? String ?: ""
-            if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
+            // One of its own when it has none, as the desktop's normalize_note
+            // gives it: kept empty, the list knew it by its id, and a note given
+            // that id later took its place in a selection.
+            val uid = PyText.strip(note.opt("uid") as? String ?: "")
+            if (uid.isEmpty() || uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
             worn.add(note.opt("uid") as? String ?: "")
             restored.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)

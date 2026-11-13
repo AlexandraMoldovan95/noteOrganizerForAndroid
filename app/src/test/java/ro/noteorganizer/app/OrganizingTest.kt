@@ -112,6 +112,20 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a note restored with no uid is given one, as the desktop's restore gives it`() {
+        // Kept empty, the list knew it by its id ("id:N"), and a note given that
+        // id later took its place in a selection.
+        val load = notebook("""[{"id": 1, "uid": "x", "title": "here"}]""",
+            trash = """[{"id": 3, "title": "no identity", "deleted_at": "2026-10-01 10:00:00"},
+                        {"id": 4, "uid": "  ", "title": "blank identity", "deleted_at": "2026-10-01 10:00:00"}]""")
+        Organizing.restore(load, listOf(Organizing.TrashKey(3, "2026-10-01 10:00:00", ""),
+                                        Organizing.TrashKey(4, "2026-10-01 10:00:00", "  ")))
+        val uids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).optString("uid") }
+        assertEquals(3, uids.size)
+        assertTrue("each has one of its own: $uids", uids.drop(1).all { it.isNotBlank() && it != "x" } && uids[1] != uids[2])
+    }
+
+    @Test
     fun `two Trash entries sharing an id and a moment are told apart by their uid`() {
         // An id is handed out again after a delete: two entries deleted in
         // one second can share both, as the desktop's _trash_tick_key learnt.
