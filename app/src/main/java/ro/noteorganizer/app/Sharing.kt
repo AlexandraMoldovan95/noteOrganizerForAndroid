@@ -240,7 +240,9 @@ object Sharing {
                 "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
         }
         val compressed = try {
-            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length))
+            // Padding needs none here: a code followed by "=)" or a line of
+            // "=====" kept them all, and was called damaged where the desktop reads it.
+            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length).trimEnd('='))
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +

@@ -221,9 +221,9 @@ object Files {
         val more = read == buffer.size && try { reader.read() >= 0 } catch (e: java.io.IOException) { true }
         // An emoji cut in half at the end: its first half alone was saved as "?".
         if (more && Character.isHighSurrogate(buffer[read - 1])) read -= 1
-        val text = String(buffer, 0, read)
-        // No note holds a NUL: UTF-16 without its BOM read as UTF-8 came in as
-        // its letters with NULs between them, said "Saved".
+        // NULs some apps pad a file's end with are left out; one among the
+        // letters (UTF-16 without its BOM, read as UTF-8) refuses it.
+        val text = String(buffer, 0, read).trimEnd('\u0000')
         if (text.indexOf('\u0000') >= 0) throw java.io.CharConversionException("a NUL: not text")
         return (text to more).takeIf { PyText.strip(text).isNotEmpty() }
     }

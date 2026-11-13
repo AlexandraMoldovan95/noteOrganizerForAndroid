@@ -470,6 +470,19 @@ class SharingTest {
     }
 
     @Test
+    fun `NULs padding a shared file's end are left out, the file read`() {
+        assertEquals("Shopping list", shared("Shopping list".toByteArray() + ByteArray(8))?.first)
+    }
+
+    @Test
+    fun `a code followed by more equals signs reads, as the desktop reads it`() {
+        val code = Sharing.encode(listOf(note("""{"id": 1, "title": "Padded", "body": "x"}""")))
+        for (tail in listOf("=)", "\n=====", "==")) {
+            assertTrue(tail, Sharing.decode(code + tail) is Sharing.Decoded.Notes)
+        }
+    }
+
+    @Test
     fun `an emoji cut in half at the end leaves no half behind`() {
         val text = "abcd😀"   // an emoji at characters 5 and 6
         val got = shared(text.toByteArray(), most = 5)
