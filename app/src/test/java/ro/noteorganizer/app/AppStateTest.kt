@@ -262,6 +262,25 @@ class AppStateTest {
     }
 
     @Test
+    fun `a failed import that kept categories shows them, read from the files`() {
+        // The screens read the notebook from before the import: the Trash page
+        // showed none of a Trash it said it kept, and a category added next
+        // wrote over the categories it said it kept.
+        val dir = NioFiles.createTempDirectory("appstate").toFile()
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "a", "title": "A", "body": "first"}]""")
+        File(dir, "settings.json").writeText("{}")
+        File(dir, "attachments").mkdirs()
+        val s = AppState(dir, CoroutineScope(Dispatchers.Unconfined))
+        File(dir, "notes_data.json.tmp").mkdir()      // the notes' own write fails
+        val plan = Importing.plan(s.load.raw!!, listOf(JSONObject("""{"uid": "n1", "title": "New"}""")),
+            Importing.Source.BACKUP)
+        finishImport(s, plan, Importing.Answers(), File(dir, "attachments"),
+            Importing.Extras(categories = JSONObject("""{"Travel": "#336699"}""")))
+        assertTrue("the category it kept is in the list: ${s.load.categories.keys}", "Travel" in s.load.categories)
+        assertEquals("and no note came in", listOf("A"), s.load.notes.map { it.title })
+    }
+
+    @Test
     fun `text shared in becomes a note even while the open note cannot be saved`() {
         // Held for "Leave anyway", the words lived in that bar alone: its ✕,
         // its ten seconds or an Undo dropped them.

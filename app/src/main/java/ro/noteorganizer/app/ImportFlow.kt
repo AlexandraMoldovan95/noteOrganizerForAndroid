@@ -366,7 +366,13 @@ fun finishImport(
     if (!state.beforeImport()) return
     val before = state.noteIds()
     when (val result = Importing.apply(state.load, plan, answers, attachmentsDir, extras)) {
-        is Importing.Result.Failed -> state.say(result.reason)
+        is Importing.Result.Failed -> {
+            // What it kept (a Trash, categories) read from the files, as after
+            // one that worked: the Trash page showed none of it, and a category
+            // added next wrote over those kept. Said long: the reason is long.
+            state.afterImport()
+            state.say(result.reason, long = true)
+        }
         is Importing.Result.Done -> {
             state.afterImport()
             // One note arrived: a tap opens it, where the desktop opens it

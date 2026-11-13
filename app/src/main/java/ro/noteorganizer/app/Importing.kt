@@ -337,7 +337,9 @@ object Importing {
         val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
         return try {
             applyWhole(load, plan, answers, attachmentsDir, extras, filesBefore)
-        } catch (e: RuntimeException) {
+        } catch (e: Exception) {
+            // Exception, not RuntimeException: Android's JSONException is
+            // neither, where the tests' org.json makes it one.
             load.raw?.let { notes -> dropBrought(attachmentsDir, filesBefore, notes, load.trashRaw ?: JSONArray()) }
             Result.Failed("The import stopped on something in it the app could not read; your notes are as they were.")
         }
@@ -546,7 +548,7 @@ object Importing {
             dropBrought(attachmentsDir, filesBefore, notebook, trashNow)
             val parts = if (kept.size < 2) kept.joinToString() else
                 kept.dropLast(1).joinToString(", ") + " and " + kept.last()
-            val verb = if (kept == listOf("Trash")) "was" else "were"
+            val verb = if (kept.size == 1 && kept[0].startsWith("Trash")) "was" else "were"
             return Result.Failed(problem + " None of the ${plan.source.word}'s notes came in" +
                 (if (kept.isEmpty()) "." else "; its $parts $verb kept, and importing it again adds only the rest."))
         }
@@ -555,7 +557,9 @@ object Importing {
                 return stopped("settings.json could not be written: $it.")
             }
             for (key in settingsCandidate.keys()) settings.raw.put(key, settingsCandidate.opt(key))
-            kept += "settings"
+            if (addedCategories > 0) kept += "categories"
+            if (restoredDays > 0) kept += "calendar markings"
+            if (adoptsWindow) kept += "Trash window"
         }
         if (templatesCandidate != null && templatesFile != null) {
             Files.writeAtomic(templatesFile, templatesCandidate.toString(2))?.let {
