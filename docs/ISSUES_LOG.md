@@ -403,6 +403,48 @@ menu entry named wrong, letters said kept apart that both apps now fold
 offers. Each is true now. Left: at the largest letters on a 320 dp phone
 a tile's caption of one long word ("Categories") may still break mid-word.
 
+The eighth round found two of the seventh's subjects true only in part.
+"The month's year is never cut" held at 360 dp and up: on a 320 dp phone
+at the largest letters, or in a tablet's calendar column, the arrows and
+"📋 History" left the title less room than "September 2026" needs at
+6 sp. And the class was left in the other bars: the selection count broke
+as "3" / "select" / "ed" beside its four buttons, the bar cutting it right
+before 🗑. Every top bar's title is OneLine now, one line, shrunk to its
+room and ended in "…" where even 6 sp does not fit, and beside the arrows
+at 150% letters History is its mark alone, read out whole. The walk's
+photograph at 320 dp then showed the calendar's weekdays ("Mo" / "n") and
+the bottom bar's word ("Calenda" / "r") breaking the same way: they are
+OneLine too, the rail's words with them. "Every
+dialog's text scrolls" missed the table grid, whose last rows a phone on
+its side squashed to nothing, and the code box's problem line still fell
+under the fold there: the grid scrolls, the problem is brought into view.
+A NEL inside a code read on the desktop and not here (Python's whitespace
+holds it, isWhitespace does not); the export dialog had lost a gap. The
+walk measures each of these (dialogs_on_side, new; the 320 dp step; the
+selection count; AS712 to AS716). The plan's reader went through the
+Repeating, Organising, Backup and Calendar cases and found fourteen
+mediums, none of this wave: Undo said to last eight seconds where
+Android's long message gives ten (43, 60), a series' line quoted with
+"every day" for "the whole series" (145), the desktop said to bring a day
+back over another where it refuses (88), a pinned card said to say why it
+will not move where it stops without a word (86), a Clean up button a
+single group does not have (91), a sort by Recently created (469), an
+import said never to say "Added 0 notes" (480), "Importing..." for
+"Reading the backup…" (231, 258), two list words quoted without the note's
+name (439, 459), Delete this day held on a day's cell where it sits on
+the series' row (415, 64), Off for "Does not repeat" in six cases, a
+picker a person could switch notes under (224), and 'Only the date'
+offered to a moved day with no text of its own (461). Each is true now,
+with the lows, two new rows for the round's fixes, and every row of the
+plan naming mutants the catalogue never kept (42, found by a sweep of the
+whole plan rather than one area a round) saying so. Beside the round
+came the owner's decision D2: a note keeps the top-level fields this
+version does not know, by the desktop's rule to the letter, checked
+against a fixture of the desktop's own answers (DATA_FORMAT, "Fields a
+version does not know"); the desktop's eleventh round then had a backup's
+Update keep the note's own in its rescue copy, and the phone does the
+same. Left: the same tile caption at 320 dp.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
