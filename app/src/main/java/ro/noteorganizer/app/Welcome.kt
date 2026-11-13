@@ -30,7 +30,7 @@ object Welcome {
      */
     val LINES = listOf(
         "Hi, and welcome! This is your own space for everything worth keeping: ideas, " +
-            "plans, lists, the things you don't want to forget. It all stays on this phone, " +
+            "plans, lists, the things you don't want to forget. Your notes are kept on this phone, " +
             "with no account and no internet needed. Here is a quick look around. When you no " +
             "longer need this note, delete it; Settings → About brings it back.",
         "",

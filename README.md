@@ -65,7 +65,8 @@ for the camera rather than anybody&rsquo;s real one &mdash;
 - **Find and organise**: search by the desktop's rule (diacritics folded, checklists too),
   the desktop's every sort and filter, Custom order arranged by hand,
   groups by category, duplicates found and cleaned up, long press to
-  select, pin, move, duplicate or delete several at once — with Undo.
+  select notes and pin, move, share or delete them together (a move or a
+  delete with Undo), or duplicate one.
 - **A phone or a tablet**, upright or on its side: from a small tablet's
   width the tabs become a rail down the left edge, and on a wide screen
   the note opens beside the list. Walked at the sizes of a small phone and

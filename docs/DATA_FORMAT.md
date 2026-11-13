@@ -273,8 +273,9 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   side holds such fields, its rescue copy keeps the note's own under
   `_unknown`, so "↩ Restore previous" puts them back as they were, with the
   known fields.
-- **On a phone**, Android's JSON reader holds an integer past 64 bits as a
-  double, so such a field holding one comes back with fewer digits (the
+- **On a phone**, Android's JSON reader holds an integer from 2^63 up as a
+  double, so such a field holding one comes back as another number: its
+  digits rounded, or 9223372036854775807 where it rounds to 2^63 (the
   desktop and the unit tests keep it whole); it writes 1.0 back as 1 and
   -0.0 as -0, which Python reads as whole numbers; it refuses a whole
   backup holding Infinity or NaN as a member's value, where the desktop

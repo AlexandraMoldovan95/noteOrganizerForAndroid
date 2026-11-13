@@ -45,8 +45,9 @@ fixes the clock at 9:30 and the battery at full, so the frame is the app
 rather than whatever notification the emulator had pending that
 afternoon; the mobile-signal icon is hidden, because demo mode draws it
 white whatever the page behind it. It is all turned off again at the
-end. The on-screen keyboard is dismissed before every capture — it is
-half the screen and none of it is this app.
+end. The on-screen keyboard is dismissed before every still picture — it
+is half the screen and none of it is this app — and kept only in the
+four frames of the moving picture that show the typing.
 
 **The pictures are looked at before they are committed.** Two bugs were
 found that way while this set was made: the card printing a date the way
