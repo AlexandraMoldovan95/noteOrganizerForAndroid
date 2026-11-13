@@ -37,6 +37,19 @@ class NotebookTest {
         assertEquals("notes that went drop out", emptySet<Int>(), Note.stillPicked(picked, emptyMap()))
     }
 
+    @Test
+    fun `a selection handed to Android comes back the same, and a huge one is not handed over`() {
+        // Kept while the list is off the screen: turned upright with a note
+        // open beside it, a big phone dropped the whole selection.
+        val picked = mapOf(5 to "uid-a", 6 to "id:6", 12 to "")
+        val kept = Note.pickedKept(picked)
+        assertEquals(picked, Note.pickedBack(kept!!))
+        assertEquals(emptyMap<Int, String>(), Note.pickedBack(Note.pickedKept(emptyMap())!!))
+        // Past what one handover carries it is made again, never the app stopped at Home.
+        val thousands = (1..5_000).associateWith { "uid-$it-0123456789" }
+        assertNull(Note.pickedKept(thousands))
+    }
+
     // ---- the rescue copy, spent as the desktop spends it ----
 
     @Test

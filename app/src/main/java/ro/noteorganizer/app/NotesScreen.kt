@@ -87,6 +87,10 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
 internal val SearchSaver = androidx.compose.runtime.saveable.Saver<String, String>(
     save = { Showing.searchKept(it) }, restore = { it })
 
+/** The list's selection, kept while the list is off the screen ([Note.pickedKept]). */
+internal val PickedSaver = androidx.compose.runtime.saveable.Saver<Map<Int, String>, ArrayList<String>>(
+    save = { Note.pickedKept(it) }, restore = { Note.pickedBack(it) })
+
 /**
  * The list of notes: search, sort and show at the top, the desktop's cards,
  * the + for a new note -- in the rail when [plusInRail], where it covers no
@@ -107,8 +111,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
     val collapsed = Settings.collapsedGroups(state.settings)
     // Kept by the note, not by its id: a selected note put in the Trash from
     // the editor beside the list freed its id, and a note arriving from a
-    // share code took it, ticked, into the selection's own Trash.
-    var picked by remember { mutableStateOf(mapOf<Int, String>()) }
+    // share code took it, ticked, into the selection's own Trash. Kept while
+    // the list is off the screen too: a big phone with a note open beside it,
+    // turned upright, took the list away and the selection with it.
+    var picked by rememberSaveable(stateSaver = PickedSaver) { mutableStateOf(mapOf<Int, String>()) }
     val byId = remember(state.revision, load) { load.notes.associateBy { it.id } }
     val selected = Note.stillPicked(picked, byId)
     fun select(ids: Set<Int>) { picked = Note.picked(ids, byId) }

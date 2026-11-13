@@ -93,6 +93,33 @@ data class Note(
          */
         fun stillPicked(picked: Map<Int, String>, byId: Map<Int, Note>): Set<Int> =
             picked.filter { (id, who) -> byId[id]?.identity == who }.keys
+
+        /**
+         * A selection as handed to Android, to be given back when the list
+         * comes back on screen (a big phone with a note open beside it,
+         * turned upright, took the list away and the selection with it):
+         * an id and its note's identity, in turn. None past [PICKED_KEPT]
+         * letters, as a search's words ([Showing.searchKept]): Android hands that
+         * state over in one transaction, and a selection of thousands is
+         * made again more cheaply than an app stopped at Home.
+         */
+        fun pickedKept(picked: Map<Int, String>): ArrayList<String>? {
+            val flat = ArrayList<String>(picked.size * 2)
+            var letters = 0
+            for ((id, who) in picked) {
+                flat += id.toString()
+                flat += who
+                letters += 12 + who.length
+                if (letters > PICKED_KEPT) return null
+            }
+            return flat
+        }
+
+        /** [pickedKept]'s list read back. */
+        fun pickedBack(flat: List<String>): Map<Int, String> =
+            flat.chunked(2).mapNotNull { pair -> pair.takeIf { it.size == 2 }?.let { (id, who) -> id.toIntOrNull()?.let { it to who } } }.toMap()
+
+        const val PICKED_KEPT = 20_000
     }
 
     /**
