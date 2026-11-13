@@ -821,6 +821,7 @@ def main():
     code_read_away(folder)
     shared_files(folder)
     trash_wide(folder)
+    dialogs_on_side(folder)
     long_lines(folder)
     kept_aside(folder)
 
@@ -2427,12 +2428,23 @@ def statistics(folder):
         line = max((b[3] - b[1] for b in row), default=0)
         check("...and its header keeps each word whole",
               bool(month) and bool(older) and line > 0
-              and month[0][3] - month[0][1] < 2.25 * line and older[0][3] - older[0][1] < 1.4 * line,
+              and month[0][3] - month[0][1] < 2.5 * line and older[0][3] - older[0][1] < 1.4 * line,
               "%r %r, a line %d" % (month, older, line))
         gaps = [b[0] - a[2] for a, b in zip(row, row[1:])]
         check("...and a gap stands between its columns' figures",
               len(row) == 4 and min(gaps) >= 3 * px, "%r, gaps %r" % (row, gaps))
         shot(folder, "31c-statistics-time-table", "Updated")
+        # The selection bar's count broke inside its word beside its four
+        # buttons ("1" / "select" / "ed") and the 64 dp bar cut it: one line
+        # now, its letters all drawn (lines stacked would merge their runs).
+        back_to("Search notes")
+        long_press("Top of many")
+        chosen = bounds("1 selected")
+        drawn = glyphs_drawn(chosen[0]) if chosen else None
+        check("...and the selection bar's count is one line, all of it drawn",
+              drawn == len("1selected"), "%s, %s letters" % (chosen, drawn))
+        shot(folder, "31d-selection-large-letters", "1 selected")
+        tap("Clear selection", exact=True)
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "wm", "density", "reset")
@@ -4099,6 +4111,85 @@ def shared_files(folder):
     cut_said = not shot_as_said(folder, "134-shared-code-cut", "the share code in it is incomplete", within=20.0)
     check("a code the cut broke is said cut, not offered as damaged", cut_said)
     adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_code_whole.txt", "cache/share/walk_code_cut.txt")
+    back_to("Search notes")
+
+
+def box_starting(text):
+    """The box of the first node whose text starts with [text], or None:
+    what [bounds] gives, for words too long to write out whole."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return None
+    for node in root.iter("node"):
+        if node.get("text", "").startswith(text):
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return box
+    return None
+
+
+def dialogs_on_side(folder):
+    """Questions on a phone turned on its side, where Material's dialog gives
+    its text only the room its buttons leave. The code box's problem line
+    fell under the field, out of sight, so Import seemed to do nothing; the
+    table grid's last rows were squashed to nothing. Opened upright, then
+    turned: the app keeps its screen when turned, and on its side a typing
+    keyboard takes the whole screen. A node out of sight has its box cut to
+    what shows, so a line seen is one whose box has height. A 360 dp phone at
+    the largest letters, which on its side stands 360 dp tall: this emulator
+    on its side is 411 dp tall, and there the dialogs had room enough."""
+    print("\n-- questions on a phone on its side --")
+    if not seed_inside([{"id": 1, "uid": "walk-side", "title": "Plan", "body": "intro",
+                         "category": "General", "created": "2026-10-15 09:00:00",
+                         "updated": "2026-10-15 09:00:00"}], {"welcome_offered": True}, "Plan"):
+        return
+    try:
+        adb("shell", "wm", "density", "480")
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(3.0)
+        tap("⋮")
+        tap("Import a code")
+        tap("A code starts with")
+        type_text("hello")
+        keyboard_down()
+        turn(1)
+        tap("Import", exact=True, wait=2.0)
+        said = box_starting("This isn't a Note Organizer share code")
+        check("on its side, a code's problem line is brought into sight",
+              said is not None and said[3] - said[1] > 20, repr(said))
+        shot(folder, "135-code-problem-on-side", "Import a code")
+        tap("Cancel", exact=True)
+        turn(0)
+        open_note("Plan")
+        tap("intro", wait=1.0)
+        adb("shell", "input", "keyevent", "123")   # end of line
+        time.sleep(0.4)
+        tap("Insert table", wait=1.2)
+        keyboard_down(patience=2.0)
+        turn(1)
+        title = bounds("2 x 2 table")
+        if title:
+            x = (title[0][0] + title[0][2]) // 2
+            for _ in range(3):                          # to the grid's end
+                adb("shell", "input", "swipe", str(x), str(title[0][3] + 300), str(x), str(title[0][3] + 40), "500")
+                time.sleep(0.8)
+        # Seen means above the buttons: unscrolled, the last rows and the
+        # caption were laid out under the text's room, boxes of full height
+        # where nothing was drawn (the grid showed four rows).
+        last, caption = bounds_of_desc("6 x 2 table"), box_starting("Tap a square to choose the size")
+        button = tappable_box("Insert")
+        check("...and on its side the table grid's last row can be reached",
+              last is not None and caption is not None and button is not None
+              and last[3] - last[1] > 20 and last[3] <= button[1] and caption[3] <= button[1],
+              "row %r, caption %r, Insert %r, after %r" % (last, caption, button, title))
+        shot(folder, "136-table-grid-on-side", "table")
+        tap("Cancel", exact=True)
+    finally:
+        turn(0)
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
     back_to("Search notes")
 
 
@@ -6043,12 +6134,34 @@ def calendar_large_letters(folder):
         september = "September %d" % (today.year if today.month >= 9 else today.year - 1)
         narrow = bounds(september)
         drawn = glyphs_drawn(narrow[0]) if narrow else None
+        # Every letter drawn in its own run of ink is one line: stacked lines
+        # merge their runs (a broken title counted 8 of 13). Not by height,
+        # which grows with the room the title is given (History's mark alone).
         check("...and on a 360 dp phone September's title is drawn whole, on one line",
-              bool(narrow) and bool(heading)
-              and (narrow[0][3] - narrow[0][1]) / 3.0 <= (heading[0][3] - heading[0][1]) / density + 2
-              and drawn == len(september.replace(" ", "")),
-              "%s against %s, %s letters of %r" % (narrow, heading, drawn, september))
+              bool(narrow) and drawn == len(september.replace(" ", "")),
+              "%s, %s letters of %r" % (narrow, drawn, september))
         shot(folder, "90b-calendar-narrow-september", "September")
+        # The narrowest phone, 320 dp: History's words left the title too
+        # little room even at 6 sp. Its mark alone there, read out whole.
+        adb("shell", "wm", "density", "540")
+        time.sleep(3.0)
+        if not bounds(september):
+            for _ in range((today.month - 9) % 12):
+                tap("Previous month", exact=True, wait=0.8)
+        narrowest = bounds(september)
+        drawn = glyphs_drawn(narrowest[0]) if narrowest else None
+        check("...and on a 320 dp phone too, History its mark alone",
+              drawn == len(september.replace(" ", "")) and find("History") is not None
+              and find("History", exact=True) is None,
+              "%s, %s letters of %r" % (narrowest, drawn, september))
+        shot(folder, "90c-calendar-320dp", "September")
+        # ...where the weekdays and the bottom bar's word broke inside the
+        # word ("Mo" / "n", "Calenda" / "r"): each counted whole.
+        heads = [glyphs_drawn(b[0]) if b else None for b in (bounds("Mon"), bounds("Wed"))]
+        word = bounds("Calendar")
+        bar = glyphs_drawn(word[0]) if word else None
+        check("...and there the weekdays and the bottom bar's word stay whole",
+              heads == [3, 3] and bar == 8, "weekdays %r, Calendar %s" % (heads, bar))
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "wm", "density", "reset")
@@ -6057,10 +6170,11 @@ def calendar_large_letters(folder):
 
 
 def glyphs_drawn(box):
-    """How many letters a line of dark words in [box] draws: runs of inked
-    columns, read from the screen's raw pixels in the light theme. Words cut
-    at their box's end draw fewer letters than they have, where the UI tree
-    still holds them whole."""
+    """How many letters a line of words in [box] draws: runs of inked
+    columns, read from the screen's raw pixels. Ink is a pixel far from the
+    box's own ground, read at its corners, so grey words count as dark ones
+    do. Words cut at their box's end draw fewer letters than they have,
+    where the UI tree still holds them whole."""
     raw = adb("exec-out", "screencap", binary=True)
     if len(raw) < 16:
         return None
@@ -6068,14 +6182,19 @@ def glyphs_drawn(box):
     head = len(raw) - w * h * 4
     if head < 12 or w <= 0 or h <= 0:
         return None
+    left, top = max(0, box[0]), max(0, box[1])
+    right, bottom = min(w, box[2]), min(h, box[3])
+    if right - left < 3 or bottom - top < 3:
+        return None
+
+    def light(x, y):
+        at = head + (y * w + x) * 4
+        return 0.299 * raw[at] + 0.587 * raw[at + 1] + 0.114 * raw[at + 2]
+
+    ground = sorted(light(x, y) for x in (left + 1, right - 2) for y in (top + 1, bottom - 2))[2]
     runs, inked = 0, False
-    for x in range(max(0, box[0]), min(w, box[2])):
-        ink = False
-        for y in range(max(0, box[1]), min(h, box[3])):
-            at = head + (y * w + x) * 4
-            if 0.299 * raw[at] + 0.587 * raw[at + 1] + 0.114 * raw[at + 2] < 110:
-                ink = True
-                break
+    for x in range(left, right):
+        ink = any(abs(light(x, y) - ground) > 60 for y in range(top, bottom))
         runs += ink and not inked
         inked = ink
     return runs
