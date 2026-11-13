@@ -264,10 +264,11 @@ private fun Stepper(value: Int, range: IntRange, unit: String, onChange: (Int) -
         Text("−", color = if (value > range.first) palette.accentText else palette.subtext, fontSize = 22.sp,
              modifier = Modifier.said(R.string.stepper_fewer)
                  .clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
-        // The value takes what the two buttons leave, wrapping if it must: last in
-        // a plain Row, the + was squeezed to a dash, then to nothing, on a 320 dp
-        // phone at the largest letters ("2 months", "After 10 times").
-        Text("$value $unit", color = palette.text, fontSize = 15.sp, modifier = Modifier.weight(1f, fill = false))
+        // What the two buttons leave, on one line shrunk to it: last in a plain Row,
+        // a number of two digits squeezed the + at the largest letters on 320 dp, and
+        // left to wrap, the word broke inside itself ("month" / "s").
+        OneLine("$value $unit", Modifier.weight(1f, fill = false), color = palette.text,
+                look = androidx.compose.ui.text.TextStyle(fontSize = 15.sp))
         Text("+", color = if (value < range.last) palette.accentText else palette.subtext, fontSize = 22.sp,
              modifier = Modifier.said(R.string.stepper_more)
                  .clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
