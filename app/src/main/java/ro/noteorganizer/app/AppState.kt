@@ -981,11 +981,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      * opened as any note is: held for an open note that could not be saved,
      * the words lived in its "Leave anyway" bar alone, which could drop them.
      */
-    fun noteFromShared(text: String, said: String) {
+    fun noteFromShared(text: String, said: String, long: Boolean = false) {
         val (title, body) = sharedAsNote(text)
         report(Notebook.createNote(load, title, body)) { ok ->
             noteMade(ok.id)
-            say(said)
+            say(said, long)
             openNote(ok.id)
         }
     }

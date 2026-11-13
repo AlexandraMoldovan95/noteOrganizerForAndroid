@@ -819,6 +819,7 @@ def main():
     # walk is the check before an install, so they belong in it.
     hostile_backups(folder)
     code_read_away(folder)
+    shared_files(folder)
     long_lines(folder)
     kept_aside(folder)
 
@@ -3889,6 +3890,57 @@ def code_read_away(folder):
     check("... and the screen is never held a second while it is read",
           longest < 1.0 and max(skipped or [0]) < 60, "longest frame %.2f s, frames skipped %s" % (longest, skipped))
     tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def shared_files(folder):
+    """Text shared to the app as a file, as Files or a mail app shares a
+    .txt: read into a note away from the screen. One past what is read
+    (500,000 characters) is said cut, where the rest went without a word;
+    and words shared while the file is read wait their turn, so the file's
+    note comes first. The file is offered through the app's own provider,
+    written into its cache by run-as once the app is up (a start empties
+    that folder)."""
+    print("\n-- text shared as a file --")
+    if not seed_inside([{"id": 1, "uid": "sf-1", "title": "Here", "body": "x", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Here"):
+        return
+    first = "A line of a long shared log, with its words."
+    text = (first + "\n") * (600_000 // (len(first) + 1) + 1)
+    local = os.path.join(folder, "walk_long.txt")
+    with io.open(local, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    staging = "/data/local/tmp/walk_long.txt"
+    adb("push", local, staging)
+    os.remove(local)
+    adb("shell", "chmod", "644", staging)
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", "cache/share")
+    adb("shell", "run-as", PACKAGE, "cp", staging, "cache/share/walk_long.txt")
+    adb("shell", "rm", "-f", staging)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--eu", "android.intent.extra.STREAM", "content://%s.files/share/walk_long.txt" % PACKAGE,
+        "--grant-read-uri-permission", "-n", PACKAGE + "/.MainActivity")
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", "'Words shared after the file'", "-n", PACKAGE + "/.MainActivity")
+    said = not shot_as_said(folder, "130-shared-file-cut",
+                            "Only the first 500,000 characters of the file came in", within=20.0)
+
+    def made():
+        return [n for n in read_file("notes_data.json") or []
+                if n.get("title") in (first, "Words shared after the file")]
+
+    got = settle(made, lambda notes: len(notes) == 2, within=20.0, first=1.0)
+    check("a long file shared in is said cut", said)
+    long_note = next((n for n in got if n.get("title") == first), None)
+    words = next((n for n in got if n.get("title") == "Words shared after the file"), None)
+    kept = len(first) + 1 + len((long_note or {}).get("body") or "")
+    check("...its note holds the file's first 500,000 characters, no more",
+          long_note is not None and 499_000 < kept <= 500_000, "%d characters" % kept)
+    check("...and words shared while it was read are a note of their own, after it",
+          long_note is not None and words is not None and long_note["id"] < words["id"],
+          repr([(n.get("id"), n.get("title")) for n in got]))
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_long.txt")
     back_to("Search notes")
 
 

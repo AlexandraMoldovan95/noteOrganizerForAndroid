@@ -108,12 +108,20 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
 
     /**
-     * What shares handed the app and the screen has not taken in yet, in
-     * the order they came, each with a number of its own (the same words
-     * shared twice are two notes). One slot lost a shared file read late,
-     * behind Home, to the words shared next.
+     * A share as the screen takes it in: its number, in the order shares came
+     * (the same words shared twice are two notes); its text, null while a
+     * shared file is still being read, which holds back the shares after it;
+     * and whether the file was longer than what is read of it.
      */
-    private val incoming = mutableStateListOf<Pair<Long, String>>()
+    private data class Shared(val number: Long, val text: String?, val cut: Boolean = false)
+
+    /**
+     * What shares handed the app and the screen has not taken in yet. One
+     * slot lost a shared file read late, behind Home, to the words shared
+     * next; taken as each read finished, a slow file's code replaced the one
+     * shared after it.
+     */
+    private val incoming = mutableStateListOf<Shared>()
     private var shares = 0L
 
     companion object {
@@ -180,11 +188,15 @@ class MainActivity : ComponentActivity() {
             val waiting = incoming.firstOrNull()
             val sharedNoteSaid = stringResource(R.string.shared_text_note)
             LaunchedEffect(waiting) {
-                val (_, text) = waiting ?: return@LaunchedEffect
+                // None, or a file still being read: what came after it waits.
+                val text = waiting?.text ?: return@LaunchedEffect
                 // A code, with words around it or not, is imported; any other
                 // text becomes a note of its own (the owner's choice).
                 if (text.contains(Sharing.PREFIX)) state.incomingCode = text
-                else state.noteFromShared(text, sharedNoteSaid)
+                else if (!waiting.cut) state.noteFromShared(text, sharedNoteSaid)
+                else state.noteFromShared(text, "$sharedNoteSaid. Only the first " +
+                    "%,d".format(Locale.ENGLISH, SHARED_FILE_CHARS) + " characters of the file " +
+                    "came in; the rest was left out.", long = true)
                 incoming.remove(waiting)
             }
             val tapped by todayTapped
@@ -294,22 +306,28 @@ class MainActivity : ComponentActivity() {
             arrived(words)
             return
         }
+        // Its place taken now, filled when the file is in.
+        val place = arrived(null)
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { sharedFile(intent) }?.let(::arrived)
+            val read = withContext(Dispatchers.IO) { sharedFile(intent) }
+            val at = incoming.indexOfFirst { it.number == place.number }
+            if (at < 0) return@launch
+            if (read == null) incoming.removeAt(at)
+            else incoming[at] = place.copy(text = read.first, cut = read.second)
         }
     }
 
-    private fun arrived(text: String) {
+    private fun arrived(text: String?): Shared {
         shares += 1
-        incoming.add(shares to text)
+        return Shared(shares, text).also { incoming.add(it) }
     }
 
     /**
      * Text shared as a file -- a .txt from Files, a mail's attachment -- with
-     * no words in the share itself: read, up to [SHARED_FILE_CHARS]. It
-     * brought the app forward and did nothing, without a word.
+     * no words in the share itself: read, up to [SHARED_FILE_CHARS], and
+     * whether there was more (said, where the rest went without a word).
      */
-    private fun sharedFile(intent: Intent): String? {
+    private fun sharedFile(intent: Intent): Pair<String, Boolean>? {
         @Suppress("DEPRECATION")
         val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return null
         return try {
@@ -322,8 +340,8 @@ class MainActivity : ComponentActivity() {
                     if (got < 0) break
                     read += got
                 }
-                String(buffer, 0, read)
-            }?.takeIf { it.isNotBlank() }
+                String(buffer, 0, read) to (read == buffer.size && reader.read() >= 0)
+            }?.takeIf { it.first.isNotBlank() }
         } catch (e: Exception) {
             null
         }
