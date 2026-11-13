@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -315,15 +316,17 @@ private fun StatsPage(state: AppState) {
             snap.categories to R.string.stats_categories, snap.templates to R.string.stats_templates,
             snap.withChecklist to R.string.stats_checklists, snap.inTrash to R.string.stats_trash,
         )
-        // Every tile the same size: each caption keeps room for two lines,
-        // and the tiles of a row stretch to the tallest -- "Added this
-        // week" wrapping used to make its tile stand taller than the rest.
-        for (row in tiles.chunked(3)) {
+        // Tiles alike: captions keep two lines' room, a row stretches to its
+        // tallest. Two a row at the largest letters: three broke a four-digit
+        // figure between its digits ("123" over "4"), a caption mid-word.
+        val large = LocalDensity.current.fontScale >= 1.5f
+        for (row in tiles.chunked(if (large) 2 else 3)) {
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for ((value, caption) in row) {
                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
-                        Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                             maxLines = 1, softWrap = false)
                         Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp, minLines = 2)
                     }
                 }
@@ -331,18 +334,20 @@ private fun StatsPage(state: AppState) {
         }
         // The time split: a header row said once, the figures lined up under it.
         val segments = listOf(R.string.stats_week, R.string.stats_month, R.string.stats_year, R.string.stats_older)
+        // Its figures' columns a little wider at the largest letters.
+        val label = if (large) 1f else 1.3f
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
-            Spacer(Modifier.weight(1.3f))
+            Spacer(Modifier.weight(label))
             for (seg in segments) Text(stringResource(seg), color = palette.subtext, fontSize = 11.sp,
                                        modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
         for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
+                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(label))
                 for (value in listOf(p.week, p.month, p.year, p.older)) {
                     Text(value.toString(), color = if (value > 0) palette.text else palette.subtext, fontSize = 15.sp,
-                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, softWrap = false,
                          textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 }
             }
@@ -356,7 +361,8 @@ private fun StatsPage(state: AppState) {
                     Row(Modifier.clip(RoundedCornerShape(10.dp)).background(palette.card).padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Dot(state.load.categories[name] ?: palette.hex.getValue("subtext"), 10)
-                        Text("  $name  ", color = palette.text, fontSize = 14.sp)
+                        // Weighted: a long name took the whole line and the count went undrawn.
+                        Text("  $name  ", color = palette.text, fontSize = 14.sp, modifier = Modifier.weight(1f, fill = false))
                         Text(count.toString(), color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -735,6 +741,7 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
 
 // ---- Trash ----
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TrashPage(state: AppState, backup: BackupActions) {
     val palette = LocalPalette.current
@@ -854,12 +861,16 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (chosen.isNotEmpty()) {
-                Button(
-                    onClick = { state.restoreFromTrash(chosen); picked = emptySet() },
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(pluralStringResource(R.plurals.restore_n, chosen.size, chosen.size)) }
-                TextButton(onClick = { askForever = chosen.toList() }) {
-                    Text(stringResource(R.string.delete_forever), color = palette.dangerText)
+                // A flow: side by side at the largest letters, "Delete for
+                // good" was left a few letters wide, wrapped a letter a line.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Button(
+                        onClick = { state.restoreFromTrash(chosen); picked = emptySet() },
+                        colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
+                    ) { Text(pluralStringResource(R.plurals.restore_n, chosen.size, chosen.size)) }
+                    TextButton(onClick = { askForever = chosen.toList() }) {
+                        Text(stringResource(R.string.delete_forever), color = palette.dangerText)
+                    }
                 }
             } else if (entries.isNotEmpty()) {
                 Spacer(Modifier.weight(1f))
