@@ -90,11 +90,18 @@ fun CalendarScreen(state: AppState) {
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = {
-                Text(
+                // On one line, shrunk to its room: at the largest letters
+                // beside the arrows and History it broke as "Novembe" / "r 2026".
+                androidx.compose.foundation.text.BasicText(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
                     modifier = Modifier.clickable(enabled = !state.showHistory,
                         onClickLabel = stringResource(R.string.cal_today)) { goToday(state) },
+                    style = androidx.compose.material3.LocalTextStyle.current.merge(
+                        androidx.compose.ui.text.TextStyle(color = palette.text)),
+                    maxLines = 1, softWrap = false,
+                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
+                        minFontSize = 12.sp, maxFontSize = androidx.compose.material3.LocalTextStyle.current.fontSize),
                 )
             },
             actions = {
@@ -437,7 +444,7 @@ internal fun DayQuestions(state: AppState, id: Int, day: String, cameFrom: Strin
             AlertDialog(
                 onDismissRequest = onDone,
                 title = { Text(stringResource(R.string.day_reset).removePrefix("↺ ")) },
-                text = { Text(stringResource(R.string.day_reset_moved_text, home)) },
+                text = { DialogBody { Text(stringResource(R.string.day_reset_moved_text, home)) } },
                 confirmButton = {
                     Column(horizontalAlignment = Alignment.End) {
                         TextButton(onClick = { state.resetDay(id, day, dropText = false); onDone() }) {

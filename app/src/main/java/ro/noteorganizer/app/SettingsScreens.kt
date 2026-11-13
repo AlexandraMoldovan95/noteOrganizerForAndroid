@@ -341,7 +341,7 @@ private fun StatsPage(state: AppState) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
         for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
+                Figure(stringResource(caption), palette.subtext, 13.sp, Modifier.weight(1.3f), bold = false)
                 for (value in listOf(p.week, p.month, p.year, p.older)) {
                     Figure(value.toString(), if (value > 0) palette.text else palette.subtext, 15.sp,
                            Modifier.weight(1f), end = true)
@@ -370,16 +370,17 @@ private fun StatsPage(state: AppState) {
 }
 
 /**
- * A figure on one line, shrunk to its room rather than broken or cut: at the
- * largest letters on a narrow phone "1234" broke as "123" over "4".
+ * A figure (or a one-word label) on one line, shrunk to its room rather than
+ * broken or cut: at the largest letters on a narrow phone "1234" broke as
+ * "123" over "4", and "Updated" as "Update" over "d".
  */
 @Composable
 private fun Figure(value: String, color: androidx.compose.ui.graphics.Color, size: androidx.compose.ui.unit.TextUnit,
-                   modifier: Modifier = Modifier, end: Boolean = false) {
+                   modifier: Modifier = Modifier, end: Boolean = false, bold: Boolean = true) {
     androidx.compose.foundation.text.BasicText(
         value, modifier,
         style = androidx.compose.material3.LocalTextStyle.current.merge(androidx.compose.ui.text.TextStyle(
-            color = color, fontSize = size, fontWeight = FontWeight.Bold,
+            color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             textAlign = if (end) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start)),
         maxLines = 1, softWrap = false,
         autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = size),
