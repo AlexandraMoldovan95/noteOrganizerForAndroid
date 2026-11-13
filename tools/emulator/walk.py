@@ -2369,6 +2369,39 @@ def statistics(folder):
     check("the Categories tile counts every category, the empty one too", kinds == "4", str(kinds))
     shot(folder, "31-statistics", "Total notes")
     back_to("Search notes")
+    # At the largest letters a four-digit figure stays whole: three tiles a
+    # row broke it between its digits, "123" over "4".
+    many = [{"id": i + 1, "uid": "walk-sm%d" % i, "title": "N%d" % i, "category": "General",
+             "created": "2026-10-13 09:00", "updated": "2026-10-13 09:00"} for i in range(1233)]
+    many.append({"id": 1234, "uid": "walk-sm-top", "title": "Top of many", "category": "General",
+                 "created": "2026-10-14 09:00", "updated": "2026-10-14 09:00"})
+    if not seed_inside(many, {"welcome_offered": True}, "Top of many"):
+        return
+    try:
+        # A 360 dp phone (this emulator is 411 dp wide, where four digits fit).
+        adb("shell", "wm", "density", "480")
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(3.0)
+        px = 480 / 160.0
+        tap("Settings", exact=True, wait=1.2)
+        for _ in range(3):
+            if find("Statistics") is not None:
+                break
+            adb("shell", "input", "swipe", "540", "1900", "540", "900", "400")
+            time.sleep(1.0)
+        tap("Statistics", wait=1.5)
+        total, kinds, figure = bounds("Total notes"), bounds("Categories"), bounds("1234")
+        check("at the largest letters Statistics sets two tiles a row, not three",
+              bool(total) and bool(kinds) and kinds[0][1] - total[0][1] > 20 * px, "%s %s" % (total, kinds))
+        check("...and a four-digit figure is drawn whole, on one line",
+              bool(figure) and figure[0][2] - figure[0][0] >= 78 * px
+              and figure[0][2] - figure[0][0] > figure[0][3] - figure[0][1], repr(figure))
+        shot(folder, "31b-statistics-large-letters", "1234")
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
+    back_to("Search notes")
 
 
 def tile_figure(caption):
@@ -3989,6 +4022,49 @@ def shared_files(folder):
     check("...and words shared after it still become a note", len(after) == 1, repr(after)[:120])
     back_to("Search notes")
 
+    # A share code in a file past what is read: whole within its first
+    # 500,000 characters it is offered as any code; broken by the cut, said.
+    code = desktop_code({"uid": "walk-long-code", "title": "From a long file", "body": "x",
+                         "category": "General"})
+    if not code:
+        fail("a code in a long file: the desktop's encoder could not be used, so nothing was tried")
+        return
+
+    def put_shared(name, text):
+        local = os.path.join(folder, name)
+        with io.open(local, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        adb("push", local, "/data/local/tmp/" + name)
+        os.remove(local)
+        adb("shell", "chmod", "644", "/data/local/tmp/" + name)
+        adb("shell", "run-as", PACKAGE, "cp", "/data/local/tmp/" + name, "cache/share/" + name)
+        adb("shell", "rm", "-f", "/data/local/tmp/" + name)
+
+    filler = "a line of a long chat export\n" * 25_000
+    put_shared("walk_code_whole.txt", code + "\n" + filler)
+    share_file("walk_code_whole.txt")
+    check("a code whole in a long file is offered as any code", not says_soon("Import a code", within=20.0))
+    tap("Import", exact=True, wait=2.0)
+    check("...and imported", note_by_uid("walk-long-code") is not None)
+    back_to("Search notes")
+    # The import's own messages put away first: queued behind them, the cut's
+    # waited out their seconds too, and a twenty-second look missed it once.
+    for _ in range(4):
+        shown = find("Dismiss", exact=True)
+        if shown is None:
+            break
+        said = " | ".join(t for t, _d, _c in nodes() if t)
+        print("     a message still up after the import, put away: %s" % said[-160:])
+        adb("shell", "input", "tap", str(shown[0]), str(shown[1]))
+        time.sleep(0.8)
+    at = 500_000 - len(code) // 2
+    put_shared("walk_code_cut.txt", filler[:at] + code + "\n" + filler[:2000])
+    share_file("walk_code_cut.txt")
+    cut_said = not shot_as_said(folder, "134-shared-code-cut", "the share code in it is incomplete", within=20.0)
+    check("a code the cut broke is said cut, not offered as damaged", cut_said)
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_code_whole.txt", "cache/share/walk_code_cut.txt")
+    back_to("Search notes")
+
 
 def trash_wide(folder):
     """The Trash page on a phone on its side. Its top (the window's days,
@@ -4030,6 +4106,24 @@ def trash_wide(folder):
     left = [e.get("title") for e in read_file("trash.json") or []]
     check("...and restores from there", left == ["Sideways two"], repr(left))
     turn(0)
+    # Upright at the largest letters: the two buttons side by side left
+    # "Delete for good" a few letters wide, wrapped a letter a line.
+    try:
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(2.5)
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "400")
+        time.sleep(1.0)
+        tap("Sideways two", exact=True, wait=1.0)
+        forever = tappable_box("Delete for good")
+        restore = tappable_box("↩ Restore 1 selected")
+        check("at the largest letters the Trash's buttons keep their words on one line each",
+              forever is not None and restore is not None and forever[2] - forever[0] >= 100 * px
+              and forever[3] - forever[1] <= 80 * px and restore[3] - restore[1] <= 80 * px,
+              "Delete for good %s, Restore %s at %.2f px a dp" % (forever, restore, px))
+        shot(folder, "133-trash-large-letters", "Delete for good")
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        time.sleep(1.5)
     back(wait=1.0)
     back(wait=1.0)
 
