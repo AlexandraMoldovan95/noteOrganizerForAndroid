@@ -558,7 +558,7 @@ fun AppRoot(state: AppState, version: String) {
                                 selected = state.tab == tab,
                                 onClick = { goTo(tab) },
                                 icon = { TabMark(tab, mark) },
-                                label = { Text(stringResource(label)) },
+                                label = { OneLine(stringResource(label)) },
                                 colors = NavigationRailItemDefaults.colors(
                                     selectedIconColor = palette.text,
                                     selectedTextColor = palette.text,
@@ -609,7 +609,9 @@ fun AppRoot(state: AppState, version: String) {
                             selected = state.tab == tab,
                             onClick = { goTo(tab) },
                             icon = { TabMark(tab, mark) },
-                            label = { Text(stringResource(label)) },
+                            // One line: at the largest letters on a 320 dp phone
+                            // "Calendar" broke as "Calenda" / "r" ([OneLine]).
+                            label = { OneLine(stringResource(label)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = palette.text,
                                 selectedTextColor = palette.text,

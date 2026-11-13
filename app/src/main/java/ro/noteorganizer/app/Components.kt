@@ -420,14 +420,16 @@ fun DialogBody(key: Any? = null, content: @Composable ColumnScope.() -> Unit) {
 }
 
 /**
- * A top bar's title on one line, shrunk to its room, and "…" where even 6 sp
- * does not fit: a plain Text broke inside its word at the largest letters
- * and the 64 dp bar cut the rest ("select" / "ed", "Novembe" / "r 2026").
+ * A top bar's title, or a short label, on one line, shrunk to its room, and
+ * "…" where even 6 sp does not fit: a plain Text broke inside its word at the
+ * largest letters ("select" / "ed", "Novembe" / "r 2026", "Mo" / "n",
+ * "Calenda" / "r"), and a bar cut the rest. [look] is laid over the place's style.
  */
 @Composable
-fun BarTitle(text: String, modifier: Modifier = Modifier,
-             color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
-    val style = androidx.compose.material3.LocalTextStyle.current
+fun OneLine(text: String, modifier: Modifier = Modifier,
+            color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified,
+            look: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default) {
+    val style = androidx.compose.material3.LocalTextStyle.current.merge(look)
     val ink = if (color != androidx.compose.ui.graphics.Color.Unspecified) color
               else if (style.color != androidx.compose.ui.graphics.Color.Unspecified) style.color
               else androidx.compose.material3.LocalContentColor.current

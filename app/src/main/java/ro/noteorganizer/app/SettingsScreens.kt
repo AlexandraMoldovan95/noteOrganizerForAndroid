@@ -87,7 +87,7 @@ fun SettingsScreen(
     BackHandler(enabled = page != null) { state.settingsPage = up }
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
-            title = { BarTitle(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
+            title = { OneLine(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
             navigationIcon = {
                 if (page != null) IconButton(onClick = { state.settingsPage = up }, modifier = Modifier.said(R.string.back_said)) {
                     Text("←", fontSize = 22.sp)

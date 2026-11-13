@@ -91,8 +91,8 @@ fun CalendarScreen(state: AppState) {
         TopAppBar(
             title = {
                 // It broke as "Novembe" / "r 2026", then was cut, "November 202":
-                // one line, shrunk to its room ([BarTitle]; see ISSUES_LOG).
-                BarTitle(
+                // one line, shrunk to its room ([OneLine]; see ISSUES_LOG).
+                OneLine(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
                     modifier = Modifier.clickable(enabled = !state.showHistory,
@@ -189,8 +189,9 @@ private fun MonthGrid(state: AppState, byDate: Map<String, List<JSONObject>>) {
     ) {
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             for (name in Recurrence.WEEKDAY_NAMES) {
-                Text(name, color = palette.subtext, fontSize = 11.sp, fontWeight = FontWeight.Medium,
-                     modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                OneLine(name, Modifier.weight(1f), color = palette.subtext,
+                        look = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                                                                  textAlign = androidx.compose.ui.text.style.TextAlign.Center))
             }
         }
         for (week in Days.weeks(month.year, month.monthValue)) {
