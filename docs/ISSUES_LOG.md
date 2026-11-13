@@ -371,6 +371,38 @@ the table bar's words are cut at the largest letters (the table's symbols
 still say what each does); and the unit tests' org.json is laxer and
 stricter than Android's in corners only hand-made files reach.
 
+The seventh round found the sixth's "every question's text scrolls" true
+only of the questions built on Ask and Choice: the off-schedule question
+(the day's own text in it, its last paragraph cut), deleting a category,
+putting a day back, the PDF question, a note's export and the templates'
+questions were drawn straight on AlertDialog. They all scroll now
+(`DialogBody`, keyed by the day where one dialog asks day after day), and
+the code paste box, which grew with a long code until the problem line and
+Paste had no room, is held to a height. At the largest letters
+Statistics' "Updated" broke mid-word on a 360 dp phone and the calendar's
+month title read "Novembe" over "r 2026": both shrink to their room now.
+The walk's photographs of that fix showed three things its checks had
+passed: the title, on one line, read "November 202", having stopped
+shrinking at 12 sp; the time table's header broke "this month" as "this" /
+"mont" / "h"; and its figures ran together, a "0" beside "1234" read as
+"01234". The title shrinks to 6 sp now, which fits "September 2026" on a
+360 dp phone; a label has no more lines than words; each column keeps a
+gap. The walk counts the title's letters drawn on the screen, and measures
+the header's lines and the gaps (AS709 to AS711); its first check of
+"Updated" measured the label's column, not its word, and compares heights
+now. The sixth round's padding fix overshot: a code that lost one of
+its two "=" read here and not on the desktop; the phone follows Python's
+rule now, too much padding ignored and too little refused. The plan's
+Writing cases held fourteen mediums older than the wave: links the
+editor moved into ⋮ on 23 October, a Find said to skip a table it now
+searches, line and piece limits of before (20,000 and 100, now 40,000 and
+500), a long press and a "Never" chip that do not exist, a row's words of
+before f873ee2, a paste said to be cut that is refused, a table key and a
+menu entry named wrong, letters said kept apart that both apps now fold
+(the owner's choice of 3 November), and a size, 18, that neither app
+offers. Each is true now. Left: at the largest letters on a 320 dp phone
+a tile's caption of one long word ("Categories") may still break mid-word.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
