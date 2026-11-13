@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -746,6 +747,11 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // What is picked AND still in the Trash: the counts and the buttons
     // never name an entry that has left it.
     val chosen = picked intersect all
+    // Something picked: a delete's "Moved to Trash · Undo" bar lay over the
+    // Restore button for its ten seconds. Picking here is that Undo's work.
+    LaunchedEffect(chosen.isNotEmpty()) {
+        if (chosen.isNotEmpty()) state.snackbar.currentSnackbarData?.dismiss()
+    }
     // Null when the window could not be read: nothing is purged then, and
     // the page says so rather than show the default as if it were chosen.
     val known = state.trashWindow
