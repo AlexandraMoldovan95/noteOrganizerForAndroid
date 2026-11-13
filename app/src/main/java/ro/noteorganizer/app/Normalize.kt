@@ -101,9 +101,82 @@ object Normalize {
         // A copy's days set aside, kept until the notebook makes them notes
         // of their own ([Notebook.settleAside]), as the desktop keeps them.
         Notebook.shapedAside(raw.opt("_set_aside"))?.let { out.put("_set_aside", it) }
+        // What a newer version (or another program) wrote, kept: [KNOWN_NOTE_FIELDS].
+        val unknown = unknownFields(raw)
+        for (name in unknown.keys()) out.put(name, unknown.opt(name))
         // A turned-off series' days kept only in its copy come into the
         // note, as the desktop's normalize_note brings them.
         if (daysBack) Notebook.daysBackFromCopy(out)
+        return out
+    }
+
+    /**
+     * Any other field a note holds is kept as it came, so an older app never
+     * drops what a newer one added: the desktop's `unknown_fields`, rule for
+     * rule, bounds and order of names alike (the owner's decision D2,
+     * 2026-11-13; DATA_FORMAT, "Fields a version does not know").
+     */
+    val KNOWN_NOTE_FIELDS = setOf(
+        "uid", "title", "body", "formatting", "comments", "category", "date", "color",
+        "attachments", "updated", "created", "recurrence", "exceptions", "overrides", "moved",
+        "pinned", "checklist", "paragraphs",
+        "id", "order", "_prev", "_set_aside", "tags", "deleted_at",
+    )
+    const val MAX_UNKNOWN_FIELDS = 32
+    const val MAX_UNKNOWN_UNITS = 65536
+    const val MAX_UNKNOWN_DEPTH = 20
+
+    /** What [value] costs against [MAX_UNKNOWN_UNITS], or null: not JSON, too deep, or past it all. */
+    private fun jsonUnits(value: Any?): Int? {
+        var total = 0
+        val stack = ArrayDeque<Pair<Any?, Int>>()
+        stack.addLast(value to 1)
+        while (stack.isNotEmpty()) {
+            val (item, level) = stack.removeLast()
+            when (item) {
+                is String -> total += item.length
+                null, JSONObject.NULL, is Boolean -> total += 1
+                is Double -> if (item.isFinite()) total += 1 else return null
+                is Float -> if (item.isFinite()) total += 1 else return null
+                is Number -> total += 1
+                is JSONObject -> {
+                    if (level > MAX_UNKNOWN_DEPTH) return null
+                    total += 1
+                    for (key in item.keys()) {
+                        total += key.length
+                        stack.addLast(item.opt(key) to level + 1)
+                    }
+                }
+                is JSONArray -> {
+                    if (level > MAX_UNKNOWN_DEPTH) return null
+                    total += 1
+                    for (i in 0 until item.length()) stack.addLast(item.opt(i) to level + 1)
+                }
+                else -> return null
+            }
+            if (total > MAX_UNKNOWN_UNITS) return null
+        }
+        return total
+    }
+
+    /** The fields of [note] this version does not know, as [normalizeNote] keeps them: copies. */
+    fun unknownFields(note: JSONObject): JSONObject {
+        val out = JSONObject()
+        var units = 0
+        var kept = 0
+        val names = note.keys().asSequence().filter { it !in KNOWN_NOTE_FIELDS && !it.startsWith("_") }.sorted()
+        for (name in names) {
+            if (kept >= MAX_UNKNOWN_FIELDS) break
+            val size = (jsonUnits(note.opt(name)) ?: continue) + name.length
+            if (units + size > MAX_UNKNOWN_UNITS) continue
+            out.put(name, when (val value = note.opt(name)) {
+                is JSONObject -> JSONObject(value.toString())
+                is JSONArray -> JSONArray(value.toString())
+                else -> value
+            })
+            units += size
+            kept++
+        }
         return out
     }
 
@@ -488,6 +561,9 @@ object Normalize {
         checklistSignature(note.opt("checklist")),
         recurrenceSignature(note.opt("recurrence")),
         seriesDaysSignature(note),
+        // A field this version does not know: grouped by the rest, the
+        // cleanup dropped the other copy's field with it (the desktop's too).
+        stable(unknownFields(note)),
     ).joinToString("\u0001")
 
     /** A series' deleted, edited and moved days, as the desktop's `_dup_key` signs them; none reads as empty. */
@@ -522,5 +598,6 @@ object Normalize {
         stable(note.opt("moved")),
         (note.opt("pinned") == true).toString(),
         PyText.strip(str(note, "color")),
+        stable(unknownFields(note)),
     ).joinToString("\u0001")
 }

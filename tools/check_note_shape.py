@@ -39,6 +39,8 @@ WHAT IT CHECKS
    match `UPDATABLE_FROM_BACKUP`.
 5. docs/DATA_FORMAT.md's field list (the jsonc block under "A note") is the
    desktop's `NOTE_DEFAULTS`.
+6. The fields each app knows (`KNOWN_NOTE_FIELDS`), beside which any other
+   is kept as it came, and the three bounds on those, are the same.
 
 It reads the desktop's source. It never writes there -- that is the hard
 rule of this project, and a gate is no exception.
@@ -377,6 +379,36 @@ elif model_py is not None:
              "the document has and the desktop does not: %s"
              % (sorted(desktop_fields - documented) or "-",
                 sorted(documented - {"id"} - desktop_fields) or "-"))
+
+# ---- 6: the fields a version does not know ----------------------------
+# Both apps keep them by one rule (the owner's decision D2, 2026-11-13): the
+# same names known, the same bounds. A name one app knows and the other does
+# not is shaped away by one and kept as it came by the other.
+
+normalize_kt = read(NORMALIZE_KT)
+if model_py is not None and normalize_kt is not None:
+    known = re.search(r"KNOWN_NOTE_FIELDS = frozenset\(NOTE_DEFAULTS\) \| \{([^}]*)\}", model_py)
+    theirs = ((set(python_dict_keys(model_py, "NOTE_DEFAULTS") or []) | set(re.findall(r'"(\w+)"', known.group(1))))
+              if known else None)
+    listed = re.search(r"val KNOWN_NOTE_FIELDS = setOf\(([^)]*)\)", without_comments(normalize_kt), re.S)
+    ours = set(re.findall(r'"(\w+)"', listed.group(1))) if listed else None
+    if theirs is None or ours is None:
+        fail("I can find the fields each app knows (KNOWN_NOTE_FIELDS), in both languages")
+    elif theirs == ours:
+        ok("the two apps know the same fields, and keep any other alike (%d known)" % len(theirs))
+    else:
+        fail("the two apps know the same fields",
+             "the desktop knows and we do not: %s\nwe know and the desktop does not: %s"
+             % (sorted(theirs - ours) or "-", sorted(ours - theirs) or "-"))
+    for name in ("MAX_UNKNOWN_FIELDS", "MAX_UNKNOWN_UNITS", "MAX_UNKNOWN_DEPTH"):
+        py = re.search(r"^%s = (\d+)$" % name, model_py, re.M)
+        kt = re.search(r"const val %s = (\d+)" % name, normalize_kt)
+        if not py or not kt:
+            fail("I can find %s in both languages" % name)
+        elif py.group(1) == kt.group(1):
+            ok("%s is %s in both" % (name, py.group(1)))
+        else:
+            fail("%s is the same in both" % name, "desktop %s, phone %s" % (py.group(1), kt.group(1)))
 
 print()
 if failures:

@@ -2377,6 +2377,13 @@ object Notebook {
         copyDaysSetAside(note, incoming = if ("overrides" in fields) incoming else null)
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
+        // ...and a backup's fields this version does not know, beside this
+        // note's own, as the desktop's apply_shared_update takes them; a code
+        // carries none (Sharing.shareableView). Restore previous puts back the known.
+        if ("overrides" in fields) {
+            val unknown = Normalize.unknownFields(incoming)
+            for (name in unknown.keys()) note.put(name, unknown.opt(name))
+        }
         // A backup's note sets aside what its own copy kept, as it is read:
         // an Add kept those, an Update dropped them (the
         // desktop's apply_shared_update the same).

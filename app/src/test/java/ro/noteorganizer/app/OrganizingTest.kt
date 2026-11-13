@@ -35,7 +35,9 @@ class OrganizingTest {
         // import's questions named all six.
         val phrase = "same title, text, comments, category, checklist, repeat rule and a series' own days"
         val parts = phrase.removePrefix("same ").replace(" and ", ", ").split(", ")
-        assertEquals(Normalize.dupKey(JSONObject()).split("\u0001").size, parts.size)
+        // ...but the key's last part, the fields a version does not know, which
+        // no person sees and the words do not name (UnknownFieldsTest checks it).
+        assertEquals(Normalize.dupKey(JSONObject()).split("\u0001").size, parts.size + 1)
         val strings = File("src/main/res/values/strings.xml").readText()
         for (name in listOf("dup_explain", "q_duplicates_text", "q_duplicates_one")) {
             val text = Regex("<string name=\"$name\">(.*?)</string>").find(strings)?.groupValues?.get(1)

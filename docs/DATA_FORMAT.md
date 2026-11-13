@@ -232,6 +232,35 @@ search or a filter never loses a note its place — in one write, and with
 Choosing Custom order before anything has been placed numbers the notes
 as the list was showing them, so the choice changes nothing on screen.
 
+### Fields a version does not know
+
+Once the apps are in the stores they update apart, and a newer version
+may add a field to a note. Every other key a note holds is therefore kept
+as it came, by both apps alike (the owner's decision, 2026-11-13): an
+older app reading a newer one's notebook no longer erases what it added,
+through a load, a save, a backup or the Trash. One rule, written twice —
+the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
+held together by `tools/check_note_shape.py` and by a fixture of the
+desktop's own answers (`tools/make_unknown_fixture.py`):
+
+- **Known** are the fields above, `id`, `order`, `_prev`, `_set_aside`,
+  `deleted_at` (the Trash's, which a restore takes off) and `tags` (a
+  feature removed, still dropped). Any other name is kept, unless it
+  starts with `_`, an app's own mark.
+- **Bounded**, as every list a file can inflate: at most 32 such fields,
+  65,536 units in all (a string counts its UTF-16 length, a name too,
+  anything else 1) and 20 levels deep; a field past a bound is left out,
+  the rest kept. They are chosen in the order of their names as UTF-16,
+  which is Kotlin's order, so both apps keep the same ones.
+- **In the signatures:** two notes differing only in such a field are two
+  notes, to the duplicate groups and to the strict content signature, or
+  a cleanup would keep one and the field would go with the other.
+- **A backup's Update** brings the backup's such fields beside the note's
+  own, as it brings its pin and its days; such a field alone is no change
+  for an Update to make. "↩ Restore previous" puts back the known fields.
+- **A share code** stays a closed list (`SHAREABLE_FIELDS`): a stranger's
+  code cannot add a field, and a code's Update leaves the note's own.
+
 **An attached file** is kept in `attachments/` under the moment it was
 added, to the microsecond, and its own name — the desktop's
 `add_attachment` — made a name Windows will take, because a backup
