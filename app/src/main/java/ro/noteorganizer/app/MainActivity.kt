@@ -85,9 +85,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import ro.noteorganizer.app.ui.theme.AppTheme
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import ro.noteorganizer.app.ui.theme.LocalThemeChange
@@ -111,9 +113,10 @@ class MainActivity : ComponentActivity() {
      * A share as the screen takes it in: its number, in the order shares came
      * (the same words shared twice are two notes); its text, null while a
      * shared file is still being read, which holds back the shares after it;
-     * and whether the file was longer than what is read of it.
+     * whether the file was longer than what is read of it; and whether it
+     * could not be read at all (said, where it went without a word).
      */
-    private data class Shared(val number: Long, val text: String?, val cut: Boolean = false)
+    private data class Shared(val number: Long, val text: String?, val cut: Boolean = false, val unread: Boolean = false)
 
     /**
      * What shares handed the app and the screen has not taken in yet. One
@@ -130,6 +133,9 @@ class MainActivity : ComponentActivity() {
 
         /** The most of a shared file read: about what Android hands over as shared words. */
         private const val SHARED_FILE_CHARS = 500_000
+
+        /** How long a shared file's read is waited for before it is given up and said. */
+        private const val SHARED_FILE_WAIT_MS = 30_000L
     }
 
     /** Counts the times the reminder's notification was tapped: today, on the calendar. */
@@ -188,16 +194,29 @@ class MainActivity : ComponentActivity() {
             val waiting = incoming.firstOrNull()
             val sharedNoteSaid = stringResource(R.string.shared_text_note)
             LaunchedEffect(waiting) {
+                val shared = waiting ?: return@LaunchedEffect
+                val first = "%,d".format(Locale.ENGLISH, SHARED_FILE_CHARS)
+                if (shared.unread) {
+                    state.say("Nothing could be read from the shared file: it could not be opened, " +
+                        "held no text, or did not answer within half a minute.", long = true)
+                    incoming.remove(shared)
+                    return@LaunchedEffect
+                }
                 // None, or a file still being read: what came after it waits.
-                val text = waiting?.text ?: return@LaunchedEffect
+                val text = shared.text ?: return@LaunchedEffect
                 // A code, with words around it or not, is imported; any other
-                // text becomes a note of its own (the owner's choice).
-                if (text.contains(Sharing.PREFIX)) state.incomingCode = text
-                else if (!waiting.cut) state.noteFromShared(text, sharedNoteSaid)
-                else state.noteFromShared(text, "$sharedNoteSaid. Only the first " +
-                    "%,d".format(Locale.ENGLISH, SHARED_FILE_CHARS) + " characters of the file " +
-                    "came in; the rest was left out.", long = true)
-                incoming.remove(waiting)
+                // text becomes a note of its own (the owner's choice). A code
+                // cut off with its file is said so, not called damaged.
+                when {
+                    text.contains(Sharing.PREFIX) && shared.cut -> state.say("The shared file was longer than " +
+                        "$first characters and only its start was read, so the share code in it is " +
+                        "incomplete. Ask for the code as words, or for a backup.", long = true)
+                    text.contains(Sharing.PREFIX) -> state.incomingCode = text
+                    !shared.cut -> state.noteFromShared(text, sharedNoteSaid)
+                    else -> state.noteFromShared(text, "$sharedNoteSaid. Only the first $first characters " +
+                        "of the file came in; the rest was left out.", long = true)
+                }
+                incoming.remove(shared)
             }
             val tapped by todayTapped
             LaunchedEffect(tapped) { if (tapped > 0) state.todayAsked += 1 }
@@ -306,14 +325,18 @@ class MainActivity : ComponentActivity() {
             arrived(words)
             return
         }
-        // Its place taken now, filled when the file is in.
+        // Its place taken now, filled when the file is in. A read that does
+        // not return (a provider stalled) held back every share after it:
+        // given up after half a minute, and said, as one that fails is.
         val place = arrived(null)
         lifecycleScope.launch {
-            val read = withContext(Dispatchers.IO) { sharedFile(intent) }
+            val reading = async(Dispatchers.IO) { sharedFile(intent) }
+            val read = withTimeoutOrNull(SHARED_FILE_WAIT_MS) { reading.await() }
+            if (read == null) reading.cancel()
             val at = incoming.indexOfFirst { it.number == place.number }
             if (at < 0) return@launch
-            if (read == null) incoming.removeAt(at)
-            else incoming[at] = place.copy(text = read.first, cut = read.second)
+            incoming[at] = if (read == null) place.copy(unread = true)
+                else place.copy(text = read.first, cut = read.second)
         }
     }
 
