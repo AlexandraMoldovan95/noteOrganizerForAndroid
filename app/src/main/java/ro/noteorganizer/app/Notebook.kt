@@ -2462,7 +2462,12 @@ object Notebook {
      */
     private fun extraFieldsHeld(note: JSONObject, previous: JSONObject): Boolean {
         val extra = PREV_EXTRA_LABELS.map { it.first }.filter { previous.has(it) }
-        if (previous.has("_unknown") && !sameJson(previous.opt("_unknown"), Normalize.unknownFields(note))) return false
+        // Held when the note holds each of its own again (a field the backup
+        // added no person can remove, so it does not count): the desktop's rule.
+        (previous.opt("_unknown") as? JSONObject)?.let { own ->
+            val mine = Normalize.unknownFields(note)
+            if (own.keys().asSequence().any { !mine.has(it) || !sameJson(own.opt(it), mine.opt(it)) }) return false
+        }
         if (extra.isEmpty()) return true
         val held = Normalize.normalizeNote(JSONObject(note.toString()))
         val kept = Normalize.normalizeNote(JSONObject().also { copy -> for (field in extra) copy.put(field, previous.opt(field)) })

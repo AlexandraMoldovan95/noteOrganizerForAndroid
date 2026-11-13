@@ -113,6 +113,20 @@ class UnknownFieldsTest {
     }
 
     @Test
+    fun `a copy whose own 1 the backup wrote over as true is not spent, one the backup only added to is`() {
+        val spend = Normalize.normalizeNote(JSONObject("""{"id": 1, "title": "Old", "flag": 1}"""))
+        Notebook.applyUpdate(spend, JSONObject("""{"title": "New", "flag": true}"""),
+                             "2026-11-13 12:00:00", Notebook.UPDATABLE_FROM_BACKUP)
+        spend.put("title", "Old")
+        val added = Normalize.normalizeNote(JSONObject("""{"id": 1, "title": "Old"}"""))
+        Notebook.applyUpdate(added, JSONObject("""{"title": "New", "extra": "x"}"""),
+                             "2026-11-13 12:00:00", Notebook.UPDATABLE_FROM_BACKUP)
+        added.put("title", "Old")
+        assertTrue(Notebook.holdsUnspentCopy(spend))
+        assertFalse(Notebook.holdsUnspentCopy(added))
+    }
+
+    @Test
     fun `a share code carries none`() {
         val note = Normalize.normalizeNote(JSONObject("""{"id": 1, "title": "x", "mood": "calm"}"""))
         val decoded = Sharing.decode(Sharing.encode(listOf(note)))
