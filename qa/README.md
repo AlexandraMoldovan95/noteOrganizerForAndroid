@@ -266,7 +266,7 @@ turned on its side). The list of parts
 is `main()` in `tools/emulator/walk.py`, and what each one checks is its
 docstring there; [STATUS](../docs/STATUS.md#an-emulator-walk-that-reads-the-files)
 tells what each walks, phase by phase, and [WALK_RUNS.md](WALK_RUNS.md)
-holds every full run before the latest. The
+holds every full run, the latest first. The
 photographs are looked at, not only saved: several bugs the checks
 passed over were found in them ([the stories](../docs/ISSUES_LOG.md)).
 
@@ -393,8 +393,9 @@ The final audit added one more:
 
 ### The full runs, newest first
 
-The latest is dated [above](#the-emulator-walk); every full run before it,
-with what was new and how it ended, is kept in [WALK_RUNS.md](WALK_RUNS.md).
+The latest is dated [above](#the-emulator-walk); every full run, the
+latest among them, with what was new and how it ended, is kept in
+[WALK_RUNS.md](WALK_RUNS.md).
 
 ### The other emulator scripts
 
@@ -411,7 +412,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 497 cases on 13 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 501 cases on 13 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and

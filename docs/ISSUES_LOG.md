@@ -244,12 +244,42 @@ of low severity on the phone, each fixed the same day:
 - **More of the second copy's corners**: a rescue copy's colour, ticks
   and date compared as written rather than as a load shapes them; a code
   holding one plain value called damaged, and one with text after its
-  object taken as whole; dates, colours and the name trimmed by Kotlin's
+  object taken as whole (text after it that Android's reader takes for a
+  comment still passes); dates, colours and the name trimmed by Kotlin's
   `trim()`; a size's figures written in the phone's own digits.
 - **A selection on a big phone** was lost when the phone was turned
-  upright with a note open beside the list, and a note restored from the
-  Trash without a uid kept none, so the list knew it by an id a later
-  note could take.
+  upright with a note open beside the list (it is kept now, up to about
+  400 notes, what one handover of the screen's state safely carries), and
+  a note restored from the Trash without a uid kept none, so the list knew
+  it by an id a later note could take.
+
+The second round found the first round's fixes holding, and their
+neighbours not yet: a long shared file cut at 500,000 characters without
+a word (a medium: it is said now); the share queue taking files in the
+order their reads finished, so a slow file's code replaced one shared
+after it (each share now holds its place from the moment it comes); a
+failed import's kept categories and Trash left out of the screens, the
+next category written over them (it reads the files again, and says its
+reason in the long bar); a code of one 300,000-letter string, whose check
+recursed past the thread's stack (now walked, not matched); and the
+second copy's next corners -- a colour in another script's figures,
+category names and a restored uid trimmed by `trim()`, days left counted
+past the window for a stamp ahead of the clock. Left, each answered: a
+second code shared over an open code dialog takes its place, as the walk
+asks; the figures Android writes in words on a phone set to another
+script; a date written by hand with a space inside it; and Android's
+reader taking a comment after a code's object.
+
+Two more came from the walk, not the reviewers. Two of the first round's
+commits said "the walk's shared-file part goes on reading a file into a
+note": no part of the walk had ever shared a file. One does now
+(`shared_files`, through the app's own provider), and it checks the cut
+and the order above. And the walk's restore from the Trash failed three
+times in a row: a note picked there right after it was deleted showed no
+Restore button, because the delete's "Moved to Trash · Undo" bar lay over
+it for its ten seconds -- passed before only because the bar had gone by
+then. Picking in the Trash now dismisses that bar; picking is its Undo's
+work.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

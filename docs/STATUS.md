@@ -612,8 +612,8 @@ do, each a decision or an account step for the owner:
   `app/build/outputs/mapping/release/`, and the next build writes over
   it. Play reads the copy the bundle carries; another goes beside the
   bundle uploaded, named for its version, so a crash's trace from an
-  older version can still be read here. A step of every release build,
-  with the bundle's own.
+  older version can still be read here. To be added to the release
+  build's steps (CLAUDE.md's list) before the first upload.
 * **The privacy policy: published** (2026-10-21). One page for both
   apps, on Google Sites (`Links.PRIVACY`), its text the desktop
   repository's `docs/PRIVACY.md`, copied there by hand; in the app at
