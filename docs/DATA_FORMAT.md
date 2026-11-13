@@ -239,9 +239,10 @@ may add a field to a note. Every other key at a note's top level is
 therefore kept as it came, by both apps alike (the owner's decision,
 2026-11-13): an older app reading a newer one's notebook no longer erases
 such a field, through a load, a save, a backup or the Trash. A key a newer
-version adds INSIDE a checklist item, an attachment, the repeat rule or a
-day's edit is still shaped away (a new kind of repeat reads as none), so a
-newer version that needs one there must also keep it readable without it.
+version adds INSIDE a checklist item, an attachment, the repeat rule, a
+day's edit or the rescue copy is still shaped away (a new kind of repeat
+reads as none), so a newer version that needs one there must also keep it
+readable without it.
 One rule, written twice —
 the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
 held together by `tools/check_note_shape.py` and by a fixture of the
@@ -257,6 +258,10 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   the rest kept. They are chosen in the order of their names as UTF-16,
   which is Kotlin's order, so both apps keep the same ones. A string, list
   or object longer than the allowance by its count alone is not walked.
+  The desktop shapes every note at each load; the phone shapes a note at
+  its door (an import, a Duplicate) and keeps its own notebook as the file
+  holds it, so a field past a bound there is kept, never lost, until the
+  desktop next loads it.
 - **In the signatures:** two notes differing only in such a field are two
   notes, to the duplicate groups and to the strict content signature (true
   is not 1 there; 1 and 1.0 are one number), or a cleanup would keep one and
@@ -269,8 +274,14 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   `_unknown`, so "↩ Restore previous" puts them back as they were, with the
   known fields.
 - **On a phone**, Android's JSON reader holds an integer past 64 bits as a
-  double, so such a field holding one comes back with fewer digits; the
-  desktop and the unit tests keep it whole.
+  double, so such a field holding one comes back with fewer digits (the
+  desktop and the unit tests keep it whole); it writes 1.0 back as 1 and
+  -0.0 as -0, which Python reads as whole numbers; it refuses a whole
+  backup holding Infinity or NaN as a member's value, where the desktop
+  reads it and leaves that field out (in a list it reads them as null); and
+  an escaped lone surrogate, which the desktop mends to U+FFFD as it reads,
+  it keeps and writes back as "?". Neither app writes Infinity, NaN or a
+  lone surrogate of its own.
 - **A share code** stays a closed list (`SHAREABLE_FIELDS`): a stranger's
   code cannot add a field, and a code's Update leaves the note's own.
 

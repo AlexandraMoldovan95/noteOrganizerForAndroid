@@ -445,6 +445,31 @@ version does not know"); the desktop's eleventh round then had a backup's
 Update keep the note's own in its rescue copy, and the phone does the
 same. Left: the same tile caption at 320 dp.
 
+The ninth round attacked D2 first and found it held on every road the
+phone takes, and the eighth round's bars, dialogs and NEL held too. One
+medium, older than the wave: the Repeat sheet's seven weekday chips sat
+in a plain Row, so on a 320 dp phone, or at large letters on 360, Sa and
+Su were squeezed to slivers no thumb could tap, and the Ends row broke
+inside "After". Its chip rows flow now, as the month's days always did,
+walked at 320 dp and 200% (AS730). The lows: the duplicate signatures
+held every whole number past 2^63 as one (toLong); a code found without
+its prefix kept a NEL; the walk's History check could pass with the
+words shown, and an ellipsis's dots counted as letters ("Calen…" as
+eight); and no fixture case nested objects past the depth allowed
+(AS729). Each is fixed. DATA_FORMAT says what Android's reader changes
+(a whole number past 64 bits, 1.0, -0.0, Infinity, a lone surrogate) and
+that the phone shapes a note at its door, not at each load. The plan's
+last eleven areas, so every case of the plan has been read once since
+the wave began, held eleven mediums: the desktop said not to fold
+diacritics (7), the shared folder read by a release (56), an old version
+number (55), a long comment's field that is a block to read (206), a
+template draft said to be lost behind Home (277), four rows naming a
+walk or a test that reads nothing of theirs (454, 229, 34, 54), and two of
+the eighth round's own new rows, a Settings page that does not exist
+(517) and a hand check that could not fail (518). Each is true now.
+Left: on the road a code takes without its prefix, the phone's strict
+decoder refuses some damaged codes the desktop's lenient one reads.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
