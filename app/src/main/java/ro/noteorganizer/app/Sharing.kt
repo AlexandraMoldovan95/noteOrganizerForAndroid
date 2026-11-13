@@ -202,7 +202,7 @@ object Sharing {
      */
     internal fun codeIn(text: String): String {
         val at = text.indexOf(PREFIX)
-        if (at < 0) return text.filterNot { it.isWhitespace() }
+        if (at < 0) return text.filterNot { it.isWhitespace() || it == Char(0x0085) }
         val body = StringBuilder()
         var padded = false
         for (i in at + PREFIX.length until text.length) {

@@ -117,7 +117,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 if (freq == "weekly") {
                     Text(stringResource(R.string.repeat_on), color = palette.subtext, fontSize = 14.sp,
                          modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Flowed, as the month's days are: in a Row on a 320 dp phone, or at
+                    // large letters on 360, Sa and Su were squeezed to slivers, not tappable.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Recurrence.WEEKDAY_NAMES.forEachIndexed { index, name ->
                             Chip(name.take(2), index in weekdays) {
                                 if (index in weekdays) weekdays.remove(index) else weekdays.add(index)
@@ -141,7 +143,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 if (shortMonthMatters) {
                     Text(stringResource(R.string.repeat_short_month), color = palette.subtext, fontSize = 14.sp,
                          modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Chip(stringResource(R.string.repeat_clamp), policy == "clamp") { policy = "clamp" }
                         Chip(stringResource(R.string.repeat_skip), policy == "skip") { policy = "skip" }
                     }
@@ -149,7 +151,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
 
                 Text(stringResource(R.string.repeat_ends), color = palette.subtext, fontSize = 14.sp,
                      modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Chip(stringResource(R.string.repeat_never), endMode == "never") { endMode = "never" }
                     Chip(stringResource(R.string.repeat_on_date), endMode == "on") { endMode = "on"; if (end.isEmpty()) pickingEnd = true }
                     Chip(stringResource(R.string.repeat_after), endMode == "after") { endMode = "after" }

@@ -503,8 +503,10 @@ object Normalize {
             .joinToString(",", "{", "}") { "\"$it\":" + stable(value.opt(it)) }
         is JSONArray -> (0 until value.length()).joinToString(",", "[", "]") { stable(value.opt(it)) }
         is String -> JSONObject.quote(value)
+        // Whole, by its digits: toLong() held every number past 2^63 as one
+        // (a device reads such an integer as a double), and signed two notes alike.
         is Number -> if (value.toDouble() == Math.floor(value.toDouble()) &&
-            !value.toDouble().isInfinite()) value.toLong().toString() else value.toString()
+            !value.toDouble().isInfinite()) java.math.BigDecimal(value.toString()).toBigInteger().toString() else value.toString()
         null, JSONObject.NULL -> "null"
         else -> value.toString()
     }
