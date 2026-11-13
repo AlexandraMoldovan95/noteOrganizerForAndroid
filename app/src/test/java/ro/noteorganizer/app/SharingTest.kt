@@ -258,6 +258,14 @@ class SharingTest {
         // whole one: the desktop's lenient decoder read it, and the phone refused it.
         val stray = Sharing.encode(listOf(note("""{"title": "stray"}""")))
         assertTrue(Sharing.decode("${stray.take(4)}\n${stray.substring(4, 20)}!${stray.drop(20)}") is Sharing.Decoded.Failed)
+        // Words that say "NOTE 1:" are no code: said so as before, and shared in
+        // they are a note, not a code refused.
+        for (words in listOf("Hi NOTE 1: buy milk", "Meeting notes\nNOTE 1: call Ana about the plan")) {
+            val said = Sharing.decode(words)
+            assertTrue(words, said is Sharing.Decoded.Failed &&
+                said.reason.startsWith("This isn't a Note Organizer share code"))
+            assertFalse("$words, shared in", Sharing.holdsCode(words))
+        }
     }
 
     @Test

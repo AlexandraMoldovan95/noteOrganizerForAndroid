@@ -207,7 +207,8 @@ class MainActivity : ComponentActivity() {
                 // A code, with words around it or not, is imported; other text
                 // is a note (the owner's choice). A code cut off with its file
                 // is said cut, not called damaged; one whole in it goes on.
-                val cutCode = Sharing.holdsCode(text) && shared.cut &&
+                val isCode = withContext(Dispatchers.Default) { Sharing.holdsCode(text) }
+                val cutCode = isCode && shared.cut &&
                     withContext(Dispatchers.Default) { Sharing.decode(text) is Sharing.Decoded.Failed }
                 when {
                     cutCode -> state.say("The shared file was longer than $first characters and only " +
@@ -215,7 +216,7 @@ class MainActivity : ComponentActivity() {
                         "instead (Settings → Backup → Export on the other device).", long = true)
                     // From a cut file, the code alone: its 500,000 characters were
                     // named as the code's length.
-                    Sharing.holdsCode(text) -> state.incomingCode = if (shared.cut) Sharing.codeIn(text) else text
+                    isCode -> state.incomingCode = if (shared.cut) Sharing.codeIn(text) else text
                     !shared.cut -> state.noteFromShared(text, sharedNoteSaid)
                     else -> state.noteFromShared(text, "$sharedNoteSaid. Only the first $first characters " +
                         "of the file came in; the rest was left out.", long = true)

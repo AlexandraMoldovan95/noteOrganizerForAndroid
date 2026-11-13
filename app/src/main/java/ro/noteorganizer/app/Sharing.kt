@@ -192,8 +192,17 @@ object Sharing {
         c.isWhitespace() || c == Char(0x0085) || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
             c == Char(0xFEFF)
 
-    /** Whether [text] holds a share code, its prefix whole or broken by the wrapping, as [codeIn] finds it. */
-    internal fun holdsCode(text: String): Boolean = text.filterNot { wrapping(it) }.contains(PREFIX)
+    /** Whether [text] shows a prefix only once its wrapping is taken out ("NOTE\n1:"). */
+    private fun prefixHidden(text: String): Boolean =
+        !text.contains(PREFIX) && text.filterNot { wrapping(it) }.contains(PREFIX)
+
+    /**
+     * Whether [text] holds a share code: its prefix whole, or hidden by the
+     * wrapping and leading to a code that reads. Words that say "NOTE 1:"
+     * are a note, shared in as one.
+     */
+    internal fun holdsCode(text: String): Boolean =
+        text.contains(PREFIX) || (prefixHidden(text) && decode(text) is Decoded.Notes)
 
     /**
      * The share code inside [text], its wrapping taken out -- the desktop's
@@ -234,8 +243,17 @@ object Sharing {
         return PREFIX + body
     }
 
+    private val NOT_A_CODE = "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”."
+
     fun decode(code: String): Decoded {
-        val cleaned = codeIn(code)
+        val read = decodeFound(codeIn(code))
+        // A prefix the wrapping hid that leads to no readable code is words
+        // saying "NOTE 1:", not a code: answered as such, as the desktop's.
+        return if (read is Decoded.Failed && prefixHidden(code)) Decoded.Failed(NOT_A_CODE) else read
+    }
+
+    /** [decode], once [codeIn] has found the code in the text. */
+    private fun decodeFound(cleaned: String): Decoded {
         // The desktop's words, from decode_share_code, so the same damaged
         // code is described the same way on both devices.
         if (cleaned.isEmpty()) return Decoded.Failed("No code was pasted.")
@@ -245,10 +263,7 @@ object Sharing {
                     "large, send a backup instead: Settings → Backup → Export, then " +
                     "Import on the other device.")
         }
-        if (!cleaned.startsWith(PREFIX)) {
-            return Decoded.Failed(
-                "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
-        }
+        if (!cleaned.startsWith(PREFIX)) return Decoded.Failed(NOT_A_CODE)
         val compressed = try {
             // Python's rule: padding past the code's own is ignored (a code
             // followed by "=)" or a line of "=====" reads), but too little is
