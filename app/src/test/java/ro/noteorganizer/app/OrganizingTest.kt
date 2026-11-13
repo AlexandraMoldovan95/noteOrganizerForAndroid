@@ -126,6 +126,20 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a restored uid is kept stripped, and one a note wears stripped is worn`() {
+        // The desktop's normalize_note strips a uid: " y " came back "y" there
+        // and " y " here, and a note wearing " x " did not stop "x" coming back.
+        val load = notebook("""[{"id": 1, "uid": " x ", "title": "here"}]""",
+            trash = """[{"id": 3, "uid": " y ", "title": "padded", "deleted_at": "2026-10-01 10:00:00"},
+                        {"id": 4, "uid": "x", "title": "twin", "deleted_at": "2026-10-01 10:00:00"}]""")
+        Organizing.restore(load, listOf(Organizing.TrashKey(3, "2026-10-01 10:00:00", " y "),
+                                        Organizing.TrashKey(4, "2026-10-01 10:00:00", "x")))
+        val uids = (0 until onDisk(load).length()).map { onDisk(load).getJSONObject(it).optString("uid") }
+        assertEquals("y", uids[1])
+        assertNotEquals("the twin of a note wearing \" x \" gets its own", "x", uids[2])
+    }
+
+    @Test
     fun `two Trash entries sharing an id and a moment are told apart by their uid`() {
         // An id is handed out again after a delete: two entries deleted in
         // one second can share both, as the desktop's _trash_tick_key learnt.

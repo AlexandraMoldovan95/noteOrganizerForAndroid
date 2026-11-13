@@ -48,14 +48,32 @@ object Sharing {
     private const val NO_NOTES = "This share code doesn't contain any notes."
 
     /**
-     * A whole JSON value that is neither a list nor an object, as Python's
-     * json reads one, its spaces around it: a code holding one is whole but
-     * holds no notes (decode_share_code), where org.json's object reader
-     * called it damaged.
+     * Whether [text] is a whole JSON value that is neither a list nor an
+     * object, as Python's json reads one, its spaces around it: a code holding
+     * one is whole but holds no notes (decode_share_code), where org.json's
+     * object reader called it damaged. A string is walked, not matched: a
+     * regex over 300,000 letters of one recursed past the thread's stack.
      */
-    private val PY_JSON_SCALAR = Regex(
-        """[ \t\n\r]*(?:-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|true|false|null|NaN|-?Infinity""" +
-            """|"(?:[^"\\\x00-\x1f]|\\["\\/bfnrt]|\\u\p{XDigit}{4})*")[ \t\n\r]*""")
+    private fun pyJsonScalar(text: String): Boolean {
+        val core = text.trim(' ', '\t', '\n', '\r')
+        if (!core.startsWith("\"")) return PY_JSON_PLAIN.matches(core)
+        if (core.length < 2 || core.last() != '"') return false
+        var at = 1
+        while (at < core.length - 1) {
+            val c = core[at]
+            at += when {
+                c == '"' || c < ' ' -> return false
+                c != '\\' -> 1
+                core.getOrNull(at + 1)?.let { it in "\"\\/bfnrt" } == true -> 2
+                core.getOrNull(at + 1) == 'u' && at + 6 <= core.length - 1 &&
+                    core.substring(at + 2, at + 6).all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' } -> 6
+                else -> return false
+            }
+        }
+        return at == core.length - 1
+    }
+
+    private val PY_JSON_PLAIN = Regex("""-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|true|false|null|NaN|-?Infinity""")
 
     /** What a code turned out to be. A failure explains itself. */
     sealed class Decoded {
@@ -243,7 +261,7 @@ object Sharing {
                 Files.parseOutside(text) { JSONArray(it) }
                 return Decoded.Failed(NO_NOTES)
             }
-            if (PY_JSON_SCALAR.matches(text)) return Decoded.Failed(NO_NOTES)
+            if (pyJsonScalar(text)) return Decoded.Failed(NO_NOTES)
             // Whole, as Python's reader takes it: anything after the object
             // is damage there, and org.json's reader stopped at the brace.
             Files.parseOutside(text) { whole ->

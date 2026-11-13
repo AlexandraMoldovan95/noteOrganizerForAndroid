@@ -292,7 +292,8 @@ object Settings {
                 if (seen >= MAX_CATEGORIES) break
                 seen += 1
                 val colour = saved.opt(key) as? String ?: continue
-                val name = key.trim()
+                // Python's strip, as categories.py reads a name: trim() kept U+0085.
+                val name = PyText.strip(key)
                 if (name.isEmpty() || !Notebook.isHexColor(colour)) continue
                 if (characters(name) > MAX_CATEGORY_NAME) continue
                 result[name] = Notebook.sanitizeColor(colour)

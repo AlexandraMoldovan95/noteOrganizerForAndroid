@@ -1595,6 +1595,15 @@ class NotebookTest {
     }
 
     @Test
+    fun `a stamp ahead of the clock counts as just deleted, never past the window`() {
+        // A clock put right since: two and a half days ahead read 32 days of
+        // 30 here, where the desktop's days_left_in_trash says 30.
+        val ahead = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+            .format(Date(System.currentTimeMillis() + 60L * 60 * 60 * 1000))
+        assertEquals(30, Notebook.daysLeftInTrash(ahead, 30))
+    }
+
+    @Test
     fun `an unreadable timestamp never reads as due for deletion`() {
         // Fail-safe: better to keep a note too long than to suggest it is
         // about to go.

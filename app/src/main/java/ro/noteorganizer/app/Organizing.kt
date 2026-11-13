@@ -664,7 +664,7 @@ object Organizing {
     }
 
     fun addCategory(load: Notebook.Load, name: String, colour: String): SaveResult {
-        val clean = name.trim()
+        val clean = PyText.strip(name)
         if (clean.isEmpty()) return SaveResult.Failed("A category needs a name.")
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories)?.let { return SaveResult.Failed(it) }
@@ -690,7 +690,7 @@ object Organizing {
      * place of six".
      */
     fun renameCategory(load: Notebook.Load, old: String, new: String): SaveResult {
-        val clean = new.trim()
+        val clean = PyText.strip(new)
         if (old == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be renamed.")
         if (old !in load.categories) return SaveResult.Failed("That category no longer exists.")
         if (clean.isEmpty()) return SaveResult.Failed("A category needs a name.")
@@ -959,7 +959,7 @@ object Organizing {
         val fresh = ids(array)
         var firstId = 0
         val worn = HashSet<String>()
-        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(it.opt("uid") as? String ?: "") }
+        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(PyText.strip(it.opt("uid") as? String ?: "")) }
         val restored = HashSet<String>()
         for (entry in back) {
             val note = JSONObject(entry.toString())
@@ -970,11 +970,11 @@ object Organizing {
             Notebook.settleAsRead(note)
             val nextId = fresh.next()
             note.put("id", nextId)
-            // One of its own when it has none, as the desktop's normalize_note
-            // gives it: kept empty, the list knew it by its id, and a note given
-            // that id later took its place in a selection.
+            // Stripped, and one of its own when it has none or another note
+            // wears it, as the desktop's normalize_note leaves it: kept empty,
+            // the list knew it by an id a later note could take.
             val uid = PyText.strip(note.opt("uid") as? String ?: "")
-            if (uid.isEmpty() || uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
+            note.put("uid", if (uid.isEmpty() || uid in worn) java.util.UUID.randomUUID().toString() else uid)
             worn.add(note.opt("uid") as? String ?: "")
             restored.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)

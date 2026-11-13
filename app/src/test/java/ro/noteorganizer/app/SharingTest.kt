@@ -136,6 +136,14 @@ class SharingTest {
             val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
             assertTrue(text + ": " + result.reason, result.reason.startsWith("This share code is damaged"))
         }
+        // One long string, plain or all escapes: matched by a regex, it recursed
+        // past the thread's stack, an Error no catch here takes.
+        for (long in listOf("\"" + "a".repeat(300_000) + "\"", "\"" + "\\n".repeat(150_000) + "\"")) {
+            val result = Sharing.decode(codeOfText(long)) as Sharing.Decoded.Failed
+            assertEquals("This share code doesn't contain any notes.", result.reason)
+        }
+        val unclosed = Sharing.decode(codeOfText("\"abc\\\"")) as Sharing.Decoded.Failed
+        assertTrue(unclosed.reason, unclosed.reason.startsWith("This share code is damaged"))
     }
 
     /** Builds a code around an arbitrary payload, the way a forger would. */

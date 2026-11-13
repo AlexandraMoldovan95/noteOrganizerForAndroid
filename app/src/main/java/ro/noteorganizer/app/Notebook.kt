@@ -1073,7 +1073,9 @@ object Notebook {
      */
     fun daysLeftInTrash(deletedAt: String, retentionDays: Int): Int? {
         val when_ = Organizing.deletedAt(deletedAt) ?: return null
-        val elapsed = (Date().time - when_.time) / (1000L * 60 * 60 * 24)
+        // A stamp ahead of the clock (a clock put right since) is "just
+        // deleted", as the desktop counts it: 32 days of a 30-day window.
+        val elapsed = maxOf(0L, (Date().time - when_.time) / (1000L * 60 * 60 * 24))
         return maxOf(0, retentionDays - elapsed.toInt())
     }
 
@@ -2845,7 +2847,9 @@ object Notebook {
         val v = PyText.strip(value)
         if (!v.startsWith("#")) return false
         if (v.length != 4 && v.length != 7) return false
-        return v.drop(1).all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+        // 0-9 alone, as the desktop's pattern reads them: isDigit() let in
+        // any script's figures, "#١٢٣" a colour here and none there.
+        return v.drop(1).all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
     }
 
     /**

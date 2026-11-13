@@ -49,6 +49,18 @@ class IdentityTest {
         assertEquals("Maria", Settings.username(JSONObject().put(Settings.USERNAME, "${next}Maria$next")))
     }
 
+    @Test
+    fun `a colour's figures are 0 to 9, and a category's name is stripped, as the desktop reads them`() {
+        // sanitize_color gives "" for Arabic figures, which isDigit() let in;
+        // categories.py strips a name, U+0085 too, which trim() kept.
+        val arabic = String(charArrayOf('#', Char(0x0661), Char(0x0662), Char(0x0663)))
+        assertEquals("", Notebook.sanitizeColor(arabic))
+        assertEquals("#112233", Notebook.sanitizeColor("#123"))
+        val next = Char(0x85).toString()
+        val read = Settings.categories(JSONObject().put(Settings.CATEGORIES, JSONObject().put("Work$next", "#336699")))
+        assertTrue("$read", "Work" in read && read.keys.none { it.endsWith(next) })
+    }
+
     // ---- minting, and NOT minting ----
 
     @Test

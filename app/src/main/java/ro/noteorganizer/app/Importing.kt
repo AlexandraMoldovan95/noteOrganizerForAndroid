@@ -372,7 +372,7 @@ object Importing {
             for (key in theirs.keys()) {
                 if (seen++ >= Settings.MAX_CATEGORIES) break
                 val colour = Notebook.sanitizeColor(theirs.opt(key) as? String ?: "")
-                val name = key.trim()
+                val name = PyText.strip(key)
                 if (name.isEmpty() || colour.isEmpty() || name in categories) continue
                 if (Settings.categoryNameRefusal(name, categories) != null) {
                     refusedCategories += 1
