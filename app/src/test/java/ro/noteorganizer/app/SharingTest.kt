@@ -483,6 +483,17 @@ class SharingTest {
     }
 
     @Test
+    fun `a code that lost one of its two equals signs is damaged, as on the desktop`() {
+        // Python refuses too little padding ("Incorrect padding"); one "=" of
+        // two lost must not read here either.
+        val code = (1..60).asSequence()
+            .map { Sharing.encode(listOf(note("""{"id": 1, "title": "${"x".repeat(it)}", "body": "y"}"""))) }
+            .first { it.endsWith("==") }
+        assertTrue(Sharing.decode(code) is Sharing.Decoded.Notes)
+        assertTrue(Sharing.decode(code.dropLast(1)) is Sharing.Decoded.Failed)
+    }
+
+    @Test
     fun `an emoji cut in half at the end leaves no half behind`() {
         val text = "abcd😀"   // an emoji at characters 5 and 6
         val got = shared(text.toByteArray(), most = 5)

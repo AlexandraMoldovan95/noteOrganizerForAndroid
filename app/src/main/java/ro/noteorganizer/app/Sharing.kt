@@ -240,9 +240,15 @@ object Sharing {
                 "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
         }
         val compressed = try {
-            // Padding needs none here: a code followed by "=)" or a line of
-            // "=====" kept them all, and was called damaged where the desktop reads it.
-            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length).trimEnd('='))
+            // Python's rule: padding past the code's own is ignored (a code
+            // followed by "=)" or a line of "=====" reads), but too little is
+            // refused -- a code that lost one of its two "=" is damaged on both.
+            val body = cleaned.substring(PREFIX.length)
+            val data = body.trimEnd('=')
+            val short = when (data.length % 4) { 1 -> true; 2 -> body.length - data.length < 2; else -> false }
+            if (short && body.length != data.length) throw IllegalArgumentException("incorrect padding")
+            if (data.length % 4 == 1) throw IllegalArgumentException("a letter over")
+            Base64.getUrlDecoder().decode(data)
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +
