@@ -116,7 +116,9 @@ The theme worn is `theme`, written as the desktop writes it. The phone
 adds two keys of its own beside it: `phone_theme_light` and
 `phone_theme_dark`, the last light and the last dark theme worn, where
 Settings → Appearance's Light | Dark switch goes back to. The desktop
-ignores them.
+ignores them, and keeps its own the same way for its ☀ / 🌙 switch,
+`last_light_theme` and `last_dark_theme` (since 2026-11-13), which the
+phone ignores and keeps. A backup's import takes none of the four.
 
 A third, `phone_theme_follows_phone`, is left from **"Follow the phone"**,
 on by default up to 0.9.0 and gone since 0.9.1. A notebook that still follows

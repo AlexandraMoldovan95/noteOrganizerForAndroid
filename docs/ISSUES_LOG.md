@@ -470,6 +470,37 @@ the eighth round's own new rows, a Settings page that does not exist
 Left: on the road a code takes without its prefix, the phone's strict
 decoder refuses some damaged codes the desktop's lenient one reads.
 
+The tenth round found the ninth's own fix had opened a loss, graded high
+by the owner's rule, as the desktop's thirteenth found its twin. The
+spending rule, which rightly lets a field the backup added not count, was
+also the question Restore previous asked of what it replaces; but the
+restore puts back the copy's unknown fields alone, so that field is what
+the restored version lacks, and with an older backup's words held in the
+note's no copy was made and the field was gone. Each question has its
+own function now (unknownHeld, unknownKeptByRestore; AS733). One medium
+older than the wave, measured from the ninth's own photo: the Repeat
+sheet's stepper put its + last in a plain Row, and on a 320 dp phone at
+the largest letters "2 months" left it the row's very end, so a number of
+two digits took it away. The measure had said "2 months" already; the
+walk's photo showed it whole, and the first fix, the value given the room
+but left to wrap, broke the word ("month" / "s"). The value is one line
+now, shrunk to what the buttons leave, walked at 12 months (AS732, AS738). Three
+sentences a person reads were untrue: the welcome note's "It all stays on
+this phone", against Android's backup, which the same note describes;
+Settings → Backup's paragraph on that backup, shown as true with the
+switch off; and the README's "with Undo" for pin and duplicate. The lows:
+numbers compared as doubles, so a copy the desktop keeps was spent here
+(AS734); keys written unquoted in the signature (AS735); and what the
+ninth left, now both ways: a code whose prefix the wrapping broke is read
+from that prefix on both apps, and text shared in holding one is a code,
+not a note (AS736, AS737). The desktop's fourteenth round then found that
+rule too wide: words saying "NOTE 1:" were called a damaged code, and
+shared in they were refused, no note made. A hidden prefix counts now only
+when the code it leads to reads (AS739, AS740). And the restore question,
+"as it was before it was updated" whenever the copy held more than text,
+was asked again over the copy a restore keeps, the updated version itself:
+it names the previous version now, as the button does, on both apps.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
