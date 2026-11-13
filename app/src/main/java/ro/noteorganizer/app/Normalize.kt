@@ -133,6 +133,9 @@ object Normalize {
         stack.addLast(value to 1)
         while (stack.isNotEmpty()) {
             val (item, level) = stack.removeLast()
+            // Longer than the allowance by its count alone: not walked (the desktop's too).
+            val count = when (item) { is String -> item.length; is JSONArray -> item.length(); is JSONObject -> item.length(); else -> 0 }
+            if (count > MAX_UNKNOWN_UNITS) return null
             when (item) {
                 is String -> total += item.length
                 null, JSONObject.NULL, is Boolean -> total += 1
@@ -203,6 +206,8 @@ object Normalize {
             val shaped = normalizeNote(extra)
             for (key in extra.keys()) out.put(key, shaped.opt(key))
         }
+        // The fields this version did not know, as a backup's Update found them.
+        (prev.opt("_unknown") as? JSONObject)?.let { out.put("_unknown", unknownFields(it)) }
         return out
     }
 

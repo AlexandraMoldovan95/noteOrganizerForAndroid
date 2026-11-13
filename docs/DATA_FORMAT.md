@@ -235,10 +235,14 @@ as the list was showing them, so the choice changes nothing on screen.
 ### Fields a version does not know
 
 Once the apps are in the stores they update apart, and a newer version
-may add a field to a note. Every other key a note holds is therefore kept
-as it came, by both apps alike (the owner's decision, 2026-11-13): an
-older app reading a newer one's notebook no longer erases what it added,
-through a load, a save, a backup or the Trash. One rule, written twice —
+may add a field to a note. Every other key at a note's top level is
+therefore kept as it came, by both apps alike (the owner's decision,
+2026-11-13): an older app reading a newer one's notebook no longer erases
+such a field, through a load, a save, a backup or the Trash. A key a newer
+version adds INSIDE a checklist item, an attachment, the repeat rule or a
+day's edit is still shaped away (a new kind of repeat reads as none), so a
+newer version that needs one there must also keep it readable without it.
+One rule, written twice —
 the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
 held together by `tools/check_note_shape.py` and by a fixture of the
 desktop's own answers (`tools/make_unknown_fixture.py`):
@@ -251,13 +255,22 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   65,536 units in all (a string counts its UTF-16 length, a name too,
   anything else 1) and 20 levels deep; a field past a bound is left out,
   the rest kept. They are chosen in the order of their names as UTF-16,
-  which is Kotlin's order, so both apps keep the same ones.
+  which is Kotlin's order, so both apps keep the same ones. A string, list
+  or object longer than the allowance by its count alone is not walked.
 - **In the signatures:** two notes differing only in such a field are two
-  notes, to the duplicate groups and to the strict content signature, or
-  a cleanup would keep one and the field would go with the other.
+  notes, to the duplicate groups and to the strict content signature (true
+  is not 1 there; 1 and 1.0 are one number), or a cleanup would keep one and
+  the field would go with the other. A note holding only such a field is
+  not empty.
 - **A backup's Update** brings the backup's such fields beside the note's
-  own, as it brings its pin and its days; such a field alone is no change
-  for an Update to make. "↩ Restore previous" puts back the known fields.
+  own, as it brings its pin and its days, the two held to the bounds at
+  once; such a field alone is no change for an Update to make. When either
+  side holds such fields, its rescue copy keeps the note's own under
+  `_unknown`, so "↩ Restore previous" puts them back as they were, with the
+  known fields.
+- **On a phone**, Android's JSON reader holds an integer past 64 bits as a
+  double, so such a field holding one comes back with fewer digits; the
+  desktop and the unit tests keep it whole.
 - **A share code** stays a closed list (`SHAREABLE_FIELDS`): a stranger's
   code cannot add a field, and a code's Update leaves the note's own.
 

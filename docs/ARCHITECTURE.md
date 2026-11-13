@@ -69,7 +69,7 @@ About 28,800 lines of Kotlin, measured on 11 November 2026. The rules are
 | `Calculator.kt` | 440 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 760 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
 | `Themes.kt` | 380 | The eight themes, the palettes, and the contrast rules that pick legible words | `themes.py` |
-| `Normalize.kt` | 530 | The parts of `normalize_note` a writer needs, `_dup_key`, `content_signature` | `model.py` |
+| `Normalize.kt` | 600 | The parts of `normalize_note` a writer needs, the fields a version does not know (`unknown_fields`), `_dup_key`, `content_signature` | `model.py` |
 | `Backup.kt` | 440 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 360 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 390 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |

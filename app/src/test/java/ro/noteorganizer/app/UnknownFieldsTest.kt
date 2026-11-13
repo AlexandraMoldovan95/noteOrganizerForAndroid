@@ -85,6 +85,33 @@ class UnknownFieldsTest {
     }
 
     @Test
+    fun `Restore previous after a backup's Update puts back a field this version does not know`() {
+        val note = Normalize.normalizeNote(JSONObject("""{"id": 1, "title": "Mine", "body": "b", "reminder": "10:00"}"""))
+        assertTrue(Notebook.applyUpdate(note, JSONObject("""{"title": "Older", "body": "b", "reminder": "09:00"}"""),
+                                        "2026-11-13 12:00:00", Notebook.UPDATABLE_FROM_BACKUP))
+        assertEquals("09:00", note.opt("reminder"))
+        val load = scratch(JSONArray().put(note).toString())
+        assertTrue(Notebook.restorePrevious(load, 1) is SaveResult.Ok)
+        val back = onDisk(load).getJSONObject(0)
+        assertEquals(listOf("Mine", "10:00"), listOf(back.opt("title"), back.opt("reminder")))
+    }
+
+    @Test
+    fun `the two sets together are held to the bounds at once, and a huge list is left out unwalked`() {
+        val mine = JSONObject("""{"id": 1, "title": "T"}""")
+        for (i in 0 until 30) mine.put("m%02d".format(i), i)
+        val note = Normalize.normalizeNote(mine)
+        val theirs = JSONObject("""{"title": "U"}""")
+        for (i in 0 until 7) theirs.put("z%02d".format(i), i)
+        Notebook.applyUpdate(note, theirs, "2026-11-13 12:00:00", Notebook.UPDATABLE_FROM_BACKUP)
+        assertEquals((0 until 30).map { "m%02d".format(it) } + listOf("z00", "z01"),
+                     Normalize.unknownFields(note).keys().asSequence().sorted().toList())
+        val huge = JSONArray()
+        for (i in 0..Normalize.MAX_UNKNOWN_UNITS) huge.put(0)
+        assertFalse(Normalize.normalizeNote(JSONObject().put("id", 1).put("huge", huge)).has("huge"))
+    }
+
+    @Test
     fun `a share code carries none`() {
         val note = Normalize.normalizeNote(JSONObject("""{"id": 1, "title": "x", "mood": "calm"}"""))
         val decoded = Sharing.decode(Sharing.encode(listOf(note)))

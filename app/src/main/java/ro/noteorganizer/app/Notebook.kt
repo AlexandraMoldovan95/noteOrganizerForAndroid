@@ -2378,11 +2378,19 @@ object Notebook {
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
         // ...and a backup's fields this version does not know, beside this
-        // note's own, as the desktop's apply_shared_update takes them; a code
-        // carries none (Sharing.shareableView). Restore previous puts back the known.
+        // note's own, which the copy keeps for Restore previous; the two held to
+        // the bounds (the desktop's apply_shared_update). A code carries none.
         if ("overrides" in fields) {
-            val unknown = Normalize.unknownFields(incoming)
-            for (name in unknown.keys()) note.put(name, unknown.opt(name))
+            val mine = Normalize.unknownFields(note)
+            val theirs = Normalize.unknownFields(incoming)
+            if (mine.length() > 0 || theirs.length() > 0) {
+                previous.put("_unknown", JSONObject(mine.toString()))
+                for (name in mine.keys()) note.remove(name)
+                val both = JSONObject(mine.toString())
+                for (name in theirs.keys()) both.put(name, theirs.opt(name))
+                val kept = Normalize.unknownFields(both)
+                for (name in kept.keys()) note.put(name, kept.opt(name))
+            }
         }
         // A backup's note sets aside what its own copy kept, as it is read:
         // an Add kept those, an Update dropped them (the
@@ -2454,6 +2462,7 @@ object Notebook {
      */
     private fun extraFieldsHeld(note: JSONObject, previous: JSONObject): Boolean {
         val extra = PREV_EXTRA_LABELS.map { it.first }.filter { previous.has(it) }
+        if (previous.has("_unknown") && !sameJson(previous.opt("_unknown"), Normalize.unknownFields(note))) return false
         if (extra.isEmpty()) return true
         val held = Normalize.normalizeNote(JSONObject(note.toString()))
         val kept = Normalize.normalizeNote(JSONObject().also { copy -> for (field in extra) copy.put(field, previous.opt(field)) })
@@ -2576,6 +2585,7 @@ object Notebook {
                 replaced.put(field, deepCopy(shaped(live, field)))
             }
         }
+        if (previous.has("_unknown")) replaced.put("_unknown", Normalize.unknownFields(live))
         for ((field, days) in taken) replaced.put(field, days)
         return replaced
     }
@@ -2621,6 +2631,11 @@ object Notebook {
         for (field in PREV_TEXT_FIELDS) note.put(field, shaped(previous, field))
         for ((field, _) in PREV_EXTRA_LABELS) {
             if (previous.has(field)) note.put(field, deepCopy(shaped(previous, field)))
+        }
+        // ...the fields this version does not know, as the update found them.
+        (previous.opt("_unknown") as? JSONObject)?.let { own ->
+            for (name in Normalize.unknownFields(note).keys()) note.remove(name)
+            for (name in own.keys()) note.put(name, own.opt(name))
         }
         val categories = load.categories
         if ((note.opt("category") as? String) !in categories) note.put("category", "General")
