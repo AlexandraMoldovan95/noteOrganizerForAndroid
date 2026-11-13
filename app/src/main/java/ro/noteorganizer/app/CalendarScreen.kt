@@ -90,8 +90,9 @@ fun CalendarScreen(state: AppState) {
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = {
-                // On one line, shrunk to its room: at the largest letters
-                // beside the arrows and History it broke as "Novembe" / "r 2026".
+                // One line, shrunk to its room: at the largest letters it broke as
+                // "Novembe" / "r 2026"; stopped at 12 sp it was cut, "November 202".
+                // 6 sp fits "September 2026" on a 360 dp phone (see ISSUES_LOG).
                 androidx.compose.foundation.text.BasicText(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
@@ -101,7 +102,7 @@ fun CalendarScreen(state: AppState) {
                         androidx.compose.ui.text.TextStyle(color = palette.text)),
                     maxLines = 1, softWrap = false,
                     autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
-                        minFontSize = 12.sp, maxFontSize = androidx.compose.material3.LocalTextStyle.current.fontSize),
+                        minFontSize = 6.sp, maxFontSize = androidx.compose.material3.LocalTextStyle.current.fontSize),
                 )
             },
             actions = {

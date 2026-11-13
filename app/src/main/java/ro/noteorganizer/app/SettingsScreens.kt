@@ -332,11 +332,22 @@ private fun StatsPage(state: AppState) {
             }
         }
         // The time split: a header row said once, the figures lined up under it.
+        // No more lines than words, so a word shrinks rather than break ("mont" /
+        // "h"), and a gap before each column ("0" by "1234" read "01234"; ISSUES_LOG).
         val segments = listOf(R.string.stats_week, R.string.stats_month, R.string.stats_year, R.string.stats_older)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
             Spacer(Modifier.weight(1.3f))
-            for (seg in segments) Text(stringResource(seg), color = palette.subtext, fontSize = 11.sp,
-                                       modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            for (seg in segments) {
+                val words = stringResource(seg)
+                androidx.compose.foundation.text.BasicText(
+                    words, Modifier.weight(1f).padding(start = 6.dp),
+                    style = androidx.compose.material3.LocalTextStyle.current.merge(androidx.compose.ui.text.TextStyle(
+                        color = palette.subtext, fontSize = 11.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End)),
+                    maxLines = words.count { it == ' ' } + 1,
+                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = 11.sp),
+                )
+            }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
         for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
@@ -344,7 +355,7 @@ private fun StatsPage(state: AppState) {
                 Figure(stringResource(caption), palette.subtext, 13.sp, Modifier.weight(1.3f), bold = false)
                 for (value in listOf(p.week, p.month, p.year, p.older)) {
                     Figure(value.toString(), if (value > 0) palette.text else palette.subtext, 15.sp,
-                           Modifier.weight(1f), end = true)
+                           Modifier.weight(1f).padding(start = 6.dp), end = true)
                 }
             }
         }
