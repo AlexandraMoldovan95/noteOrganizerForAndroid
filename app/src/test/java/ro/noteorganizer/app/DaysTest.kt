@@ -1396,13 +1396,23 @@ class DaysTest {
         val load = scratch(offTheSchedule)
         val notesBefore = load.file!!.readText()
         assertTrue(Days.settleOffScheduleDay(load, 1, "2026-10-12", Days.Settle.TRASH) is SaveResult.Ok)
-        val trashedOnce = load.trashFile!!.readText()
+        // Put there twenty days ago: kept, it must be kept the whole window
+        // from now, as the question promised, not go in ten.
+        val twentyAgo = java.time.LocalDateTime.now().minusDays(20)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val trashedOnce = JSONArray(load.trashFile!!.readText()).apply { getJSONObject(0).put("deleted_at", twentyAgo) }
+        load.trashFile!!.writeText(trashedOnce.toString(2))
         load.file!!.writeText(notesBefore)
         val again = Notebook.load(dirOf(load))
         assertEquals("fixture: the day is still on the series", listOf("2026-10-12"), Recurrence.offScheduleDays(firstOnDisk(again)))
         assertTrue(Days.settleOffScheduleDay(again, 1, "2026-10-12", Days.Settle.TRASH) is SaveResult.Ok)
-        assertEquals("one copy in the Trash", 1, JSONArray(again.trashFile!!.readText()).length())
-        assertEquals(trashedOnce, again.trashFile!!.readText())
+        val trashedTwice = JSONArray(again.trashFile!!.readText())
+        assertEquals("one copy in the Trash", 1, trashedTwice.length())
+        val kept = trashedTwice.getJSONObject(0)
+        assertTrue("its clock started again (${kept.opt("deleted_at")})", (kept.opt("deleted_at") as String) > twentyAgo)
+        assertEquals("the same entry otherwise",
+            trashedOnce.getJSONObject(0).apply { remove("deleted_at") }.toString(),
+            JSONObject(kept.toString()).apply { remove("deleted_at") }.toString())
         assertTrue("and the day has left the series", Recurrence.offScheduleDays(firstOnDisk(again)).isEmpty())
     }
 

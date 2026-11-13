@@ -509,16 +509,18 @@ object Days {
             val trash = JSONArray((load.trashRaw ?: JSONArray()).toString())
             // Written first, a Trash that holds the day already is one a notes
             // write that failed, or a phone stopped between the two, left: the
-            // day is not put in a second time when it is settled again.
+            // day is not put in a second time when it is settled again. The
+            // entry there is kept the whole window from now, as the question
+            // promised -- on its own first clock, it went sooner (the desktop's
+            // renew_in_trash).
             val signature = Normalize.contentSignature(fresh)
-            val already = (0 until trash.length()).any { i ->
-                (trash.opt(i) as? JSONObject)?.let { Normalize.contentSignature(Normalize.normalizeNote(it)) } == signature
+            val held = (0 until trash.length()).mapNotNull { trash.opt(it) as? JSONObject }.firstOrNull {
+                Normalize.contentSignature(Normalize.normalizeNote(it)) == signature
             }
-            if (!already) {
-                trash.put(JSONObject(fresh.toString()).put("deleted_at", stamp))
-                Organizing.write(trashFile, trash)?.let { return SaveResult.Failed(it) }
-                load.trashRaw?.let { Organizing.replace(it, trash) }
-            }
+            if (held == null) trash.put(JSONObject(fresh.toString()).put("deleted_at", stamp))
+            else held.put("deleted_at", stamp)
+            Organizing.write(trashFile, trash)?.let { return SaveResult.Failed(it) }
+            load.trashRaw?.let { Organizing.replace(it, trash) }
         } else {
             candidate.put(fresh)
         }
