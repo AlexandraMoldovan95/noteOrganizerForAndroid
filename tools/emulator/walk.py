@@ -3584,8 +3584,11 @@ def reminder_new_zone(folder):
     """The day's reminder, set for 09:00, after the phone moves to another
     time zone with the app closed: set again for 09:00 there, where it kept
     the old instant and rang at 03:00 New York time. Read from the alarm
-    Android holds (dumpsys, which prints it in the zone in force). The
-    emulator's zone is put back after."""
+    Android holds (dumpsys, which prints it in the zone in force) until it
+    moves, for up to half a minute: Android tells the app a second or more
+    after the change, and read after a fixed 4 s, a whole walk found the
+    old instant still there with the app right. The emulator's zone is put
+    back after."""
     print("\n-- the reminder across a time zone --")
 
     def alarm_at():
@@ -3607,8 +3610,7 @@ def reminder_new_zone(folder):
     before = alarm_at()
     try:
         adb("shell", "service", "call", "alarm", "3", "s16", "America/New_York")
-        time.sleep(4.0)
-        after = alarm_at()
+        after = settle(alarm_at, lambda at: (at or "").endswith("09:00:00.000"), within=30.0, first=1.0)
         check("set for 09:00, the reminder is at 09:00 in the new zone too",
               bool(before) and bool(after) and before.endswith("09:00:00.000") and after.endswith("09:00:00.000"),
               "before %s, after %s" % (before, after))
@@ -7655,8 +7657,10 @@ def reminders(folder):
           repr(read_file("settings.json")))
     check("...and the next one set as an alarm", our_alarm())
     adb("shell", "am", "broadcast", "-n", PACKAGE + "/.ReminderReceiver", "-a", "ro.noteorganizer.app.REMIND")
-    time.sleep(2.0)
-    said = adb("shell", "dumpsys", "notification", "--noredact")
+    # Read until it is there, as the alarm across a time zone is: a busy
+    # emulator hands a broadcast over late.
+    said = settle(lambda: adb("shell", "dumpsys", "notification", "--noredact"),
+                  lambda text: "You have 1 note for today" in text, within=30.0, first=2.0)
     check("fired, it says how many notes the day has, and not their words",
           "You have 1 note for today" in said and "Dentist" not in said,
           "the notification %s" % ("found" if "You have 1 note" in said else "missing"))
