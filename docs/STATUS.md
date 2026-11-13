@@ -370,10 +370,11 @@ Grouped by what the app does; when each item arrived is in the
     note, and the phone asks the desktop's questions in the desktop's
     words: update the copy here or add a new one; skip copies that hold
     nothing new; skip look-alikes. Nothing is written until they are
-    answered. An update that changes a note's words leaves the `_prev`
-    that "↩ Restore previous" undoes — the question saying so when that
-    replaces an earlier version the note still holds; one that only adds
-    attached files a backup's copy has keeps no copy, and the question
+    answered. An update that changes anything it may replace (the words,
+    the category, colour, date, checklist or a series' days) leaves the
+    `_prev` that "↩ Restore previous" undoes — the question saying so when
+    that replaces an earlier version the note still holds; one that only
+    adds attached files a backup's copy has keeps no copy, and the question
     promises none. Two arriving notes with one identity claim it
     once: the second comes in as a note of its own.
 

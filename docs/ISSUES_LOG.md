@@ -589,11 +589,34 @@ words; AS760, AS761), and "Already here, unchanged" said nothing of the
 fields a newer version wrote that the backup holds and the note here
 lacks (AS762, AS763); STATUS said the same of the update. The lows: a
 backup over a templates or Trash file held dropped them without a word,
-where every other refused write stops the import and says so (AS764); a
-backup's template with no name was left out, where the desktop takes it
-as "Untitled template" (AS758); the reminder bar came back once after the
-notification had opened the day (AS759); and a checklist row the disk
-refused was said in the writer's bare words, "Not saved" now before them.
+where every other refused write stops the import and says so (AS764,
+AS767); a backup's template with no name was left out, where the desktop
+takes it as "Untitled template" (AS758); and the reminder bar came back
+once after the notification had opened the day (AS759).
+
+The fifteenth round found the fourteenth's repair too narrow on one side
+and too wide on the other. A settings file that would not read but was
+copied aside was never held, and the start's own write of its marks could
+fail on a full phone: the next write that went out, once room was freed,
+dropped them (the Trash at thirty days again, the backup on). Such a file
+now reads as its two marks in memory, as the desktop's every read of one
+gives them, so any write carries them (AS766). With that, a hold can end
+again once a later read copies the file aside, which on Android 8 to 11 is
+the app opened again after Back ended its activity, not its process: held
+for the run, every write was refused under words saying the file was kept
+(AS753, AS747). Its second reader checked every claim of wave 6 in this
+log against the code and found one narrowed: the reload after an import
+cleared the mark that keeps attached files while the notes file is unread
+(kept for the run now, as the desktop's). The lows: a nameless template
+here beside a nameless one in a backup made two (AS765); the Empty Trash
+question named attached files that a run keeping them all, or entries with
+none, would not delete; and a held Trash file's stop had no test. Taken
+back: the fourteenth round's "Not saved:" before a checklist write's
+refusal, put on three roads of six and before a cap that is no refusal;
+the writer's own reason names the refusal on every road. Left, with its
+reason: a backup whose new notes all look like notes here offers Import
+anyway or Cancel, where the desktop also offers Skip when the backup
+brings more (older than wave 6; nothing is lost, the backup holds all).
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
