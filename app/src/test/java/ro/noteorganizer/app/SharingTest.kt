@@ -266,6 +266,15 @@ class SharingTest {
                 said.reason.startsWith("This isn't a Note Organizer share code"))
             assertFalse("$words, shared in", Sharing.holdsCode(words))
         }
+        // A code that reads keeps its own answer behind a hidden prefix: a newer
+        // version's was called no share code at all, as the desktop's was.
+        val packed = java.io.ByteArrayOutputStream()
+        java.util.zip.DeflaterOutputStream(packed).use {
+            it.write("""{"v": 2, "notes": [{"title": "n"}]}""".toByteArray(Charsets.UTF_8))
+        }
+        val v2 = Sharing.PREFIX + java.util.Base64.getUrlEncoder().encodeToString(packed.toByteArray())
+        val newer = Sharing.decode("${v2.take(4)}\n${v2.drop(4)}")
+        assertTrue("$newer", newer is Sharing.Decoded.Failed && newer.reason.contains("newer version"))
     }
 
     @Test

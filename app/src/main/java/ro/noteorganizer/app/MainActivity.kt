@@ -213,7 +213,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     cutCode -> state.say("The shared file was longer than $first characters and only " +
                         "its start was read, so the share code in it is incomplete. Ask for a backup " +
-                        "instead (Settings → Backup → Export on the other device).", long = true)
+                        "instead (Settings → Backup on the other device).", long = true)
                     // From a cut file, the code alone: its 500,000 characters were
                     // named as the code's length.
                     isCode -> state.incomingCode = if (shared.cut) Sharing.codeIn(text) else text

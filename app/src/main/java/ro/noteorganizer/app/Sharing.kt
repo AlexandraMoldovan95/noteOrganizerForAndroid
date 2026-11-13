@@ -78,7 +78,8 @@ object Sharing {
     /** What a code turned out to be. A failure explains itself. */
     sealed class Decoded {
         data class Notes(val notes: List<JSONObject>) : Decoded()
-        data class Failed(val reason: String) : Decoded()
+        /** [unreadable]: the code's bytes do not read (its Base64, zlib or JSON). */
+        data class Failed(val reason: String, val unreadable: Boolean = false) : Decoded()
     }
 
     /** The slice of a note a share code carries -- present keys only. */
@@ -247,9 +248,11 @@ object Sharing {
 
     fun decode(code: String): Decoded {
         val read = decodeFound(codeIn(code))
-        // A prefix the wrapping hid that leads to no readable code is words
-        // saying "NOTE 1:", not a code: answered as such, as the desktop's.
-        return if (read is Decoded.Failed && prefixHidden(code)) Decoded.Failed(NOT_A_CODE) else read
+        // A prefix the wrapping hid that leads to bytes no code holds is words
+        // saying "NOTE 1:", not a code: answered as such, as the desktop's. A
+        // code that reads keeps its own answer (a newer version's, too many notes).
+        return if (read is Decoded.Failed && read.unreadable && prefixHidden(code)) Decoded.Failed(NOT_A_CODE)
+               else read
     }
 
     /** [decode], once [codeIn] has found the code in the text. */
@@ -260,8 +263,8 @@ object Sharing {
         if (cleaned.length > MAX_CODE_CHARS) {
             return Decoded.Failed(
                 "That code is far too large to import safely. For a transfer this " +
-                    "large, send a backup instead: Settings → Backup → Export, then " +
-                    "Import on the other device.")
+                    "large, send a backup instead: save one in Settings → Backup on the " +
+                    "device it came from, then import it on this one.")
         }
         if (!cleaned.startsWith(PREFIX)) return Decoded.Failed(NOT_A_CODE)
         val compressed = try {
@@ -277,13 +280,13 @@ object Sharing {
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +
-                    "the whole code again — chat apps sometimes cut long codes short.")
+                    "the whole code again — chat apps sometimes cut long codes short.", unreadable = true)
         }
         val raw = inflate(compressed, MAX_DECOMPRESSED_BYTES)
             ?: return Decoded.Failed(
                 "This share code is damaged, or too large to import safely. Ask the " +
                     "sender to send it again, or to send a backup instead (Settings → " +
-                    "Backup → Export).")
+                    "Backup).", unreadable = true)
 
         // A code holding a list is whole but holds no notes, as decode_share_code
         // says; a list is asked of by name, since org.json's own reader takes a
@@ -304,7 +307,7 @@ object Sharing {
                 value
             }
         } catch (e: Exception) {
-            return Decoded.Failed(DAMAGED)
+            return Decoded.Failed(DAMAGED, unreadable = true)
         }
         if (!payload.has("notes")) return Decoded.Failed(NO_NOTES)
         // The version is the code's own claim, in text anyone can edit: a
@@ -324,7 +327,7 @@ object Sharing {
                 "This code contains ${notes.length()} notes, which is over the " +
                     "$MAX_SHARED_NOTES-note limit for a single code. Ask the sender to " +
                     "split it into smaller codes, or to send a backup instead " +
-                    "(Settings → Backup → Export).")
+                    "(Settings → Backup).")
         }
         // Through the SAME slice `encode` makes, so a hand-made code carries only
         // a real one's fields: no attachment reference whose `stored_as` could
