@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -425,8 +427,9 @@ fun Ask(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         // Whatever a question quotes is quoted short already; this is the
-        // last guard, for a reason that carries text from outside.
-        text = { Text(forTheScreen(text)) },
+        // last guard, for a reason that carries text from outside. Scrolled,
+        // or its end was cut at the largest letters or on its side.
+        text = { Text(forTheScreen(text), Modifier.verticalScroll(rememberScrollState())) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(confirm, color = if (destructive) palette.dangerText else palette.accentText)

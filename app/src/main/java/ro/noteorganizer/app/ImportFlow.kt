@@ -1,6 +1,8 @@
 package ro.noteorganizer.app
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -333,7 +335,9 @@ private fun Choice(title: String, text: String, options: List<Pair<String, () ->
     AlertDialog(
         onDismissRequest = { cancel?.invoke() },
         title = { Text(title) },
-        text = { Text(text) },
+        // Scrolled: at the largest letters, or on a phone on its side, its
+        // last warning was cut under the answers, nothing showing there was more.
+        text = { Text(text, Modifier.verticalScroll(rememberScrollState())) },
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {
                 options.forEachIndexed { index, (label, act) ->
