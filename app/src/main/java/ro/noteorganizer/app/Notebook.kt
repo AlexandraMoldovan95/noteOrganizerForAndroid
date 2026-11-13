@@ -95,13 +95,11 @@ data class Note(
             picked.filter { (id, who) -> byId[id]?.identity == who }.keys
 
         /**
-         * A selection as handed to Android, to be given back when the list
-         * comes back on screen (a big phone with a note open beside it,
-         * turned upright, took the list away and the selection with it):
-         * an id and its note's identity, in turn. None past [PICKED_KEPT]
-         * letters, as a search's words ([Showing.searchKept]): Android hands that
-         * state over in one transaction, and a selection of thousands is
-         * made again more cheaply than an app stopped at Home.
+         * A selection as handed to Android, given back when the list comes
+         * back on screen: an id and its note's identity, in turn. None past
+         * [PICKED_KEPT] letters, as a search's words ([Showing.searchKept]):
+         * Android hands that state over in one transaction, and a selection
+         * of thousands is made again more cheaply than an app stopped at Home.
          */
         fun pickedKept(picked: Map<Int, String>): ArrayList<String>? {
             val flat = ArrayList<String>(picked.size * 2)

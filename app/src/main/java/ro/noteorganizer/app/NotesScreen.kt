@@ -109,11 +109,9 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
     val show = Showing.valid(state.settings.opt(Settings.NOTE_FILTER) as? String, load.categories.keys)
     val grouped = state.settings.opt(Settings.GROUP_BY_CATEGORY) == true
     val collapsed = Settings.collapsedGroups(state.settings)
-    // Kept by the note, not by its id: a selected note put in the Trash from
-    // the editor beside the list freed its id, and a note arriving from a
-    // share code took it, ticked, into the selection's own Trash. Kept while
-    // the list is off the screen too: a big phone with a note open beside it,
-    // turned upright, took the list away and the selection with it.
+    // Kept by the note, not by its id (a freed id taken by a note arriving
+    // went ticked into the selection's Trash), and while the list is off the
+    // screen (a big phone turned upright with a note open beside it).
     var picked by rememberSaveable(stateSaver = PickedSaver) { mutableStateOf(mapOf<Int, String>()) }
     val byId = remember(state.revision, load) { load.notes.associateBy { it.id } }
     val selected = Note.stillPicked(picked, byId)

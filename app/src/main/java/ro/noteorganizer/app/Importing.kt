@@ -333,9 +333,7 @@ object Importing {
         extras: Extras = Extras(),
     ): Result {
         // The files here before the import: whatever stops it, a write or a
-        // thing in it the app could not read, takes back only what it brought
-        // ([dropBrought]). Stopped by the second, the files moved in for its
-        // notes stayed, named by nothing.
+        // thing it could not read, takes back only what it brought ([dropBrought]).
         val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
         return try {
             applyWhole(load, plan, answers, attachmentsDir, extras, filesBefore)
@@ -539,11 +537,9 @@ object Importing {
         // failure in it leaves nothing written.
         val earlierText = if (changed) Notebook.settleAside(candidate) else 0
 
-        // The writes, in the desktop's order: settings, templates, Trash,
-        // and the notes last. One that fails takes back the files nothing
-        // uses, and says what came in: each part written, by name, and a
-        // code called a code ("what it brings besides them" covered a Trash
-        // that was not kept, and a code was called "the backup").
+        // The writes, in the desktop's order: settings, templates, Trash, the
+        // notes last. One that fails takes back the files nothing uses, and
+        // names each part written before it.
         val kept = mutableListOf<String>()
         var trashNow = trash
         fun stopped(problem: String): Result {

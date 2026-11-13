@@ -507,12 +507,9 @@ object Days {
                 return SaveResult.Failed("The Trash could not be read, so nothing was changed in it.")
             }
             val trash = JSONArray((load.trashRaw ?: JSONArray()).toString())
-            // Written first, a Trash that holds the day already is one a notes
-            // write that failed, or a phone stopped between the two, left: the
-            // day is not put in a second time when it is settled again. The
-            // entry there is kept the whole window from now, as the question
-            // promised -- on its own first clock, it went sooner (the desktop's
-            // renew_in_trash).
+            // Written first: a day the Trash holds already (the phone stopped
+            // between the two writes) is not put in again, and the entry there is
+            // kept the whole window from now, as promised (the desktop's renew_in_trash).
             val signature = Normalize.contentSignature(fresh)
             val held = (0 until trash.length()).mapNotNull { trash.opt(it) as? JSONObject }.firstOrNull {
                 Normalize.contentSignature(Normalize.normalizeNote(it)) == signature
