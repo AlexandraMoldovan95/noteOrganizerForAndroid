@@ -140,6 +140,18 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a note restored with no stamps is stamped as the desktop stamps it`() {
+        // normalize_note gives an empty "updated" the moment, and "created"
+        // the same: kept empty, the note sorted oldest here and newest there.
+        val load = notebook("""[{"id": 1, "uid": "x", "title": "here"}]""",
+            trash = """[{"id": 3, "uid": "s", "title": "unstamped", "deleted_at": "2026-10-01 10:00:00"}]""")
+        Organizing.restore(load, listOf(Organizing.TrashKey(3, "2026-10-01 10:00:00", "s")))
+        val back = onDisk(load).getJSONObject(1)
+        assertTrue("updated: ${back.optString("updated")}", back.optString("updated").startsWith("20"))
+        assertEquals(back.optString("updated"), back.optString("created"))
+    }
+
+    @Test
     fun `two Trash entries sharing an id and a moment are told apart by their uid`() {
         // An id is handed out again after a delete: two entries deleted in
         // one second can share both, as the desktop's _trash_tick_key learnt.

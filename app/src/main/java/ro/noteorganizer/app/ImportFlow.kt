@@ -143,7 +143,8 @@ private fun readCode(notebook: org.json.JSONArray, categories: Set<String>, code
         is Notebook.Inspection.Failed -> found.reason
         is Notebook.Inspection.Ready -> CodeRead(found.plan, Importing.LookAlikes(notebook, found.plan).warm(found.plan))
     }
-} catch (e: RuntimeException) {
+} catch (e: Exception) {
+    // Exception: Android's JSONException is not a RuntimeException.
     null
 }
 

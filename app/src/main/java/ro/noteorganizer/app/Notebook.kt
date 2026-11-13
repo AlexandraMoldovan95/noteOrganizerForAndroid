@@ -2553,7 +2553,7 @@ object Notebook {
                 paragraphs == Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines)
         } else formatting.isEmpty() && paragraphs.isEmpty()
         val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), PyText.strip(body)) &&
-            (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
+            (PyText.strip(wasTitle).isEmpty() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
             PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
             stylesKept &&
             extraFieldsHeld(live, previous) &&

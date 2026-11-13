@@ -964,6 +964,10 @@ object Organizing {
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
+            // Stamped where it has none, as the desktop's normalize_note
+            // stamps it: kept empty, it sorted oldest here and newest there.
+            if (PyText.strip(note.opt("updated") as? String ?: "").isEmpty()) note.put("updated", Files.now())
+            if (PyText.strip(note.opt("created") as? String ?: "").isEmpty()) note.put("created", note.getString("updated"))
             // Read from the Trash's file, as the notes are at load: a series an
             // older release turned off and deleted takes its days back into the
             // note (Notebook.settleAsRead), as the desktop's restore does.

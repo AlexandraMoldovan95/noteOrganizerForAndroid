@@ -330,7 +330,7 @@ object Settings {
             for (name in names) {
                 // Only a name the note would match exactly: a padded name
                 // adopted in stripped form would still miss.
-                if (name !is String || name.isEmpty() || name != name.trim()) continue
+                if (name !is String || name.isEmpty() || name != PyText.strip(name)) continue
                 if (name in map) continue
                 if (characters(name) > MAX_CATEGORY_NAME || map.size >= MAX_CATEGORIES) continue
                 map[name] = palette[map.size % palette.size]

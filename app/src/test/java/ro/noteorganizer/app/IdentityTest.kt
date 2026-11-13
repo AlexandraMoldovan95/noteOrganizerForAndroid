@@ -7,6 +7,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -59,6 +60,13 @@ class IdentityTest {
         val next = Char(0x85).toString()
         val read = Settings.categories(JSONObject().put(Settings.CATEGORIES, JSONObject().put("Work$next", "#336699")))
         assertTrue("$read", "Work" in read && read.keys.none { it.endsWith(next) })
+        // adopt_categories_of adopts nothing for a note filed so, and the
+        // restore's question finds nothing lost over a title of that mark alone
+        // (the desktop's answers, asked 2026-11-13).
+        val adopted = Settings.categories(JSONObject(), JSONArray().put(JSONObject().put("title", "x").put("category", "Work$next")))
+        assertTrue("$adopted", adopted.keys.none { it.endsWith(next) })
+        assertNull(Notebook.replacedByRestore(JSONObject().put("title", next).put("body", "b"),
+            JSONObject().put("title", "Old").put("body", "b")))
     }
 
     // ---- minting, and NOT minting ----
