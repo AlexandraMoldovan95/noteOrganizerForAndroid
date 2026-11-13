@@ -110,11 +110,14 @@
     <string name="repeat_never">Never</string>
     <string name="repeat_on_date">On a date</string>
     <string name="repeat_after">After</string>
-    <string name="repeat_times">times</string>
+    <plurals name="unit_time">
+        <item quantity="one">time</item>
+        <item quantity="other">times</item>
+    </plurals>
     <string name="repeat_start">Starts</string>
     <string name="repeat_needs_date">A repeating note needs a start date.</string>
     <string name="repeat_off_kept">The repeat is off; ↩ Restore previous brings it back with every day\'s own text.</string>
-    <string name="repeat_off_update_kept">The repeat is off; ↩ Restore previous brings back the version it kept before, not the series.</string>
+    <string name="repeat_off_update_kept">The repeat is off; ↩ Restore previous brings back the version it kept before.</string>
     <string name="repeat_off_no_copy">The repeat is off; every day\'s own text stays in the note.</string>
     <plurals name="unit_day">
         <item quantity="one">day</item>

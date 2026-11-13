@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -164,7 +165,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 }
                 if (endMode == "after") {
                     DetailRow(stringResource(R.string.repeat_after)) {
-                        Stepper(count, 1..Recurrence.MAX_OCCURRENCES, stringResource(R.string.repeat_times)) { count = it }
+                        Stepper(count, 1..Recurrence.MAX_OCCURRENCES, pluralStringResource(R.plurals.unit_time, count)) { count = it }
                     }
                 }
             }
@@ -206,9 +207,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                         }
                         val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
                         if (state.setRepeat(model.id, draft(), startWas)) {
-                            // Kept over an import's Update, the copy is the note from
-                            // before it, which Restore previous brings back, not the series
-                            // (the desktop's _repeat_off_line); a copy the save dropped promises nothing.
+                            // Kept over an import's Update, the copy is the version from
+                            // before it, the series too when it repeated then (the
+                            // desktop's _repeat_off_line); a copy the save dropped promises nothing.
                             if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
                                 Days.OffWord.SERIES_KEPT -> offKept
                                 Days.OffWord.UPDATE_KEPT -> offKeptUpdate
@@ -260,9 +261,10 @@ private fun Hint(text: String) {
 private fun Stepper(value: Int, range: IntRange, unit: String, onChange: (Int) -> Unit) {
     val palette = LocalPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Said as what they do, where a screen reader read "minus" and "plus".
+        // Said as what they do, where a screen reader read "minus" and "plus"; a
+        // thumb's 48 dp at least, where they measured some 36 by 24.
         Text("−", color = if (value > range.first) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.said(R.string.stepper_fewer)
+             modifier = Modifier.minimumInteractiveComponentSize().said(R.string.stepper_fewer)
                  .clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
         // What the two buttons leave, on one line shrunk to it: last in a plain Row,
         // a number of two digits squeezed the + at the largest letters on 320 dp, and
@@ -270,7 +272,7 @@ private fun Stepper(value: Int, range: IntRange, unit: String, onChange: (Int) -
         OneLine("$value $unit", Modifier.weight(1f, fill = false), color = palette.text,
                 look = androidx.compose.ui.text.TextStyle(fontSize = 15.sp))
         Text("+", color = if (value < range.last) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.said(R.string.stepper_more)
+             modifier = Modifier.minimumInteractiveComponentSize().said(R.string.stepper_more)
                  .clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
     }
 }
