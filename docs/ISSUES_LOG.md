@@ -546,6 +546,35 @@ ARCHITECTURE: seven fixtures where there are eight, and line counts that
 did not match the day they were measured on. "Every week, 1 times" under
 the stepper that says "1 time" went on both apps' series line.
 
+The thirteenth round found the twelfth's fixes held, and one sentence of
+its own untrue: DATA_FORMAT said a cell's highlight is drawn as its fill,
+where only one covering the whole cell is, and not in the template
+editor's tables nor in a table shown as text. And the line counts, said
+corrected, were still not the day's in nine rows. The lows, at the hold's
+edges and older: a file held stayed held after a later read in the same
+run copied it aside (AS753); the start advised turning on Android's
+backup and choosing the Trash window again over a settings file nothing
+could be written to, and wrote the theme, and said its refusal, at every
+activity made, and the reminder bar came back at every return to the app
+(AS754, AS755); a code whose stream asks for a preset dictionary, which
+Python refuses, read as empty (AS751); with the notes file set aside
+unreadable, deleting for good deleted a file a note never read may use,
+where the desktop keeps every file then (AS752, AS757); and a backup's
+templates were skipped without a word over a templates file here that did
+not read, now copied aside and taken as the desktop's empty list takes
+them (AS756). Its second reader read qa/README, WALK_RUNS, the
+emulator's README and the release steps: counts behind their fixtures
+(103 days cases where there are 108, 815 export files where there are
+818), eight suites held to the desktop's answers where nine are, the
+note-shape gate's five checks where it has six, and the release's fourth
+step without the two checks only the release build can answer. Left, with
+their reasons: a backup restored over a settings file held stops at the
+refused write and says none of its notes came in (true, nothing lost;
+the desktop goes on, and the phone's import stops at its first refused
+write by design); and a templates file held shows no templates without a
+word of its own (rare: it needs a full phone as the page opens; nothing
+is lost, and a template saved then is refused, saying why).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

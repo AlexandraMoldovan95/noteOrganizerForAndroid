@@ -40,10 +40,10 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,041 tests across thirty-two suites on 13 November 2026 — `NotebookTest` (153),
-`DaysTest` (76), `TablesTest` (72), `AppStateTest` (69), `RecurrenceTest` (52),
-`OrganizingTest` (50), `EditingTest` (49), `PastingTest` (47), `IdentityTest` (43),
-`ImportingTest` (39), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
+1,044 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+`DaysTest` (76), `TablesTest` (72), `AppStateTest` (70), `RecurrenceTest` (52),
+`OrganizingTest` (51), `EditingTest` (49), `PastingTest` (47), `IdentityTest` (43),
+`ImportingTest` (40), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
 `ParagraphsTest` (33), `EditorTypingTest` (32), `BackupTest` (25), `SettingsTest` (25),
 `ListingTest` (22), `TemplatesTest` (21), `FindingTest` (20), `EditorTableTest` (16),
 `ExportingTest` (16), `StartupTest` (15), `OutgoingTest` (12), `UnknownFieldsTest` (11),
@@ -66,8 +66,10 @@ first, and never left in the system's temp folder (30,640 were, by
 
 ### Fixtures the desktop wrote
 
-Eight suites are held to answers the desktop's own Python gave, over
-cases generated for them. Each fixture in `app/src/test/resources/` is
+Nine suites are held to answers the desktop's own Python gave, over
+cases generated for them, from eight fixtures (`NotebookTest` reads the
+export's too; `InteropTest` reads a code the desktop wrote,
+`desktop_code.txt`). Each fixture in `app/src/test/resources/` is
 written by a tool in `tools/` that imports the desktop's code, runs it,
 and never writes to it:
 
@@ -75,11 +77,11 @@ and never writes to it:
 |---|---|---|
 | `recurrence_cases.json` | `make_recurrence_fixture.py` | 300 seeded notes expanded, 400 typed dates read |
 | `calculator_cases.json` | `make_calculator_fixture.py` | 661 sums evaluated, 378 values displayed |
-| `export_cases.json` | `make_export_fixture.py` | 409 notes exported as `.html` and `.txt`, 815 files |
+| `export_cases.json` | `make_export_fixture.py` | 409 notes exported as `.html` and `.txt`, 818 files |
 | `template_cases.json` | `make_template_fixture.py` | 302 templates normalised |
-| `days_cases.json` | `make_days_fixture.py` | 103 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore, rewritten comments, a day reset after a turn-on, a turn-off over an import's copy, a copy's days taken back by the date that holds them, a start put back, a second turn-off, each step's stored note and its import |
+| `days_cases.json` | `make_days_fixture.py` | 108 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore, rewritten comments, a day reset after a turn-on, a turn-off over an import's copy, a copy's days taken back by the date that holds them, a start put back, a second turn-off, each step's stored note and its import |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
-| `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
+| `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 118 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
 | `unknown_cases.json` | `make_unknown_fixture.py` | 307 notes holding fields this version does not know, as `unknown_fields` keeps them: within the bounds, past them, nested, of every kind |
 
 The paste fixture leans on one more file the app itself carries:
@@ -173,15 +175,17 @@ the tests pass, and the damage shows up on a real notebook that has
 travelled. It has already happened twice.
 
 So the gate reads the desktop's Python **as the specification** and
-compares five things: that a note here has the same fields the desktop
+compares six things: that a note here has the same fields the desktop
 gives one, that the two places building a new note agree with each other,
 that a share code carries what the desktop's codes carry, that an
 arriving note — from a code or from a backup — replaces what the desktop
-lets one replace, and that `docs/DATA_FORMAT.md`'s field list is the
-desktop's. It reads that source and never writes to it.
+lets one replace, that `docs/DATA_FORMAT.md`'s field list is the
+desktop's, and that the two apps know the same fields and keep the same
+bounds on the ones they do not (`KNOWN_NOTE_FIELDS`). It reads that source
+and never writes to it.
 
-All five of its own kinds of drift were tried against it and all five
-turned it red (the fifth with "pinned" taken out of the document's list). Run it before calling anything about the note format done.
+Its first five kinds of drift were each tried against it and turned it
+red (the fifth with "pinned" taken out of the document's list). Run it before calling anything about the note format done.
 
 The palette gate does the same for the look: the eight themes, every
 role and colour; the category, note and highlight colours, in order; and
@@ -195,9 +199,9 @@ Three workflows, four jobs, answering four different questions: do the
 rules still hold ([tests.yml](../.github/workflows/tests.yml)); is the
 rules layer still free of Android and the repository still English; do
 the two programs still agree about a note and about its colours
-([gates.yml](../.github/workflows/gates.yml)); and, on a change that is
-only words or the test plan, which runs neither of those, do the
-documents still give the plan's own numbers, in English
+([gates.yml](../.github/workflows/gates.yml)); and, on a change to the
+words or the test plan (only words run neither of those; the plan runs
+the gates too), do the documents still give the plan's own numbers, in English
 ([docs.yml](../.github/workflows/docs.yml), `tools/check_test_plan.py`).
 Each workflow's token may only read this repository (`permissions:
 contents: read`): nothing in CI pushes, comments or publishes. The
@@ -230,8 +234,8 @@ account's free allowance. Four measures, in order of how much they save:
    would eat a fifth of the month's allowance on its own.
 
 Everything runs on Linux runners, which bill at 1× — Windows costs double
-a minute and macOS ten times. And `workflow_dispatch` is on both, so
-either can still be run by hand from the Actions tab.
+a minute and macOS ten times. And `workflow_dispatch` is on all three,
+so any can still be run by hand from the Actions tab.
 
 **The one thing CI needs set up by hand.** Both repositories are private,
 so the contract job cannot read the desktop app with its own credentials.
@@ -251,7 +255,7 @@ The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 79 parts and about
 636 checks (the full run of 13 November 2026, for wave 6's fixes, before
-the 77th to the 79th, `shared_files`, `trash_wide` and `dialogs_on_side`, were written: 634 passed, every part in
+the 75th to the 77th in `main()`'s order, `shared_files`, `trash_wide` and `dialogs_on_side`, were written: 634 passed, every part in
 `main()`'s order, in eight groups, each on an
 emulator started cold and stopped after it, by `walk_groups.py`; see
 below why. The two that failed were the walk's own, fixed, and their
@@ -286,9 +290,10 @@ The whole walk can be walked the same way, in groups of parts, each on
 an emulator started for it and stopped after it: every part writes the
 notebook it walks on, so a part walks the same in a group as in the
 whole run. On a laptop of 16 GB, where the emulator takes about 4, one
-emulator kept up for the whole walk was lost twice in a row on 8
-November 2026, its own process no longer answering after 10 to 40
-minutes; the groups, none longer than 40 minutes, walked all 628.
+emulator kept up for the whole walk was lost on two of three runs on 8
+and 9 November 2026 (the one between, started cold, walked 621 of 627),
+its own process no longer answering after 10 to 40 minutes; the groups,
+none longer than 40 minutes, walked all 628.
 `py -I tools/emulator/walk_groups.py <folder>` walks it that way: the parts
 read from `main()` in its order, ten to a cold emulator stopped after
 them, a stuck group walked once more and said. Every adb call it makes has

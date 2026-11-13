@@ -299,7 +299,7 @@ PowerShell's `>` damages any binary it carries, Git Bash rewrites
 Android paths into Windows ones, a fresh emulator's stylus tutorial
 eats typed text, and a launcher hung into the quick-boot snapshot hangs
 at every start. Each, with its commands, is in
-[tools/emulator/README.md](tools/emulator/README.md#four-traps-these-tools-do-not-remove).
+[tools/emulator/README.md](tools/emulator/README.md#four-traps-two-of-which-these-tools-remove-for-themselves).
 
 ### An emulator just started is busy for a minute and more
 

@@ -711,9 +711,12 @@ its text and where it starts, counted in code points as the formatting
 spans are, so a run's spans are the note's own, shifted by its start
 ([why the counting matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
 
-Cell text is drawn plain, a highlight aside, which is drawn as the cell's
-fill: a cell is not a slice of the body once the row has been taken
-apart, so the other styling inside a table stays in the file, not drawn.
+Cell text is drawn plain: a cell is not a slice of the body once the row
+has been taken apart. One highlight is drawn, as the cell's fill: one
+covering the whole cell, in a note's table (`Exporting.cellHighlights`;
+not in the template editor's tables, nor in a table too large to draw,
+shown as text). A highlight on part of a cell, and the other styling
+inside a table, stay in the file, not drawn.
 
 ### Editing one cell must not rewrite the whole table
 

@@ -17,7 +17,7 @@ in a temporary folder until 2026-09-13, which meant the next session
 would have written them again; the third came with the documentation
 pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15;
 `emulator_only.py`, the door the others send adb through, on 2026-10-16;
-the group runner on 2026-11-11; and the walk for older Androids on
+the group runner on 2026-11-12; and the walk for older Androids on
 2026-11-13.
 
 | Tool | What it does | Why it exists |
@@ -109,13 +109,18 @@ beside whatever else ran. The screenshot
 script and the small helpers take no turn; keep them to one at a time by
 hand.
 
-## Four traps these tools do not remove
+## Four traps, two of which these tools remove for themselves
+
+The first two are handled inside the tools (the walk turns the stylus
+panel off on every run, and `emulator_only.py` sets `MSYS_NO_PATHCONV=1`
+on every adb call); they still apply to adb typed by hand. The last two
+apply everywhere.
 
 **A fresh emulator's stylus tutorial eats typed text.** A new Android
 image opens a full-screen *"Try out your stylus"* panel the first time a
 text field takes focus, and it swallows `adb shell input text` — the
 words land in the tutorial's own box and the app looks broken. Turn it
-off before the first run:
+off before a first run by hand:
 
     adb shell settings put secure stylus_handwriting_enabled 0
     adb shell settings put secure stylus_handwriting_default_value 0
