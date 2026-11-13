@@ -420,6 +420,28 @@ fun DialogBody(key: Any? = null, content: @Composable ColumnScope.() -> Unit) {
 }
 
 /**
+ * A top bar's title on one line, shrunk to its room, and "…" where even 6 sp
+ * does not fit: a plain Text broke inside its word at the largest letters
+ * and the 64 dp bar cut the rest ("select" / "ed", "Novembe" / "r 2026").
+ */
+@Composable
+fun BarTitle(text: String, modifier: Modifier = Modifier,
+             color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified) {
+    val style = androidx.compose.material3.LocalTextStyle.current
+    val ink = if (color != androidx.compose.ui.graphics.Color.Unspecified) color
+              else if (style.color != androidx.compose.ui.graphics.Color.Unspecified) style.color
+              else androidx.compose.material3.LocalContentColor.current
+    val largest = if (style.fontSize != androidx.compose.ui.unit.TextUnit.Unspecified) style.fontSize else 22.sp
+    androidx.compose.foundation.text.BasicText(
+        text, modifier,
+        style = style.merge(androidx.compose.ui.text.TextStyle(color = ink)),
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        maxLines = 1, softWrap = false,
+        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = largest),
+    )
+}
+
+/**
  * A question with a safe answer. The safe one is the highlighted button,
  * as on the desktop -- Enter there, the thumb's first landing here -- and
  * the one that cannot be taken back is quieter, in the warning colour.

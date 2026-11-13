@@ -576,7 +576,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
             if (selecting) {
                 val allPinned = selected.all { id -> load.notes.firstOrNull { it.id == id }?.pinned == true }
                 TopAppBar(
-                    title = { Text(pluralStringResource(R.plurals.selected_count, selected.size, selected.size)) },
+                    title = { BarTitle(pluralStringResource(R.plurals.selected_count, selected.size, selected.size)) },
                     navigationIcon = {
                         IconButton(onClick = { select(emptySet()) }, modifier = Modifier.said(R.string.clear_selection_said)) {
                             Text("✕", fontSize = 18.sp)
@@ -651,7 +651,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                 TopAppBar(
                     title = {
                         val name = Settings.username(state.settings)
-                        Text(if (name.isNotEmpty()) stringResource(R.string.greeting, name) else stringResource(R.string.app_name))
+                        BarTitle(if (name.isNotEmpty()) stringResource(R.string.greeting, name) else stringResource(R.string.app_name))
                     },
                     actions = {
                         IconButton(onClick = { moreMenu = true }, modifier = Modifier.said(R.string.more_options_said)) {

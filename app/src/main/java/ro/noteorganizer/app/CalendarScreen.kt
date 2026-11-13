@@ -90,19 +90,14 @@ fun CalendarScreen(state: AppState) {
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = {
-                // One line, shrunk to its room: at the largest letters it broke as
-                // "Novembe" / "r 2026"; stopped at 12 sp it was cut, "November 202".
-                // 6 sp fits "September 2026" on a 360 dp phone (see ISSUES_LOG).
-                androidx.compose.foundation.text.BasicText(
+                // It broke as "Novembe" / "r 2026", then was cut, "November 202":
+                // one line, shrunk to its room ([BarTitle]; see ISSUES_LOG).
+                BarTitle(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
                     modifier = Modifier.clickable(enabled = !state.showHistory,
                         onClickLabel = stringResource(R.string.cal_today)) { goToday(state) },
-                    style = androidx.compose.material3.LocalTextStyle.current.merge(
-                        androidx.compose.ui.text.TextStyle(color = palette.text)),
-                    maxLines = 1, softWrap = false,
-                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(
-                        minFontSize = 6.sp, maxFontSize = androidx.compose.material3.LocalTextStyle.current.fontSize),
+                    color = palette.text,
                 )
             },
             actions = {
@@ -118,8 +113,14 @@ fun CalendarScreen(state: AppState) {
                         Text("›", fontSize = 24.sp, color = palette.text)
                     }
                 }
-                TextButton(onClick = { state.showHistory = !state.showHistory }) {
-                    Text(stringResource(if (state.showHistory) R.string.cal_back_to_month else R.string.cal_history),
+                // At 150% letters and up, beside the arrows, History is its mark
+                // alone, read out whole: its words left the month's title no room
+                // on a 320 dp phone, or in a tablet's calendar column.
+                val history = stringResource(if (state.showHistory) R.string.cal_back_to_month else R.string.cal_history)
+                val markOnly = !state.showHistory && LocalDensity.current.fontScale >= 1.5f
+                TextButton(onClick = { state.showHistory = !state.showHistory },
+                           modifier = if (markOnly) Modifier.semantics { contentDescription = history } else Modifier) {
+                    Text(if (markOnly) history.substringBefore(' ') else history,
                          color = palette.accentText, fontSize = 13.sp)
                 }
             },
