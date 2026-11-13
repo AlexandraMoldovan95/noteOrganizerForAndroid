@@ -1001,6 +1001,8 @@ def brand_new(folder):
     tap("Settings", exact=True)
     tap("Your name")
     tap("Name", exact=True)
+    # The tap leaves the caret where it lands, after "M" once: to the end first.
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     type_text(" Pop")
     home()
     check("a name typed and left behind Home is kept when Android ends the app there",
