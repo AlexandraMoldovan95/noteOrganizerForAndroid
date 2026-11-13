@@ -56,7 +56,9 @@ The app is built for Android 8.0 and later (API 26). Its walks run on
 Android 17 and it is used on 16; `older_android.py` walks what an older
 system could break on 8.0, 11 and 13, as 13 November 2026's run did
 (18 of 18 steps on each, after the fix to the keyboard Android 8 opened
-at every start). Android Lint, run the same day, found no call newer
+at every start; then 19 of 19 on 8.0 the same day, with a step that taps
+the search box and finds the keyboard there, since typed text proved
+only the focus). Android Lint, run the same day, found no call newer
 than API 26 anywhere.
 
 The emulators are made from Google's images, one per version, through

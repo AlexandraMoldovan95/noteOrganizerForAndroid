@@ -52,6 +52,15 @@ def walk_one(apk, out):
     # Android 8 gave the search box the focus as the window started, and its
     # keyboard covered the list's buttons at every start.
     check("the app starts without the keyboard", "mInputShown=true" not in adb("shell", "dumpsys", "input_method"))
+    # ...and the keyboard still comes when it is asked for: the view that
+    # catches the window's first focus must not keep it from the search box.
+    # Typed text proved only the focus (adb types without a keyboard).
+    tap("Search notes", wait=0.5)
+    check("a tap on the search box opens the keyboard",
+          walk.settle(lambda: "mInputShown=true" in adb("shell", "dumpsys", "input_method"), bool,
+                      within=8.0, first=0.5))
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    time.sleep(1.0)
     crashed("the first start")
 
     tap("+", exact=True, wait=1.5)

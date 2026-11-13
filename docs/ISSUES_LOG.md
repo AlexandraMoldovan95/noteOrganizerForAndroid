@@ -166,8 +166,11 @@ On Android 8 alone an empty view now comes first in the window and
 catches that focus; a tap still focuses whatever it lands on. The short
 walk's check that no keyboard opens at the start failed on the build
 before the fix and passes after it; on 8.0, 11, 13 and 17 it walks 18 of
-18 steps. Android Lint, run the same day, found no call newer than
-API 26 anywhere in the app.
+18 steps. That a tap still brings the keyboard was claimed and not walked
+(typed text needs only the focus) until a review asked; a step now taps
+the search box and finds the keyboard there, 19 of 19 on 8.0. Android
+Lint, run the same day, found no call newer than API 26 anywhere in the
+app.
 
 **The lesson:** a version the app says it supports is a version it has
 been run on, or the claim is a guess. And a tool written for one system
@@ -192,7 +195,7 @@ owner chose to fix every one before the stores, or say why not.
   nothing, and said only the write's error -- or, for a failure in the
   work done after the first write, "your notes are as they were". All the
   work now comes before the first write, a failed write takes back the
-  files the import brought, and the words say what came in.
+  files the import brought, and the words name what was kept.
 - **A day off the schedule sent to the Trash went in twice** when the
   notes' write after the Trash's failed, or the phone stopped between
   them; the Trash skips a day it already holds. The desktop had the same.
@@ -221,6 +224,32 @@ fingerprints moved with no case changing. And the tests' temporary folder,
 emptied at each run, kept 276 of the last run's folders once when Lint ran
 beside the tests; the emptying is asked again, and a folder it cannot
 empty stops the build saying so.
+
+The round that attacked these fixes found what they had not reached, all
+of low severity on the phone, each fixed the same day:
+
+- **The shared file read away from the screen's thread had one slot to
+  arrive in.** A file read while the app was behind Home waited there for
+  the next frame, and words shared meanwhile took its place: the file's
+  text never became a note, and nothing said so. Shares now wait in turn.
+- **The failed import's words** called a code's import "the backup's",
+  and said "what it brings besides them was kept" over a Trash whose own
+  write had failed. They name what was kept now. And something in a
+  backup the app could not read, met after the notes' files were moved
+  in, left those files named by nothing; they are taken back as a failed
+  write's are.
+- **A day off the schedule the Trash already held** kept that entry's
+  first clock, so its words could leave sooner than the question had
+  just promised; the clock starts again (the desktop the same).
+- **More of the second copy's corners**: a rescue copy's colour, ticks
+  and date compared as written rather than as a load shapes them; a code
+  holding one plain value called damaged, and one with text after its
+  object taken as whole; dates, colours and the name trimmed by Kotlin's
+  `trim()`; a size's figures written in the phone's own digits.
+- **A selection on a big phone** was lost when the phone was turned
+  upright with a note open beside the list, and a note restored from the
+  Trash without a uid kept none, so the list knew it by an id a later
+  note could take.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

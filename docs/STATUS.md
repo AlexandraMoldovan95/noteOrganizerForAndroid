@@ -608,6 +608,12 @@ do, each a decision or an account step for the owner:
   Play App Signing; the release build's signing moves to it. A phone
   holding a debug-signed build has to uninstall it to take the store's,
   so its notebook goes to a backup `.zip` first.
+* **Each release's `mapping.txt`, kept.** R8 writes it to
+  `app/build/outputs/mapping/release/`, and the next build writes over
+  it. Play reads the copy the bundle carries; another goes beside the
+  bundle uploaded, named for its version, so a crash's trace from an
+  older version can still be read here. A step of every release build,
+  with the bundle's own.
 * **The privacy policy: published** (2026-10-21). One page for both
   apps, on Google Sites (`Links.PRIVACY`), its text the desktop
   repository's `docs/PRIVACY.md`, copied there by hand; in the app at
@@ -701,8 +707,8 @@ or the phone itself.
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
 | [The rules](#the-unit-tests-and-their-mutants) | The JVM unit tests ([how many](../qa/README.md#the-unit-tests)), each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
-| [The older Androids](../tools/emulator/README.md#older-androids) | A short walk of what an older system could break, on Android 8.0, 11, 13 and 17, Android's crash log read after every step: 18 of 18 on each, after the fix to the keyboard Android 8 opened at every start; and Android Lint, no call newer than API 26 |
-| A big notebook | 100, 1,000 and 5,000 notes on an emulator held to two cores: start 1.5, 1.6 and 1.9 s, scrolling, typing and saving the same at every size, memory 82 to 105 MB (2026-11-13). The emulator runs on the computer's processor, so a slow phone will be slower; what matters is that nothing grows with the notebook |
+| [The older Androids](../tools/emulator/README.md#older-androids) | A short walk of what an older system could break, on Android 8.0, 11, 13 and 17, Android's crash log read after every step: 18 of 18 on each, after the fix to the keyboard Android 8 opened at every start, then 19 of 19 on 8.0 with a tap on the search box that must bring the keyboard; and Android Lint, no call newer than API 26 |
+| A big notebook | 100, 1,000 and 5,000 notes on an emulator held to two cores (2026-11-13): start 1.50, 1.62 and 1.91 s; the median frame 19 to 20 ms while scrolling and 30 to 32 ms while typing, at every size; a typed word on the disk within 0.1 s at every size; memory 80, 82 and 103 MB. The start and the memory grow with the notebook, and so does a save, which writes the whole file: at 5,000 notes, still inside a tenth of a second. Measured by a script of the session's own, not kept here. The emulator runs on the computer's processor, so a slow phone will be slower |
 
 ### An emulator walk that reads the files
 
