@@ -146,6 +146,9 @@ private fun readCode(notebook: org.json.JSONArray, categories: Set<String>, code
 } catch (e: Exception) {
     // Exception: Android's JSONException is not a RuntimeException.
     null
+} catch (e: StackOverflowError) {
+    // A hand-made code nested past what nestedPast sees ('#' comments).
+    null
 }
 
 /** Where the three questions have got to. */

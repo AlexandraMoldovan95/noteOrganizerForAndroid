@@ -458,6 +458,26 @@ class SharingTest {
     }
 
     @Test
+    fun `a shared file in UTF-16 without its BOM is refused, not read as letters and NULs`() {
+        val bare = "Shopping list: milk, eggs".toByteArray(Charsets.UTF_16LE)
+        var refused = false
+        try {
+            shared(bare)
+        } catch (e: java.io.IOException) {
+            refused = true
+        }
+        assertTrue(refused)
+    }
+
+    @Test
+    fun `an emoji cut in half at the end leaves no half behind`() {
+        val text = "abcd😀"   // an emoji at characters 5 and 6
+        val got = shared(text.toByteArray(), most = 5)
+        assertEquals("abcd", got?.first)
+        assertEquals(true, got?.second)
+    }
+
+    @Test
     fun `a shared file is said cut only when it went on past what is read`() {
         assertEquals(false, shared("abcde".toByteArray(), most = 5)?.second)
         assertEquals(true, shared("abcdef".toByteArray(), most = 5)?.second)

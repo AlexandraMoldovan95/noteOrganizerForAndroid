@@ -213,7 +213,9 @@ class MainActivity : ComponentActivity() {
                     cutCode -> state.say("The shared file was longer than $first characters and only " +
                         "its start was read, so the share code in it is incomplete. Ask for a backup " +
                         "instead (Settings → Backup → Export on the other device).", long = true)
-                    text.contains(Sharing.PREFIX) -> state.incomingCode = text
+                    // From a cut file, the code alone: its 500,000 characters were
+                    // named as the code's length.
+                    text.contains(Sharing.PREFIX) -> state.incomingCode = if (shared.cut) Sharing.codeIn(text) else text
                     !shared.cut -> state.noteFromShared(text, sharedNoteSaid)
                     else -> state.noteFromShared(text, "$sharedNoteSaid. Only the first $first characters " +
                         "of the file came in; the rest was left out.", long = true)
@@ -326,7 +328,7 @@ class MainActivity : ComponentActivity() {
             intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
         } catch (e: RuntimeException) {
             null
-        }?.takeIf { it.isNotBlank() }
+        }?.takeIf { PyText.strip(it).isNotEmpty() }
         if (words != null) {
             arrived(words)
             return
