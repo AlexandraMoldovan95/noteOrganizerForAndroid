@@ -635,7 +635,7 @@ fun AppRoot(state: AppState, version: String) {
         // And above the editor's foot on the keyboard -- its bar, "A new item…"
         // -- or a message covered them and took their taps for its four seconds;
         // kept below the status bar however tall that foot is.
-        val footClear = state.editorFootTop?.takeIf { open != null }?.let { top ->
+        val footClear = (state.editorFootTop?.takeIf { open != null } ?: state.pageFootTop?.takeIf { open == null })?.let { top ->
             val below = maxOf(keys, WindowInsets.navigationBars.getBottom(density))
             with(density) { (constraints.maxHeight - below - top).coerceAtLeast(0f).toDp() }
                 .coerceAtMost((maxHeight - with(density) { below.toDp() } - 160.dp).coerceAtLeast(0.dp))

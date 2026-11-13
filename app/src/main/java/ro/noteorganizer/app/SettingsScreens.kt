@@ -48,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -747,11 +749,11 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // What is picked AND still in the Trash: the counts and the buttons
     // never name an entry that has left it.
     val chosen = picked intersect all
-    // Something picked: a delete's "Moved to Trash · Undo" bar lay over the
-    // Restore button for its ten seconds. Picking here is that Undo's work.
-    LaunchedEffect(chosen.isNotEmpty()) {
-        if (chosen.isNotEmpty()) state.snackbar.currentSnackbarData?.dismiss()
-    }
+    // Where the buttons at the foot begin, told to the window: its messages
+    // are drawn above them ([AppState.pageFootTop]).
+    var footTop by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(footTop) { state.pageFootTop = footTop }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { state.pageFootTop = null } }
     // Null when the window could not be read: nothing is purged then, and
     // the page says so rather than show the default as if it were chosen.
     val known = state.trashWindow
@@ -838,7 +840,12 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth()
+                .onGloballyPositioned { footTop = if (it.size.height > 0) it.boundsInWindow().top else null }
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             if (chosen.isNotEmpty()) {
                 Button(
                     onClick = { state.restoreFromTrash(chosen); picked = emptySet() },

@@ -267,6 +267,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     var editorFootTop by mutableStateOf<Float?>(null)
 
+    /**
+     * The same for a page's own buttons at its foot while no note is open:
+     * the Trash's Restore. A delete's "Moved to Trash · Undo" lay over it for
+     * its ten seconds; dismissed instead, an Undo that was the only way back
+     * (a day's words) went with it.
+     */
+    var pageFootTop by mutableStateOf<Float?>(null)
+
     /** Android's share sheet, set by the activity: text out to any app. */
     var sendText: ((String) -> Unit)? = null
 
