@@ -18,6 +18,20 @@ import java.util.Locale
 object Files {
 
     /**
+     * Files this run writes nothing over: one it could neither read nor copy
+     * aside (the desktop's `hold_writes`). Settings and templates were
+     * written over then, their bytes in no other copy; the notes alone held.
+     */
+    private val writesHeld = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    private fun heldKey(file: File): String =
+        try { file.canonicalPath } catch (e: Exception) { file.absolutePath }
+
+    internal fun holdWrites(file: File) { writesHeld.add(heldKey(file)) }
+
+    internal fun writesHeld(file: File): Boolean = heldKey(file) in writesHeld
+
+    /**
      * Dump to a sibling `.tmp`, force it to the disk, then rename over the
      * real file: rename is atomic within a filesystem, so a crash leaves the
      * old file whole and a half-written one never carries the real name. The
@@ -27,6 +41,10 @@ object Files {
      * @return null when it worked, otherwise the reason.
      */
     fun writeAtomic(file: File, bytes: ByteArray): String? {
+        if (writesHeld(file)) {
+            return "${file.name} could not be read or copied aside at the start, so nothing is " +
+                "written over it until the app starts again"
+        }
         val tmp = File(file.parentFile, file.name + ".tmp")
         try {
             FileOutputStream(tmp).use { out ->
@@ -56,10 +74,16 @@ object Files {
      * read again at every start, the file left one more copy each time.
      *
      * @return the copy (an earlier one holding the same bytes, if there is
-     *   one), or null if even the copy failed -- in which case the caller
-     *   must not write over the original.
+     *   one), or null if even the copy failed -- and then nothing is written
+     *   over the original for the rest of the run ([holdWrites]).
      */
     fun preserveCorrupt(file: File): File? {
+        val kept = copyAside(file)
+        if (kept == null) holdWrites(file)
+        return kept
+    }
+
+    private fun copyAside(file: File): File? {
         val held = try {
             file.readBytes()
         } catch (e: Exception) {

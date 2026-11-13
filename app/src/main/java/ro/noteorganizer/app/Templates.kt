@@ -225,9 +225,13 @@ object Templates {
         return Draft(json.opt("edits") as? String, fields, json.opt("waiting") as? String ?: "")
     }
 
-    /** The draft gone: saved, discarded, or the editor closed with nothing to keep. */
+    /**
+     * The draft gone: saved, discarded, or the editor closed with nothing to
+     * keep. One that could be neither read nor copied aside stays, as held.
+     */
     fun deleteDraft(dir: File) {
-        File(dir, DRAFT).delete()
+        val file = File(dir, DRAFT)
+        if (!Files.writesHeld(file)) file.delete()
     }
 
     /**

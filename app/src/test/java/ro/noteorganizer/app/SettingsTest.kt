@@ -41,6 +41,28 @@ class SettingsTest {
     }
 
     @Test
+    fun `a file that could be neither read nor copied aside is written over by nothing, as the desktop's`() {
+        // Settings and templates were written over then, their bytes in no other
+        // copy; only the notes held. Held, every writer is refused.
+        val folder = dir()
+        val settings = File(folder, "settings.json")
+        settings.writeText("""{"username": "Ana", "catego""")
+        Files.holdWrites(settings)
+        assertNotNull(Files.writeAtomic(settings, "{}"))
+        assertEquals("""{"username": "Ana", "catego""", settings.readText())
+        // ...and preserveCorrupt holds a file it cannot copy: here, one it cannot
+        // read at all (a folder where the file should be).
+        val unreadable = File(folder, "templates.json").apply { mkdir() }
+        assertNull(Files.preserveCorrupt(unreadable))
+        assertTrue(Files.writesHeld(unreadable))
+        // A template's draft held is not deleted either, when its editor closes.
+        val draft = File(folder, Templates.DRAFT).apply { writeText("""{"fields": {"title": "Shop""") }
+        Files.holdWrites(draft)
+        Templates.deleteDraft(folder)
+        assertTrue("a held draft stays", draft.exists())
+    }
+
+    @Test
     fun `a phone restored from a backup made while off reads off before its first start, and Android's backup keeps the mark`() {
         // Restored, the notebook holds the mark and no settings.json: read
         // from the file alone that was "on", and Android's next backup,
