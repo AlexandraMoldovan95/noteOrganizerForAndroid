@@ -188,7 +188,8 @@ object Sharing {
     private fun wrapping(c: Char) =
         // Written by their numbers: the marks themselves are invisible, and an
         // editor may drop one without a trace (lint read the last as a BOM).
-        c.isWhitespace() || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
+        // NEL (0x85) is whitespace to Python's \s and not to isWhitespace.
+        c.isWhitespace() || c == Char(0x0085) || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
             c == Char(0xFEFF)
 
     /**

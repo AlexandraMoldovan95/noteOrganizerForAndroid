@@ -207,6 +207,15 @@ class SharingTest {
     }
 
     @Test
+    fun `a NEL inside a code is wrapping, as Python's whitespace is`() {
+        // Python's \s takes U+0085; isWhitespace does not, and the phone cut
+        // the code at it and called it damaged where the desktop read it.
+        val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
+        val middle = Sharing.PREFIX.length + 8
+        assertTrue(Sharing.decode(code.take(middle) + "\u0085" + code.drop(middle)) is Sharing.Decoded.Notes)
+    }
+
+    @Test
     fun `what the desktop's base64 reading drops is dropped here too`() {
         // A code ending a sentence, or followed by a closing quote or
         // bracket, imported on the computer and was called damaged on the
