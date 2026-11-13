@@ -2397,6 +2397,42 @@ def statistics(folder):
               bool(figure) and figure[0][2] - figure[0][0] >= 78 * px
               and figure[0][2] - figure[0][0] > figure[0][3] - figure[0][1], repr(figure))
         shot(folder, "31b-statistics-large-letters", "1234")
+        # The time table below: its label broke as "Update" over "d".
+        adb("shell", "input", "swipe", "540", "1900", "540", "1100", "400")
+        time.sleep(1.0)
+        # Its box is its column's width, not its word's, so a line is told
+        # by height: the figures beside it are one line by construction and
+        # share its line height; a label broken in two stands twice as tall.
+        label, row = bounds("Updated"), []
+        if label:
+            try:
+                root = ET.fromstring(screen_xml())
+            except ET.ParseError:
+                root = None
+            for node in (root.iter("node") if root is not None else []):
+                box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+                if (node.get("text", "").isdigit() and len(box) == 4
+                        and label[0][1] <= (box[1] + box[3]) / 2 <= label[0][3]):
+                    row.append(box)
+        row.sort()
+        check("...and the time table's label stays on one line",
+              bool(label) and bool(row) and label[0][3] - label[0][1] < 1.4 * max(b[3] - b[1] for b in row),
+              "%r %r" % (label, row))
+        # Its header broke "this month" as "this" / "mont" / "h" (three
+        # lines where "older" takes one), and its figures ran together:
+        # "0" beside "1234" read as "01234".
+        # The figures are one line each, by construction, at the header's
+        # line height: a two-word label stands at most two lines, one word one.
+        month, older = bounds("this month"), bounds("older")
+        line = max((b[3] - b[1] for b in row), default=0)
+        check("...and its header keeps each word whole",
+              bool(month) and bool(older) and line > 0
+              and month[0][3] - month[0][1] < 2.25 * line and older[0][3] - older[0][1] < 1.4 * line,
+              "%r %r, a line %d" % (month, older, line))
+        gaps = [b[0] - a[2] for a, b in zip(row, row[1:])]
+        check("...and a gap stands between its columns' figures",
+              len(row) == 4 and min(gaps) >= 3 * px, "%r, gaps %r" % (row, gaps))
+        shot(folder, "31c-statistics-time-table", "Updated")
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "wm", "density", "reset")
@@ -5987,11 +6023,62 @@ def calendar_large_letters(folder):
         density = int((re.findall(r"\d+", adb("shell", "wm", "density")) or ["420"])[-1]) / 160.0
         check("at the largest letters a day's cell grows past 56 dp to hold its marker and dot",
               box is not None and (box[3] - box[1]) > 56 * density + 4, "%s at %.2f px a dp" % (box, density))
+        # The month's title beside the arrows and History broke as
+        # "Novembe" / "r 2026"; on one line now, shrunk to its room.
+        heading = bounds("%s %d" % (LONG_MONTHS[today.month - 1], today.year))
+        check("...and the month's title stays on one line",
+              bool(heading) and heading[0][2] - heading[0][0] > 2 * (heading[0][3] - heading[0][1]), repr(heading))
+        # On one line it was cut at its room's end, "November 202", the
+        # year not whole and no mark of it: told by the letters drawn.
+        title = "%s %d" % (LONG_MONTHS[today.month - 1], today.year)
+        drawn = glyphs_drawn(heading[0]) if heading else None
+        check("...and all of it is drawn, its year not cut at the arrows",
+              drawn == len(title.replace(" ", "")), "%s letters of %r" % (drawn, title))
         shot(folder, "90-calendar-large-letters", "Calendar")
+        # The narrowest phone and the longest month.
+        adb("shell", "wm", "density", "480")
+        time.sleep(3.0)
+        for _ in range((today.month - 9) % 12):
+            tap("Previous month", exact=True, wait=0.8)
+        september = "September %d" % (today.year if today.month >= 9 else today.year - 1)
+        narrow = bounds(september)
+        drawn = glyphs_drawn(narrow[0]) if narrow else None
+        check("...and on a 360 dp phone September's title is drawn whole, on one line",
+              bool(narrow) and bool(heading)
+              and (narrow[0][3] - narrow[0][1]) / 3.0 <= (heading[0][3] - heading[0][1]) / density + 2
+              and drawn == len(september.replace(" ", "")),
+              "%s against %s, %s letters of %r" % (narrow, heading, drawn, september))
+        shot(folder, "90b-calendar-narrow-september", "September")
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
-        time.sleep(1.5)
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
     back_to("Search notes")
+
+
+def glyphs_drawn(box):
+    """How many letters a line of dark words in [box] draws: runs of inked
+    columns, read from the screen's raw pixels in the light theme. Words cut
+    at their box's end draw fewer letters than they have, where the UI tree
+    still holds them whole."""
+    raw = adb("exec-out", "screencap", binary=True)
+    if len(raw) < 16:
+        return None
+    w, h = struct.unpack_from("<II", raw, 0)
+    head = len(raw) - w * h * 4
+    if head < 12 or w <= 0 or h <= 0:
+        return None
+    runs, inked = 0, False
+    for x in range(max(0, box[0]), min(w, box[2])):
+        ink = False
+        for y in range(max(0, box[1]), min(h, box[3])):
+            at = head + (y * w + x) * 4
+            if 0.299 * raw[at] + 0.587 * raw[at + 1] + 0.114 * raw[at + 2] < 110:
+                ink = True
+                break
+        runs += ink and not inked
+        inked = ink
+    return runs
 
 
 def bounds_of_desc(start):
