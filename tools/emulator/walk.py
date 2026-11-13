@@ -3897,10 +3897,11 @@ def shared_files(folder):
     """Text shared to the app as a file, as Files or a mail app shares a
     .txt: read into a note away from the screen. One past what is read
     (500,000 characters) is said cut, where the rest went without a word;
-    and words shared while the file is read wait their turn, so the file's
-    note comes first. The file is offered through the app's own provider,
-    written into its cache by run-as once the app is up (a start empties
-    that folder)."""
+    and words shared while a file is read wait their turn, so the file's
+    note comes first -- proved on a pipe the read waits on, as a plain file
+    is read before the words could come. The files are offered through the
+    app's own provider, written into its cache by run-as once the app is up
+    (a start empties that folder)."""
     print("\n-- text shared as a file --")
     if not seed_inside([{"id": 1, "uid": "sf-1", "title": "Here", "body": "x", "category": "General",
                          "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
@@ -3918,29 +3919,56 @@ def shared_files(folder):
     adb("shell", "run-as", PACKAGE, "mkdir", "-p", "cache/share")
     adb("shell", "run-as", PACKAGE, "cp", staging, "cache/share/walk_long.txt")
     adb("shell", "rm", "-f", staging)
-    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
-        "--eu", "android.intent.extra.STREAM", "content://%s.files/share/walk_long.txt" % PACKAGE,
-        "--grant-read-uri-permission", "-n", PACKAGE + "/.MainActivity")
-    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
-        "--es", "android.intent.extra.TEXT", "'Words shared after the file'", "-n", PACKAGE + "/.MainActivity")
+    def share_file(name):
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--eu", "android.intent.extra.STREAM", "content://%s.files/share/%s" % (PACKAGE, name),
+            "--grant-read-uri-permission", "-n", PACKAGE + "/.MainActivity")
+
+    def notes_titled(*titles):
+        return [n for n in read_file("notes_data.json") or [] if n.get("title") in titles]
+
+    share_file("walk_long.txt")
     said = not shot_as_said(folder, "130-shared-file-cut",
                             "Only the first 500,000 characters of the file came in", within=20.0)
-
-    def made():
-        return [n for n in read_file("notes_data.json") or []
-                if n.get("title") in (first, "Words shared after the file")]
-
-    got = settle(made, lambda notes: len(notes) == 2, within=20.0, first=1.0)
+    got = settle(lambda: notes_titled(first), lambda notes: len(notes) == 1, within=20.0, first=1.0)
     check("a long file shared in is said cut", said)
-    long_note = next((n for n in got if n.get("title") == first), None)
-    words = next((n for n in got if n.get("title") == "Words shared after the file"), None)
-    kept = len(first) + 1 + len((long_note or {}).get("body") or "")
+    kept = len(first) + 1 + len((got[0] if got else {}).get("body") or "")
     check("...its note holds the file's first 500,000 characters, no more",
-          long_note is not None and 499_000 < kept <= 500_000, "%d characters" % kept)
-    check("...and words shared while it was read are a note of their own, after it",
-          long_note is not None and words is not None and long_note["id"] < words["id"],
-          repr([(n.get("id"), n.get("title")) for n in got]))
+          len(got) == 1 and 499_000 < kept <= 500_000, "%d characters" % kept)
     adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_long.txt")
+
+    # The order, on a file whose read cannot finish first: a pipe, which the
+    # app's read waits on until the walk writes into it, the words shared in
+    # between. Read from a plain file, in milliseconds, the old order (as each
+    # read finished) passed this too.
+    back_to("Search notes")
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_slow.txt")
+    adb("shell", "run-as", PACKAGE, "mkfifo", "cache/share/walk_slow.txt")
+    share_file("walk_slow.txt")
+    time.sleep(1.5)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", "'Words shared while the file was read'",
+        "-n", PACKAGE + "/.MainActivity")
+    time.sleep(3.0)
+    early = notes_titled("Words shared while the file was read")
+    check("words shared while a file is read wait for it", not early, repr(early)[:120])
+    source = os.path.join(folder, "walk_slow_src.txt")
+    with io.open(source, "w", encoding="utf-8", newline="\n") as f:
+        f.write("The slow file, read in the end\nwith a line of its own.\n")
+    adb("push", source, "/data/local/tmp/walk_slow_src.txt")
+    os.remove(source)
+    adb("shell", "chmod", "644", "/data/local/tmp/walk_slow_src.txt")
+    adb("shell", "run-as", PACKAGE, "sh", "-c",
+        "'cat /data/local/tmp/walk_slow_src.txt > cache/share/walk_slow.txt'")
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_slow_src.txt")
+    both = settle(lambda: notes_titled("The slow file, read in the end", "Words shared while the file was read"),
+                  lambda notes: len(notes) == 2, within=20.0, first=1.0)
+    slow = next((n for n in both if n.get("title") == "The slow file, read in the end"), None)
+    words = next((n for n in both if n.get("title") == "Words shared while the file was read"), None)
+    check("...and once the file is in, its note comes first, the words' after it",
+          slow is not None and words is not None and slow["id"] < words["id"],
+          repr([(n.get("id"), n.get("title")) for n in both]))
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_slow.txt")
     back_to("Search notes")
 
 
