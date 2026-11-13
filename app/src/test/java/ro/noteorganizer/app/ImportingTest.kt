@@ -107,6 +107,19 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's templates come in over a templates file here that does not read, copied aside first`() {
+        // They were skipped without a word; the desktop's empty list takes them.
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[{\"name\": ")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals("Trip", JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("name"))
+        assertTrue("the unreadable one was kept aside",
+            dirOf(load).list()!!.any { it.startsWith("templates_corrupt_") })
+    }
+
+    @Test
     fun `a day filed under a category this phone lacks comes in under General, as the note does`() {
         // The desktop's clean_override files a day under one it lacks; the
         // phone refiled the note alone, and a day kept a name no Show offers.

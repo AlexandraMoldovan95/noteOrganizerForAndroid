@@ -465,7 +465,9 @@ object Importing {
         var templatesCandidate: JSONArray? = null
         val templatesFile = notesFile.parentFile?.let { File(it, "templates.json") }
         if (extras.templates != null && templatesFile != null) {
-            val mine = readArray(templatesFile)
+            // One here that does not read is copied aside, as every reader does,
+            // and the backup's come in over it, as into the desktop's empty list.
+            val mine = readArray(templatesFile) ?: JSONArray().takeIf { Files.preserveCorrupt(templatesFile) != null }
             if (mine != null) {
                 val names = (0 until mine.length()).mapNotNull { (mine.opt(it) as? JSONObject)?.opt("name") as? String }.toMutableSet()
                 val out = JSONArray(mine.toString())

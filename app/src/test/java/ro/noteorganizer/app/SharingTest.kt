@@ -286,6 +286,10 @@ class SharingTest {
         // it, "damaged or incomplete", not "too large to import safely".
         val cut = Sharing.decode(stray.take(12))
         assertTrue("$cut", cut is Sharing.Decoded.Failed && cut.reason.startsWith("This share code is damaged or incomplete"))
+        // ...and a stream asking for a preset dictionary is refused, as Python's
+        // zlib refuses it: no empty "incomplete" made of it.
+        val dict = Sharing.decode("NOTE1:eCAAAAABq1YqU7Iy1FHKyy9JLVayiq5WKsksyUlVslKqUKqNrQUAmZcJ_Q==")
+        assertTrue("$dict", dict is Sharing.Decoded.Failed && dict.reason.startsWith("This share code is damaged, or too large"))
     }
 
     @Test

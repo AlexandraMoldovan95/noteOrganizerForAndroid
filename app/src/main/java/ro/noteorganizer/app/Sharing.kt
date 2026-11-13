@@ -375,7 +375,9 @@ object Sharing {
         try {
             while (!inflater.finished()) {
                 val n = inflater.inflate(buffer)
-                if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
+                // A stream asking for a preset dictionary is one Python refuses.
+                if (n == 0 && inflater.needsDictionary()) return null
+                if (n == 0 && inflater.needsInput()) break
                 out.write(buffer, 0, n)
                 if (out.size() > limit) return null
             }
