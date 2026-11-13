@@ -40,10 +40,10 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,044 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+1,048 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
 `DaysTest` (76), `TablesTest` (72), `AppStateTest` (70), `RecurrenceTest` (52),
-`OrganizingTest` (51), `EditingTest` (49), `PastingTest` (47), `IdentityTest` (43),
-`ImportingTest` (40), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
+`OrganizingTest` (51), `EditingTest` (49), `PastingTest` (47), `ImportingTest` (44),
+`IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
 `ParagraphsTest` (33), `EditorTypingTest` (32), `BackupTest` (25), `SettingsTest` (25),
 `ListingTest` (22), `TemplatesTest` (21), `FindingTest` (20), `EditorTableTest` (16),
 `ExportingTest` (16), `StartupTest` (15), `OutgoingTest` (12), `UnknownFieldsTest` (11),
@@ -66,10 +66,10 @@ first, and never left in the system's temp folder (30,640 were, by
 
 ### Fixtures the desktop wrote
 
-Nine suites are held to answers the desktop's own Python gave, over
-cases generated for them, from eight fixtures (`NotebookTest` reads the
-export's too; `InteropTest` reads a code the desktop wrote,
-`desktop_code.txt`). Each fixture in `app/src/test/resources/` is
+Ten suites are held to what the desktop's own Python wrote: nine to its
+answers over cases generated for them, in the eight fixtures below
+(`NotebookTest` reads the export's too), and `InteropTest` to a code it
+wrote, `desktop_code.txt` (`make_interop_fixture.py`). Each fixture in `app/src/test/resources/` is
 written by a tool in `tools/` that imports the desktop's code, runs it,
 and never writes to it:
 

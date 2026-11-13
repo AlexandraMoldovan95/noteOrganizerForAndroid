@@ -50,7 +50,7 @@ here.
 
 ## The map
 
-About 29,600 lines of Kotlin on 14 November 2026, the rules a little over
+About 29,700 lines of Kotlin on 14 November 2026, the rules a little over
 half of them, in files that import nothing from Android, and the drawing
 the rest, in files that may. Each file's count below is rounded, and moves
 with every change: `wc -l` on the folder gives today's.
@@ -65,7 +65,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Organizing.kt` | 1,010 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 750 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Importing.kt` | 790 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 620 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 720 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
@@ -80,7 +80,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
-| `Files.kt` | 290 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Files.kt` | 300 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 170 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 85 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
@@ -98,7 +98,7 @@ with every change: `wc -l` on the folder gives today's.
 | `AppState.kt` | 1,300 | The app's state, and every action a screen can take on the notebook |
 | `MainActivity.kt` | 820 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
 | `TemplateScreens.kt` | 750 | Choosing and saving a template, Settings → Templates, the template editor |
-| `ImportFlow.kt` | 440 | The code dialog and the import's questions, in the desktop's words |
+| `ImportFlow.kt` | 460 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
 | `RepeatSheet.kt` | 280 | The Repeat sheet |
 | `TableView.kt` | 430 | The grid, drawn: a merge down as one cell, the chosen cell holding the field it is written in and the handles on its edges |

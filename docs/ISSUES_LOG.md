@@ -575,6 +575,26 @@ write by design); and a templates file held shows no templates without a
 word of its own (rare: it needs a full phone as the page opens; nothing
 is lost, and a template saved then is refused, saying why).
 
+The fourteenth round found the thirteenth's worst slip: ending a hold
+once a later read in the run copied the file aside let the next write of
+settings go out without the marks the start could not write, the Trash's
+window unknown and Android's backup off, so the next start would empty the
+Trash at thirty days and send the notebook to Google against the person's
+"off". A hold lasts the run again, as on the desktop (AS753, aimed now at
+that slip). Its second reader checked, on the phone, each rule the desktop
+had learned in three rounds, and found two of its words not followed: a
+backup's note that differs by an attached file alone was promised Restore
+previous and called OLDER, Add put first (counted apart now, its own
+words; AS760, AS761), and "Already here, unchanged" said nothing of the
+fields a newer version wrote that the backup holds and the note here
+lacks (AS762, AS763); STATUS said the same of the update. The lows: a
+backup over a templates or Trash file held dropped them without a word,
+where every other refused write stops the import and says so (AS764); a
+backup's template with no name was left out, where the desktop takes it
+as "Untitled template" (AS758); the reminder bar came back once after the
+notification had opened the day (AS759); and a checklist row the disk
+refused was said in the writer's bare words, "Not saved" now before them.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

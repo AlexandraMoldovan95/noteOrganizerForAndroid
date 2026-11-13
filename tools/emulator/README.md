@@ -112,9 +112,10 @@ hand.
 ## Four traps, two of which these tools remove for themselves
 
 The first two are handled inside the tools (the walk turns the stylus
-panel off on every run, and `emulator_only.py` sets `MSYS_NO_PATHCONV=1`
-on every adb call); they still apply to adb typed by hand. The last two
-apply everywhere.
+panel off on every run; `emulator_only.adb()` sets `MSYS_NO_PATHCONV=1`,
+and the tools' other adb calls, made from Python, never pass through Git
+Bash's path conversion); they still apply to adb typed by hand. The last
+two apply everywhere.
 
 **A fresh emulator's stylus tutorial eats typed text.** A new Android
 image opens a full-screen *"Try out your stylus"* panel the first time a
