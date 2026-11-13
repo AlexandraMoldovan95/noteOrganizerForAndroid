@@ -34,18 +34,17 @@ object Files {
     /** Why a held [file] takes no write, in the words every refusal of it uses. */
     internal fun heldReason(file: File): String =
         "${file.name} could not be read or copied aside, so nothing is written over it until " +
-            "the app is closed and opened again"
+            "the app is opened again and can copy it aside"
 
     /**
-     * Files whose last read found them unreadable and set them aside: the
-     * desktop's `_UNREAD_AT_LOAD`. A run that holds none of the notes file's
-     * notes deletes no attached file one of them may use.
+     * Files a read in this run found unreadable and set aside: the desktop's
+     * `_UNREAD_AT_LOAD`, kept, as there, until the next start. A run that
+     * never held the notes file's notes deletes no attached file one of them
+     * may use, a later reload of the file it wrote since included.
      */
     private val unreadAtLoad = java.util.Collections.synchronizedSet(HashSet<String>())
 
-    internal fun markUnread(file: File, unread: Boolean) {
-        if (unread) unreadAtLoad.add(heldKey(file)) else unreadAtLoad.remove(heldKey(file))
-    }
+    internal fun markUnread(file: File) { unreadAtLoad.add(heldKey(file)) }
 
     internal fun unreadAtLoad(file: File): Boolean = heldKey(file) in unreadAtLoad
 
@@ -90,13 +89,14 @@ object Files {
      *
      * @return the copy (an earlier one holding the same bytes, if there is
      *   one), or null if even the copy failed -- and then nothing is written
-     *   over the original for the rest of the run ([holdWrites]), as on the
-     *   desktop: a hold ended by a later copy let the next write drop the
-     *   marks the start could not write (the Trash's window, the backup's off).
+     *   over the original ([holdWrites]) until a later read copies it aside:
+     *   the app opened again on Android 8 to 11, where Back ends the activity
+     *   and not the process. Safe since a settings file read so holds its
+     *   marks in memory ([Settings.load]), which every later write carries.
      */
     fun preserveCorrupt(file: File): File? {
         val kept = copyAside(file)
-        if (kept == null) holdWrites(file)
+        if (kept == null) holdWrites(file) else writesHeld.remove(heldKey(file))
         return kept
     }
 

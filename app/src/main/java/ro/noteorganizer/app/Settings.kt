@@ -124,10 +124,10 @@ object Settings {
     const val TRASH_RETENTION_DAYS = 30
 
     /**
-     * What a read produced. [raw] is never null: a file that is missing,
-     * or that could not be read and was kept aside, reads as `{}` -- the
-     * desktop's answer too. [problem] says so when it was not simply
-     * missing.
+     * What a read produced. [raw] is never null: a file that is missing
+     * reads as `{}`; one that could not be read reads as its two marks alone
+     * (the Trash's window unknown, Android's backup off), the desktop's
+     * answer too. [problem] says so when it was not simply missing.
      */
     data class Load(
         val file: File,
@@ -144,14 +144,15 @@ object Settings {
             null
         }
         if (parsed != null) return Load(file, parsed)
-        // Kept aside BEFORE the first write can replace it: the bytes are
-        // still somebody's preferences, and their categories' colours.
+        // Kept aside before any write replaces it; its marks held in memory, as
+        // the desktop's every read gives them, so a later write carries them
+        // even when the start's own was refused (Trash at 30 days, backup on).
         val kept = Files.preserveCorrupt(file)
         return Load(
-            file, JSONObject(),
+            file, JSONObject().put(PHONE_TRASH_WINDOW_UNKNOWN, true).put(PHONE_GOOGLE_BACKUP, false),
             if (kept != null) "settings.json could not be read; a copy was kept as ${kept.name}"
             else "settings.json could not be read, and could not be copied aside: nothing is written " +
-                "over it until the app is closed and opened again",
+                "over it until the app is opened again and can copy it aside",
         )
     }
 

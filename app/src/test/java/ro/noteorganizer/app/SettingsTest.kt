@@ -41,6 +41,21 @@ class SettingsTest {
     }
 
     @Test
+    fun `a settings file that could not be read holds its marks in memory, and every later write carries them`() {
+        // The start's write of them refused on a full phone, the file copied aside
+        // and not held: the next write that went out dropped them, and the next
+        // start purged the Trash at thirty days, Android's backup on.
+        val folder = dir("""{"username": "Ana", "trash_retention_days": 365, "phone_google_backup": fal""")
+        val load = Settings.load(folder)
+        assertEquals(true, load.raw.opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        assertEquals(false, load.raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertTrue(Settings.put(load, Reminders.LAST_SHOWN, "2026-11-14") is SaveResult.Ok)
+        val again = Settings.load(folder)
+        assertNull("the window still unknown", Settings.purgeWindow(again))
+        assertFalse("the backup still off", Settings.googleBackupOn(again))
+    }
+
+    @Test
     fun `a file that could be neither read nor copied aside is written over by nothing, as the desktop's`() {
         // Settings and templates were written over then, their bytes in no other
         // copy; only the notes held. Held, every writer is refused.
@@ -55,13 +70,12 @@ class SettingsTest {
         val unreadable = File(folder, "templates.json").apply { mkdir() }
         assertNull(Files.preserveCorrupt(unreadable))
         assertTrue(Files.writesHeld(unreadable))
-        // ...for the whole run, as the desktop's, even once a later read copies it
-        // aside (space freed, the activity made again): ended, its next write
-        // dropped the marks the start could not write.
+        // ...until a later read copies it aside (space freed, the app opened again
+        // on Android 8 to 11, where Back ends the activity, not the process).
         unreadable.delete()
         unreadable.writeText("[{")
         assertNotNull(Files.preserveCorrupt(unreadable))
-        assertTrue("held for the rest of the run", Files.writesHeld(unreadable))
+        assertFalse("copied aside at last, it is no longer held", Files.writesHeld(unreadable))
         // A template's draft held is not deleted either, when its editor closes.
         val draft = File(folder, Templates.DRAFT).apply { writeText("""{"fields": {"title": "Shop""") }
         Files.holdWrites(draft)
@@ -248,7 +262,9 @@ class SettingsTest {
         assertNotNull(load.problem)
         val kept = dir.listFiles()!!.single { it.name.startsWith("settings_corrupt_") }
         assertEquals("{ not json", kept.readText())
-        assertEquals(0, load.raw.length())
+        // Nothing of it read but its two marks, held in memory for every write.
+        assertEquals(setOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN, Settings.PHONE_GOOGLE_BACKUP),
+            load.raw.keys().asSequence().toSet())
     }
 
     @Test

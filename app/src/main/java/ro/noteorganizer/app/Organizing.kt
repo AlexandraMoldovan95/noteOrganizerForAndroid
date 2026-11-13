@@ -847,6 +847,16 @@ object Organizing {
         if (array == null) emptyList() else (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
 
     /**
+     * Whether deleting for good keeps every attached file this run: the notes
+     * file held, or set aside unreadable ([deleteFiles]). The questions that
+     * name the files ask it too, as the desktop's `attached_files_kept`.
+     */
+    fun filesKept(load: Notebook.Load): Boolean = filesKept(load.file)
+
+    private fun filesKept(notesFile: File?): Boolean =
+        notesFile != null && (Files.writesHeld(notesFile) || Files.unreadAtLoad(notesFile))
+
+    /**
      * The files these entries use, deleted -- except any a note, or
      * another entry, still uses ([spare]), and any whose name tries to
      * leave the attachments folder. Only for PERMANENT deletion. None at all
@@ -855,7 +865,7 @@ object Organizing {
      */
     private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?, notesFile: File?) {
         val dir = attachmentsDir ?: return
-        if (notesFile != null && (Files.writesHeld(notesFile) || Files.unreadAtLoad(notesFile))) return
+        if (filesKept(notesFile)) return
         for (name in storedNames(entries)) {
             if (name in spare) continue
             val bare = Normalize.bareFileName(name)

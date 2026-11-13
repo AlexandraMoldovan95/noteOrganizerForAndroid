@@ -911,7 +911,10 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     if (askEmpty) {
         Ask(
             title = stringResource(R.string.empty_trash),
-            text = pluralStringResource(R.plurals.empty_trash_text, entries.size, entries.size),
+            // Files named only where they go: none held, or this run keeps them all.
+            text = pluralStringResource(
+                if (entries.any { it.attachmentCount > 0 } && !Organizing.filesKept(state.load)) R.plurals.empty_trash_text
+                else R.plurals.empty_trash_text_plain, entries.size, entries.size),
             confirm = stringResource(R.string.empty_trash),
             destructive = true,
             onConfirm = { askEmpty = false; state.emptyTrash() },

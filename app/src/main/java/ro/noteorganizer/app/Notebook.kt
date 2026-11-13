@@ -1178,8 +1178,10 @@ object Notebook {
         } catch (e: Exception) {
             null
         }
-        Files.markUnread(file, parsed == null)
+        // Marked for the run, as the desktop's load once a run: cleared by the
+        // reload after an import, deleting for good took the unread notes' files.
         if (parsed != null) return parsed
+        Files.markUnread(file)
         val kept = Files.preserveCorrupt(file)
         if (kept == null) {
             problems.add("$what could not be read, and could not be copied aside either, " +

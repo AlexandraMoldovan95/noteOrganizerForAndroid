@@ -407,6 +407,14 @@ class OrganizingTest {
         Organizing.deleteForever(load, listOf(Organizing.TrashKey(2, "2026-10-01 10:00:00")), attachments(load))
         assertEquals("the entry went", 0, trashOnDisk(load).length())
         assertTrue("its file, which an unread note may use, stayed", File(attachments(load), "shared.png").exists())
+        // ...for the rest of the run: an import writes the notes file and reloads
+        // it, and that read cleared the mark.
+        load.file!!.writeText("""[{"id": 5, "title": "imported since"}]""")
+        File(dirOf(load), "trash.json").writeText("""[{"id": 3, "title": "y", "deleted_at": "2026-10-02 10:00:00",
+            "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""")
+        val reloaded = Notebook.load(dirOf(load))
+        Organizing.deleteForever(reloaded, listOf(Organizing.TrashKey(3, "2026-10-02 10:00:00")), attachments(reloaded))
+        assertTrue("kept after a reload in the same run", File(attachments(reloaded), "shared.png").exists())
     }
 
     @Test

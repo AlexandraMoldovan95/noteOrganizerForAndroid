@@ -663,6 +663,10 @@
         <item quantity="one">Delete the %d note in the Trash for good, and its attached files? This can\'t be undone.</item>
         <item quantity="other">Delete all %d notes in the Trash for good, and their attached files? This can\'t be undone.</item>
     </plurals>
+    <plurals name="empty_trash_text_plain">
+        <item quantity="one">Delete the %d note in the Trash for good? This can\'t be undone.</item>
+        <item quantity="other">Delete all %d notes in the Trash for good? This can\'t be undone.</item>
+    </plurals>
     <string name="shorter_window">Keep deleted notes for less time</string>
     <plurals name="shorter_window_text">
         <item quantity="one">The Trash holds %1$d note older than %2$d days. Keeping deleted notes for %2$d days instead of %3$d removes it for good the next time the app starts. This can\'t be undone.</item>
