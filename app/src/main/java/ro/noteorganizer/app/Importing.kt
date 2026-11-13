@@ -331,10 +331,18 @@ object Importing {
         answers: Answers,
         attachmentsDir: File?,
         extras: Extras = Extras(),
-    ): Result = try {
-        applyWhole(load, plan, answers, attachmentsDir, extras)
-    } catch (e: RuntimeException) {
-        Result.Failed("The import stopped on something in it the app could not read; your notes are as they were.")
+    ): Result {
+        // The files here before the import: whatever stops it, a write or a
+        // thing in it the app could not read, takes back only what it brought
+        // ([dropBrought]). Stopped by the second, the files moved in for its
+        // notes stayed, named by nothing.
+        val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
+        return try {
+            applyWhole(load, plan, answers, attachmentsDir, extras, filesBefore)
+        } catch (e: RuntimeException) {
+            load.raw?.let { notes -> dropBrought(attachmentsDir, filesBefore, notes, load.trashRaw ?: JSONArray()) }
+            Result.Failed("The import stopped on something in it the app could not read; your notes are as they were.")
+        }
     }
 
     private fun applyWhole(
@@ -343,6 +351,7 @@ object Importing {
         answers: Answers,
         attachmentsDir: File?,
         extras: Extras,
+        filesBefore: Set<String>,
     ): Result {
         val notesFile = load.file ?: return Result.Failed("There is nowhere to keep the notes.")
         val notebook = load.raw
@@ -351,9 +360,6 @@ object Importing {
         val trash = load.trashRaw ?: JSONArray()
         val now = Files.now()
         val settings = load.settings
-        // The files here before the import: a write that fails takes back
-        // only what the import brought ([dropBrought]).
-        val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
 
         // 1. The backup's categories, added -- a name already here keeps
         //    its own colour -- and refused whole where the loader would drop
@@ -535,26 +541,31 @@ object Importing {
 
         // The writes, in the desktop's order: settings, templates, Trash,
         // and the notes last. One that fails takes back the files nothing
-        // uses, and says what came in.
-        var wroteExtras = false
+        // uses, and says what came in: each part written, by name, and a
+        // code called a code ("what it brings besides them" covered a Trash
+        // that was not kept, and a code was called "the backup").
+        val kept = mutableListOf<String>()
         var trashNow = trash
         fun stopped(problem: String): Result {
             dropBrought(attachmentsDir, filesBefore, notebook, trashNow)
-            return Result.Failed(problem + " None of the backup's notes came in" +
-                (if (wroteExtras) "; what it brings besides them was kept, and importing it again adds only the rest." else "."))
+            val parts = if (kept.size < 2) kept.joinToString() else
+                kept.dropLast(1).joinToString(", ") + " and " + kept.last()
+            val verb = if (kept == listOf("Trash")) "was" else "were"
+            return Result.Failed(problem + " None of the ${plan.source.word}'s notes came in" +
+                (if (kept.isEmpty()) "." else "; its $parts $verb kept, and importing it again adds only the rest."))
         }
         if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0 || adoptsWindow)) {
             Files.writeAtomic(settings.file, settingsCandidate.toString(2))?.let {
                 return stopped("settings.json could not be written: $it.")
             }
             for (key in settingsCandidate.keys()) settings.raw.put(key, settingsCandidate.opt(key))
-            wroteExtras = true
+            kept += "settings"
         }
         if (templatesCandidate != null && templatesFile != null) {
             Files.writeAtomic(templatesFile, templatesCandidate.toString(2))?.let {
                 return stopped("templates.json could not be written: $it.")
             }
-            wroteExtras = true
+            kept += "templates"
         }
         if (trashCandidate != null && trashFile != null) {
             Files.writeAtomic(trashFile, trashCandidate.toString(2))?.let {
@@ -562,7 +573,7 @@ object Importing {
             }
             load.trashRaw?.let { live -> replaceContents(live, trashCandidate) }
             trashNow = trashCandidate
-            wroteExtras = true
+            kept += "Trash"
         }
         if (changed) {
             Files.writeAtomic(notesFile, candidate.toString(2))?.let {

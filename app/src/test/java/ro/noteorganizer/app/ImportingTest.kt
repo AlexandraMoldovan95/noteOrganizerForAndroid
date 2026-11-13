@@ -366,6 +366,54 @@ class ImportingTest {
         assertFalse("the file it brought is taken back", File(attachments, "photo.jpg").exists())
         assertEquals("a file here before is left alone", "HERE BEFORE", File(attachments, "older.txt").readText())
         assertEquals("the notes are as they were", 0, onDisk(load).length())
+        assertTrue(reason, "its templates were kept" in reason)
+    }
+
+    @Test
+    fun `a failed import names what it kept, and calls a code a code`() {
+        // "What it brings besides them was kept" covered a Trash whose write
+        // had failed, and a code's import was "the backup's".
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
+        File(dirOf(load), "trash.json.tmp").mkdir()
+        val plan = backupPlan(load, """[{"uid": "t1", "title": "One"}]""")
+        val trashFailed = Importing.apply(load, plan, Importing.Answers(), null, Importing.Extras(
+            templates = JSONArray("""[{"name": "Trip", "title": "t"}]"""),
+            trash = JSONArray("""[{"uid": "gone", "title": "Gone", "deleted_at": "2026-11-01 09:00:00"}]""")))
+        val said = (trashFailed as Importing.Result.Failed).reason
+        assertTrue(said, said.startsWith("The Trash could not be written:"))
+        assertTrue(said, "None of the backup's notes came in; its templates were kept" in said && "Trash was" !in said)
+
+        val fresh = notebook("[]")
+        File(dirOf(fresh), "notes_data.json.tmp").mkdir()
+        val code = Importing.plan(fresh.raw!!, notes("""[{"uid": "c1", "title": "From a code"}]"""), Importing.Source.CODE)
+        val codeFailed = (Importing.apply(fresh, code, Importing.Answers(), null) as Importing.Result.Failed).reason
+        assertTrue(codeFailed, codeFailed.endsWith("None of the code's notes came in."))
+    }
+
+    @Test
+    fun `an import stopped by something it could not read takes back the files it brought`() {
+        // Stopped after the notes' files were moved in, by a Trash entry it
+        // could not read: the files stayed, named by nothing, under "your
+        // notes are as they were".
+        val load = notebook("[]")
+        val attachments = File(dirOf(load), "attachments").apply { mkdirs() }
+        File(attachments, "older.txt").writeText("HERE BEFORE")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        val unreadable = object : JSONArray() {
+            override fun length() = 1
+            override fun opt(index: Int): Any? = throw IllegalStateException("unreadable")
+        }
+        val result = Importing.apply(load, plan, Importing.Answers(), attachments,
+            Importing.Extras(attachments = unpacked, trash = unreadable))
+        assertTrue("$result", result is Importing.Result.Failed)
+        assertFalse("the file it brought is taken back", File(attachments, "photo.jpg").exists())
+        assertEquals("a file here before is left alone", "HERE BEFORE", File(attachments, "older.txt").readText())
+        assertEquals("the notes are as they were", 0, onDisk(load).length())
     }
 
     @Test
