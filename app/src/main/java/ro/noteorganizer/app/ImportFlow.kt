@@ -1,6 +1,7 @@
 package ro.noteorganizer.app
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +49,10 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
     var reading by remember(initial) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val unreadable = stringResource(R.string.code_unreadable)
+    // On its side, or at the largest letters with the keyboard up, the problem
+    // line fell under the field, out of sight: Import seemed to do nothing.
+    val news = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    androidx.compose.runtime.LaunchedEffect(problem, reading) { if (problem != null || reading) news.bringIntoView() }
 
     val ready = read
     if (ready != null) {
@@ -90,10 +95,12 @@ fun CodeImportDialog(state: AppState, initial: String, onClose: () -> Unit) {
                     placeholder = { Text(stringResource(R.string.import_code_hint, Sharing.PREFIX)) },
                 )
                 // Said in the dialog alone, so read out as it appears ([saidAloud]).
-                problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp).saidAloud()) }
-                if (reading) {
-                    Text(stringResource(R.string.code_reading), color = palette.accentText, fontSize = 13.sp,
-                         modifier = Modifier.padding(top = 8.dp))
+                Column(Modifier.bringIntoViewRequester(news)) {
+                    problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp).saidAloud()) }
+                    if (reading) {
+                        Text(stringResource(R.string.code_reading), color = palette.accentText, fontSize = 13.sp,
+                             modifier = Modifier.padding(top = 8.dp))
+                    }
                 }
                 TextButton(onClick = { clipboard.getText()?.text?.let { draft = it; problem = null } }) {
                     Text(stringResource(R.string.paste))

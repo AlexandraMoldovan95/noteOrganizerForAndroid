@@ -2826,7 +2826,9 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.table_size, rows, columns)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Scrolled, as every question's text is: on its side the last rows
+            // were squashed to nothing, and a five- or six-row table could not be picked.
+            DialogBody { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Every column drawn, so the squares lit are the table's shape;
                 // the first chooses two, the least a table has -- as the
                 // desktop's grid does since its 5f82daa.
@@ -2855,7 +2857,7 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
                 }
                 Text(stringResource(R.string.table_tap_again), color = palette.subtext, fontSize = 12.sp,
                      modifier = Modifier.padding(top = 6.dp))
-            }
+            } }
         },
         confirmButton = {
             TextButton(onClick = { onPick(rows, columns) }) {

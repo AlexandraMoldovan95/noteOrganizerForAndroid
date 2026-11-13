@@ -153,7 +153,8 @@ fun ExportDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(R.string.note_export_title)) },
         text = {
             DialogBody {
-                Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp)
+                Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp,
+                     modifier = Modifier.padding(bottom = 10.dp))
                 OptionCard("🌐", stringResource(R.string.note_export_html), stringResource(R.string.note_export_html_sub)) {
                     onPick(Exporting.HTML)
                 }
