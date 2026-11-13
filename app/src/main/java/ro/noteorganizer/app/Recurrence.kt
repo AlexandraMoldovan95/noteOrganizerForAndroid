@@ -779,7 +779,7 @@ object Recurrence {
             text += " on day " + (0 until monthDays.length()).joinToString(", ") { monthDays.getInt(it).toString() }
         }
         val count = rule.getInt("count")
-        if (count > 0) text += ", $count times"
+        if (count > 0) text += ", $count ${if (count == 1) "time" else "times"}"
         else if (rule.getString("end").isNotEmpty()) text += ", until ${showDate(rule.getString("end"))}"
         return text
     }
