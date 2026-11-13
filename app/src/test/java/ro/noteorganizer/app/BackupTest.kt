@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -42,6 +43,22 @@ class BackupTest {
             1_250_000_000L to "1.2 GB", 1_350_000_000L to "1.4 GB", 1_150_000_000L to "1.1 GB",
             999_999_999L to "1000 MB")
         for ((bytes, said) in desktop) assertEquals("$bytes", said, Backup.sizeText(bytes))
+    }
+
+    @Test
+    fun `a size is written in the figures 0 to 9 whatever the phone's language`() {
+        // A phone set to write Arabic figures wrote "٣ MB" for the MB figure,
+        // where the GB figure and the desktop write "3 MB".
+        val was = java.util.Locale.getDefault()
+        val arabic = java.util.Locale.forLanguageTag("ar-u-nu-arab")
+        java.util.Locale.setDefault(arabic)
+        try {
+            assertNotEquals("fixture: this phone writes its own figures", "3", "%d".format(3))
+            assertEquals("3 MB", Backup.sizeText(3_000_000L))
+            assertEquals("1.2 GB", Backup.sizeText(1_250_000_000L))
+        } finally {
+            java.util.Locale.setDefault(was)
+        }
     }
 
     @Test

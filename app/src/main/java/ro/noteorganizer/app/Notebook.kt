@@ -1225,7 +1225,7 @@ object Notebook {
         note.put("formatting", spansToJson(formatting))
         note.put("comments", mendSurrogates(comments))
         note.put("category", category.trim().ifEmpty { "General" })
-        note.put("date", date.trim())
+        note.put("date", PyText.strip(date))
         note.put("color", sanitizeColor(color))
         note.put("attachments", JSONArray())
         note.put("updated", now)
@@ -1317,7 +1317,7 @@ object Notebook {
         val otherChanged = (formatting != null && formatting != spans) ||
             (category != null && category != note.opt("category")) ||
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
-            (date != null && date.trim() != (note.opt("date") ?: "")) ||
+            (date != null && PyText.strip(date) != (note.opt("date") ?: "")) ||
             (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: "")) ||
             (paragraphs != null && Exporting.normalizeParagraphs(paragraphs, null) !=
                 Exporting.normalizeParagraphs(note.opt("paragraphs"), null))
@@ -1381,7 +1381,7 @@ object Notebook {
             note.put("category", category.trim().ifEmpty { "General" })
         }
         if (color != null) note.put("color", sanitizeColor(color))
-        if (date != null) note.put("date", date.trim())
+        if (date != null) note.put("date", PyText.strip(date))
         if (pinned != null) note.put("pinned", pinned)
         if (comments != null) note.put("comments", mendSurrogates(comments))
         // A pin alone is not an edit: the desktop's `toggle_pin` leaves the
@@ -2432,24 +2432,40 @@ object Notebook {
      */
     private fun spent(note: JSONObject, previous: JSONObject): Boolean {
         val lines = (note.opt("body") as? String ?: "").split("\n").size
-        return listOf("title", "body", "comments").all { sameJson(shaped(note, it), shaped(previous, it)) } &&
-            Exporting.normalizeFormatting(note.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
-            Exporting.normalizeParagraphs(note.opt("paragraphs"), lines) ==
-                Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines) &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || copyFieldHeld(note, previous, field) }
+        if (!(listOf("title", "body", "comments").all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+                Exporting.normalizeFormatting(note.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+                Exporting.normalizeParagraphs(note.opt("paragraphs"), lines) ==
+                    Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines))) return false
+        return extraFieldsHeld(note, previous)
+    }
+
+    /**
+     * Whether [note] holds every field beyond the words [previous] kept.
+     * Both sides as a load shapes them, as the desktop compares them: a
+     * colour written short, a tick written 1, a date written the European
+     * way kept "↩ Restore previous" here after it went there.
+     */
+    private fun extraFieldsHeld(note: JSONObject, previous: JSONObject): Boolean {
+        val extra = PREV_EXTRA_LABELS.map { it.first }.filter { previous.has(it) }
+        if (extra.isEmpty()) return true
+        val held = Normalize.normalizeNote(JSONObject(note.toString()))
+        val kept = Normalize.normalizeNote(JSONObject().also { copy -> for (field in extra) copy.put(field, previous.opt(field)) })
+        return extra.all { copyFieldHeld(note, held, previous, kept, it) }
     }
 
     /**
      * Whether [note] holds [previous]'s [field] again: a repeat rule by the
-     * days it gives ([sameSeries]), any other as it is. Compared as stored, a
-     * rule with its weekday lit was never the same, and the copy never spent
-     * (the desktop's `_copy_field_held`).
+     * days it gives ([sameSeries]), any other as a load shapes it ([held],
+     * [kept]). Compared as stored, a rule with its weekday lit was never the
+     * same, and the copy never spent (the desktop's `_copy_field_held`).
      */
-    private fun copyFieldHeld(note: JSONObject, previous: JSONObject, field: String): Boolean =
+    private fun copyFieldHeld(
+        note: JSONObject, held: JSONObject, previous: JSONObject, kept: JSONObject, field: String,
+    ): Boolean =
         if (field == "recurrence") {
             sameSeries(if (previous.has("date")) previous.opt("date") else note.opt("date"), previous.opt("recurrence"),
                 note.opt("date"), note.opt("recurrence"))
-        } else sameJson(shaped(note, field), shaped(previous, field))
+        } else sameJson(shaped(held, field), shaped(kept, field))
 
     /**
      * Whether [note] holds a rescue copy with something the note lacks --
@@ -2540,7 +2556,7 @@ object Notebook {
             (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
             PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
             stylesKept &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || copyFieldHeld(live, previous, field) } &&
+            extraFieldsHeld(live, previous) &&
             taken.isEmpty()
         if (nothingLost) return null
         val replaced = JSONObject()
@@ -2828,7 +2844,7 @@ object Notebook {
      * rather than passed on to a renderer.
      */
     fun isHexColor(value: String): Boolean {
-        val v = value.trim()
+        val v = PyText.strip(value)
         if (!v.startsWith("#")) return false
         if (v.length != 4 && v.length != 7) return false
         return v.drop(1).all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
@@ -2841,7 +2857,7 @@ object Notebook {
      */
     fun sanitizeColor(value: String, fallback: String = ""): String {
         if (!isHexColor(value)) return fallback
-        val v = value.trim()
+        val v = PyText.strip(value)
         return if (v.length == 4) "#" + v.drop(1).map { "$it$it" }.joinToString("") else v
     }
 

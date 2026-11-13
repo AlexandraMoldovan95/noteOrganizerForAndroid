@@ -48,7 +48,9 @@ object Recurrence {
      * Python's `%m` and `%d`, one figure for the month or the day is read.
      */
     fun parseDate(value: Any?): LocalDate? {
-        val text = (value as? String)?.trim() ?: return null
+        // Python's strip: Kotlin's trim kept U+0085, and a date the desktop
+        // reads was no date here.
+        val text = (value as? String)?.let(PyText::strip) ?: return null
         val parts = STORED.matchEntire(text) ?: return null
         return dateOf(parts.groupValues[1].toInt(), parts.groupValues[2].toInt(), parts.groupValues[3].toInt())
     }
@@ -142,7 +144,7 @@ object Recurrence {
         readDate(value, settled, today, MONTH_NAMES)
 
     internal fun readDate(value: Any?, settled: Boolean, today: LocalDate?, months: Map<String, Int>): LocalDate? {
-        val text = (value as? String)?.trim() ?: return null
+        val text = (value as? String)?.let(PyText::strip) ?: return null
         if (text.isEmpty() || text.length > DATE_MAX_CHARS || DATE_RUNS.replace(text, "").isNotEmpty()) return null
         val numbers = ArrayList<String>()
         val words = ArrayList<String>()

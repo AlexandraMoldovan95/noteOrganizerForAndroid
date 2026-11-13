@@ -53,7 +53,9 @@ object Backup {
         if (n >= 1_000_000_000) {
             java.math.BigDecimal(n / 1e9).setScale(1, java.math.RoundingMode.HALF_EVEN).toPlainString() + " GB"
         } else {
-            "%d MB".format(maxOf(1L, Math.rint(n / 1e6).toLong()))
+            // Its figures always 0-9: the phone's own language wrote Arabic
+            // or Persian ones, where the GB figure and the desktop do not.
+            "%d MB".format(java.util.Locale.ROOT, maxOf(1L, Math.rint(n / 1e6).toLong()))
         }
 
     /**

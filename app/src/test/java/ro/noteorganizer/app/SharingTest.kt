@@ -124,6 +124,20 @@ class SharingTest {
         assertTrue(word.reason, word.reason.startsWith("This share code is damaged"))
     }
 
+    @Test
+    fun `a code holding one plain value holds no notes, and text after its object is damage, as the desktop says`() {
+        // decode_share_code's answers, asked 2026-11-13: the phone called the
+        // first damaged, and took the last two as whole.
+        for (text in listOf("42", " \"hello\" ", "true", "null", "NaN", "-Infinity", " -1.5e3 ")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertEquals(text, "This share code doesn't contain any notes.", result.reason)
+        }
+        for (text in listOf("01", "1.", ".5", "\"tab\there\"", "{\"notes\": []} x", "{\"notes\": [{\"title\": \"a\"}]} {}")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertTrue(text + ": " + result.reason, result.reason.startsWith("This share code is damaged"))
+        }
+    }
+
     /** Builds a code around an arbitrary payload, the way a forger would. */
     private fun codeOf(payload: JSONObject): String = codeOfText(payload.toString())
 

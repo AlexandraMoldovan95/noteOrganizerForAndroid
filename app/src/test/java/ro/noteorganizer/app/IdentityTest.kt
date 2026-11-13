@@ -37,6 +37,18 @@ class IdentityTest {
         assertEquals("str.rstrip()", " Milk", PyText.rstrip(" Milk\u0085 "))
     }
 
+    @Test
+    fun `a date, a colour and a name are stripped of Python's spaces, as the desktop strips them`() {
+        // parse_date, read_date, sanitize_color and the name's save all strip:
+        // with trim(), a date the desktop reads was no date here, and a colour
+        // no colour.
+        val next = Char(0x85).toString()
+        assertEquals(java.time.LocalDate.of(2026, 7, 24), Recurrence.parseDate("2026-07-24$next"))
+        assertEquals(java.time.LocalDate.of(2026, 7, 24), Recurrence.readDate("24.07.2026$next", settled = true))
+        assertEquals("#aabbcc", Notebook.sanitizeColor("#abc$next"))
+        assertEquals("Maria", Settings.username(JSONObject().put(Settings.USERNAME, "${next}Maria$next")))
+    }
+
     // ---- minting, and NOT minting ----
 
     @Test

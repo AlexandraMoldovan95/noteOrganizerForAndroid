@@ -143,7 +143,7 @@ object Organizing {
         val original = array.getJSONObject(at)
         val clone = Normalize.normalizeNote(JSONObject(original.toString()).apply { remove("uid") })
         clone.remove("_prev")
-        val base = (original.opt("title") as? String ?: "").trim()
+        val base = PyText.strip(original.opt("title") as? String ?: "")
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
         val stamp = Files.now()
         // Made now: it kept the original's "Created".

@@ -383,12 +383,12 @@ private fun NamePage(state: AppState) {
     var capSaid by remember { mutableStateOf<String?>(null) }
     val cap = remember { Editing.BoxCap({ capSaid = it }, NAME_CHARS, "Your name") }
     fun save() {
-        saved = state.putSetting(Settings.USERNAME, draft.trim())
+        saved = state.putSetting(Settings.USERNAME, PyText.strip(draft))
     }
     // Kept when the page is left by Back too, and when the app goes to the
     // background, as the desktop's box keeps it as it is typed: the name went
     // with the page, unsaid, and with an app Android ended behind Home.
-    fun keep() { if (draft.trim() != Settings.username(state.settings)) save() }
+    fun keep() { if (PyText.strip(draft) != Settings.username(state.settings)) save() }
     androidx.compose.runtime.DisposableEffect(Unit) {
         state.keepNameDraft = { keep() }
         onDispose {

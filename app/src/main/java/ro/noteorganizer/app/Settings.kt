@@ -172,7 +172,7 @@ object Settings {
 
     // ---- Reading, each with the desktop's own fallback ----
 
-    fun username(raw: JSONObject): String = (raw.opt(USERNAME) as? String)?.trim() ?: ""
+    fun username(raw: JSONObject): String = (raw.opt(USERNAME) as? String)?.let(PyText::strip) ?: ""
 
     /** The categories folded shut in a grouped list: names, as the desktop keeps them. */
     fun collapsedGroups(raw: JSONObject): Set<String> {

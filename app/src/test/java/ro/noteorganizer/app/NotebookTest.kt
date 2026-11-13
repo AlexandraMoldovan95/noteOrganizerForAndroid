@@ -63,6 +63,27 @@ class NotebookTest {
         assertFalse(Notebook.holdsUnspentCopy(note))
     }
 
+    @Test
+    fun `a rescue copy is spent by its fields as a load shapes them, as the desktop spends it`() {
+        // The desktop's rescue_copy_spent says True for each (asked
+        // 2026-11-13); compared as stored, the phone kept Restore previous.
+        val cases = mapOf(
+            "a colour written short" to """"color": "#aabbcc", "_prev": {"title": "t", "body": "b", "color": "#abc"}""",
+            "a tick written 1" to """"checklist": [{"text": "x", "done": false}],
+                "_prev": {"title": "t", "body": "b", "checklist": [{"text": "x", "done": 1}]}""",
+            "a row with a key of its own" to """"checklist": [{"text": "x", "done": false}],
+                "_prev": {"title": "t", "body": "b", "checklist": [{"text": "x", "done": false, "extra": 5}]}""",
+            "a date written the European way" to """"date": "2026-07-24",
+                "_prev": {"title": "t", "body": "b", "date": "24/07/2026"}""",
+        )
+        for ((what, fields) in cases) {
+            assertFalse(what, Notebook.holdsUnspentCopy(JSONObject("""{"title": "t", "body": "b", $fields}""")))
+        }
+        // ...and one that differs still holds its copy.
+        assertTrue(Notebook.holdsUnspentCopy(JSONObject(
+            """{"title": "t", "body": "b", "color": "#aabbcc", "_prev": {"title": "t", "body": "b", "color": "#112233"}}""")))
+    }
+
     // ---- is_table_row, from core/tables.py ----
 
     @Test

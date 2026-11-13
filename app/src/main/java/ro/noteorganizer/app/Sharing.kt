@@ -4,7 +4,9 @@ import java.util.Base64
 import java.util.zip.Deflater
 import java.util.zip.Inflater
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
 
 /**
  * Share codes: moving notes between devices as copy-paste text -- a small
@@ -44,6 +46,16 @@ object Sharing {
     private const val DAMAGED =
         "This share code is damaged or incomplete. Ask the sender to copy the whole code again."
     private const val NO_NOTES = "This share code doesn't contain any notes."
+
+    /**
+     * A whole JSON value that is neither a list nor an object, as Python's
+     * json reads one, its spaces around it: a code holding one is whole but
+     * holds no notes (decode_share_code), where org.json's object reader
+     * called it damaged.
+     */
+    private val PY_JSON_SCALAR = Regex(
+        """[ \t\n\r]*(?:-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|true|false|null|NaN|-?Infinity""" +
+            """|"(?:[^"\\\x00-\x1f]|\\["\\/bfnrt]|\\u\p{XDigit}{4})*")[ \t\n\r]*""")
 
     /** What a code turned out to be. A failure explains itself. */
     sealed class Decoded {
@@ -231,7 +243,15 @@ object Sharing {
                 Files.parseOutside(text) { JSONArray(it) }
                 return Decoded.Failed(NO_NOTES)
             }
-            Files.parseOutside(text) { JSONObject(it) }
+            if (PY_JSON_SCALAR.matches(text)) return Decoded.Failed(NO_NOTES)
+            // Whole, as Python's reader takes it: anything after the object
+            // is damage there, and org.json's reader stopped at the brace.
+            Files.parseOutside(text) { whole ->
+                val reader = JSONTokener(whole)
+                val value = reader.nextValue() as? JSONObject ?: throw JSONException("not an object")
+                if (reader.nextClean() != 0.toChar()) throw JSONException("text after the object")
+                value
+            }
         } catch (e: Exception) {
             return Decoded.Failed(DAMAGED)
         }
