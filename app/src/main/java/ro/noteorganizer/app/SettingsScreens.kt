@@ -325,8 +325,7 @@ private fun StatsPage(state: AppState) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for ((value, caption) in row) {
                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
-                        Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                             maxLines = 1, softWrap = false)
+                        Figure(value.toString(), palette.text, 24.sp)
                         Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp, minLines = 2)
                     }
                 }
@@ -334,21 +333,18 @@ private fun StatsPage(state: AppState) {
         }
         // The time split: a header row said once, the figures lined up under it.
         val segments = listOf(R.string.stats_week, R.string.stats_month, R.string.stats_year, R.string.stats_older)
-        // Its figures' columns a little wider at the largest letters.
-        val label = if (large) 1f else 1.3f
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
-            Spacer(Modifier.weight(label))
+            Spacer(Modifier.weight(1.3f))
             for (seg in segments) Text(stringResource(seg), color = palette.subtext, fontSize = 11.sp,
                                        modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
         for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(label))
+                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
                 for (value in listOf(p.week, p.month, p.year, p.older)) {
-                    Text(value.toString(), color = if (value > 0) palette.text else palette.subtext, fontSize = 15.sp,
-                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, softWrap = false,
-                         textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                    Figure(value.toString(), if (value > 0) palette.text else palette.subtext, 15.sp,
+                           Modifier.weight(1f), end = true)
                 }
             }
         }
@@ -371,6 +367,23 @@ private fun StatsPage(state: AppState) {
         Text(stringResource(R.string.stats_since, snap.since), color = palette.subtext, fontSize = 13.sp,
              modifier = Modifier.padding(top = 18.dp))
     }
+}
+
+/**
+ * A figure on one line, shrunk to its room rather than broken or cut: at the
+ * largest letters on a narrow phone "1234" broke as "123" over "4".
+ */
+@Composable
+private fun Figure(value: String, color: androidx.compose.ui.graphics.Color, size: androidx.compose.ui.unit.TextUnit,
+                   modifier: Modifier = Modifier, end: Boolean = false) {
+    androidx.compose.foundation.text.BasicText(
+        value, modifier,
+        style = androidx.compose.material3.LocalTextStyle.current.merge(androidx.compose.ui.text.TextStyle(
+            color = color, fontSize = size, fontWeight = FontWeight.Bold,
+            textAlign = if (end) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start)),
+        maxLines = 1, softWrap = false,
+        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = size),
+    )
 }
 
 // ---- Your name ----
@@ -776,7 +789,10 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                     // dropdown carries the same words (2026-10-26).
                     Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
                          fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
-                    Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // A flow: in a row, at the largest letters "days" was left a
+                    // letter a line, and "90" broke over its digits.
+                    FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         for (days in listOf(7, 14, 30, 60, 90)) {
                             val on = days == known
                             Text(
