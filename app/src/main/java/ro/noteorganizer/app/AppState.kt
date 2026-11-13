@@ -203,6 +203,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         reminderDue = null
         // Reminded already, by the notification: the bar does not say it again.
         if (settings.opt(Reminders.LAST_SHOWN) != today) load.settings?.let { Settings.put(it, Reminders.LAST_SHOWN, today) }
+        reminderShownOn = today
     }
 
     /**

@@ -441,6 +441,12 @@ class AppStateTest {
         state.reminderDue = null
         state.checkReminder("2026-10-05")
         assertNull("once a run, its mark held in memory", state.reminderDue)
+        // ...and once the notification opened the day, the bar does not say it again.
+        val tapped = state()
+        Files.holdWrites(File(tapped.dir, "settings.json"))
+        tapped.showToday("2026-10-05")
+        tapped.checkReminder("2026-10-05")
+        assertNull("the notification's day is the bar's, held in memory too", tapped.reminderDue)
     }
 
     @Test
