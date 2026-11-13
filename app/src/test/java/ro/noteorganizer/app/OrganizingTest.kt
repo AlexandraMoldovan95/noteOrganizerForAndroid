@@ -152,6 +152,18 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a restored stamp of spaces is kept, as the desktop keeps it`() {
+        // normalize_note asks only whether the stamp is empty.
+        val load = notebook("""[{"id": 1, "uid": "x", "title": "here"}]""",
+            trash = """[{"id": 3, "uid": "s", "title": "spaced", "updated": "   ", "created": "\u0085",
+                        "deleted_at": "2026-10-01 10:00:00"}]""")
+        Organizing.restore(load, listOf(Organizing.TrashKey(3, "2026-10-01 10:00:00", "s")))
+        val back = onDisk(load).getJSONObject(1)
+        assertEquals("   ", back.optString("updated"))
+        assertEquals("\u0085", back.optString("created"))
+    }
+
+    @Test
     fun `two Trash entries sharing an id and a moment are told apart by their uid`() {
         // An id is handed out again after a delete: two entries deleted in
         // one second can share both, as the desktop's _trash_tick_key learnt.
