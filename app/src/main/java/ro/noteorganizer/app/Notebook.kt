@@ -2424,8 +2424,20 @@ object Notebook {
             a.length() == b.length() && a.keys().asSequence().all { b.has(it) && sameJson(a.opt(it), b.opt(it)) }
         a is JSONArray && b is JSONArray ->
             a.length() == b.length() && (0 until a.length()).all { sameJson(a.opt(it), b.opt(it)) }
-        a is Number && b is Number -> a.toDouble() == b.toDouble()
+        a is Number && b is Number -> sameNumber(a, b)
         else -> a == b
+    }
+
+    /**
+     * Two numbers by value, exactly, as Python compares them: 1 and 1.0 one
+     * number, but integers past 2^53 told apart by their digits, which a
+     * double loses (a copy was spent here that the desktop keeps).
+     */
+    private fun sameNumber(a: Number, b: Number): Boolean {
+        val x = a.toDouble()
+        val y = b.toDouble()
+        if (!x.isFinite() || !y.isFinite()) return x == y
+        return java.math.BigDecimal(a.toString()).compareTo(java.math.BigDecimal(b.toString())) == 0
     }
 
     /**
@@ -2451,7 +2463,30 @@ object Notebook {
                 Exporting.normalizeFormatting(note.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
                 Exporting.normalizeParagraphs(note.opt("paragraphs"), lines) ==
                     Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines))) return false
-        return extraFieldsHeld(note, previous)
+        return unknownHeld(note, previous) && extraFieldsHeld(note, previous)
+    }
+
+    /**
+     * Whether [note] holds each of [previous]'s own unknown fields again, kinds
+     * told apart: the spending rule (the desktop's `_copy_field_held`). A field
+     * the backup added no person can remove, so it does not count.
+     */
+    private fun unknownHeld(note: JSONObject, previous: JSONObject): Boolean {
+        val own = previous.opt("_unknown") as? JSONObject ?: return true
+        val mine = Normalize.unknownFields(note)
+        return own.keys().asSequence().all { mine.has(it) && sameJson(own.opt(it), mine.opt(it)) }
+    }
+
+    /**
+     * Whether "↩ Restore previous" keeps each unknown field [live] holds now.
+     * The restore puts back [previous]'s alone, so each must be the copy's,
+     * kinds told apart: the reverse of [unknownHeld], where a field the backup
+     * added does not count (the desktop's `_unknown_kept_by_restore`).
+     */
+    private fun unknownKeptByRestore(live: JSONObject, previous: JSONObject): Boolean {
+        val own = previous.opt("_unknown") as? JSONObject ?: return true
+        val mine = Normalize.unknownFields(live)
+        return mine.keys().asSequence().all { own.has(it) && sameJson(own.opt(it), mine.opt(it)) }
     }
 
     /**
@@ -2462,12 +2497,6 @@ object Notebook {
      */
     private fun extraFieldsHeld(note: JSONObject, previous: JSONObject): Boolean {
         val extra = PREV_EXTRA_LABELS.map { it.first }.filter { previous.has(it) }
-        // Held when the note holds each of its own again (a field the backup
-        // added no person can remove, so it does not count): the desktop's rule.
-        (previous.opt("_unknown") as? JSONObject)?.let { own ->
-            val mine = Normalize.unknownFields(note)
-            if (own.keys().asSequence().any { !mine.has(it) || !sameJson(own.opt(it), mine.opt(it)) }) return false
-        }
         if (extra.isEmpty()) return true
         val held = Normalize.normalizeNote(JSONObject(note.toString()))
         val kept = Normalize.normalizeNote(JSONObject().also { copy -> for (field in extra) copy.put(field, previous.opt(field)) })
@@ -2578,6 +2607,7 @@ object Notebook {
             PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
             stylesKept &&
             extraFieldsHeld(live, previous) &&
+            unknownKeptByRestore(live, previous) &&
             taken.isEmpty()
         if (nothingLost) return null
         val replaced = JSONObject()

@@ -500,7 +500,7 @@ object Normalize {
     /** Any JSON value as text that compares by meaning, keys in order. */
     private fun stable(value: Any?): String = when (value) {
         is JSONObject -> value.keys().asSequence().sorted()
-            .joinToString(",", "{", "}") { "\"$it\":" + stable(value.opt(it)) }
+            .joinToString(",", "{", "}") { JSONObject.quote(it) + ":" + stable(value.opt(it)) }
         is JSONArray -> (0 until value.length()).joinToString(",", "[", "]") { stable(value.opt(it)) }
         is String -> JSONObject.quote(value)
         // Whole, by its digits: toLong() held every number past 2^63 as one
