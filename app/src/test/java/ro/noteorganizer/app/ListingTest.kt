@@ -92,6 +92,20 @@ class ListingTest {
     }
 
     @Test
+    fun `notes hidden in different ways are said of them all, every group they are in to unfold`() {
+        // Of the first alone, "its folded group" was said of two, and Show all
+        // unfolded that group only (the desktop's _what_hides_notes, the same).
+        val list = notes("""{"id": 1, "title": "Into Work", "category": "Work"}""",
+                         """{"id": 2, "title": "Into Personal", "category": "Personal"}""")
+        val folded = setOf("Work", "Personal")
+        assertEquals("their folded groups", Showing.hiddenBy(list, "", Showing.ALL, true, folded))
+        assertEquals("its folded group", Showing.hiddenBy(list.take(1), "", Showing.ALL, true, folded))
+        assertEquals("Show: Work and their folded group", Showing.hiddenBy(list, "", "Work", true, setOf("Work")))
+        assertEquals("", Showing.hiddenBy(list, "", Showing.ALL, false, folded))
+        assertEquals(setOf("Work", "Personal"), Showing.groupsOf(list))
+    }
+
+    @Test
     fun `a stored Show that names a category since deleted falls back to All`() {
         assertEquals(Showing.ALL, Showing.valid("Gone", listOf("General", "Work")))
         assertEquals("Work", Showing.valid("Work", listOf("General", "Work")))

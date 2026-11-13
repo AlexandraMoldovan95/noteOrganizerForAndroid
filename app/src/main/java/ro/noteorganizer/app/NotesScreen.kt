@@ -160,18 +160,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
      * read off the last drawing, a Show all just taken was not in it, and the
      * next word was said hidden over a list showing all.
      */
-    fun hiding(note: Note?): String {
-        val showNow = Showing.valid(state.settings.opt(Settings.NOTE_FILTER) as? String, state.load.categories.keys)
-        val groupedNow = state.settings.opt(Settings.GROUP_BY_CATEGORY) == true
-        val collapsedNow = Settings.collapsedGroups(state.settings)
-        return listOfNotNull(
-            "your search".takeIf { PyText.strip(query).isNotEmpty() && (note == null || !note.matches(query)) },
-            "Show: $showNow".takeIf { showNow != Showing.ALL && (note == null || !Showing.passes(note, showNow)) },
-            "its folded group".takeIf {
-                note != null && groupedNow && note.category.ifEmpty { Themes.PROTECTED_CATEGORY } in collapsedNow
-            },
-        ).joinToString(" and ")
-    }
+    fun hidingAll(notes: List<Note>?): String = Showing.hiddenBy(
+        notes, query, Showing.valid(state.settings.opt(Settings.NOTE_FILTER) as? String, state.load.categories.keys),
+        state.settings.opt(Settings.GROUP_BY_CATEGORY) == true, Settings.collapsedGroups(state.settings))
+
+    fun hiding(note: Note?): String = hidingAll(note?.let { listOf(it) })
 
     // The row Show all scrolls to once the list holds it: [note]'s card, or the
     // top (-1). Left alone, the notes Show had hidden came in above the card in
@@ -257,7 +250,7 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
     fun holdByIndex() = listState.requestScrollToItem(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
 
     /** The list with nothing hiding: the search emptied, Show at All, [note]'s group unfolded, its card in sight. */
-    fun showAll(note: Note?) {
+    fun showAll(note: Note?, others: List<Note> = emptyList()) {
         // Asked over a note gone since -- one kept aside, taken back: the
         // search and Show changed for nothing.
         if (note != null && state.rawNote(note.id) == null) {
@@ -270,10 +263,11 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
         // The settings as they are now, as [hiding] reads them: taken from a
         // bar offered earlier, the folds of then were written back.
         if (state.settings.opt(Settings.NOTE_FILTER) != Showing.ALL) state.putSetting(Settings.NOTE_FILTER, Showing.ALL)
-        val group = note?.category?.ifEmpty { Themes.PROTECTED_CATEGORY }
+        // Every group holding one of them: [note]'s alone left the others' arrivals hidden.
+        val groups = Showing.groupsOf(listOfNotNull(note) + others)
         val collapsedNow = Settings.collapsedGroups(state.settings)
-        if (group != null && group in collapsedNow) {
-            state.putSetting(Settings.COLLAPSED_GROUPS, org.json.JSONArray((collapsedNow - group).sorted()))
+        if ((groups intersect collapsedNow).isNotEmpty()) {
+            state.putSetting(Settings.COLLAPSED_GROUPS, org.json.JSONArray((collapsedNow - groups).sorted()))
         }
     }
 
@@ -302,7 +296,8 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
     // it is on screen: one bar at a time, worded when its turn comes, never
     // merged (ISSUES_LOG, "The list's words, merged and unmerged").
     val hidingNow by rememberUpdatedState<(Note) -> String> { note -> hiding(note) }
-    val showAllNow by rememberUpdatedState<(Note) -> Unit> { note -> showAll(note) }
+    val hidingAllNow by rememberUpdatedState<(List<Note>) -> String> { notes -> hidingAll(notes) }
+    val showAllNow by rememberUpdatedState<(Note, List<Note>) -> Unit> { note, others -> showAll(note, others) }
     LaunchedEffect(Unit) {
         while (true) {
             snapshotFlow { state.arrivals.isNotEmpty() && state.snackbar.currentSnackbarData == null }.first { it }
@@ -313,11 +308,13 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
             // Counted by the word: one about several, trimmed to one by a delete,
             // read "hidden by" as though all were.
             val tail = if (word.named) "hidden by ${hidingNow(first)}"
-                       else "${hidden.size} of them hidden by ${hidingNow(first)}"
+                       else "${hidden.size} of them hidden by ${hidingAllNow(hidden)}"
             val again = { state.waitWord(word.ids, word.said, word.named) }
-            // The first of them still here: the first alone, gone, refused them all.
+            // Those still here, all their groups unfolded: the first alone, gone,
+            // refused them all, and the others' groups stayed folded.
             val bar = state.offerAbout(hidden.map { it.id }, "$said, $tail", "Show all", again) {
-                showAllNow(hidden.firstOrNull { state.rawNote(it.id) != null } ?: first)
+                val here = hidden.filter { state.rawNote(it.id) != null }
+                showAllNow(here.firstOrNull() ?: first, here.drop(1))
             }
             listBars += bar to again
             bar.join()

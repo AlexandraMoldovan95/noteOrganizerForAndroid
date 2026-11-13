@@ -153,6 +153,10 @@ class UnknownFieldsTest {
         assertFalse(Notebook.sameJson(9007199254740993L, 9007199254740992.0))
         assertTrue(Notebook.sameJson(1L, 1.0))
         assertFalse(Notebook.sameJson(1L, true))
+        // A double by its exact value, as Python's float: 2^60 either way is one
+        // number, and 1152921504606847000 (its shortest printing) is another.
+        assertTrue(Notebook.sameJson(1152921504606846976L, 1.152921504606847E18))
+        assertFalse(Notebook.sameJson(1152921504606847000L, 1.152921504606847E18))
     }
 
     @Test

@@ -378,6 +378,29 @@ object Showing {
     }
 
     /**
+     * In words, what keeps [notes] off the list -- the search, Show, their
+     * folded groups -- or what keeps any note off when [notes] is null: what
+     * keeps any of them off, said of them all (the desktop's
+     * `_what_hides_notes`). Of the first alone, the others' went unsaid.
+     */
+    fun hiddenBy(notes: List<Note>?, query: String, show: String, grouped: Boolean, collapsed: Set<String>): String {
+        val folded = if (grouped && notes != null) groupsOf(notes) intersect collapsed else emptySet()
+        return listOfNotNull(
+            "your search".takeIf { PyText.strip(query).isNotEmpty() && (notes == null || notes.any { !it.matches(query) }) },
+            "Show: $show".takeIf { show != ALL && (notes == null || notes.any { !passes(it, show) }) },
+            when {
+                folded.isEmpty() -> null
+                notes?.size == 1 -> "its folded group"
+                folded.size == 1 -> "their folded group"
+                else -> "their folded groups"
+            },
+        ).joinToString(" and ")
+    }
+
+    /** The groups [notes] are listed under, a note without a category under General's. */
+    fun groupsOf(notes: List<Note>): Set<String> = notes.map { it.category.ifEmpty { Themes.PROTECTED_CATEGORY } }.toSet()
+
+    /**
      * A search's words as handed to Android, to be given back after it ends
      * the app behind Home: nothing past [SEARCH_KEPT], though the box keeps
      * them all while the app runs, as the desktop's takes any length.
@@ -2177,9 +2200,9 @@ object Notebook {
 
     /**
      * Whether the copy [note] keeps is an import's Update copy: a turn-off
-     * over one keeps it, and Restore previous then brings back the note as
-     * it was before it was updated, not the series -- the desktop's
-     * `_repeat_off_line`.
+     * over one keeps it, and Restore previous then brings back the version
+     * from before the Update, the series too when it repeated then -- the
+     * desktop's `_repeat_off_line`.
      */
     fun keepsUpdateCopy(note: JSONObject): Boolean = (note.opt("_prev") as? JSONObject)?.let { updateCopy(it) } == true
 
@@ -2431,14 +2454,19 @@ object Notebook {
     /**
      * Two numbers by value, exactly, as Python compares them: 1 and 1.0 one
      * number, but integers past 2^53 told apart by their digits, which a
-     * double loses (a copy was spent here that the desktop keeps).
+     * double loses (a copy was spent here that the desktop keeps). A double
+     * by its exact binary value, as Python takes a float, not its shortest
+     * printing: 2^60 written as either is one number.
      */
     private fun sameNumber(a: Number, b: Number): Boolean {
         val x = a.toDouble()
         val y = b.toDouble()
         if (!x.isFinite() || !y.isFinite()) return x == y
-        return java.math.BigDecimal(a.toString()).compareTo(java.math.BigDecimal(b.toString())) == 0
+        return exactly(a).compareTo(exactly(b)) == 0
     }
+
+    private fun exactly(n: Number): java.math.BigDecimal =
+        if (n is Double || n is Float) java.math.BigDecimal(n.toDouble()) else java.math.BigDecimal(n.toString())
 
     /**
      * The rescue copy is spent once the note holds what it kept: Undo after
