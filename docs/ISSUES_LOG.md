@@ -317,9 +317,32 @@ instead of stalling the walk. Left: shares still waiting when Android ends
 the process, or when Back closes the app during a slow read, go without a
 word; a cancelled read keeps its thread until the provider answers; the
 restore's question reads a hand-made `_prev` unshaped where the restore
-shapes it; Statistics' four-digit counts may wrap at the largest letters;
-and Statistics and Duplicates read the notes as stored, not as the desktop
-normalizes them.
+shapes it; and Statistics and Duplicates read the notes as stored, not as
+the desktop normalizes them.
+
+The fifth round found the largest letters again, seen on the emulator this
+time. Upright at 200%, a note ticked in the Trash left "Delete for good"
+beside Restore 76 dp wide, a few letters a line, five lines tall; the two
+buttons flow now, the second onto a line of its own. On a 360 dp phone
+Statistics broke a four-digit figure between its digits ("123" over "4"),
+the fourth round's "Left" had said "may wrap": two tiles a row at that
+size now, figures never broken, a long category name no longer taking the
+line from its count. Both are walked (`trash_wide`, and `statistics` at
+200% on a 360 dp screen), and the build before fails each. A UTF-16 file
+without its BOM still came in as letters and NULs: a file holding a NUL is
+refused now, since no note holds one. Half an emoji cut at the 500,000th
+character is left out, words of a NEL alone are judged as a file's are, a
+code whole in a cut file reaches its dialog alone, and the code question
+catches the stack overflow of a hand-made code nested past what it checks.
+Case 509 said no walk could share a code that long; the walk now shares a
+code whole in a long file (offered and imported) and one the cut broke
+(said cut). Its first look at the cut's message missed it once: the
+import's own message was still up, and the cut's waited behind it; the
+walk puts such messages away before it shares. Left: a weekday written
+`true` in a hand-made note signs as 1 for Duplicates where the desktop
+keeps it apart; a living note with an empty "updated" sorts oldest here,
+newest on the desktop; a wallpaper change on Android 12 and later restarts
+the screen, which drops a share still being read and an open code dialog.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

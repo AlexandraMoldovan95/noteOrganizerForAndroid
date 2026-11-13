@@ -742,7 +742,8 @@ Phase 1's four:
 * **The doors to the rest of the phone**: a code shared in from another
   app; a text file shared in (its own part, `shared_files`, added in wave
   6), one past 500,000 characters said cut, words shared while a file
-  is read waiting their turn, and one the app cannot open said; a note
+  is read waiting their turn, one the app cannot open said, and a share
+  code in a long file offered when whole, said when the cut broke it; a note
   shared out through Android's share sheet, the privacy
   policy opening a browser rather than the app, and About with no
   Feedback section before the app is on Google Play.
@@ -762,7 +763,8 @@ it and read back from the file:
 * **Statistics** over a notebook whose figures are known: the page, its
   first-use date and two tiles are read — Total notes, and Categories
   counting one that holds no note; the other counts are the unit tests'
-  (`StatsTest`).
+  (`StatsTest`). Then at the largest letters on a 360 dp screen: two
+  tiles a row, a four-digit figure whole.
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
@@ -789,8 +791,9 @@ it and read back from the file:
   after a page and the History; the pane beside the calendar; two new notes in
   a row; a code shared in over an open note, upright, and the update
   kept; and a medium window, the note in the list's place. The Trash on
-  its side, a row brought into sight above its buttons and restored, has
-  a part of its own (`trash_wide`, wave 6).
+  its side, a row brought into sight above its buttons and restored, and
+  upright at the largest letters, its two buttons whole, has a part of
+  its own (`trash_wide`, wave 6).
 * **Screens of every size** (2026-10-24, for tablets the owner has none
   of to try): the emulator's display set to a small phone and to tablets
   of 7, 10 and 14 inches, upright. The bar along a small phone's bottom,
