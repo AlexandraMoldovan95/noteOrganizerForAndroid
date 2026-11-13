@@ -59,7 +59,7 @@ object Importing {
         val unchanged: List<Known>,
         /** Notes nothing here matches by identity. */
         val fresh: List<JSONObject>,
-        /** How many of [differing] are older than the copy here (backups). */
+        /** How many of [differing] are older than the copy here (backups), files alone not counted. */
         val older: Int,
         /**
          * How many of [differing] are notes here holding a rescue copy they
@@ -67,6 +67,17 @@ object Importing {
          * update's takes its place, so the question says so.
          */
         val rescued: Int = 0,
+        /**
+         * How many of [differing] differ by attached files alone (backups):
+         * Update adds the files and keeps no copy, so no Restore previous is
+         * promised of them, as the desktop's question says.
+         */
+        val filed: Int = 0,
+        /**
+         * How many of [unchanged] hold fields a newer version wrote that the
+         * note here lacks: "nothing this device lacks" was untrue of them.
+         */
+        val newer: Int = 0,
     )
 
     /** The answers, one per question the plan raised. */
@@ -177,6 +188,8 @@ object Importing {
         val fresh = ArrayList<JSONObject>()
         var older = 0
         var rescued = 0
+        var filed = 0
+        var newer = 0
         for (theirs in incoming) {
             val uid = uidOf(theirs)
             if (uid != null && !claimed.add(uid)) {
@@ -198,18 +211,30 @@ object Importing {
             val fieldsChange = Notebook.sharedUpdateChanges(here, there, fields(source))
             if (fieldsChange || (source == Source.BACKUP && filesToAdopt(here, there).isNotEmpty())) {
                 differing.add(known)
-                if (source == Source.BACKUP &&
+                // Files alone trade no words: not OLDER, and no copy made
+                // (Notebook.applyUpdate), so no rescue copy replaced either.
+                if (!fieldsChange) filed += 1
+                if (fieldsChange && source == Source.BACKUP &&
                     (theirs.opt("updated") as? String ?: "") < (mine.opt("updated") as? String ?: "")
                 ) older += 1
-                // Only an update that changes a field replaces the copy
-                // (Notebook.applyUpdate): one bringing files alone leaves it,
-                // and the question said it would be replaced.
                 if (fieldsChange && Notebook.holdsUnspentCopy(mine)) rescued += 1
             } else {
                 unchanged.add(known)
+                if (unknownFieldsLacked(there, here)) newer += 1
             }
         }
-        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued)
+        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer)
+    }
+
+    /**
+     * Whether [theirs] holds a field this version does not know that [mine]
+     * lacks or holds otherwise, kinds told apart: the desktop's
+     * `unknown_fields_lacked`. A share code holds none.
+     */
+    internal fun unknownFieldsLacked(theirs: JSONObject, mine: JSONObject): Boolean {
+        val held = Normalize.unknownFields(mine)
+        val brought = Normalize.unknownFields(theirs)
+        return brought.keys().asSequence().any { !held.has(it) || !Notebook.sameJson(held.opt(it), brought.opt(it)) }
     }
 
     private fun storedNames(note: JSONObject): Set<String> {
@@ -461,13 +486,16 @@ object Importing {
         }
 
         // 4. Templates: one comes in only when no template here has its name.
+        /** Why a held templates or Trash file stops the import, or null. */
+        var heldBy: String? = null
         var addedTemplates = 0
         var templatesCandidate: JSONArray? = null
         val templatesFile = notesFile.parentFile?.let { File(it, "templates.json") }
         if (extras.templates != null && templatesFile != null) {
             // One here that does not read is copied aside, as every reader does,
             // and the backup's come in over it, as into the desktop's empty list.
-            val mine = readArray(templatesFile) ?: JSONArray().takeIf { Files.preserveCorrupt(templatesFile) != null }
+            val mine = if (Files.writesHeld(templatesFile)) null
+                       else readArray(templatesFile) ?: JSONArray().takeIf { Files.preserveCorrupt(templatesFile) != null }
             if (mine != null) {
                 val names = (0 until mine.length()).mapNotNull { (mine.opt(it) as? JSONObject)?.opt("name") as? String }.toMutableSet()
                 val out = JSONArray(mine.toString())
@@ -475,15 +503,20 @@ object Importing {
                     // No more than a notebook keeps (Templates.MAX_TEMPLATES).
                     if (out.length() >= Templates.MAX_TEMPLATES) break
                     val tpl = extras.templates.opt(i) as? JSONObject ?: continue
-                    val name = (tpl.opt("name") as? String)?.ifEmpty { null } ?: continue
+                    // Shaped first, the way every reader shapes one, then named:
+                    // one with no name comes in "Untitled template", as the desktop's.
+                    val shaped = Templates.normalize(tpl)
+                    val name = shaped.optString("name")
                     if (name in names) continue
                     names.add(name)
-                    // Shaped as a template, the way every reader shapes one,
-                    // rather than copied as it came through its own text.
-                    out.put(Templates.normalize(tpl))
+                    out.put(shaped)
                     addedTemplates += 1
                 }
                 if (addedTemplates > 0) templatesCandidate = out
+            } else if (extras.templates.length() > 0) {
+                // Held (neither read nor copied aside): said where the import
+                // stops, as every refused write is, not skipped without a word.
+                heldBy = heldBy ?: Files.heldReason(templatesFile)
             }
         }
 
@@ -492,7 +525,8 @@ object Importing {
         //    not double it -- and nobody is asked, so the test is strict.
         var addedTrash = 0
         var trashCandidate: JSONArray? = null
-        if (extras.trash != null && trashFile != null && (load.trashRaw != null || !trashFile.exists())) {
+        if (extras.trash != null && trashFile != null && !Files.writesHeld(trashFile) &&
+            (load.trashRaw != null || !trashFile.exists())) {
             val seen = HashSet<String>()
             for (i in 0 until trash.length()) {
                 (trash.opt(i) as? JSONObject)?.let { seen.add(Normalize.contentSignature(Normalize.normalizeNote(it))) }
@@ -509,6 +543,8 @@ object Importing {
                 addedTrash += 1
             }
             if (addedTrash > 0) trashCandidate = out
+        } else if (extras.trash != null && extras.trash.length() > 0 && trashFile != null && trashFile.exists()) {
+            heldBy = heldBy ?: Files.heldReason(trashFile)
         }
 
         // 6. Painted calendar days: added, a day already decorated here
@@ -554,6 +590,8 @@ object Importing {
             return Result.Failed(problem + " None of the ${plan.source.word}'s notes came in" +
                 (if (kept.isEmpty()) "." else "; its $parts $verb kept, and importing it again adds only the rest."))
         }
+        // A templates or Trash file held stops it before anything is written.
+        heldBy?.let { return stopped("$it.") }
         if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0 || adoptsWindow)) {
             Files.writeAtomic(settings.file, settingsCandidate.toString(2))?.let {
                 return stopped("settings.json could not be written: $it.")

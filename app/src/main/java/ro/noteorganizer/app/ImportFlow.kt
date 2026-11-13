@@ -208,11 +208,28 @@ fun ImportQuestions(
                 else -> stringResource(R.string.q_known_title, count)
             }
             val text = buildString {
-                when {
+                if (plan.filed == 0) when {
                     one && plan.total == 1 -> append(stringResource(R.string.q_same_note_text))
                     one -> append(stringResource(R.string.q_known_text_one, plan.total, source))
                     count == plan.total -> append(stringResource(R.string.q_known_all, count, source))
                     else -> append(stringResource(R.string.q_known_text, count, plan.total, source))
+                } else {
+                    // A note differing by files alone takes them and keeps no copy:
+                    // no Restore previous promised of it, as the desktop says.
+                    when {
+                        one && plan.total == 1 -> {}
+                        one -> append(stringResource(R.string.q_known_lead_one, plan.total, source))
+                        count == plan.total -> append(stringResource(R.string.q_known_lead_all, count, source))
+                        else -> append(stringResource(R.string.q_known_lead, count, plan.total, source))
+                    }
+                    if (isNotEmpty()) append("\n\n")
+                    append(when {
+                        plan.filed == count -> stringResource(if (one) R.string.q_files_only_it else R.string.q_files_only_they)
+                        plan.filed == 1 -> stringResource(R.string.q_files_some_one)
+                        else -> stringResource(R.string.q_files_some, plan.filed)
+                    })
+                    append(" ")
+                    append(stringResource(if (one && plan.total == 1) R.string.q_adding_both_delete else R.string.q_adding_both))
                 }
                 if (plan.older > 0) {
                     append("\n\n")
@@ -250,9 +267,17 @@ fun ImportQuestions(
             // One note is said as one, as the desktop says it: "All 1 notes"
             // and "Skip the 1" came of counting it.
             val one = count == 1
+            // Fields a newer version wrote that the note here lacks: "nothing
+            // this device lacks" was untrue, and Skip leaves them out.
+            val alsoHold = if (plan.newer == 1) stringResource(R.string.q_newer_one_of)
+                           else stringResource(R.string.q_newer_n_of, plan.newer)
             Choice(
                 title = stringResource(R.string.q_unchanged_title),
                 text = when {
+                    plan.newer > 0 && count == plan.total && one -> stringResource(R.string.q_unchanged_newer_one, source)
+                    plan.newer > 0 && count == plan.total -> stringResource(R.string.q_unchanged_newer_all, count, source, alsoHold)
+                    plan.newer > 0 && one -> stringResource(R.string.q_unchanged_newer_some_one, plan.total, source)
+                    plan.newer > 0 -> stringResource(R.string.q_unchanged_newer_some, count, plan.total, source, alsoHold)
                     count == plan.total && one -> stringResource(R.string.q_unchanged_one, source)
                     count == plan.total -> stringResource(R.string.q_unchanged_all, count, source)
                     one -> stringResource(R.string.q_unchanged_some_one, plan.total, source)

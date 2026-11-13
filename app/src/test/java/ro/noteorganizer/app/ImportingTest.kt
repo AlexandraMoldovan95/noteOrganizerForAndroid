@@ -120,6 +120,34 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup over a templates file held stops before writing anything, and says why`() {
+        // Its templates were dropped without a word; every other refused write
+        // stops the import and says so.
+        val load = notebook("[]")
+        val held = File(dirOf(load), "templates.json").apply { writeText("[]") }
+        Files.holdWrites(held)
+        val result = Importing.apply(load, backupPlan(load, """[{"uid": "n1", "title": "New"}]"""), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        val reason = (result as Importing.Result.Failed).reason
+        assertTrue(reason, reason.startsWith("templates.json could not be read or copied aside") &&
+            "None of the backup's notes came in." in reason)
+        assertEquals("nothing written over it", "[]", held.readText())
+        assertEquals("no note came in", 0, onDisk(load).length())
+    }
+
+    @Test
+    fun `a backup's template with no name comes in as Untitled template, once, as the desktop's`() {
+        // Left out before; the desktop shapes it first and takes it by that name.
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "", "title": "t"}, {"name": 7, "title": "u"}]""")))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals(Templates.UNTITLED,
+            JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("name"))
+    }
+
+    @Test
     fun `a day filed under a category this phone lacks comes in under General, as the note does`() {
         // The desktop's clean_override files a day under one it lacks; the
         // phone refiled the note alone, and a day kept a name no Show offers.
@@ -238,6 +266,33 @@ class ImportingTest {
             Importing.Source.CODE)
         assertEquals(0, plan.older)
         assertTrue(Importing.updateStandsOut(plan))
+    }
+
+    @Test
+    fun `a backup's note differing by a file alone is counted apart, never older, as the desktop counts it`() {
+        // The question promised Restore previous of it and called it OLDER:
+        // Update adds the file and keeps no copy.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Ticket", "body": "trip", "updated": "2026-11-10 10:00:00"},
+            {"id": 2, "uid": "b", "title": "Plan", "body": "old", "updated": "2026-11-10 10:00:00"}]""")
+        val plan = backupPlan(load, """[
+            {"uid": "a", "title": "Ticket", "body": "trip", "updated": "2026-11-01 10:00:00",
+             "attachments": [{"filename": "t.pdf", "stored_as": "20261101_t.pdf"}]},
+            {"uid": "b", "title": "Plan", "body": "new", "updated": "2026-11-01 10:00:00"}]""")
+        assertEquals(2, plan.differing.size)
+        assertEquals("the file-alone note", 1, plan.filed)
+        assertEquals("only the note whose words differ is older", 1, plan.older)
+    }
+
+    @Test
+    fun `a note unchanged but for a newer version's field is counted, and only by the side that brings it`() {
+        // "Nothing this device lacks" was untrue of it; the device's own field,
+        // absent from the backup, is not the backup's.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Plan", "body": "b"},
+            {"id": 2, "uid": "c", "title": "Mine", "body": "m", "mood": "calm"}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "Plan", "body": "b", "mood": "calm"},
+            {"uid": "c", "title": "Mine", "body": "m"}]""")
+        assertEquals(2, plan.unchanged.size)
+        assertEquals(1, plan.newer)
     }
 
     @Test
@@ -705,10 +760,13 @@ class ImportingTest {
             [{"name": "Weekly", "title": "theirs"}, {"name": "Trip", "title": "t"}, {"title": "nameless"}]
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
-        assertEquals(1, result.outcome.addedTemplates)
+        // "Trip", and the nameless one as "Untitled template", as the desktop's
+        // normalize_template names it; "Weekly" stays this phone's.
+        assertEquals(2, result.outcome.addedTemplates)
         val saved = JSONArray(File(dirOf(load), "templates.json").readText())
-        assertEquals(2, saved.length())
+        assertEquals(3, saved.length())
         assertEquals("mine", saved.getJSONObject(0).getString("title"))
+        assertEquals(Templates.UNTITLED, saved.getJSONObject(2).getString("name"))
     }
 
     @Test
