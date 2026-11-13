@@ -6175,6 +6175,16 @@ def calendar_large_letters(folder):
         check("...and the repeat sheet's weekdays stay whole there, Sunday tappable",
               su == 2 and sunday[0][2] - sunday[0][0] > 10 * 540 / 160.0, "%r, %s letters" % (sunday, su))
         shot(folder, "90d-repeat-sheet-320dp", "Su")
+        # ...and its stepper there: last in a plain Row, the + was squeezed to a
+        # dash, then to nothing ("2 months", "After 10 times"). By its width, not
+        # its ink: a dash draws one run as a + does.
+        tap("Monthly", exact=True, wait=0.8)
+        tap("More", exact=True, wait=0.8)
+        plus = bounds("+")
+        check("...and its stepper's + stays whole and tappable at \"2 months\"",
+              find("2 months", exact=True) is not None and bool(plus)
+              and plus[0][2] - plus[0][0] > 36 * 540 / 160.0, repr(plus))
+        shot(folder, "90e-repeat-every-320dp", "2 months")
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
         adb("shell", "wm", "density", "reset")
