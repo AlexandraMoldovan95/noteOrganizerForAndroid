@@ -192,6 +192,9 @@ object Sharing {
         c.isWhitespace() || c == Char(0x0085) || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
             c == Char(0xFEFF)
 
+    /** Whether [text] holds a share code, its prefix whole or broken by the wrapping, as [codeIn] finds it. */
+    internal fun holdsCode(text: String): Boolean = text.filterNot { wrapping(it) }.contains(PREFIX)
+
     /**
      * The share code inside [text], its wrapping taken out -- the desktop's
      * `code_in`: from its prefix to its padding, or to the first character a
@@ -202,7 +205,13 @@ object Sharing {
      */
     internal fun codeIn(text: String): String {
         val at = text.indexOf(PREFIX)
-        if (at < 0) return text.filterNot { it.isWhitespace() || it == Char(0x0085) }
+        if (at < 0) {
+            // The prefix itself broken by the wrapping ("NOTE\n1:") is read from
+            // as a whole one is, as the desktop's code_in reads it: the two read
+            // and refused different damaged codes there.
+            val bare = text.filterNot { wrapping(it) }
+            return if (bare.contains(PREFIX)) codeIn(bare) else text.filterNot { it.isWhitespace() || it == Char(0x0085) }
+        }
         val body = StringBuilder()
         var padded = false
         for (i in at + PREFIX.length until text.length) {

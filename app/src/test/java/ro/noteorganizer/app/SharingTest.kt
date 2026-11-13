@@ -246,7 +246,18 @@ class SharingTest {
             // ...and a code whose "=" was lost on the way still reads, as it did
             // before the cut for words after a code.
             assertTrue("$title without its padding", Sharing.decode(code.trimEnd('=')) is Sharing.Decoded.Notes)
+            // ...and with its prefix broken by the wrapping, read from it as from a
+            // whole one, as the desktop's code_in does: "Thanks" after it was read
+            // into the code here, and the code refused.
+            val broken = "Hi\n${code.take(4)}\n${code.drop(4)}\nThanks"
+            assertTrue("$title, its prefix broken", Sharing.decode(broken) is Sharing.Decoded.Notes)
+            // ...so text shared into the app holding it is a code, not a note.
+            assertTrue("$title, shared in", Sharing.holdsCode(broken))
         }
+        // A stray letter in a code whose prefix is broken is refused, as it is in a
+        // whole one: the desktop's lenient decoder read it, and the phone refused it.
+        val stray = Sharing.encode(listOf(note("""{"title": "stray"}""")))
+        assertTrue(Sharing.decode("${stray.take(4)}\n${stray.substring(4, 20)}!${stray.drop(20)}") is Sharing.Decoded.Failed)
     }
 
     @Test
