@@ -326,13 +326,15 @@ beside Restore 76 dp wide, a few letters a line, five lines tall; the two
 buttons flow now, the second onto a line of its own. On a 360 dp phone
 Statistics broke a four-digit figure between its digits ("123" over "4"),
 the fourth round's "Left" had said "may wrap": two tiles a row at that
-size now, figures never broken, a long category name no longer taking the
+size now, figures kept on one line, a long category name no longer taking the
 line from its count. Both are walked (`trash_wide`, and `statistics` at
 200% on a 360 dp screen), and the build before fails each. A UTF-16 file
 without its BOM still came in as letters and NULs: a file holding a NUL is
 refused now, since no note holds one. Half an emoji cut at the 500,000th
 character is left out, words of a NEL alone are judged as a file's are, a
-code whole in a cut file reaches its dialog alone, and the code question
+code whole in a cut file reaches its dialog without the file around it
+(though a code with no "=" at its end still takes the words after it, so
+the dialog names a longer code than it is), and the code question
 catches the stack overflow of a hand-made code nested past what it checks.
 Case 509 said no walk could share a code that long; the walk now shares a
 code whole in a long file (offered and imported) and one the cut broke
@@ -343,6 +345,31 @@ walk puts such messages away before it shares. Left: a weekday written
 keeps it apart; a living note with an empty "updated" sorts oldest here,
 newest on the desktop; a wallpaper change on Android 12 and later restarts
 the screen, which drops a share still being read and an open code dialog.
+
+The sixth round found the largest letters in three more places. On a
+phone narrower than about 400 dp the Trash's row of days left "days" a
+letter a line and broke "90" over its digits: the days flow now, walked on
+a 360 dp screen. A figure kept on one line was cut where it did not fit (a
+four-digit count in the time table on a 320 dp phone): every Statistics
+figure now shrinks to its room instead. And a question's text did not
+scroll: at the largest letters, or on a phone on its side, the import's
+question lost its last sentence under its answers -- the warning that
+updating replaces an earlier version -- with nothing to show there was
+more; every question's text scrolls now. A share code followed by "=)" or
+a line of "=" signs was read on the desktop and called damaged here
+(Java's decoder refuses padding past the code's own): the padding is left
+to the decoder now. NULs some apps pad a file's end with no longer refuse
+it. In the test plan, a second reader found four mediums, older than the
+wave: the PDF question quoted in its words of before 2 November (cases 242
+and 262), a greyed card's count without the title it adds (265), an "ANSI"
+file said refused when one of English letters is UTF-8 to the byte (511),
+and Summary's count of the cases that need the owner's eye leaving out 28
+that said so only in their title or as "Needs her eye"; each is true now,
+and the fifth round's commit had swept that last class wrongly (only one
+of its five was uncounted). Left: the selection bar's "12 selected" and
+the table bar's words are cut at the largest letters (the table's symbols
+still say what each does); and the unit tests' org.json is laxer and
+stricter than Android's in corners only hand-made files reach.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
