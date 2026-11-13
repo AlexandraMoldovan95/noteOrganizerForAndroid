@@ -57,6 +57,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -106,8 +107,14 @@ import java.util.Locale
  */
 class MainActivity : ComponentActivity() {
 
-    /** A share code handed over by another app, for the import panel. */
-    private val incoming = mutableStateOf<String?>(null)
+    /**
+     * What shares handed the app and the screen has not taken in yet, in
+     * the order they came, each with a number of its own (the same words
+     * shared twice are two notes). One slot lost a shared file read late,
+     * behind Home, to the words shared next.
+     */
+    private val incoming = mutableStateListOf<Pair<Long, String>>()
+    private var shares = 0L
 
     companion object {
         /** Whether this process has cleared the cache's leftovers yet ([Startup.clearLeftovers]). */
@@ -170,15 +177,15 @@ class MainActivity : ComponentActivity() {
                     state.keepNameDraft?.invoke()
                 }
             }
-            val waiting by incoming
+            val waiting = incoming.firstOrNull()
             val sharedNoteSaid = stringResource(R.string.shared_text_note)
             LaunchedEffect(waiting) {
-                val text = waiting ?: return@LaunchedEffect
+                val (_, text) = waiting ?: return@LaunchedEffect
                 // A code, with words around it or not, is imported; any other
                 // text becomes a note of its own (the owner's choice).
                 if (text.contains(Sharing.PREFIX)) state.incomingCode = text
                 else state.noteFromShared(text, sharedNoteSaid)
-                incoming.value = null
+                incoming.remove(waiting)
             }
             val tapped by todayTapped
             LaunchedEffect(tapped) { if (tapped > 0) state.todayAsked += 1 }
@@ -284,12 +291,17 @@ class MainActivity : ComponentActivity() {
         // arrived, and nothing was said.
         val words = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
         if (words != null) {
-            incoming.value = words
+            arrived(words)
             return
         }
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { sharedFile(intent) }?.let { incoming.value = it }
+            withContext(Dispatchers.IO) { sharedFile(intent) }?.let(::arrived)
         }
+    }
+
+    private fun arrived(text: String) {
+        shares += 1
+        incoming.add(shares to text)
     }
 
     /**
