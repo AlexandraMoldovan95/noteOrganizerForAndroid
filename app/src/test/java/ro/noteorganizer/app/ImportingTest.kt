@@ -133,6 +133,15 @@ class ImportingTest {
             "None of the backup's notes came in." in reason)
         assertEquals("nothing written over it", "[]", held.readText())
         assertEquals("no note came in", 0, onDisk(load).length())
+        // ...and the same over a Trash file held.
+        val other = notebook("[]", trash = "[]")
+        val trashHeld = File(dirOf(other), "trash.json")
+        Files.holdWrites(trashHeld)
+        val stopped = Importing.apply(other, backupPlan(other, """[{"uid": "n2", "title": "New"}]"""), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[{"id": 4, "title": "Old", "deleted_at": "2026-10-01 10:00:00"}]""")))
+        val said = (stopped as Importing.Result.Failed).reason
+        assertTrue(said, said.startsWith("trash.json could not be read or copied aside"))
+        assertEquals("[]", trashHeld.readText())
     }
 
     @Test
@@ -145,6 +154,13 @@ class ImportingTest {
         assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
         assertEquals(Templates.UNTITLED,
             JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("name"))
+        // ...and not beside one here that has no name either: named alike, as the
+        // desktop names its own list, it is that one.
+        val here = notebook("[]")
+        File(dirOf(here), "templates.json").writeText("""[{"title": "mine, nameless"}]""")
+        val again = Importing.apply(here, backupPlan(here, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "", "title": "theirs"}]""")))
+        assertEquals(0, (again as Importing.Result.Done).outcome.addedTemplates)
     }
 
     @Test

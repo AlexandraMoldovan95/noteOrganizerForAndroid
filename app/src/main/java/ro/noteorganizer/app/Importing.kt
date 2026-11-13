@@ -497,7 +497,9 @@ object Importing {
             val mine = if (Files.writesHeld(templatesFile)) null
                        else readArray(templatesFile) ?: JSONArray().takeIf { Files.preserveCorrupt(templatesFile) != null }
             if (mine != null) {
-                val names = (0 until mine.length()).mapNotNull { (mine.opt(it) as? JSONObject)?.opt("name") as? String }.toMutableSet()
+                // Shaped as the backup's are, as the desktop names its own list:
+                // one here with no name is "Untitled template" too.
+                val names = (0 until mine.length()).map { Templates.normalize(mine.opt(it)).optString("name") }.toMutableSet()
                 val out = JSONArray(mine.toString())
                 for (i in 0 until extras.templates.length()) {
                     // No more than a notebook keeps (Templates.MAX_TEMPLATES).
