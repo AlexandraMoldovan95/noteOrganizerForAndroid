@@ -420,4 +420,47 @@ class SharingTest {
         assertEquals("footnotes", back.getString("comments"))
         assertEquals(1, back.getJSONArray("paragraphs").length())
     }
+
+    // ---- a text file shared in ----
+
+    private fun shared(bytes: ByteArray, most: Int = 500_000) = Files.sharedText(bytes.inputStream(), most)
+
+    @Test
+    fun `a shared file in UTF-16 is read as its letters, not letters and NULs`() {
+        val words = "Cumpărături de joi"
+        val le = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + words.toByteArray(Charsets.UTF_16LE)
+        val be = byteArrayOf(0xFE.toByte(), 0xFF.toByte()) + words.toByteArray(Charsets.UTF_16BE)
+        assertEquals(words, shared(le)?.first)
+        assertEquals(words, shared(be)?.first)
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + words.toByteArray()
+        assertEquals(words, shared(bom)?.first)
+    }
+
+    @Test
+    fun `a shared file of a BOM, spaces or a NEL alone holds no text`() {
+        assertEquals(null, shared(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())))
+        assertEquals(null, shared(" \n\t ".toByteArray()))
+        assertEquals(null, shared("\u0085".toByteArray()))
+        assertEquals(null, shared(ByteArray(0)))
+    }
+
+    @Test
+    fun `a shared file not in UTF-8 is refused, not read as replacement marks`() {
+        // Notepad's old "ANSI" on a Romanian Windows: ă is 0xE3 in code page 1250.
+        val ansi = "mere, p".toByteArray() + byteArrayOf(0xE2.toByte()) + "ine".toByteArray()
+        var refused = false
+        try {
+            shared(ansi)
+        } catch (e: java.io.IOException) {
+            refused = true
+        }
+        assertTrue(refused)
+    }
+
+    @Test
+    fun `a shared file is said cut only when it went on past what is read`() {
+        assertEquals(false, shared("abcde".toByteArray(), most = 5)?.second)
+        assertEquals(true, shared("abcdef".toByteArray(), most = 5)?.second)
+        assertEquals("abcde", shared("abcdef".toByteArray(), most = 5)?.first)
+    }
 }

@@ -197,20 +197,22 @@ class MainActivity : ComponentActivity() {
                 val shared = waiting ?: return@LaunchedEffect
                 val first = "%,d".format(Locale.ENGLISH, SHARED_FILE_CHARS)
                 if (shared.unread) {
-                    state.say("Nothing could be read from the shared file: it could not be opened, " +
-                        "held no text, or did not answer within half a minute.", long = true)
+                    state.say("Nothing could be read from what was shared: the file could not be opened, " +
+                        "held no text, was not written in UTF-8, or did not answer within half a minute.", long = true)
                     incoming.remove(shared)
                     return@LaunchedEffect
                 }
                 // None, or a file still being read: what came after it waits.
                 val text = shared.text ?: return@LaunchedEffect
-                // A code, with words around it or not, is imported; any other
-                // text becomes a note of its own (the owner's choice). A code
-                // cut off with its file is said so, not called damaged.
+                // A code, with words around it or not, is imported; other text
+                // is a note (the owner's choice). A code cut off with its file
+                // is said cut, not called damaged; one whole in it goes on.
+                val cutCode = text.contains(Sharing.PREFIX) && shared.cut &&
+                    withContext(Dispatchers.Default) { Sharing.decode(text) is Sharing.Decoded.Failed }
                 when {
-                    text.contains(Sharing.PREFIX) && shared.cut -> state.say("The shared file was longer than " +
-                        "$first characters and only its start was read, so the share code in it is " +
-                        "incomplete. Ask for the code as words, or for a backup.", long = true)
+                    cutCode -> state.say("The shared file was longer than $first characters and only " +
+                        "its start was read, so the share code in it is incomplete. Ask for a backup " +
+                        "instead (Settings → Backup → Export on the other device).", long = true)
                     text.contains(Sharing.PREFIX) -> state.incomingCode = text
                     !shared.cut -> state.noteFromShared(text, sharedNoteSaid)
                     else -> state.noteFromShared(text, "$sharedNoteSaid. Only the first $first characters " +
@@ -317,10 +319,14 @@ class MainActivity : ComponentActivity() {
      */
     private fun takeIn(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return
-        // As any text: a sender sharing styled text puts a CharSequence with
-        // spans, and getStringExtra gave null for it -- the code never
-        // arrived, and nothing was said.
-        val words = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() }
+        // As any text: styled text is a CharSequence, which getStringExtra
+        // gave as null, unsaid. An extra of a class this app lacks threw here
+        // and ended the app: read as no words.
+        val words = try {
+            intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+        } catch (e: RuntimeException) {
+            null
+        }?.takeIf { it.isNotBlank() }
         if (words != null) {
             arrived(words)
             return
@@ -350,24 +356,13 @@ class MainActivity : ComponentActivity() {
      * no words in the share itself: read, up to [SHARED_FILE_CHARS], and
      * whether there was more (said, where the rest went without a word).
      */
-    private fun sharedFile(intent: Intent): Pair<String, Boolean>? {
+    private fun sharedFile(intent: Intent): Pair<String, Boolean>? = try {
+        // Inside the try: a stream extra that is not a Uri threw, and ended the app.
         @Suppress("DEPRECATION")
-        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return null
-        return try {
-            contentResolver.openInputStream(uri)?.use { stream ->
-                val reader = stream.reader(Charsets.UTF_8)
-                val buffer = CharArray(SHARED_FILE_CHARS)
-                var read = 0
-                while (read < buffer.size) {
-                    val got = reader.read(buffer, read, buffer.size - read)
-                    if (got < 0) break
-                    read += got
-                }
-                String(buffer, 0, read) to (read == buffer.size && reader.read() >= 0)
-            }?.takeIf { it.first.isNotBlank() }
-        } catch (e: Exception) {
-            null
-        }
+        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        uri?.let { contentResolver.openInputStream(it) }?.use { Files.sharedText(it, SHARED_FILE_CHARS) }
+    } catch (e: Exception) {
+        null
     }
 
     private fun share(text: String) {

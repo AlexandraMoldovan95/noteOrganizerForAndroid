@@ -181,6 +181,48 @@ object Files {
         throw Unreadable(TOO_LARGE)
     }
 
+    /**
+     * A shared file's text, up to [most] characters, and whether there was
+     * more; null when it holds no text as Python's strip() judges it. In the
+     * encoding its first bytes name (UTF-16 read as UTF-8 came in as letters
+     * and NULs), and strictly: a code page's letters (Notepad's old "ANSI")
+     * became replacement marks; it throws instead.
+     */
+    fun sharedText(raw: java.io.InputStream, most: Int): Pair<String, Boolean>? {
+        val stream = java.io.BufferedInputStream(raw)
+        stream.mark(3)
+        val head = ByteArray(3)
+        var got = 0
+        while (got < 3) {
+            val n = stream.read(head, got, 3 - got)
+            if (n < 0) break
+            got += n
+        }
+        val b = IntArray(3) { if (it < got) head[it].toInt() and 0xFF else -1 }
+        stream.reset()
+        val (charset, skip) = when {
+            b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF -> Charsets.UTF_8 to 3L
+            b[0] == 0xFF && b[1] == 0xFE -> Charsets.UTF_16LE to 2L
+            b[0] == 0xFE && b[1] == 0xFF -> Charsets.UTF_16BE to 2L
+            else -> Charsets.UTF_8 to 0L
+        }
+        stream.skip(skip)
+        val reader = java.io.InputStreamReader(stream, charset.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT))
+        val buffer = CharArray(most)
+        var read = 0
+        while (read < buffer.size) {
+            val n = reader.read(buffer, read, buffer.size - read)
+            if (n < 0) break
+            read += n
+        }
+        val text = String(buffer, 0, read)
+        // Past what is read, a damaged byte is only "more".
+        val more = read == buffer.size && try { reader.read() >= 0 } catch (e: java.io.IOException) { true }
+        return (text to more).takeIf { PyText.strip(text).isNotEmpty() }
+    }
+
     private const val TOO_DEEP = "It is nested deeper than any note."
     const val TOO_LARGE = "It is too large for this phone to read."
     private const val NOT_UTF8 = "Its letters are not written in UTF-8, the way notes are kept."
