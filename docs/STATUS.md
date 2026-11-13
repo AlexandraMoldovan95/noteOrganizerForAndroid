@@ -715,7 +715,7 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-77 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+78 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
 It takes the machine's one turn as it starts, waits for an emulator just
 started to settle, and reads every frame check after a look at the
 screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
@@ -741,8 +741,9 @@ Phase 1's four:
   skipping it changing nothing.
 * **The doors to the rest of the phone**: a code shared in from another
   app; a text file shared in (its own part, `shared_files`, added in wave
-  6), one past 500,000 characters said cut and words shared while a file
-  is read waiting their turn; a note shared out through Android's share sheet, the privacy
+  6), one past 500,000 characters said cut, words shared while a file
+  is read waiting their turn, and one the app cannot open said; a note
+  shared out through Android's share sheet, the privacy
   policy opening a browser rather than the app, and About with no
   Feedback section before the app is on Google Play.
 * **The phone changing under an open note**: its dark mode coming on,
@@ -787,7 +788,9 @@ it and read back from the file:
   Settings; Settings' list and the calendar's month back in their places
   after a page and the History; the pane beside the calendar; two new notes in
   a row; a code shared in over an open note, upright, and the update
-  kept; and a medium window, the note in the list's place.
+  kept; and a medium window, the note in the list's place. The Trash on
+  its side, a row brought into sight above its buttons and restored, has
+  a part of its own (`trash_wide`, wave 6).
 * **Screens of every size** (2026-10-24, for tablets the owner has none
   of to try): the emulator's display set to a small phone and to tablets
   of 7, 10 and 14 inches, upright. The bar along a small phone's bottom,

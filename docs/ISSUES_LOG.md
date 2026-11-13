@@ -291,10 +291,35 @@ The third round also found: a shared file that could not be read, or held
 no text, dropped without a word, and one whose read never returned
 holding back every share after it (each is said now, given up after half
 a minute); a share code cut off with its file called damaged (said as cut
-now); and the second copy's last corners -- categories adopted from notes
-and a title of one mark judged by `trim()`, a restored note with no stamps
-left unstamped, and the code question's catch narrower than Android's
-JSONException.
+now); and more of the second copy's corners -- categories adopted from
+notes judged by `trim()` and a title of one mark by `isBlank()`, a restored
+note with no stamps left unstamped, and the code question's catch narrower
+than Android's JSONException.
+
+The fourth round found two roads older than the wave. On a phone on its
+side the Trash page's top (the window's days, the backup, Select all) took
+nearly all the height, leaving its list less than a row and its buttons
+squeezed; the top scrolls with the list now, and a new walk part,
+`trash_wide`, brings a row into sight there and restores it. And a .txt
+saved in Notepad's old "ANSI" came in with every ă turned into a
+replacement mark, a UTF-16 one as letters and NULs, both said "Saved as a
+new note": a shared file is read in the encoding its first bytes name and
+refused, and said, when it is not UTF-8, as is a file of a BOM or a NEL
+alone. The restore's stamps had overshot: a stamp of spaces, which the
+desktop keeps, was replaced by the moment. A share's extras are read
+inside a try, where a sender's odd one ended the app; a code whole within
+the first 500,000 characters of a long file goes on as any code; the cut
+message no longer asks for the code as words, which cannot carry one that
+long. The walk now shares a file the app's own provider cannot open, and
+checks it is said and that the words after it still become a note; its
+pipe's write is bounded, so an app that never reads it fails a check
+instead of stalling the walk. Left: shares still waiting when Android ends
+the process, or when Back closes the app during a slow read, go without a
+word; a cancelled read keeps its thread until the provider answers; the
+restore's question reads a hand-made `_prev` unshaped where the restore
+shapes it; Statistics' four-digit counts may wrap at the largest letters;
+and Statistics and Duplicates read the notes as stored, not as the desktop
+normalizes them.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
