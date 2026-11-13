@@ -44,6 +44,13 @@ def nest(depth, core="core"):
     return value
 
 
+def nest_object(depth, core="core"):
+    value = core
+    for _ in range(depth):
+        value = {"k": value}
+    return value
+
+
 def value(rng, depth=1):
     pick = rng.random()
     if pick < 0.45 or depth > 3:
@@ -94,6 +101,7 @@ def main():
     raws.append({"id": 1, "a": "x" * (65536 - 1), "b": "y"})
     raws.append({"id": 1, "a": "😀" * 20000, "b": "x" * 25530, "c": "y"})
     raws.append({"id": 1, "deep": nest(19), "deeper": nest(20), "deepest": nest(21)})
+    raws.append({"id": 1, "odeep": nest_object(20), "odeeper": nest_object(21)})
     raws.append({"id": 1, "obj": {"k": {"k": {"k": "v"}}}, "list": [[], {}, [None]]})
     cases = [{"raw": raw, "kept": unknown_fields(raw)} for raw in raws]
 
