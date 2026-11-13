@@ -249,9 +249,11 @@ forgotten a token was ever involved.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 76 parts and about
-633 checks (the full run of 12 November 2026, for 0.14.1: all 633 passed,
-every part in `main()`'s order, in eight groups, each on an emulator
-started cold and stopped after it, by `walk_groups.py`; see below why).
+636 checks (the full run of 13 November 2026, for wave 6's fixes: 634
+passed, every part in `main()`'s order, in eight groups, each on an
+emulator started cold and stopped after it, by `walk_groups.py`; see
+below why. The two that failed were the walk's own, fixed, and their
+parts walked again: [the run](WALK_RUNS.md)).
 <!-- The desktop's site/build.py reads "N parts and about N checks" and
 "N tests across … suites" in this file: keep their words. -->
 The parts: a brand-new notebook, a notebook copied in, the

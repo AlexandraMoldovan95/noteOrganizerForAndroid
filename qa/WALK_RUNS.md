@@ -10,6 +10,23 @@ on its side that still expected the list to keep room under its cards
 for the +, now in the rail; rewritten, its part walked again, all 25
 passed.
 
+For wave 6's fixes, on 2026-11-13, one run (the debug build, its version
+still 0.14.2's): `walk_groups.py` walked all 76 parts in eight groups,
+each on an emulator started cold: 634 of 636 passed, both failures the
+walk's own. The new name check tapped the Name field and typed " Pop",
+and the tap had left the caret after the "M": "M Poparia". It now
+presses End first. The time-zone check read the alarm a fixed 4 s after
+the phone moved to New York, and found the old instant still there.
+Walked alone it passed, and a probe moved the zone eight more times, the
+app in the background, ended, frozen by hand and left cached: each time
+the app set 09:00 in the new zone about a second after the change, and
+while Android had not yet told it, the alarm read exactly the failure's
+02:00. The check now reads until the alarm moves, for up to half a
+minute, and so does the reminder's notification check, which read 2 s
+after its broadcast. Both parts, and the day's reminder, then passed on
+the same APK; mutants AS670 (the name not kept behind Home) and AS671
+(the manifest without TIMEZONE_CHANGED) each failed their part.
+
 For 0.14.2, on 2026-11-12, one fix and no full run: the walk's
 Statistics part, which now reads the Total notes and Categories tiles,
 passed on 0.14.2's debug build, failed its Categories check on mutant
