@@ -9,7 +9,7 @@ where it can actually fail.
 | What could go wrong | What holds it | What is not held |
 |---|---|---|
 | **A note lost or damaged** | Every write goes to a copy, then to disk, then to the screen, and one that fails says so ([why](../docs/ARCHITECTURE.md#decision-write-to-a-copy-then-to-disk-then-to-the-screen)); unit tests of the save, the start and the backup; the walk reads back the file the app wrote at every step it checks; the final audit's first wave, 25 rounds | A phone dying in the middle of a write is reasoned about (the file is renamed into place whole), not reproduced |
-| **The two apps disagreeing** | Two gates read the desktop's Python as the specification of a note and of its colours; seven fixtures hold the ported rules to answers the desktop's own code gave; the desktop's import reads a code made here | That last check runs on this machine, not in CI; where the phone answers differently on purpose ([listed](../docs/STATUS.md#where-it-differs-from-the-desktop-on-purpose)), only the test plan looks |
+| **The two apps disagreeing** | Two gates read the desktop's Python as the specification of a note and of its colours; eight fixtures hold the ported rules to answers the desktop's own code gave; the desktop's import reads a code made here | That last check runs on this machine, not in CI; where the phone answers differently on purpose ([listed](../docs/STATUS.md#where-it-differs-from-the-desktop-on-purpose)), only the test plan looks |
 | **A note carried between the two by hand** (there is no sync) | A note keeps its identity wherever it goes; one that arrives asks before it updates the note it matches, and an update keeps what it replaced, to be restored (`IdentityTest`); the walk carried notes both ways through the desktop's Python | A note changed on both devices is not merged: the update brings the arriving one, and the one it replaced is kept aside |
 | **A hostile or broken code or backup** | Read with limits before anything is written: size, depth, encoding, paths that leave the folder, a zip that unpacks to more than it says (`SharingTest`, `BackupTest`); the audit's hostile and huge input | No fuzzer runs on each change: the hostile cases are the ones written down |
 | **A very large note or notebook** | The walk opens a checklist of 120 rows of nearly 150,000 characters each; the list and the editor were measured | Measured on the emulator and on one fast phone, not on a slow one; notes are written on the main thread, fine for the half-megabyte notebooks seen so far |
@@ -66,7 +66,7 @@ first, and never left in the system's temp folder (30,640 were, by
 
 ### Fixtures the desktop wrote
 
-Seven suites are held to answers the desktop's own Python gave, over
+Eight suites are held to answers the desktop's own Python gave, over
 cases generated for them. Each fixture in `app/src/test/resources/` is
 written by a tool in `tools/` that imports the desktop's code, runs it,
 and never writes to it:
@@ -80,6 +80,7 @@ and never writes to it:
 | `days_cases.json` | `make_days_fixture.py` | 103 notes walked through turn-offs, turn-ons, deletes, restores, updates (the same backup twice), a Trash restore, rewritten comments, a day reset after a turn-on, a turn-off over an import's copy, a copy's days taken back by the date that holds them, a start put back, a second turn-off, each step's stored note and its import |
 | `renumber_cases.json` | `make_renumber_fixture.py` | 300 bodies renumbered |
 | `paste_cases.json` | `make_paste_fixture.py` | 567 HTML fragments read by `html_to_note`, 80 of them the app's own copies with the HTML they were copied as, 117 plain texts rejoined and unmarked, and 86 texts with markdown tables whose separators `forget_widths` spells at the minimum |
+| `unknown_cases.json` | `make_unknown_fixture.py` | 307 notes holding fields this version does not know, as `unknown_fields` keeps them: within the bounds, past them, nested, of every kind |
 
 The paste fixture leans on one more file the app itself carries:
 `html_entities.json`, the HTML named references and Python's rules for
@@ -91,10 +92,10 @@ diff of the fixture before believing the new answers. Where the
 desktop's lines live in a window method that cannot be imported, the
 export tool copies them and fingerprints the original: when the
 original changes, the tool stops and says so instead of copying the
-past. Where the phone answers differently on purpose, the paste tool
-makes its answers by the smallest change to the desktop's own function,
-in its own process, keeps the desktop's answer beside each case it
-changes, and stops when the line it changes is gone.
+past. Every answer in the paste fixture is the desktop's own since its
+cb12941 (2026-11-11), the one place the phone had answered differently
+on purpose answering alike since, and `PastingTest` fails if a case ever
+parts from it.
 
 Every tool here that runs the desktop's code does it under the desktop's
 own memory ceiling: it calls the desktop's `tools/guest.py` first
@@ -248,9 +249,9 @@ forgotten a token was ever involved.
 
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
-notebook the app wrote is read back through `run-as`. 78 parts and about
+notebook the app wrote is read back through `run-as`. 79 parts and about
 636 checks (the full run of 13 November 2026, for wave 6's fixes, before
-the 77th and 78th, `shared_files` and `trash_wide`, were written: 634 passed, every part in
+the 77th to the 79th, `shared_files`, `trash_wide` and `dialogs_on_side`, were written: 634 passed, every part in
 `main()`'s order, in eight groups, each on an
 emulator started cold and stopped after it, by `walk_groups.py`; see
 below why. The two that failed were the walk's own, fixed, and their

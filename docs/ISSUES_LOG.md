@@ -501,6 +501,27 @@ when the code it leads to reads (AS739, AS740). And the restore question,
 was asked again over the copy a restore keeps, the updated version itself:
 it names the previous version now, as the button does, on both apps.
 
+The eleventh round fuzzed the code reading against the desktop's (two
+hundred thousand texts, none read differently) and found one medium of
+the tenth's own making: the line after a repeat turned off said Restore
+previous brings back the version kept before "not the series", where a
+note that repeated before the Update gets the series back; it says the
+version kept before now, both apps. The word on notes restored or
+imported where the list hides them named the first one's folded group for
+all, Show all unfolding that group alone, as the desktop's did (said of
+them all now, `Showing.hiddenBy` and `groupsOf`; AS741, AS742). Its
+second reader read STATUS and the words written in the Kotlin: the
+desktop's toggle said to remember a theme for a session only (it keeps
+them since that day's change), seven fixtures where there are eight, the
+paste fixture said to keep the desktop's answers beside twenty cases it
+no longer holds, 78 walk parts where there are 79, and a damaged code's
+words sending its sender to "Settings → Backup → Export", which the phone
+has not (Settings → Backup, the place both apps have, now). The lows: a
+newer version's code behind a hidden prefix called no share code (AS743);
+a double compared by its printing, not its value (AS744); the stepper's −
+and + under a thumb's 48 dp; "After 1 times"; and Android's reader
+changing integers below −2^63 as well, said now in DATA_FORMAT.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

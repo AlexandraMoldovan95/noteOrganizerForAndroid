@@ -402,7 +402,7 @@ Grouped by what the app does; when each item arrived is in the
 ### Underneath
 
 39. The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests)),
-    mutation-tested; seven ports held to fixtures the desktop's own Python
+    mutation-tested; eight ports held to fixtures the desktop's own Python
     wrote; nine gates against drift (the note's shape and the palettes
     against the desktop's Python, the rules layer free of Android, the
     repository in English, comments that say why, every mutant aimed at
@@ -434,10 +434,10 @@ feature. These are the exceptions, each with its reason. (Search folding
 diacritics was one, until the desktop took it:
 [its story](ISSUES_LOG.md#a-deliberate-difference-worth-porting-back).)
 
-**Light | Dark remembers a theme for each mode.** The desktop's quick
-toggle goes between the last dark and the last light theme of a session;
-the phone keeps the two under keys of its own (`phone_theme_light`,
-`phone_theme_dark`), which the desktop ignores. Up to 0.9.0 the theme
+**Light | Dark remembers a theme for each mode.** The phone keeps the two
+under keys of its own (`phone_theme_light`, `phone_theme_dark`), which the
+desktop ignores; the desktop's quick toggle remembers them the same way
+since 2026-11-13, under its own (`last_light_theme`, `last_dark_theme`). Up to 0.9.0 the theme
 could also follow the phone's dark mode; 0.9.1 replaced it with the one
 switch, at the owner's ask.
 
@@ -699,7 +699,7 @@ or the phone itself.
 | Part | How it was verified |
 |---|---|
 | [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | About 630 checks on the built app ([how many, and the last full run](../qa/README.md#the-emulator-walk)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
-| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Seven fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML, a series' days — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
+| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Eight fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML, a series' days, the fields a newer version wrote — every answer matched; the 20 pasted fragments where the phone once parted from the desktop answer alike since the desktop's cb12941 |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
@@ -715,7 +715,7 @@ or the phone itself.
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-78 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+79 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
 It takes the machine's one turn as it starts, waits for an emulator just
 started to settle, and reads every frame check after a look at the
 screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
@@ -981,6 +981,7 @@ the desktop's source and never write to it.
 | Lists | its renumbering | bodies |
 | Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | fragments read -- the app's own copies with their HTML among them -- plain texts, markdown tables |
 | A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
+| The fields a newer version wrote (the owner's D2, 2026-11-13) | `unknown_fields` | notes holding fields this version does not know: kept, bounded, nested, of every kind (`unknown_cases.json`, `tools/make_unknown_fixture.py`) |
 
 Pasting was the one port where the phone answered differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
