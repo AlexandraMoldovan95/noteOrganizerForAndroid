@@ -104,8 +104,9 @@ class UnknownFieldsTest {
         val theirs = JSONObject("""{"title": "U"}""")
         for (i in 0 until 7) theirs.put("z%02d".format(i), i)
         Notebook.applyUpdate(note, theirs, "2026-11-13 12:00:00", Notebook.UPDATABLE_FROM_BACKUP)
+        // The note's own keys, not unknownFields' reading of them, which bounds them as it reads.
         assertEquals((0 until 30).map { "m%02d".format(it) } + listOf("z00", "z01"),
-                     Normalize.unknownFields(note).keys().asSequence().sorted().toList())
+                     note.keys().asSequence().filter { Regex("[mz]\\d\\d").matches(it) }.sorted().toList())
         val huge = JSONArray()
         for (i in 0..Normalize.MAX_UNKNOWN_UNITS) huge.put(0)
         assertFalse(Normalize.normalizeNote(JSONObject().put("id", 1).put("huge", huge)).has("huge"))
