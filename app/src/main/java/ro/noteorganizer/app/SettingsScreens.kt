@@ -758,56 +758,63 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // the page says so rather than show the default as if it were chosen.
     val known = state.trashWindow
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
-                 color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
-            // The numbers alone did not say what they set; the desktop's
-            // dropdown carries the same words (2026-10-26).
-            Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
-                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
-            Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (days in listOf(7, 14, 30, 60, 90)) {
-                    val on = days == known
-                    Text(
-                        "$days",
-                        color = if (on) palette.onAccent else palette.text,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (on) palette.accent else palette.card)
-                            .clickable {
-                                // Only a SHORTER window can take anything,
-                                // and then it says what before it does --
-                                // with none known, any window can.
-                                if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
-                                else state.chooseTrashWindow(days)
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
-                }
-                Text(stringResource(R.string.days), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
-            }
-            // A backup at hand where notes wait to leave for good: the .zip
-            // holds the Trash too, and a note in it is never lost to the window.
-            if (entries.isNotEmpty()) {
-                OutlinedButton(onClick = backup.export, enabled = backup.busy() == null,
-                               modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    Text(stringResource(R.string.trash_backup), color = palette.text)
-                }
-                // Keeping a few of a long Trash and deleting the rest, or
-                // restoring it all, was a tap per row (the owner, 2026-10-26).
-                val everything = chosen.size == all.size
-                TextButton(onClick = { picked = if (everything) emptySet() else all },
-                           modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(if (everything) R.string.unselect_all else R.string.select_all),
-                         color = palette.accentText)
-                }
-            }
-        }
-        if (entries.isEmpty()) {
-            Text(stringResource(R.string.trash_empty), color = palette.subtext, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
-        }
+        // The page's top scrolls with its list: held above it, it left a
+        // phone on its side no room for one row, its buttons squeezed.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+            item(key = "\u0000trash-head") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                    Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
+                         color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
+                    // The numbers alone did not say what they set; the desktop's
+                    // dropdown carries the same words (2026-10-26).
+                    Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
+                         fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
+                    Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (days in listOf(7, 14, 30, 60, 90)) {
+                            val on = days == known
+                            Text(
+                                "$days",
+                                color = if (on) palette.onAccent else palette.text,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (on) palette.accent else palette.card)
+                                    .clickable {
+                                        // Only a SHORTER window can take anything,
+                                        // and then it says what before it does --
+                                        // with none known, any window can.
+                                        if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
+                                        else state.chooseTrashWindow(days)
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
+                        Text(stringResource(R.string.days), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    // A backup at hand where notes wait to leave for good: the .zip
+                    // holds the Trash too, and a note in it is never lost to the window.
+                    if (entries.isNotEmpty()) {
+                        OutlinedButton(onClick = backup.export, enabled = backup.busy() == null,
+                                       modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                            Text(stringResource(R.string.trash_backup), color = palette.text)
+                        }
+                        // Keeping a few of a long Trash and deleting the rest, or
+                        // restoring it all, was a tap per row (the owner, 2026-10-26).
+                        val everything = chosen.size == all.size
+                        TextButton(onClick = { picked = if (everything) emptySet() else all },
+                                   modifier = Modifier.align(Alignment.End)) {
+                            Text(stringResource(if (everything) R.string.unselect_all else R.string.select_all),
+                                 color = palette.accentText)
+                        }
+                    }
+                }
+            }
+            if (entries.isEmpty()) {
+                item(key = "\u0000trash-empty") {
+                    Text(stringResource(R.string.trash_empty), color = palette.subtext, fontSize = 15.sp,
+                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 20.dp))
+                }
+            }
             items(rows, key = { it.second }) { (note, _) ->
                 val key = Organizing.keyOf(note)
                 val left = known?.let { Notebook.daysLeftInTrash(note.deletedAt, it) }
