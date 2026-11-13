@@ -4108,9 +4108,20 @@ def trash_wide(folder):
     turn(0)
     # Upright at the largest letters: the two buttons side by side left
     # "Delete for good" a few letters wide, wrapped a letter a line.
+    # On a 360 dp phone (this emulator is 411 dp, where the days' row fit by
+    # a hair): in a row, "days" was left a letter a line, and "90" broke.
     try:
+        adb("shell", "wm", "density", "480")
         adb("shell", "settings", "put", "system", "font_scale", "2.0")
-        time.sleep(2.5)
+        time.sleep(3.0)
+        px = 480 / 160.0
+        adb("shell", "input", "swipe", "540", "900", "540", "1900", "400")
+        time.sleep(1.0)
+        word, ninety = bounds("days"), bounds("90")
+        check("at the largest letters the Trash's days keep each its words on one line",
+              bool(word) and bool(ninety) and word[0][2] - word[0][0] > word[0][3] - word[0][1]
+              and ninety[0][2] - ninety[0][0] > (ninety[0][3] - ninety[0][1]) * 0.6,
+              "days %s, 90 %s" % (word, ninety))
         adb("shell", "input", "swipe", "540", "1900", "540", "900", "400")
         time.sleep(1.0)
         tap("Sideways two", exact=True, wait=1.0)
@@ -4123,7 +4134,8 @@ def trash_wide(folder):
         shot(folder, "133-trash-large-letters", "Delete for good")
     finally:
         adb("shell", "settings", "put", "system", "font_scale", "1.0")
-        time.sleep(1.5)
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
     back(wait=1.0)
     back(wait=1.0)
 
