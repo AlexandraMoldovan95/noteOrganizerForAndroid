@@ -1347,10 +1347,26 @@ against the checks they name (114 of 137 true) and found 208 naming a
 release run no committed script makes, 297 the wrong walk part, 301 a
 copy's day read where only its rule is, and 241, 223, 232, 266 and 293
 leaving out parts no check reads, the text's start beside a notice
-among them (mediums). Each says what is true now. The lows: the Repeat
-sheet's own Save is walked, never with the start changed (280, 305,
-366, 368, 376, 378 say so); 217, 268, 222, 244, 250, 273, 277, 278,
-283, 494, 47, 307 and 509 name exactly what their checks reach.
+among them (mediums). Each says what is true now (223 since the round
+after). The lows: the Repeat sheet's own Save is walked, never with the
+start changed (280, 305, 366, 368, 376, 378 say so, and 404 since the
+round after); 217, 268, 222, 244, 250, 273, 277, 278, 283, 494, 47, 307
+and 509 name what their checks reach (222, 241, 250, 273 and 277
+exactly since the round after).
+
+The forty-sixth round found two of those rewrites saying more than their
+checks do (mediums): 223 dropped the note line's start from what is
+left, and 222 implied the walk completes an import it cancels at the
+question. Its second agent read the in-part rows 381 to 537 against the
+checks they name (134 of 137 true) and found 395, 399 and 408 carrying
+round 38's Repeat sentence over checks that never call setRepeat
+(mediums). Each says what is true now. The lows: the kind sentences
+round 38 wrote called "left to the hand" roads the walk does walk with
+other notes (the day's menu and its Undo, the import's picker and
+questions, the editor's gestures, Settings → Duplicates): every row
+carrying one now says it is the case's own steps that are left; 453's
+pin from the list's middle is walked; 404, 241, 250, 273 and 277 say
+exactly what their checks read.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
