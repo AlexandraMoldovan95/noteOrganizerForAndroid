@@ -70,7 +70,10 @@ class SettingsTest {
         val folder = dir("""{"username": "Ana", "theme": "dark"}""")
         val settings = File(folder, "settings.json")
         val real = Files.readBytesOf
-        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        // Refused once, then allowed, as on that road: taken for damage, the copy's
+        // own read got through and the good file went aside.
+        var refusals = 1
+        Files.readBytesOf = { if (it.name == "settings.json" && refusals-- > 0) throw java.io.IOException("refused") else real(it) }
         try {
             val load = Settings.load(folder)
             assertNotNull(load.problem)
