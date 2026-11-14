@@ -535,6 +535,33 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's day mark comes in over one here this phone cannot show, as the desktop's does`() {
+        // The desktop's store is cleaned at every start; the phone counted a mark it does not show as
+        // the day decorated, and the backup's never came in.
+        val load = notebook("[]", settings = """{"day_colors": {"2026-11-14": "not a colour"}}""")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))) as Importing.Result.Done
+        assertEquals(1, result.outcome.restoredDays)
+        assertNotEquals("not a colour",
+            Settings.load(dirOf(load)).raw.getJSONObject("day_colors").getString("2026-11-14"))
+    }
+
+    @Test
+    fun `a copy asked for leaves the rescue copy with the note it was made for, as the desktop's`() {
+        // Kept, the copy offered "↩ Restore previous", which put the original's older words over a
+        // note made now; the desktop's _without_identity drops it, as a Duplicate does.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Old"},
+            {"id": 2, "uid": "b", "title": "Same", "_prev": {"title": "Before"}}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "New", "_prev": {"title": "Older"}},
+            {"uid": "b", "title": "Same", "_prev": {"title": "Before"}}]""")
+        assertEquals(listOf(1, 1), listOf(plan.differing.size, plan.unchanged.size))
+        Importing.apply(load, plan, Importing.Answers(update = false, copyUnchanged = true), null)
+        val all = onDisk(load)
+        assertEquals(listOf("New", "Same"), listOf(all.getJSONObject(2).getString("title"), all.getJSONObject(3).getString("title")))
+        assertEquals(listOf(false, false), listOf(all.getJSONObject(2).has("_prev"), all.getJSONObject(3).has("_prev")))
+    }
+
+    @Test
     fun `a note added as new is a copy asked for, not put to the look-alike question again`() {
         // Edited elsewhere only in its date, its copy looked like the note here: "Import it anyway
         // as a new copy?" followed the Add, its Cancel undid it, and Skip skipped the very note

@@ -791,7 +791,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // with the autosave: it runs while a row or "A new item…" is being
         // typed in, and would add the half-typed words as a row.
         val why = (if (auto) writeNote(force) else write(force, scheduleFollows)) ?: return true
-        if (!auto || first) state.say("Not saved: $why")
+        if (!auto || first) state.sayNotSaved(why)
         return false
     }
 
@@ -825,7 +825,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      */
     fun saveStaying(): Boolean {
         val why = writeStaying() ?: return true
-        state.say("Not saved: $why")
+        state.sayNotSaved(why)
         return false
     }
 

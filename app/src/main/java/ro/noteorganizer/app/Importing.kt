@@ -373,7 +373,7 @@ object Importing {
      * itself, and the question's Cancel undid the Add.
      */
     private fun keptSeparate(plan: Plan, update: Boolean): List<JSONObject> =
-        if (update) emptyList() else plan.differing.map { withoutIdentity(it.theirs) }
+        if (update) emptyList() else plan.differing.map { asCopy(it.theirs) }
 
     /** A copy kept separate must not wear the original's identity. */
     private fun withoutIdentity(note: JSONObject): JSONObject {
@@ -381,6 +381,14 @@ object Importing {
         copy.remove("uid")
         return copy
     }
+
+    /**
+     * A copy asked for, of a note here ("Add as a new note", "Add a copy anyway"): without its
+     * identity, nor its rescue copy, which stays with the note it was made for, as a
+     * Duplicate's does and the desktop's `_without_identity` drops it. Kept, "↩ Restore
+     * previous" put the original's older words over a note made now.
+     */
+    private fun asCopy(note: JSONObject): JSONObject = withoutIdentity(note).apply { remove("_prev") }
 
     /**
      * Writes what the answers agreed to. [attachmentsDir] is this notebook's
@@ -715,7 +723,7 @@ object Importing {
             toAdd = kept
         }
         toAdd = toAdd + keptSeparate(plan, answers.update)
-        val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
+        val copies = if (answers.copyUnchanged) plan.unchanged.map { asCopy(it.theirs) } else emptyList()
         val newIds = Organizing.ids(candidate)
         for (incoming in toAdd + copies) {
             // A backup's note keeps its rescue copy ("↩ Restore previous"), as
@@ -1036,16 +1044,21 @@ object Importing {
     ): Int {
         if (theirs == null) return 0
         val mine = settings.opt(key) as? JSONObject ?: JSONObject()
+        // A day is decorated here only by a mark this phone shows, as the desktop's store,
+        // cleaned at every start: one it cannot read neither holds the day nor counts.
+        fun shown(day: String) = Days.isCalendarDay(day) && clean(mine.opt(day)) != null
+        var held = mine.keys().asSequence().count { shown(it) }
         var added = 0
         for (day in theirs.keys()) {
             // Real days only, and no more than the calendar keeps: the
             // desktop's _take_day_decorations. 700,000 keys that were no
             // dates came in whole, read again at every month drawn.
-            if (mine.length() >= Days.MAX_DAY_DECORATIONS) break
-            if (mine.has(day) || !Days.isCalendarDay(day)) continue
+            if (held >= Days.MAX_DAY_DECORATIONS) break
+            if (shown(day) || !Days.isCalendarDay(day)) continue
             val value = clean(theirs.opt(day)) ?: continue
             mine.put(day, value)
             added += 1
+            held += 1
         }
         if (added > 0) settings.put(key, mine)
         return added

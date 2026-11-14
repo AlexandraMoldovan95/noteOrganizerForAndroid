@@ -46,6 +46,10 @@ class AppStateTest {
         assertFalse(s.report(Notebook.createNote(s.load, "New", "words")))
         assertEquals("Not saved: the phone's storage refused the write.", s.snackbar.currentSnackbarData?.visuals?.message)
         s.snackbar.currentSnackbarData?.dismiss()
+        // ...and the editor's own refusals end the bare cause the same way.
+        s.sayNotSaved(Files.STORAGE_FULL)
+        assertEquals("Not saved: the phone's storage is full.", s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData?.dismiss()
         // The refused write took its empty .tmp folder away with it.
         File(s.dir, "notes_data.json.tmp").mkdir()
         val day = Days.setRepeat(s.load, 1, null) as SaveResult.Failed

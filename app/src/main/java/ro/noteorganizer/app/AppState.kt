@@ -448,6 +448,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** Why a write was refused, said: a bare cause ("the phone's storage is full") said nothing of what went unsaved. */
     fun sayRefused(reason: String) = say(if (Files.bareCause(reason)) "Not saved: $reason." else reason)
 
+    /** The editor's own refusals, which always say "Not saved:": a bare cause in sayRefused's words. */
+    fun sayNotSaved(why: String) = say(if (Files.bareCause(why)) "Not saved: $why." else "Not saved: $why")
+
     /** A message, [long] for one with more to read than a glance takes. */
     fun say(message: String, long: Boolean = false) {
         scope.launch {
