@@ -133,17 +133,25 @@ object Backup {
      */
     fun export(dir: File, scratch: File, open: () -> OutputStream?): Int = written(dir, scratch, open).files
 
-    /** What [export] wrote: how many files, and whether the notes file went in as notes. */
-    internal data class Written(val files: Int, val notesUnread: Boolean)
+    /**
+     * What [export] wrote: how many files; whether the notes file went in kept aside,
+     * not as notes ([notesUnread]); and whether it went in as it is, unread at the
+     * start and too large to check ([notesUnchecked]).
+     */
+    internal data class Written(val files: Int, val notesUnread: Boolean, val notesUnchecked: Boolean = false)
 
     internal fun written(dir: File, scratch: File, open: () -> OutputStream?,
                          heap: Long = Runtime.getRuntime().maxMemory()): Written {
         // A notes file the start could not read stays on disk, damaged, until the first
-        // save: packed as it was, neither app read the backup back. Read once, what this
-        // run holds of it (nothing) goes in its place, its bytes in the folder kept for them.
+        // save: packed as it was, neither app read the backup back. Only that file is
+        // checked, read once; one the start read is the app's own, and goes in untouched.
         val notesFile = File(dir, NOTES)
-        val notesBytes = if (notesFile.isFile && notesFile.length() <= jsonCeiling(heap))
-            Files.readBytesOf(notesFile) else null
+        val unreadHere = notesFile.isFile && Files.unreadAtLoad(notesFile)
+        val notesBytes = if (unreadHere && notesFile.length() <= jsonCeiling(heap)) try {
+            opened(notesFile) { Files.readBytesOf(it) }
+        } catch (e: OutOfMemoryError) {
+            null
+        } else null
         val notesUnread = notesBytes != null && try {
             Files.parseOutside(Files.utf8(notesBytes)) { JSONArray(it) }
             false
@@ -164,14 +172,18 @@ object Backup {
         dir.listFiles()?.filter { it.isFile && KEPT_ASIDE.matches(it.name) }?.sortedBy { it.name }?.forEach {
             entries.add(it to "$UNREADABLE/${it.name}")
         }
-        val keptAsideNotes = entries.any { it.second.startsWith("$UNREADABLE/notes_data_") }
+        // This file's own copy, not an older one's from an earlier damage.
+        val keptAsideNotes = notesBytes != null && entries.any { (file, name) ->
+            name.startsWith("$UNREADABLE/notes_data_") && file.length() == notesBytes.size.toLong() &&
+                Files.readBytesOf(file).contentEquals(notesBytes)
+        }
         val tmp = File(scratch, "backup_export.zip.tmp")
         try {
             ZipOutputStream(FileOutputStream(tmp)).use { zip ->
                 for ((file, name) in entries) {
                     zip.putNextEntry(ZipEntry(name))
                     when {
-                        name != NOTES || notesBytes == null -> file.inputStream().use { copyUpTo(it, zip) }
+                        name != NOTES || notesBytes == null -> opened(file) { it.inputStream() }.use { copyUpTo(it, zip) }
                         notesUnread -> zip.write("[]".toByteArray())
                         else -> zip.write(notesBytes)
                     }
@@ -193,7 +205,7 @@ object Backup {
                 tmp.inputStream().use { copyUpTo(it, stream) }
                 stream.flush()
             }
-            return Written(entries.size, notesUnread)
+            return Written(entries.size, notesUnread, notesUnchecked = unreadHere && notesBytes == null)
         } finally {
             tmp.delete()
         }
@@ -205,9 +217,11 @@ object Backup {
          * Written. [tooLarge] says why this phone could not read it back at
          * once ([memoryProblem]) -- a notebook that grew past what the import
          * reads, which the desktop can still restore -- or is null.
-         * [notesUnread]: the notes file did not read, and went in kept aside.
+         * [notesUnread]: the notes file did not read, and went in kept aside;
+         * [notesUnchecked]: unread at the start, it went in as it is, too large to check.
          */
-        data class Saved(val files: Int, val tooLarge: String?, val notesUnread: Boolean = false) : Export()
+        data class Saved(val files: Int, val tooLarge: String?, val notesUnread: Boolean = false,
+                         val notesUnchecked: Boolean = false) : Export()
         data class Failed(val reason: String) : Export()
     }
 
@@ -226,7 +240,7 @@ object Backup {
             val written = written(dir, scratch, { open()?.also { opened = true } }, heap)
             val sizes = listOf(NOTES, SETTINGS, TEMPLATES, TRASH).map { File(dir, it) }.filter { it.isFile }
                 .map { Entry(it.name, it.length(), it.length()) }
-            Export.Saved(written.files, memoryProblem(sizes, heap), written.notesUnread)
+            Export.Saved(written.files, memoryProblem(sizes, heap), written.notesUnread, written.notesUnchecked)
         } catch (e: Exception) {
             if (opened || emptyPlace()) {
                 try {
@@ -236,6 +250,13 @@ object Backup {
             }
             Export.Failed(e.message ?: e.toString())
         }
+    }
+
+    /** A notebook file opened for the backup, or the words for one refused: the system's own named a private path. */
+    private fun <T> opened(file: File, open: (File) -> T): T = try {
+        open(file)
+    } catch (e: IOException) {
+        throw IOException("${file.name} could not be opened just now, so nothing was written. Try again in a moment.")
     }
 
     /** What a backup held, once unpacked. */

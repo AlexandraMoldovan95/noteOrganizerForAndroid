@@ -78,6 +78,8 @@ object Importing {
          * note here lacks: "nothing this device lacks" was untrue of them.
          */
         val newer: Int = 0,
+        /** The names the notes were compared under, or null for the notes as they came. */
+        val categories: Set<String>? = null,
     )
 
     /** The answers, one per question the plan raised. */
@@ -226,7 +228,7 @@ object Importing {
                 if (unknownFieldsLacked(there, here)) newer += 1
             }
         }
-        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer)
+        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer, categories)
     }
 
     /**
@@ -272,7 +274,7 @@ object Importing {
      */
     fun lookAlikes(notebook: JSONArray, plan: Plan, update: Boolean): Int {
         val keys = notebookKeys(notebook, plan, update)
-        return remaining(plan, update).count { keyOf(it) in keys }
+        return remaining(plan, update).count { keyOf(it, plan.categories) in keys }
     }
 
     /**
@@ -309,13 +311,15 @@ object Importing {
         val keys = HashSet<String>()
         for (i in 0 until notebook.length()) {
             if (i in replaced) continue
-            (notebook.opt(i) as? JSONObject)?.let { keys.add(keyOf(it)) }
+            (notebook.opt(i) as? JSONObject)?.let { keys.add(keyOf(it, plan.categories)) }
         }
-        if (update) plan.differing.forEach { keys.add(keyOf(it.theirs)) }
+        if (update) plan.differing.forEach { keys.add(keyOf(it.theirs, plan.categories)) }
         return keys
     }
 
-    private fun keyOf(note: JSONObject): String = Normalize.dupKey(Normalize.normalizeNote(note))
+    /** The duplicate key of [note] as it will be kept: under General where [categories] lack its name. */
+    private fun keyOf(note: JSONObject, categories: Set<String>?): String = Normalize.dupKey(Normalize.normalizeNote(
+        if (categories == null || !needsFiling(note, categories)) note else fileUnder(JSONObject(note.toString()), categories)))
 
     /**
      * [plan] against the list as it is now ([at], from [positions]). A note
@@ -373,6 +377,42 @@ object Importing {
         }
     }
 
+    /** The map an import files by, how many names it adds, and those it refuses. */
+    internal data class Merged(val map: LinkedHashMap<String, String>, val added: Int, val refused: MutableSet<String>)
+
+    /**
+     * The categories after an import: this notebook's, the backup's settings' added
+     * (a name here keeps its colour; one the loader would drop refused whole), then
+     * those [arriving] notes are filed under where those settings lack them, as the
+     * desktop's adopt_categories_of. The plan compares by its names and apply files
+     * by them: planned with this notebook's alone, a note refiled there under General
+     * read as unchanged, was skipped, and its category came back empty.
+     */
+    internal fun merged(here: Map<String, String>, theirs: JSONObject?, arriving: List<JSONObject>): Merged {
+        val categories = LinkedHashMap(here)
+        var added = 0
+        val refused = LinkedHashSet<String>()
+        theirs?.let {
+            var seen = 0
+            for (key in it.keys()) {
+                if (seen++ >= Settings.MAX_CATEGORIES) break
+                val colour = Notebook.sanitizeColor(it.opt(key) as? String ?: "")
+                val name = PyText.strip(key)
+                if (name.isEmpty() || colour.isEmpty() || name in categories) continue
+                if (Settings.categoryNameRefusal(name, categories) != null) {
+                    refused.add(name)
+                    continue
+                }
+                categories[name] = colour
+                added += 1
+            }
+        }
+        if (arriving.isNotEmpty()) {
+            added += Settings.adoptCategoriesOf(categories, JSONArray().apply { arriving.forEach { put(it) } }, refused)
+        }
+        return Merged(categories, added, refused)
+    }
+
     private fun applyWhole(
         load: Notebook.Load,
         planned: Plan,
@@ -389,37 +429,13 @@ object Importing {
         val now = Files.now()
         val settings = load.settings
 
-        // 1. The backup's categories, added -- a name already here keeps
-        //    its own colour -- and refused whole where the loader would drop
-        //    them on the next start.
-        val categories = LinkedHashMap(load.categories)
-        var addedCategories = 0
-        val refusedNames = LinkedHashSet<String>()
-        extras.categories?.let { theirs ->
-            var seen = 0
-            for (key in theirs.keys()) {
-                if (seen++ >= Settings.MAX_CATEGORIES) break
-                val colour = Notebook.sanitizeColor(theirs.opt(key) as? String ?: "")
-                val name = PyText.strip(key)
-                if (name.isEmpty() || colour.isEmpty() || name in categories) continue
-                if (Settings.categoryNameRefusal(name, categories) != null) {
-                    refusedNames.add(name)
-                    continue
-                }
-                categories[name] = colour
-                addedCategories += 1
-            }
-        }
-        // ...and those a backup's notes are filed under where its settings lack them
-        // (a settings.json left out, damaged, or never written by this phone's start),
-        // believed as the start believes them: the desktop's adopt_categories_of.
-        if (planned.source == Source.BACKUP) {
-            val arriving = JSONArray()
-            for (note in planned.fresh + planned.differing.map { it.theirs } + planned.unchanged.map { it.theirs }) {
-                arriving.put(note)
-            }
-            addedCategories += Settings.adoptCategoriesOf(categories, arriving, refusedNames)
-        }
+        // 1. The categories, as the plan was made with them ([merged]).
+        val merged = merged(load.categories, extras.categories,
+            if (planned.source == Source.BACKUP) planned.fresh + planned.differing.map { it.theirs } +
+                planned.unchanged.map { it.theirs } else emptyList())
+        val categories = merged.map
+        var addedCategories = merged.added
+        val refusedNames = merged.refused
 
         // The files already spoken for, by a note or a Trash entry here. A
         // note arriving with one of them gets a copy of its own.
@@ -473,7 +489,7 @@ object Importing {
         var duplicatesSkipped = 0
         if (answers.skipDuplicates) {
             val keys = notebookKeys(notebook, plan, answers.update)
-            val kept = toAdd.filter { keyOf(it) !in keys }
+            val kept = toAdd.filter { keyOf(it, plan.categories) !in keys }
             duplicatesSkipped = toAdd.size - kept.size
             toAdd = kept
         }
@@ -561,10 +577,16 @@ object Importing {
                 (trash.opt(i) as? JSONObject)?.let { seen.add(Normalize.contentSignature(Normalize.normalizeNote(it))) }
             }
             val out = JSONArray(trash.toString())
-            for (i in 0 until extras.trash.length()) {
-                val raw = extras.trash.opt(i) as? JSONObject ?: continue
-                val entry = Normalize.normalizeNote(raw)
-                entry.put("deleted_at", raw.opt("deleted_at") as? String ?: "")
+            fun shaped(raw: JSONObject) = Normalize.normalizeNote(raw).put("deleted_at", raw.opt("deleted_at") as? String ?: "")
+            val incoming = (0 until extras.trash.length()).mapNotNull { extras.trash.opt(it) as? JSONObject }
+            // The categories of the entries the window keeps, adopted before any is signed:
+            // a twin signed before its name was known read as General, and both came in.
+            addedCategories += Settings.adoptCategoriesOf(categories, JSONArray().apply {
+                incoming.filter { keepDays == null || !Organizing.isPast(shaped(it), keepDays) }.forEach { put(it) }
+            }, refusedNames)
+            for (raw in incoming) {
+                // One refused stays out of the map, under General, as normalize_note files it.
+                val entry = fileUnder(shaped(raw), categories.keys)
                 val signature = Normalize.contentSignature(entry)
                 if (signature in seen) continue
                 if (keepDays != null && Organizing.isPast(entry, keepDays)) {
@@ -574,8 +596,6 @@ object Importing {
                 // Only one brought in is a twin's original: an older one left out
                 // took its newer twin, unsaid, with it.
                 seen.add(signature)
-                // Its category kept in the map, as the notes' are above.
-                addedCategories += Settings.adoptCategoriesOf(categories, JSONArray().put(raw), refusedNames)
                 entry.put("attachments", placeFiles(entry.getJSONArray("attachments"), claimed,
                     attachmentsDir, extras.attachments))
                 out.put(entry)

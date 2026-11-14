@@ -48,7 +48,7 @@ object ReminderAlarm {
      * or, they not read, at the default hour -- a restart clears an app's
      * alarms, so "the one set before" kept none, and the daily notification
      * stopped unsaid. Fired over settings still unread, it posts nothing. A new
-     * clock or time zone clears none: the one set at the person's hour stays.
+     * clock clears none, and the one set at the person's hour stays.
      */
     fun rearm(context: Context, action: String? = null) {
         val settings = settingsOf(context)

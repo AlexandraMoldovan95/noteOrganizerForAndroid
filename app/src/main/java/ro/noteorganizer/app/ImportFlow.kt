@@ -459,7 +459,11 @@ fun importMessage(o: Importing.Outcome): String {
             "removed ${if (many) "them" else "it"}. The backup still holds ${if (many) "them" else "it"}.")
     }
     if (o.refusedCategories > 0) {
-        parts.add("${o.refusedCategories} categories could not be added, so their notes are in General.")
+        // Why, as the desktop says it: "1 categories" told nothing a person could change.
+        val one = o.refusedCategories == 1
+        parts.add("${o.refusedCategories} ${if (one) "category" else "categories"} could not be added (a name " +
+            "over ${Settings.MAX_CATEGORY_NAME} characters, or more than ${Settings.MAX_CATEGORIES} categories in " +
+            "all), so ${if (one) "its" else "their"} notes are in General.")
     }
     // As the desktop says it after a save, in the same words.
     if (o.earlierText > 0) {

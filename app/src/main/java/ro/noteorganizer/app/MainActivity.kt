@@ -442,8 +442,9 @@ fun AppRoot(state: AppState, version: String) {
             when (result) {
                 // Holding no notes as notes, it is not remembered as the notebook's
                 // backup: the desktop's backup of a session alone, said so.
-                is Backup.Export.Saved -> if (result.notesUnread) {
-                    state.say(context.getString(R.string.export_done_notes_unread), long = true)
+                is Backup.Export.Saved -> if (result.notesUnread || result.notesUnchecked) {
+                    state.say(context.getString(if (result.notesUnread) R.string.export_done_notes_unread
+                                                else R.string.export_done_notes_unchecked), long = true)
                 } else {
                     state.putSetting(Settings.LAST_EXPORT_AT,
                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
@@ -678,13 +679,14 @@ fun AppRoot(state: AppState, version: String) {
             confirm = stringResource(R.string.continue_label),
             onConfirm = {
                 askBackup = null
-                val theirs = contents.extras().categories?.keys()?.asSequence()?.toSet() ?: emptySet()
                 // The list as it is now, taken here: a save made meanwhile
                 // puts a new object in the live list rather than change one.
                 val notebook = org.json.JSONArray().also { copy ->
                     state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
                 }
-                val categories = state.load.categories.keys + theirs
+                // The names apply files by, adopted ones included (Importing.merged).
+                val categories = Importing.merged(state.load.categories, contents.extras().categories,
+                    contents.notes).map.keys
                 // Worked out away from the screen: the plan, and how many look like
                 // notes here, which normalizes every note of both notebooks -- 1.3 s
                 // with the screen held still, a thousand notes each side.
