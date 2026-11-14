@@ -152,7 +152,7 @@ object Settings {
         // Held this run, its marks stand all run, as the desktop's defaults do:
         // read for real later, the Trash page said "Kept for 30 days" over chips
         // that refused, and the start purged nothing.
-        if (Files.writesHeld(file)) return Load(file, marks, Files.heldReason(file))
+        if (Files.writesHeld(file)) return Load(file, marks, Files.ended(Files.heldReason(file)))
         val parsed = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {

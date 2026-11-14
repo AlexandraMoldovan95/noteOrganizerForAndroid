@@ -356,7 +356,7 @@ object Backup {
     fun unreadable(e: Throwable, into: File): String =
         if (Files.storageFull(e)) NO_ROOM
         else "That file couldn't be read as a backup:\n" +
-            Files.said(e, into.parentFile?.parentFile ?: into, "the phone could not copy or unpack it")
+            Files.ended(Files.said(e, into.parentFile?.parentFile ?: into, "the phone could not copy or unpack it"))
 
     /**
      * Reads the backup [zip] into the empty folder [into]: guarded, then
