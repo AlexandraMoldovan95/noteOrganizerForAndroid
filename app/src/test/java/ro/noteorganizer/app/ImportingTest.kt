@@ -971,6 +971,31 @@ class ImportingTest {
     }
 
     @Test
+    fun `the import's words read whole, every part in its one and its many form`() {
+        fun said(n: Int) = importMessage(Importing.Outcome(added = n, updated = n, unchangedSkipped = n,
+            duplicatesSkipped = n, addedCategories = n, refusedCategories = n, restoredDays = n, addedTemplates = n,
+            addedTrash = n, earlierText = n, filesOnly = n, filesGiven = n, trashLeftOut = n, keepDays = 30))
+        assertEquals("Added 1 note. Updated 1 you already had (“↩ Restore previous” undoes each one). " +
+            "1 you already had took attached files this device lacked. " +
+            "1 attached file went to the notes the skipped ones look like. " +
+            "1 was already here, unchanged, and was skipped. 1 duplicate skipped. " +
+            "Also restored 1 category and 1 calendar day marking and 1 template and 1 trashed note. " +
+            "1 of the backup's trashed notes was not brought in: older than the 30 days this phone's Trash keeps " +
+            "notes, the next start would have removed it. The backup still holds it. " +
+            "1 category could not be added (a name over 80 characters, or more than 200 categories in all), so its " +
+            "notes are in General. Earlier text of 1 day of a repeating note kept as notes of their own.", said(1))
+        assertEquals("Added 2 notes. Updated 2 you already had (“↩ Restore previous” undoes each one). " +
+            "2 you already had took attached files this device lacked. " +
+            "2 attached files went to the notes the skipped ones look like. " +
+            "2 were already here, unchanged, and were skipped. 2 duplicates skipped. " +
+            "Also restored 2 categories and 2 calendar day markings and 2 templates and 2 trashed notes. " +
+            "2 of the backup's trashed notes were not brought in: older than the 30 days this phone's Trash keeps " +
+            "notes, the next start would have removed them. The backup still holds them. " +
+            "2 categories could not be added (a name over 80 characters, or more than 200 categories in all), so " +
+            "their notes are in General. Earlier text of 2 days of a repeating note kept as notes of their own.", said(2))
+    }
+
+    @Test
     fun `an import stopped by a held file says its reason once, not inside another sentence`() {
         // "settings.json could not be written: settings.json could not be read or copied aside…".
         val first = notebook("[]", settings = """{"theme": "dark"}""")

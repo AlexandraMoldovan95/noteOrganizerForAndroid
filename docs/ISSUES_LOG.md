@@ -1127,7 +1127,8 @@ over the sheet's own Save, which its tests replay by hand; each says
 "Automated in part" now and names the hand's part. And the sentence
 the round before wrote, that the final audit's script-only rows wait
 for the release run, was untrue of sixteen rows the runs of the unit
-tests and of the walk on 13 November filled in as Pass under a build
+tests and of the emulator scripts (the walk, and `older_android.py`) on
+13 November filled in as Pass under a build
 "wave 6" that no screen shows: they name 0.14.2 (wave 6 audit build)
 now, and the sentence, on the How to use tab and in qa/README, says how
 such rows are filled in and that the release runs them again. Its first
@@ -1135,12 +1136,13 @@ agent found the same, and, low: cases 521 and 527 said "in part" and
 "Not a hand check" both, which the new definition did not allow (they
 say what no one walks now, and the tab defines "Not walked"); 525 named
 two mutants that guard another case; the import's words in their
-other one and many forms were read by no test (they are now); and
+other one and many forms were read by no test (some were then, every
+form since the round after); and
 ARCHITECTURE and qa/README named too few of the suites that reach the
-drawing side. The lows: 144 rows named mutants the catalogue
-never kept without saying so (it began at AS260; the round-8 sentence
-that every such row says so was not true), and each says so now, from
-the catalogue itself; case 336 called AS267 not kept, which is; 367
+drawing side. The lows: the rows naming mutants the catalogue never
+kept, most without saying so (it began at AS260; the round-8 sentence
+that every such row says so was not true), say so now, from the
+catalogue itself (two, 260 and 323, since the round after); case 336 called AS267 not kept, which is; 367
 left out AS309; 414 named its fixture entry by a number that is
 another's; 451 and 452 named no test; 447 named a walk part that does
 not exist; 431, 443, 471 and 313 claimed more than their tests read;
@@ -1148,6 +1150,34 @@ not exist; 431, 443, 471 and 313 claimed more than their tests read;
 repository. Left, with its reason: the other plain "Automated (JVM)"
 rows of the editor's, pasting's and days' tests were not traced from
 the screen to the model; the next rounds read the cases before 250.
+
+The thirty-sixth round read the cases before 250 and found the class
+there too (mediums): fifteen cases of 0.9.1 named only that day's runs,
+"unit tests 660/660 and the emulator walk 256/256", over steps no check
+of their own walks (22 and 24's "Add as a new note", 41's colour, date
+and pin, 45's Empty Trash, 59's "+ Add note", 61's History search, 65's
+Reset this day, 91's Undo, 147's offered Undo, 26's and 127's words, and
+the lows 3, 13, 109 and 110), and Claude had marked them Pass from those
+runs. Each says "Automated in part" now, or "Not walked", and names the
+hand's part; and since a Pass says the Expected Result was seen, they
+went back to Not Tested, the run kept in Actual Result. So did 505,
+whose walk part taps without reading the Undo bar it promises (round 34
+had left it). Cases 191, 201 and 214 said "Nothing for a person to
+walk", "Optional hand check" and "A hand check can follow these steps"
+over roads nothing reaches (two of 191's three, a change of language,
+the Repeat sheet's own Save). And the How to use tab and qa/README said
+rows only scripts reach are filled in as Pass by a recorded run, where
+most stay Not Tested and three were marked Pass by hand: they say now
+who records a row's result, and that a Pass by Claude stands only where
+the scripts walked all of the case. The lows: 171, 172, 179, 241 and
+244 say what is left to the hand; 260 and 323 say their mutants were
+not kept; 180 spells its range out; 209 says which of its range guarded
+other cases; every form of the import's words is read whole
+(ImportingTest; AS873, AS874), as case 533's step 4 reads them; qa/README
+names what `AppStateTest` and `EditorTableTest` reach of the drawing
+side, and the never-kept mutants from AS1. Left, with its reason: the
+other cases of 0.9.1 that name only that day's runs were read by
+sampling; the next round reads each.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

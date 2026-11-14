@@ -40,9 +40,9 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,093 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+1,094 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
 `DaysTest` (77), `AppStateTest` (74), `TablesTest` (72), `OrganizingTest` (63),
-`ImportingTest` (61), `RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47),
+`ImportingTest` (62), `RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47),
 `IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
 `ParagraphsTest` (33), `EditorTypingTest` (32), `BackupTest` (29), `SettingsTest` (29),
 `TemplatesTest` (23), `ListingTest` (22), `FindingTest` (20), `EditorTableTest` (16),
@@ -62,7 +62,10 @@ leaves its separator's widths behind — in a note, in a day of a series,
 and never in the app's own copy; three suites reach that side for one
 piece each (`OutgoingTest` an `AppState`, `NotebookTest` `RichText`'s
 drawing of a body, `ImportingTest` the import's result words,
-`importMessage`). `TempPlaceTest` checks the run itself:
+`importMessage`); and, beside `AppState`, `AppStateTest` reaches the
+import's finish (`finishImport`), the messages' `MessagesShown` and the
+welcome note's `showWelcome`, and `EditorTableTest` the table's
+`ActiveCell`. `TempPlaceTest` checks the run itself:
 its temporary folders made under `app/build/`, which each run empties
 first, and never left in the system's temp folder (30,640 were, by
 2026-10-23).
@@ -148,8 +151,9 @@ unpacks a commit into a folder of its own and mutates that. Its catalogue,
 began that still aim at today's code -- 286 on 8 November 2026, 266 judged
 by a unit test and 20 by a part of the walk; 97 more written during the
 audit aimed at code that has changed since, and went; and the first ones,
-AS58 to AS259, written in its first seven rounds before the catalogue
-began, were never kept (each plan row naming one says so). The unit ones were
+AS1 to AS259, written in its first seven rounds before the catalogue
+began at AS260 in the eighth, were never kept (each plan row naming one
+says so). The unit ones were
 first run all together that day: 257 of 263 as the catalogue said. Of the
 six others, two had been re-aimed while it ran; four had lost their test to
 a later fix, and were given one or, where two guards now overlap, marked
@@ -461,10 +465,15 @@ own buttons, which the walk can photograph but not press.
 Nothing is ever deleted from the plan. A case that gets automated keeps
 its row and gains a note saying so; one folded into another, or about a
 feature that is gone, moves to Merged cases with the case that took its
-place. Rows only scripts reach are filled in as Pass by a recorded run of
-those scripts, with its build and date (some of those the final audit
-added, by its runs of the unit tests and of the walk on 12 and 13
-November, on the builds named), and are run again
-at the release; until a run they stay Not Tested. A row that needs a
-person stays Not Tested until she runs it, whatever the scripts already
-cover.
+place. A row's Status, Build, Tested By and Test Date say who recorded
+its result, on which build: no run of the scripts writes them in by
+itself. A Pass by Claude stands only where the scripts walked all of the
+case; rows the final audit added were filled in that way from its runs
+of the unit tests and of the emulator scripts (the walk, and
+`older_android.py`) on 13 November, on the builds named, and most other
+rows only scripts reach are Not Tested until the release's runs fill
+them in. A row that needs a person stays Not Tested until she runs it,
+whatever the scripts already cover; fifteen rows Claude had marked Pass
+from the runs of 0.9.1, and one (505) from the walk of 13 November,
+whose scripts walked only part of them, went back to Not Tested in the
+final audit, the run kept in Actual Result.
