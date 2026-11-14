@@ -474,8 +474,9 @@ case, on the build named; none stands now. Seventy rows Claude had
 marked Pass from runs whose scripts walked only part of them went back
 to Not Tested in the final audit (fifty-two of 0.9.1, one of 0.10.0,
 one of 12 November and sixteen of 13 November), and so did the
-twenty-six it had marked Pass on 0.9.1 whose checks, named today, were
-partly written after that run; each keeps its run in Actual Result, and
+twenty-six it had marked Pass on 0.9.1 (one, 150, on 0.9.0) whose
+checks, named today, were partly written after that run; each keeps its
+run in Actual Result, the automation column names no run's date, and
 the release's runs fill in the rows only scripts reach. A row that
 needs a person stays Not Tested until she runs it (or a check she
 allowed a script to make on her phone walks it, as Tested By then

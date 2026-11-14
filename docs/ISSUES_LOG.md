@@ -1250,21 +1250,39 @@ The fortieth round read the walk-named rows from 154 on against the
 walk's code, one by one (mediums): sixty-one of 132 said "Automated"
 where the walk covers only part (a tablet on its side, a tick a drag
 might change, Find never opened in a big table, "Show 200 of them"
-never tapped, a midnight never waited for, a release build no committed
+never tapped, an old bar's going at midnight never seen, a release build no committed
 script runs), and each says "Automated in part" now and names what is
-left. Its first agent found the twenty-six Pass rows of 0.9.1 naming
-walk checks written after that run (7's search without diacritics was
-added on 3 November), and two of them walked in part (92's column made
-wider once, not twice; 96's copy and paste pressed as keys, never from
-the selection menu, as 97 says of its own paste): every Pass by Claude
-went back to Not Tested, its run kept in Actual Result, and the
-automation column says what today's checks cover, with no run date
-beside it. The lows: 25, 17, 64, 143 and 43 name what is left; 57, 78,
+left. Its first agent found the twenty-six Pass rows of 0.9.1 (150 of
+0.9.0), several naming walk checks written after that run (7's search
+without diacritics was added on 3 November), and two of them walked in
+part (92's column made wider once, not twice; 96's copy and paste
+pressed as keys, never from the selection menu, as 97 says of its own
+paste): every Pass by Claude went back to Not Tested, its run kept in
+Actual Result, and those rows say what today's checks cover, with no run
+date beside them (every row since the round after). The lows: 25, 17, 64, 143 and 43 name what is left; 57, 78,
 111 and 153 say exactly what their checks do; 112 keeps its run's
 words. Left, with its reason: the walk's own check "…and the bullet on
 its line" (case 217) passes on a list entry neither app draws, since
 the walk types before the bullet; changing the walk is checked only by
 a full walk, which the release's final verification runs.
+
+The forty-first round read again every row still called fully
+automated (106) and found sixteen walked only in part (mediums): the
+walk presses Ctrl+V, Ctrl+A and Ctrl+End where a person uses the
+selection menu or a tap (173, 182, 185, 288, 333, 341, 352), 78's
+"closing asks" reaches only a list with no room left, and 23, 151, 158,
+440, 478, 484 and 526 leave a part of their expected result unread.
+Each says "Automated in part" now and names it. Its first agent found
+sixty rows still naming the runs of 0.9.1 beside walk steps that run
+did not have (6, 42, 45, 49, 58, 60 among them): the run dates went
+from every claim of the column, whose history is in each row's Actual
+Result, and the eye rows walked whole name their walk part. 7 (its
+Romanian search, by no walk part) and 148 ("Added 1 note." on screen)
+were walked only in part; 25, 143, 232, 250, 252, 266, 269, 293, 302,
+317, 320, 358 and 467 name all they leave (an import the walk stands in
+for by writing the file, the selection menu, the phone on its side);
+217, 175, 17, 57 and 450 give the right reason; 37 names the test that
+makes its copy.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
