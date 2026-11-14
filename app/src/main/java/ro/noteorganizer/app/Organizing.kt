@@ -152,14 +152,21 @@ object Organizing {
         clone.put("id", ids(array).next())
         val atts = clone.getJSONArray("attachments")
         val fresh = JSONArray()
+        val made = ArrayList<String>()
         for (i in 0 until atts.length()) {
             val att = atts.getJSONObject(i)
             val copy = attachmentsDir?.let { Importing.copyAttachment(it, att.optString("stored_as")) }
+            copy?.let { made.add(it) }
             fresh.put(if (copy != null) JSONObject(att.toString()).put("stored_as", copy) else att)
         }
         clone.put("attachments", fresh)
         val candidate = JSONArray(array.toString()).put(clone)
-        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        // Refused (a nearly full phone), the copies are taken back, as Attach's:
+        // left, they took room on the phone whose fullness refused the write.
+        write(file, candidate)?.let { problem ->
+            attachmentsDir?.let { dir -> made.forEach { File(dir, it).delete() } }
+            return SaveResult.Failed(problem)
+        }
         replace(array, candidate)
         return SaveResult.Ok(clone.getInt("id"))
     }
@@ -293,6 +300,7 @@ object Organizing {
         if (going.isEmpty()) return SaveResult.Failed("Tick the duplicates you want to remove first.")
         val candidate = JSONArray(array.toString())
         var grew = false
+        val made = ArrayList<String>()
         for (group in groups) {
             if (group.none { it in going }) continue
             val keptAt = group.firstOrNull { it !in going }?.let { indexOfId(candidate, it) }?.takeIf { it >= 0 } ?: continue
@@ -320,12 +328,17 @@ object Organizing {
                     // the Trash, never shared with one the purge will empty.
                     val copy = attachmentsDir?.let { Importing.copyAttachment(it, stored) } ?: continue
                     merged.put(JSONObject(att.toString()).put("stored_as", copy))
+                    made.add(copy)
                     grew = true
                 }
             }
         }
         if (grew) {
-            write(file, candidate)?.let { return SaveResult.Failed(it) }
+            // Refused, the copies are taken back, as Duplicate's and Attach's.
+            write(file, candidate)?.let { problem ->
+                attachmentsDir?.let { dir -> made.forEach { File(dir, it).delete() } }
+                return SaveResult.Failed(problem)
+            }
             replace(array, candidate)
         }
         return trashNotes(load, going)

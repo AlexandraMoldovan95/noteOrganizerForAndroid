@@ -108,18 +108,18 @@ object Templates {
     }
 
     /**
-     * Whether [dir]'s templates file is there but gives no templates for
-     * failing to read now (refused, not parsing, or a list of nothing a
-     * template can be made of, which [load] sets aside): an empty list is
-     * then no answer to "do I have any". Asked of the file, not of a hold: a
-     * `[]` held since an earlier refusal read fine and was said unreadable.
+     * Asked when [load] gave no templates: whether [dir]'s file is there and
+     * holds some all the same (refused, not parsing, or a list [load] could
+     * not use), so an empty list is no answer to "do I have any". Asked of
+     * the file, not of a hold: a `[]` held since an earlier refusal read fine
+     * and was said unreadable; and any entry counts, as a read refused at
+     * [load] and allowed here found templates and said there were none.
      */
     fun unreadable(dir: File): Boolean {
         val file = File(dir, Backup.TEMPLATES)
         if (!file.exists()) return false
         return try {
-            val data = Files.parseOwn(file) { JSONArray(it) }
-            data.length() > 0 && (0 until data.length()).none { data.opt(it) is JSONObject }
+            Files.parseOwn(file) { JSONArray(it) }.length() > 0
         } catch (e: Exception) {
             true
         }
@@ -244,10 +244,13 @@ object Templates {
                 try { Files.parseOwn(file) { JSONObject(it) } } catch (e2: Exception) { null }
             } else null
             if (again == null) {
-                Files.preserveCorrupt(file)
-                return null
-            }
-            again
+                // The copy's own read got through: a good draft after all, offered,
+                // not left where nothing offers it.
+                val kept = Files.preserveCorrupt(file) ?: return null
+                val fromCopy = runCatching { Files.parseOwn(kept) { JSONObject(it) } }.getOrNull() ?: return null
+                kept.delete()
+                fromCopy
+            } else again
         }
         val fields = json.opt("fields") as? JSONObject ?: return null
         return Draft(json.opt("edits") as? String, fields, json.opt("waiting") as? String ?: "")

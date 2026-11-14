@@ -1173,6 +1173,14 @@ object Notebook {
      * only when it exists, cannot be read AND could not be copied aside.
      */
     private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
+        // Held this run, it reads as held all run, as settings do and as the
+        // desktop's: read for real later, the Trash page listed what it refused.
+        if (file.isFile && Files.writesHeld(file)) {
+            Files.markUnread(file)
+            problems.add("$what could not be opened, so nothing will be written over it " +
+                "until the app is closed and opened again.")
+            return null
+        }
         var refused = false
         val parsed = if (!file.isFile) JSONArray() else try {
             Files.parseOwn(file) { JSONArray(it) }

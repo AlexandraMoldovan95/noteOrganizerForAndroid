@@ -233,7 +233,11 @@ class MainActivity : ComponentActivity() {
                 state.resumed = resumed
                 state.backAgain?.invoke()
                 state.dayIs(Recurrence.formatDate(LocalDate.now()))
-                ReminderAlarm.schedule(this@MainActivity, state.settings)
+                // Held, the settings are their marks, notifications off among
+                // them: the answer is unknown, so the alarm set before stays.
+                if (state.load.settings?.let { Files.writesHeld(it.file) } != true) {
+                    ReminderAlarm.schedule(this@MainActivity, state.settings)
+                }
             }
             // And while the app is in front, the day turns at midnight, looked at once
             // a minute as the desktop's `_watch_the_day` does (a clock or zone changed

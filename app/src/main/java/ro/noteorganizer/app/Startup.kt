@@ -41,7 +41,7 @@ object Startup {
                 if (copyIn(older, dir, read)) {
                     lines.add("Your notebook was brought into the app's own storage.")
                 } else {
-                    lines.add("The notebook in the older folder could not be read, so it was left there.")
+                    lines.add("The notebook in the older folder could not be brought in, so it was left there.")
                     greet(dir)
                 }
             } else {
@@ -132,16 +132,22 @@ object Startup {
     private fun copyIn(from: File, to: File, read: (File) -> ByteArray): Boolean {
         val written = ArrayList<File>()
         try {
+            // A write refused stops it as a read refused does: its answer thrown
+            // away, the start said the notebook was brought in with files missing.
+            fun put(dest: File, bytes: ByteArray) {
+                Files.writeAtomic(dest, bytes)?.let { throw java.io.IOException(it) }
+                written.add(dest)
+            }
             for (name in FILES) {
                 val source = File(from, name)
-                if (source.isFile) File(to, name).let { Files.writeAtomic(it, read(source)); written.add(it) }
+                if (source.isFile) put(File(to, name), read(source))
             }
             val attachments = File(from, Backup.ATTACHMENTS)
             if (attachments.isDirectory) {
                 val target = File(to, Backup.ATTACHMENTS).apply { mkdirs() }
                 attachments.listFiles()?.filter { it.isFile }?.forEach { file ->
                     val dest = File(target, file.name)
-                    if (!dest.exists()) { Files.writeAtomic(dest, read(file)); written.add(dest) }
+                    if (!dest.exists()) put(dest, read(file))
                 }
             }
             return true

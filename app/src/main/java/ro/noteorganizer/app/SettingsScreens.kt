@@ -804,15 +804,23 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     val heldSaid = stringResource(R.string.trash_window_held)
     val heldBy = Organizing.windowHeldBy(load)
     val trashHeldSaid = stringResource(R.string.trash_window_trash_held)
+    // A held Trash reads empty: "The Trash is empty" and "Kept for N days" said
+    // what was not so, the chips refusing only after a tap.
+    val trashHeld = load.trashFile?.let { Files.writesHeld(it) } == true
     Column(Modifier.fillMaxSize()) {
         // The page's top scrolls with its list: held above it, it left a
         // phone on its side no room for one row, its buttons squeezed.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
             item(key = "\u0000trash-head") {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                    Text(if (known != null) stringResource(R.string.trash_window, known)
-                         else if (held) heldSaid else stringResource(R.string.trash_window_unknown),
-                         color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
+                    Text(when {
+                             held -> heldSaid
+                             trashHeld -> trashHeldSaid
+                             known != null -> stringResource(R.string.trash_window, known)
+                             else -> stringResource(R.string.trash_window_unknown)
+                         },
+                         color = if (known != null && !held && !trashHeld) palette.subtext else palette.dangerText,
+                         fontSize = 13.sp)
                     // The numbers alone did not say what they set; the desktop's
                     // dropdown carries the same words (2026-10-26).
                     Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
@@ -864,7 +872,8 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
             }
             if (entries.isEmpty()) {
                 item(key = "\u0000trash-empty") {
-                    Text(stringResource(R.string.trash_empty), color = palette.subtext, fontSize = 15.sp,
+                    Text(stringResource(if (trashHeld) R.string.trash_held_empty else R.string.trash_empty),
+                         color = palette.subtext, fontSize = 15.sp,
                          modifier = Modifier.padding(horizontal = 8.dp, vertical = 20.dp))
                 }
             }

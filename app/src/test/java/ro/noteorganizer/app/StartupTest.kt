@@ -108,6 +108,22 @@ class StartupTest {
     }
 
     @Test
+    fun `an older notebook whose copy cannot be written here is left there, not said brought in`() {
+        // Its writes' answers thrown away, the start said the notebook was
+        // brought in with its settings missing.
+        val older = temp("older")
+        File(older, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        File(older, "settings.json").writeText("""{"username": "Maria"}""")
+        val dir = File(temp("phone"), "notebook").apply { mkdirs() }
+        // A folder where the write's own .tmp goes: the settings' write is refused.
+        File(dir, "settings.json.tmp").mkdirs()
+        val notice = Startup.prepare(dir, older)!!
+        assertTrue(notice, notice.contains("could not be brought in"))
+        assertFalse(notice, notice.contains("brought into"))
+        assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
+    }
+
+    @Test
     fun `only a development build looks in the older folder`() {
         // A release build took in whatever was there: written by another app
         // on Android 8 to 10, or a file of 2 GB that stopped every start.
@@ -127,7 +143,7 @@ class StartupTest {
             if (f.name == "settings.json") throw OutOfMemoryError("File $f is too big to fit in memory.") else f.readBytes()
         }
         val notice = Startup.prepare(dir, older, read = tooLarge)
-        assertTrue(notice!!, notice.contains("could not be read"))
+        assertTrue(notice!!, notice.contains("could not be brought in"))
         val notes = JSONArray(File(dir, "notes_data.json").readText())
         assertEquals("a notebook that starts whole: the welcome note, not half the older one",
             Welcome.TITLE, notes.getJSONObject(0).getString("title"))

@@ -64,6 +64,32 @@ class OrganizingTest {
         val stored = copy.getJSONArray("attachments").getJSONObject(0).getString("stored_as")
         assertNotEquals("map.png", stored)
         assertEquals("MAP", File(attachments(load), stored).readText())
+        // Refused (a nearly full phone), its file copies are taken back, as
+        // Attach's: left, they took room on the phone whose fullness refused it.
+        try {
+            Files.holdWrites(load.file!!)
+            assertTrue(Organizing.duplicate(load, 4, attachments(load)) is SaveResult.Failed)
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("no copy left behind", setOf("map.png", stored), attachments(load).list()!!.toSet())
+    }
+
+    @Test
+    fun `a notes or Trash file held at the start reads as held all run, as settings do`() {
+        // Read for real later (an import's reload), the Trash page listed the
+        // entries its chips refused, while the start had read none.
+        val load = notebook("[]", trash = """[{"id": 1, "deleted_at": "${daysAgo(3)}"}]""")
+        val dir = dirOf(load)
+        try {
+            Files.holdWrites(load.trashFile!!)
+            val again = Notebook.load(dir)
+            assertNull("held, not read", again.trashRaw)
+            assertTrue(again.problem!!.contains("The Trash could not be opened"))
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("a new start reads it", 1, Notebook.load(dir).trash.size)
     }
 
     @Test

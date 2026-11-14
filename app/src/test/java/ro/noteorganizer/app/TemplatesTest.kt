@@ -124,6 +124,10 @@ class TemplatesTest {
         assertTrue(Templates.unreadable(d))
         File(d, "templates.json").writeText("[]")
         assertFalse("an empty list read fine", Templates.unreadable(d))
+        // A read refused at load, allowed here, over a file of templates: they
+        // are there all the same, not "none".
+        File(d, "templates.json").writeText("""[{"name": "Plan"}]""")
+        assertTrue("templates the load did not give are said unread", Templates.unreadable(d))
     }
 
     @Test
@@ -349,6 +353,19 @@ class TemplatesTest {
         }
         assertTrue("no copy aside", once.list()!!.none { it.contains("corrupt") })
         assertFalse(Templates.heldDraft(once))
+        // Refused twice, the copy's own read getting through: offered from it, the
+        // copy taken back, not left where nothing offers it.
+        val twice = NioFiles.createTempDirectory("draft").toFile()
+        assertNull(Templates.saveDraft(twice, Templates.Draft(null, fields, "")))
+        refusals = 2
+        Files.readBytesOf = { if (it.name == Templates.DRAFT && refusals-- > 0) throw java.io.IOException("refused") else real(it) }
+        try {
+            assertEquals("Packing", Templates.loadDraft(twice)?.fields?.getString("title"))
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertTrue("no copy left aside", twice.list()!!.none { it.contains("corrupt") })
+        assertTrue("the draft stays", File(twice, Templates.DRAFT).isFile)
         // Refused every time: no copy can be made, so it is held, and the editor
         // says only Save keeps what is typed (a new draft is refused).
         val always = NioFiles.createTempDirectory("draft").toFile()
