@@ -40,6 +40,12 @@ object Reminders {
         "android.intent.action.TIME_SET",
     )
 
+    /** Of those, the ones after which an app's alarms are still set. */
+    val KEEP_ALARMS = setOf(
+        "android.intent.action.TIMEZONE_CHANGED",
+        "android.intent.action.TIME_SET",
+    )
+
     /** How many notes fall on [day], each day of a repeat included -- what the calendar draws on it. */
     fun dueOn(notes: List<JSONObject>, day: String): Int = Days.notesOn(notes, day).size
 

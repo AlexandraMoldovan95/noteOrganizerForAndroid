@@ -339,7 +339,14 @@ object Settings {
      */
     private fun characters(name: String): Int = name.codePointCount(0, name.length)
 
-    private fun adoptCategoriesOf(map: LinkedHashMap<String, String>, notes: JSONArray) {
+    /**
+     * Every category [notes] (or one day of a series) are filed under, given a
+     * place in [map] with a palette colour under the ceilings; one they refuse
+     * goes into [refused], if given. Returns how many were added.
+     */
+    internal fun adoptCategoriesOf(map: LinkedHashMap<String, String>, notes: JSONArray,
+                                   refused: MutableSet<String>? = null): Int {
+        var added = 0
         val palette = Themes.DEFAULT_CATEGORY_COLORS.values.toList()
         for (i in 0 until notes.length()) {
             val note = notes.opt(i) as? JSONObject ?: continue
@@ -355,10 +362,15 @@ object Settings {
                 // adopted in stripped form would still miss.
                 if (name !is String || name.isEmpty() || name != PyText.strip(name)) continue
                 if (name in map) continue
-                if (characters(name) > MAX_CATEGORY_NAME || map.size >= MAX_CATEGORIES) continue
+                if (characters(name) > MAX_CATEGORY_NAME || map.size >= MAX_CATEGORIES) {
+                    refused?.add(name)
+                    continue
+                }
                 map[name] = palette[map.size % palette.size]
+                added += 1
             }
         }
+        return added
     }
 
     /**

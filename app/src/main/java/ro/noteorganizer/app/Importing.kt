@@ -394,7 +394,7 @@ object Importing {
         //    them on the next start.
         val categories = LinkedHashMap(load.categories)
         var addedCategories = 0
-        var refusedCategories = 0
+        val refusedNames = LinkedHashSet<String>()
         extras.categories?.let { theirs ->
             var seen = 0
             for (key in theirs.keys()) {
@@ -403,12 +403,22 @@ object Importing {
                 val name = PyText.strip(key)
                 if (name.isEmpty() || colour.isEmpty() || name in categories) continue
                 if (Settings.categoryNameRefusal(name, categories) != null) {
-                    refusedCategories += 1
+                    refusedNames.add(name)
                     continue
                 }
                 categories[name] = colour
                 addedCategories += 1
             }
+        }
+        // ...and those a backup's notes are filed under where its settings lack them
+        // (a settings.json left out, damaged, or never written by this phone's start),
+        // believed as the start believes them: the desktop's adopt_categories_of.
+        if (planned.source == Source.BACKUP) {
+            val arriving = JSONArray()
+            for (note in planned.fresh + planned.differing.map { it.theirs } + planned.unchanged.map { it.theirs }) {
+                arriving.put(note)
+            }
+            addedCategories += Settings.adoptCategoriesOf(categories, arriving, refusedNames)
         }
 
         // The files already spoken for, by a note or a Trash entry here. A
@@ -555,11 +565,17 @@ object Importing {
                 val raw = extras.trash.opt(i) as? JSONObject ?: continue
                 val entry = Normalize.normalizeNote(raw)
                 entry.put("deleted_at", raw.opt("deleted_at") as? String ?: "")
-                if (!seen.add(Normalize.contentSignature(entry))) continue
+                val signature = Normalize.contentSignature(entry)
+                if (signature in seen) continue
                 if (keepDays != null && Organizing.isPast(entry, keepDays)) {
                     trashLeftOut += 1
                     continue
                 }
+                // Only one brought in is a twin's original: an older one left out
+                // took its newer twin, unsaid, with it.
+                seen.add(signature)
+                // Its category kept in the map, as the notes' are above.
+                addedCategories += Settings.adoptCategoriesOf(categories, JSONArray().put(raw), refusedNames)
                 entry.put("attachments", placeFiles(entry.getJSONArray("attachments"), claimed,
                     attachmentsDir, extras.attachments))
                 out.put(entry)
@@ -651,7 +667,7 @@ object Importing {
             unchangedSkipped = plan.unchanged.size - copies.size,
             duplicatesSkipped = duplicatesSkipped,
             addedCategories = addedCategories,
-            refusedCategories = refusedCategories,
+            refusedCategories = refusedNames.size,
             restoredDays = restoredDays,
             addedTemplates = addedTemplates,
             addedTrash = addedTrash,

@@ -425,7 +425,8 @@ fun finishImport(
                 // About that note: held back by an Undo, not offered again once it is gone.
                 state.offerAbout(listOf(o.firstId), importMessage(o), "Open") { state.openNote(o.firstId) }
             } else {
-                state.say(importMessage(o))
+                // Long when it says what stayed in the backup: some 240 letters in 4 s.
+                state.say(importMessage(o), long = o.trashLeftOut > 0 || o.refusedCategories > 0)
             }
             // The notes it added, made first, and its '(earlier text)' notes, each
             // under its own word.

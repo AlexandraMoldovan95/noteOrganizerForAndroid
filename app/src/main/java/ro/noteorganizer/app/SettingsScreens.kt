@@ -308,9 +308,11 @@ private fun StatsPage(state: AppState) {
     val palette = LocalPalette.current
     val snap = remember(state.revision) {
         val trashHeld = state.load.trashFile?.let { Files.writesHeld(it) } == true
+        // Counted first: a first read refused here holds the file, and "0" stood for "—".
+        val templates = state.templatesCount()
         val templatesHeld = Files.writesHeld(java.io.File(state.dir, Backup.TEMPLATES))
         Stats.of(state.rawNotes(), if (trashHeld) -1 else state.load.trash.size,
-                 if (templatesHeld) -1 else state.templatesCount(), state.load.categories.keys.toList(), state.settings)
+                 if (templatesHeld) -1 else templates, state.load.categories.keys.toList(), state.settings)
     }
     PageColumn {
         Text(stringResource(R.string.stats_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))

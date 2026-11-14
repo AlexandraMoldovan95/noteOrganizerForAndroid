@@ -640,6 +640,7 @@
     <string name="importing">Reading the backup…</string>
     <string name="export_done">Backup saved.</string>
     <string name="export_done_too_large">Backup saved, but this phone can\'t read it back: %1$s The desktop app can restore it.</string>
+    <string name="export_done_notes_unread">Backup saved, but without your notes as notes: the notes file could not be read when the app started, so it is in the backup as it was, in its folder “unreadable”. The date of your last backup stays as it was.</string>
     <string name="export_failed">Couldn\'t create the backup: %1$s</string>
     <string name="import_notes_title">Import notes</string>
     <string name="import_notes_text">This will ADD the notes from that backup to your current list. Nothing you have is removed, and a note you already have is only replaced if you choose to update it.</string>

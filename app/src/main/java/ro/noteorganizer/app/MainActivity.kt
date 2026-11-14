@@ -440,7 +440,11 @@ fun AppRoot(state: AppState, version: String) {
             }
             busy = null
             when (result) {
-                is Backup.Export.Saved -> {
+                // Holding no notes as notes, it is not remembered as the notebook's
+                // backup: the desktop's backup of a session alone, said so.
+                is Backup.Export.Saved -> if (result.notesUnread) {
+                    state.say(context.getString(R.string.export_done_notes_unread), long = true)
+                } else {
                     state.putSetting(Settings.LAST_EXPORT_AT,
                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
                     result.tooLarge?.let { state.say(context.getString(R.string.export_done_too_large, it), long = true) }

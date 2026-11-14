@@ -710,9 +710,18 @@ object Organizing {
         if (clean == old) return SaveResult.Ok(0)
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories, adding = false)?.let { return SaveResult.Failed(it) }
-        refile(load, old, clean)?.let { return SaveResult.Failed(it) }
-        return saveCategories(load, renamed(load.categories, old, clean), old, clean)
+        settingsHeld(load)?.let { return SaveResult.Failed(it) }
+        var saved: SaveResult = SaveResult.Ok(0)
+        refile(load, old, clean) {
+            saved = saveCategories(load, renamed(load.categories, old, clean), old, clean)
+            (saved as? SaveResult.Failed)?.reason
+        }?.let { return SaveResult.Failed(it) }
+        return saved
     }
+
+    /** Why the map cannot be written this run, or null: asked before any holder is moved. */
+    private fun settingsHeld(load: Notebook.Load): String? =
+        load.settings?.file?.takeIf { Files.writesHeld(it) }?.let { Files.heldReason(it) + "." }
 
     /** The map with one name changed in its own place, its colour kept. */
     internal fun renamed(map: Map<String, String>, old: String, new: String): LinkedHashMap<String, String> {
@@ -730,6 +739,7 @@ object Organizing {
     fun deleteCategory(load: Notebook.Load, name: String, trashNotes: Boolean): SaveResult {
         if (name == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be deleted.")
         if (name !in load.categories) return SaveResult.Failed("That category no longer exists.")
+        settingsHeld(load)?.let { return SaveResult.Failed(it) }
         if (trashNotes) {
             val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
             val doomed = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
@@ -740,14 +750,21 @@ object Organizing {
                 if (result is SaveResult.Failed) return result
             }
         }
-        refile(load, name, Themes.PROTECTED_CATEGORY)?.let { return SaveResult.Failed(it) }
         val map = LinkedHashMap(load.categories)
         map.remove(name)
-        return saveCategories(load, map, old = name, new = null)
+        var saved: SaveResult = SaveResult.Ok(0)
+        refile(load, name, Themes.PROTECTED_CATEGORY) {
+            saved = saveCategories(load, map, old = name, new = null)
+            (saved as? SaveResult.Failed)?.reason
+        }?.let { return SaveResult.Failed(it) }
+        return saved
     }
 
-    /** Every holder of [old], moved to [new]: notes, Trash, templates. */
-    private fun refile(load: Notebook.Load, old: String, new: String): String? {
+    /**
+     * Every holder of [old], moved to [new]: notes, Trash, templates; then [last],
+     * the map's own write, whose refusal puts every holder back as well.
+     */
+    private fun refile(load: Notebook.Load, old: String, new: String, last: () -> String?): String? {
         val file = load.file ?: return NOWHERE
         val array = load.raw ?: return UNREADABLE
         // The notes first, the largest file and the write a nearly full phone refuses
@@ -779,6 +796,7 @@ object Organizing {
         }
         // Not over a templates file held this run, as the desktop's rename leaves it.
         val templatesFile = file.parentFile?.let { File(it, "templates.json") }
+        var templatesBefore: JSONArray? = null
         if (templatesFile != null && templatesFile.isFile && !Files.writesHeld(templatesFile)) {
             val templates = try {
                 Files.parseOwn(templatesFile) { JSONArray(it) }
@@ -786,6 +804,7 @@ object Organizing {
                 null
             }
             if (templates != null) {
+                val before = JSONArray(templates.toString())
                 var moved = false
                 for (i in 0 until templates.length()) {
                     val tpl = templates.opt(i) as? JSONObject ?: continue
@@ -794,8 +813,16 @@ object Organizing {
                         moved = true
                     }
                 }
-                if (moved) write(templatesFile, templates)?.let { problem -> putBack(trashBefore); return problem }
+                if (moved) {
+                    write(templatesFile, templates)?.let { problem -> putBack(trashBefore); return problem }
+                    templatesBefore = before
+                }
             }
+        }
+        last()?.let { problem ->
+            templatesBefore?.let { before -> templatesFile?.let { write(it, before) } }
+            putBack(trashBefore)
+            return problem
         }
         return null
     }

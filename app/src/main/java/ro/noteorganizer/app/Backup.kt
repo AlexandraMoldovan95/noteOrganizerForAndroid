@@ -131,7 +131,25 @@ object Backup {
      * chosen to be written over was emptied before a full cache could stop
      * the new one, and then deleted as half-written: no backup at all.
      */
-    fun export(dir: File, scratch: File, open: () -> OutputStream?): Int {
+    fun export(dir: File, scratch: File, open: () -> OutputStream?): Int = written(dir, scratch, open).files
+
+    /** What [export] wrote: how many files, and whether the notes file went in as notes. */
+    internal data class Written(val files: Int, val notesUnread: Boolean)
+
+    internal fun written(dir: File, scratch: File, open: () -> OutputStream?,
+                         heap: Long = Runtime.getRuntime().maxMemory()): Written {
+        // A notes file the start could not read stays on disk, damaged, until the first
+        // save: packed as it was, neither app read the backup back. Read once, what this
+        // run holds of it (nothing) goes in its place, its bytes in the folder kept for them.
+        val notesFile = File(dir, NOTES)
+        val notesBytes = if (notesFile.isFile && notesFile.length() <= jsonCeiling(heap))
+            Files.readBytesOf(notesFile) else null
+        val notesUnread = notesBytes != null && try {
+            Files.parseOutside(Files.utf8(notesBytes)) { JSONArray(it) }
+            false
+        } catch (e: Exception) {
+            true
+        }
         val entries = ArrayList<Pair<File, String>>()
         for (name in listOf(NOTES, SETTINGS, TEMPLATES, TRASH)) {
             val file = File(dir, name)
@@ -146,12 +164,22 @@ object Backup {
         dir.listFiles()?.filter { it.isFile && KEPT_ASIDE.matches(it.name) }?.sortedBy { it.name }?.forEach {
             entries.add(it to "$UNREADABLE/${it.name}")
         }
+        val keptAsideNotes = entries.any { it.second.startsWith("$UNREADABLE/notes_data_") }
         val tmp = File(scratch, "backup_export.zip.tmp")
         try {
             ZipOutputStream(FileOutputStream(tmp)).use { zip ->
                 for ((file, name) in entries) {
                     zip.putNextEntry(ZipEntry(name))
-                    file.inputStream().use { copyUpTo(it, zip) }
+                    when {
+                        name != NOTES || notesBytes == null -> file.inputStream().use { copyUpTo(it, zip) }
+                        notesUnread -> zip.write("[]".toByteArray())
+                        else -> zip.write(notesBytes)
+                    }
+                    zip.closeEntry()
+                }
+                if (notesUnread && !keptAsideNotes) {
+                    zip.putNextEntry(ZipEntry("$UNREADABLE/$NOTES"))
+                    zip.write(notesBytes!!)
                     zip.closeEntry()
                 }
             }
@@ -165,7 +193,7 @@ object Backup {
                 tmp.inputStream().use { copyUpTo(it, stream) }
                 stream.flush()
             }
-            return entries.size
+            return Written(entries.size, notesUnread)
         } finally {
             tmp.delete()
         }
@@ -177,8 +205,9 @@ object Backup {
          * Written. [tooLarge] says why this phone could not read it back at
          * once ([memoryProblem]) -- a notebook that grew past what the import
          * reads, which the desktop can still restore -- or is null.
+         * [notesUnread]: the notes file did not read, and went in kept aside.
          */
-        data class Saved(val files: Int, val tooLarge: String?) : Export()
+        data class Saved(val files: Int, val tooLarge: String?, val notesUnread: Boolean = false) : Export()
         data class Failed(val reason: String) : Export()
     }
 
@@ -194,10 +223,10 @@ object Backup {
                  discard: () -> Unit, heap: Long = Runtime.getRuntime().maxMemory()): Export {
         var opened = false
         return try {
-            val files = export(dir, scratch, { open()?.also { opened = true } })
+            val written = written(dir, scratch, { open()?.also { opened = true } }, heap)
             val sizes = listOf(NOTES, SETTINGS, TEMPLATES, TRASH).map { File(dir, it) }.filter { it.isFile }
                 .map { Entry(it.name, it.length(), it.length()) }
-            Export.Saved(files, memoryProblem(sizes, heap))
+            Export.Saved(written.files, memoryProblem(sizes, heap), written.notesUnread)
         } catch (e: Exception) {
             if (opened || emptyPlace()) {
                 try {

@@ -47,11 +47,13 @@ object ReminderAlarm {
      * After a restart, an update or a new clock: set again from the settings,
      * or, they not read, at the default hour -- a restart clears an app's
      * alarms, so "the one set before" kept none, and the daily notification
-     * stopped unsaid. Fired over settings still unread, it posts nothing.
+     * stopped unsaid. Fired over settings still unread, it posts nothing. A new
+     * clock or time zone clears none: the one set at the person's hour stays.
      */
-    fun rearm(context: Context) {
+    fun rearm(context: Context, action: String? = null) {
         val settings = settingsOf(context)
         if (settings != null) return schedule(context, settings)
+        if (action in Reminders.KEEP_ALARMS) return
         val at = Reminders.nextAt(LocalDateTime.now(), Reminders.DEFAULT_HOUR)
         context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
             at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), alarm(context))
@@ -141,6 +143,6 @@ object ReminderAlarm {
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.rearm(context) else ReminderAlarm.fire(context)
+        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.rearm(context, intent.action) else ReminderAlarm.fire(context)
     }
 }
