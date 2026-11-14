@@ -35,10 +35,26 @@ object ReminderAlarm {
 
     private fun notebook(context: Context) = File(context.filesDir, "notebook")
 
+    // Held by the app's run in this process, not read again: held all run.
     private fun settingsOf(context: Context): JSONObject? = try {
-        Files.parseOwn(File(notebook(context), "settings.json")) { JSONObject(it) }
+        File(notebook(context), "settings.json").takeIf { !Files.writesHeld(it) }
+            ?.let { file -> Files.parseOwn(file) { JSONObject(it) } }
     } catch (e: Exception) {
         null
+    }
+
+    /**
+     * After a restart, an update or a new clock: set again from the settings,
+     * or, they not read, at the default hour -- a restart clears an app's
+     * alarms, so "the one set before" kept none, and the daily notification
+     * stopped unsaid. Fired over settings still unread, it posts nothing.
+     */
+    fun rearm(context: Context) {
+        val settings = settingsOf(context)
+        if (settings != null) return schedule(context, settings)
+        val at = Reminders.nextAt(LocalDateTime.now(), Reminders.DEFAULT_HOUR)
+        context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+            at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), alarm(context))
     }
 
     private fun alarm(context: Context): PendingIntent =
@@ -125,6 +141,6 @@ object ReminderAlarm {
  */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.schedule(context) else ReminderAlarm.fire(context)
+        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.rearm(context) else ReminderAlarm.fire(context)
     }
 }

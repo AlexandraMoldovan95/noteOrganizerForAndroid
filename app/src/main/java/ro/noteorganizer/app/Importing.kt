@@ -120,6 +120,9 @@ object Importing {
         val earlierText: Int = 0,
         /** Notes here that only took files the backup had and this device lacked: no rescue copy undoes them. */
         val filesOnly: Int = 0,
+        /** The backup's trashed notes left in it, past the [keepDays] this phone's next start purges by. */
+        val trashLeftOut: Int = 0,
+        val keepDays: Int? = null,
     )
 
     sealed class Result {
@@ -525,6 +528,17 @@ object Importing {
             }
         }
 
+        // 7, worked out first. The backup's Trash window: only a longer one than
+        //    the default, only with Trash to keep by it, and only where none was
+        //    chosen here (smaller lessons: the backup's Trash window).
+        val window = extras.trashWindow
+        val adoptsWindow = window != null && window > Settings.TRASH_RETENTION_DAYS &&
+            (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
+        // The length this phone's next start purges by -- the backup's where it is
+        // taken, this phone's own (none while unknown here) -- keeps or leaves out
+        // each entry: past it, it came in to be removed with its files (the desktop's).
+        val keepDays = if (adoptsWindow) window else settings?.let { Settings.purgeWindow(it) }
+        var trashLeftOut = 0
         // 5. The backup's Trash: an entry already in this Trash, content
         //    for content, is skipped -- re-importing your own backup must
         //    not double it -- and nobody is asked, so the test is strict.
@@ -542,6 +556,10 @@ object Importing {
                 val entry = Normalize.normalizeNote(raw)
                 entry.put("deleted_at", raw.opt("deleted_at") as? String ?: "")
                 if (!seen.add(Normalize.contentSignature(entry))) continue
+                if (keepDays != null && Organizing.isPast(entry, keepDays)) {
+                    trashLeftOut += 1
+                    continue
+                }
                 entry.put("attachments", placeFiles(entry.getJSONArray("attachments"), claimed,
                     attachmentsDir, extras.attachments))
                 out.put(entry)
@@ -568,13 +586,14 @@ object Importing {
             }
         }
 
-        // 7. The backup's Trash window: only a longer one than the default,
-        //    only with Trash to keep by it, and only where none was chosen
-        //    here (smaller lessons: the backup's Trash window).
-        val window = extras.trashWindow
-        val adoptsWindow = window != null && window > Settings.TRASH_RETENTION_DAYS &&
-            (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
+        // 7. The window, worked out above, kept with the settings.
         if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
+        // Over held settings (their marks in memory) the length the next start reads
+        // is not known here: brought in, the next start's 30 days, or the real file's
+        // own, removed entries with their files. Stopped whole, as over a held Trash.
+        if (trashCandidate != null && settings != null && Files.writesHeld(settings.file)) {
+            heldBy = heldBy ?: Files.heldReason(settings.file)
+        }
 
         val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         // Days a series' copy set aside become notes of their own, and are
@@ -639,6 +658,8 @@ object Importing {
             firstId = firstId,
             earlierText = earlierText,
             filesOnly = filesOnly,
+            trashLeftOut = trashLeftOut,
+            keepDays = keepDays,
         ))
     }
 

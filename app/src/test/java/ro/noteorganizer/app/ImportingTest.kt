@@ -787,19 +787,24 @@ class ImportingTest {
 
     @Test
     fun `re-importing your own backup does not double the Trash`() {
+        // Days of late, within the 30 the next start keeps (older ones stay in the backup).
+        val stamp = { days: Long -> java.time.LocalDateTime.now().minusDays(days)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) }
+        val first = stamp(4)
+        val second = stamp(3)
         val load = notebook("[]", trash = """
-            [{"id": 4, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "2026-10-01 10:00:00"}]
+            [{"id": 4, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "$first"}]
         """.trimIndent())
         val plan = backupPlan(load, "[]")
         val extras = Importing.Extras(trash = JSONArray("""
-            [{"id": 9, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "2026-10-01 10:00:00"},
-             {"id": 5, "title": "Also gone", "deleted_at": "2026-10-02 10:00:00"}]
+            [{"id": 9, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "$first"},
+             {"id": 5, "title": "Also gone", "deleted_at": "$second"}]
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedTrash)
         val trash = JSONArray(File(dirOf(load), "trash.json").readText())
         assertEquals(2, trash.length())
-        assertEquals("2026-10-02 10:00:00", trash.getJSONObject(1).getString("deleted_at"))
+        assertEquals(second, trash.getJSONObject(1).getString("deleted_at"))
     }
 
     @Test
@@ -837,6 +842,47 @@ class ImportingTest {
         assertEquals("a window chosen here is kept", 14, window(notebook("[]", settings = """{"trash_retention_days": 14}""")))
         // Lost with a file that could not be read: chosen once, only not known.
         assertNull(window(notebook("[]", settings = """{"phone_trash_window_unknown": true}""")))
+    }
+
+    @Test
+    fun `over settings held at the start, a backup's Trash that needs its longer window does not come in`() {
+        // Its marks in memory, the window was not adopted, the entries came in, and the
+        // next start read the real file, no window chosen: 30 days removed them.
+        val load = notebook("[]", settings = """{"theme": "dark"}""")
+        val trashFile = File(dirOf(load), "trash.json")
+        val before = if (trashFile.isFile) trashFile.readText() else null
+        try {
+            Files.holdWrites(load.settings!!.file)
+            val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
+            assertTrue(result is Importing.Result.Failed)
+            assertTrue((result as Importing.Result.Failed).reason.contains("settings.json"))
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("nothing written to the Trash", before, if (trashFile.isFile) trashFile.readText() else null)
+    }
+
+    @Test
+    fun `a backup's trashed notes past this phone's window stay in the backup, said, and the rest come in`() {
+        // A backup with no window of its own (its notebook's lost, or a 30-day one)
+        // brought old entries in under this phone's 30 days: the next start removed
+        // them with their files, as the desktop's did.
+        val recent = java.time.LocalDateTime.now().minusDays(3)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val old = java.time.LocalDateTime.now().minusDays(200)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val load = notebook("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(trashWindow = null, trash = JSONArray(
+                """[{"uid": "old-t", "title": "Old", "body": "x", "deleted_at": "$old"},
+                    {"uid": "new-t", "title": "New", "body": "y", "deleted_at": "$recent"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(1, outcome.addedTrash)
+        assertEquals(1, outcome.trashLeftOut)
+        assertEquals(30, outcome.keepDays)
+        val kept = JSONArray(File(dirOf(load), "trash.json").readText())
+        assertEquals(listOf("New"), (0 until kept.length()).map { kept.getJSONObject(it).getString("title") })
     }
 
     @Test

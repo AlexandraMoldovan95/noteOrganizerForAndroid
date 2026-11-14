@@ -750,9 +750,34 @@ object Organizing {
     private fun refile(load: Notebook.Load, old: String, new: String): String? {
         val file = load.file ?: return NOWHERE
         val array = load.raw ?: return UNREADABLE
-        // The templates first, and not over a file held this run, as the desktop's
-        // rename leaves it: refused after the Trash was written, the rename
-        // stopped with the Trash's entries filed under a name no category had.
+        // The notes first, the largest file and the write a nearly full phone refuses
+        // most: refused, nothing is renamed. A later refusal puts back what was
+        // written, or the rename stopped halfway, under a name no category had.
+        val notesBefore = JSONArray(array.toString())
+        val notesCandidate = JSONArray(array.toString())
+        val notesMoved = renameIn(notesCandidate, old, new) > 0
+        if (notesMoved) {
+            write(file, notesCandidate)?.let { return it }
+            replace(array, notesCandidate)
+        }
+        fun putBack(trashBefore: JSONArray?) {
+            val trash = load.trashRaw
+            val trashFile = load.trashFile
+            if (trashBefore != null && trash != null && trashFile != null && write(trashFile, trashBefore) == null) {
+                replace(trash, trashBefore)
+            }
+            if (notesMoved && write(file, notesBefore) == null) replace(array, notesBefore)
+        }
+        var trashBefore: JSONArray? = null
+        load.trashRaw?.let { trash ->
+            val candidate = JSONArray(trash.toString())
+            if (renameIn(candidate, old, new) > 0) {
+                load.trashFile?.let { write(it, candidate)?.let { problem -> putBack(null); return problem } }
+                trashBefore = JSONArray(trash.toString())
+                replace(trash, candidate)
+            }
+        }
+        // Not over a templates file held this run, as the desktop's rename leaves it.
         val templatesFile = file.parentFile?.let { File(it, "templates.json") }
         if (templatesFile != null && templatesFile.isFile && !Files.writesHeld(templatesFile)) {
             val templates = try {
@@ -769,20 +794,8 @@ object Organizing {
                         moved = true
                     }
                 }
-                if (moved) write(templatesFile, templates)?.let { return it }
+                if (moved) write(templatesFile, templates)?.let { problem -> putBack(trashBefore); return problem }
             }
-        }
-        load.trashRaw?.let { trash ->
-            val candidate = JSONArray(trash.toString())
-            if (renameIn(candidate, old, new) > 0) {
-                load.trashFile?.let { write(it, candidate)?.let { problem -> return problem } }
-                replace(trash, candidate)
-            }
-        }
-        val candidate = JSONArray(array.toString())
-        if (renameIn(candidate, old, new) > 0) {
-            write(file, candidate)?.let { return it }
-            replace(array, candidate)
         }
         return null
     }

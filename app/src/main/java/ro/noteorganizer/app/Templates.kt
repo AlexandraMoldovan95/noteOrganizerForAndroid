@@ -237,6 +237,9 @@ object Templates {
     fun loadDraft(dir: File): Draft? {
         val file = File(dir, DRAFT)
         if (!file.isFile) return null
+        // Held this run, held all run, as every file is: read for real later, it was
+        // offered under the editor's "could not be read", and again at each opening.
+        if (Files.writesHeld(file)) return null
         val json = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {

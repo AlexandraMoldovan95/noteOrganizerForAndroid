@@ -217,6 +217,7 @@ fun TemplatesPage(state: AppState) {
     // What was tapped while a draft waited: opened once it is answered.
     var thenOpen by remember { mutableStateOf<Int?>(null) }
     val goneSaid = stringResource(R.string.template_draft_gone)
+    val unreadSaid = stringResource(R.string.template_unreadable)
 
     // Every way into the editor asks first while a draft waits.
     fun open(index: Int?) {
@@ -307,7 +308,11 @@ fun TemplatesPage(state: AppState) {
                     thenOpen = null
                     draft = null
                     val at = Templates.draftTarget(templates, waiting)
-                    if (Templates.draftLostItsTemplate(templates, waiting)) state.say(goneSaid)
+                    // Over a templates file that did not read, the template is not gone,
+                    // only not read: "no longer here" was untrue.
+                    if (Templates.draftLostItsTemplate(templates, waiting)) {
+                        state.say(if (Templates.unreadable(state.dir)) unreadSaid else goneSaid)
+                    }
                     continuing = waiting
                     if (at == null) creating = true else editing = at
                 }) { Text(stringResource(R.string.template_draft_continue), color = palette.accentText, fontWeight = FontWeight.Medium) }

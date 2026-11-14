@@ -451,6 +451,12 @@ fun importMessage(o: Importing.Outcome): String {
     if (o.addedTemplates > 0) also.add("${o.addedTemplates} template${if (o.addedTemplates == 1) "" else "s"}")
     if (o.addedTrash > 0) also.add("${o.addedTrash} trashed note${if (o.addedTrash == 1) "" else "s"}")
     if (also.isNotEmpty()) parts.add("Also restored " + also.joinToString(" and ") + ".")
+    if (o.trashLeftOut > 0 && o.keepDays != null) {
+        val many = o.trashLeftOut != 1
+        parts.add("${o.trashLeftOut} of the backup's trashed notes ${if (many) "were" else "was"} not brought in: " +
+            "older than the ${o.keepDays} days this phone's Trash keeps notes, the next start would have " +
+            "removed ${if (many) "them" else "it"}. The backup still holds ${if (many) "them" else "it"}.")
+    }
     if (o.refusedCategories > 0) {
         parts.add("${o.refusedCategories} categories could not be added, so their notes are in General.")
     }

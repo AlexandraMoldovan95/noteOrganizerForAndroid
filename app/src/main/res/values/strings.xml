@@ -358,7 +358,7 @@
     <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
     <string name="template_unreadable">Your templates file could not be read, so no templates are offered.</string>
     <string name="template_draft_held">Only Save keeps what you write here this time: an earlier unsaved template could not be read or copied aside, so nothing new is kept for you if the app closes.</string>
-    <string name="template_draft_not_kept">The template you are writing could not be kept aside (%1$s): if the app closes now, what you typed since it was last kept is lost.</string>
+    <string name="template_draft_not_kept">The template you are writing could not be kept aside (%1$s): if the app closes now, what you typed may be lost.</string>
     <string name="template_pick_title">Use a template</string>
     <string name="template_started">New note started from template — edits here won\'t change the template</string>
     <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>

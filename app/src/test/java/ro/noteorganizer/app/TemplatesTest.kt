@@ -386,6 +386,7 @@ class TemplatesTest {
             Files.readBytesOf = real
         }
         assertTrue("held", Templates.heldDraft(always))
+        assertNull("held, not read again later in the run", Templates.loadDraft(always))
         assertNotNull("a new draft is refused", Templates.saveDraft(always, Templates.Draft(null, fields, "x")))
         assertEquals("Packing", JSONObject(File(always, Templates.DRAFT).readText()).getJSONObject("fields").getString("title"))
         Files.newStart()

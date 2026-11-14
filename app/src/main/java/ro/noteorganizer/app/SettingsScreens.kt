@@ -307,7 +307,10 @@ private fun DuplicatesPage(state: AppState) {
 private fun StatsPage(state: AppState) {
     val palette = LocalPalette.current
     val snap = remember(state.revision) {
-        Stats.of(state.rawNotes(), state.load.trash.size, state.templatesCount(), state.load.categories.keys.toList(), state.settings)
+        val trashHeld = state.load.trashFile?.let { Files.writesHeld(it) } == true
+        val templatesHeld = Files.writesHeld(java.io.File(state.dir, Backup.TEMPLATES))
+        Stats.of(state.rawNotes(), if (trashHeld) -1 else state.load.trash.size,
+                 if (templatesHeld) -1 else state.templatesCount(), state.load.categories.keys.toList(), state.settings)
     }
     PageColumn {
         Text(stringResource(R.string.stats_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))
@@ -325,7 +328,9 @@ private fun StatsPage(state: AppState) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for ((value, caption) in row) {
                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
-                        Figure(value.toString(), palette.text, 24.sp)
+                        // -1: a file held this run, read as none -- "0" said what
+                        // was not so, as "The Trash is empty" did (the desktop's dash).
+                        Figure(if (value < 0) "—" else value.toString(), palette.text, 24.sp)
                         Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp, minLines = 2)
                     }
                 }

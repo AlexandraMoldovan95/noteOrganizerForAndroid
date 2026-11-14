@@ -345,6 +345,21 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a rename refused after the notes were written puts them back, nothing left halfway`() {
+        // On a nearly full phone the rename stopped after the first writes, the rest
+        // filed under a name no category had, and was said to have failed.
+        val load = notebook("""[{"id": 1, "category": "Work"}]""",
+            trash = """[{"id": 3, "category": "Work", "deleted_at": "2026-10-01 10:00:00"}]""",
+            settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""")
+        // A folder where the Trash write's own .tmp goes: that write is refused.
+        File(dirOf(load), "trash.json.tmp").mkdirs()
+        assertTrue(Organizing.renameCategory(load, "Work", "Job") is SaveResult.Failed)
+        assertEquals("the notes put back", "Work", onDisk(load).getJSONObject(0).getString("category"))
+        assertEquals("and in memory", "Work", load.raw!!.getJSONObject(0).getString("category"))
+        assertEquals("Work", trashOnDisk(load).getJSONObject(0).getString("category"))
+    }
+
+    @Test
     fun `a renamed category keeps its place in the list`() {
         // Asked of the map before it is written: the computer's JSON library
         // does not keep key order, the phone's does, so a read-back here
