@@ -244,11 +244,12 @@ object Organizing {
      * A move to [category] taken back: each note back where [marks] say it
      * was filed, its "updated" with it -- only one still under [category],
      * as the desktop's _undo_bulk_category: one filed again since keeps it.
-     * One whose category is gone since stays ([notBack] counts them): put back,
-     * the next refresh adopted the deleted name again, or the old one beside
-     * a rename. The category they went to, renamed or deleted, ends the Undo.
+     * One whose category was deleted since ([deleted]) stays, [notBack] counting
+     * it: put back, the next refresh adopted the deleted name again. A rename is
+     * carried into [marks] and [category] by the caller, as the desktop's offer is.
      */
-    fun putBackFiled(load: Notebook.Load, marks: List<Filed>, category: String): SaveResult {
+    fun putBackFiled(load: Notebook.Load, marks: List<Filed>, category: String,
+                     deleted: Set<String> = emptySet()): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
         val name = filedAs(category)
@@ -257,15 +258,20 @@ object Organizing {
         }
         val candidate = JSONArray(array.toString())
         var changed = 0
+        var kept = 0
         for (mark in marks) {
             val note = candidate.opt(indexOfNote(candidate, mark.id, mark.uid)) as? JSONObject ?: continue
-            if (note.opt("category") != name || mark in notBack(load, listOf(mark))) continue
+            if (note.opt("category") != name) continue
+            if (gone(mark, deleted)) {
+                kept += 1
+                continue
+            }
             if (mark.category == null) note.remove("category") else note.put("category", mark.category)
             if (mark.updated == null) note.remove("updated") else note.put("updated", mark.updated)
             changed += 1
         }
         if (changed == 0) {
-            return SaveResult.Failed(if (notBack(load, marks).isEmpty()) "Those notes are no longer where the move put them."
+            return SaveResult.Failed(if (kept == 0) "Those notes are no longer where the move put them."
                 else "Those notes could not go back to a category that no longer exists.")
         }
         write(file, candidate)?.let { return SaveResult.Failed(it) }
@@ -273,12 +279,21 @@ object Organizing {
         return SaveResult.Ok(0, imported = changed)
     }
 
-    /** The [marks] whose own category is gone from the map: a move's Undo leaves them be. */
-    fun notBack(load: Notebook.Load, marks: List<Filed>): List<Filed> = marks.filter { mark ->
-        val was = mark.category as? String ?: return@filter false
-        val name = filedAs(was)
-        name != Themes.PROTECTED_CATEGORY && name !in load.categories
+    /**
+     * The [marks] a move's Undo leaves under [category]: still there, their own category
+     * deleted since -- not one filed again by hand meanwhile, as the desktop counts them.
+     */
+    fun notBack(load: Notebook.Load, marks: List<Filed>, category: String, deleted: Set<String>): List<Filed> {
+        val array = load.raw ?: return emptyList()
+        val name = filedAs(category)
+        return marks.filter { mark ->
+            gone(mark, deleted) &&
+                (array.opt(indexOfNote(array, mark.id, mark.uid)) as? JSONObject)?.opt("category") == name
+        }
     }
+
+    private fun gone(mark: Filed, deleted: Set<String>): Boolean =
+        (mark.category as? String)?.let { filedAs(it) in deleted } == true
 
     // ---- duplicates ----
 
@@ -730,10 +745,14 @@ object Organizing {
         var saved: SaveResult = SaveResult.Ok(0)
         refile(load, old, clean) {
             saved = saveCategories(load, renamed(load.categories, old, clean), old, clean)
-            (saved as? SaveResult.Failed)?.reason
+            // Every holder put back: said so, as the desktop says it, not the system's words.
+            (saved as? SaveResult.Failed)?.let { CATEGORIES_UNSAVED }
         }?.let { return SaveResult.Failed(it) }
         return saved
     }
+
+    private const val CATEGORIES_UNSAVED =
+        "The list of categories couldn't be saved just now, so nothing was changed. Try again in a moment."
 
     /**
      * Why the map cannot be written this run, or null: asked before any holder is
@@ -741,6 +760,8 @@ object Organizing {
      */
     internal fun categoriesHeld(load: Notebook.Load): String? =
         load.settings?.file?.takeIf { Files.writesHeld(it) }?.let { Files.heldReason(it) + ". Nothing was changed." }
+            // A notes file not read: the delete asked "No note is filed under it", then refused.
+            ?: if (load.raw == null) "$UNREADABLE Nothing was changed." else null
 
     /** The map with one name changed in its own place, its colour kept. */
     internal fun renamed(map: Map<String, String>, old: String, new: String): LinkedHashMap<String, String> {
@@ -759,6 +780,7 @@ object Organizing {
         if (name == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be deleted.")
         if (name !in load.categories) return SaveResult.Failed("That category no longer exists.")
         categoriesHeld(load)?.let { return SaveResult.Failed(it) }
+        var trashed = false
         if (trashNotes) {
             val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
             val doomed = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
@@ -767,6 +789,7 @@ object Organizing {
             if (doomed.isNotEmpty()) {
                 val result = trashNotes(load, doomed)
                 if (result is SaveResult.Failed) return result
+                trashed = true
             }
         }
         val map = LinkedHashMap(load.categories)
@@ -774,7 +797,11 @@ object Organizing {
         var saved: SaveResult = SaveResult.Ok(0)
         refile(load, name, Themes.PROTECTED_CATEGORY) {
             saved = saveCategories(load, map, old = name, new = null)
-            (saved as? SaveResult.Failed)?.reason
+            (saved as? SaveResult.Failed)?.let {
+                if (trashed) "The list of categories couldn't be saved just now, so the category stays; " +
+                    "its notes went to the Trash, where they can be restored."
+                else CATEGORIES_UNSAVED
+            }
         }?.let { return SaveResult.Failed(it) }
         return saved
     }
@@ -1086,6 +1113,9 @@ object Organizing {
             worn.add(note.opt("uid") as? String ?: "")
             restored.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)
+            // Its days too, as normalize_note's clean_override files them: a day under a category
+            // gone since kept it, and the next refresh brought the deleted category back.
+            Importing.fileUnder(note, load.categories.keys)
             if (firstId == 0) firstId = nextId
             notesCandidate.put(note)
         }

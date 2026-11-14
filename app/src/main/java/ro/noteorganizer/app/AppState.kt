@@ -1109,14 +1109,46 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             Organizing.moveToCategory(load, ids, category)
         } ?: return
         report(moved) {
+            val offer = MoveOffer(category, filed).also { moveOffer = it }
             offerUndo(if (ids.size == 1) "Moved to “${quoted(category)}”" else "Moved ${ids.size} notes to “${quoted(category)}”") {
-                val notBack = Organizing.notBack(load, filed).size
-                report(outside(ids) { Organizing.putBackFiled(load, filed, category) } ?: return@offerUndo) {
-                    // Said, as the desktop says it: their category was deleted or renamed meanwhile.
+                if (offer.withdrawn) {
+                    say("The category they were moved to was deleted since, so they stay where they are.")
+                    return@offerUndo
+                }
+                val notBack = Organizing.notBack(load, offer.filed, offer.category, offer.deleted).size
+                report(outside(ids) { Organizing.putBackFiled(load, offer.filed, offer.category, offer.deleted) }
+                    ?: return@offerUndo) {
+                    // Said, as the desktop says it: their category was deleted meanwhile.
                     if (notBack > 0) say("$notBack ${if (notBack == 1) "note" else "notes"} could not go back to a category that no longer exists.")
                 }
             }
         }
+    }
+
+    /**
+     * A move's Undo while it is offered: the category the notes went to and where each
+     * was, carried through a rename as the desktop's offer is; a category deleted since is
+     * kept in [deleted] (its notes stay), and the one they went to, deleted, ends it.
+     */
+    private class MoveOffer(var category: String, var filed: List<Organizing.Filed>) {
+        val deleted = HashSet<String>()
+        var withdrawn = false
+    }
+
+    private var moveOffer: MoveOffer? = null
+
+    /** A category renamed in Settings: a move's Undo on offer follows the new name. */
+    fun categoryRenamed(old: String, new: String) {
+        val offer = moveOffer ?: return
+        if (offer.category == old) offer.category = new
+        offer.filed = offer.filed.map { if (it.category == old) it.copy(category = new) else it }
+    }
+
+    /** A category deleted in Settings: a move's Undo on offer leaves its notes be. */
+    fun categoryDeleted(name: String) {
+        val offer = moveOffer ?: return
+        if (offer.category == name) offer.withdrawn = true
+        offer.deleted.add(name)
     }
 
     /**

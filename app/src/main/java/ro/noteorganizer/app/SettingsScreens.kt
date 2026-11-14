@@ -601,7 +601,11 @@ private fun CategoriesPage(state: AppState) {
             onSave = { name, newColour ->
                 var ok = true
                 if (newColour != colour) ok = state.report(Organizing.recolourCategory(state.load, old, newColour))
-                if (ok && name.trim() != old) ok = state.report(Organizing.renameCategory(state.load, old, name))
+                if (ok && name.trim() != old) {
+                    ok = state.report(Organizing.renameCategory(state.load, old, name))
+                    // A move's Undo still on offer follows the new name, as the desktop's does.
+                    if (ok) state.categoryRenamed(old, PyText.strip(name))
+                }
                 if (ok) editing = null
             },
             onDelete = { Organizing.categoriesHeld(state.load)?.let { state.say(it, long = true) } ?: run { asking = true } },
@@ -614,6 +618,7 @@ private fun CategoriesPage(state: AppState) {
                 onAnswer = { trashNotes ->
                     asking = false
                     if (trashNotes != null && state.report(Organizing.deleteCategory(state.load, old, trashNotes))) {
+                        state.categoryDeleted(old)
                         editing = null
                     }
                 })

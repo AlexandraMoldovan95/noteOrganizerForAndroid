@@ -379,6 +379,43 @@ object Importing {
         }
     }
 
+    /** [note]'s signature, its files' stored names left out: they are matched by bytes ([sameFiles]). */
+    private fun looseSignature(note: JSONObject): String = Normalize.contentSignature(JSONObject(note.toString()).also {
+        (it.opt("attachments") as? JSONArray)?.let { atts ->
+            for (i in 0 until atts.length()) atts.optJSONObject(i)?.put("stored_as", "")
+        }
+    })
+
+    /** Whether two notes hold the same files, by the names they show and their bytes. */
+    private fun sameFiles(one: JSONObject, other: JSONObject, attachmentsDir: File?): Boolean {
+        val a = one.opt("attachments") as? JSONArray ?: JSONArray()
+        val b = other.opt("attachments") as? JSONArray ?: JSONArray()
+        if (a.length() != b.length()) return false
+        for (i in 0 until a.length()) {
+            val x = a.optJSONObject(i) ?: return false
+            val y = b.optJSONObject(i) ?: return false
+            val nx = Normalize.bareFileName(x.optString("stored_as"))
+            val ny = Normalize.bareFileName(y.optString("stored_as"))
+            if (nx == ny) continue
+            if (attachmentsDir == null || x.optString("filename") != y.optString("filename")) return false
+            val fx = File(attachmentsDir, nx)
+            val fy = File(attachmentsDir, ny)
+            if (nx.isEmpty() || ny.isEmpty() || !fx.isFile || !fy.isFile || fx.length() != fy.length()) return false
+            val same = try {
+                fx.inputStream().buffered().use { ia ->
+                    fy.inputStream().buffered().use { ib ->
+                        generateSequence { ia.read() }.zip(generateSequence { ib.read() })
+                            .takeWhile { (p, q) -> p >= 0 || q >= 0 }.all { (p, q) -> p == q }
+                    }
+                }
+            } catch (e: java.io.IOException) {
+                false
+            }
+            if (!same) return false
+        }
+        return true
+    }
+
     /** The map an import files by, how many names it adds, and those it refuses. */
     internal data class Merged(val map: LinkedHashMap<String, String>, val added: Int, val refused: MutableSet<String>)
 
@@ -574,10 +611,6 @@ object Importing {
         var trashCandidate: JSONArray? = null
         if (extras.trash != null && trashFile != null && !Files.writesHeld(trashFile) &&
             (load.trashRaw != null || !trashFile.exists())) {
-            val seen = HashSet<String>()
-            for (i in 0 until trash.length()) {
-                (trash.opt(i) as? JSONObject)?.let { seen.add(Normalize.contentSignature(Normalize.normalizeNote(it))) }
-            }
             val out = JSONArray(trash.toString())
             fun shaped(raw: JSONObject) = Normalize.normalizeNote(raw).put("deleted_at", raw.opt("deleted_at") as? String ?: "")
             val incoming = (0 until extras.trash.length()).mapNotNull { extras.trash.opt(it) as? JSONObject }
@@ -586,11 +619,24 @@ object Importing {
             addedCategories += Settings.adoptCategoriesOf(categories, JSONArray().apply {
                 incoming.filter { keepDays == null || !Organizing.isPast(shaped(it), keepDays) }.forEach { put(it) }
             }, refusedNames)
+            // This Trash signed as the desktop signs it, a name the map lacks under General
+            // (signed by its stored name, a twin under a refused one came in twice); and
+            // loosely, by its files' bytes, for one that came in on a copy of a file.
+            val seen = HashSet<String>()
+            val loose = HashMap<String, MutableList<JSONObject>>()
+            for (i in 0 until trash.length()) {
+                (trash.opt(i) as? JSONObject)?.let {
+                    val here = fileUnder(Normalize.normalizeNote(it), categories.keys)
+                    seen.add(Normalize.contentSignature(here))
+                    loose.getOrPut(looseSignature(here)) { ArrayList() }.add(here)
+                }
+            }
             for (raw in incoming) {
                 // One refused stays out of the map, under General, as normalize_note files it.
                 val entry = fileUnder(shaped(raw), categories.keys)
                 val signature = Normalize.contentSignature(entry)
-                if (signature in seen) continue
+                if (signature in seen ||
+                    loose[looseSignature(entry)]?.any { sameFiles(entry, it, attachmentsDir) } == true) continue
                 if (keepDays != null && Organizing.isPast(entry, keepDays)) {
                     trashLeftOut += 1
                     continue
@@ -600,6 +646,9 @@ object Importing {
                 seen.add(signature)
                 entry.put("attachments", placeFiles(entry.getJSONArray("attachments"), claimed,
                     attachmentsDir, extras.attachments))
+                // Signed by its copy too: a file a note here uses, copied for it, made every
+                // import of this backup bring it again, with another copy.
+                loose.getOrPut(looseSignature(entry)) { ArrayList() }.add(entry)
                 out.put(entry)
                 addedTrash += 1
             }
