@@ -651,8 +651,9 @@ reason at each activity made.
 The seventeenth round found the sixteenth's own rule too wide in two
 places. A template's draft held after a refused read dropped every new
 draft without a word, and a template typed then went with the app when
-Android ended it: a draft is copied aside again, held never (AS775 guards
-the words of Use template, below). And a hold set by a refused read had no
+Android ended it: a draft is copied aside again, meant to be held never
+(the eighteenth round found the copy failing on the same refusal, below;
+AS775 guards the words of Use template). And a hold set by a refused read had no
 way to end on Android 8 to 11, where Back ends the activity and not the
 process: every write was refused after the reopened app read the file
 fine. A new start clears the run's holds and unread marks now, each set
@@ -674,6 +675,37 @@ plan is made before the editor's last words are saved, so words typed in
 a note the backup also holds, between opening the import and answering
 it, are not asked about again as the desktop asks (rare: Settings must be
 left mid-import; Restore previous brings the words back).
+
+The eighteenth round found three of the seventeenth's sentences untrue on
+the next road. The draft's copy aside read the file again, past the seam a
+test refuses through: on a refusal that lasts it failed too, held the draft,
+and every new one was refused unsaid; on one that passed, a good draft went
+where nothing offers it. A refused read is tried once more now and offered
+if it gets through, the copy reads through the seam, and a draft still held
+has the template editor say only Save keeps what is typed (AS776, AS777).
+Settings → Templates over a file that did not read said "No templates yet"
+(it says the file could not be read, AS778, with a list of junk set aside
+counted as unreadable). And Settings → Backup over a held settings file read
+Off, "replaced at that next backup", while the agent handed nothing: the
+switch is shut there now and the page says so; the agent hands nothing while
+the app holds the file, and a damaged file copied aside is off by its marks,
+as the page says (AS774). The lows: a restore's off mark deleted over settings
+held at the start, the off only in memory, so the next start read on and
+handed everything (AS779); settings held at the start read for real later
+in the run, the Trash page then contradicting its own chips (held all run
+now, as the desktop's, AS780); and a stale welcome uid in settings winning
+over the run's (AS781). And the desktop's twentieth round, read for this one,
+found the phone's Trash page as open as the desktop's dropdown: over a Trash
+held at the start, read empty, a shorter window asked nothing, and the next
+start took the old notes and their files; the window cannot be chosen while
+the Trash is held now, and the page says why (AS782). Left, with their reasons: a read refused after a
+good one in the same run shows the marks, or an empty list, where the desktop
+keeps its last good read (it takes the phone's own storage failing mid-run,
+when every write fails too, and nothing is lost); an import over a held
+Trash or templates file stops whole, where the desktop brings the notes in
+(said, and nothing is lost); and on Android 12 and later Back keeps the app
+in memory, so "closed and opened again" ends a hold only once Android or
+the person ends the app (the words stay true, nothing is lost).
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

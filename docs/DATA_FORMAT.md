@@ -94,9 +94,12 @@ copied aside either, is **held** instead: nothing is written over it until
 the app is closed and opened again (`Files.holdWrites`; a new start reads
 every file afresh), or a later read in that run copies a damaged one aside
 — as the desktop holds a file another program has open. A template's
-draft alone is copied aside even then: held, every new draft was dropped. A settings file that cannot be read reads as its marks
-alone, the Trash's window unknown and Android's backup off, so a write
-that does go out carries them.
+draft whose read is refused is read once more and offered if that gets
+through; otherwise it is copied aside, or held when even the copy cannot
+read it, and the template editor then says only Save keeps what is typed.
+A settings file that cannot be read reads as its marks alone, the Trash's
+window unknown and Android's backup off, so a write that does go out
+carries them; held, it reads as those marks for the rest of that run.
 
 ### Settings the two apps share
 
@@ -153,7 +156,9 @@ person turned the app's part in it off at Settings → Backup; missing or
 `true`, it takes part, as it always did. A `settings.json` that cannot be
 read counts as off, and the start that finds it so writes `false` with
 `phone_trash_window_unknown`: the fresh file would otherwise read as on.
-While it is off, Android's backup is handed only
+One that is held (its read refused, or neither read nor copied aside) is
+written over by nothing, so Android's backup is handed nothing at all
+while the app holds it. While it is off, Android's backup is handed only
 `phone_google_backup_off.json`, beside the notebook, holding
 `{"phone_google_backup": false}`; restored onto a phone, the start writes
 that answer into the settings, unless they hold one, and deletes the
