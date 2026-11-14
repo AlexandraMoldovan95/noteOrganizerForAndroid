@@ -456,6 +456,8 @@ own buttons, which the walk can photograph but not press.
 Nothing is ever deleted from the plan. A case that gets automated keeps
 its row and gains a note saying so; one folded into another, or about a
 feature that is gone, moves to Merged cases with the case that took its
-place. Rows only scripts reach are filled in as Pass by them, with the
-build and the date of the last run; a row that needs a person stays Not
-Tested until she runs it, whatever the scripts already cover.
+place. Rows only scripts reach are filled in as Pass by the release run
+of those scripts, with its build and date, and stay Not Tested until that
+run (those added in the final audit wait for it); a row that needs a
+person stays Not Tested until she runs it, whatever the scripts already
+cover.

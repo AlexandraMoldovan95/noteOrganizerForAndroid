@@ -1188,6 +1188,9 @@ class ImportingTest {
         assertEquals("tw-new", trash[0].getString("uid"))
         assertEquals("OnlyInTrash", trash[1].getString("category"))
         assertEquals(1, outcome.trashLeftOut)
+        // ...and said, in the words the case reads: counted alone, the sentence could go unseen.
+        val said = importMessage(outcome)
+        assertTrue(said, "Also restored 3 categories and 2 trashed notes." in said)
     }
 
     @Test
@@ -1208,6 +1211,10 @@ class ImportingTest {
         assertEquals(1, outcome.addedTrash)
         assertEquals(1, outcome.trashLeftOut)
         assertEquals(30, outcome.keepDays)
+        // ...and said, in the words the case reads: counted alone, the sentence could go unseen.
+        val said = importMessage(outcome)
+        assertTrue(said, "1 of the backup's trashed notes was not brought in: older than the 30 days this phone's " +
+            "Trash keeps notes, the next start would have removed it. The backup still holds it." in said)
         val kept = JSONArray(File(dirOf(load), "trash.json").readText())
         assertEquals(listOf("New"), (0 until kept.length()).map { kept.getJSONObject(it).getString("title") })
     }

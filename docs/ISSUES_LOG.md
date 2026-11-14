@@ -1086,6 +1086,37 @@ both apps, as "Replace the old template with this one" says; and a
 damaged settings file beside no notes file on the very first start is
 read clean after the welcome note's write, unsaid (older, very rare).
 
+The thirty-fourth round found case 537 still short as a person would
+walk it: the backup's template could be one the phone already holds by
+name, which an import skips unsaid, and the case named no way to change
+a file inside a .zip that works (Windows' own zipped-folder view never
+writes it back). It names Weekly now, a template the phone lacks, and
+edits templates.json as case 524 edits trash.json: unzipped, changed,
+and the files zipped again from inside the folder. The data format's
+sentence on Infinity and NaN said "it" where it meant the phone. Left,
+with its reason: a held settings file's start line on the first start
+says "could not be read or copied aside", true of a refused read too
+(it was neither), where the ordinary start's says "could not be opened".
+
+Its second agent read every case's automation column from 500 on
+against the tests it names, and found three claiming more than they
+check (mediums, in a document the release relies on): case 528's
+MainActivity line that hands the plan the merged categories and case
+529's Settings → Categories calls after a rename or a delete are
+reached by no test, so those cases say "Automated in part" and name the
+hand check as the one that walks them; and cases 524 and 525 promised
+the result's words, which no test read (they read them whole now,
+AS871, AS872). The lows: 521 and 527 said "Automated" over screen
+parts no test reaches; 513 and 519 left out part of what is still for
+the eye; four cases said a walk part reached no road the walk in fact
+passes through (it checks nothing there); and the How to use tab and
+qa/README said script-only rows are filled in as Pass with their last
+run, where those added in the final audit wait for the release run, and
+did not define the column's words. Left, with its reason: the walk's
+part for case 505 does not check that the bar is still up when it taps
+(a slow run passes with the bar gone; the bar's time is the owner's to
+judge by hand).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

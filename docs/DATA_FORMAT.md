@@ -323,8 +323,8 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   -0.0 as -0, which Python reads as whole numbers; it refuses a whole
   backup whose notes hold Infinity or NaN as a member's value, and leaves
   out, unsaid, a backup's templates, Trash or settings file holding one,
-  where the desktop reads each and leaves that field out (in a list it
-  reads them as null); and
+  where the desktop reads each and leaves out the field that holds it
+  (inside a list, the phone reads them as null and keeps the field); and
   an escaped lone surrogate, which the desktop mends to U+FFFD as it reads,
   it keeps and writes back as "?". Neither app writes Infinity, NaN or a
   lone surrogate of its own.
