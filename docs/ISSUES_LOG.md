@@ -1187,7 +1187,7 @@ Claude had marked Pass (1, 2, 8, 11, 19, 20, 34, 47, 51, 67, 70, 80, 88,
 (mediums: the rule the round before wrote down, that a Pass by Claude
 stands only where the scripts walked all of the case, was untrue of
 them). Each says "Automated in part" now, names what is left, and went
-back to Not Tested, the run kept. Twenty-one NEEDS YOUR EYE rows said
+back to Not Tested, the run kept. Twenty-two NEEDS YOUR EYE rows said
 "The steps are automated" over steps no part walks (a notebook moved to
 the desktop, Home pressed with words typed, a day cleared, a repeat of
 every 2 weeks, the Trash's window chosen, among them): each says
@@ -1197,12 +1197,36 @@ walk and stays. 59 left out the day row's marks, which no check reads;
 entries by icon and word; and the How to use tab and qa/README said the
 final audit's script-only rows were filled in on 13 November, where
 some were on the 12th and most are Not Tested. The lows: 13, 22, 45, 61
-and 91 say exactly what their checks read; 38 names the walk's part,
+and 91 say what their checks read (45 and 61 exactly since the round
+after); 38 names the walk's part,
 not the unit tests; 112 says its steps were walked on the owner's phone,
 not by the emulator walk; qa/README names `sharedAsNote` and `keptBy`
 among what the suites reach of the drawing side. Left, for the owner:
 case 191 (and 189 and 190) are Pass by her own hand on rows no person
 can set up.
+
+The thirty-eighth round traced every unit-only row from 154 on from
+the screen to the model, and found what the class had been all along:
+the unit tests have no screen (no Compose runner in the build), so a
+row whose steps are taps and whose checks are unit tests alone was never
+walked whole. 146 such rows say "Automated in part" now, each naming
+what its kind leaves to the hand (the editor's gestures, the Repeat
+sheet's own Save, the import's picker and questions, a day's menu, the
+share sheet, the screens that show an answer), and the How to use tab
+says what "Automated (JVM)" means. Ten more Pass-by-Claude rows (155,
+488 to 507) and two of 0.9.1 (53's empty name, 71's 3 x 4 grid) went
+back to Not Tested, forty-eight in all. Mediums too: 331, 354, 380 and
+319 said the calculator's keys and the bar's ↶ are not scripted, and
+501 that a turn needs a big phone's emulator, where the walk presses
+those keys, taps ↶ and sizes tablets elsewhere; 72, 119 and 88 named as
+unwalked a merge with the cell on the left and a move's Undo that the
+walk and AppStateTest reach; 145 and 146 had swapped their marks; 48
+and 32 said their steps are automated over a desktop backup and four
+themes the walk never wears. The lows: 61, 45, 38, 112, 118, 39, 47, 90
+and 80 say exactly what their checks read; 209, 216, 219 and 227 say
+they name no test; 265 says no check computes the card's own sum; and
+qa/README says a check she allowed on her phone may fill in a row that
+needs a person, as the tab does.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

@@ -474,8 +474,12 @@ case; some rows the final audit added were filled in that way from its
 runs of the unit tests and of the emulator scripts (the walk, and
 `older_android.py`) on 12 and 13 November, on the builds named; most
 rows only scripts reach are Not Tested until the release's runs fill
-them in. A row that needs a person stays Not Tested until she runs it,
-whatever the scripts already cover; thirty-four rows Claude had marked
-Pass from the runs of 0.9.1, and two (494, 505) from the walk of 13
-November, whose scripts walked only part of them, went back to Not
-Tested in the final audit, the run kept in Actual Result.
+them in. A row that needs a person stays Not Tested until she runs it
+(or a check she allowed a script to make on her phone walks it, as
+Tested By then says), whatever the scripts already cover. Forty-eight
+rows Claude had marked Pass from runs whose scripts walked only part of
+them went back to Not Tested in the final audit, the run kept in Actual
+Result: thirty-six of 0.9.1, one of 0.10.0 (155), one of 12 November
+(488) and ten of 13 November (489 to 507). The unit tests have no
+screen, so a row whose steps are taps and whose checks are unit tests
+alone says "Automated in part" and names the taps.
