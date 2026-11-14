@@ -933,7 +933,8 @@ class AppStateTest {
         assertEquals(1, s.openId)
         assertEquals(opening, s.opening)
         val said = s.said()!!
-        assertTrue(said.message, said.message.startsWith("Not saved, so the note stays open: "))
+        // ...in whole sentences: the bare cause ended without the full stop every other refusal has.
+        assertEquals("Not saved, so the note stays open: the phone's storage refused the write.", said.message)
         assertEquals("Leave anyway", said.actionLabel)
         // Saved once it can be, and left only then.
         free()
@@ -966,7 +967,8 @@ class AppStateTest {
         s.trash(listOf(1))
         assertEquals("the editor is not read back over its words", rewritten, s.openNoteRewritten)
         assertEquals(1, s.openId)
-        assertTrue(s.said()!!.message.startsWith("Not saved, so the open note was left as it is: "))
+        assertEquals("Not saved, so the open note was left as it is: the phone's storage refused the write.",
+            s.said()!!.message)
         assertFalse(s.beforeImport())
     }
 
@@ -977,14 +979,14 @@ class AppStateTest {
         val editor = s.editing(1, "typed")
         s.writesFail()
         assertFalse(editor.save(auto = true))
-        assertTrue(s.said()!!.message.startsWith("Not saved: "))
+        assertEquals("Not saved: the phone's storage refused the write.", s.said()!!.message)
         s.snackbar.currentSnackbarData!!.dismiss()
         editor.body = "typed more"
         editor.changed()
         assertFalse(editor.save(auto = true))
         assertNull("the autosave does not say it again", s.said())
         assertFalse(editor.save())
-        assertTrue(s.said()!!.message.startsWith("Not saved: "))
+        assertEquals("Not saved: the phone's storage refused the write.", s.said()!!.message)
     }
 
     /** A note whose checklist reads [rows], open in an editor registered as NoteEditor registers it. */

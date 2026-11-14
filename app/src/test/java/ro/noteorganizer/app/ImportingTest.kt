@@ -544,6 +544,26 @@ class ImportingTest {
         assertEquals(1, result.outcome.restoredDays)
         assertNotEquals("not a colour",
             Settings.load(dirOf(load)).raw.getJSONObject("day_colors").getString("2026-11-14"))
+        // ...nor do marks it cannot show fill the calendar's cap, which counts the ones it shows.
+        val unread = JSONObject().apply { repeat(Days.MAX_DAY_DECORATIONS) { put("not a day $it", "#ff0000") } }
+        val full = notebook("[]", settings = JSONObject().put("day_colors", unread).toString())
+        val taken = Importing.apply(full, backupPlan(full, "[]"), Importing.Answers(), null,
+            Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))) as Importing.Result.Done
+        assertEquals(1, taken.outcome.restoredDays)
+    }
+
+    @Test
+    fun `an entry of templates json that is no template does not count toward the cap, as the desktop's list holds none`() {
+        // The phone counted it: at 999 templates and one such entry, the desktop took one more and
+        // the phone none.
+        val held = JSONArray().apply {
+            repeat(Templates.MAX_TEMPLATES - 1) { put(JSONObject().put("name", "T$it")) }
+            put("not a template")
+        }
+        val load = scratch("[]", templates = held.toString(), attachments = true)
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "New one"}]"""))) as Importing.Result.Done
+        assertEquals(1, result.outcome.addedTemplates)
     }
 
     @Test
@@ -1044,6 +1064,9 @@ class ImportingTest {
         // ...but not one older than this phone keeps the Trash: apply leaves it in the backup.
         assertFalse("a trashed note past the Trash's length", more(alike, Importing.Extras(trash = JSONArray(
             """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(400)}"}]"""))))
+        // ...asked by the length apply keeps it by: the backup's longer one, taken where none was chosen.
+        assertTrue("a trashed note within the backup's longer window", more(alike, Importing.Extras(trashWindow = 90,
+            trash = JSONArray("""[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(45)}"}]"""))))
         assertTrue("a day's colour", more(alike, Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))))
         assertTrue("a category", more(alike, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}"""))))
         // ...but not a template over a templates file held this run: apply stops there.

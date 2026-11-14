@@ -994,16 +994,39 @@ format's duplicate key left out the fields a newer version wrote, which
 it compares (the screens leave them out on purpose: no one sees them);
 it names them now. The lows: a painted day here this phone cannot show
 held the day, so the backup's mark never came in, where the desktop's
-store is cleaned at every start (AS854); the editor's own refusals ended
-a bare cause without the full stop every other refusal has (AS855); and
+store is cleaned at every start (AS854); the editor's two "Not saved:"
+lines ended a bare cause without the full stop the bar's other refusals
+have (AS855; the round after found four more, and the red line); and
 case 535 named a Cancel the question about notes already here does not
 have. The round's parity reader found on the desktop the Trash's window
 asked before the merge adopts the backup's longer one: fixed there.
-Left, with their reasons: the questions' count of new notes, the
-checklist rows' refusals and the editor's calls are drawn on screen,
-where no JVM test reaches (the hand cases and the walk do); and a twin
+Left, with their reasons: the questions' count of new notes and the
+checklist rows' refusals are drawn on screen, where no JVM test reaches
+(the hand cases and the walk do); and a twin
 already holding 200 files is offered Skip and said to take files it
 cannot (both apps alike, very rare, nothing lost).
+
+The thirty-first round found the code holding and the documents short:
+the data format still said the backup's painted days join "without
+replacing anything", where the round before had made a mark stored here
+that this app cannot show give way to the backup's (counted a medium,
+as untrue in a document the release relies on; it says so now), and it
+said a Trash entry older than "its Trash keeps" stays out, where the
+backup's longer length counts when it is taken. The lows: four more
+"Not saved, so …" lines and the editor's red line ended a bare cause
+without its full stop (`Files.ended`, AS859; the tests now read the
+whole sentence, AS860); the day markers were read past the desktop's
+first 64 entries and measured after their selector came off, so a day
+showed a mark the desktop drops (AS857, AS858); marks it cannot show
+still filled the calendar's cap (AS856); an entry of templates.json that
+is no template counted toward the cap of templates, where the desktop's
+list holds none (AS862); and nothing asked the Skip question with a
+backup's longer window (AS861). The round before's medium has a case of
+its own (536). Left, with their reasons: when the backup's window cannot
+be written at that moment, the desktop's question has offered Skip by it
+and its merge keeps by its own (the harmless way; the phone stops the
+import there); and a backup whose JSON begins with a byte-order mark may
+read here where the desktop refuses it (not seen on a device).
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

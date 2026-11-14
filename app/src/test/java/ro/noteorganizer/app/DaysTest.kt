@@ -17,6 +17,16 @@ class DaysTest {
     private fun firstOnDisk(load: Notebook.Load): JSONObject = onDisk(load).getJSONObject(0)
 
     @Test
+    fun `a day's markers are cleaned as the desktop cleans them, its first 64 entries measured before the selector comes off`() {
+        // The phone took a star after 64 empty entries, or one under 16 selectors: drawn here, and
+        // holding the day against a backup's mark, where the desktop drops it.
+        assertEquals(emptyList<String>(), Days.cleanMarkers(JSONArray(List(64) { "" } + "⭐")))
+        assertEquals(emptyList<String>(),
+            Days.cleanMarkers(JSONArray(listOf("⭐" + "️".repeat(Days.MAX_DAY_MARKER_CHARS)))))
+        assertEquals(listOf("⭐"), Days.cleanMarkers(JSONArray(listOf("⭐️"))))
+    }
+
+    @Test
     fun `the wait for the day to turn ends at the next date's first moment, where midnight is skipped too`() {
         val bucharest = java.time.ZoneId.of("Europe/Bucharest")
         val late = java.time.ZonedDateTime.of(2026, 10, 27, 23, 58, 0, 0, bucharest)

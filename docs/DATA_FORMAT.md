@@ -1022,20 +1022,24 @@ desktop's three questions are asked before anything is written:
    `_dup_key`: title, text, comments, category, checklist, repeat rule
    and a series' own days, and the fields a newer version wrote, which
    the screen does not name as no one sees them): skip them, or import
-   them anyway. When every
-   new note is one, Skip is offered only while it still brings something:
-   a note known here updated or added, copies kept, a look-alike's file
-   the note here lacks, or a category, template, painted day or Trash
-   entry this device lacks and would take (not one older than its Trash
-   keeps, nor one over a file it may not write this run); otherwise the
-   question is Import anyway or Cancel. Skipped, a backup's look-alike
+   them anyway. When every new note is one, Skip is offered only while
+   it still brings something: a note known here updated or added, copies
+   kept, a look-alike's file the note here lacks, or a category,
+   template, painted day or Trash entry this device lacks and would take
+   (not one older than the length its Trash keeps by once the import is
+   in -- the backup's longer one where it is taken -- nor one over a file
+   it may not write this run); otherwise the question is Import anyway
+   or Cancel. Skipped, a backup's look-alike
    gives the files it holds and the note here lacks to that note -- the
    first in the file with its key, the notebook as the updates leave it,
    an updated note known by the backup's copy, as the desktop's does --
    and the words say how many.
 
 Then the rest joins without replacing anything: the backup's categories
-(a name already here keeps its own colour), its painted calendar days, a
+(a name already here keeps its own colour), its painted calendar days (a
+day painted here keeps its own; a mark stored here that this app cannot
+show is no painting, and the backup's takes its place, as the desktop
+drops such a mark at every start), a
 template only when none here has its name, and its Trash — an entry
 already in this Trash is skipped (one that came in on a copy of a file is
 known by that file's name and bytes), so re-importing your own backup
