@@ -92,14 +92,16 @@ A file whose read the phone's storage refuses (an input-output error,
 not bytes that do not parse), or one that will not parse and cannot be
 copied aside either, is **held** instead: nothing is written over it until
 the app is closed and opened again (`Files.holdWrites`; a new start reads
-every file afresh), or a later read in that run copies a damaged one aside
-— as the desktop holds a file another program has open. A template's
-draft whose read is refused is read once more and offered if that gets
-through; otherwise it is copied aside, or held when even the copy cannot
-read it, and the template editor then says only Save keeps what is typed.
-A settings file that cannot be read reads as its marks alone, the Trash's
-window unknown and Android's backup off, so a write that does go out
-carries them; held, it reads as those marks for the rest of that run.
+every file afresh), and it reads as held for the rest of that run — as the
+desktop holds a file another program has open. While the notes or the
+Trash are not read (held, or set aside), no attached file is deleted: their
+unread entries may name any of them. A template's draft whose read is
+refused is read once more and offered if that gets through, or offered from
+its copy when the copy's own read does; otherwise it is copied aside, or
+held when even the copy cannot read it, and the template editor then says
+only Save keeps what is typed. A settings file that cannot be read reads as
+its marks alone, the Trash's window unknown and Android's backup off, so a
+write that does go out carries them.
 
 ### Settings the two apps share
 
@@ -314,7 +316,8 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
 added, to the microsecond, and its own name — the desktop's
 `add_attachment` — made a name Windows will take, because a backup
 carries it there. Taking a file off a note deletes the stored file only
-when no other note, and no note in the Trash, still names it.
+when no other note, and no note in the Trash, still names it, and never in
+a run that could not read the notes or the Trash.
 
 ### Where `uid` comes from, and who may mint one
 
@@ -1051,7 +1054,8 @@ own, the reason went and so did the rule.
 
 When a note leaves the Trash for good, its attached files go with it —
 **except any file a note still uses**, living or still in the Trash, and
-any stored name that tries to point outside the attachments folder. The
+any stored name that tries to point outside the attachments folder — and
+none at all in a run that could not read the notes or the Trash. The
 desktop's automatic purge spares them too, since its 0.95.391
 ([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses)).
 

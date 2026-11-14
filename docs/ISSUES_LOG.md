@@ -703,9 +703,10 @@ start took the old notes and their files; the window cannot be chosen while
 the Trash is held now, and the page says why (AS782). Left, with their reasons: a read refused after a
 good one in the same run shows the marks, or an empty list, where the desktop
 keeps its last good read (it takes the phone's own storage failing mid-run;
-the file refused is then held, so nothing is written over it, and nothing is
-lost); an import over a held
-Trash or templates file stops whole, where the desktop brings the notes in
+the file refused is then held, so nothing is written over it, and since the
+twentieth round no attached file is deleted while the Trash is unread); an
+import that would bring entries into a held Trash, or templates into a held
+templates file, stops whole, where the desktop brings the notes in
 (said, and nothing is lost); and on Android 12 and later Back keeps the app
 in memory, so "closed and opened again" ends a hold only once Android or
 the person ends the app (the words stay true, nothing is lost).
@@ -727,11 +728,32 @@ run now, as settings are, AS785); the Trash page said "The Trash is empty" and
 "Kept for N days" over a held Trash; over held settings, every return to the
 app cancelled the daily notification, the marks saying it is off (the alarm set
 before stays now); Duplicate and Clean up duplicates left their file copies
-behind on a refused write (taken back, AS786); and a development build's copy
+behind on a refused write (taken back, AS786 for Duplicate, AS788 since the
+twentieth round for Clean up); and a development build's copy
 of an older notebook said it was brought in after a write was refused (AS787).
 Left, with its reason: Android's backup agent, run before any start, can hand
 the off mark for a damaged settings file before the start has said the backup
 is off; that is the rule as written, and the start says it when the app opens.
+
+The twentieth round found one of high severity on a rare road, the desktop's
+twenty-first found again: with the Trash held at the start, or set aside
+damaged, a backup import gave a note it brought the file of a trashed note it
+could not see, and Remove attachment on that note deleted the file the trashed
+note still names. A run that did not read the Trash now deletes no attached
+file, as one that did not read the notes, and Remove attachment's question
+gives either as the reason (AS789). The lows: when the daily notification
+fired, or the phone restarted, over settings that would not read, the alarm
+was cancelled (kept now, and set a day on when it fires unread); Clean up
+duplicates' take-back had no check (AS788); the bar for a draft not kept was
+short, advised a Save a full phone refuses and said all was lost where an older
+draft stays (long now, and saying what is lost); templates held at the start
+read for real later in the run, as the notes and the Trash no longer do
+(AS790); and a category renamed over a held templates file stopped after the
+Trash was written, its entries filed under a name no category had (the
+templates first now, a held file left as the desktop leaves it, AS791).
+DATA_FORMAT's sentences on a later read copying a held file aside, on a draft
+offered from its copy, and on files deleted over an unread Trash were made
+true of the code.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
