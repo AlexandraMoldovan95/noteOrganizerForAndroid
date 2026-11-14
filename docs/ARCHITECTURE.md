@@ -65,13 +65,13 @@ with every change: `wc -l` on the folder gives today's.
 | `Organizing.kt` | 1,160 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 960 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Importing.kt` | 1,060 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 620 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 720 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
 | `Themes.kt` | 390 | The eight themes, the palettes, and the contrast rules that pick legible words | `themes.py` |
 | `Normalize.kt` | 610 | The parts of `normalize_note` a writer needs, the fields a version does not know (`unknown_fields`), `_dup_key`, `content_signature` | `model.py` |
-| `Backup.kt` | 460 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
+| `Backup.kt` | 470 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 340 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 400 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 370 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
@@ -80,7 +80,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
-| `Files.kt` | 320 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Files.kt` | 340 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 180 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 90 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
@@ -96,9 +96,9 @@ with every change: `wc -l` on the folder gives today's.
 | `CalendarScreen.kt` | 630 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 1,340 | The app's state, and every action a screen can take on the notebook |
-| `MainActivity.kt` | 830 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
+| `MainActivity.kt` | 840 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
 | `TemplateScreens.kt` | 770 | Choosing and saving a template, Settings → Templates, the template editor |
-| `ImportFlow.kt` | 470 | The code dialog and the import's questions, in the desktop's words |
+| `ImportFlow.kt` | 480 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
 | `RepeatSheet.kt` | 280 | The Repeat sheet |
 | `TableView.kt` | 430 | The grid, drawn: a merge down as one cell, the chosen cell holding the field it is written in and the handles on its edges |

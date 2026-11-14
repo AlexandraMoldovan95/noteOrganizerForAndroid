@@ -1017,9 +1017,15 @@ desktop's three questions are asked before anything is written:
    copies.
 3. New notes that **look identical** to one here (the desktop's
    `_dup_key`: title, text, comments, category, checklist, repeat rule
-   and a series' own days): skip them, or import them anyway. Skipped,
-   a backup's look-alike gives the files it holds and the note here
-   lacks to that note, as the desktop's does, and the words say how many.
+   and a series' own days): skip them, or import them anyway. When every
+   new note is one, Skip is offered only while it still brings something
+   (an update agreed to, copies kept, a look-alike's file the note here
+   lacks, or a category, template, Trash entry or painted day this
+   device lacks), as on the desktop; otherwise the question is Import
+   anyway or Cancel. Skipped, a backup's look-alike gives the files it
+   holds and the note here lacks to that note -- the first in the file
+   with its key, the notebook as the updates leave it, as the desktop's
+   does -- and the words say how many.
 
 Then the rest joins without replacing anything: the backup's categories
 (a name already here keeps its own colour), its painted calendar days, a

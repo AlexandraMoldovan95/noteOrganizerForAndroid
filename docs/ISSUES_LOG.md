@@ -925,6 +925,36 @@ in the backup); a file held after the load turns refile's refusal into
 notes that "took attached files" is made before their copies, as the
 desktop's is, so a copy refused on a full phone is counted.
 
+The twenty-eighth round graded that first "left" a medium, as the round
+before had graded its partial case: when every new note in a backup looks
+alike, the question offered Import anyway or Cancel, and the default Cancel
+dropped what Skip would have brought, where the desktop asks whether the
+backup brings more. The phone asks it now (`Importing.bringsMore`, worked
+out before the question opens): a file a look-alike gives the note here it
+looks like, a category, a template, a Trash entry or a day's marks this
+phone lacks, each tested as the import itself tests it, the Trash signed,
+the templates named and the days merged by the same helpers apply uses
+(AS831 to AS836). The other medium was older than the wave: a backup
+bigger than the room left failed while it was copied in, and the phone said
+"That file couldn't be read as a backup: write failed: ENOSPC", which
+blamed the file in the system's words. A full phone is said as one now,
+on every backup road, and no road shows the app's private path (AS837 to
+AS839). The documents: case 531 named a button a new test notebook never
+shows ("Skip it", where its welcome note makes it "Skip the 2"), and this
+file's data format said Skip was always offered, and that the files went
+to "that note" where two notes may look alike. The round's parity reader
+also found the desktop dropping a look-alike's file when the same import
+updated the note it looks like, and giving a file to the last of two
+look-alikes where the phone gives it to the first: fixed there, the first
+one now on both. The lows: a write's bare cause reached the bar alone, and
+twice inside another sentence ("Not saved: Your notes could not be saved:
+…"); a delete the Trash refused told a full phone to try again in a
+moment; "1 duplicates skipped"; and the look-alikes' second pass ran with
+none skipped. Left, with its reason: over a held templates, Trash or
+settings file the words "Skipped, the rest of this import still happens"
+are followed by the import stopping at that file, which is said (rare,
+and stopping at the first refused write is by design).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
