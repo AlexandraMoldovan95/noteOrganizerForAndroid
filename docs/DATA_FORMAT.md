@@ -110,8 +110,11 @@ write that does go out carries them.
 `welcome_offered`, `welcome_note_uid`, `last_export_at` — so a notebook's
 files mean the same choices on either device. A backup's import takes
 only the categories, the day colours and markers and the Trash's window;
-the rest is each device's own, on both apps. A key the phone does not use is
-kept, never dropped.
+the rest is each device's own, on both apps. A backup's trashed note comes
+in only if the window this device's next start purges by keeps it; older
+ones stay in the backup, and the import says so (over a settings file held
+that window is not known, so on the phone the import stops, on the desktop
+none come in). A key the phone does not use is kept, never dropped.
 
 Phase 2 reads and writes five more, and two old ones with every value
 the desktop gives them, each as the desktop keeps it:

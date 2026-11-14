@@ -50,7 +50,7 @@ here.
 
 ## The map
 
-About 29,900 lines of Kotlin on 14 November 2026, the rules a little over
+About 30,000 lines of Kotlin on 14 November 2026, the rules a little over
 half of them, in files that import nothing from Android, and the drawing
 the rest, in files that may. Each file's count below is rounded, and moves
 with every change: `wc -l` on the folder gives today's.
@@ -62,10 +62,10 @@ with every change: `wc -l` on the folder gives today's.
 | `Notebook.kt` | 3,070 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 970 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
-| `Organizing.kt` | 1,050 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
+| `Organizing.kt` | 1,060 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 800 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Importing.kt` | 820 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 620 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 720 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
@@ -92,13 +92,13 @@ with every change: `wc -l` on the folder gives today's.
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 4,330 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 1,180 | Settings and its ten pages, Duplicates and Reminders among them |
+| `SettingsScreens.kt` | 1,190 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 630 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 1,300 | The app's state, and every action a screen can take on the notebook |
 | `MainActivity.kt` | 820 | The Activity: the notebook's folder, the doors to the rest of the phone, the bar or the rail, the panes, Back |
-| `TemplateScreens.kt` | 760 | Choosing and saving a template, Settings → Templates, the template editor |
-| `ImportFlow.kt` | 460 | The code dialog and the import's questions, in the desktop's words |
+| `TemplateScreens.kt` | 770 | Choosing and saving a template, Settings → Templates, the template editor |
+| `ImportFlow.kt` | 470 | The code dialog and the import's questions, in the desktop's words |
 | `CalculatorPanel.kt` | 250 | The calculator docked under the note |
 | `RepeatSheet.kt` | 280 | The Repeat sheet |
 | `TableView.kt` | 430 | The grid, drawn: a merge down as one cell, the chosen cell holding the field it is written in and the handles on its edges |
@@ -107,7 +107,7 @@ with every change: `wc -l` on the folder gives today's.
 | `PdfPrint.kt` | 300 | The export's page printed to an A4 PDF by the system's WebView: drawn page by page on the main thread, the file written off it |
 | `ShareFlow.kt` | 310 | The Share sheet and its cards, the share mark, and the hand-off to the phone's share sheet |
 | `ExportFlow.kt` | 170 | Export as file through Android's "save as" |
-| `ReminderAlarm.kt` | 130 | The day's notification: the alarm set for the chosen hour, the receiver that counts the day's notes with the app closed, set again after a restart or an update ([why it only reads](#decision-the-reminders-alarm-reads-inexactly-and-asks-late)) |
+| `ReminderAlarm.kt` | 150 | The day's notification: the alarm set for the chosen hour, the receiver that counts the day's notes with the app closed, set again after a restart or an update ([why it only reads](#decision-the-reminders-alarm-reads-inexactly-and-asks-late)) |
 | `NotesBackupAgent.kt` | 40 | The app's part in Android's own backup, to a Google account or a new phone: the notebook by the rules in `data_extraction_rules.xml`, or, with Settings → Backup's switch off, one small file saying so |
 | `RichText.kt` | 180 | A note plus its spans, turned into an `AnnotatedString` |
 | `ui/theme/` | 290 | A palette as Compose colours, Material 3 mapped onto it, and `ThemeVeil`, the picture a change of theme dissolves under |

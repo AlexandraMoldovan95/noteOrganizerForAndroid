@@ -743,10 +743,12 @@ note still names. A run that did not read the Trash now deletes no attached
 file, as one that did not read the notes, and Remove attachment's question
 gives either as the reason (AS789). The lows: when the daily notification
 fired, or the phone restarted, over settings that would not read, the alarm
-was cancelled (kept now, and set a day on when it fires unread); Clean up
-duplicates' take-back had no check (AS788); the bar for a draft not kept was
-short, advised a Save a full phone refuses and said all was lost where an older
-draft stays (long now, and saying what is lost); templates held at the start
+was cancelled (kept now, and set a day on when it fires unread; after a
+restart, which clears it, set again at the default hour since the twenty-first
+round); Clean up duplicates' take-back had no check (AS788); the bar for a
+draft not kept was short, advised a Save a full phone refuses and said all was
+lost where an older draft stays (long now; "what you typed may be lost" since
+the twenty-first round); templates held at the start
 read for real later in the run, as the notes and the Trash no longer do
 (AS790); and a category renamed over a held templates file stopped after the
 Trash was written, its entries filed under a name no category had (the
@@ -754,6 +756,27 @@ templates first now, a held file left as the desktop leaves it, AS791).
 DATA_FORMAT's sentences on a later read copying a held file aside, on a draft
 offered from its copy, and on files deleted over an unread Trash were made
 true of the code.
+
+The twenty-first round found the desktop's twenty-second high on the phone:
+over settings held at the start, a backup's Trash came in without the window
+it needed, and the next start removed it with its files. The class is closed
+as the desktop's twenty-third closed it: each of a backup's trashed notes comes
+in only if the window this phone's next start purges by keeps it, the rest
+staying in the backup, said with the window; over held settings that window is
+not known, so the import stops, as over a held Trash (AS792, AS793). Its
+medium: a category renamed on a nearly full phone stopped after its first
+writes, the rest filed under a name no category had; the notes go first now,
+and a later refusal puts back what was written (AS794). The lows: Statistics
+counted 0 over a held Trash or templates file, and counted a templates file's
+raw entries (a dash now, and the templates the page lists); the draft-not-kept
+bar's words; a held draft read for real later in the run, offered under the
+editor's "could not be read" (AS795); after a restart over settings that would
+not read, no alarm at all; Continue on a draft over a held templates file said
+its template was gone; and the alarm's reader and the count read a held file
+for real. Left, with their reasons: a notes file held at the start shows "No
+notes yet" once its notice is dismissed, as the desktop's list does (the notice
+said it, and nothing is lost); and a run that keeps every file over an unread
+Trash leaves orphans no later run takes (no loss).
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
