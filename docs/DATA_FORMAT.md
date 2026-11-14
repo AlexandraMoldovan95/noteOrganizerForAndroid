@@ -185,7 +185,11 @@ never a rescue copy or a purge.
 
 The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
-are adopted with a colour, as the desktop's `adopt_categories_of` does.
+are adopted with a colour, as the desktop's `adopt_categories_of` does:
+in memory at every start (the phone's start does not write them), and for
+good by a backup's import, for its notes and the trashed notes it brings.
+A name past the ceilings (80 characters, 200 categories) stays out, its
+notes under General, and the import says how many.
 
 ## A note
 
@@ -957,11 +961,18 @@ notebook moves; a share code is how a note does.
 
 `notes_data.json`, `settings.json`, `templates.json`, `trash.json`, and
 every attached file under `attachments/`. An export is built in a scratch
-folder first and checked by the import's own rules before it is handed
-to the file picker: a backup this app wrote must be one it agrees to read
-back. One it could not read back, a JSON file past the phone's memory
-ceiling, is still written -- the only copy is never withheld -- and the
-phone says so.
+folder first and checked by the import's guards (how many files, how far
+they unpack) before it is handed to the file picker: a backup this app
+wrote must be one it agrees to read back. A notes file that does not read
+-- one the start could not read, still on disk until the first save --
+goes in as `[]`, what the app holds of it, and its bytes under
+`unreadable/`: the copy the start kept aside, or the file itself when that
+copy could not be made. Either device reads the backup back; the
+phone says it holds no notes as notes and does not record it as the last
+backup. A damaged Trash, templates or settings file goes in as it is, and
+an import skips it. One it could not read back, a JSON file past the
+phone's memory ceiling, is still written -- the only copy is never
+withheld -- and the phone says so.
 
 ### The guards on the way in
 

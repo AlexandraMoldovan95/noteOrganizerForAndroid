@@ -29,6 +29,10 @@ class ImportingTest {
     private fun backupPlan(load: Notebook.Load, incoming: String) =
         Importing.plan(load.raw!!, notes(incoming), Importing.Source.BACKUP)
 
+    /** A deleted_at [n] days before now: a fixed date drifts past every window. */
+    private fun daysAgo(n: Long): String = java.time.LocalDateTime.now().minusDays(n)
+        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+
     // ---- the desktop's door ----
 
     @Test
@@ -463,7 +467,7 @@ class ImportingTest {
         val plan = backupPlan(load, """[{"uid": "t1", "title": "One"}]""")
         val trashFailed = Importing.apply(load, plan, Importing.Answers(), null, Importing.Extras(
             templates = JSONArray("""[{"name": "Trip", "title": "t"}]"""),
-            trash = JSONArray("""[{"uid": "gone", "title": "Gone", "deleted_at": "2026-11-01 09:00:00"}]""")))
+            trash = JSONArray("""[{"uid": "gone", "title": "Gone", "deleted_at": "${daysAgo(2)}"}]""")))
         val said = (trashFailed as Importing.Result.Failed).reason
         assertTrue(said, said.startsWith("The Trash could not be written:"))
         assertTrue(said, "None of the backup's notes came in; its templates were kept" in said && "Trash was" !in said)
@@ -848,11 +852,13 @@ class ImportingTest {
     fun `over settings held at the start, a backup's Trash that needs its longer window does not come in`() {
         // Its marks in memory, the window was not adopted, the entries came in, and the
         // next start read the real file, no window chosen: 30 days removed them.
-        val load = notebook("[]", settings = """{"theme": "dark"}""")
-        val trashFile = File(dirOf(load), "trash.json")
+        // Held before the load, as a start finds it (held after, the settings write hid the guard).
+        val first = notebook("[]", settings = """{"theme": "dark"}""")
+        val trashFile = File(dirOf(first), "trash.json")
         val before = if (trashFile.isFile) trashFile.readText() else null
         try {
-            Files.holdWrites(load.settings!!.file)
+            Files.holdWrites(first.settings!!.file)
+            val load = Notebook.load(dirOf(first))
             val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
                 Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
             assertTrue(result is Importing.Result.Failed)
@@ -861,6 +867,37 @@ class ImportingTest {
             Files.newStart()
         }
         assertEquals("nothing written to the Trash", before, if (trashFile.isFile) trashFile.readText() else null)
+    }
+
+    @Test
+    fun `a backup's notes and trashed notes keep the categories its settings lack, the newer twin comes in`() {
+        // Filed under General for good, unsaid, where the desktop's import adopts them:
+        // this phone's start never writes the categories it adopts, so its backups lack them.
+        // Of two twins in the backup's Trash, the older left out took the newer, uncounted.
+        val load = notebook("[]")
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val result = Importing.apply(load, backupPlan(load, """[
+            {"uid": "g1", "title": "Seeds", "category": "Garden", "date": "2026-10-05",
+             "recurrence": {"freq": "weekly", "weekdays": [0]}, "overrides": {"2026-10-12": {"category": "Gym"}}},
+            {"uid": "l1", "title": "Long", "category": "$long"}]"""), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[
+                {"uid": "tw-old", "title": "Twin", "body": "same", "deleted_at": "${daysAgo(200)}"},
+                {"uid": "tw-new", "title": "Twin", "body": "same", "deleted_at": "${daysAgo(2)}"},
+                {"uid": "shed", "title": "Shed", "body": "y", "category": "OnlyInTrash", "deleted_at": "${daysAgo(3)}"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        val saved = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.associateBy { it.getString("title") }
+        assertEquals("Garden", saved.getValue("Seeds").getString("category"))
+        assertEquals("Gym", saved.getValue("Seeds").getJSONObject("overrides").getJSONObject("2026-10-12").getString("category"))
+        assertEquals("a name past the ceiling stays out, said", "General", saved.getValue("Long").getString("category"))
+        assertEquals(1, outcome.refusedCategories)
+        val map = Settings.load(dirOf(load)).raw.getJSONObject(Settings.CATEGORIES)
+        assertTrue(map.toString(), map.has("Garden") && map.has("Gym") && map.has("OnlyInTrash"))
+        assertEquals(3, outcome.addedCategories)
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Twin", "Shed"), trash.map { it.getString("title") })
+        assertEquals("tw-new", trash[0].getString("uid"))
+        assertEquals("OnlyInTrash", trash[1].getString("category"))
+        assertEquals(1, outcome.trashLeftOut)
     }
 
     @Test

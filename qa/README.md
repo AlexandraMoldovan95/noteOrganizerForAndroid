@@ -40,11 +40,11 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,063 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
-`DaysTest` (76), `TablesTest` (72), `AppStateTest` (71), `OrganizingTest` (58),
-`RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47), `ImportingTest` (46),
+1,067 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+`DaysTest` (76), `TablesTest` (72), `AppStateTest` (71), `OrganizingTest` (60),
+`RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47), `ImportingTest` (47),
 `IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
-`ParagraphsTest` (33), `EditorTypingTest` (32), `SettingsTest` (28), `BackupTest` (25),
+`ParagraphsTest` (33), `EditorTypingTest` (32), `SettingsTest` (28), `BackupTest` (26),
 `ListingTest` (22), `TemplatesTest` (22), `FindingTest` (20), `EditorTableTest` (16),
 `ExportingTest` (16), `StartupTest` (16), `OutgoingTest` (12), `UnknownFieldsTest` (11),
 `ThemesTest` (10), `EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (5),
@@ -419,7 +419,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 518 cases on 14 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 521 cases on 14 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and

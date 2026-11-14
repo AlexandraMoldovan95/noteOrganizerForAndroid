@@ -360,6 +360,41 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a rename whose templates or map write is refused puts every holder back`() {
+        // The templates refused: the Trash and notes went back unwatched. The map's own
+        // write refused: notes, Trash and templates stayed under a name the map lacked.
+        for (refused in listOf("templates.json", "settings.json")) {
+            val load = notebook("""[{"id": 1, "category": "Work"}]""",
+                trash = """[{"id": 3, "category": "Work", "deleted_at": "2026-10-01 10:00:00"}]""",
+                settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""",
+                templates = """[{"name": "Weekly", "category": "Work"}]""")
+            File(dirOf(load), "$refused.tmp").mkdirs()
+            assertTrue(refused, Organizing.renameCategory(load, "Work", "Job") is SaveResult.Failed)
+            assertEquals(refused, "Work", onDisk(load).getJSONObject(0).getString("category"))
+            assertEquals(refused, "Work", trashOnDisk(load).getJSONObject(0).getString("category"))
+            assertEquals(refused, "Work", JSONArray(File(dirOf(load), "templates.json").readText())
+                .getJSONObject(0).getString("category"))
+        }
+    }
+
+    @Test
+    fun `over settings held this run a rename or a delete moves no holder, and says why`() {
+        // The map's write refused at the end: everything else was already renamed.
+        val load = notebook("""[{"id": 1, "category": "Work"}]""",
+            settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""")
+        try {
+            Files.holdWrites(load.settings!!.file)
+            val renamed = Organizing.renameCategory(load, "Work", "Job")
+            assertTrue(renamed.toString(), (renamed as SaveResult.Failed).reason.contains("settings.json"))
+            assertTrue(Organizing.deleteCategory(load, "Work", trashNotes = true) is SaveResult.Failed)
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("Work", onDisk(load).getJSONObject(0).getString("category"))
+        assertFalse("nothing trashed", File(dirOf(load), "trash.json").isFile && trashOnDisk(load).length() > 0)
+    }
+
+    @Test
     fun `a renamed category keeps its place in the list`() {
         // Asked of the map before it is written: the computer's JSON library
         // does not keep key order, the phone's does, so a read-back here

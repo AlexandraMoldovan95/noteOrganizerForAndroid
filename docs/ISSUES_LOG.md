@@ -778,6 +778,32 @@ notes yet" once its notice is dismissed, as the desktop's list does (the notice
 said it, and nothing is lost); and a run that keeps every file over an unread
 Trash leaves orphans no later run takes (no loss).
 
+The twenty-second round found two mediums, both on moving a notebook. A
+backup's note filed under a category its settings lacked came in under
+General for good, unsaid, where the desktop's import adopts it; and this
+phone's own backups lack such categories, because its start adopts them in
+memory and never writes them. The import adopts them now, for its notes and
+the trashed notes it brings, a name past the ceilings said (AS796, AS797,
+AS799). And a backup made while the notes file the start could not read was
+still on disk packed it damaged: neither app read the backup back, yet the
+phone said "Backup saved." and recorded the date. That file now goes in as
+`[]` with its bytes under `unreadable/`, and the phone says the backup holds
+no notes as notes and keeps the date it had (AS800 to AS802). The lows: of two
+twins in a backup's Trash the older, left out, took the newer with it (AS798);
+the twenty-first round's put-back covered the rename's own writes, not the
+map's write after them, and a rename or delete over held settings moved every
+holder before the map's refusal (refused before anything now, and a refused
+map write puts every holder back, AS803 to AS805); AS793 could not fail, its
+test holding the settings only after they were read (held before the load
+now); a test with a fixed date that would have failed on 1 December; the
+import's longer message said in 4 seconds; Statistics showing 0 for a
+templates file first refused on its own page; and a new clock or time zone
+over unread settings moving the person's alarm to 9 o'clock. Left, with their
+reasons: the notification's count reads the notes file without asking about a
+hold (it only counts, writes nothing, and a refused read posts nothing); and
+over settings that stay unread the alarm is set again each day even for a
+person who turned notifications off (it posts nothing while they are unread).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

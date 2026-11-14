@@ -388,6 +388,37 @@ class BackupTest {
     }
 
     @Test
+    fun `a notes file that does not read goes in kept aside, and the backup reads back holding no notes`() {
+        // Damaged on disk until the first save: packed as it was, neither app read
+        // the backup back, and the phone said "Backup saved." and kept its date.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[{damaged")
+        File(dir, "templates.json").writeText("""[{"name": "Trip", "title": "t"}]""")
+        val out = ByteArrayOutputStream()
+        val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}) as Backup.Export.Saved
+        assertTrue("said apart, its date not kept", saved.notesUnread)
+        val zip = File(temp("out"), "b.zip").apply { writeBytes(out.toByteArray()) }
+        ZipFile(zip).use { archive ->
+            assertEquals("[]", archive.getInputStream(archive.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
+            assertEquals("[{damaged", archive.getInputStream(archive.getEntry("unreadable/notes_data.json"))
+                .readBytes().toString(Charsets.UTF_8))
+        }
+        val read = Backup.read(zip, temp("u"), Long.MAX_VALUE)
+        assertTrue("$read", read is Backup.Read.Ok)
+        assertEquals(1, (read as Backup.Read.Ok).contents.templates?.length())
+        // ...once, beside the copy the start kept of it; a good file goes in as it is.
+        File(dir, "notes_data_corrupt_20261114_010101.json").writeText("[{damaged")
+        val again = ByteArrayOutputStream()
+        Backup.export(dir, temp("scratch"), again)
+        val names = ZipFile(File(temp("o"), "c.zip").apply { writeBytes(again.toByteArray()) }).use { a ->
+            a.entries().toList().map { it.name } }
+        assertFalse(names.toString(), "unreadable/notes_data.json" in names)
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        assertFalse((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {})
+            as Backup.Export.Saved).notesUnread)
+    }
+
+    @Test
     fun `an export opens where it goes only once the backup is built`() {
         // Opened first, for writing, a backup chosen to be written over was
         // emptied before a full cache stopped the new one, then deleted as
