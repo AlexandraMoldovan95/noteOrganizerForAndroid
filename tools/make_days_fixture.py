@@ -500,11 +500,13 @@ def main():
         ("0.12.0's turn-off then on as it was, its one day reset, read again", back_on_one,
          [{"do": "reset", "day": "2026-11-09"}, {"do": "read"}]),
         # ...and a backup made before the reset, whose copy still holds the
-        # day, is the same note: both sides compared without their copies.
+        # day, is offered as changed: read as a load reads it, it holds the
+        # day the reset dropped, and its update brings the day back.
         ("0.12.0's turn-off then on as it was, its one day reset, the backup made before", back_on_one,
          [{"do": "reset", "day": "2026-11-09"}, {"do": "backup", "incoming": copy.deepcopy(back_on_one)}]),
-        # The edge said: imported where the move already ran, it is asked
-        # about, and its update changes nothing.
+        # The edge said: imported where the move already ran, it is the same
+        # note once both are read as a load reads them, offered as unchanged,
+        # and nothing changes.
         ("0.12.0's turn-off then on as it was, its own backup again", back_on,
          [{"do": "backup", "incoming": copy.deepcopy(back_on)}]),
         # A turn-off keeps an import's Update copy, the series given to it.

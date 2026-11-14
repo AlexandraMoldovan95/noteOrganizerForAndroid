@@ -1404,23 +1404,46 @@ six hand rows and what a unit-only row leaves.
 The forty-ninth round's first agent found nothing at medium or above in
 the forty-eighth's fixes. Its second, auditing another fifth of the
 plan (107 rows), found three (mediums): 347's title and expected result
-said the backup made before a reset changes nothing, where since round 8
-the import offers such a note as changed and its own fixture holds that
-Update brings the day back (both are corrected); 172 said the walk reads
+said the backup made before a reset changes nothing, where since round
+nine (aba5a72) the import offers such a note as changed and its own
+fixture holds that Update brings the day back (both are corrected); 172
+said the walk reads
 "✓ Saved" under the box, where it reads one drawn above the keyboard;
 101 called its steps automated, where the walk reads a note seeded with
 its table. And qa/README's sentence that a unit-only row with taps says
 "in part" was untrue of 210, called no hand check though a person can
 set it up: its steps are a person's now, and it says "in part". The
 lows: 216 names its PastingTest; 335, 336, 362 and 363 no longer say the
-emulator's clipboard cannot be given a break; 57, 339, 497, 529 and 164
-say exactly what their checks read; 461, 462 and 469 name the walk
-parts that reach their steps; 156 says "in part"; the How to use tab
-says what a unit-only row leaves, as qa/README does. Left, with its
-reason: the Summary's count of rows the emulator walks counts the rows
-that say EMULATOR, and about sixty rows name a walk part without the
-word, so it counts low; the count is the plan's own, and it errs toward
-the hand.
+emulator's clipboard cannot be given a break; 57, 497, 529 and 164 say
+exactly what their checks read, and 339 less than its walk reads; 461,
+462 and 469 say what the walk does of their steps (462 too little, and
+469 without its part's name, until round 50); 156 says "in part"; the
+How to use tab says what a unit-only row leaves, as qa/README does.
+Left, with its reason: the Summary's count of rows the emulator walks
+counts the rows that say EMULATOR, and 68 rows name a walk part (a name
+with an underscore) without the word, so it counts low; the count is
+the plan's own, and it errs toward the hand.
+
+The fiftieth round's first agent found two of the forty-ninth's fixes
+short (mediums): 210's new steps chose a Trash window, after which a
+backup's window is never taken, so the rule could not be seen on them
+(they now start on a phone that never chose one, with a backup made
+elsewhere); and 348, 347's sibling, still promised an Update that
+changes nothing, where since round nine the note is offered as
+unchanged, with Skip and Add a copy. Its second agent audited another
+fifth of the plan (106 rows) and found two (mediums): 218 was called
+whole, where ListingTest counts the next-day asks and times nothing (215
+and 209, the same, say "in part" too); 263 was called whole, where the
+walk reads one fragment of the question. The rows that need a backup a
+script crafts said "Not a hand check" in their steps while leaving parts
+to the hand: a person can import such a backup, so their preconditions
+say a script makes it, their steps are a person's, and the How to use
+tab says so. The lows: 383 as 335; 56 leaves the install over an older
+build to the hand; 223, 278, 439 and 478 name their photos by file, as
+the walk writes two under some numbers; 313 names all its pastes; 339,
+462 and 469 say what their walk parts do; 347 names its fixture case by
+the sentence days_cases.json knows; two comments in
+tools/make_days_fixture.py say what the import now does.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
