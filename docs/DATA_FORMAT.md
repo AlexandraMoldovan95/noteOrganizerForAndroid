@@ -1012,20 +1012,24 @@ desktop's three questions are asked before anything is written:
    arriving copy is *older* than the one here. A file the note here holds
    under another stored name -- the copy an earlier import gave it -- is
    known by its shown name and bytes, so it is no change, and an update
-   adds no second copy of it.
+   adds no second copy of it. Added as new notes, they are copies asked
+   for, without the `uid` they came with, and are not put to the third
+   question, as on the desktop.
 2. Notes that arrive **exactly as they are** here: skip them, or add
    copies.
 3. New notes that **look identical** to one here (the desktop's
    `_dup_key`: title, text, comments, category, checklist, repeat rule
    and a series' own days): skip them, or import them anyway. When every
-   new note is one, Skip is offered only while it still brings something
-   (an update agreed to, copies kept, a look-alike's file the note here
-   lacks, or a category, template, Trash entry or painted day this
-   device lacks), as on the desktop; otherwise the question is Import
-   anyway or Cancel. Skipped, a backup's look-alike gives the files it
-   holds and the note here lacks to that note -- the first in the file
-   with its key, the notebook as the updates leave it, as the desktop's
-   does -- and the words say how many.
+   new note is one, Skip is offered only while it still brings something:
+   a note known here updated or added, copies kept, a look-alike's file
+   the note here lacks, or a category, template, painted day or Trash
+   entry this device lacks and would take (not one older than its Trash
+   keeps, nor one over a file it may not write this run); otherwise the
+   question is Import anyway or Cancel. Skipped, a backup's look-alike
+   gives the files it holds and the note here lacks to that note -- the
+   first in the file with its key, the notebook as the updates leave it,
+   an updated note known by the backup's copy, as the desktop's does --
+   and the words say how many.
 
 Then the rest joins without replacing anything: the backup's categories
 (a name already here keeps its own colour), its painted calendar days, a

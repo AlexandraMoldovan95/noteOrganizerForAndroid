@@ -955,6 +955,34 @@ settings file the words "Skipped, the rest of this import still happens"
 are followed by the import stopping at that file, which is said (rare,
 and stopping at the first refused write is by design).
 
+The twenty-ninth round's parity reader found the phone a step behind the
+desktop on the first question, since the desktop's change of 6 November:
+a note known here, edited elsewhere only in its date, colour or pin and
+answered "Add as a new note", was put to the look-alike question again,
+looked like itself, and the question's Cancel undid the whole import (or
+Skip skipped the very note chosen to be added, its files given to the
+original). Those copies are added past the question now, as copies asked
+for, and count as the import going on (AS847 to AS849). And a high by its
+kind, on a rare road: apply looked for a skipped look-alike's twin by the
+note as updated, while the question had keyed it by the backup's copy, so
+a note holding a field a newer version wrote found no twin and the
+look-alike's file was dropped after Skip was offered for it. The question,
+the skip and the twins now share one map (`twinsOf`), as the desktop's
+`_twins_after` (AS846). The attacker found the round's own claims short in
+three places: a Trash entry older than this phone keeps was still counted
+as something Skip brings (apply leaves it in the backup; AS850), the
+export could still show the cache's path (its private root was the
+notebook's folder, which does not hold the cache; AS851), and a checklist
+row's refused write still reached the bar as its bare cause (it goes
+through the same words as every other refusal now). The lows also:
+`warm` worked out what Skip brings for the Update answer, which nothing
+reads, and the singular "1 was already here" had no mutant (AS852).
+Left, with their reasons: a category's refused write still says "try
+again in a moment", in the desktop's own words for it; over held settings
+a backup's category or day marks are counted by the desktop's question
+and not by the phone's, as the desktop keeps them for the session and the
+phone stops the import at that write.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
