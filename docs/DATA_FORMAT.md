@@ -1013,13 +1013,16 @@ desktop's three questions are asked before anything is written:
    under another stored name -- the copy an earlier import gave it -- is
    known by its shown name and bytes, so it is no change, and an update
    adds no second copy of it. Added as new notes, they are copies asked
-   for, without the `uid` they came with, and are not put to the third
-   question, as on the desktop.
+   for, without the `uid` they came with or the rescue copy (`_prev`),
+   which stays with the note it was made for, and are not put to the
+   third question, as on the desktop.
 2. Notes that arrive **exactly as they are** here: skip them, or add
-   copies.
+   copies (made the same way).
 3. New notes that **look identical** to one here (the desktop's
    `_dup_key`: title, text, comments, category, checklist, repeat rule
-   and a series' own days): skip them, or import them anyway. When every
+   and a series' own days, and the fields a newer version wrote, which
+   the screen does not name as no one sees them): skip them, or import
+   them anyway. When every
    new note is one, Skip is offered only while it still brings something:
    a note known here updated or added, copies kept, a look-alike's file
    the note here lacks, or a category, template, painted day or Trash

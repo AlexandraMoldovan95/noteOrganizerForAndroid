@@ -983,6 +983,28 @@ a backup's category or day marks are counted by the desktop's question
 and not by the phone's, as the desktop keeps them for the session and the
 phone stops the import at that write.
 
+The thirtieth round's medium was the class question answered yes on the
+copies themselves: a copy asked for ("Add as a new note", "Add a copy
+anyway") kept the original's rescue copy, where the desktop's
+`_without_identity` has dropped it since 13 November and the phone's own
+Duplicate drops it, so the new note offered "↩ Restore previous" and put
+the original's older words over a note made now. Copies are made by
+`asCopy` now, without the identity or the rescue copy (AS853). The data
+format's duplicate key left out the fields a newer version wrote, which
+it compares (the screens leave them out on purpose: no one sees them);
+it names them now. The lows: a painted day here this phone cannot show
+held the day, so the backup's mark never came in, where the desktop's
+store is cleaned at every start (AS854); the editor's own refusals ended
+a bare cause without the full stop every other refusal has (AS855); and
+case 535 named a Cancel the question about notes already here does not
+have. The round's parity reader found on the desktop the Trash's window
+asked before the merge adopts the backup's longer one: fixed there.
+Left, with their reasons: the questions' count of new notes, the
+checklist rows' refusals and the editor's calls are drawn on screen,
+where no JVM test reaches (the hand cases and the walk do); and a twin
+already holding 200 files is offered Skip and said to take files it
+cannot (both apps alike, very rare, nothing lost).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
