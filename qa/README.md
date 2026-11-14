@@ -40,9 +40,9 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,049 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
-`DaysTest` (76), `TablesTest` (72), `AppStateTest` (70), `RecurrenceTest` (52),
-`OrganizingTest` (51), `EditingTest` (49), `PastingTest` (47), `ImportingTest` (44),
+1,051 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+`DaysTest` (76), `TablesTest` (72), `AppStateTest` (71), `OrganizingTest` (52),
+`RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47), `ImportingTest` (44),
 `IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
 `ParagraphsTest` (33), `EditorTypingTest` (32), `SettingsTest` (26), `BackupTest` (25),
 `ListingTest` (22), `TemplatesTest` (21), `FindingTest` (20), `EditorTableTest` (16),

@@ -458,7 +458,9 @@ note comes near either, its deepest place being under ten levels down
 
 **The Trash's automatic emptying spares files still in use.** When a
 note leaves the Trash for good, its attached files are deleted — except
-any file a living note, or another note still in the Trash, also uses.
+any file a living note, or another note still in the Trash, also uses,
+and every file while the notes file could not be read at that start (its
+notes, never read, may use any of them).
 The desktop's automatic emptying at startup did not, until its 0.95.391
 ([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses));
 the two now agree.
@@ -594,7 +596,9 @@ phone would otherwise have put back, switch on, and brings the answer
 back with a restore (2026-10-28) — the answer until the app's first
 start writes it into the settings, for Android's next backup as for the
 page, so a backup run before that start keeps it. A settings file that cannot be read
-turns it off until the person turns it on again, and the start says so.
+turns it off until the person turns it on again, and the start says so — or,
+the file held (neither read nor copied aside), says the file cannot be
+written, and nothing can be turned on until the app is closed and opened again.
 The page says what Android does, when,
 and the 25 MB limit, in the words of the privacy policy; the welcome
 note says where the switch is. The setting is `phone_google_backup`.

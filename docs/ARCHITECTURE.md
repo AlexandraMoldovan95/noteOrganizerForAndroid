@@ -59,13 +59,13 @@ with every change: `wc -l` on the folder gives today's.
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
-| `Notebook.kt` | 3,050 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Notebook.kt` | 3,060 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 970 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
 | `Organizing.kt` | 1,020 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 790 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Importing.kt` | 800 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 620 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 720 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
@@ -73,14 +73,14 @@ with every change: `wc -l` on the folder gives today's.
 | `Normalize.kt` | 610 | The parts of `normalize_note` a writer needs, the fields a version does not know (`unknown_fields`), `_dup_key`, `content_signature` | `model.py` |
 | `Backup.kt` | 410 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 340 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
-| `Settings.kt` | 370 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
+| `Settings.kt` | 380 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 330 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
 | `Editing.kt` | 1,130 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
 | `Sharing.kt` | 390 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
-| `Files.kt` | 300 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Files.kt` | 310 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 170 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 85 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
@@ -91,7 +91,7 @@ with every change: `wc -l` on the folder gives today's.
 
 | File | Lines | What lives there |
 |---|---|---|
-| `NoteEditor.kt` | 4,320 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
+| `NoteEditor.kt` | 4,330 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
 | `SettingsScreens.kt` | 1,150 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 630 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |

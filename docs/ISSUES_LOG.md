@@ -600,7 +600,7 @@ copied aside was never held, and the start's own write of its marks could
 fail on a full phone: the next write that went out, once room was freed,
 dropped them (the Trash at thirty days again, the backup on). Such a file
 now reads as its two marks in memory, as the desktop's every read of one
-gives them, so any write carries them (AS766). With that, a hold can end
+gives its own, so any write carries them (AS766). With that, a hold can end
 again once a later read copies the file aside, which on Android 8 to 11 is
 the app opened again after Back ended its activity, not its process: held
 for the run, every write was refused under words saying the file was kept
@@ -617,6 +617,36 @@ the writer's own reason names the refusal on every road. Left, with its
 reason: a backup whose new notes all look like notes here offers Import
 anyway or Cancel, where the desktop also offers Skip when the backup
 brings more (older than wave 6; nothing is lost, the backup holds all).
+
+The sixteenth round walked a nearly full phone's week end to end and
+found three of medium severity on it. The load's problem, never cleared
+by a write that worked, kept the backup switch Off after it was turned
+on (while the file, and the backup agent, read on) and the Trash's window
+unknown after one was chosen: the rules read the marks now, not the
+problem (AS769, AS770). A read the storage refused once, then allowed,
+was taken for damage: a good settings file was copied aside and the
+start wrote its marks over it, and a templates file the same; such a
+read now holds the file, never copying it aside, as the desktop's does,
+for settings, templates, the draft, the notes, the Trash and an import's
+templates. And Save as template over a refused save made the template of
+the version saved before, not of the screen: it stops on the "Not saved"
+now. Its first reader found the test plan's 283 still expecting the
+"Not saved:" the fifteenth round took back. The lows: the backup said off
+only when the start's own write of it worked (said whenever the file is
+not held now); the unread-notes mark lasting past a reopening on Android
+8 to 11, where the desktop clears it at each start (cleared at
+Startup.prepare); the refusal's words promising a copy aside a reopening
+on Android 12 does not attempt ("until the app is closed and opened
+again", as before); the Empty Trash question's choice of words without a
+test (AS768); and the welcome note's Show adding another each press when
+its uid was not kept (found by its words now, AS771). Left, with their
+reasons: a notes file holding the same id twice, met on a full phone, is
+repaired only once it can be written, and its list can stop the app
+until then (neither app writes such a file; the repair at the start
+writes it when it can); a rename refused at the notes file leaves the
+Trash and templates renamed (a retry makes them agree); a refused tick
+keeps its new stamp; and settling the theme on a full phone says the bare
+reason at each activity made.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
