@@ -638,6 +638,29 @@ class AppStateTest {
     }
 
     @Test
+    fun `a move's Undo follows a category renamed meanwhile, and leaves one deleted meanwhile`() {
+        // The phone took a rename for a delete, where the desktop carries it into its offer:
+        // the Undo said the notes could not go back, or were no longer where the move put them.
+        val s = state()
+        s.moveToCategory(listOf(1), "Work")
+        s.snackbar.currentSnackbarData!!.dismiss()
+        s.moveToCategory(listOf(1), "Home")
+        assertTrue(s.report(Organizing.renameCategory(s.load, "Work", "Job")))
+        s.categoryRenamed("Work", "Job")
+        assertTrue(s.report(Organizing.renameCategory(s.load, "Home", "House")))
+        s.categoryRenamed("Home", "House")
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("Job", s.rawNote(1)?.optString("category"))
+        // ...and one the notes came from, deleted meanwhile, leaves them where the move put them.
+        s.snackbar.currentSnackbarData?.dismiss()
+        s.moveToCategory(listOf(1), "House")
+        assertTrue(s.report(Organizing.deleteCategory(s.load, "Job", trashNotes = false)))
+        s.categoryDeleted("Job")
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("House", s.rawNote(1)?.optString("category"))
+    }
+
+    @Test
     fun `a move's Undo leaves a note filed again since where it is now`() {
         val s = state()
         val marks = Organizing.filedNow(s.load, listOf(1, 2))

@@ -40,9 +40,9 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,072 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
-`DaysTest` (76), `TablesTest` (72), `AppStateTest` (71), `OrganizingTest` (61),
-`RecurrenceTest` (52), `ImportingTest` (50), `EditingTest` (49), `PastingTest` (47),
+1,075 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
+`DaysTest` (76), `TablesTest` (72), `AppStateTest` (72), `OrganizingTest` (62),
+`RecurrenceTest` (52), `ImportingTest` (51), `EditingTest` (49), `PastingTest` (47),
 `IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
 `ParagraphsTest` (33), `EditorTypingTest` (32), `SettingsTest` (28), `BackupTest` (27),
 `ListingTest` (22), `TemplatesTest` (22), `FindingTest` (20), `EditorTableTest` (16),
@@ -419,7 +419,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 523 cases on 14 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 524 cases on 14 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and

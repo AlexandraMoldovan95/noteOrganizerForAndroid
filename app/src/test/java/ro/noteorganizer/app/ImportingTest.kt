@@ -910,6 +910,31 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's trashed note already here comes in once, under a refused name or on a copy of a file`() {
+        // Signed by its stored name, this Trash's entry under a name the map cannot take met
+        // its twin filed under General, and it came in twice. And one whose file a note here
+        // uses came in on a copy of it, signed under the copy's name: every import, again.
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val load = notebook("""[{"id": 1, "uid": "n1", "title": "Recipe", "body": "r",
+            "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]}]""",
+            trash = """[{"id": 2, "uid": "far-t", "title": "Far", "body": "z", "category": "$long",
+                "deleted_at": "${daysAgo(1)}"}]""")
+        File(dirOf(load), "attachments/20261114120000000000_r.png").writeBytes("picture".toByteArray())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114120000000000_r.png").writeBytes("picture".toByteArray())
+        val backupTrash = """[{"uid": "far-t", "title": "Far", "body": "z", "category": "$long", "deleted_at": "${daysAgo(1)}"},
+            {"uid": "rf-t", "title": "Recipe", "body": "r", "deleted_at": "${daysAgo(2)}",
+             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]}]"""
+        repeat(2) {
+            val here = Notebook.load(dirOf(load))
+            Importing.apply(here, backupPlan(here, "[]"), Importing.Answers(), File(dirOf(load), "attachments"),
+                Importing.Extras(trash = JSONArray(backupTrash), attachments = unpacked))
+        }
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("title") } }
+        assertEquals(listOf("Far", "Recipe"), trash)
+    }
+
+    @Test
     fun `two twins in a backup's Trash under a category it adopts come in once, one under a refused name as General`() {
         // Signed before the name was known, the first read as General and the second under it: both came in.
         val load = notebook("[]")

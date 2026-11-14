@@ -972,8 +972,9 @@ does not read, it goes in as `[]`, what the app holds of it, and its
 bytes under `unreadable/`: the copy the start kept aside of this very
 file, or the file itself when no such copy exists. Either device reads
 the backup back; the phone says it holds no notes as notes and does not
-record it as the last backup. Too large for the phone to check, it goes
-in as it is, said, and is not recorded either. A notes file the start
+record it as the last backup. When the phone cannot check it -- too
+large, or memory short for a moment -- it goes in as it is, said, and is
+not recorded either. A notes file the start
 read is the app's own and goes in untouched. A damaged Trash, templates
 or settings file goes in as it is, and an import skips it. One it could
 not read back, a JSON file past the phone's memory ceiling, is still
@@ -1018,8 +1019,9 @@ desktop's three questions are asked before anything is written:
 Then the rest joins without replacing anything: the backup's categories
 (a name already here keeps its own colour), its painted calendar days, a
 template only when none here has its name, and its Trash — an entry
-already in this Trash is skipped, so re-importing your own backup changes
-nothing. A file another note here already uses is given a copy of its
+already in this Trash is skipped (one that came in on a copy of a file is
+known by that file's name and bytes), so re-importing your own backup
+changes nothing. A file another note here already uses is given a copy of its
 own, so deleting one note can never take another's file with it. The
 writes go in the desktop's order: settings, templates, the Trash, and
 the notes last.

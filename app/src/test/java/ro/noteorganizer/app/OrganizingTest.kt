@@ -301,18 +301,20 @@ class OrganizingTest {
     }
 
     @Test
-    fun `a move's Undo leaves a note whose category is gone since, and ends when the one moved to is gone`() {
+    fun `a move's Undo leaves a note whose category was deleted since, and ends when the one moved to is gone`() {
         // Put back under a deleted category, the next refresh adopted it again: a deleted
-        // category came back. And the one moved to, renamed, read as "no longer where the move put them".
+        // category came back. A category the map lacks only because its last note moved out
+        // (never saved, adopted at each refresh) is not deleted: its note goes back.
         val settings = """{"categories": {"General": "#7c5cff", "Home": "#4cc9f0", "Work": "#f9c74f"}}"""
-        val load = notebook("""[{"id": 1, "category": "Home"}, {"id": 2, "category": "General"}]""", settings = settings)
-        val filed = Organizing.filedNow(load, listOf(1, 2))
-        Organizing.moveToCategory(load, listOf(1, 2), "Work")
-        val gone = Notebook.load(dirOf(load)).let { it to Organizing.deleteCategory(it, "Home", trashNotes = false) }.first
+        val load = notebook("""[{"id": 1, "category": "Home"}, {"id": 2, "category": "General"},
+            {"id": 3, "category": "Shed"}]""", settings = settings)
+        val filed = Organizing.filedNow(load, listOf(1, 2, 3))
+        Organizing.moveToCategory(load, listOf(1, 2, 3), "Work")
+        val gone = Notebook.load(dirOf(load)).also { Organizing.deleteCategory(it, "Home", trashNotes = false) }
         val back = Notebook.load(dirOf(gone))
-        assertEquals(1, Organizing.notBack(back, filed).size)
-        assertTrue(Organizing.putBackFiled(back, filed, "Work") is SaveResult.Ok)
-        assertEquals(listOf("Work", "General"), (0..1).map { onDisk(back).getJSONObject(it).optString("category") })
+        assertEquals(1, Organizing.notBack(back, filed, "Work", setOf("Home")).size)
+        assertTrue(Organizing.putBackFiled(back, filed, "Work", setOf("Home")) is SaveResult.Ok)
+        assertEquals(listOf("Work", "General", "Shed"), (0..2).map { onDisk(back).getJSONObject(it).optString("category") })
         val renamed = Notebook.load(dirOf(back))
         assertTrue(Organizing.renameCategory(renamed, "Work", "Job") is SaveResult.Ok)
         val said = Organizing.putBackFiled(Notebook.load(dirOf(renamed)), filed, "Work")
@@ -388,7 +390,11 @@ class OrganizingTest {
                 settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""",
                 templates = """[{"name": "Weekly", "category": "Work"}]""")
             File(dirOf(load), "$refused.tmp").mkdirs()
-            assertTrue(refused, Organizing.renameCategory(load, "Work", "Job") is SaveResult.Failed)
+            val result = Organizing.renameCategory(load, "Work", "Job")
+            assertTrue(refused, result is SaveResult.Failed)
+            // The map's refusal said in words of its own, not the system's with a private path.
+            if (refused == "settings.json") assertTrue((result as SaveResult.Failed).reason,
+                result.reason.startsWith("The list of categories couldn't be saved just now, so nothing was changed."))
             assertEquals(refused, "Work", onDisk(load).getJSONObject(0).getString("category"))
             assertEquals(refused, "Work", trashOnDisk(load).getJSONObject(0).getString("category"))
             assertEquals(refused, "Work", JSONArray(File(dirOf(load), "templates.json").readText())
@@ -412,6 +418,33 @@ class OrganizingTest {
         }
         assertEquals("Work", onDisk(load).getJSONObject(0).getString("category"))
         assertFalse("nothing trashed", File(dirOf(load), "trash.json").isFile && trashOnDisk(load).length() > 0)
+        // ...and over a notes file held at the start, asked before the delete's question: it
+        // asked "No note is filed under it" of notes it never read, then refused.
+        try {
+            Files.holdWrites(load.file!!)
+            val unread = Notebook.load(dirOf(load))
+            val why = Organizing.categoriesHeld(unread)
+            assertTrue("$why", why != null && why.startsWith("Your notes file could not be read"))
+        } finally {
+            Files.newStart()
+        }
+    }
+
+    @Test
+    fun `a trashed series restored files a day under a category gone since under General`() {
+        // Only the note's own category was refiled: the day kept the gone name, and the
+        // next refresh adopted it, the deleted category back.
+        val load = notebook("[]",
+            trash = """[{"id": 5, "uid": "s5", "title": "Gym", "category": "Gone", "date": "2026-10-05",
+                "recurrence": {"freq": "weekly", "weekdays": [0]},
+                "overrides": {"2026-10-12": {"category": "Gone", "body": "legs"}},
+                "deleted_at": "2026-11-10 10:00:00"}]""",
+            settings = """{"categories": {"General": "#7c5cff"}}""")
+        val restored = Organizing.restore(load, listOf(Organizing.TrashKey(5, "2026-11-10 10:00:00", "s5")))
+        assertTrue(restored.toString(), restored is SaveResult.Ok)
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("General", note.getString("category"))
+        assertEquals("General", note.getJSONObject("overrides").getJSONObject("2026-10-12").getString("category"))
     }
 
     @Test

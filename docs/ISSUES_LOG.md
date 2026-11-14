@@ -852,6 +852,32 @@ what the phone reads back. Left, with its reason: an added or recoloured
 category over held settings is refused here and kept for the session on the
 desktop, whose start already said no setting is saved; nothing is lost.
 
+The twenty-fifth round's medium was in the test plan again: case 529's
+second step named "keeping its notes" on a category the step before had
+emptied, whose question offers only "Delete the category". The steps of
+the round's new cases were read against the app's own words this time.
+In the code, the desktop's twenty-seventh round found a backup's trashed
+note whose file a note here uses brought in again at every import, on
+another copy of the file; the phone had the same road, and the same fix:
+an entry that matches one here in all but its files' stored names is known
+by those files' names and bytes (AS822). The lows: a move's Undo took a
+category renamed meanwhile for a deleted one and said the notes could not
+go back, where the desktop carries the rename into its offer, and took a
+category the map lacked only because its last note had moved out (the
+phone's start does not save the names it adopts) for a deleted one (the
+offer now follows a rename and knows a delete by the delete itself, AS817,
+AS818, AS815); it counted notes filed again since among those that could
+not go back; a delete over a notes file not read asked "No note is filed
+under it" before refusing (AS819); this Trash was signed by a refused
+name as stored, so a twin filed under General came in twice (signed as
+the desktop signs it, AS821); a trashed series restored kept a day under
+a category gone since, which the next refresh brought back (filed under
+General, AS820); and a rename's refused map write said the system's
+words, a private path in them (AS823). Left, with its reason: "Day
+removed"'s Undo puts a day back under its own category even if that
+category was deleted meanwhile, as the desktop does (seconds-wide; no note
+is lost).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
