@@ -244,24 +244,40 @@ object Organizing {
      * A move to [category] taken back: each note back where [marks] say it
      * was filed, its "updated" with it -- only one still under [category],
      * as the desktop's _undo_bulk_category: one filed again since keeps it.
+     * One whose category is gone since stays ([notBack] counts them): put back,
+     * the next refresh adopted the deleted name again, or the old one beside
+     * a rename. The category they went to, renamed or deleted, ends the Undo.
      */
     fun putBackFiled(load: Notebook.Load, marks: List<Filed>, category: String): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
         val name = filedAs(category)
+        if (name !in load.categories) {
+            return SaveResult.Failed("The category they were moved to was renamed or deleted since, so they stay where they are.")
+        }
         val candidate = JSONArray(array.toString())
         var changed = 0
         for (mark in marks) {
             val note = candidate.opt(indexOfNote(candidate, mark.id, mark.uid)) as? JSONObject ?: continue
-            if (note.opt("category") != name) continue
+            if (note.opt("category") != name || mark in notBack(load, listOf(mark))) continue
             if (mark.category == null) note.remove("category") else note.put("category", mark.category)
             if (mark.updated == null) note.remove("updated") else note.put("updated", mark.updated)
             changed += 1
         }
-        if (changed == 0) return SaveResult.Failed("Those notes are no longer where the move put them.")
+        if (changed == 0) {
+            return SaveResult.Failed(if (notBack(load, marks).isEmpty()) "Those notes are no longer where the move put them."
+                else "Those notes could not go back to a category that no longer exists.")
+        }
         write(file, candidate)?.let { return SaveResult.Failed(it) }
         replace(array, candidate)
         return SaveResult.Ok(0, imported = changed)
+    }
+
+    /** The [marks] whose own category is gone from the map: a move's Undo leaves them be. */
+    fun notBack(load: Notebook.Load, marks: List<Filed>): List<Filed> = marks.filter { mark ->
+        val was = mark.category as? String ?: return@filter false
+        val name = filedAs(was)
+        name != Themes.PROTECTED_CATEGORY && name !in load.categories
     }
 
     // ---- duplicates ----
@@ -710,7 +726,7 @@ object Organizing {
         if (clean == old) return SaveResult.Ok(0)
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories, adding = false)?.let { return SaveResult.Failed(it) }
-        settingsHeld(load)?.let { return SaveResult.Failed(it) }
+        categoriesHeld(load)?.let { return SaveResult.Failed(it) }
         var saved: SaveResult = SaveResult.Ok(0)
         refile(load, old, clean) {
             saved = saveCategories(load, renamed(load.categories, old, clean), old, clean)
@@ -719,9 +735,12 @@ object Organizing {
         return saved
     }
 
-    /** Why the map cannot be written this run, or null: asked before any holder is moved. */
-    private fun settingsHeld(load: Notebook.Load): String? =
-        load.settings?.file?.takeIf { Files.writesHeld(it) }?.let { Files.heldReason(it) + "." }
+    /**
+     * Why the map cannot be written this run, or null: asked before any holder is
+     * moved, and by the delete before its question (the desktop asks nothing then).
+     */
+    internal fun categoriesHeld(load: Notebook.Load): String? =
+        load.settings?.file?.takeIf { Files.writesHeld(it) }?.let { Files.heldReason(it) + ". Nothing was changed." }
 
     /** The map with one name changed in its own place, its colour kept. */
     internal fun renamed(map: Map<String, String>, old: String, new: String): LinkedHashMap<String, String> {
@@ -739,7 +758,7 @@ object Organizing {
     fun deleteCategory(load: Notebook.Load, name: String, trashNotes: Boolean): SaveResult {
         if (name == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be deleted.")
         if (name !in load.categories) return SaveResult.Failed("That category no longer exists.")
-        settingsHeld(load)?.let { return SaveResult.Failed(it) }
+        categoriesHeld(load)?.let { return SaveResult.Failed(it) }
         if (trashNotes) {
             val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
             val doomed = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }

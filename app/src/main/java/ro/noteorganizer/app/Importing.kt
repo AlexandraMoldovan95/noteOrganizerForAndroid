@@ -80,6 +80,8 @@ object Importing {
         val newer: Int = 0,
         /** The names the notes were compared under, or null for the notes as they came. */
         val categories: Set<String>? = null,
+        /** The notes as they arrived, in the file's order: the order names are adopted in. */
+        val arriving: List<JSONObject> = emptyList(),
     )
 
     /** The answers, one per question the plan raised. */
@@ -228,7 +230,7 @@ object Importing {
                 if (unknownFieldsLacked(there, here)) newer += 1
             }
         }
-        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer, categories)
+        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer, categories, incoming)
     }
 
     /**
@@ -430,9 +432,9 @@ object Importing {
         val settings = load.settings
 
         // 1. The categories, as the plan was made with them ([merged]).
+        // In the file's order, as the plan was made: at the ceiling another order kept other names.
         val merged = merged(load.categories, extras.categories,
-            if (planned.source == Source.BACKUP) planned.fresh + planned.differing.map { it.theirs } +
-                planned.unchanged.map { it.theirs } else emptyList())
+            if (planned.source == Source.BACKUP) planned.arriving else emptyList())
         val categories = merged.map
         var addedCategories = merged.added
         val refusedNames = merged.refused

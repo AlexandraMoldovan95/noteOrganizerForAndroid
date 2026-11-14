@@ -604,7 +604,7 @@ private fun CategoriesPage(state: AppState) {
                 if (ok && name.trim() != old) ok = state.report(Organizing.renameCategory(state.load, old, name))
                 if (ok) editing = null
             },
-            onDelete = { asking = true },
+            onDelete = { Organizing.categoriesHeld(state.load)?.let { state.say(it, long = true) } ?: run { asking = true } },
             onDismiss = { editing = null },
             messages = state.snackbar,
         )

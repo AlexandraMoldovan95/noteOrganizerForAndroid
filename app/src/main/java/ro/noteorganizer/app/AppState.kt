@@ -1110,7 +1110,11 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         } ?: return
         report(moved) {
             offerUndo(if (ids.size == 1) "Moved to “${quoted(category)}”" else "Moved ${ids.size} notes to “${quoted(category)}”") {
-                report(outside(ids) { Organizing.putBackFiled(load, filed, category) } ?: return@offerUndo)
+                val notBack = Organizing.notBack(load, filed).size
+                report(outside(ids) { Organizing.putBackFiled(load, filed, category) } ?: return@offerUndo) {
+                    // Said, as the desktop says it: their category was deleted or renamed meanwhile.
+                    if (notBack > 0) say("$notBack ${if (notBack == 1) "note" else "notes"} could not go back to a category that no longer exists.")
+                }
             }
         }
     }

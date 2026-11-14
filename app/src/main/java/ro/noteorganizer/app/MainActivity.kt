@@ -443,15 +443,18 @@ fun AppRoot(state: AppState, version: String) {
                 // Holding no notes as notes, it is not remembered as the notebook's
                 // backup: the desktop's backup of a session alone, said so.
                 is Backup.Export.Saved -> if (result.notesUnread || result.notesUnchecked) {
+                    // ...and what the other words would have said, a file past what the phone reads back.
                     state.say(context.getString(if (result.notesUnread) R.string.export_done_notes_unread
-                                                else R.string.export_done_notes_unchecked), long = true)
+                                                else R.string.export_done_notes_unchecked) +
+                        (result.tooLarge?.let { " " + context.getString(R.string.export_also_too_large, it) } ?: ""),
+                        long = true)
                 } else {
                     state.putSetting(Settings.LAST_EXPORT_AT,
                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
                     result.tooLarge?.let { state.say(context.getString(R.string.export_done_too_large, it), long = true) }
                         ?: state.say(context.getString(R.string.export_done))
                 }
-                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, result.reason))
+                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, result.reason), long = true)
             }
         }
     }

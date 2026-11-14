@@ -175,7 +175,7 @@ object Backup {
         // This file's own copy, not an older one's from an earlier damage.
         val keptAsideNotes = notesBytes != null && entries.any { (file, name) ->
             name.startsWith("$UNREADABLE/notes_data_") && file.length() == notesBytes.size.toLong() &&
-                Files.readBytesOf(file).contentEquals(notesBytes)
+                opened(file) { Files.readBytesOf(it) }.contentEquals(notesBytes)
         }
         val tmp = File(scratch, "backup_export.zip.tmp")
         try {
