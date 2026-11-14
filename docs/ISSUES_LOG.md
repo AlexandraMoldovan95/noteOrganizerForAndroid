@@ -1292,9 +1292,10 @@ by another pair of eyes, and found sixteen more walked only in part
 230), a draft read gone where the case restarts the app (322), a banner
 read as the file's copy (458, 37), an import the walk stands in for by
 writing the file (234, 249), a message band seen but its words not read
-(132), a carry landing anywhere in fifteen places (457). Each says
-"Automated in part" now and names what the checks are known not to
-reach; the 73 left whole are those both readings called whole. Its
+(132), a carry landing anywhere in fifteen places (457), and 187, 188,
+196, 271, 294, 437 and 441. Each says "Automated in part" now and names
+what the checks are known not to reach; with 195 moved too, the 72 left
+whole are those both readings called whole. Its
 first agent found 57, 37, 440, 173, 352, 341, 185 and 151 naming less
 than they leave, and the lows (302, 158, 526, 358, 320, 154, 195). The
 How to use tab now says "Automated in part" names what the scripts are
@@ -1303,6 +1304,23 @@ the walk moves the cursor with Home and End where a person taps. Left,
 with its reason: the reminders part checks its tap from the shade only
 when the notification is found; changing the walk is checked only by a
 full walk, which the release's final verification runs.
+
+The forty-third round's first agent found five rows still leaving out
+a stand-in the walk uses (mediums): 195 named as unwalked a bar another
+part reads, and left out that the walk ends the app behind Home where a
+person swipes it from Recents; 441's share is sent to the app itself,
+not from a chat; 427's paste is Ctrl+V, its cursor placed with Ctrl+A
+and the arrows; 37's update's copy is restored by no part; and 152 and
+488 kept a run's date beside checks that run every time. Each names it
+now, and the How to use tab names every key the walk moves the cursor
+with. The lows: 196, 234, 249 and 458 name what their parts leave; the
+walk's comment no longer dates its parts wrongly. Its second agent, a
+third reading of the 72 rows still called whole, found two (mediums):
+202 comes back by starting the app with its saved state, never from
+Recents, whose half of the guard nothing reaches; 295's opening is held
+to four seconds where the case says about two, and its line of rows not
+drawn is read on another template. Both say "in part" now; seventy rows
+are called whole by three readings.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
