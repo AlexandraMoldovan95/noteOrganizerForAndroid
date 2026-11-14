@@ -1305,8 +1305,8 @@ with its reason: the reminders part checks its tap from the shade only
 when the notification is found; changing the walk is checked only by a
 full walk, which the release's final verification runs.
 
-The forty-third round's first agent found five rows still leaving out
-a stand-in the walk uses (mediums): 195 named as unwalked a bar another
+The forty-third round's first agent found four rows still leaving out
+a stand-in the walk uses, and two keeping a run's date (mediums): 195 named as unwalked a bar another
 part reads, and left out that the walk ends the app behind Home where a
 person swipes it from Recents; 441's share is sent to the app itself,
 not from a chat; 427's paste is Ctrl+V, its cursor placed with Ctrl+A
@@ -1321,6 +1321,24 @@ Recents, whose half of the guard nothing reaches; 295's opening is held
 to four seconds where the case says about two, and its line of rows not
 drawn is read on another template. Both say "in part" now; seventy rows
 are called whole by three readings.
+
+The forty-fourth round's first agent found the stand-ins swept by row,
+not by kind (mediums): every share the walk sends is addressed to the
+app itself, and 84, 202, 481, 508 and 509 did not say so, as 441 and 50
+do; template_draft ends the app behind Home where 307's person swipes
+it from Recents, as 195 now says; 494 kept a run's date. Each names it
+now; four of them leave the seventy whole rows, which are sixty-six. The
+lows: 37 says kept_aside makes an update's copy and no part restores it;
+152 says its fade's mutant was not kept. Its second agent read the
+in-part rows 1 to 200 against the checks they name: 11 credited
+StartupTest with keeping an unreadable notebook aside, which only
+NotebookTest checks (a medium); 7, 8, 20, 37, 47, 159, 160, 162, 170,
+180, 181 and 193 now name what their checks do reach (older_android.py's
+restart, the Google backup's sentences, the seeded banner and its
+Restore, the app's own paste). Left, with its reason: the plan keeps
+cases 1 to 153 as numbers and 154 on as text, so a numeric filter on
+the ID column misses the later ones; the plan's checks read both, and
+changing 384 cells' kind for a filter is not worth the risk now.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
