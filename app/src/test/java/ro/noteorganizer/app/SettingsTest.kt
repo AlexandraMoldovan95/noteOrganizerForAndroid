@@ -76,7 +76,9 @@ class SettingsTest {
         Files.readBytesOf = { if (it.name == "settings.json" && refusals-- > 0) throw java.io.IOException("refused") else real(it) }
         try {
             val load = Settings.load(folder)
-            assertNotNull(load.problem)
+            // A sentence, its full stop with it, as the notes' and the Trash's lines beside it.
+            assertEquals("settings.json could not be opened, so nothing is written over it until the app is closed " +
+                "and opened again.", load.problem)
             assertTrue("held", Files.writesHeld(settings))
             assertTrue("no copy aside", folder.list()!!.none { it.startsWith("settings_corrupt_") })
             assertNotNull("nothing written over it", Settings.put(load, "x", 1).let { it as? SaveResult.Failed })
@@ -86,7 +88,7 @@ class SettingsTest {
         assertEquals("Ana", JSONObject(settings.readText()).getString("username"))
         // Held, it reads as its marks all run though the file now reads, as the
         // desktop's: read for real, the Trash page contradicted its own chips.
-        assertNotNull(Settings.load(folder).problem)
+        assertTrue(Settings.load(folder).problem!!.endsWith("opened again."))
         assertEquals("", Settings.load(folder).raw.optString("username"))
         assertEquals(true, Settings.load(folder).raw.opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
         // A new start (Android 8 to 11 reopening in the same process) reads it
@@ -370,7 +372,7 @@ class SettingsTest {
         val earlier = File(dir, "settings_corrupt_20200101_000000.json")
         earlier.writeText("{ not json")
         val load = Settings.load(dir)
-        assertTrue(load.problem!!.contains(earlier.name))
+        assertEquals("settings.json could not be read; a copy was kept as ${earlier.name}.", load.problem)
         assertEquals(listOf(earlier.name),
             dir.listFiles()!!.filter { it.name.startsWith("settings_corrupt_") }.map { it.name })
     }

@@ -474,13 +474,13 @@ class BackupTest {
         // backup: write failed: ENOSPC", which blamed the file, in the system's words.
         val into = File(File(temp("app"), "cache"), "import_1")
         assertEquals(Backup.NO_ROOM, Backup.unreadable(java.io.IOException("write failed: ENOSPC (No space left on device)"), into))
-        assertEquals("That file couldn't be read as a backup:\ninvalid END header",
+        assertEquals("That file couldn't be read as a backup:\ninvalid END header.",
             Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
         // ...and one its unpacking could not write names no path of the app's.
         val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
         val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }
         val failed = Backup.read(zip, blocked, Long.MAX_VALUE) as Backup.Read.Failed
-        assertEquals("That file couldn't be read as a backup:\nthe phone could not copy or unpack it", failed.reason)
+        assertEquals("That file couldn't be read as a backup:\nthe phone could not copy or unpack it.", failed.reason)
     }
 
     @Test

@@ -286,10 +286,12 @@ the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
 held together by `tools/check_note_shape.py` and by a fixture of the
 desktop's own answers (`tools/make_unknown_fixture.py`):
 
-- **Known** are the fields above, `id`, `order`, `_prev`, `_set_aside`,
-  `deleted_at` (the Trash's, which a restore takes off) and `tags` (a
-  feature removed, still dropped). Any other name is kept, unless it
-  starts with `_`, an app's own mark.
+- **Known**, for a note, are the fields of a note above, `id`, `order`,
+  `_prev`, `_set_aside`, `deleted_at` (the Trash's, which a restore takes
+  off) and `tags` (a feature removed, still dropped); for a template, its
+  eight alone, so a key such as `id` or `order` on a template is kept as a
+  newer version's. Any other name is kept, unless it starts with `_`, an
+  app's own mark.
 - **Bounded**, as every list a file can inflate: at most 32 such fields,
   65,536 units in all (a string counts its UTF-16 length, a name too,
   anything else 1) and 20 levels deep; a field past a bound is left out,
@@ -319,8 +321,10 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
   From about 309 digits the double is infinite, read as Infinity below; it
   writes 1.0 back as 1 and
   -0.0 as -0, which Python reads as whole numbers; it refuses a whole
-  backup holding Infinity or NaN as a member's value, where the desktop
-  reads it and leaves that field out (in a list it reads them as null); and
+  backup whose notes hold Infinity or NaN as a member's value, and leaves
+  out, unsaid, a backup's templates, Trash or settings file holding one,
+  where the desktop reads each and leaves that field out (in a list it
+  reads them as null); and
   an escaped lone surrogate, which the desktop mends to U+FFFD as it reads,
   it keeps and writes back as "?". Neither app writes Infinity, NaN or a
   lone surrogate of its own.

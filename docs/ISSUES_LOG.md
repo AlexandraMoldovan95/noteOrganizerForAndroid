@@ -1064,6 +1064,28 @@ template editor's Save carries them over from the template it edits
 now holds the two apps' known template fields together. Case 537 walks
 it by hand, through a desktop backup.
 
+The thirty-third round found the decision holding on every road of both
+apps, and case 537 short: it called its hand check a choice, where the
+template editor's Save, which hands the template it edits to
+`Templates.collected`, is reached by no test and no walk part (a medium,
+in a document the release relies on); it says "Automated in part" now,
+and takes a .zip whose templates.json is edited by hand, so no desktop
+build of its own is needed. The data format's "Known" bullet, read after
+the template sentence, seemed to give a template a note's names, and its
+sentence on Infinity and NaN was true of a backup's notes alone (the
+phone leaves out, unsaid, a templates, Trash or settings file holding
+one, where the desktop reads it less that field). The lows: a held
+settings file's start line and an unreadable backup's words still ended
+without a full stop (AS868, AS870), and nothing tested the settings
+lines' full stops (AS867, AS869); case 528 called "Update this note"
+"Update". Left, with their reasons: an import writes this phone's own
+templates.json back as the file holds it, so a 33rd field stays until
+the next template save (it keeps more, never less); a template replaced
+by name, on the person's Replace, takes its newer fields with it, on
+both apps, as "Replace the old template with this one" says; and a
+damaged settings file beside no notes file on the very first start is
+read clean after the welcome note's write, unsaid (older, very rare).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
