@@ -1209,13 +1209,14 @@ The thirty-eighth round traced every unit-only row from 154 on from
 the screen to the model, and found what the class had been all along:
 the unit tests have no screen (no Compose runner in the build), so a
 row whose steps are taps and whose checks are unit tests alone was never
-walked whole. 146 such rows say "Automated in part" now, each naming
+walked whole. 148 such rows say "Automated in part" now, each naming
 what its kind leaves to the hand (the editor's gestures, the Repeat
 sheet's own Save, the import's picker and questions, a day's menu, the
 share sheet, the screens that show an answer), and the How to use tab
 says what "Automated (JVM)" means. Ten more Pass-by-Claude rows (155,
-488 to 507) and two of 0.9.1 (53's empty name, 71's 3 x 4 grid) went
-back to Not Tested, forty-eight in all. Mediums too: 331, 354, 380 and
+488, 489, 490, 491, 495, 502, 504, 506, 507) and two of 0.9.1 (53's
+empty name, 71's 3 x 4 grid) went back to Not Tested, forty-eight in
+all. Mediums too: 331, 354, 380 and
 319 said the calculator's keys and the bar's ↶ are not scripted, and
 501 that a turn needs a big phone's emulator, where the walk presses
 those keys, taps ↶ and sizes tablets elsewhere; 72, 119 and 88 named as
@@ -1227,6 +1228,21 @@ and 80 say exactly what their checks read; 209, 216, 219 and 227 say
 they name no test; 265 says no check computes the card's own sum; and
 qa/README says a check she allowed on her phone may fill in a row that
 needs a person, as the tab does.
+
+The thirty-ninth round read every row still Pass by Claude and every
+NEEDS YOUR EYE row still saying "The steps are automated", one by one,
+and found the trace of round 38 had stopped at case 154 (mediums):
+fifteen Pass rows of 0.9.1 and the six of 13 November that rest on unit
+tests alone were walked only in part, and seventeen eye rows' steps are
+walked by no part (an app offering itself in another app's share sheet
+among them: every share the walk sends is addressed to the app itself).
+Each says "in part" now and names what is left; the Pass rows, and 112,
+went back to Not Tested, seventy in all; the twenty-six that stand now
+name the test and the walk check that walk them. 194 said no one walks
+a screen the walk's failed_save part walks; 119 left out a merge's
+Undo; 283, 345, 360, 361, 427 and 480 still said "Automated (JVM)" over
+taps. The lows: 72, 88, 146, 420, 226 and 204 say exactly what their
+checks read, and 33's Tested By names its gate.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
