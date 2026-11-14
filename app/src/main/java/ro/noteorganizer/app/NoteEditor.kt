@@ -3024,7 +3024,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
 
     // A row being renamed is written before the rows move under it: kept by
     // its place, it would land on another row, or be dropped.
-    fun renameWritten(): Boolean = model.writeRename()?.let { state.say(it); false } ?: true
+    fun renameWritten(): Boolean = model.writeRename()?.let { state.sayRefused(it); false } ?: true
 
     // The last ask from ⋮ the box was given: kept while the section is folded,
     // so a section opened again does not raise the keyboard for an old ask.
@@ -3223,7 +3223,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                           onEdit = { was, now, cursor ->
                               // Kept to a row's length, the row's own words whole.
                               model.rowCap.fit(was, now, box = index, cursor = cursor).also { fit ->
-                                  if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.say(it) }
+                                  if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.sayRefused(it) }
                               }
                           },
                           onLeave = { if (model.renaming?.index == index) renameWritten() },
@@ -3244,7 +3244,7 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // the words left in the box and the list still empty.
     fun add() {
         if (model.adding.isBlank()) return
-        model.writeChecklist()?.let { state.say(it); return }
+        model.writeChecklist()?.let { state.sayRefused(it); return }
         added += 1
     }
     // The box's words with their cursor, so a paste cut to fit leaves it

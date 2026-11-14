@@ -458,9 +458,11 @@ class BackupTest {
     @Test
     fun `an export the phone's storage refused says so in words of its own, never the cache's path`() {
         // "Couldn't create the backup: /data/user/0/…/cache/backup_export.zip.tmp: open failed".
-        val dir = temp("notebook")
+        // Laid out as on the phone: the notebook in files/notebook, the scratch in cache.
+        val app = temp("app")
+        val dir = File(File(app, "files"), "notebook").apply { mkdirs() }
         File(dir, "notes_data.json").writeText("[]")
-        val scratch = temp("scratch")
+        val scratch = File(app, "cache").apply { mkdirs() }
         File(scratch, "backup_export.zip.tmp").mkdir()
         val failed = Backup.exportTo(dir, scratch, { ByteArrayOutputStream() }, { false }, {}) as Backup.Export.Failed
         assertEquals(Files.STORAGE_REFUSED, failed.reason)

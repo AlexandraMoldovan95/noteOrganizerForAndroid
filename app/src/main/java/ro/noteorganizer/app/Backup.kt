@@ -248,8 +248,9 @@ object Backup {
                 } catch (_: Exception) {
                 }
             }
-            // The system's words named the cache's private path, or said ENOSPC.
-            Export.Failed(Files.said(e, dir.parentFile ?: dir))
+            // The system's words named the cache's private path, or said ENOSPC: the app's own
+            // folder holds both the notebook's (files/notebook) and the cache.
+            Export.Failed(Files.said(e, dir.parentFile?.parentFile ?: dir))
         }
     }
 

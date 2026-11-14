@@ -271,13 +271,13 @@ object Importing {
     }
 
     /**
-     * Whether the import goes on past its look-alikes -- an Update agreed
-     * to, unchanged notes kept as copies -- so the question about them,
-     * when every new note is one, offers to skip them: Cancel was its only
-     * no, and dropped those answers unsaid, as the desktop's did.
+     * Whether the import goes on past its look-alikes -- the notes known here
+     * updated or added as new ones, unchanged notes kept as copies -- so the
+     * question about them, when every new note is one, offers to skip them:
+     * Cancel was its only no, and dropped those answers unsaid, as the desktop's did.
      */
     fun goesOnPastLookAlikes(plan: Plan, answers: Answers): Boolean =
-        (answers.update && plan.differing.isNotEmpty()) || (answers.copyUnchanged && plan.unchanged.isNotEmpty())
+        plan.differing.isNotEmpty() || (answers.copyUnchanged && plan.unchanged.isNotEmpty())
 
     /**
      * Whether the question, when every new note is a look-alike, offers to skip them: the
@@ -293,8 +293,24 @@ object Importing {
      * leave it: the third question, once the first is answered.
      */
     fun lookAlikes(notebook: JSONArray, plan: Plan, update: Boolean): Int {
-        val keys = notebookKeys(notebook, plan, update)
-        return remaining(plan, update).count { keyOf(it, plan.categories) in keys }
+        val keys = twinsOf(notebook, plan, update).keys
+        return plan.fresh.count { keyOf(it, plan.categories) in keys }
+    }
+
+    /**
+     * The note here each duplicate key finds in [notes] as the updates will leave them --
+     * an updated note by the backup's copy, as the question asks -- the first in the file
+     * winning, as the desktop's `_twins_after`. Keyed after the update in apply, a note
+     * holding a field a newer version wrote found no twin, and a skipped file was dropped.
+     */
+    private fun twinsOf(notes: JSONArray, plan: Plan, update: Boolean): Map<String, JSONObject> {
+        val replaced = if (!update) emptyMap() else positions(notes).let { at ->
+            plan.differing.mapNotNull { known -> at[known.uid]?.let { it to known.theirs } }.toMap() }
+        val twins = LinkedHashMap<String, JSONObject>()
+        for (i in 0 until notes.length()) {
+            (notes.opt(i) as? JSONObject)?.let { twins.putIfAbsent(keyOf(replaced[i] ?: it, plan.categories), it) }
+        }
+        return twins
     }
 
     /**
@@ -319,29 +335,13 @@ object Importing {
 
         /** Both answers' counts, and what Skip brings where every new note looks alike, worked out now: away from the screen. */
         fun warm(plan: Plan): LookAlikes {
-            for (update in if (plan.differing.isNotEmpty()) listOf(false, true) else listOf(false)) {
-                val alike = of(update)
-                if (alike > 0 && alike == remaining(plan, update).size) more(update)
-            }
+            val alike = of(false)
+            // With notes known here the import goes on past the look-alikes whatever the first
+            // answer (goesOnPastLookAlikes): what Skip brings is asked only without them.
+            if (plan.differing.isNotEmpty()) of(true)
+            else if (alike > 0 && alike == plan.fresh.size) more(false)
             return this
         }
-    }
-
-    /**
-     * Compared by the desktop's duplicate key, never by object: the copies
-     * [remaining] makes are new objects every time it is asked.
-     */
-    private fun notebookKeys(notebook: JSONArray, plan: Plan, update: Boolean): Set<String> {
-        // The notes the updates replace, found by identity in THIS list.
-        val replaced = if (update) positions(notebook).let { at -> plan.differing.mapNotNull { at[it.uid] }.toSet() }
-                       else emptySet()
-        val keys = HashSet<String>()
-        for (i in 0 until notebook.length()) {
-            if (i in replaced) continue
-            (notebook.opt(i) as? JSONObject)?.let { keys.add(keyOf(it, plan.categories)) }
-        }
-        if (update) plan.differing.forEach { keys.add(keyOf(it.theirs, plan.categories)) }
-        return keys
     }
 
     /** The duplicate key of [note] as it will be kept: under General where [categories] lack its name. */
@@ -366,9 +366,14 @@ object Importing {
         )
     }
 
-    /** What would be added as new notes before the look-alike question. */
-    private fun remaining(plan: Plan, update: Boolean): List<JSONObject> =
-        if (update) plan.fresh else plan.fresh + plan.differing.map { withoutIdentity(it.theirs) }
+    /**
+     * The notes known here added as new ones ("Add as a new note"), each without the identity
+     * it came with: copies asked for, past the look-alike question, as the desktop adds them.
+     * Asked again, a note edited elsewhere only in its date or colour read as a duplicate of
+     * itself, and the question's Cancel undid the Add.
+     */
+    private fun keptSeparate(plan: Plan, update: Boolean): List<JSONObject> =
+        if (update) emptyList() else plan.differing.map { withoutIdentity(it.theirs) }
 
     /** A copy kept separate must not wear the original's identity. */
     private fun withoutIdentity(note: JSONObject): JSONObject {
@@ -579,14 +584,8 @@ object Importing {
     fun bringsMore(notebook: JSONArray, plan: Plan, update: Boolean, load: Notebook.Load, trash: JSONArray?,
                    settings: JSONObject?, extras: Extras, fileOf: (String) -> File?): Boolean {
         if (plan.source != Source.BACKUP) return false
-        // The note each key finds once the updates are made, the first in the file winning.
-        val replaced = if (!update) emptyMap() else positions(notebook).let { at ->
-            plan.differing.mapNotNull { known -> at[known.uid]?.let { it to known.theirs } }.toMap() }
-        val twins = HashMap<String, JSONObject>()
-        for (i in 0 until notebook.length()) {
-            (notebook.opt(i) as? JSONObject)?.let { twins.putIfAbsent(keyOf(replaced[i] ?: it, plan.categories), it) }
-        }
-        if (remaining(plan, update).any { note ->
+        val twins = twinsOf(notebook, plan, update)
+        if (plan.fresh.any { note ->
                 twins[keyOf(note, plan.categories)]?.let { filesToAdopt(it, note, fileOf).isNotEmpty() } == true }) return true
         // Over held settings the import stops at their write: Skip brings nothing there.
         val settingsFile = load.settings?.file
@@ -611,7 +610,11 @@ object Importing {
         if (Settings.adoptCategoriesOf(names, JSONArray().apply { adopting.forEach { put(it) } }, LinkedHashSet()) > 0 &&
             settings != null) return true
         val signs = TrashSigns(trash ?: JSONArray(), names.keys, fileOf)
-        return incoming.any { !signs.knows(fileUnder(shapedTrash(it), names.keys)) }
+        // One past the length this phone keeps the Trash stays in the backup, as apply leaves it.
+        return incoming.any { raw ->
+            val entry = fileUnder(shapedTrash(raw), names.keys)
+            !signs.knows(entry) && (keep == null || !Organizing.isPast(entry, keep))
+        }
     }
 
     private fun applyWhole(
@@ -686,21 +689,18 @@ object Importing {
         // 3. The new notes: what nothing matched, the changed ones the
         //    person chose to keep separate, minus the look-alikes skipped,
         //    plus the copies of unchanged notes asked for.
-        var toAdd = remaining(plan, answers.update)
+        var toAdd = plan.fresh
         var duplicatesSkipped = 0
         var filesGiven = 0
         if (answers.skipDuplicates) {
-            val keys = notebookKeys(notebook, plan, answers.update)
-            val kept = toAdd.filter { keyOf(it, plan.categories) !in keys }
+            // An updated note keyed by the backup's copy, as the question keyed it: keyed after
+            // the update, one holding a field a newer version wrote found no twin here.
+            val twins = twinsOf(candidate, plan, answers.update)
+            val kept = toAdd.filter { keyOf(it, plan.categories) !in twins }
             duplicatesSkipped = toAdd.size - kept.size
             // A skipped look-alike's files go to the note here it looks like, as the desktop's
             // do: dropped, the same backup left a file on the desktop's note and not here.
-            // Only with one skipped: every note here normalized again, on the screen's thread.
             if (plan.source == Source.BACKUP && duplicatesSkipped > 0) {
-                val twins = HashMap<String, JSONObject>()
-                for (i in 0 until candidate.length()) {
-                    (candidate.opt(i) as? JSONObject)?.let { twins.putIfAbsent(keyOf(it, plan.categories), it) }
-                }
                 val kept1 = kept.toSet()
                 for (skipped in toAdd.filter { it !in kept1 }) {
                     val twin = twins[keyOf(skipped, plan.categories)] ?: continue
@@ -714,6 +714,7 @@ object Importing {
             }
             toAdd = kept
         }
+        toAdd = toAdd + keptSeparate(plan, answers.update)
         val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
         val newIds = Organizing.ids(candidate)
         for (incoming in toAdd + copies) {

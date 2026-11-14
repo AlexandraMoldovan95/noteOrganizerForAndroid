@@ -241,8 +241,11 @@ class ImportingTest {
              {"uid": "b", "title": "Same", "category": "General"}]
         """.trimIndent())
         assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(update = true)))
-        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(copyUnchanged = true)))
-        assertFalse(Importing.goesOnPastLookAlikes(plan, Importing.Answers()))
+        // ...and "Add as a new note" too: its copies are added past the question, as the desktop's.
+        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(update = false)))
+        val unchangedOnly = backupPlan(load, """[{"uid": "b", "title": "Same", "category": "General"}]""")
+        assertTrue(Importing.goesOnPastLookAlikes(unchangedOnly, Importing.Answers(copyUnchanged = true)))
+        assertFalse(Importing.goesOnPastLookAlikes(unchangedOnly, Importing.Answers()))
     }
 
     @Test
@@ -529,6 +532,42 @@ class ImportingTest {
         assertEquals("New", all.getJSONObject(1).getString("title"))
         assertNotEquals("a", all.getJSONObject(1).getString("uid"))
         assertEquals(2, all.getJSONObject(1).getInt("id"))
+    }
+
+    @Test
+    fun `a note added as new is a copy asked for, not put to the look-alike question again`() {
+        // Edited elsewhere only in its date, its copy looked like the note here: "Import it anyway
+        // as a new copy?" followed the Add, its Cancel undid it, and Skip skipped the very note
+        // chosen to be added. The desktop adds it past the question.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Trip", "body": "plan", "date": "2026-11-01"}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "Trip", "body": "plan", "date": "2026-11-02"}]""")
+        assertEquals(1, plan.differing.size)
+        assertEquals(0, Importing.lookAlikes(load.raw!!, plan, update = false))
+        val result = Importing.apply(load, plan, Importing.Answers(update = false, skipDuplicates = true), null)
+            as Importing.Result.Done
+        assertEquals(listOf(1, 0), listOf(result.outcome.added, result.outcome.duplicatesSkipped))
+        assertEquals(2, onDisk(load).length())
+    }
+
+    @Test
+    fun `a skipped look-alike of a note updated finds it though the note holds a field a newer version wrote`() {
+        // Keyed after the update, the note here kept the field the backup's copy lacks, found no
+        // twin, and the look-alike's file was dropped after Skip was offered for it.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Trip", "body": "old plan", "zz_newer": "kept"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114170000000000_p.png").writeBytes("pic".toByteArray())
+        val plan = Importing.plan(load.raw!!, notes("""[{"uid": "a", "title": "Trip", "body": "new plan"},
+            {"title": "Trip (copy)", "body": "new plan",
+             "attachments": [{"filename": "p.png", "stored_as": "20261114170000000000_p.png"}]}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        assertEquals(1, Importing.lookAlikes(load.raw!!, plan, update = true))
+        val result = Importing.apply(load, plan, Importing.Answers(update = true, skipDuplicates = true), here,
+            Importing.Extras(attachments = unpacked)) as Importing.Result.Done
+        assertEquals(listOf(1, 1), listOf(result.outcome.duplicatesSkipped, result.outcome.filesGiven))
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals(listOf("kept", "p.png"),
+            listOf(note.optString("zz_newer"), note.getJSONArray("attachments").getJSONObject(0).getString("filename")))
     }
 
     // ---- question 2: the notes that are already here, unchanged ----
@@ -975,6 +1014,9 @@ class ImportingTest {
         assertTrue("a template", more(alike, Importing.Extras(templates = JSONArray("""[{"name": "Weekly", "body": "w"}]"""))))
         assertTrue("a trashed note", more(alike, Importing.Extras(trash = JSONArray(
             """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(1)}"}]"""))))
+        // ...but not one older than this phone keeps the Trash: apply leaves it in the backup.
+        assertFalse("a trashed note past the Trash's length", more(alike, Importing.Extras(trash = JSONArray(
+            """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(400)}"}]"""))))
         assertTrue("a day's colour", more(alike, Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))))
         assertTrue("a category", more(alike, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}"""))))
         // ...but not a template over a templates file held this run: apply stops there.

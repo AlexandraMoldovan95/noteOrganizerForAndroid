@@ -297,7 +297,8 @@ fun ImportQuestions(
         }
         Step.LOOKALIKES -> {
             val count = counts.of(answers.update)
-            val remaining = plan.fresh.size + if (answers.update) 0 else plan.differing.size
+            // The new notes alone: those added as new ones at the first question are copies asked for.
+            val remaining = plan.fresh.size
             if (count == remaining && Importing.offersSkip(plan, answers, counts)) {
                 Choice(
                     title = stringResource(R.string.q_duplicates_title),

@@ -439,12 +439,14 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 true
             }
             is SaveResult.Failed -> {
-                // A write's bare cause ("the phone's storage is full") said nothing of what went unsaved.
-                say(if (Files.bareCause(result.reason)) "Not saved: ${result.reason}." else result.reason)
+                sayRefused(result.reason)
                 false
             }
         }
     }
+
+    /** Why a write was refused, said: a bare cause ("the phone's storage is full") said nothing of what went unsaved. */
+    fun sayRefused(reason: String) = say(if (Files.bareCause(reason)) "Not saved: $reason." else reason)
 
     /** A message, [long] for one with more to read than a glance takes. */
     fun say(message: String, long: Boolean = false) {
@@ -1090,7 +1092,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             // under them, the row moved the rows below it. "A new item…" is
             // left in its box, made a row by this Undo.
             saveStaying()?.let { why ->
-                say(why)
+                sayRefused(why)
                 return@offerUndo
             }
             report(Notebook.restoreChecklistItem(load, id, index, kept))
