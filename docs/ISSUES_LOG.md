@@ -1373,19 +1373,33 @@ steps some cases do not have (mediums): the Repeat sentence named a
 Save "with another start" on thirteen cases that never change the
 start, the import sentence a backup on two that import codes, and the
 stored-notebook and day's-menu sentences left out the typing, a reset
-or a move. Every kind sentence (134 rows) is now one that is true of
+or a move. Every kind sentence (134 rows) became one meant to be true of
 every row carrying it: the tests run the case through the model, and
 this case's own steps on screen, and what they show, are left to the
-hand; 399, 408, 404 and 305 say what their own checks do. Its second
+hand (the round after found it untrue of rows whose tests only read a
+note already built, and of three whose steps the walk reaches); 399,
+408, 404 and 305 say what their own checks do. Its second
 agent read the 101 rows not labelled Automated (77 wholly true) and
 found 145 implying the series line's words are read where no part
 reads its counts, and 486 called walked where three of its steps are
-not (mediums). Both say so now. The lows: six rows saying no script can
-answer them name the walk parts that reach their steps; 493 and 497
+not (mediums). Both say so now. The lows: seven rows saying no script
+can answer them name the walk parts that reach their steps; 493 and 497
 name shared_files' slow provider; five rows no longer say their steps
-are "automated in part" where no part walks them; 57, 81, 106, 416, 514,
-4 and 102 (its expected result too) say what is true; qa/README names
-Phase 3's four hand rows.
+are "automated in part" where no part walks them; 81, 106, 416, 514, 4
+and 102 (its expected result too) say what is true, and 57 since the
+round after.
+
+The forty-eighth round's first agent found the one sentence untrue of
+rows whose tests only read a note already built (400, 402, 405), and
+493 and 497 leaving out the screen during the read, Drive's Send a copy
+and the shares the walk sends to the app itself (mediums): the sentence
+now says the tests named hold the rule in the model, 464, 268 and 359
+name the walk parts that reach their steps, and 493 and 497 name all
+they leave. Its second agent audited every fifth row of the plan (106)
+and found nothing at medium or above. The lows: 57, 28, 130, 36, 164,
+199, 294, 339 and 529 say exactly what their checks read; 486, 493 and
+497 carry EMULATOR for the Summary's count; qa/README names Phase 3's
+six hand rows and what a unit-only row leaves.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
