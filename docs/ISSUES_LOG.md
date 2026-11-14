@@ -648,6 +648,33 @@ Trash and templates renamed (a retry makes them agree); a refused tick
 keeps its new stamp; and settling the theme on a full phone says the bare
 reason at each activity made.
 
+The seventeenth round found the sixteenth's own rule too wide in two
+places. A template's draft held after a refused read dropped every new
+draft without a word, and a template typed then went with the app when
+Android ended it: a draft is copied aside again, held never (AS775 guards
+the words of Use template, below). And a hold set by a refused read had no
+way to end on Android 8 to 11, where Back ends the activity and not the
+process: every write was refused after the reopened app read the file
+fine. A new start clears the run's holds and unread marks now, each set
+again if its file still does not read (AS773). Android's backup agent,
+reading settings that would not read, wrote its off mark, which outlived
+the read and turned a backup the person never touched off for good: it
+hands nothing over then, writing no mark (AS774). Use template over a
+templates file that did not read said the person had none (it says the
+file could not be read, AS775), and no test reached a refused read at
+all: one does now, through a seam that makes the read refuse (AS772). The
+desktop, read for this round, held only its settings on a refused read:
+its notes, Trash and templates were copied aside when the copy's read got
+through, and are held now too. Its second reader found the parity lows:
+Remove attachment promising a stored copy gone in a run that keeps every
+file, the Trash page advising and asking a choice a held settings file
+refuses, and a welcome note typed in and asked for again duplicated (the
+uid kept in memory for the run now). Left, with its reason: the import's
+plan is made before the editor's last words are saved, so words typed in
+a note the backup also holds, between opening the import and answering
+it, are not asked about again as the desktop asks (rare: Settings must be
+left mid-import; Restore previous brings the words back).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

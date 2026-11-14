@@ -50,7 +50,7 @@ here.
 
 ## The map
 
-About 29,700 lines of Kotlin on 14 November 2026, the rules a little over
+About 29,800 lines of Kotlin on 14 November 2026, the rules a little over
 half of them, in files that import nothing from Android, and the drawing
 the rest, in files that may. Each file's count below is rounded, and moves
 with every change: `wc -l` on the folder gives today's.
@@ -74,13 +74,13 @@ with every change: `wc -l` on the folder gives today's.
 | `Backup.kt` | 410 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 340 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 380 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
-| `Templates.kt` | 330 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
+| `Templates.kt` | 350 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
 | `Editing.kt` | 1,130 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
 | `Sharing.kt` | 390 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
-| `Files.kt` | 310 | The atomic write, and keeping a broken file aside | `storage.py` |
+| `Files.kt` | 320 | The atomic write, and keeping a broken file aside | `storage.py` |
 | `Startup.kt` | 170 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 85 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
@@ -92,7 +92,7 @@ with every change: `wc -l` on the folder gives today's.
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 4,330 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 1,150 | Settings and its ten pages, Duplicates and Reminders among them |
+| `SettingsScreens.kt` | 1,160 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 630 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 1,300 | The app's state, and every action a screen can take on the notebook |

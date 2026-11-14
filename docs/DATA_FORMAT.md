@@ -91,9 +91,10 @@ unpacked or ignores (since 2026-10-27).
 A file whose read the phone's storage refuses (an input-output error,
 not bytes that do not parse), or one that will not parse and cannot be
 copied aside either, is **held** instead: nothing is written over it until
-the app is closed and opened again (`Files.holdWrites`), or a later read in
-that run copies a damaged one aside — as the desktop holds a file another
-program has open. A settings file that cannot be read reads as its marks
+the app is closed and opened again (`Files.holdWrites`; a new start reads
+every file afresh), or a later read in that run copies a damaged one aside
+— as the desktop holds a file another program has open. A template's
+draft alone is copied aside even then: held, every new draft was dropped. A settings file that cannot be read reads as its marks
 alone, the Trash's window unknown and Android's backup off, so a write
 that does go out carries them.
 
