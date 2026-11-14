@@ -29,10 +29,10 @@ object Startup {
     /** What the start did that is worth one line at the top of the list, or null. */
     fun prepare(dir: File, older: File?, read: (File) -> ByteArray = File::readBytes): String? {
         dir.mkdirs()
-        // A start reads the notes afresh, as the desktop's load once a run:
-        // the unread mark of an earlier one (Android 8 to 11 reopens in the
-        // same process) kept every attached file after the notes read fine.
-        Files.clearUnread()
+        // A start reads afresh, as the desktop's once a run: an earlier one's
+        // marks and holds (Android 8 to 11 reopens in the same process) kept
+        // every attached file, and refused every write, after the files read fine.
+        Files.newStart()
         val notes = File(dir, Backup.NOTES)
         val lines = ArrayList<String>()
         if (!notes.exists()) {

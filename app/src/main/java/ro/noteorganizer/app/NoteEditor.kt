@@ -1536,6 +1536,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     var tableAsk by remember { mutableStateOf(false) }
     var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
     val templateNone = stringResource(R.string.template_none)
+    val templateUnreadable = stringResource(R.string.template_unreadable)
     val templateNothing = stringResource(R.string.template_nothing)
     val templateStarted = stringResource(R.string.template_started)
     val duplicateNothing = stringResource(R.string.duplicate_nothing_yet)
@@ -1781,7 +1782,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             menu = false
                             val templates = Templates.load(state.dir)
                             if (templates.isEmpty()) {
-                                state.say(templateNone)
+                                // None read is not none kept: "You don't have any" was untrue.
+                                state.say(if (Templates.unreadable(state.dir)) templateUnreadable else templateNone)
                             } else {
                                 // What is here is saved first: the template
                                 // starts a new note, it replaces nothing.
@@ -3689,7 +3691,9 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
     removing?.let { (name, stored) ->
         Ask(
             title = stringResource(R.string.attach_remove_title),
-            text = stringResource(R.string.attach_remove_text, quotedFile(name)),
+            // A run that keeps every file (Organizing.filesKept) does not promise this one gone.
+            text = stringResource(if (Organizing.filesKept(state.load)) R.string.attach_remove_text_kept
+                                  else R.string.attach_remove_text, quotedFile(name)),
             confirm = stringResource(R.string.attach_remove_confirm),
             onConfirm = {
                 removing = null

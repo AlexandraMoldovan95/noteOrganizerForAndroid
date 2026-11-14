@@ -116,9 +116,14 @@ class TemplatesTest {
     fun `no file is no templates, and a file nobody can read is kept aside`() {
         val d = dir()
         assertEquals(emptyList<JSONObject>(), Templates.load(d))
+        assertFalse("none kept is not unreadable", Templates.unreadable(d))
         File(d, "templates.json").writeText("{ not json")
         assertEquals(emptyList<JSONObject>(), Templates.load(d))
         assertTrue(d.listFiles()!!.any { it.name.startsWith("templates_corrupt_") })
+        // ...and Use template says so, not "You don't have any templates".
+        assertTrue(Templates.unreadable(d))
+        File(d, "templates.json").writeText("[]")
+        assertFalse("an empty list read fine", Templates.unreadable(d))
     }
 
     @Test

@@ -273,6 +273,7 @@
     <string name="attach_remove_said">Remove %1$s</string>
     <string name="attach_remove_title">Remove attachment</string>
     <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it, unless another note still uses it — this can\'t be undone.</string>
+    <string name="attach_remove_text_kept">Remove “%1$s” from the note?\n\nIts stored copy stays on the phone this time: the notes file could not be read when the app started.</string>
     <string name="attach_remove_confirm">Remove</string>
     <string name="attach_full">A note can keep %1$d attached files. Remove one to add another, or split this into two notes.</string>
     <string name="attach_too_many_title">More files than this note can hold</string>
@@ -355,6 +356,7 @@
     <string name="template_use">📎 Use template</string>
     <string name="template_save_as">🧩 Save as template</string>
     <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
+    <string name="template_unreadable">Your templates could not be read just now, so none are offered.</string>
     <string name="template_pick_title">Use a template</string>
     <string name="template_started">New note started from template — edits here won\'t change the template</string>
     <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>
@@ -641,6 +643,7 @@
     <string name="trash_window">Kept for %1$d days, then removed automatically.</string>
     <string name="trash_keep_for">Keep deleted notes for</string>
     <string name="trash_window_unknown">How long the Trash keeps notes could not be read, so nothing is removed from it. Choose the number of days again.</string>
+    <string name="trash_window_held">The settings file could not be used, so nothing is removed from the Trash. The number of days can be chosen once the app is closed and opened again.</string>
     <string name="trash_kept">kept until the days are chosen</string>
     <string name="trash_empty">The Trash is empty.</string>
     <string name="trash_unknown">deleted (date unknown)</string>

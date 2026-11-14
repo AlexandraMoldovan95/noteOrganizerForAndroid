@@ -64,6 +64,32 @@ class SettingsTest {
     }
 
     @Test
+    fun `a read the storage refuses holds the file, never copying a good one aside, and a new start reads it again`() {
+        // Taken for damage, a good settings file was copied aside and the start
+        // wrote its marks over it.
+        val folder = dir("""{"username": "Ana", "theme": "dark"}""")
+        val settings = File(folder, "settings.json")
+        val real = Files.readBytesOf
+        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        try {
+            val load = Settings.load(folder)
+            assertNotNull(load.problem)
+            assertTrue("held", Files.writesHeld(settings))
+            assertTrue("no copy aside", folder.list()!!.none { it.startsWith("settings_corrupt_") })
+            assertNotNull("nothing written over it", Settings.put(load, "x", 1).let { it as? SaveResult.Failed })
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertEquals("Ana", JSONObject(settings.readText()).getString("username"))
+        // A new start (Android 8 to 11 reopening in the same process) reads it
+        // afresh: held past it, every write was refused after it read fine.
+        File(folder, "notes_data.json").writeText("[]")
+        Startup.prepare(folder, older = null)
+        assertFalse(Files.writesHeld(settings))
+        assertEquals("Ana", Settings.load(folder).raw.optString("username"))
+    }
+
+    @Test
     fun `a file that could be neither read nor copied aside is written over by nothing, as the desktop's`() {
         // Settings and templates were written over then, their bytes in no other
         // copy; only the notes held. Held, every writer is refused.
@@ -123,6 +149,11 @@ class SettingsTest {
         assertTrue(File(off, Settings.GOOGLE_BACKUP_OFF_MARK).isFile)
         // Nothing said anywhere: on, as it always was.
         assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(dir()))
+        // A file not read this time hands nothing over, and writes no off mark:
+        // written, it outlived the read and turned the backup off for good.
+        val unread = dir("""{"theme": "dark", "phone_google_ba""")
+        assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        assertFalse(File(unread, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
         // And the first start then writes the answer into the file.
         File(restored, "notes_data.json").writeText("[]")
         Startup.prepare(restored, older = null)

@@ -54,8 +54,16 @@ object Files {
 
     internal fun markUnread(file: File) { unreadAtLoad.add(heldKey(file)) }
 
-    /** A new start's reading begins clean ([Startup.prepare]). */
-    internal fun clearUnread() { unreadAtLoad.clear() }
+    /**
+     * A new start's reading begins clean ([Startup.prepare]): the unread marks
+     * and the holds of an earlier one in this process (Android 8 to 11 reopens
+     * in it), each set again if its file still does not read. Held past it,
+     * a file that now read fine refused every write.
+     */
+    internal fun newStart() {
+        unreadAtLoad.clear()
+        writesHeld.clear()
+    }
 
     internal fun unreadAtLoad(file: File): Boolean = heldKey(file) in unreadAtLoad
 
@@ -204,10 +212,13 @@ object Files {
      */
     fun <T> parseOwn(file: File, parse: (String) -> T): T = parseOutside(readData(file), parse)
 
+    /** How a data file's bytes are read: tests make it refuse, as a storage error does. */
+    internal var readBytesOf: (File) -> ByteArray = { it.readBytes() }
+
     /** A data file's text, or [Unreadable] -- see [utf8]. */
     fun readData(file: File): String {
         val bytes = try {
-            file.readBytes()
+            readBytesOf(file)
         } catch (e: OutOfMemoryError) {
             throw Unreadable(TOO_LARGE)
         }

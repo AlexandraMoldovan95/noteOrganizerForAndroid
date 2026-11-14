@@ -791,13 +791,18 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // Null when the window could not be read: nothing is purged then, and
     // the page says so rather than show the default as if it were chosen.
     val known = state.trashWindow
+    // Held (a refused read, or neither read nor copied aside): no choice is
+    // kept this run, so none is advised, and a tap is refused before asking.
+    val held = load.settings?.let { Files.writesHeld(it.file) } == true
+    val heldSaid = stringResource(R.string.trash_window_held)
     Column(Modifier.fillMaxSize()) {
         // The page's top scrolls with its list: held above it, it left a
         // phone on its side no room for one row, its buttons squeezed.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
             item(key = "\u0000trash-head") {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                    Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
+                    Text(if (known != null) stringResource(R.string.trash_window, known)
+                         else if (held) heldSaid else stringResource(R.string.trash_window_unknown),
                          color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
                     // The numbers alone did not say what they set; the desktop's
                     // dropdown carries the same words (2026-10-26).
@@ -820,7 +825,8 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                                         // Only a SHORTER window can take anything,
                                         // and then it says what before it does --
                                         // with none known, any window can.
-                                        if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
+                                        if (held) state.say(heldSaid)
+                                        else if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
                                         else state.chooseTrashWindow(days)
                                     }
                                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -1122,10 +1128,10 @@ private fun openNotificationSettings(context: android.content.Context, channel: 
  * another: the desktop's Welcome note → Show.
  */
 fun showWelcome(state: AppState) {
-    val uid = state.settings.opt(Settings.WELCOME_NOTE_UID) as? String
+    val uid = state.settings.opt(Settings.WELCOME_NOTE_UID) as? String ?: state.welcomeUidRun
     val welcome = Welcome.build()
-    // By its uid, or, that write refused (a full phone), by its own words:
-    // every press added another welcome note.
+    // By its uid (kept in memory too), or, that write refused at the start (a
+    // full phone), by its own words: every press added another welcome note.
     (state.load.notes.firstOrNull { uid != null && it.uid == uid }
         ?: state.load.notes.firstOrNull {
             it.title == welcome.optString("title") && it.body == welcome.optString("body") })?.let {
@@ -1141,7 +1147,10 @@ fun showWelcome(state: AppState) {
     val result = Notebook.createNote(state.load, welcome.getString("title"), welcome.getString("body"),
         formatting = spans, paragraphs = welcome.getJSONArray("paragraphs"))
     state.report(result) { ok ->
-        state.note(ok.id)?.let { state.putSetting(Settings.WELCOME_NOTE_UID, it.uid) }
+        state.note(ok.id)?.let {
+            state.welcomeUidRun = it.uid
+            state.putSetting(Settings.WELCOME_NOTE_UID, it.uid)
+        }
         state.tab = Tab.NOTES
         state.settingsPage = null
         state.openNote(ok.id)

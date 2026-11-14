@@ -435,8 +435,15 @@ class AppStateTest {
         showWelcome(state)
         val count = state.load.notes.size
         state.putSetting(Settings.WELCOME_NOTE_UID, null)
+        // ...a later start (nothing in memory) finds it by its words...
+        val later = AppState(state.dir, CoroutineScope(Dispatchers.Unconfined))
+        showWelcome(later)
+        assertEquals("the same welcome note opened, none added", count, later.load.notes.size)
+        // ...and this run, after its words were changed, by the uid it kept.
+        val welcome = state.load.notes.last()
+        assertTrue(state.report(Notebook.updateNote(state.load, welcome.id, welcome.title, "changed")))
         showWelcome(state)
-        assertEquals("the same welcome note opened, none added", count, state.load.notes.size)
+        assertEquals("found by the uid this run kept", count, state.load.notes.size)
     }
 
     @Test

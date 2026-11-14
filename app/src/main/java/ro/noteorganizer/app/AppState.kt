@@ -195,6 +195,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** The day the bar last showed in this run, kept here too: a held settings file keeps no mark. */
     private var reminderShownOn: String? = null
 
+    /** The welcome note Show brought back this run, kept here too: its uid's write may be refused. */
+    internal var welcomeUidRun: String? = null
+
     /** The calendar on [today], the bar gone: what the bar and the notification open. */
     fun showToday(today: String) {
         Recurrence.parseDate(today)?.let { calendarMonth = java.time.YearMonth.from(it) }

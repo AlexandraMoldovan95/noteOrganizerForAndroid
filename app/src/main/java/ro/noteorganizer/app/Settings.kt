@@ -79,7 +79,12 @@ object Settings {
      */
     fun forFullBackup(dir: File): FullBackup {
         val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
-        if (googleBackupOn(load(dir))) {
+        val settings = load(dir)
+        // Not read this time (refused, or damaged): the answer is not known, so
+        // nothing is handed over and no off mark written -- written, it outlived
+        // the read and turned a backup the person never touched off for good.
+        if (settings.problem != null) return FullBackup.Nothing
+        if (googleBackupOn(settings)) {
             mark.delete()
             return FullBackup.Everything
         }

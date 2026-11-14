@@ -107,6 +107,23 @@ object Templates {
         return kept
     }
 
+    /**
+     * Whether [dir]'s templates file is there but gave no templates for
+     * failing to read (held, or not parsing): an empty list is then no
+     * answer to "do I have any".
+     */
+    fun unreadable(dir: File): Boolean {
+        val file = File(dir, Backup.TEMPLATES)
+        if (!file.exists()) return false
+        if (Files.writesHeld(file)) return true
+        return try {
+            Files.parseOwn(file) { JSONArray(it) }
+            false
+        } catch (e: Exception) {
+            true
+        }
+    }
+
     /** Writes the whole list; null when the file now holds it, otherwise why not. */
     fun save(dir: File, templates: List<JSONObject>): String? =
         Files.writeAtomic(File(dir, Backup.TEMPLATES), JSONArray(templates).toString(2))
@@ -219,7 +236,10 @@ object Templates {
         val json = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {
-            if (Files.refusedRead(e)) Files.holdWrites(file) else Files.preserveCorrupt(file)
+            // Copied aside even when the read was refused, not held: held, every
+            // new draft was dropped unsaid, and a template typed then went with
+            // the app. A copy keeps the old draft's bytes either way.
+            Files.preserveCorrupt(file)
             return null
         }
         val fields = json.opt("fields") as? JSONObject ?: return null
