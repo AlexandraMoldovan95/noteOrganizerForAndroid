@@ -470,16 +470,15 @@ feature that is gone, moves to Merged cases with the case that took its
 place. A row's Status, Build, Tested By and Test Date say who recorded
 its result, on which build: no run of the scripts writes them in by
 itself. A Pass by Claude stands only where the scripts walked all of the
-case; no row the final audit added stands as Pass from a run of the
-scripts alone, and rows only scripts reach are Not Tested until the
-release's runs fill them in. A row that needs a person stays Not Tested
-until she runs it (or a check she allowed a script to make on her phone
-walks it, as Tested By then says), whatever the scripts already cover.
-Seventy rows Claude had marked Pass from runs whose scripts walked only
-part of them went back to Not Tested in the final audit, the run kept in
-Actual Result: fifty-two of 0.9.1, one of 0.10.0 (155), one of 12
-November (488) and sixteen of 13 November; the twenty-six Pass by
-Claude that stand name the test and the walk check that walk them
-whole. The unit tests have no
+case, on the build named; none stands now. Seventy rows Claude had
+marked Pass from runs whose scripts walked only part of them went back
+to Not Tested in the final audit (fifty-two of 0.9.1, one of 0.10.0,
+one of 12 November and sixteen of 13 November), and so did the
+twenty-six it had marked Pass on 0.9.1 whose checks, named today, were
+partly written after that run; each keeps its run in Actual Result, and
+the release's runs fill in the rows only scripts reach. A row that
+needs a person stays Not Tested until she runs it (or a check she
+allowed a script to make on her phone walks it, as Tested By then
+says), whatever the scripts already cover. The unit tests have no
 screen, so a row whose steps are taps and whose checks are unit tests
 alone says "Automated in part" and names the taps.

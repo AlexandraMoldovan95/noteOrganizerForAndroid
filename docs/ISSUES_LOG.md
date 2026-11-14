@@ -1236,13 +1236,35 @@ fifteen Pass rows of 0.9.1 and the six of 13 November that rest on unit
 tests alone were walked only in part, and seventeen eye rows' steps are
 walked by no part (an app offering itself in another app's share sheet
 among them: every share the walk sends is addressed to the app itself).
-Each says "in part" now and names what is left; the Pass rows, and 112,
-went back to Not Tested, seventy in all; the twenty-six that stand now
-name the test and the walk check that walk them. 194 said no one walks
+Each says "in part" now and names what is left (the eye rows' steps are
+walked only in part); the Pass rows, and 112, went back to Not Tested,
+seventy in all; the twenty-six left Pass were set to name the test and
+the walk check that walk them, which the round after found partly
+written after the run their Pass records. 194 said no one walks
 a screen the walk's failed_save part walks; 119 left out a merge's
 Undo; 283, 345, 360, 361, 427 and 480 still said "Automated (JVM)" over
 taps. The lows: 72, 88, 146, 420, 226 and 204 say exactly what their
 checks read, and 33's Tested By names its gate.
+
+The fortieth round read the walk-named rows from 154 on against the
+walk's code, one by one (mediums): sixty-one of 132 said "Automated"
+where the walk covers only part (a tablet on its side, a tick a drag
+might change, Find never opened in a big table, "Show 200 of them"
+never tapped, a midnight never waited for, a release build no committed
+script runs), and each says "Automated in part" now and names what is
+left. Its first agent found the twenty-six Pass rows of 0.9.1 naming
+walk checks written after that run (7's search without diacritics was
+added on 3 November), and two of them walked in part (92's column made
+wider once, not twice; 96's copy and paste pressed as keys, never from
+the selection menu, as 97 says of its own paste): every Pass by Claude
+went back to Not Tested, its run kept in Actual Result, and the
+automation column says what today's checks cover, with no run date
+beside it. The lows: 25, 17, 64, 143 and 43 name what is left; 57, 78,
+111 and 153 say exactly what their checks do; 112 keeps its run's
+words. Left, with its reason: the walk's own check "…and the bullet on
+its line" (case 217) passes on a list entry neither app draws, since
+the walk types before the bullet; changing the walk is checked only by
+a full walk, which the release's final verification runs.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
