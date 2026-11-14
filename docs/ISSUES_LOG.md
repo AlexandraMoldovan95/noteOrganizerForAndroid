@@ -1351,8 +1351,8 @@ among them (mediums). Each says what is true now (223 since the round
 after). The lows: the Repeat sheet's own Save is walked, never with the
 start changed (280, 305, 366, 368, 376, 378 say so, and 404 since the
 round after); 217, 268, 222, 244, 250, 273, 277, 278, 283, 494, 47, 307
-and 509 name what their checks reach (222, 241, 250, 273 and 277
-exactly since the round after).
+and 509 name what their checks reach (222, 250, 273 and 277 exactly
+since the round after, and of the mediums 241).
 
 The forty-sixth round found two of those rewrites saying more than their
 checks do (mediums): 223 dropped the note line's start from what is
@@ -1360,13 +1360,32 @@ left, and 222 implied the walk completes an import it cancels at the
 question. Its second agent read the in-part rows 381 to 537 against the
 checks they name (134 of 137 true) and found 395, 399 and 408 carrying
 round 38's Repeat sentence over checks that never call setRepeat
-(mediums). Each says what is true now. The lows: the kind sentences
-round 38 wrote called "left to the hand" roads the walk does walk with
-other notes (the day's menu and its Undo, the import's picker and
-questions, the editor's gestures, Settings → Duplicates): every row
-carrying one now says it is the case's own steps that are left; 453's
-pin from the list's middle is walked; 404, 241, 250, 273 and 277 say
-exactly what their checks read.
+(mediums). Each was rewritten (399 and 408 rightly since the round
+after). The lows: the kind sentences round 38 wrote called "left to the
+hand" roads the walk does walk with other notes (the day's menu and its
+Undo, the import's picker and questions, the editor's gestures,
+Settings → Duplicates), and were rewritten to say it is the case's own
+steps that are left; 453's pin from the list's middle is walked; 404,
+241, 250, 273 and 277 say exactly what their checks read.
+
+The forty-seventh round found the rewritten kind sentences still naming
+steps some cases do not have (mediums): the Repeat sentence named a
+Save "with another start" on thirteen cases that never change the
+start, the import sentence a backup on two that import codes, and the
+stored-notebook and day's-menu sentences left out the typing, a reset
+or a move. Every kind sentence (134 rows) is now one that is true of
+every row carrying it: the tests run the case through the model, and
+this case's own steps on screen, and what they show, are left to the
+hand; 399, 408, 404 and 305 say what their own checks do. Its second
+agent read the 101 rows not labelled Automated (77 wholly true) and
+found 145 implying the series line's words are read where no part
+reads its counts, and 486 called walked where three of its steps are
+not (mediums). Both say so now. The lows: six rows saying no script can
+answer them name the walk parts that reach their steps; 493 and 497
+name shared_files' slow provider; five rows no longer say their steps
+are "automated in part" where no part walks them; 57, 81, 106, 416, 514,
+4 and 102 (its expected result too) say what is true; qa/README names
+Phase 3's four hand rows.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

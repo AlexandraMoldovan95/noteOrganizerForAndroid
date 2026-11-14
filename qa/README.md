@@ -459,10 +459,11 @@ to a broken file and started emptying its own Trash, cases 106 and
 instead. Phase 2's cases are
 58 to 85; two of them carry a question only a person can answer about
 the desktop's side of a trip — a day or a template made on the phone, as
-the desktop shows it. Phase 3's are 86 to 100, and three of its rows
-need a hand on a real phone for a plain reason: what a web page or a
-mail app makes of a paste, a keyboard's Ctrl+Z, and the selection menu's
-own buttons, which the walk can photograph but not press.
+the desktop shows it. Phase 3's are 86 to 100, and four of its rows
+(93, 94, 95, 97) need a hand on a real phone for a plain reason: what a
+web page or a mail app makes of a paste, a keyboard's Ctrl+Z, and the
+selection menu's own buttons, which the walk can photograph but not
+press.
 
 Nothing is ever deleted from the plan. A case that gets automated keeps
 its row and gains a note saying so; one folded into another, or about a
