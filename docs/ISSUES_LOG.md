@@ -1117,6 +1117,38 @@ part for case 505 does not check that the bar is still up when it taps
 (a slow run passes with the bar gone; the bar's time is the owner's to
 judge by hand).
 
+The thirty-fifth round read the automation column of cases 250 to 499
+and found the same class again (mediums): cases 448, 449 and 455 said
+"Automated" over promises decided on screen (which note Share and
+Export take from a day, a template on a day with a word typed first,
+the question's Skip carrying an agreed Update), and seven cases of a
+start changed in the Repeat sheet (280, 305, 366, 368, 376, 378, 404)
+over the sheet's own Save, which its tests replay by hand; each says
+"Automated in part" now and names the hand's part. And the sentence
+the round before wrote, that the final audit's script-only rows wait
+for the release run, was untrue of sixteen rows the runs of the unit
+tests and of the walk on 13 November filled in as Pass under a build
+"wave 6" that no screen shows: they name 0.14.2 (wave 6 audit build)
+now, and the sentence, on the How to use tab and in qa/README, says how
+such rows are filled in and that the release runs them again. Its first
+agent found the same, and, low: cases 521 and 527 said "in part" and
+"Not a hand check" both, which the new definition did not allow (they
+say what no one walks now, and the tab defines "Not walked"); 525 named
+two mutants that guard another case; the import's words in their
+other one and many forms were read by no test (they are now); and
+ARCHITECTURE and qa/README named too few of the suites that reach the
+drawing side. The lows: 144 rows named mutants the catalogue
+never kept without saying so (it began at AS260; the round-8 sentence
+that every such row says so was not true), and each says so now, from
+the catalogue itself; case 336 called AS267 not kept, which is; 367
+left out AS309; 414 named its fixture entry by a number that is
+another's; 451 and 452 named no test; 447 named a walk part that does
+not exist; 431, 443, 471 and 313 claimed more than their tests read;
+436 named a mutant that guards another fold; 260 a probe in no
+repository. Left, with its reason: the other plain "Automated (JVM)"
+rows of the editor's, pasting's and days' tests were not traced from
+the screen to the model; the next rounds read the cases before 250.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

@@ -118,8 +118,10 @@ Four hold drawing-side classes: `AppStateTest`, the order of the saves
 around the open note, which no emulator tap can time
 ([why](ISSUES_LOG.md#taps-aimed-through-the-keyboard)), and
 `EditorCopyTest`, `EditorTableTest` and `EditorTypingTest`, the editor's
-model; two more reach into that side once, `OutgoingTest` building an
-`AppState` and `NotebookTest` `RichText`'s `blend`. One holds the test run itself: `TempPlaceTest`, where its
+model; three more reach into that side for one piece each, `OutgoingTest`
+building an `AppState`, `NotebookTest` `RichText`'s drawing of a body
+(`renderBody`, `decorations`, `hexColor`, `blend`) and `ImportingTest` the
+import's result words (`importMessage`). One holds the test run itself: `TempPlaceTest`, where its
 temporary folders go.
 
 ## Decision: a note has two representations, on purpose

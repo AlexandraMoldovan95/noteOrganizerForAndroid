@@ -59,7 +59,10 @@ carry styling put on after the words were selected, whose typed letters
 take styles by the caret they were typed at, whose calculator writes
 into the cell being written in, and whose paste of a markdown table
 leaves its separator's widths behind — in a note, in a day of a series,
-and never in the app's own copy. `TempPlaceTest` checks the run itself:
+and never in the app's own copy; three suites reach that side for one
+piece each (`OutgoingTest` an `AppState`, `NotebookTest` `RichText`'s
+drawing of a body, `ImportingTest` the import's result words,
+`importMessage`). `TempPlaceTest` checks the run itself:
 its temporary folders made under `app/build/`, which each run empties
 first, and never left in the system's temp folder (30,640 were, by
 2026-10-23).
@@ -144,7 +147,9 @@ unpacks a commit into a folder of its own and mutates that. Its catalogue,
 `tools/mutants.json`, holds the mutants written since the final audit
 began that still aim at today's code -- 286 on 8 November 2026, 266 judged
 by a unit test and 20 by a part of the walk; 97 more written during the
-audit aimed at code that has changed since, and went. The unit ones were
+audit aimed at code that has changed since, and went; and the first ones,
+AS58 to AS259, written in its first seven rounds before the catalogue
+began, were never kept (each plan row naming one says so). The unit ones were
 first run all together that day: 257 of 263 as the catalogue said. Of the
 six others, two had been re-aimed while it ran; four had lost their test to
 a later fix, and were given one or, where two guards now overlap, marked
@@ -456,8 +461,10 @@ own buttons, which the walk can photograph but not press.
 Nothing is ever deleted from the plan. A case that gets automated keeps
 its row and gains a note saying so; one folded into another, or about a
 feature that is gone, moves to Merged cases with the case that took its
-place. Rows only scripts reach are filled in as Pass by the release run
-of those scripts, with its build and date, and stay Not Tested until that
-run (those added in the final audit wait for it); a row that needs a
+place. Rows only scripts reach are filled in as Pass by a recorded run of
+those scripts, with its build and date (some of those the final audit
+added, by its runs of the unit tests and of the walk on 12 and 13
+November, on the builds named), and are run again
+at the release; until a run they stay Not Tested. A row that needs a
 person stays Not Tested until she runs it, whatever the scripts already
 cover.

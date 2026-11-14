@@ -960,6 +960,14 @@ class ImportingTest {
         // "1 duplicates skipped." and "1 were already here", where the desktop counts in the singular.
         val said = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 1, duplicatesSkipped = 1))
         assertTrue(said, "1 was already here, unchanged, and was skipped." in said && "1 duplicate skipped." in said)
+        // ...and the other forms the import's words take, one and many, each read whole.
+        val one = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            addedCategories = 1, addedTrash = 1))
+        assertTrue(one, "Also restored 1 category and 1 trashed note." in one)
+        val many = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            trashLeftOut = 2, keepDays = 30))
+        assertTrue(many, "2 of the backup's trashed notes were not brought in: older than the 30 days this phone's " +
+            "Trash keeps notes, the next start would have removed them. The backup still holds them." in many)
     }
 
     @Test
