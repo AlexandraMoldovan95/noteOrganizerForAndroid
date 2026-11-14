@@ -125,7 +125,14 @@ object Organizing {
         for (i in 0 until from.length()) live.put(from.get(i))
     }
 
-    internal fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))
+    /** [array] written to [file], or why not, as a sentence a bar can say alone. */
+    internal fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))?.let {
+        if (Files.writesHeld(file)) it else when (file.name) {
+            "notes_data.json" -> "Your notes could not be saved: $it."
+            "trash.json" -> "The Trash could not be saved: $it."
+            else -> "${file.name} could not be saved: $it."
+        }
+    }
 
     // ---- one note, or several ----
 
@@ -200,12 +207,14 @@ object Organizing {
             }
         }
         if (moved == 0) return SaveResult.Failed("Those notes are no longer in the notes file.")
+        // Words of their own: the system's named the app's private path.
         write(trashFile, trashCandidate)?.let {
-            return SaveResult.Failed("The Trash could not be written ($it), so nothing was deleted.")
+            return SaveResult.Failed("The Trash couldn't be written just now, so nothing was deleted. Try again in a moment.")
         }
         load.trashRaw?.let { replace(it, trashCandidate) }
         write(file, notesCandidate)?.let {
-            return SaveResult.Failed("$it — the notes are in the Trash and still in the list; nothing was lost.")
+            return SaveResult.Failed("The notes file couldn't be written just now: the notes are in the Trash and " +
+                "still in the list; nothing was lost.")
         }
         replace(array, notesCandidate)
         return SaveResult.Ok(0, imported = moved)
@@ -808,7 +817,12 @@ object Organizing {
                     "its notes went to the Trash, where they can be restored."
                 else CATEGORIES_UNSAVED
             }
-        }?.let { return SaveResult.Failed(it) }
+        }?.let {
+            // Its notes already in the Trash: said, as the map's refusal says it.
+            return SaveResult.Failed(if (trashed && it == REFILE_REFUSED) "A file of the notebook couldn't be " +
+                "written just now, so the category stays; its notes went to the Trash, where they can be restored."
+                else it)
+        }
         return saved
     }
 

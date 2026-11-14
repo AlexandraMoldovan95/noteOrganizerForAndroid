@@ -124,6 +124,8 @@ object Importing {
         val earlierText: Int = 0,
         /** Notes here that only took files the backup had and this device lacked: no rescue copy undoes them. */
         val filesOnly: Int = 0,
+        /** Files skipped look-alikes gave the notes here they look like, as the desktop's files_given. */
+        val filesGiven: Int = 0,
         /** The backup's trashed notes left in it, past the [keepDays] this phone's next start purges by. */
         val trashLeftOut: Int = 0,
         val keepDays: Int? = null,
@@ -558,10 +560,29 @@ object Importing {
         //    plus the copies of unchanged notes asked for.
         var toAdd = remaining(plan, answers.update)
         var duplicatesSkipped = 0
+        var filesGiven = 0
         if (answers.skipDuplicates) {
             val keys = notebookKeys(notebook, plan, answers.update)
             val kept = toAdd.filter { keyOf(it, plan.categories) !in keys }
             duplicatesSkipped = toAdd.size - kept.size
+            // A skipped look-alike's files go to the note here it looks like, as the desktop's
+            // do: dropped, the same backup left a file on the desktop's note and not here.
+            if (plan.source == Source.BACKUP) {
+                val twins = HashMap<String, JSONObject>()
+                for (i in 0 until candidate.length()) {
+                    (candidate.opt(i) as? JSONObject)?.let { twins.putIfAbsent(keyOf(it, plan.categories), it) }
+                }
+                val kept1 = kept.toSet()
+                for (skipped in toAdd.filter { it !in kept1 }) {
+                    val twin = twins[keyOf(skipped, plan.categories)] ?: continue
+                    val given = filesToAdopt(twin, skipped, filesIn(attachmentsDir, extras.attachments)).size
+                    if (given == 0) continue
+                    adoptFiles(twin, skipped, HashSet(claimed).apply { removeAll(storedNames(twin)) },
+                        attachmentsDir, extras.attachments)
+                    claimed += storedNames(twin)
+                    filesGiven += given
+                }
+            }
             toAdd = kept
         }
         val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
@@ -714,7 +735,7 @@ object Importing {
             heldBy = heldBy ?: Files.heldReason(settings.file)
         }
 
-        val changed = updated > 0 || filesOnly > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
+        val changed = updated > 0 || filesOnly > 0 || filesGiven > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         // Days a series' copy set aside become notes of their own, and are
         // said; worked out before the first write, as all the work is, so a
         // failure in it leaves nothing written.
@@ -777,6 +798,7 @@ object Importing {
             firstId = firstId,
             earlierText = earlierText,
             filesOnly = filesOnly,
+            filesGiven = filesGiven,
             trashLeftOut = trashLeftOut,
             keepDays = keepDays,
         ))

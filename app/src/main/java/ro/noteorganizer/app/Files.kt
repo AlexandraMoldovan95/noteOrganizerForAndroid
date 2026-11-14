@@ -87,7 +87,9 @@ object Files {
             }
         } catch (e: Exception) {
             tmp.delete()
-            return e.message ?: e.toString()
+            // The cause in words of its own: the system's named the app's private path.
+            val full = (e.message ?: "").let { "ENOSPC" in it || "No space left" in it }
+            return if (full) "the phone's storage is full" else "the phone's storage refused the write"
         }
         if (!tmp.renameTo(file)) {
             tmp.delete()
