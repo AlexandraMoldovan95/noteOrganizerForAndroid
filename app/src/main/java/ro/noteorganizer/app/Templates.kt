@@ -94,6 +94,9 @@ object Templates {
     fun load(dir: File): List<JSONObject> {
         val file = File(dir, Backup.TEMPLATES)
         if (!file.exists()) return emptyList()
+        // Held this run, it reads as held all run, as the notes, the Trash and the
+        // settings do: read for real later, the page listed what each Save refused.
+        if (Files.writesHeld(file)) return emptyList()
         val data = try {
             Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {

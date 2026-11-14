@@ -54,7 +54,10 @@ object ReminderAlarm {
      */
     fun schedule(context: Context, settings: JSONObject? = settingsOf(context)) {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return
-        if (settings == null || !Reminders.notifies(settings)) {
+        // Not read (refused, or damaged): the answer is unknown, so the alarm set
+        // before stays; cancelled, the daily notification stopped unsaid.
+        if (settings == null) return
+        if (!Reminders.notifies(settings)) {
             manager.cancel(alarm(context))
             return
         }
@@ -74,6 +77,12 @@ object ReminderAlarm {
                 null
             }
             if (due != null && due > 0) post(context, due, today)
+        }
+        if (settings == null) {
+            // Unread at its own hour: the next set a day on, at the hour it fired.
+            context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 24L * 60 * 60 * 1000, alarm(context))
+            return
         }
         schedule(context, settings)
     }

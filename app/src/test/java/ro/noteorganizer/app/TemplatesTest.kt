@@ -128,6 +128,15 @@ class TemplatesTest {
         // are there all the same, not "none".
         File(d, "templates.json").writeText("""[{"name": "Plan"}]""")
         assertTrue("templates the load did not give are said unread", Templates.unreadable(d))
+        // Held this run, the file reads as held all run, as the notes and the Trash:
+        // read for real later, the page listed templates each Save refused.
+        try {
+            Files.holdWrites(File(d, "templates.json"))
+            assertEquals(emptyList<JSONObject>(), Templates.load(d))
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("a new start reads it", 1, Templates.load(d).size)
     }
 
     @Test

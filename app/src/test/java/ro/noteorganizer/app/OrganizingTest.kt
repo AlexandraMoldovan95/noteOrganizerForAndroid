@@ -325,6 +325,26 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a rename over a held templates file renames the rest, as the desktop's, and stops at nothing written`() {
+        // The templates were written after the Trash: refused (held), the rename
+        // stopped with the Trash's entries filed under a name no category had.
+        val load = notebook("""[{"id": 1, "category": "Work"}]""",
+            trash = """[{"id": 3, "category": "Work", "deleted_at": "2026-10-01 10:00:00"}]""",
+            settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""",
+            templates = """[{"name": "Weekly", "category": "Work"}]""")
+        val templates = File(dirOf(load), "templates.json")
+        try {
+            Files.holdWrites(templates)
+            assertTrue(Organizing.renameCategory(load, "Work", "Job") is SaveResult.Ok)
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("Job", onDisk(load).getJSONObject(0).getString("category"))
+        assertEquals("Job", trashOnDisk(load).getJSONObject(0).getString("category"))
+        assertEquals("the held file untouched", "Work", JSONArray(templates.readText()).getJSONObject(0).getString("category"))
+    }
+
+    @Test
     fun `a renamed category keeps its place in the list`() {
         // Asked of the map before it is written: the computer's JSON library
         // does not keep key order, the phone's does, so a read-back here
@@ -460,6 +480,37 @@ class OrganizingTest {
         assertFalse("and Empty Trash names no files it keeps", Organizing.emptyTrashTakesFiles(reloaded))
         Organizing.deleteForever(reloaded, listOf(Organizing.TrashKey(3, "2026-10-02 10:00:00")), attachments(reloaded))
         assertTrue("kept after a reload in the same run", File(attachments(reloaded), "shared.png").exists())
+    }
+
+    @Test
+    fun `with the Trash held or set aside unreadable, Remove attachment keeps the file, as the desktop's`() {
+        // A backup's copy of a trashed note shared its file, the Trash unread
+        // naming none: Remove attachment on the copy deleted the trashed note's.
+        val load = notebook("""[{"id": 1, "title": "copy", "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""",
+            trash = """[{"id": 2, "title": "x", "deleted_at": "2026-10-01 10:00:00",
+                        "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""")
+        File(attachments(load), "shared.png").writeText("S")
+        try {
+            Files.holdWrites(load.trashFile!!)
+            val held = Notebook.load(dirOf(load))
+            assertTrue(Organizing.filesKept(held))
+            assertTrue(Organizing.detach(held, 1, "shared.png", attachments(held)) is SaveResult.Ok)
+            assertTrue("the trashed note's file stayed", File(attachments(held), "shared.png").exists())
+        } finally {
+            Files.newStart()
+        }
+        // ...and a Trash set aside damaged the same, its entries in the copy only.
+        val damaged = notebook("""[{"id": 1, "title": "copy", "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""",
+            trash = "{ not json")
+        File(attachments(damaged), "shared.png").writeText("S")
+        try {
+            val read = Notebook.load(dirOf(damaged))
+            assertTrue(Organizing.filesKept(read))
+            assertTrue(Organizing.detach(read, 1, "shared.png", attachments(read)) is SaveResult.Ok)
+            assertTrue("kept for the entries set aside", File(attachments(read), "shared.png").exists())
+        } finally {
+            Files.newStart()
+        }
     }
 
     @Test
@@ -669,6 +720,23 @@ class OrganizingTest {
         assertEquals(1, left.length())
         assertEquals(2, left.getJSONObject(0).getInt("id"))
         assertEquals("the first copy's file went to the one kept", 1, left.getJSONObject(0).getJSONArray("attachments").length())
+    }
+
+    @Test
+    fun `a clean up the notes file refuses takes its file copies back`() {
+        // Left, they took room on the phone whose fullness refused the write.
+        val load = notebook("""
+            [{"id": 1, "title": "Trip", "body": "b"},
+             {"id": 2, "title": "Trip", "body": "b", "attachments": [{"filename": "a", "stored_as": "a.png"}]}]
+        """.trimIndent())
+        File(attachments(load), "a.png").writeText("A")
+        try {
+            Files.holdWrites(load.file!!)
+            assertTrue(Organizing.cleanUpDuplicates(load, listOf(listOf(1, 2)), setOf(2), attachments(load)) is SaveResult.Failed)
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("no copy left behind", setOf("a.png"), attachments(load).list()!!.toSet())
     }
 
     @Test

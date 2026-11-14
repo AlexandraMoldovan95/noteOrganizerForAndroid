@@ -273,7 +273,7 @@
     <string name="attach_remove_said">Remove %1$s</string>
     <string name="attach_remove_title">Remove attachment</string>
     <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it, unless another note still uses it — this can\'t be undone.</string>
-    <string name="attach_remove_text_kept">Remove “%1$s” from the note?\n\nIts stored copy stays on the phone this time: the notes file could not be read when the app started.</string>
+    <string name="attach_remove_text_kept">Remove “%1$s” from the note?\n\nIts stored copy stays on the phone this time: your notes or the Trash could not be read when the app started.</string>
     <string name="attach_remove_confirm">Remove</string>
     <string name="attach_full">A note can keep %1$d attached files. Remove one to add another, or split this into two notes.</string>
     <string name="attach_too_many_title">More files than this note can hold</string>
@@ -358,7 +358,7 @@
     <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
     <string name="template_unreadable">Your templates file could not be read, so no templates are offered.</string>
     <string name="template_draft_held">Only Save keeps what you write here this time: an earlier unsaved template could not be read or copied aside, so nothing new is kept for you if the app closes.</string>
-    <string name="template_draft_not_kept">The template you are writing could not be kept aside (%1$s), so if the app closes it is lost: Save keeps it.</string>
+    <string name="template_draft_not_kept">The template you are writing could not be kept aside (%1$s): if the app closes now, what you typed since it was last kept is lost.</string>
     <string name="template_pick_title">Use a template</string>
     <string name="template_started">New note started from template — edits here won\'t change the template</string>
     <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>

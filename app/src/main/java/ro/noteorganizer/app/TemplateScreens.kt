@@ -519,8 +519,8 @@ private fun TemplateEditor(
 
     fun close() = if (changed()) askClose = true else leave()
 
-    // Refused (a phone with no room), the draft was thrown away unsaid: said, for
-    // the person back while the app still lives, as Save is refused there too.
+    // Refused (a phone with no room), the draft was thrown away unsaid: said, long,
+    // for the person back while the app still lives.
     val draftNotKeptSaid = stringResource(R.string.template_draft_not_kept)
     // Every field and "A new item…" kept aside, to be offered back, whenever the
     // editor goes unsaved: to the background, or off the screen by the app's own
@@ -529,7 +529,7 @@ private fun TemplateEditor(
         Templates.Draft(original?.optString("name"),
             Templates.draftFields(nameField.text, titleField.text, body, comments.text.toString(), category, checklist.toList(),
                 formatting, paragraphs), newItemField.text)
-    }?.also { reason -> state.say(draftNotKeptSaid.format(reason)) }
+    }?.also { reason -> state.say(draftNotKeptSaid.format(reason), long = true) }
     DisposableEffect(Unit) {
         state.keepTemplateDraft = { keep() }
         onDispose {

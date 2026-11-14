@@ -496,7 +496,7 @@ object Organizing {
         write(file, candidate)?.let { return SaveResult.Failed(it) }
         replace(array, candidate)
         deleteFiles(listOf(JSONObject().put("attachments", JSONArray().put(removed))),
-                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir, load.file)
+                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir, load)
         return SaveResult.Ok(id)
     }
 
@@ -750,15 +750,11 @@ object Organizing {
     private fun refile(load: Notebook.Load, old: String, new: String): String? {
         val file = load.file ?: return NOWHERE
         val array = load.raw ?: return UNREADABLE
-        load.trashRaw?.let { trash ->
-            val candidate = JSONArray(trash.toString())
-            if (renameIn(candidate, old, new) > 0) {
-                load.trashFile?.let { write(it, candidate)?.let { problem -> return problem } }
-                replace(trash, candidate)
-            }
-        }
+        // The templates first, and not over a file held this run, as the desktop's
+        // rename leaves it: refused after the Trash was written, the rename
+        // stopped with the Trash's entries filed under a name no category had.
         val templatesFile = file.parentFile?.let { File(it, "templates.json") }
-        if (templatesFile != null && templatesFile.isFile) {
+        if (templatesFile != null && templatesFile.isFile && !Files.writesHeld(templatesFile)) {
             val templates = try {
                 Files.parseOwn(templatesFile) { JSONArray(it) }
             } catch (e: Exception) {
@@ -774,6 +770,13 @@ object Organizing {
                     }
                 }
                 if (moved) write(templatesFile, templates)?.let { return it }
+            }
+        }
+        load.trashRaw?.let { trash ->
+            val candidate = JSONArray(trash.toString())
+            if (renameIn(candidate, old, new) > 0) {
+                load.trashFile?.let { write(it, candidate)?.let { problem -> return problem } }
+                replace(trash, candidate)
             }
         }
         val candidate = JSONArray(array.toString())
@@ -861,28 +864,30 @@ object Organizing {
 
     /**
      * Whether deleting for good keeps every attached file this run: the notes
-     * file held, or set aside unreadable ([deleteFiles]). The questions that
+     * file or the Trash held, or set aside unreadable ([deleteFiles]) -- their
+     * entries, never read, may use any file (a backup's copy of a trashed note
+     * shared its file, and Remove attachment deleted it). The questions that
      * name the files ask it too, as the desktop's `attached_files_kept`.
      */
-    fun filesKept(load: Notebook.Load): Boolean = filesKept(load.file)
+    fun filesKept(load: Notebook.Load): Boolean = filesKept(load.file) || filesKept(load.trashFile)
 
     /** Whether emptying the Trash deletes attached files, so its question names them. */
     fun emptyTrashTakesFiles(load: Notebook.Load): Boolean =
         load.trash.any { it.attachmentCount > 0 } && !filesKept(load)
 
-    private fun filesKept(notesFile: File?): Boolean =
-        notesFile != null && (Files.writesHeld(notesFile) || Files.unreadAtLoad(notesFile))
+    private fun filesKept(file: File?): Boolean =
+        file != null && (Files.writesHeld(file) || Files.unreadAtLoad(file))
 
     /**
      * The files these entries use, deleted -- except any a note, or
      * another entry, still uses ([spare]), and any whose name tries to
      * leave the attachments folder. Only for PERMANENT deletion. None at all
-     * while the notes file is held or was set aside unreadable: its notes,
-     * never read, may use any of them (the desktop's `_UNREAD_AT_LOAD`).
+     * while the notes file or the Trash is held or was set aside unreadable
+     * ([filesKept]; the desktop's `_UNREAD_AT_LOAD`).
      */
-    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?, notesFile: File?) {
+    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?, load: Notebook.Load) {
         val dir = attachmentsDir ?: return
-        if (filesKept(notesFile)) return
+        if (filesKept(load)) return
         for (name in storedNames(entries)) {
             if (name in spare) continue
             val bare = Normalize.bareFileName(name)
@@ -954,7 +959,7 @@ object Organizing {
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         if (write(trashFile, candidate) != null) return 0
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load.file)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load)
         return gone.size
     }
 
@@ -970,7 +975,7 @@ object Organizing {
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         write(trashFile, candidate)?.let { return SaveResult.Failed(it) }
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load.file)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load)
         return SaveResult.Ok(0, imported = gone.size)
     }
 
