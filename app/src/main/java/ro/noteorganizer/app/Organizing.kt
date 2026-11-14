@@ -207,14 +207,14 @@ object Organizing {
             }
         }
         if (moved == 0) return SaveResult.Failed("Those notes are no longer in the notes file.")
-        // Words of their own: the system's named the app's private path.
+        // The cause kept: "try again in a moment" told a full phone what could not help.
         write(trashFile, trashCandidate)?.let {
-            return SaveResult.Failed("The Trash couldn't be written just now, so nothing was deleted. Try again in a moment.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. Nothing was deleted.")
         }
         load.trashRaw?.let { replace(it, trashCandidate) }
         write(file, notesCandidate)?.let {
-            return SaveResult.Failed("The notes file couldn't be written just now: the notes are in the Trash and " +
-                "still in the list; nothing was lost.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. The notes are in the Trash and still in the list; " +
+                "nothing was lost.")
         }
         replace(array, notesCandidate)
         return SaveResult.Ok(0, imported = moved)
@@ -1149,7 +1149,7 @@ object Organizing {
         Notebook.forgetAsides(load, restored)
         val trashCandidate = JSONArray().apply { all.filter { it !in back }.forEach { put(it) } }
         write(trashFile, trashCandidate)?.let {
-            return SaveResult.Failed("$it — the notes are restored, and are still in the Trash too.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. The notes are restored, and are still in the Trash too.")
         }
         replace(trash, trashCandidate)
         return SaveResult.Ok(firstId, imported = back.size)

@@ -439,7 +439,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 true
             }
             is SaveResult.Failed -> {
-                say(result.reason)
+                // A write's bare cause ("the phone's storage is full") said nothing of what went unsaved.
+                say(if (Files.bareCause(result.reason)) "Not saved: ${result.reason}." else result.reason)
                 false
             }
         }

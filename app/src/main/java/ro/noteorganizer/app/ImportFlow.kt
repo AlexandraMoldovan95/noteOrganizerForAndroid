@@ -298,7 +298,7 @@ fun ImportQuestions(
         Step.LOOKALIKES -> {
             val count = counts.of(answers.update)
             val remaining = plan.fresh.size + if (answers.update) 0 else plan.differing.size
-            if (count == remaining && Importing.goesOnPastLookAlikes(plan, answers)) {
+            if (count == remaining && Importing.offersSkip(plan, answers, counts)) {
                 Choice(
                     title = stringResource(R.string.q_duplicates_title),
                     text = if (count == 1) stringResource(R.string.q_all_imported_one_going_on, source)
@@ -447,8 +447,9 @@ fun importMessage(o: Importing.Outcome): String {
     if (o.filesGiven > 0) {
         parts.add("${o.filesGiven} attached file${if (o.filesGiven == 1) "" else "s"} went to the notes the skipped ones look like.")
     }
-    if (o.unchangedSkipped > 0) parts.add("${o.unchangedSkipped} were already here, unchanged, and were skipped.")
-    if (o.duplicatesSkipped > 0) parts.add("${o.duplicatesSkipped} duplicates skipped.")
+    if (o.unchangedSkipped > 0) parts.add(if (o.unchangedSkipped == 1) "1 was already here, unchanged, and was skipped."
+                                          else "${o.unchangedSkipped} were already here, unchanged, and were skipped.")
+    if (o.duplicatesSkipped > 0) parts.add(if (o.duplicatesSkipped == 1) "1 duplicate skipped." else "${o.duplicatesSkipped} duplicates skipped.")
     val also = ArrayList<String>()
     if (o.addedCategories > 0) also.add("${o.addedCategories} categor${if (o.addedCategories == 1) "y" else "ies"}")
     if (o.restoredDays > 0) also.add("${o.restoredDays} calendar day marking${if (o.restoredDays == 1) "" else "s"}")

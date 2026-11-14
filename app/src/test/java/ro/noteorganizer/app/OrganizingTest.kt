@@ -117,6 +117,17 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a restore whose Trash write is refused says so once, the notes restored`() {
+        // "The Trash could not be saved: …. — the notes are restored": two sentences run into one.
+        val load = notebook("""[{"id": 1, "title": "a"}]""",
+            trash = """[{"id": 2, "title": "b", "deleted_at": "2026-10-01 10:00:00"}]""")
+        File(dirOf(load), "trash.json.tmp").mkdir()
+        val result = Organizing.restore(load, listOf(Organizing.TrashKey(2, "2026-10-01 10:00:00"))) as SaveResult.Failed
+        assertEquals("The Trash could not be saved: the phone's storage refused the write. The notes are restored, " +
+            "and are still in the Trash too.", result.reason)
+    }
+
+    @Test
     fun `restored notes get fresh ids, because their old ones may be taken`() {
         val load = notebook("""[{"id": 1, "title": "new 1"}]""",
             trash = """[{"id": 1, "title": "old 1", "deleted_at": "2026-10-01 10:00:00"}]""")

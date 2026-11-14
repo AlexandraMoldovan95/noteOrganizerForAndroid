@@ -185,7 +185,8 @@ object Days {
         note.put("updated", Files.now())
         // Days a series' copy set aside, notes of their own in the same write.
         Notebook.settleAside(candidate)
-        Organizing.write(file, candidate)?.let { return SaveResult.Failed(it) }
+        // The bare cause, as the editor's saves give it: Day mode says "Not saved: …" before it.
+        Files.writeAtomic(file, candidate.toString(2))?.let { return SaveResult.Failed(it) }
         Organizing.replace(array, candidate)
         return SaveResult.Ok(id)
     }

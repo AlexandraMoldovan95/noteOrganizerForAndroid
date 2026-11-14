@@ -88,14 +88,36 @@ object Files {
         } catch (e: Exception) {
             tmp.delete()
             // The cause in words of its own: the system's named the app's private path.
-            val full = (e.message ?: "").let { "ENOSPC" in it || "No space left" in it }
-            return if (full) "the phone's storage is full" else "the phone's storage refused the write"
+            return if (storageFull(e)) STORAGE_FULL else STORAGE_REFUSED
         }
         if (!tmp.renameTo(file)) {
             tmp.delete()
             return "could not replace ${file.name}"
         }
         return null
+    }
+
+    const val STORAGE_FULL = "the phone's storage is full"
+    const val STORAGE_REFUSED = "the phone's storage refused the write"
+
+    /** Whether [e] is the storage running out. */
+    fun storageFull(e: Throwable): Boolean = (e.message ?: "").let { "ENOSPC" in it || "No space left" in it }
+
+    /** Whether [reason], from [writeAtomic], is a bare cause, saying nothing of what went unsaved. */
+    fun bareCause(reason: String): Boolean =
+        reason == STORAGE_FULL || reason == STORAGE_REFUSED || reason.startsWith("could not replace ")
+
+    /**
+     * [e]'s words for a person: the system's own, unless the storage is full or they
+     * name a path under the app's private folder [private] ([instead] then).
+     */
+    fun said(e: Throwable, private: File?, instead: String = STORAGE_REFUSED): String {
+        val words = e.message ?: e.toString()
+        return when {
+            storageFull(e) -> STORAGE_FULL
+            private != null && private.path in words -> instead
+            else -> words
+        }
     }
 
     fun writeAtomic(file: File, text: String): String? =

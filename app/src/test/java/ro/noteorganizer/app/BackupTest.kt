@@ -456,6 +456,32 @@ class BackupTest {
     }
 
     @Test
+    fun `an export the phone's storage refused says so in words of its own, never the cache's path`() {
+        // "Couldn't create the backup: /data/user/0/…/cache/backup_export.zip.tmp: open failed".
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        val scratch = temp("scratch")
+        File(scratch, "backup_export.zip.tmp").mkdir()
+        val failed = Backup.exportTo(dir, scratch, { ByteArrayOutputStream() }, { false }, {}) as Backup.Export.Failed
+        assertEquals(Files.STORAGE_REFUSED, failed.reason)
+    }
+
+    @Test
+    fun `a backup a full phone could not take is said as the phone's, not the file's, and never the private path`() {
+        // Bigger than the room left, it failed while copied in: "That file couldn't be read as a
+        // backup: write failed: ENOSPC", which blamed the file, in the system's words.
+        val into = File(File(temp("app"), "cache"), "import_1")
+        assertEquals(Backup.NO_ROOM, Backup.unreadable(java.io.IOException("write failed: ENOSPC (No space left on device)"), into))
+        assertEquals("That file couldn't be read as a backup:\ninvalid END header",
+            Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
+        // ...and one its unpacking could not write names no path of the app's.
+        val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
+        val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }
+        val failed = Backup.read(zip, blocked, Long.MAX_VALUE) as Backup.Read.Failed
+        assertEquals("That file couldn't be read as a backup:\nthe phone could not copy or unpack it", failed.reason)
+    }
+
+    @Test
     fun `an export opens where it goes only once the backup is built`() {
         // Opened first, for writing, a backup chosen to be written over was
         // emptied before a full cache stopped the new one, then deleted as

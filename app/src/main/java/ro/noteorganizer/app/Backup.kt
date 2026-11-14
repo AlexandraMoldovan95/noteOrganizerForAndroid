@@ -248,7 +248,8 @@ object Backup {
                 } catch (_: Exception) {
                 }
             }
-            Export.Failed(e.message ?: e.toString())
+            // The system's words named the cache's private path, or said ENOSPC.
+            Export.Failed(Files.said(e, dir.parentFile ?: dir))
         }
     }
 
@@ -343,6 +344,19 @@ object Backup {
         return if (place.contains('/')) place.substringBefore('/') + "/" + fitted else fitted
     }
 
+    /** Said when the phone filled up while a backup was copied in or unpacked. */
+    const val NO_ROOM = "The phone's storage filled up while the backup was read, so nothing from it was kept. " +
+        "Free up some space and try again."
+
+    /**
+     * Why a backup could not be read, [e] met copying or unpacking it into [into]: a full
+     * phone said as one, not as the file's fault, and never the app's private path.
+     */
+    fun unreadable(e: Throwable, into: File): String =
+        if (Files.storageFull(e)) NO_ROOM
+        else "That file couldn't be read as a backup:\n" +
+            Files.said(e, into.parentFile?.parentFile ?: into, "the phone could not copy or unpack it")
+
     /**
      * Reads the backup [zip] into the empty folder [into]: guarded, then
      * unpacked, then its files parsed. [free] is the space left on the disk
@@ -355,7 +369,7 @@ object Backup {
         val file = try {
             ZipFile(zip)
         } catch (e: Exception) {
-            return Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
+            return Read.Failed(unreadable(e, into))
         }
         file.use { archive ->
             val entries = entriesOf(archive)
@@ -385,7 +399,7 @@ object Backup {
                     }
                 }
             } catch (e: Exception) {
-                return Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
+                return Read.Failed(unreadable(e, into))
             }
         }
         // Every file read as JSON from outside: as UTF-8 or not at all

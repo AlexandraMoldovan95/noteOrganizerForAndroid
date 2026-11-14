@@ -687,6 +687,10 @@ fun AppRoot(state: AppState, version: String) {
                 val notebook = org.json.JSONArray().also { copy ->
                     state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
                 }
+                val load = state.load
+                val trashNow = load.trashRaw?.let { raw -> org.json.JSONArray().also { copy ->
+                    for (i in 0 until raw.length()) copy.put(raw.opt(i)) } }
+                val settingsNow = load.settings?.raw?.let { org.json.JSONObject(it.toString()) }
                 // The names apply files by, adopted ones included (Importing.merged).
                 val categories = Importing.merged(state.load.categories, contents.extras().categories,
                     contents.notes).map.keys
@@ -696,9 +700,11 @@ fun AppRoot(state: AppState, version: String) {
                 busy = context.getString(R.string.importing)
                 scope.launch {
                     val ready = withContext(Dispatchers.Default) {
-                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories,
-                            Importing.filesIn(state.attachments, contents.attachments))
-                        Triple(plan, contents, Importing.LookAlikes(notebook, plan).warm(plan))
+                        val fileOf = Importing.filesIn(state.attachments, contents.attachments)
+                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories, fileOf)
+                        Triple(plan, contents, Importing.LookAlikes(notebook, plan) { update ->
+                            Importing.bringsMore(notebook, plan, update, load, trashNow, settingsNow, contents.extras(), fileOf)
+                        }.warm(plan))
                     }
                     busy = null
                     backupPlan = ready
@@ -805,7 +811,8 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
         }
     } catch (e: Exception) {
         work.deleteRecursively()
-        Backup.Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
+        // A backup bigger than the room left fails here, while it is copied in.
+        Backup.Read.Failed(Backup.unreadable(e, work))
     } catch (e: OutOfMemoryError) {
         // An Error, which the catch above lets through: a backup too big for
         // the phone ended the app. Its guard (Backup.memoryProblem) should

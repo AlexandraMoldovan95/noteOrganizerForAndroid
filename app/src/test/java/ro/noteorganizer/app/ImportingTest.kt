@@ -816,7 +816,7 @@ class ImportingTest {
         // Asked from the questions' drawing, two or three times and at every
         // redraw, each time normalizing every note of both notebooks.
         var counted = 0
-        val alikes = Importing.LookAlikes { update -> counted += 1; if (update) 2 else 3 }
+        val alikes = Importing.LookAlikes({ update -> counted += 1; if (update) 2 else 3 })
         repeat(5) {
             assertEquals(3, alikes.of(false))
             assertEquals(2, alikes.of(true))
@@ -867,6 +867,30 @@ class ImportingTest {
             Files.newStart()
         }
         assertEquals("nothing written to the Trash", before, if (trashFile.isFile) trashFile.readText() else null)
+    }
+
+    @Test
+    fun `the import's words for one note skipped are in the singular`() {
+        // "1 duplicates skipped." and "1 were already here", where the desktop counts in the singular.
+        val said = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 1, duplicatesSkipped = 1))
+        assertTrue(said, "1 was already here, unchanged, and was skipped." in said && "1 duplicate skipped." in said)
+    }
+
+    @Test
+    fun `an import stopped by a held file says its reason once, not inside another sentence`() {
+        // "settings.json could not be written: settings.json could not be read or copied aside…".
+        val first = notebook("[]", settings = """{"theme": "dark"}""")
+        try {
+            Files.holdWrites(first.settings!!.file)
+            val load = Notebook.load(dirOf(first))
+            val result = Importing.apply(load, backupPlan(load, """[{"title": "N", "body": "n"}]"""), Importing.Answers(),
+                null, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}""")))
+            val reason = (result as Importing.Result.Failed).reason
+            assertTrue(reason, reason.startsWith("settings.json could not be read or copied aside"))
+            assertFalse(reason, "could not be written" in reason)
+        } finally {
+            Files.newStart()
+        }
     }
 
     @Test
@@ -928,6 +952,46 @@ class ImportingTest {
         assertEquals("p.png", note.getJSONArray("attachments").getJSONObject(0).getString("filename"))
         assertTrue(File(here, "20261114150000000000_p.png").isFile)
         assertTrue(importMessage(outcome), "1 attached file went to the notes the skipped ones look like" in importMessage(outcome))
+    }
+
+    @Test
+    fun `a backup of look-alikes that brings files, a template, the Trash or a day's marks offers Skip, as the desktop's`() {
+        // Every new note a look-alike, the question offered Import anyway or Cancel: the default
+        // Cancel dropped what Skip goes on with, where the desktop offers "Skip them".
+        val load = notebook("""[{"id": 1, "uid": "h1", "title": "Pic", "body": "p"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114160000000000_p.png").writeBytes("pic".toByteArray())
+        val fileOf = Importing.filesIn(here, unpacked)
+        val alike = """[{"uid": "b1", "title": "Pic", "body": "p"}]"""
+        fun more(json: String, extras: Importing.Extras = Importing.Extras()): Boolean {
+            val plan = Importing.plan(load.raw!!, notes(json), Importing.Source.BACKUP, null, fileOf)
+            assertEquals(plan.fresh.size, Importing.lookAlikes(load.raw!!, plan, false))
+            return Importing.bringsMore(load.raw!!, plan, false, load, load.trashRaw, load.settings?.raw, extras, fileOf)
+        }
+        assertFalse("nothing beside the look-alike", more(alike))
+        assertTrue("its file", more("""[{"uid": "b1", "title": "Pic", "body": "p",
+            "attachments": [{"filename": "p.png", "stored_as": "20261114160000000000_p.png"}]}]"""))
+        assertTrue("a template", more(alike, Importing.Extras(templates = JSONArray("""[{"name": "Weekly", "body": "w"}]"""))))
+        assertTrue("a trashed note", more(alike, Importing.Extras(trash = JSONArray(
+            """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(1)}"}]"""))))
+        assertTrue("a day's colour", more(alike, Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))))
+        assertTrue("a category", more(alike, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}"""))))
+        // ...but not a template over a templates file held this run: apply stops there.
+        try {
+            Files.holdWrites(File(dirOf(load), "templates.json"))
+            assertFalse("a template over a held file", more(alike, Importing.Extras(templates = JSONArray("""[{"name": "W"}]"""))))
+        } finally {
+            Files.newStart()
+        }
+        // ...and the question has it worked out before it opens, away from the screen.
+        val plan = Importing.plan(load.raw!!, notes(alike), Importing.Source.BACKUP, null, fileOf)
+        var asked = 0
+        val alikes = Importing.LookAlikes(load.raw!!, plan) { asked += 1; true }.warm(plan)
+        assertEquals("worked out by warm", 1, asked)
+        assertTrue(Importing.offersSkip(plan, Importing.Answers(), alikes))
+        assertEquals("once", 1, asked)
+        assertFalse(Importing.offersSkip(plan, Importing.Answers(), Importing.LookAlikes(load.raw!!, plan) { false }))
     }
 
     @Test

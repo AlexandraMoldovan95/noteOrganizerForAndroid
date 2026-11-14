@@ -38,6 +38,25 @@ class AppStateTest {
     }
 
     @Test
+    fun `a refused write is said with what went unsaved, not the bare cause, nor twice`() {
+        // A tick on a full phone said only "the phone's storage refused the write"; a day's
+        // edit said "Not saved: Your notes could not be saved: …".
+        val s = state()
+        File(s.dir, "notes_data.json.tmp").mkdir()
+        assertFalse(s.report(Notebook.createNote(s.load, "New", "words")))
+        assertEquals("Not saved: the phone's storage refused the write.", s.snackbar.currentSnackbarData?.visuals?.message)
+        s.snackbar.currentSnackbarData?.dismiss()
+        // The refused write took its empty .tmp folder away with it.
+        File(s.dir, "notes_data.json.tmp").mkdir()
+        val day = Days.setRepeat(s.load, 1, null) as SaveResult.Failed
+        assertEquals(Files.STORAGE_REFUSED, day.reason)
+        // ...and a delete the Trash refused keeps its cause: "try again in a moment" could not help.
+        File(s.dir, "trash.json.tmp").mkdir()
+        val trashed = Organizing.trashNotes(s.load, listOf(2)) as SaveResult.Failed
+        assertEquals("The Trash could not be saved: the phone's storage refused the write. Nothing was deleted.", trashed.reason)
+    }
+
+    @Test
     fun `a note's folds go with it, and a new note's become its own once saved`() {
         val s = state()
         s.folded["2:text"] = true
