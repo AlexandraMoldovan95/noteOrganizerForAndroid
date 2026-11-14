@@ -1401,6 +1401,27 @@ and found nothing at medium or above. The lows: 57, 28, 130, 36, 164,
 497 carry EMULATOR for the Summary's count; qa/README names Phase 3's
 six hand rows and what a unit-only row leaves.
 
+The forty-ninth round's first agent found nothing at medium or above in
+the forty-eighth's fixes. Its second, auditing another fifth of the
+plan (107 rows), found three (mediums): 347's title and expected result
+said the backup made before a reset changes nothing, where since round 8
+the import offers such a note as changed and its own fixture holds that
+Update brings the day back (both are corrected); 172 said the walk reads
+"✓ Saved" under the box, where it reads one drawn above the keyboard;
+101 called its steps automated, where the walk reads a note seeded with
+its table. And qa/README's sentence that a unit-only row with taps says
+"in part" was untrue of 210, called no hand check though a person can
+set it up: its steps are a person's now, and it says "in part". The
+lows: 216 names its PastingTest; 335, 336, 362 and 363 no longer say the
+emulator's clipboard cannot be given a break; 57, 339, 497, 529 and 164
+say exactly what their checks read; 461, 462 and 469 name the walk
+parts that reach their steps; 156 says "in part"; the How to use tab
+says what a unit-only row leaves, as qa/README does. Left, with its
+reason: the Summary's count of rows the emulator walks counts the rows
+that say EMULATOR, and about sixty rows name a walk part without the
+word, so it counts low; the count is the plan's own, and it errs toward
+the hand.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
