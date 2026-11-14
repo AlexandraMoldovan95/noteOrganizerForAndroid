@@ -29,6 +29,10 @@ object Startup {
     /** What the start did that is worth one line at the top of the list, or null. */
     fun prepare(dir: File, older: File?, read: (File) -> ByteArray = File::readBytes): String? {
         dir.mkdirs()
+        // A start reads the notes afresh, as the desktop's load once a run:
+        // the unread mark of an earlier one (Android 8 to 11 reopens in the
+        // same process) kept every attached file after the notes read fine.
+        Files.clearUnread()
         val notes = File(dir, Backup.NOTES)
         val lines = ArrayList<String>()
         if (!notes.exists()) {
@@ -69,11 +73,13 @@ object Startup {
         // to Android's backup: marked lost before a fresh file reads them as
         // 30 days and on. Unknown, the backup is off until the person says.
         load.settings?.let {
-            // Held (neither read nor copied aside), nothing can be turned on this
-            // run: its own line says so, and no advice that would be refused.
-            if (it.problem != null && Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true,
-                    Settings.PHONE_GOOGLE_BACKUP to false)) is SaveResult.Ok) {
-                lines.add("Android's backup of the app is off until you turn it on again in Settings → Backup.")
+            if (it.problem != null) {
+                // Off either way, in memory (Settings.load); written now if there is room.
+                Settings.putAll(it, mapOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN to true, Settings.PHONE_GOOGLE_BACKUP to false))
+                // Held, nothing can be turned on this run: no advice it would refuse.
+                if (!Files.writesHeld(it.file)) {
+                    lines.add("Android's backup of the app is off until you turn it on again in Settings → Backup.")
+                }
             }
         }
         // Restored from Android's backup made while the switch was off: that

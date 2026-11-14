@@ -97,7 +97,8 @@ object Templates {
         val data = try {
             Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
-            Files.preserveCorrupt(file)
+            // Refused, not damaged: held, never copied aside (Files.refusedRead).
+            if (Files.refusedRead(e)) Files.holdWrites(file) else Files.preserveCorrupt(file)
             return emptyList()
         }
         val kept = (0 until data.length()).mapNotNull { data.opt(it) as? JSONObject }.take(MAX_TEMPLATES).map { normalize(it) }
@@ -218,7 +219,7 @@ object Templates {
         val json = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {
-            Files.preserveCorrupt(file)
+            if (Files.refusedRead(e)) Files.holdWrites(file) else Files.preserveCorrupt(file)
             return null
         }
         val fields = json.opt("fields") as? JSONObject ?: return null

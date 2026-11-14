@@ -1173,19 +1173,24 @@ object Notebook {
      * only when it exists, cannot be read AND could not be copied aside.
      */
     private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
+        var refused = false
         val parsed = if (!file.isFile) JSONArray() else try {
             Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
+            refused = Files.refusedRead(e)
             null
         }
         // Marked for the run, as the desktop's load once a run: cleared by the
         // reload after an import, deleting for good took the unread notes' files.
         if (parsed != null) return parsed
         Files.markUnread(file)
-        val kept = Files.preserveCorrupt(file)
+        // Refused, not damaged: held, never copied aside (Files.refusedRead).
+        val kept = if (refused) null.also { Files.holdWrites(file) } else Files.preserveCorrupt(file)
         if (kept == null) {
-            problems.add("$what could not be read, and could not be copied aside either, " +
-                "so nothing will be written over it.")
+            problems.add(if (refused) "$what could not be opened, so nothing will be written over it " +
+                    "until the app is closed and opened again."
+                else "$what could not be read, and could not be copied aside either, " +
+                    "so nothing will be written over it.")
             return null
         }
         problems.add("$what could not be read, so the app started without it. Nothing " +

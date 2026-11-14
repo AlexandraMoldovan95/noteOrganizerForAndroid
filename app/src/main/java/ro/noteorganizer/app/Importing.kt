@@ -495,11 +495,14 @@ object Importing {
             // One here that does not read is copied aside, as every reader does,
             // and the backup's come in over it, as into the desktop's empty list.
             val mine = if (Files.writesHeld(templatesFile)) null
-                       else readArray(templatesFile) ?: JSONArray().takeIf { Files.preserveCorrupt(templatesFile) != null }
+                       else readArray(templatesFile) ?: JSONArray().takeIf {
+                           !Files.writesHeld(templatesFile) && Files.preserveCorrupt(templatesFile) != null }
             if (mine != null) {
                 // Shaped as the backup's are, as the desktop names its own list:
-                // one here with no name is "Untitled template" too.
-                val names = (0 until mine.length()).map { Templates.normalize(mine.opt(it)).optString("name") }.toMutableSet()
+                // one here with no name is "Untitled template" too; an entry that
+                // is no template at all names nothing, as the desktop drops it.
+                val names = (0 until mine.length()).mapNotNull { i ->
+                    (mine.opt(i) as? JSONObject)?.let { Templates.normalize(it).optString("name") } }.toMutableSet()
                 val out = JSONArray(mine.toString())
                 for (i in 0 until extras.templates.length()) {
                     // No more than a notebook keeps (Templates.MAX_TEMPLATES).
@@ -665,6 +668,9 @@ object Importing {
         return try {
             Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
+            // Refused, not damaged: held, so no copy aside takes a good file and
+            // the backup's templates are not written over it (Files.refusedRead).
+            if (Files.refusedRead(e)) Files.holdWrites(file)
             null
         }
     }

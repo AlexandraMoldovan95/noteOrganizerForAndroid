@@ -64,7 +64,8 @@ object Settings {
      * in ([takeOffMark]): read alone, a phone restored and unopened read as on.
      */
     fun googleBackupOn(load: Load): Boolean {
-        if (load.problem != null) return false
+        // An unreadable file reads as its "off" ([load]), held in memory: asked of
+        // the load's problem instead, the switch stayed Off once turned on.
         if (load.raw.has(PHONE_GOOGLE_BACKUP)) return load.raw.opt(PHONE_GOOGLE_BACKUP) != false
         return load.file.parentFile?.let { File(it, GOOGLE_BACKUP_OFF_MARK).isFile } != true
     }
@@ -126,8 +127,9 @@ object Settings {
     /**
      * What a read produced. [raw] is never null: a file that is missing
      * reads as `{}`; one that could not be read reads as its two marks alone
-     * (the Trash's window unknown, Android's backup off), the desktop's
-     * answer too. [problem] says so when it was not simply missing.
+     * (the Trash's window unknown, Android's backup off), as the desktop's
+     * reads as its one (the window unknown; it has no Android backup).
+     * [problem] says so when it was not simply missing.
      */
     data class Load(
         val file: File,
@@ -138,21 +140,28 @@ object Settings {
     fun load(dir: File): Load {
         val file = File(dir, "settings.json")
         if (!file.isFile) return Load(file, JSONObject())
+        val marks = JSONObject().put(PHONE_TRASH_WINDOW_UNKNOWN, true).put(PHONE_GOOGLE_BACKUP, false)
         val parsed = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {
+            // Refused, not damaged: held, never copied aside (Files.refusedRead).
+            if (Files.refusedRead(e)) {
+                Files.holdWrites(file)
+                return Load(file, marks, "settings.json could not be opened, so nothing is written over " +
+                    "it until the app is closed and opened again")
+            }
             null
         }
         if (parsed != null) return Load(file, parsed)
         // Kept aside before any write replaces it; its marks held in memory, as
-        // the desktop's every read gives them, so a later write carries them
+        // the desktop's every read gives its own, so a later write carries them
         // even when the start's own was refused (Trash at 30 days, backup on).
         val kept = Files.preserveCorrupt(file)
         return Load(
-            file, JSONObject().put(PHONE_TRASH_WINDOW_UNKNOWN, true).put(PHONE_GOOGLE_BACKUP, false),
+            file, marks,
             if (kept != null) "settings.json could not be read; a copy was kept as ${kept.name}"
             else "settings.json could not be read, and could not be copied aside: nothing is written " +
-                "over it until the app is opened again and can copy it aside",
+                "over it until the app is closed and opened again",
         )
     }
 
@@ -249,12 +258,12 @@ object Settings {
     /**
      * The window the start-up purge may go by, or null when it is not known,
      * and then nothing is purged (a note kept too long can still go, one
-     * deleted too soon cannot come back): the file unreadable ([Load.problem],
-     * then [PHONE_TRASH_WINDOW_UNKNOWN]), or not a whole number from 1 to 365
+     * deleted too soon cannot come back): the file unreadable (its
+     * [PHONE_TRASH_WINDOW_UNKNOWN], held in memory by [load]), or not a whole number from 1 to 365
      * -- a clamp would read 0 as one day. Never chosen, it is the default.
      */
     fun purgeWindow(load: Load): Int? {
-        if (load.problem != null || load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) == true) return null
+        if (load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) == true) return null
         if (!load.raw.has(RETENTION_DAYS)) return TRASH_RETENTION_DAYS
         return chosenWindow(load.raw)
     }
@@ -275,7 +284,7 @@ object Settings {
      * known.
      */
     fun windowNeverChosen(load: Load): Boolean =
-        load.problem == null && !load.raw.has(RETENTION_DAYS) && load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) != true
+        !load.raw.has(RETENTION_DAYS) && load.raw.opt(PHONE_TRASH_WINDOW_UNKNOWN) != true
 
     /**
      * The category map, as the desktop's `load_categories` builds it: the

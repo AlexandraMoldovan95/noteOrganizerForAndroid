@@ -53,6 +53,14 @@ class SettingsTest {
         val again = Settings.load(folder)
         assertNull("the window still unknown", Settings.purgeWindow(again))
         assertFalse("the backup still off", Settings.googleBackupOn(again))
+        // ...and turned on, or a window chosen, in that same run, the page reads
+        // what was written: asked of the load's problem, it stayed Off and
+        // unknown while the file, and Android's backup agent, read on.
+        assertTrue(Settings.put(load, Settings.PHONE_GOOGLE_BACKUP, true) is SaveResult.Ok)
+        assertTrue(Settings.googleBackupOn(load))
+        assertTrue(Settings.putAll(load, mapOf(Settings.RETENTION_DAYS to 90,
+            Settings.PHONE_TRASH_WINDOW_UNKNOWN to null)) is SaveResult.Ok)
+        assertEquals(90, Settings.purgeWindow(load))
     }
 
     @Test
@@ -157,7 +165,8 @@ class SettingsTest {
         for (bad in listOf("0", "-3", "366", "\"90\"", "7.5", "true", "null")) {
             assertNull(bad, window("""{"trash_retention_days": $bad}"""))
         }
-        assertNull("a file that could not be read", window("{}", problem = "settings.json could not be read"))
+        assertNull("a file that could not be read, as Settings.load gives it",
+            Settings.purgeWindow(Settings.load(dir("{ broken"))))
         assertNull("lost at an earlier start", window("""{"trash_retention_days": 30, "phone_trash_window_unknown": true}"""))
         assertEquals(30, window("""{"trash_retention_days": 30, "phone_trash_window_unknown": false}"""))
     }

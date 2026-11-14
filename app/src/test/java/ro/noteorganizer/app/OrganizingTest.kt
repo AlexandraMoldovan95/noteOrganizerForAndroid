@@ -413,8 +413,18 @@ class OrganizingTest {
         File(dirOf(load), "trash.json").writeText("""[{"id": 3, "title": "y", "deleted_at": "2026-10-02 10:00:00",
             "attachments": [{"filename": "s", "stored_as": "shared.png"}]}]""")
         val reloaded = Notebook.load(dirOf(load))
+        assertFalse("and Empty Trash names no files it keeps", Organizing.emptyTrashTakesFiles(reloaded))
         Organizing.deleteForever(reloaded, listOf(Organizing.TrashKey(3, "2026-10-02 10:00:00")), attachments(reloaded))
         assertTrue("kept after a reload in the same run", File(attachments(reloaded), "shared.png").exists())
+    }
+
+    @Test
+    fun `Empty Trash names attached files only where they go`() {
+        val withFile = notebook("[]", trash = """[{"id": 2, "title": "x", "deleted_at": "2026-10-01 10:00:00",
+            "attachments": [{"filename": "a", "stored_as": "a.png"}]}]""")
+        assertTrue(Organizing.emptyTrashTakesFiles(withFile))
+        val without = notebook("[]", trash = """[{"id": 2, "title": "x", "deleted_at": "2026-10-01 10:00:00"}]""")
+        assertFalse("none held", Organizing.emptyTrashTakesFiles(without))
     }
 
     @Test

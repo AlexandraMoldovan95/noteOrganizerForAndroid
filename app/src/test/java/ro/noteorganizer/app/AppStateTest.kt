@@ -429,6 +429,17 @@ class AppStateTest {
     }
 
     @Test
+    fun `the welcome note's Show finds it by its own words when its uid was not kept`() {
+        // That write refused on a full phone, every press added another welcome note.
+        val state = state()
+        showWelcome(state)
+        val count = state.load.notes.size
+        state.putSetting(Settings.WELCOME_NOTE_UID, null)
+        showWelcome(state)
+        assertEquals("the same welcome note opened, none added", count, state.load.notes.size)
+    }
+
+    @Test
     fun `over a settings file held, the theme is not written at each start, and the reminder bar shows once a run`() {
         val state = state()
         Files.holdWrites(File(state.dir, "settings.json"))

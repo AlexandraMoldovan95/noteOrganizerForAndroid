@@ -853,6 +853,10 @@ object Organizing {
      */
     fun filesKept(load: Notebook.Load): Boolean = filesKept(load.file)
 
+    /** Whether emptying the Trash deletes attached files, so its question names them. */
+    fun emptyTrashTakesFiles(load: Notebook.Load): Boolean =
+        load.trash.any { it.attachmentCount > 0 } && !filesKept(load)
+
     private fun filesKept(notesFile: File?): Boolean =
         notesFile != null && (Files.writesHeld(notesFile) || Files.unreadAtLoad(notesFile))
 

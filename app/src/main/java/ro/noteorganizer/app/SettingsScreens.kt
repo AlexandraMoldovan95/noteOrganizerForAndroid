@@ -913,7 +913,7 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
             title = stringResource(R.string.empty_trash),
             // Files named only where they go: none held, or this run keeps them all.
             text = pluralStringResource(
-                if (entries.any { it.attachmentCount > 0 } && !Organizing.filesKept(state.load)) R.plurals.empty_trash_text
+                if (Organizing.emptyTrashTakesFiles(state.load)) R.plurals.empty_trash_text
                 else R.plurals.empty_trash_text_plain, entries.size, entries.size),
             confirm = stringResource(R.string.empty_trash),
             destructive = true,
@@ -1123,13 +1123,17 @@ private fun openNotificationSettings(context: android.content.Context, channel: 
  */
 fun showWelcome(state: AppState) {
     val uid = state.settings.opt(Settings.WELCOME_NOTE_UID) as? String
-    state.load.notes.firstOrNull { uid != null && it.uid == uid }?.let {
+    val welcome = Welcome.build()
+    // By its uid, or, that write refused (a full phone), by its own words:
+    // every press added another welcome note.
+    (state.load.notes.firstOrNull { uid != null && it.uid == uid }
+        ?: state.load.notes.firstOrNull {
+            it.title == welcome.optString("title") && it.body == welcome.optString("body") })?.let {
         state.tab = Tab.NOTES
         state.settingsPage = null
         state.openNote(it.id)
         return
     }
-    val welcome = Welcome.build()
     val spans = welcome.getJSONArray("formatting").let { array ->
         (0 until array.length()).map { array.getJSONObject(it) }
             .map { FormatSpan(it.getInt("start"), it.getInt("end"), it.getString("style")) }

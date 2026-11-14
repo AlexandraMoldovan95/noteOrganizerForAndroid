@@ -31,10 +31,18 @@ object Files {
 
     internal fun writesHeld(file: File): Boolean = heldKey(file) in writesHeld
 
+    /**
+     * Whether [e], met reading one of the app's own files, is the system
+     * refusing the read (a storage error), not damage: such a file is held,
+     * as the desktop's is, never copied aside -- a second read might succeed,
+     * take a good file aside, and the next write replace it.
+     */
+    internal fun refusedRead(e: Exception): Boolean = e is java.io.IOException
+
     /** Why a held [file] takes no write, in the words every refusal of it uses. */
     internal fun heldReason(file: File): String =
         "${file.name} could not be read or copied aside, so nothing is written over it until " +
-            "the app is opened again and can copy it aside"
+            "the app is closed and opened again"
 
     /**
      * Files a read in this run found unreadable and set aside: the desktop's
@@ -45,6 +53,9 @@ object Files {
     private val unreadAtLoad = java.util.Collections.synchronizedSet(HashSet<String>())
 
     internal fun markUnread(file: File) { unreadAtLoad.add(heldKey(file)) }
+
+    /** A new start's reading begins clean ([Startup.prepare]). */
+    internal fun clearUnread() { unreadAtLoad.clear() }
 
     internal fun unreadAtLoad(file: File): Boolean = heldKey(file) in unreadAtLoad
 

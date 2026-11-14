@@ -1793,11 +1793,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         text = { Text(stringResource(R.string.template_save_as)) },
                         onClick = {
                             menu = false
-                            model.save()
+                            // Refused (said "Not saved"), the note as saved is not what
+                            // the screen shows: no template is made of an older version.
+                            val saved = model.save()
                             val raw = state.rawNote(model.id)
                             // The note as saved -- with its styles and lines --
                             // or, on one day of a series, that day as shown.
-                            val tpl = if (day == null && raw != null) {
+                            val tpl = if (!saved) null else if (day == null && raw != null) {
                                 Templates.fromNote("", raw.optString("title"), raw.optString("body"),
                                     raw.optJSONArray("formatting"), raw.optJSONArray("paragraphs"),
                                     raw.optString("comments"), raw.optString("category"), raw.optJSONArray("checklist"))
@@ -1805,7 +1807,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                                 Templates.fromNote("", model.title, model.body, Templates.spansJson(model.spans), null,
                                     model.comments, model.category, raw?.optJSONArray("checklist"))
                             }
-                            if (Templates.hasContent(tpl.optString("title"), tpl.optString("body"),
+                            if (tpl == null) {
+                                // "Not saved" is already on the bar.
+                            } else if (Templates.hasContent(tpl.optString("title"), tpl.optString("body"),
                                     tpl.optString("comments"), tpl.optJSONArray("checklist"))) {
                                 saveTemplate = tpl
                             } else {
