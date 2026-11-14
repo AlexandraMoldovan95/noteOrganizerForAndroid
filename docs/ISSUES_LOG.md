@@ -1440,10 +1440,34 @@ to the hand: a person can import such a backup, so their preconditions
 say a script makes it, their steps are a person's, and the How to use
 tab says so. The lows: 383 as 335; 56 leaves the install over an older
 build to the hand; 223, 278, 439 and 478 name their photos by file, as
-the walk writes two under some numbers; 313 names all its pastes; 339,
-462 and 469 say what their walk parts do; 347 names its fixture case by
-the sentence days_cases.json knows; two comments in
-tools/make_days_fixture.py say what the import now does.
+the walk writes two under some numbers; 313 names more of its pastes
+(round 51 named the test that makes them); 339, 462 and 469 say what
+their walk parts do; 347 names its fixture case by the sentence
+days_cases.json knows; two comments in tools/make_days_fixture.py say
+what the import now does. (209's label was left whole by this round's
+commit and said "in part" from round 51.)
+
+The fifty-first round's first agent found three mediums in the
+fiftieth's fixes: 209 still said "Automated" whole while its steps had
+become a person's; 200 and 213 had gained the step "Import it", which
+the walk never takes (big_table writes the notes into the files), and
+did not leave it to the hand; 262, which 263 points to, was called whole
+while the walk reads its question by fragments and never presses Back,
+the very mechanism the round fixed on 263. Its second agent audited the
+fourth fifth of the plan (106 rows) and found three (mediums): 200 and
+215 as above (215 and 218 leave their import to the hand now); 510 was
+called whole, where trash_wide reads the row's title above Empty Trash
+and never the page's top scrolling away or the row's days-left line;
+120 said its Undo was walked, where the walk undoes the column's drag
+and never the row's. qa/README's sentence on unit-only rows, and the
+How to use tab's, now name the rows no person can set up (205, 224),
+which say "Not a hand check". The lows: 213, 219, 220 and 221 say a
+backup, which carries templates, settings and files, where a share code
+carries notes only; 206 and 189 start from a backup a person imports,
+the import left to the hand; 313 names EditorTypingTest; 263 says its
+Cancel is found; 4, 63, 135, 150, 155, 165 and 290 say what their walk
+parts and mutants do; make_days_fixture.py's docstring says what its
+comments say.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

@@ -372,8 +372,9 @@ def main():
 
     def imported(note, incoming, fields):
         """An import's update of a note already here: asked first, as the
-        desktop's _known_note_differs asks it of the note as it arrived, and
-        applied only when it changes a field (apply_shared_update)."""
+        desktop's _known_note_differs asks it of the arriving note read as a
+        load reads it, and applied only when it changes a field
+        (apply_shared_update)."""
         if shared_update_changes(note, incoming, fields):
             apply_shared_update(note, incoming, fields)
 
