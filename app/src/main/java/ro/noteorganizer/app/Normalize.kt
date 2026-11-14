@@ -162,12 +162,16 @@ object Normalize {
         return total
     }
 
-    /** The fields of [note] this version does not know, as [normalizeNote] keeps them: copies. */
-    fun unknownFields(note: JSONObject): JSONObject {
+    /**
+     * The fields of [note] this version does not know, as [normalizeNote] keeps them: copies.
+     * [known] is the names a version knows: a note's, or a template's for [Templates.normalize]
+     * (the owner's decision of 14 November), bounded alike.
+     */
+    fun unknownFields(note: JSONObject, known: Set<String> = KNOWN_NOTE_FIELDS): JSONObject {
         val out = JSONObject()
         var units = 0
         var kept = 0
-        val names = note.keys().asSequence().filter { it !in KNOWN_NOTE_FIELDS && !it.startsWith("_") }.sorted()
+        val names = note.keys().asSequence().filter { it !in known && !it.startsWith("_") }.sorted()
         for (name in names) {
             if (kept >= MAX_UNKNOWN_FIELDS) break
             val size = (jsonUnits(note.opt(name)) ?: continue) + name.length

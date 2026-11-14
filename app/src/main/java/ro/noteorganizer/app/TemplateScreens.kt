@@ -483,14 +483,14 @@ private fun TemplateEditor(
     }
 
     fun collect(): JSONObject = Templates.collected(nameField.text, titleField.text, body, comments.text.toString(), category,
-        checklist, newItemField.text, formatting, paragraphs)
+        checklist, newItemField.text, formatting, paragraphs, keeping = held)
 
     // What the editor opened on, the template as it is saved -- never the
     // draft, which is a change nobody saved yet.
     val opened = remember {
         Templates.collected(if (original == null) "" else held.optString("name"), held.optString("title"),
             held.optString("body"), held.optString("comments"), categoryOf(held), rowsOf(held), "",
-            held.optJSONArray("formatting") ?: JSONArray(), held.optJSONArray("paragraphs") ?: JSONArray()).toString()
+            held.optJSONArray("formatting") ?: JSONArray(), held.optJSONArray("paragraphs") ?: JSONArray(), keeping = held).toString()
     }
     // Words waiting with no room for them are a change nobody saved: ✕ asks.
     fun changed() = collect().toString() != opened || Templates.waitingLeftOut(checklist.size, newItemField.text)

@@ -62,7 +62,14 @@ object Templates {
         return out
     }
 
-    /** `normalize_template`: any value in, a template of the known shape out. */
+    /** The fields a template holds that this version knows: `KNOWN_TEMPLATE_FIELDS`. */
+    val KNOWN_TEMPLATE_FIELDS = setOf("name", "title", "body", "formatting", "paragraphs", "comments", "category", "checklist")
+
+    /**
+     * `normalize_template`: any value in, a template of the known shape out, with the fields a
+     * newer version wrote kept as they came, bounded as a note's ([Normalize.unknownFields]):
+     * rebuilt from the known ones alone, such a field was gone at the next template saved or imported.
+     */
     fun normalize(value: Any?): JSONObject {
         val tpl = value as? JSONObject ?: JSONObject()
         fun text(key: String) = tpl.opt(key) as? String ?: ""
@@ -77,7 +84,7 @@ object Templates {
                     .put("done", item.opt("done") == true))
             }
         }
-        return JSONObject()
+        val shaped = JSONObject()
             .put("name", text("name").ifEmpty { UNTITLED })
             .put("title", text("title"))
             .put("body", body)
@@ -88,6 +95,9 @@ object Templates {
             .put("comments", text("comments"))
             .put("category", text("category").ifEmpty { "General" })
             .put("checklist", checklist)
+        val unknown = Normalize.unknownFields(tpl, KNOWN_TEMPLATE_FIELDS)
+        for (name in unknown.keys()) shaped.put(name, unknown.get(name))
+        return shaped
     }
 
     /** The templates in [dir]: none when there is no file; a file that cannot be read is kept aside first. */
@@ -193,8 +203,11 @@ object Templates {
      * what counts as a change.
      */
     fun collected(name: String, title: String, body: String, comments: String, category: String,
-                  rows: List<Pair<String, Boolean>>, waiting: String, formatting: JSONArray, paragraphs: JSONArray): JSONObject =
-        normalize(JSONObject()
+                  rows: List<Pair<String, Boolean>>, waiting: String, formatting: JSONArray, paragraphs: JSONArray,
+                  keeping: JSONObject? = null): JSONObject =
+        // The fields a newer version wrote on the template edited ([keeping]) ride along:
+        // built from the boxes alone, an edit erased them.
+        normalize((keeping?.let { Normalize.unknownFields(it, KNOWN_TEMPLATE_FIELDS) } ?: JSONObject())
             .put("name", name).put("title", title).put("body", body).put("comments", comments).put("category", category)
             .put("checklist", checklistWith(rows, waiting))
             .put("formatting", formatting)
