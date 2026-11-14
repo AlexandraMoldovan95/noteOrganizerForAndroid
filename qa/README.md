@@ -64,8 +64,10 @@ piece each (`OutgoingTest` an `AppState`, `NotebookTest` `RichText`'s
 drawing of a body, `ImportingTest` the import's result words,
 `importMessage`); and, beside `AppState`, `AppStateTest` reaches the
 import's finish (`finishImport`), the messages' `MessagesShown` and the
-welcome note's `showWelcome`, and `EditorTableTest` the table's
-`ActiveCell`. `TempPlaceTest` checks the run itself:
+welcome note's `showWelcome`, and the note text shared in from another
+app becomes (`sharedAsNote`); `EditorTableTest` the table's
+`ActiveCell`; and `EditorTypingTest` the one way a capped box keeps what
+is typed (`keptBy`). `TempPlaceTest` checks the run itself:
 its temporary folders made under `app/build/`, which each run empties
 first, and never left in the system's temp folder (30,640 were, by
 2026-10-23).
@@ -468,12 +470,12 @@ feature that is gone, moves to Merged cases with the case that took its
 place. A row's Status, Build, Tested By and Test Date say who recorded
 its result, on which build: no run of the scripts writes them in by
 itself. A Pass by Claude stands only where the scripts walked all of the
-case; rows the final audit added were filled in that way from its runs
-of the unit tests and of the emulator scripts (the walk, and
-`older_android.py`) on 13 November, on the builds named, and most other
+case; some rows the final audit added were filled in that way from its
+runs of the unit tests and of the emulator scripts (the walk, and
+`older_android.py`) on 12 and 13 November, on the builds named; most
 rows only scripts reach are Not Tested until the release's runs fill
 them in. A row that needs a person stays Not Tested until she runs it,
-whatever the scripts already cover; fifteen rows Claude had marked Pass
-from the runs of 0.9.1, and one (505) from the walk of 13 November,
-whose scripts walked only part of them, went back to Not Tested in the
-final audit, the run kept in Actual Result.
+whatever the scripts already cover; thirty-four rows Claude had marked
+Pass from the runs of 0.9.1, and two (494, 505) from the walk of 13
+November, whose scripts walked only part of them, went back to Not
+Tested in the final audit, the run kept in Actual Result.

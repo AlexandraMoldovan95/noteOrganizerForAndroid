@@ -1179,6 +1179,31 @@ side, and the never-kept mutants from AS1. Left, with its reason: the
 other cases of 0.9.1 that name only that day's runs were read by
 sampling; the next round reads each.
 
+The thirty-seventh round read each of them (116 rows) against the
+tests and the walk's checks, and found the class in nineteen more that
+Claude had marked Pass (1, 2, 8, 11, 19, 20, 34, 47, 51, 67, 70, 80, 88,
+90, 104, 117, 123, 131, 137) and in 494, marked Pass from the walk of
+13 November, whose part reads the name saved and never the greeting
+(mediums: the rule the round before wrote down, that a Pass by Claude
+stands only where the scripts walked all of the case, was untrue of
+them). Each says "Automated in part" now, names what is left, and went
+back to Not Tested, the run kept. Twenty-one NEEDS YOUR EYE rows said
+"The steps are automated" over steps no part walks (a notebook moved to
+the desktop, Home pressed with words typed, a day cleared, a repeat of
+every 2 weeks, the Trash's window chosen, among them): each says
+"automated in part" now and names them; their Pass is the owner's own
+walk and stays. 59 left out the day row's marks, which no check reads;
+109 said no check reads the menu's icons, where the walk taps its
+entries by icon and word; and the How to use tab and qa/README said the
+final audit's script-only rows were filled in on 13 November, where
+some were on the 12th and most are Not Tested. The lows: 13, 22, 45, 61
+and 91 say exactly what their checks read; 38 names the walk's part,
+not the unit tests; 112 says its steps were walked on the owner's phone,
+not by the emulator walk; qa/README names `sharedAsNote` and `keptBy`
+among what the suites reach of the drawing side. Left, for the owner:
+case 191 (and 189 and 190) are Pass by her own hand on rows no person
+can set up.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
