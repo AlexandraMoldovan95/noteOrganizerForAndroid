@@ -319,6 +319,13 @@ class OrganizingTest {
         assertTrue(Organizing.renameCategory(renamed, "Work", "Job") is SaveResult.Ok)
         val said = Organizing.putBackFiled(Notebook.load(dirOf(renamed)), filed, "Work")
         assertTrue(said.toString(), (said as SaveResult.Failed).reason.startsWith("The category they were moved to"))
+        // ...and one deleted, then made again before the Undo, takes its note back, as the
+        // desktop's Undo asks the map: kept, the note was said to have nowhere to go.
+        val again = Notebook.load(dirOf(renamed))
+        assertTrue(Organizing.addCategory(again, "Home", "#4cc9f0") is SaveResult.Ok)
+        val made = Notebook.load(dirOf(again))
+        assertTrue(Organizing.putBackFiled(made, filed, "Job", setOf("Home")) is SaveResult.Ok)
+        assertEquals("Home", onDisk(made).getJSONObject(0).optString("category"))
     }
 
     // ---- categories ----
@@ -374,7 +381,9 @@ class OrganizingTest {
             settings = """{"categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}""")
         // A folder where the Trash write's own .tmp goes: that write is refused.
         File(dirOf(load), "trash.json.tmp").mkdirs()
-        assertTrue(Organizing.renameCategory(load, "Work", "Job") is SaveResult.Failed)
+        val refused = Organizing.renameCategory(load, "Work", "Job")
+        // Said in words of its own: the system's named the app's private path.
+        assertTrue(refused.toString(), (refused as SaveResult.Failed).reason.startsWith("A file of the notebook couldn't be written"))
         assertEquals("the notes put back", "Work", onDisk(load).getJSONObject(0).getString("category"))
         assertEquals("and in memory", "Work", load.raw!!.getJSONObject(0).getString("category"))
         assertEquals("Work", trashOnDisk(load).getJSONObject(0).getString("category"))

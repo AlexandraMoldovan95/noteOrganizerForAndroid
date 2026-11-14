@@ -910,6 +910,27 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's note that came in on a copy of its file is not offered as changed, nor given another copy`() {
+        // Matched by its identity, its files were compared by stored name: asked about as edited
+        // elsewhere at every import, and each Update added one more copy of the same file.
+        val load = notebook("""[{"id": 1, "uid": "nf-n", "title": "Kept", "body": "k",
+            "attachments": [{"filename": "n.pdf", "stored_as": "20261114130000000001_n.pdf"}]}]""")
+        val here = File(dirOf(load), "attachments")
+        File(here, "20261114130000000001_n.pdf").writeBytes("note file".toByteArray())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114130000000000_n.pdf").writeBytes("note file".toByteArray())
+        val files = """"attachments": [{"filename": "n.pdf", "stored_as": "20261114130000000000_n.pdf"}]"""
+        val same = Importing.plan(load.raw!!, notes("""[{"uid": "nf-n", "title": "Kept", "body": "k", $files}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        assertEquals(listOf(0, 1), listOf(same.differing.size, same.unchanged.size))
+        val edited = Importing.plan(load.raw!!, notes("""[{"uid": "nf-n", "title": "Kept", "body": "edited", $files}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        Importing.apply(load, edited, Importing.Answers(update = true), here, Importing.Extras(attachments = unpacked))
+        assertEquals("edited", onDisk(load).getJSONObject(0).getString("body"))
+        assertEquals(1, onDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+    }
+
+    @Test
     fun `a backup's trashed note already here comes in once, under a refused name or on a copy of a file`() {
         // Signed by its stored name, this Trash's entry under a name the map cannot take met
         // its twin filed under General, and it came in twice. And one whose file a note here
@@ -922,16 +943,25 @@ class ImportingTest {
         File(dirOf(load), "attachments/20261114120000000000_r.png").writeBytes("picture".toByteArray())
         val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
         File(unpacked, "20261114120000000000_r.png").writeBytes("picture".toByteArray())
+        // The same words, another picture of the same name: another note, which comes in.
+        File(unpacked, "20261114120000000001_r.png").writeBytes("another".toByteArray())
         val backupTrash = """[{"uid": "far-t", "title": "Far", "body": "z", "category": "$long", "deleted_at": "${daysAgo(1)}"},
             {"uid": "rf-t", "title": "Recipe", "body": "r", "deleted_at": "${daysAgo(2)}",
-             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]}]"""
-        repeat(2) {
+             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]},
+            {"uid": "rf-2", "title": "Recipe", "body": "r", "deleted_at": "${daysAgo(2)}",
+             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000001_r.png"}]}]"""
+        fun import() {
             val here = Notebook.load(dirOf(load))
             Importing.apply(here, backupPlan(here, "[]"), Importing.Answers(), File(dirOf(load), "attachments"),
                 Importing.Extras(trash = JSONArray(backupTrash), attachments = unpacked))
         }
+        repeat(2) { import() }
+        // ...and with the file the copy was made from gone from here, it is found in the backup:
+        // the desktop copies every file in first, and the phone looked only here.
+        File(dirOf(load), "attachments/20261114120000000000_r.png").delete()
+        import()
         val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("title") } }
-        assertEquals(listOf("Far", "Recipe"), trash)
+        assertEquals(listOf("Far", "Recipe", "Recipe"), trash)
     }
 
     @Test

@@ -878,6 +878,30 @@ removed"'s Undo puts a day back under its own category even if that
 category was deleted meanwhile, as the desktop does (seconds-wide; no note
 is lost).
 
+The twenty-sixth round's medium was in the test plan once more: case 529's
+fourth step still expected the words of a rename the Undo now follows (it
+puts the note back, saying nothing). The other medium was in the code: the
+twenty-fifth round's match by a file's bytes looked only in this phone's
+folder, where a backup's file lands only when the import places it, so once
+the file a copy was made from was gone from here, the same backup brought
+its trashed note in again, where the desktop, which copies every file in
+first, did not (the unpacked backup is looked in too, AS824). With it came
+the desktop's twenty-eighth round, the same mechanism on the notes' road:
+a note that came in on a copy of its file was offered as changed at every
+import, and each Update added another copy (its files are known by name and
+bytes now, in the plan and the Update, AS828). The lows: the bytes were
+compared one at a time on the screen's thread (a block at a time now, and
+no file is found in no folder, AS825); a category deleted and made again
+before a move's Undo kept its note, said to have nowhere to go, where the
+desktop asks the map (AS826); and a refused write of the notes, the Trash,
+the templates or the map, on a rename, a delete, an add or a recolour,
+said the system's words with the app's private path in them (words of
+their own now, AS823, AS827). Left, with their reasons: the move's bar
+keeps the old name after a rename, where the desktop shows its banner
+again (the Undo itself follows the rename); and "renamed or deleted since"
+in putBackFiled is reached now only by a category the map lost without a
+delete, an adopted name whose last note moved away.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

@@ -1009,7 +1009,10 @@ desktop's three questions are asked before anything is written:
 
 1. Notes this device already has, by `uid`, that arrive **changed**:
    update them, or add them as new notes. The question says when the
-   arriving copy is *older* than the one here.
+   arriving copy is *older* than the one here. A file the note here holds
+   under another stored name -- the copy an earlier import gave it -- is
+   known by its shown name and bytes, so it is no change, and an update
+   adds no second copy of it.
 2. Notes that arrive **exactly as they are** here: skip them, or add
    copies.
 3. New notes that **look identical** to one here (the desktop's
