@@ -187,9 +187,11 @@ The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
 are adopted with a colour, as the desktop's `adopt_categories_of` does:
 in memory at every start (the phone's start does not write them), and for
-good by a backup's import, for its notes and the trashed notes it brings.
-A name past the ceilings (80 characters, 200 categories) stays out, its
-notes under General, and the import says how many.
+good by a backup's import, for its notes and the trashed notes it brings,
+before it compares them with the notes here (a note refiled here under
+General and filed under the name in the backup is a changed note). A name
+past the ceilings (80 characters, 200 categories) stays out, its notes and
+trashed notes under General, and the import says how many and why.
 
 ## A note
 
@@ -963,16 +965,19 @@ notebook moves; a share code is how a note does.
 every attached file under `attachments/`. An export is built in a scratch
 folder first and checked by the import's guards (how many files, how far
 they unpack) before it is handed to the file picker: a backup this app
-wrote must be one it agrees to read back. A notes file that does not read
--- one the start could not read, still on disk until the first save --
-goes in as `[]`, what the app holds of it, and its bytes under
-`unreadable/`: the copy the start kept aside, or the file itself when that
-copy could not be made. Either device reads the backup back; the
-phone says it holds no notes as notes and does not record it as the last
-backup. A damaged Trash, templates or settings file goes in as it is, and
-an import skips it. One it could not read back, a JSON file past the
-phone's memory ceiling, is still written -- the only copy is never
-withheld -- and the phone says so.
+wrote must be one it agrees to read back. A notes file the start could
+not read, still on disk until the first save, is read again; if it still
+does not read, it goes in as `[]`, what the app holds of it, and its
+bytes under `unreadable/`: the copy the start kept aside of this very
+file, or the file itself when no such copy exists. Either device reads
+the backup back; the phone says it holds no notes as notes and does not
+record it as the last backup. Too large for the phone to check, it goes
+in as it is, said, and is not recorded either. A notes file the start
+read is the app's own and goes in untouched. A damaged Trash, templates
+or settings file goes in as it is, and an import skips it. One it could
+not read back, a JSON file past the phone's memory ceiling, is still
+written -- the only copy is never withheld -- and the phone says so. A
+file the phone will not open stops the export, which names the file.
 
 ### The guards on the way in
 

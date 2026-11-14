@@ -20,6 +20,8 @@ class RemindersTest {
             assertTrue(action, action in Reminders.RESCHEDULE_ON)
         }
         assertFalse("the alarm itself rings", "ro.noteorganizer.app.REMIND" in Reminders.RESCHEDULE_ON)
+        // Over unread settings only a new clock keeps the alarm: after a new zone it is the old zone's hour.
+        assertEquals(setOf("android.intent.action.TIME_SET"), Reminders.KEEP_ALARMS)
     }
 
     // A Monday series from 5 October, a note on Friday 23 October, one undated.

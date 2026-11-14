@@ -392,30 +392,63 @@ class BackupTest {
         // Damaged on disk until the first save: packed as it was, neither app read
         // the backup back, and the phone said "Backup saved." and kept its date.
         val dir = temp("notebook")
-        File(dir, "notes_data.json").writeText("[{damaged")
+        val notes = File(dir, "notes_data.json").apply { writeText("[{damaged") }
         File(dir, "templates.json").writeText("""[{"name": "Trip", "title": "t"}]""")
-        val out = ByteArrayOutputStream()
-        val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}) as Backup.Export.Saved
-        assertTrue("said apart, its date not kept", saved.notesUnread)
-        val zip = File(temp("out"), "b.zip").apply { writeBytes(out.toByteArray()) }
-        ZipFile(zip).use { archive ->
-            assertEquals("[]", archive.getInputStream(archive.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
-            assertEquals("[{damaged", archive.getInputStream(archive.getEntry("unreadable/notes_data.json"))
-                .readBytes().toString(Charsets.UTF_8))
+        // An older copy, from an earlier damage, is not this file's: its bytes went unpacked.
+        File(dir, "notes_data_corrupt_20261001_010101.json").writeText("[{older")
+        fun names(dir: File): List<String> {
+            val bytes = ByteArrayOutputStream()
+            Backup.export(dir, temp("scratch"), bytes)
+            return ZipFile(File(temp("o"), "c.zip").apply { writeBytes(bytes.toByteArray()) }).use { a ->
+                a.entries().toList().map { it.name } }
         }
-        val read = Backup.read(zip, temp("u"), Long.MAX_VALUE)
-        assertTrue("$read", read is Backup.Read.Ok)
-        assertEquals(1, (read as Backup.Read.Ok).contents.templates?.length())
-        // ...once, beside the copy the start kept of it; a good file goes in as it is.
-        File(dir, "notes_data_corrupt_20261114_010101.json").writeText("[{damaged")
-        val again = ByteArrayOutputStream()
-        Backup.export(dir, temp("scratch"), again)
-        val names = ZipFile(File(temp("o"), "c.zip").apply { writeBytes(again.toByteArray()) }).use { a ->
-            a.entries().toList().map { it.name } }
-        assertFalse(names.toString(), "unreadable/notes_data.json" in names)
-        File(dir, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        try {
+            Files.markUnread(notes)
+            val out = ByteArrayOutputStream()
+            val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}) as Backup.Export.Saved
+            assertTrue("said apart, its date not kept", saved.notesUnread)
+            val zip = File(temp("out"), "b.zip").apply { writeBytes(out.toByteArray()) }
+            ZipFile(zip).use { archive ->
+                assertEquals("[]", archive.getInputStream(archive.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
+                assertEquals("[{damaged", archive.getInputStream(archive.getEntry("unreadable/notes_data.json"))
+                    .readBytes().toString(Charsets.UTF_8))
+            }
+            val read = Backup.read(zip, temp("u"), Long.MAX_VALUE)
+            assertTrue("$read", read is Backup.Read.Ok)
+            assertEquals(1, (read as Backup.Read.Ok).contents.templates?.length())
+            // ...once, beside the copy the start kept of it.
+            File(dir, "notes_data_corrupt_20261114_010101.json").writeText("[{damaged")
+            assertFalse(names(dir).toString(), "unreadable/notes_data.json" in names(dir))
+            // Too large to check here, it goes in as it is, said, its date not kept.
+            val unchecked = Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {},
+                heap = 16L * 4) as Backup.Export.Saved
+            assertTrue(unchecked.notesUnchecked && !unchecked.notesUnread)
+        } finally {
+            Files.newStart()
+        }
+        // One the start read is the app's own: never checked, never replaced.
+        assertTrue("unread no more, it goes in as it is", "unreadable/notes_data.json" !in names(dir))
+        notes.writeText("""[{"id": 1, "title": "Kept"}]""")
         assertFalse((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {})
             as Backup.Export.Saved).notesUnread)
+    }
+
+    @Test
+    fun `an export stopped by a file the phone would not open says which, in words of its own`() {
+        // The system's words named the app's private path: "open failed: EACCES".
+        val dir = temp("notebook")
+        val notes = File(dir, "notes_data.json").apply { writeText("[]") }
+        val readWas = Files.readBytesOf
+        try {
+            Files.markUnread(notes)
+            Files.readBytesOf = { throw java.io.IOException("/data/user/0/x/files/notes_data.json: open failed: EACCES") }
+            val failed = Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {}) as Backup.Export.Failed
+            assertTrue(failed.reason, failed.reason.startsWith("notes_data.json could not be opened just now"))
+            assertFalse(failed.reason, "EACCES" in failed.reason)
+        } finally {
+            Files.readBytesOf = readWas
+            Files.newStart()
+        }
     }
 
     @Test

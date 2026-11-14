@@ -870,6 +870,48 @@ class ImportingTest {
     }
 
     @Test
+    fun `a note here under General whose backup copy is filed under a category the backup adopts is offered as changed`() {
+        // Planned with this notebook's names alone, the backup's copy read as General, the pair as
+        // unchanged and skipped; apply adopted the name anyway and it came back empty.
+        val load = notebook("""[{"id": 1, "uid": "g1", "title": "Seeds", "body": "x", "category": "General"}]""")
+        val incoming = notes("""[{"uid": "g1", "title": "Seeds", "body": "x", "category": "Garden"}]""")
+        val plan = Importing.plan(load.raw!!, incoming, Importing.Source.BACKUP,
+            Importing.merged(load.categories, null, incoming).map.keys)
+        assertEquals(1, plan.differing.size)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true), null)
+        assertEquals(1, (result as Importing.Result.Done).outcome.updated)
+        assertEquals("Garden", onDisk(load).getJSONObject(0).getString("category"))
+        // ...a note under a name the ceilings refuse looks like the same note here under General,
+        // as the desktop's normalize_note files it before comparing...
+        val here = notebook("""[{"id": 1, "uid": "n1", "title": "Far", "body": "z", "category": "General"}]""")
+        val far = notes("""[{"uid": "n2", "title": "Far", "body": "z", "category": "${"L".repeat(81)}"}]""")
+        val farPlan = Importing.plan(here.raw!!, far, Importing.Source.BACKUP, Importing.merged(here.categories, null, far).map.keys)
+        assertEquals(1, Importing.lookAlikes(here.raw!!, farPlan, update = false))
+        // ...and the words for one name a ceiling refuses say why, in the singular.
+        val said = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            refusedCategories = 1))
+        assertTrue(said, "1 category could not be added (a name over 80 characters" in said && "its notes" in said)
+    }
+
+    @Test
+    fun `two twins in a backup's Trash under a category it adopts come in once, one under a refused name as General`() {
+        // Signed before the name was known, the first read as General and the second under it: both came in.
+        val load = notebook("[]")
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[
+                {"uid": "a", "title": "Twin", "body": "same", "category": "Shed", "deleted_at": "${daysAgo(3)}"},
+                {"uid": "b", "title": "Twin", "body": "same", "category": "Shed", "deleted_at": "${daysAgo(2)}"},
+                {"uid": "c", "title": "Far", "body": "z", "category": "$long", "deleted_at": "${daysAgo(1)}"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Twin", "Far"), trash.map { it.getString("title") })
+        assertEquals("Shed", trash[0].getString("category"))
+        assertEquals("General", trash[1].getString("category"))
+        assertEquals(1, outcome.refusedCategories)
+    }
+
+    @Test
     fun `a backup's notes and trashed notes keep the categories its settings lack, the newer twin comes in`() {
         // Filed under General for good, unsaid, where the desktop's import adopts them:
         // this phone's start never writes the categories it adopts, so its backups lack them.

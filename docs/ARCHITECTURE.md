@@ -65,13 +65,13 @@ with every change: `wc -l` on the folder gives today's.
 | `Organizing.kt` | 1,090 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
-| `Importing.kt` | 840 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
+| `Importing.kt` | 860 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
 | `Days.kt` | 620 | The calendar's month and days, painted days and markers, one day of a series saved, deleted, reset, moved — and days off the schedule settled | the calendar view, day mode |
 | `Calculator.kt` | 420 | The calculator's parser, its display, its keys, and where an answer goes in a note | `calculator.py` |
 | `Paragraphs.kt` | 720 | List markers, indent and alignment; Enter and Backspace in a list; renumbering | `richtext.py`, the editor |
 | `Themes.kt` | 390 | The eight themes, the palettes, and the contrast rules that pick legible words | `themes.py` |
 | `Normalize.kt` | 610 | The parts of `normalize_note` a writer needs, the fields a version does not know (`unknown_fields`), `_dup_key`, `content_signature` | `model.py` |
-| `Backup.kt` | 440 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
+| `Backup.kt` | 460 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 340 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 400 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
 | `Templates.kt` | 370 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |

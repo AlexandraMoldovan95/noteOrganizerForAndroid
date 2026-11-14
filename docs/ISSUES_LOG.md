@@ -804,6 +804,31 @@ hold (it only counts, writes nothing, and a refused read posts nothing); and
 over settings that stay unread the alarm is set again each day even for a
 person who turned notifications off (it posts nothing while they are unread).
 
+The twenty-third round found the twenty-second's adoption unfinished: the
+import adopted a backup's categories, but the plan that sorts its notes was
+still made with this phone's names, so a note refiled here under General and
+filed under the name in the backup read as unchanged and was skipped, its
+category coming back empty -- the very road of re-importing after the bug.
+The plan and the import now take their names from one place
+(`Importing.merged`), as the desktop adopts before it compares (AS796). The
+lows: twins in a backup's Trash under a name it adopts were signed before
+the name was known, and both came in, on the desktop too (adopted first now,
+AS797); a trashed note under a name past the ceilings kept it, and a note
+under one was no look-alike of the same note here under General (filed
+under General, as `normalize_note` files it, AS806, AS807); "1 categories",
+and no reason given (AS812); the export checked a notes file the start had
+read, so a moment short of memory could have packed a good notebook as `[]`
+(only a file the start could not read is checked now, AS809), took any older
+copy kept aside for this file's (AS808), packed one too large to check as if
+sound, said saved and dated (AS810), and put the system's own words, a
+private path in them, on a refused file (AS811); the twenty-second's
+alarm fix kept the old zone's hour after a new time zone (only a new clock
+keeps the alarm now, AS813); and AS793 named a value its own text made
+nullable, so it never compiled. Left, with its reason: a category deleted
+with its notes sent to the Trash, then its map write refused on a full
+phone, leaves those notes in the Trash under the old name (nothing is lost,
+the delete is said to have failed, and the notes are restorable).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
