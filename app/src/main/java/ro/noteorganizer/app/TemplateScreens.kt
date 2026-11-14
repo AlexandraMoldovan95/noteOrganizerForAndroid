@@ -136,7 +136,7 @@ fun SaveTemplateDialog(state: AppState, template: JSONObject, defaultName: Strin
         val problem = Templates.save(state.dir, Templates.saveAs(list, tpl))
         // The name offered is the note's title, which a share code can make
         // 150,000 letters long: the bar quotes it, never lays out all of it.
-        state.say(if (problem != null) failedSaid.format(problem) else savedSaid.format(quoted(chosen)))
+        state.say(if (problem != null) failedSaid.format(Files.ended(problem)) else savedSaid.format(quoted(chosen)))
         onDone()
     }
 
@@ -232,7 +232,7 @@ fun TemplatesPage(state: AppState) {
     fun store(next: List<JSONObject>): Boolean {
         val problem = Templates.save(state.dir, next)
         templates = Templates.load(state.dir)
-        if (problem != null) state.say(failedSaid.format(problem))
+        if (problem != null) state.say(failedSaid.format(Files.ended(problem)))
         return problem == null
     }
 

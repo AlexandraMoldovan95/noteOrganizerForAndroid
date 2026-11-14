@@ -160,7 +160,7 @@ object Settings {
             if (Files.refusedRead(e)) {
                 Files.holdWrites(file)
                 return Load(file, marks, "settings.json could not be opened, so nothing is written over " +
-                    "it until the app is closed and opened again")
+                    "it until the app is closed and opened again.")
             }
             null
         }
@@ -171,9 +171,9 @@ object Settings {
         val kept = Files.preserveCorrupt(file)
         return Load(
             file, marks,
-            if (kept != null) "settings.json could not be read; a copy was kept as ${kept.name}"
+            if (kept != null) "settings.json could not be read; a copy was kept as ${kept.name}."
             else "settings.json could not be read, and could not be copied aside: nothing is written " +
-                "over it until the app is closed and opened again",
+                "over it until the app is closed and opened again.",
         )
     }
 

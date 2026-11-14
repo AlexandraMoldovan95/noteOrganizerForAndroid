@@ -454,7 +454,7 @@ fun AppRoot(state: AppState, version: String) {
                     result.tooLarge?.let { state.say(context.getString(R.string.export_done_too_large, it), long = true) }
                         ?: state.say(context.getString(R.string.export_done))
                 }
-                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, result.reason), long = true)
+                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, Files.ended(result.reason)), long = true)
             }
         }
     }

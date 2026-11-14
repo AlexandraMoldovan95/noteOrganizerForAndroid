@@ -107,8 +107,8 @@ object Files {
     fun bareCause(reason: String): Boolean =
         reason == STORAGE_FULL || reason == STORAGE_REFUSED || reason.startsWith("could not replace ")
 
-    /** [reason] ending a sentence: a bare cause given its full stop, a sentence left as it is. */
-    fun ended(reason: String): String = if (bareCause(reason)) "$reason." else reason
+    /** [reason] ending a sentence: given its full stop where it has none (a bare cause, a held file's reason). */
+    fun ended(reason: String): String = if (reason.endsWith(".") || reason.endsWith("?") || reason.endsWith("!")) reason else "$reason."
 
     /**
      * [e]'s words for a person: the system's own, unless the storage is full or they
