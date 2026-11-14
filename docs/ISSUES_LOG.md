@@ -1340,6 +1340,18 @@ cases 1 to 153 as numbers and 154 on as text, so a numeric filter on
 the ID column misses the later ones; the plan's checks read both, and
 changing 384 cells' kind for a filter is not worth the risk now.
 
+The forty-fifth round's first agent found 160 walking its banner and
+Restore on a copy seeded over an emptied note, never after a delete
+made on screen (a medium); its second read the in-part rows 201 to 380
+against the checks they name (114 of 137 true) and found 208 naming a
+release run no committed script makes, 297 the wrong walk part, 301 a
+copy's day read where only its rule is, and 241, 223, 232, 266 and 293
+leaving out parts no check reads, the text's start beside a notice
+among them (mediums). Each says what is true now. The lows: the Repeat
+sheet's own Save is walked, never with the start changed (280, 305,
+366, 368, 376, 378 say so); 217, 268, 222, 244, 250, 273, 277, 278,
+283, 494, 47, 307 and 509 name exactly what their checks reach.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
