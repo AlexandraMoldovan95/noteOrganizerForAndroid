@@ -910,6 +910,27 @@ class ImportingTest {
     }
 
     @Test
+    fun `a skipped look-alike's file goes to the note here it looks like, as the desktop gives it`() {
+        // Skipped, it was dropped with its file: the same backup left the file on the desktop's
+        // note and not on the phone's.
+        val load = notebook("""[{"id": 1, "uid": "h1", "title": "Pic", "body": "p"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114150000000000_p.png").writeBytes("pic".toByteArray())
+        val plan = Importing.plan(load.raw!!, notes("""[{"uid": "b1", "title": "Pic", "body": "p",
+            "attachments": [{"filename": "p.png", "stored_as": "20261114150000000000_p.png"}]}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        val result = Importing.apply(load, plan, Importing.Answers(skipDuplicates = true), here,
+            Importing.Extras(attachments = unpacked))
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(listOf(1, 1), listOf(outcome.duplicatesSkipped, outcome.filesGiven))
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("p.png", note.getJSONArray("attachments").getJSONObject(0).getString("filename"))
+        assertTrue(File(here, "20261114150000000000_p.png").isFile)
+        assertTrue(importMessage(outcome), "1 attached file went to the notes the skipped ones look like" in importMessage(outcome))
+    }
+
+    @Test
     fun `a backup's note that came in on a copy of its file is not offered as changed, nor given another copy`() {
         // Matched by its identity, its files were compared by stored name: asked about as edited
         // elsewhere at every import, and each Update added one more copy of the same file.

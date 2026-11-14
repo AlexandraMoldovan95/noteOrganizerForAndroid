@@ -890,17 +890,40 @@ the desktop's twenty-eighth round, the same mechanism on the notes' road:
 a note that came in on a copy of its file was offered as changed at every
 import, and each Update added another copy (its files are known by name and
 bytes now, in the plan and the Update, AS828). The lows: the bytes were
-compared one at a time on the screen's thread (a block at a time now, and
-no file is found in no folder, AS825); a category deleted and made again
-before a move's Undo kept its note, said to have nowhere to go, where the
-desktop asks the map (AS826); and a refused write of the notes, the Trash,
-the templates or the map, on a rename, a delete, an add or a recolour,
-said the system's words with the app's private path in them (words of
-their own now, AS823, AS827). Left, with their reasons: the move's bar
-keeps the old name after a rename, where the desktop shows its banner
-again (the Undo itself follows the rename); and "renamed or deleted since"
-in putBackFiled is reached now only by a category the map lost without a
-delete, an adopted name whose last note moved away.
+compared one at a time (a block at a time now, AS825); a category deleted
+and made again before a move's Undo kept its note, said to have nowhere to
+go, where the desktop asks the map (AS826); and a refused write of the
+map, or of the notes, the Trash or the templates inside a rename or
+delete, said the system's words with the app's private path in them
+(words of their own there, AS823, AS827; the twenty-seventh round took
+the rest). Left, with their reasons: the move's bar keeps the old name
+after a rename, where the desktop shows its banner again (the Undo itself
+follows the rename); "renamed or deleted since" in putBackFiled is reached
+now only by a category the map lost without a delete, an adopted name
+whose last note moved away; and the bytes are still compared on the
+screen's thread while the import writes, as the desktop's are (slow only
+for very large files).
+
+The twenty-seventh round's medium was parity, older than the wave: a
+skipped look-alike was dropped with its files, where the desktop has given
+them, since wave 2, to the note here it looks like, so the same backup and
+the same answer left a file on one app's note and not the other's. The
+phone gives them now, and says how many (AS829). The lows: a category
+delete's own Trash move, putBackFiled and every other write the notebook
+refused still said the system's words: the atomic write now gives the
+cause alone ("the phone's storage is full", "refused the write"), so no
+road shows the private path, and Organizing's writes say which file
+(AS830); a delete whose notes had gone to the Trash said only "the
+category was left as it was" when a later write was refused (it names the
+Trash now); case 531 called its hand check a choice where its own test
+hands the folders to the plan and nothing else reaches MainActivity's
+wiring. Left, with their reasons: when every new note in a backup is a
+look-alike and they would bring only files, the question offers Import
+anyway or Cancel, not Skip, as the fifteenth round left it (the files stay
+in the backup); a file held after the load turns refile's refusal into
+"try again" where reopening is what helps (very rare); and the count of
+notes that "took attached files" is made before their copies, as the
+desktop's is, so a copy refused on a full phone is counted.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

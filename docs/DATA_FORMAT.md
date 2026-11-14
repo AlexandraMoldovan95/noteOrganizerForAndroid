@@ -1017,7 +1017,9 @@ desktop's three questions are asked before anything is written:
    copies.
 3. New notes that **look identical** to one here (the desktop's
    `_dup_key`: title, text, comments, category, checklist, repeat rule
-   and a series' own days): skip them, or import them anyway.
+   and a series' own days): skip them, or import them anyway. Skipped,
+   a backup's look-alike gives the files it holds and the note here
+   lacks to that note, as the desktop's does, and the words say how many.
 
 Then the rest joins without replacing anything: the backup's categories
 (a name already here keeps its own colour), its painted calendar days, a

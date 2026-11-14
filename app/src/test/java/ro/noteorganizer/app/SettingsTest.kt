@@ -98,6 +98,16 @@ class SettingsTest {
     }
 
     @Test
+    fun `a refused write says why in words of its own, without the app's private path`() {
+        // The system's words were said on the bar: "/data/user/0/.../settings.json.tmp: open failed".
+        val folder = dir()
+        val settings = File(folder, "settings.json")
+        File(folder, "settings.json.tmp").mkdir()
+        val why = Files.writeAtomic(settings, "{}")
+        assertEquals("the phone's storage refused the write", why)
+    }
+
+    @Test
     fun `a file that could be neither read nor copied aside is written over by nothing, as the desktop's`() {
         // Settings and templates were written over then, their bytes in no other
         // copy; only the notes held. Held, every writer is refused.
