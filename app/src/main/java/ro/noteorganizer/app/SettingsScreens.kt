@@ -739,25 +739,32 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         // person knows where else a copy may be, and theirs to turn off --
         // NotesBackupAgent then hands Android only a mark saying so.
         val google = state.load.settings?.let { Settings.googleBackupOn(it) } ?: true
+        // Over a held settings file the agent hands nothing (Settings.forFullBackup):
+        // "Off ... replaced at that next backup" was untrue, and a choice refused.
+        val held = state.load.settings?.let { Files.writesHeld(it.file) } == true
         // The whole row is the switch: its words are what a finger, and a
         // screen reader, find.
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(top = 24.dp)
-                .toggleable(value = google, role = androidx.compose.ui.semantics.Role.Switch) {
+                .toggleable(value = google, enabled = !held, role = androidx.compose.ui.semantics.Role.Switch) {
                     state.putSetting(Settings.PHONE_GOOGLE_BACKUP, it)
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(stringResource(R.string.backup_google_title), color = palette.text, fontSize = 16.sp)
-                Text(stringResource(if (google) R.string.backup_google_on else R.string.backup_google_off),
-                     color = palette.subtext, fontSize = 13.sp)
+                Text(stringResource(when {
+                    held -> R.string.backup_google_held
+                    google -> R.string.backup_google_on
+                    else -> R.string.backup_google_off
+                }), color = palette.subtext, fontSize = 13.sp)
             }
             androidx.compose.material3.Switch(
                 checked = google,
                 onCheckedChange = null,
+                enabled = !held,
                 colors = androidx.compose.material3.SwitchDefaults.colors(
                     checkedThumbColor = palette.onAccent, checkedTrackColor = palette.accent),
             )
@@ -795,6 +802,8 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // kept this run, so none is advised, and a tap is refused before asking.
     val held = load.settings?.let { Files.writesHeld(it.file) } == true
     val heldSaid = stringResource(R.string.trash_window_held)
+    val heldBy = Organizing.windowHeldBy(load)
+    val trashHeldSaid = stringResource(R.string.trash_window_trash_held)
     Column(Modifier.fillMaxSize()) {
         // The page's top scrolls with its list: held above it, it left a
         // phone on its side no room for one row, its buttons squeezed.
@@ -826,6 +835,7 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                                         // and then it says what before it does --
                                         // with none known, any window can.
                                         if (held) state.say(heldSaid)
+                                        else if (heldBy != null) state.say(trashHeldSaid)
                                         else if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
                                         else state.chooseTrashWindow(days)
                                     }
@@ -1128,11 +1138,13 @@ private fun openNotificationSettings(context: android.content.Context, channel: 
  * another: the desktop's Welcome note → Show.
  */
 fun showWelcome(state: AppState) {
-    val uid = state.settings.opt(Settings.WELCOME_NOTE_UID) as? String ?: state.welcomeUidRun
+    // Either uid, as the desktop's: a stale one in settings (that note deleted,
+    // the new uid's write refused) won, and Show added a second.
+    val uids = setOfNotNull(state.settings.opt(Settings.WELCOME_NOTE_UID) as? String, state.welcomeUidRun) - ""
     val welcome = Welcome.build()
     // By its uid (kept in memory too), or, that write refused at the start (a
     // full phone), by its own words: every press added another welcome note.
-    (state.load.notes.firstOrNull { uid != null && it.uid == uid }
+    (state.load.notes.firstOrNull { it.uid in uids }
         ?: state.load.notes.firstOrNull {
             it.title == welcome.optString("title") && it.body == welcome.optString("body") })?.let {
         state.tab = Tab.NOTES

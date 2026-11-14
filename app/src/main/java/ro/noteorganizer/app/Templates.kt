@@ -108,17 +108,18 @@ object Templates {
     }
 
     /**
-     * Whether [dir]'s templates file is there but gave no templates for
-     * failing to read (held, or not parsing): an empty list is then no
-     * answer to "do I have any".
+     * Whether [dir]'s templates file is there but gives no templates for
+     * failing to read now (refused, not parsing, or a list of nothing a
+     * template can be made of, which [load] sets aside): an empty list is
+     * then no answer to "do I have any". Asked of the file, not of a hold: a
+     * `[]` held since an earlier refusal read fine and was said unreadable.
      */
     fun unreadable(dir: File): Boolean {
         val file = File(dir, Backup.TEMPLATES)
         if (!file.exists()) return false
-        if (Files.writesHeld(file)) return true
         return try {
-            Files.parseOwn(file) { JSONArray(it) }
-            false
+            val data = Files.parseOwn(file) { JSONArray(it) }
+            data.length() > 0 && (0 until data.length()).none { data.opt(it) is JSONObject }
         } catch (e: Exception) {
             true
         }
@@ -236,15 +237,24 @@ object Templates {
         val json = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {
-            // Copied aside even when the read was refused, not held: held, every
-            // new draft was dropped unsaid, and a template typed then went with
-            // the app. A copy keeps the old draft's bytes either way.
-            Files.preserveCorrupt(file)
-            return null
+            // A refused read tried once more, and offered if it gets through: copied
+            // aside, a good draft went where nothing offers it. Still unread, it is
+            // copied aside, or held if even that fails ([heldDraft] says so).
+            val again = if (Files.refusedRead(e)) {
+                try { Files.parseOwn(file) { JSONObject(it) } } catch (e2: Exception) { null }
+            } else null
+            if (again == null) {
+                Files.preserveCorrupt(file)
+                return null
+            }
+            again
         }
         val fields = json.opt("fields") as? JSONObject ?: return null
         return Draft(json.opt("edits") as? String, fields, json.opt("waiting") as? String ?: "")
     }
+
+    /** Whether [dir]'s draft could be neither read nor copied aside: no new draft is kept this run. */
+    fun heldDraft(dir: File): Boolean = Files.writesHeld(File(dir, DRAFT))
 
     /**
      * The draft gone: saved, discarded, or the editor closed with nothing to

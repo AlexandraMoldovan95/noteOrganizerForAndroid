@@ -916,6 +916,15 @@ object Organizing {
     fun pastWindow(load: Notebook.Load, days: Int): Int = entriesOf(load.trashRaw).count { isPast(it, days) }
 
     /**
+     * The file that keeps the Trash's window from being chosen this run, or
+     * null: held settings keep no choice, and a held Trash reads empty, so no
+     * question could say what a shorter window takes at the next start (it
+     * took old notes and their files unasked, as on the desktop).
+     */
+    fun windowHeldBy(load: Notebook.Load): File? =
+        load.settings?.file?.takeIf { Files.writesHeld(it) } ?: load.trashFile?.takeIf { Files.writesHeld(it) }
+
+    /**
      * The Trash emptied of what has outlived its window, at the start of
      * the app. With a notebook of its own, the phone runs this itself; the
      * reason it once did not -- a folder shared with the desktop, which

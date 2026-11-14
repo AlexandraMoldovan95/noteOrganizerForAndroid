@@ -80,10 +80,10 @@ object Settings {
     fun forFullBackup(dir: File): FullBackup {
         val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
         val settings = load(dir)
-        // Not read this time (refused, or damaged): the answer is not known, so
-        // nothing is handed over and no off mark written -- written, it outlived
-        // the read and turned a backup the person never touched off for good.
-        if (settings.problem != null) return FullBackup.Nothing
+        // Held, here or by the app's run in this process: the answer is unknown, so
+        // nothing is handed and no off mark written, which outlived the read. One
+        // damaged and copied aside is off by its marks, as Settings → Backup says.
+        if (Files.writesHeld(settings.file)) return FullBackup.Nothing
         if (googleBackupOn(settings)) {
             mark.delete()
             return FullBackup.Everything
@@ -118,7 +118,10 @@ object Settings {
     fun takeOffMark(dir: File, load: Load?) {
         val mark = File(dir, GOOGLE_BACKUP_OFF_MARK)
         if (load == null || !mark.isFile) return
-        if (!load.raw.has(PHONE_GOOGLE_BACKUP) && put(load, PHONE_GOOGLE_BACKUP, false) !is SaveResult.Ok) return
+        // A file that did not read holds its off only in memory: written first,
+        // the mark kept while it cannot be (deleted, the next start read on).
+        if ((load.problem != null || !load.raw.has(PHONE_GOOGLE_BACKUP)) &&
+            put(load, PHONE_GOOGLE_BACKUP, false) !is SaveResult.Ok) return
         mark.delete()
     }
 
@@ -146,6 +149,10 @@ object Settings {
         val file = File(dir, "settings.json")
         if (!file.isFile) return Load(file, JSONObject())
         val marks = JSONObject().put(PHONE_TRASH_WINDOW_UNKNOWN, true).put(PHONE_GOOGLE_BACKUP, false)
+        // Held this run, its marks stand all run, as the desktop's defaults do:
+        // read for real later, the Trash page said "Kept for 30 days" over chips
+        // that refused, and the start purged nothing.
+        if (Files.writesHeld(file)) return Load(file, marks, Files.heldReason(file))
         val parsed = try {
             Files.parseOwn(file) { JSONObject(it) }
         } catch (e: Exception) {

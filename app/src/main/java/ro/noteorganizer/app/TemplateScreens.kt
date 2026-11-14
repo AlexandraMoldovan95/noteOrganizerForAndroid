@@ -239,8 +239,11 @@ fun TemplatesPage(state: AppState) {
         Text(stringResource(R.string.templates_intro), color = palette.subtext, fontSize = 13.sp,
              modifier = Modifier.padding(bottom = 12.dp))
         if (templates.isEmpty()) {
-            Text(stringResource(R.string.templates_empty), color = palette.subtext, fontSize = 14.sp,
-                 modifier = Modifier.padding(vertical = 10.dp))
+            // Over a file that did not read, "No templates yet" sent a person to
+            // type one the held file then refused, or past ones kept aside.
+            val unread = remember(templates) { Templates.unreadable(state.dir) }
+            Text(stringResource(if (unread) R.string.template_unreadable else R.string.templates_empty),
+                 color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
         }
         for ((i, tpl) in templates.withIndex()) {
             Row(
@@ -561,6 +564,12 @@ private fun TemplateEditor(
                 }
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+                // A draft file that could be neither read nor copied aside takes no
+                // new draft: said here, as nothing can be said once the app is gone.
+                if (remember { Templates.heldDraft(state.draftDir) }) {
+                    Text(stringResource(R.string.template_draft_held), color = palette.subtext, fontSize = 13.sp,
+                         modifier = Modifier.padding(bottom = 8.dp))
+                }
                 OutlinedTextField(nameField, { next ->
                         nameField = keptBy(nameCap, nameField, next)
                     }, singleLine = true,

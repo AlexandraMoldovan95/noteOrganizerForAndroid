@@ -81,6 +81,11 @@ class SettingsTest {
             Files.readBytesOf = real
         }
         assertEquals("Ana", JSONObject(settings.readText()).getString("username"))
+        // Held, it reads as its marks all run though the file now reads, as the
+        // desktop's: read for real, the Trash page contradicted its own chips.
+        assertNotNull(Settings.load(folder).problem)
+        assertEquals("", Settings.load(folder).raw.optString("username"))
+        assertEquals(true, Settings.load(folder).raw.opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
         // A new start (Android 8 to 11 reopening in the same process) reads it
         // afresh: held past it, every write was refused after it read fine.
         File(folder, "notes_data.json").writeText("[]")
@@ -149,17 +154,53 @@ class SettingsTest {
         assertTrue(File(off, Settings.GOOGLE_BACKUP_OFF_MARK).isFile)
         // Nothing said anywhere: on, as it always was.
         assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(dir()))
-        // A file not read this time hands nothing over, and writes no off mark:
+        // A file the system refuses hands nothing over, and writes no off mark:
         // written, it outlived the read and turned the backup off for good.
-        val unread = dir("""{"theme": "dark", "phone_google_ba""")
-        assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        val unread = dir("""{"theme": "dark", "phone_google_backup": true}""")
+        val real = Files.readBytesOf
+        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        try {
+            assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        } finally {
+            Files.readBytesOf = real
+        }
         assertFalse(File(unread, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // ...nor while the app's own run holds it, though this read got through:
+        // Settings → Backup says nothing new is taken while it stays open.
+        assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        Files.newStart()
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(unread))
+        // One damaged and copied aside is off by its marks, as the page says.
+        val damaged = dir("""{"theme": "dark", "phone_google_ba""")
+        assertTrue(Settings.forFullBackup(damaged) is Settings.FullBackup.OnlyMark)
+        assertFalse(Settings.googleBackupOn(Settings.load(damaged)))
         // And the first start then writes the answer into the file.
         File(restored, "notes_data.json").writeText("[]")
         Startup.prepare(restored, older = null)
         assertEquals(false, Settings.load(restored).raw.opt(Settings.PHONE_GOOGLE_BACKUP))
         assertFalse(Settings.googleBackupOn(Settings.load(restored)))
         assertFalse("read once, the mark goes", mark.exists())
+    }
+
+    @Test
+    fun `a restore's off mark outlives a start whose settings read was refused`() {
+        // Held in memory alone, the off was taken for the file's: the mark went,
+        // the file never said off, and the next start read on and handed it all.
+        val restored = dir("""{"welcome_offered": true}""")
+        val mark = File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).apply { writeText(Settings.offMark()) }
+        File(restored, "notes_data.json").writeText("[]")
+        val real = Files.readBytesOf
+        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        try {
+            Startup.prepare(restored, older = null)
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertTrue("kept while its answer cannot be written", mark.isFile)
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.load(restored).raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertFalse("written, the mark goes", mark.exists())
+        assertTrue(Settings.forFullBackup(restored) is Settings.FullBackup.OnlyMark)
     }
 
     @Test

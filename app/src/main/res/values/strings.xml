@@ -356,7 +356,8 @@
     <string name="template_use">📎 Use template</string>
     <string name="template_save_as">🧩 Save as template</string>
     <string name="template_none">You don\'t have any templates. Write a note and use “🧩 Save as template”, or create one in Settings → Templates.</string>
-    <string name="template_unreadable">Your templates could not be read just now, so none are offered.</string>
+    <string name="template_unreadable">Your templates file could not be read, so no templates are offered.</string>
+    <string name="template_draft_held">Only Save keeps what you write here this time: an earlier unsaved template could not be read or copied aside, so nothing new is kept for you if the app closes.</string>
     <string name="template_pick_title">Use a template</string>
     <string name="template_started">New note started from template — edits here won\'t change the template</string>
     <string name="template_nothing">Nothing to save: a template keeps a note\'s title, text, comments and checklist — this note has none of those yet.</string>
@@ -627,6 +628,7 @@
     <string name="backup_google_title">Android\'s backup to your Google account</string>
     <string name="backup_google_on">On: Android may copy this app\'s data there.</string>
     <string name="backup_google_off">Off: Android\'s next backup, and a move to a new phone, carry none of your notes, only that it is off; the copy in your Google account is replaced at that next backup.</string>
+    <string name="backup_google_held">The settings file could not be read this time, so this can\'t be changed until the app is closed and opened again, and while it stays open Android\'s backup takes nothing new.</string>
     <string name="backup_google">When this is on and backup is turned on in your phone\'s settings, Android copies the app\'s data, notes and attached files included, to your Google account, about once a day while the phone charges on Wi-Fi. It puts it back when the app is installed again, or copies it straight to a new phone when you move to one. Google keeps that copy under its own privacy policy. Android copies nothing more once the app\'s data passes 25 MB. The file saved above is the one you can open, keep and move.</string>
     <string name="trash_backup">💾 Save a backup — the Trash too</string>
     <string name="backup_never">No backup file made yet.</string>
@@ -644,6 +646,7 @@
     <string name="trash_keep_for">Keep deleted notes for</string>
     <string name="trash_window_unknown">How long the Trash keeps notes could not be read, so nothing is removed from it. Choose the number of days again.</string>
     <string name="trash_window_held">The settings file could not be used, so nothing is removed from the Trash. The number of days can be chosen once the app is closed and opened again.</string>
+    <string name="trash_window_trash_held">The Trash could not be opened this time, so the number of days can be chosen once the app is closed and opened again.</string>
     <string name="trash_kept">kept until the days are chosen</string>
     <string name="trash_empty">The Trash is empty.</string>
     <string name="trash_unknown">deleted (date unknown)</string>

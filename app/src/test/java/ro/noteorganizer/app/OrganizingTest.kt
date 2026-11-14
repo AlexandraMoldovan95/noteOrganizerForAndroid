@@ -377,6 +377,24 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a Trash read refused at the start keeps its window from being chosen, as held settings do`() {
+        // Held, the Trash read empty: a shorter window asked nothing, and the next
+        // start took the old notes and their files unasked.
+        val load = notebook("[]", trash = """[{"id": 1, "deleted_at": "${daysAgo(10)}"}]""",
+                            settings = """{"trash_retention_days": 30}""")
+        assertNull("nothing held, the window can be chosen", Organizing.windowHeldBy(load))
+        try {
+            Files.holdWrites(load.trashFile!!)
+            assertEquals(load.trashFile, Organizing.windowHeldBy(load))
+            Files.newStart()
+            Files.holdWrites(load.settings!!.file)
+            assertEquals(load.settings!!.file, Organizing.windowHeldBy(load))
+        } finally {
+            Files.newStart()
+        }
+    }
+
+    @Test
     fun `deleting for good takes the entry and its files, sparing what others use`() {
         val load = notebook("[]", trash = """
             [{"id": 1, "title": "x", "deleted_at": "2026-10-01 10:00:00",

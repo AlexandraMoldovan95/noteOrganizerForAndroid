@@ -132,6 +132,7 @@ class TemplatesTest {
         File(d, "templates.json").writeText("""[1, "x", null]""")
         assertEquals(emptyList<JSONObject>(), Templates.load(d))
         assertTrue(d.listFiles()!!.any { it.name.startsWith("templates_corrupt_") })
+        assertTrue("set aside, it is said unreadable, not as none", Templates.unreadable(d))
         val e = dir()
         File(e, "templates.json").writeText("""[{"name": "Plan", "body": 5}, "junk"]""")
         val read = Templates.load(e)
@@ -329,6 +330,39 @@ class TemplatesTest {
         File(dir, Templates.DRAFT).writeText("{\"fields\": {\"name\": \"Tr")
         assertNull(Templates.loadDraft(dir))
         assertTrue(dir.listFiles()!!.any { it.name.contains("corrupt") })
+        assertFalse("copied aside, a new draft can be kept", Templates.heldDraft(dir))
+    }
+
+    @Test
+    fun `a draft whose read is refused is offered when a second read gets through, and held, said, when none does`() {
+        val fields = Templates.draftFields("", "Packing", "", "", "General", emptyList(), JSONArray(), JSONArray())
+        val real = Files.readBytesOf
+        // Refused once: copied aside then, a good draft went where nothing offers it.
+        val once = NioFiles.createTempDirectory("draft").toFile()
+        assertNull(Templates.saveDraft(once, Templates.Draft(null, fields, "")))
+        var refusals = 1
+        Files.readBytesOf = { if (it.name == Templates.DRAFT && refusals-- > 0) throw java.io.IOException("refused") else real(it) }
+        try {
+            assertEquals("Packing", Templates.loadDraft(once)?.fields?.getString("title"))
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertTrue("no copy aside", once.list()!!.none { it.contains("corrupt") })
+        assertFalse(Templates.heldDraft(once))
+        // Refused every time: no copy can be made, so it is held, and the editor
+        // says only Save keeps what is typed (a new draft is refused).
+        val always = NioFiles.createTempDirectory("draft").toFile()
+        assertNull(Templates.saveDraft(always, Templates.Draft(null, fields, "")))
+        Files.readBytesOf = { if (it.name == Templates.DRAFT) throw java.io.IOException("refused") else real(it) }
+        try {
+            assertNull(Templates.loadDraft(always))
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertTrue("held", Templates.heldDraft(always))
+        assertNotNull("a new draft is refused", Templates.saveDraft(always, Templates.Draft(null, fields, "x")))
+        assertEquals("Packing", JSONObject(File(always, Templates.DRAFT).readText()).getJSONObject("fields").getString("title"))
+        Files.newStart()
     }
 
     @Test

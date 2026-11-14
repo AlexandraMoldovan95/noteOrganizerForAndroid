@@ -444,6 +444,11 @@ class AppStateTest {
         assertTrue(state.report(Notebook.updateNote(state.load, welcome.id, welcome.title, "changed")))
         showWelcome(state)
         assertEquals("found by the uid this run kept", count, state.load.notes.size)
+        // ...and over a stale uid in settings (its note deleted, the new uid's write
+        // refused), by this run's: the stale one won, and Show added a second.
+        state.putSetting(Settings.WELCOME_NOTE_UID, "a-welcome-note-deleted-since")
+        showWelcome(state)
+        assertEquals("found by this run's uid over a stale one", count, state.load.notes.size)
     }
 
     @Test

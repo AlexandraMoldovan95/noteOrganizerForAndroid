@@ -120,8 +120,10 @@ object Files {
     }
 
     private fun copyAside(file: File): File? {
+        // Through the seam the first read took: a test making a refusal last
+        // saw this read get through, where a phone's fails and holds the file.
         val held = try {
-            file.readBytes()
+            readBytesOf(file)
         } catch (e: Exception) {
             return null
         } catch (e: OutOfMemoryError) {
