@@ -177,9 +177,10 @@ object Importing {
      * one it will not have is compared as the General note the import makes
      * it, as normalize_note does. Compared as it came, an unchanged note read
      * as "edited elsewhere", and Update changed nothing but its rescue copy.
+     * [fileOf] finds a stored file ([filesIn]), so a file is known by its bytes too.
      */
     fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
-             categories: Set<String>? = null): Plan {
+             categories: Set<String>? = null, fileOf: ((String) -> File?)? = null): Plan {
         val asHere: (JSONObject) -> JSONObject = { note ->
             if (categories == null || !needsFiling(note, categories)) note
             else fileUnder(JSONObject(note.toString()), categories)
@@ -216,7 +217,7 @@ object Importing {
             // the route may replace, or -- from a backup, whose files are
             // added and never swapped -- a file this device's copy lacks.
             val fieldsChange = Notebook.sharedUpdateChanges(here, there, fields(source))
-            if (fieldsChange || (source == Source.BACKUP && filesToAdopt(here, there).isNotEmpty())) {
+            if (fieldsChange || (source == Source.BACKUP && filesToAdopt(here, there, fileOf).isNotEmpty())) {
                 differing.add(known)
                 // Files alone trade no words: not OLDER, and no copy made
                 // (Notebook.applyUpdate), so no rescue copy replaced either.
@@ -253,11 +254,18 @@ object Importing {
         return out
     }
 
-    private fun filesToAdopt(mine: JSONObject, theirs: JSONObject): List<JSONObject> {
+    /**
+     * The files [theirs] has and [mine] lacks: by stored name, and, where [fileOf] finds
+     * them, by the name shown and the bytes -- a note that came in on a copy of a file was
+     * asked about as edited elsewhere at every import, and its Update added one more copy.
+     */
+    private fun filesToAdopt(mine: JSONObject, theirs: JSONObject, fileOf: ((String) -> File?)? = null): List<JSONObject> {
         val have = storedNames(mine)
+        val own = Normalize.cleanAttachments(mine.opt("attachments") as? JSONArray ?: JSONArray())
         val theirFiles = Normalize.cleanAttachments(theirs.opt("attachments") as? JSONArray ?: JSONArray())
         return (0 until theirFiles.length()).map { theirFiles.getJSONObject(it) }
             .filter { it.optString("stored_as").isNotEmpty() && it.optString("stored_as") !in have }
+            .filter { att -> fileOf == null || (0 until own.length()).none { sameFile(att, own.getJSONObject(it), fileOf) } }
     }
 
     /**
@@ -386,34 +394,58 @@ object Importing {
         }
     })
 
-    /** Whether two notes hold the same files, by the names they show and their bytes. */
-    private fun sameFiles(one: JSONObject, other: JSONObject, attachmentsDir: File?): Boolean {
+    /**
+     * Where a stored file is: here, then in the unpacked backup, where one not placed yet
+     * still is (the desktop copies every file in first, and compared what the phone missed).
+     */
+    internal fun filesIn(attachmentsDir: File?, unpacked: File?): (String) -> File? = { name ->
+        listOfNotNull(attachmentsDir, unpacked).map { File(it, name) }.firstOrNull { it.isFile }
+    }
+
+    /** Whether two notes hold the same files, each pair one file ([sameFile]). */
+    private fun sameFiles(one: JSONObject, other: JSONObject, fileOf: (String) -> File?): Boolean {
         val a = one.opt("attachments") as? JSONArray ?: JSONArray()
         val b = other.opt("attachments") as? JSONArray ?: JSONArray()
         if (a.length() != b.length()) return false
         for (i in 0 until a.length()) {
             val x = a.optJSONObject(i) ?: return false
             val y = b.optJSONObject(i) ?: return false
-            val nx = Normalize.bareFileName(x.optString("stored_as"))
-            val ny = Normalize.bareFileName(y.optString("stored_as"))
-            if (nx == ny) continue
-            if (attachmentsDir == null || x.optString("filename") != y.optString("filename")) return false
-            val fx = File(attachmentsDir, nx)
-            val fy = File(attachmentsDir, ny)
-            if (nx.isEmpty() || ny.isEmpty() || !fx.isFile || !fy.isFile || fx.length() != fy.length()) return false
-            val same = try {
-                fx.inputStream().buffered().use { ia ->
-                    fy.inputStream().buffered().use { ib ->
-                        generateSequence { ia.read() }.zip(generateSequence { ib.read() })
-                            .takeWhile { (p, q) -> p >= 0 || q >= 0 }.all { (p, q) -> p == q }
-                    }
-                }
-            } catch (e: java.io.IOException) {
-                false
-            }
-            if (!same) return false
+            if (!sameFile(x, y, fileOf)) return false
         }
         return true
+    }
+
+    /** One file twice: the same stored name, or the same name shown and the same bytes. */
+    private fun sameFile(x: JSONObject, y: JSONObject, fileOf: (String) -> File?): Boolean {
+        val nx = Normalize.bareFileName(x.optString("stored_as"))
+        val ny = Normalize.bareFileName(y.optString("stored_as"))
+        if (nx == ny) return true
+        if (nx.isEmpty() || ny.isEmpty() || x.optString("filename") != y.optString("filename")) return false
+        val fx = fileOf(nx) ?: return false
+        val fy = fileOf(ny) ?: return false
+        return fx.length() == fy.length() && sameBytes(fx, fy)
+    }
+
+    /** Two files of one length compared a block at a time (a byte at a time held the screen). */
+    private fun sameBytes(fx: File, fy: File): Boolean = try {
+        java.io.DataInputStream(fx.inputStream().buffered()).use { ia ->
+            java.io.DataInputStream(fy.inputStream().buffered()).use { ib ->
+                val bx = ByteArray(64 * 1024)
+                val by = ByteArray(64 * 1024)
+                var left = fx.length()
+                var same = true
+                while (same && left > 0) {
+                    val n = minOf(left, bx.size.toLong()).toInt()
+                    ia.readFully(bx, 0, n)
+                    ib.readFully(by, 0, n)
+                    for (k in 0 until n) if (bx[k] != by[k]) { same = false; break }
+                    left -= n
+                }
+                same
+            }
+        }
+    } catch (e: java.io.IOException) {
+        false
     }
 
     /** The map an import files by, how many names it adds, and those it refuses. */
@@ -506,7 +538,7 @@ object Importing {
                 val changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
                 var gotFiles = false
                 if (plan.source == Source.BACKUP) {
-                    gotFiles = filesToAdopt(mine, known.theirs).isNotEmpty()
+                    gotFiles = filesToAdopt(mine, known.theirs, filesIn(attachmentsDir, extras.attachments)).isNotEmpty()
                     adoptFiles(mine, known.theirs, claimedElsewhere, attachmentsDir, extras.attachments)
                     claimed += storedNames(mine)
                 }
@@ -636,7 +668,7 @@ object Importing {
                 val entry = fileUnder(shaped(raw), categories.keys)
                 val signature = Normalize.contentSignature(entry)
                 if (signature in seen ||
-                    loose[looseSignature(entry)]?.any { sameFiles(entry, it, attachmentsDir) } == true) continue
+                    loose[looseSignature(entry)]?.any { sameFiles(entry, it, filesIn(attachmentsDir, extras.attachments)) } == true) continue
                 if (keepDays != null && Organizing.isPast(entry, keepDays)) {
                     trashLeftOut += 1
                     continue
@@ -794,7 +826,7 @@ object Importing {
     ) {
         val list = mine.optJSONArray("attachments") ?: JSONArray().also { mine.put("attachments", it) }
         val have = storedNames(mine).toMutableSet()
-        for (att in filesToAdopt(mine, theirs)) {
+        for (att in filesToAdopt(mine, theirs, filesIn(attachmentsDir, unpacked))) {
             if (list.length() >= Normalize.MAX_ATTACHMENTS) break
             val placed = placeFile(att, claimedElsewhere, attachmentsDir, unpacked) ?: continue
             if (placed.optString("stored_as") in have) continue

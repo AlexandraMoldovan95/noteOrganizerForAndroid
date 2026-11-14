@@ -262,7 +262,7 @@ object Organizing {
         for (mark in marks) {
             val note = candidate.opt(indexOfNote(candidate, mark.id, mark.uid)) as? JSONObject ?: continue
             if (note.opt("category") != name) continue
-            if (gone(mark, deleted)) {
+            if (gone(mark, deleted, load.categories.keys)) {
                 kept += 1
                 continue
             }
@@ -287,13 +287,14 @@ object Organizing {
         val array = load.raw ?: return emptyList()
         val name = filedAs(category)
         return marks.filter { mark ->
-            gone(mark, deleted) &&
+            gone(mark, deleted, load.categories.keys) &&
                 (array.opt(indexOfNote(array, mark.id, mark.uid)) as? JSONObject)?.opt("category") == name
         }
     }
 
-    private fun gone(mark: Filed, deleted: Set<String>): Boolean =
-        (mark.category as? String)?.let { filedAs(it) in deleted } == true
+    /** Deleted since, and not made again: the desktop asks the map at the Undo too. */
+    private fun gone(mark: Filed, deleted: Set<String>, categories: Set<String>): Boolean =
+        (mark.category as? String)?.let { filedAs(it) in deleted && filedAs(it) !in categories } == true
 
     // ---- duplicates ----
 
@@ -704,7 +705,9 @@ object Organizing {
             if (old in folded) changes[Settings.COLLAPSED_GROUPS] = JSONArray((folded - old + listOfNotNull(new)).sorted())
             if (settings.raw.opt(Settings.NOTE_FILTER) == old) changes[Settings.NOTE_FILTER] = new ?: Showing.ALL
         }
-        return Settings.putAll(settings, changes)
+        val saved = Settings.putAll(settings, changes)
+        // Refused for a moment: the desktop's words, not the system's with a private path in them.
+        return if (saved is SaveResult.Failed && !Files.writesHeld(settings.file)) SaveResult.Failed(CATEGORIES_UNSAVED) else saved
     }
 
     fun addCategory(load: Notebook.Load, name: String, colour: String): SaveResult {
@@ -745,14 +748,17 @@ object Organizing {
         var saved: SaveResult = SaveResult.Ok(0)
         refile(load, old, clean) {
             saved = saveCategories(load, renamed(load.categories, old, clean), old, clean)
-            // Every holder put back: said so, as the desktop says it, not the system's words.
-            (saved as? SaveResult.Failed)?.let { CATEGORIES_UNSAVED }
+            // Every holder put back, said in saveCategories' words.
+            (saved as? SaveResult.Failed)?.reason
         }?.let { return SaveResult.Failed(it) }
         return saved
     }
 
     private const val CATEGORIES_UNSAVED =
         "The list of categories couldn't be saved just now, so nothing was changed. Try again in a moment."
+
+    private const val REFILE_REFUSED =
+        "A file of the notebook couldn't be written just now, so the category was left as it was. Try again in a moment."
 
     /**
      * Why the map cannot be written this run, or null: asked before any holder is
@@ -820,7 +826,8 @@ object Organizing {
         val notesCandidate = JSONArray(array.toString())
         val notesMoved = renameIn(notesCandidate, old, new) > 0
         if (notesMoved) {
-            write(file, notesCandidate)?.let { return it }
+            // Words of its own for every refusal here: the system's named a private path.
+            write(file, notesCandidate)?.let { return REFILE_REFUSED }
             replace(array, notesCandidate)
         }
         fun putBack(trashBefore: JSONArray?) {
@@ -835,7 +842,7 @@ object Organizing {
         load.trashRaw?.let { trash ->
             val candidate = JSONArray(trash.toString())
             if (renameIn(candidate, old, new) > 0) {
-                load.trashFile?.let { write(it, candidate)?.let { problem -> putBack(null); return problem } }
+                load.trashFile?.let { write(it, candidate)?.let { putBack(null); return REFILE_REFUSED } }
                 trashBefore = JSONArray(trash.toString())
                 replace(trash, candidate)
             }
@@ -860,7 +867,7 @@ object Organizing {
                     }
                 }
                 if (moved) {
-                    write(templatesFile, templates)?.let { problem -> putBack(trashBefore); return problem }
+                    write(templatesFile, templates)?.let { putBack(trashBefore); return REFILE_REFUSED }
                     templatesBefore = before
                 }
             }

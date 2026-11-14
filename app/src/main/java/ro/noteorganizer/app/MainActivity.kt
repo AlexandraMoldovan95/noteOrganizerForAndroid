@@ -696,7 +696,8 @@ fun AppRoot(state: AppState, version: String) {
                 busy = context.getString(R.string.importing)
                 scope.launch {
                     val ready = withContext(Dispatchers.Default) {
-                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories)
+                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories,
+                            Importing.filesIn(state.attachments, contents.attachments))
                         Triple(plan, contents, Importing.LookAlikes(notebook, plan).warm(plan))
                     }
                     busy = null
