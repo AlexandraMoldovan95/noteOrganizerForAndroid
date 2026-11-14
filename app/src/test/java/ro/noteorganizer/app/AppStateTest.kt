@@ -969,7 +969,23 @@ class AppStateTest {
         assertEquals(1, s.openId)
         assertEquals("Not saved, so the open note was left as it is: the phone's storage refused the write.",
             s.said()!!.message)
+        // The pin's and the Trash's lines wait in turn on the bar.
+        repeat(5) { if (s.said()?.message?.startsWith("Not saved, so the open note") == true) s.snackbar.currentSnackbarData?.dismiss() }
         assertFalse(s.beforeImport())
+        assertEquals("Not saved, so nothing was imported: the phone's storage refused the write.", s.said()!!.message)
+    }
+
+    @Test
+    fun `a settings write refused over a held file says its reason as a sentence`() {
+        // "settings.json could not be read or copied aside, …opened again" ended without a stop.
+        val s = state()
+        try {
+            Files.holdWrites(s.load.settings!!.file)
+            assertFalse(s.report(Settings.put(s.load.settings!!, "theme", "dark")))
+            assertEquals(Files.heldReason(s.load.settings!!.file) + ".", s.said()!!.message)
+        } finally {
+            Files.newStart()
+        }
     }
 
     @Test

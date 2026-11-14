@@ -489,7 +489,7 @@ Named here so nobody has to discover them by surprise:
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.
-- **`Notebook.kt` is about 2,900 lines, `NoteEditor.kt` 4,320 (11 November 2026).** The first is
+- **`Notebook.kt` is about 3,070 lines, `NoteEditor.kt` 4,330 (14 November 2026).** The first is
   the note model and every write to a note; the seam to split on is the
   day a group of writes needs state the others do not — not before, and
   not by line count. The second holds the editor's model, its clipboard

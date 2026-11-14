@@ -275,6 +275,10 @@ such a field, through a load, a save, a backup or the Trash. A key a newer
 version adds INSIDE a checklist item, an attachment, the repeat rule, a
 day's edit or the rescue copy is still shaped away (a new kind of repeat
 reads as none), so a newer version that needs one there must also keep it
+readable without it. The same holds for a template: both apps rebuild a
+template from the fields they know (`templates.json`, and the templates a
+backup brings), so a key a newer version adds to one is lost at the next
+template saved or imported, and a newer version must keep its templates
 readable without it.
 One rule, written twice —
 the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
@@ -379,12 +383,15 @@ individually), `overrides` (date → partial note, for "edit only this
 day") and `moved` (a day of the series held on another date).
 
 Their dates are written `YYYY-MM-DD`, zero-padded, in ASCII digits, by
-both apps. The desktop's reader (Python's `strptime`) also takes a few
-forms neither app writes -- a space before a one-digit day, full-width
-digits -- and the phone's does not: a
-day kept under such a key in a backup made by hand reads on the desktop
-and is left out on the phone. Nothing the apps write reaches it, so it is
-left, as known.
+both apps. The desktop's date reader (Python's `strptime`) also takes a
+few forms neither app writes -- a month or day without its zero, a space
+before a one-digit day, a year in other digits -- but these maps are
+looked up by the written form, so a key in such a form, in a backup made
+by hand, matches no day there either: a deleted day under it is kept
+and does nothing, a moved one is dropped, and an override under it is a
+day off the schedule, which the desktop settles as a note of its own.
+The phone's reader takes none of these forms. Nothing the apps write
+reaches it, so it is left, as known.
 
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
@@ -924,7 +931,8 @@ other field the update replaced; restoring puts all of them back. Since
 its turn, so the same button brings it back, unless it holds nothing
 the restored version lacks (an emptied note), when the copy is spent --
 weighed by everything the restore writes over: the text, the comments,
-and, the words the same, their styles and lines (2026-10-29: comments
+and, the words the same, their styles and lines, and every other field
+the copy brings back, those a newer version wrote included (2026-10-29: comments
 typed since the copy went to no file). A save whose text matches the
 copy spends it too, since there is nothing left to rescue; and a save
 due a copy for its comments alone, over a copy the note does not hold
@@ -1060,14 +1068,17 @@ This app's `Note` model reads only what the screen needs, so a write
 never rebuilds the file from it — that would delete, from every note, the
 fields the model never read
 ([why there are two representations](ARCHITECTURE.md#decision-a-note-has-two-representations-on-purpose)).
-Every write carries the desktop's guards:
+Every write carries the desktop's guards, the third only in part:
 
 * work on the array that was READ — append to it, or replace one entry
   inside it — and never rebuild the file from the partial Kotlin model;
 * copy a file that exists but would not parse aside before anything writes
   over it, and write nothing over it at all when even the copy fails
   (`Files.holdWrites`, the desktop's `hold_writes`);
-* mend unpaired surrogates;
+* mend unpaired surrogates: the desktop mends every one on every write
+  (to U+FFFD); the phone mends those in the editor's fields, and writes
+  any other back as `?`, as said above (no road the apps write leads to
+  one);
 * write to a sibling `.tmp`, `sync()` it, then rename over the real file;
 * return the reason on failure instead of looking like it saved.
 

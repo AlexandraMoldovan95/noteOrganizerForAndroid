@@ -1014,11 +1014,12 @@ as untrue in a document the release relies on; it says so now), and it
 said a Trash entry older than "its Trash keeps" stays out, where the
 backup's longer length counts when it is taken. The lows: four more
 "Not saved, so …" lines and the editor's red line ended a bare cause
-without its full stop (`Files.ended`, AS859; the tests now read the
-whole sentence, AS860); the day markers were read past the desktop's
-first 64 entries and measured after their selector came off, so a day
-showed a mark the desktop drops (AS857, AS858); marks it cannot show
-still filled the calendar's cap (AS856); an entry of templates.json that
+without its full stop (`Files.ended`, AS859; the tests now read two of
+those sentences and the editor's whole, AS860); the day markers were read
+past the desktop's first 64 entries and measured after their selector
+came off, so a day showed a mark the desktop drops (AS857, AS858); the
+cap the round before had made count only the marks shown had no mutant
+(AS856); an entry of templates.json that
 is no template counted toward the cap of templates, where the desktop's
 list holds none (AS862); and nothing asked the Skip question with a
 backup's longer window (AS861). The round before's medium has a case of
@@ -1027,6 +1028,31 @@ be written at that moment, the desktop's question has offered Skip by it
 and its merge keeps by its own (the harmless way; the phone stops the
 import there); and a backup whose JSON begins with a byte-order mark may
 read here where the desktop refuses it (not seen on a device).
+
+The thirty-second round read the data format whole against both apps.
+Both agents graded one finding high by the letter of the owner's rule:
+a template is rebuilt from the fields this version knows, on both apps,
+so a key a newer version adds to one is lost at the next template saved
+or imported; the decision of 13 November covers a note's top level, so
+the data format now says so of templates too, and the question whether
+to bring templates under it is the owner's. Two sentences of the data
+format were untrue, counted medium as the release relies on it: the
+desktop's date reader was said to take full-width digits and to read a
+day kept under such a key (it takes a year in other digits only, and its
+maps are looked up by the written form, so such a key matches no day),
+and every write was said to mend unpaired surrogates (the phone mends
+the editor's fields and writes any other back as `?`). A third was short
+(the copy-in-turn weighs every field it brings back), and ARCHITECTURE
+gave Notebook.kt's size of 11 November. The lows: the templates' and the
+backup's refusals, a held file's reason and the start's settings lines
+ended without a full stop (`Files.ended` now gives one to any reason
+without it; AS864); the import's own refusal sentence had no test
+(AS863); AS857 removed the measuring instead of putting the selector's
+removal back before it (re-aimed); two sentences of the round before
+gave the tests and the cap more than they did; and case 536 did not say
+how Trip gets its rescue copy. Left, with its reason: the red line above
+the note and the line for the same note opened on another of its days
+are drawn on screen, where no JVM test reaches.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
