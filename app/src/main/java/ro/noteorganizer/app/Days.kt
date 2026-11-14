@@ -121,13 +121,15 @@ object Days {
      *  the variation selector older pickers wrote. One marker alone is the
      *  older format. */
     fun cleanMarkers(value: Any?): List<String> {
+        // As the desktop's _clean_day_markers: its first 64 entries, each measured before the
+        // selector comes off -- otherwise one day showed here a mark the desktop drops.
         val list = when (value) {
             is String -> listOf(value)
-            is JSONArray -> (0 until value.length()).mapNotNull { value.opt(it) as? String }
+            is JSONArray -> (0 until minOf(value.length(), 64)).mapNotNull { value.opt(it) as? String }
             else -> return emptyList()
         }
-        return list.map { it.replace(VARIATION_SELECTOR, "") }
-            .filter { it.isNotEmpty() && it.codePointCount(0, it.length) <= MAX_DAY_MARKER_CHARS }.take(MAX_MARKERS)
+        return list.filter { it.codePointCount(0, it.length) <= MAX_DAY_MARKER_CHARS }
+            .map { it.replace(VARIATION_SELECTOR, "") }.filter { it.isNotEmpty() }.take(MAX_MARKERS)
     }
 
     fun dayMarkers(settings: JSONObject?): Map<String, List<String>> {

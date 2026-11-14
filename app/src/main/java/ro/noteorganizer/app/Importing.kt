@@ -524,8 +524,10 @@ object Importing {
         val names = (0 until mine.length()).mapNotNull { i ->
             (mine.opt(i) as? JSONObject)?.let { Templates.normalize(it).optString("name") } }.toMutableSet()
         val out = JSONArray()
+        // Counted as the desktop's list holds them: an entry that is no template is none.
+        val held = (0 until mine.length()).count { mine.opt(it) is JSONObject }
         for (i in 0 until theirs.length()) {
-            if (mine.length() + out.length() >= Templates.MAX_TEMPLATES) break
+            if (held + out.length() >= Templates.MAX_TEMPLATES) break
             val shaped = Templates.normalize(theirs.opt(i) as? JSONObject ?: continue)
             if (!names.add(shaped.optString("name"))) continue
             out.put(shaped)

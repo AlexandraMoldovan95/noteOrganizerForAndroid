@@ -449,7 +449,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     fun sayRefused(reason: String) = say(if (Files.bareCause(reason)) "Not saved: $reason." else reason)
 
     /** The editor's own refusals, which always say "Not saved:": a bare cause in sayRefused's words. */
-    fun sayNotSaved(why: String) = say(if (Files.bareCause(why)) "Not saved: $why." else "Not saved: $why")
+    fun sayNotSaved(why: String) = say("Not saved: ${Files.ended(why)}")
 
     /** A message, [long] for one with more to read than a glance takes. */
     fun say(message: String, long: Boolean = false) {
@@ -560,7 +560,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
             snackbar.currentSnackbarData?.dismiss()
             // Only on the note it was asked over: tapped late, it set the day
             // on whatever note was open then, a plain one "on a day".
-            offer("Not saved, so the note stays open: $why", "Leave anyway") { if (openId == id) openDay = onDay() }
+            offer("Not saved, so the note stays open: ${Files.ended(why)}", "Leave anyway") { if (openId == id) openDay = onDay() }
             return
         }
         // On a wide screen the list stays beside the note, and a tap on
@@ -617,7 +617,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val why = flush?.invoke() ?: return go()
         // Over whatever the bar was saying: this answers the tap just made.
         snackbar.currentSnackbarData?.dismiss()
-        offer("Not saved, so the note stays open: $why", "Leave anyway", go)
+        offer("Not saved, so the note stays open: ${Files.ended(why)}", "Leave anyway", go)
     }
 
     /**
@@ -662,7 +662,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         val open = openId
         val touches = open != null && open != 0 && open in ids
         if (touches) (if (closes) flush?.invoke() else saveStaying())?.let { why ->
-            say("Not saved, so the open note was left as it is: $why")
+            say("Not saved, so the open note was left as it is: ${Files.ended(why)}")
             return null
         }
         // Read back only after a change that wrote (a day's delete answers
@@ -683,7 +683,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     fun beforeImport(): Boolean {
         val why = flush?.invoke() ?: return true.also { openBeforeImport = openId?.let { rawNote(it)?.toString() } }
-        say("Not saved, so nothing was imported: $why")
+        say("Not saved, so nothing was imported: ${Files.ended(why)}")
         return false
     }
 

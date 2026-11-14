@@ -1902,7 +1902,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 .padding(horizontal = 18.dp),
         ) {
             model.problem?.let {
-                Text(stringResource(R.string.not_saved_because, it), color = palette.dangerText, fontSize = 13.sp,
+                Text(stringResource(R.string.not_saved_because, Files.ended(it)), color = palette.dangerText, fontSize = 13.sp,
                      modifier = Modifier.padding(bottom = 10.dp))
             }
             if (day != null) {
