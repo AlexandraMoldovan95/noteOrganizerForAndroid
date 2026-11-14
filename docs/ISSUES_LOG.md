@@ -660,7 +660,9 @@ fine. A new start clears the run's holds and unread marks now, each set
 again if its file still does not read (AS773). Android's backup agent,
 reading settings that would not read, wrote its off mark, which outlived
 the read and turned a backup the person never touched off for good: it
-hands nothing over then, writing no mark (AS774). Use template over a
+hands nothing over then, writing no mark (AS774; since the eighteenth round,
+only over a file held, a damaged one copied aside being off by its marks).
+Use template over a
 templates file that did not read said the person had none (it says the
 file could not be read, AS775), and no test reached a refused read at
 all: one does now, through a seam that makes the read refuse (AS772). The
@@ -681,11 +683,11 @@ the next road. The draft's copy aside read the file again, past the seam a
 test refuses through: on a refusal that lasts it failed too, held the draft,
 and every new one was refused unsaid; on one that passed, a good draft went
 where nothing offers it. A refused read is tried once more now and offered
-if it gets through, the copy reads through the seam, and a draft still held
-has the template editor say only Save keeps what is typed (AS776, AS777).
+if it gets through, and the copy reads through the seam (AS777, AS776); a
+draft still held has the template editor say only Save keeps what is typed.
 Settings → Templates over a file that did not read said "No templates yet"
-(it says the file could not be read, AS778, with a list of junk set aside
-counted as unreadable). And Settings → Backup over a held settings file read
+(it says the file could not be read, with a list of junk set aside counted
+as unreadable; AS778 guards that count, not the page's words). And Settings → Backup over a held settings file read
 Off, "replaced at that next backup", while the agent handed nothing: the
 switch is shut there now and the page says so; the agent hands nothing while
 the app holds the file, and a damaged file copied aside is off by its marks,
@@ -700,12 +702,36 @@ held at the start, read empty, a shorter window asked nothing, and the next
 start took the old notes and their files; the window cannot be chosen while
 the Trash is held now, and the page says why (AS782). Left, with their reasons: a read refused after a
 good one in the same run shows the marks, or an empty list, where the desktop
-keeps its last good read (it takes the phone's own storage failing mid-run,
-when every write fails too, and nothing is lost); an import over a held
+keeps its last good read (it takes the phone's own storage failing mid-run;
+the file refused is then held, so nothing is written over it, and nothing is
+lost); an import over a held
 Trash or templates file stops whole, where the desktop brings the notes in
 (said, and nothing is lost); and on Android 12 and later Back keeps the app
 in memory, so "closed and opened again" ends a hold only once Android or
 the person ends the app (the words stay true, nothing is lost).
+
+The nineteenth round found one of medium severity in the code and four in the
+documents. A template's draft refused at the background for want of room was
+thrown away unsaid, the class the eighteenth round answered only for a held
+draft: the person back while the app lives is told now that only Save keeps
+it. The test plan's case 520 wrote its broken file where the app never reads,
+and 522 asked a new note over a notes file whose read was refused, which holds
+it; both are set up again, and a case of its own walks the Trash held (523).
+DATA_FORMAT said the templates' page says nothing over a broken file, and that
+the desktop keeps a long number whole, both no longer so. The lows: a draft
+refused twice, its copy's read getting through, set a good draft aside where
+nothing offers it (offered from the copy now, AS783); Templates.unreadable said
+none where a read refused at load and allowed after found templates (AS784); a
+notes or Trash file held at the start read for real later in the run (held all
+run now, as settings are, AS785); the Trash page said "The Trash is empty" and
+"Kept for N days" over a held Trash; over held settings, every return to the
+app cancelled the daily notification, the marks saying it is off (the alarm set
+before stays now); Duplicate and Clean up duplicates left their file copies
+behind on a refused write (taken back, AS786); and a development build's copy
+of an older notebook said it was brought in after a write was refused (AS787).
+Left, with its reason: Android's backup agent, run before any start, can hand
+the off mark for a damaged settings file before the start has said the backup
+is off; that is the rule as written, and the start says it when the app opens.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

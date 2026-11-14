@@ -50,7 +50,7 @@ here.
 
 ## The map
 
-About 29,800 lines of Kotlin on 14 November 2026, the rules a little over
+About 29,900 lines of Kotlin on 14 November 2026, the rules a little over
 half of them, in files that import nothing from Android, and the drawing
 the rest, in files that may. Each file's count below is rounded, and moves
 with every change: `wc -l` on the folder gives today's.
@@ -59,10 +59,10 @@ with every change: `wc -l` on the folder gives today's.
 
 | File | Lines | What lives there | The desktop's |
 |---|---|---|---|
-| `Notebook.kt` | 3,060 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
+| `Notebook.kt` | 3,070 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 970 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
-| `Organizing.kt` | 1,030 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
+| `Organizing.kt` | 1,040 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
 | `Importing.kt` | 800 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |
@@ -81,7 +81,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Welcome.kt` | 110 | The welcome note a new notebook opens on | `welcome.py` |
 | `Stats.kt` | 95 | The Statistics page's figures | the statistics page |
 | `Files.kt` | 320 | The atomic write, and keeping a broken file aside | `storage.py` |
-| `Startup.kt` | 170 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
+| `Startup.kt` | 180 | What happens before the first screen: copy-in, welcome, purge, the first-use day | the entry file's start |
 | `Outgoing.kt` | 160 | A note shared: whether it has a table, so its words are not offered; its words for a message; the file's name; one share made at a time | the export's `.txt` and file name |
 | `Reminders.kt` | 85 | The day's reminder: the notes a day holds, repeats included; whether the bar shows today; the notification's hour and when it is next due | the calendar's reminder bar and `reminder_last_shown` |
 | `PyText.kt` | 95 | Python's idea of a space, for the ports that strip and split as it does | `str.isspace` |
@@ -92,7 +92,7 @@ with every change: `wc -l` on the folder gives today's.
 | File | Lines | What lives there |
 |---|---|---|
 | `NoteEditor.kt` | 4,330 | The one screen for reading and writing a note: autosave, Undo and Redo, the format bar and its pending styles, copy and paste through the note's clipboard, checklist, comments, files, details, restore, a day's move and the questions for days off the schedule, the series' banner, a cell written in place and the table's bar and More |
-| `SettingsScreens.kt` | 1,170 | Settings and its ten pages, Duplicates and Reminders among them |
+| `SettingsScreens.kt` | 1,180 | Settings and its ten pages, Duplicates and Reminders among them |
 | `CalendarScreen.kt` | 630 | The month, the day's notes, a day's menu, the History |
 | `NotesScreen.kt` | 1,140 | The list: greeting, search, sort and show, groups, selection, the handle that arranges Custom order, the + button |
 | `AppState.kt` | 1,300 | The app's state, and every action a screen can take on the notebook |

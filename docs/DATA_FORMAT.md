@@ -81,8 +81,8 @@ notes as [share codes](#share-codes).
 A file that exists and will not parse is **kept aside, not refused**: its
 bytes are copied beside it as `<name>_corrupt_<yyyyMMdd_HHmmss>.json`
 (once per distinct content), and the app opens without it and says where
-the copy is (the templates' page alone says nothing, showing none) — the
-desktop's answer, so that a broken file costs a
+the copy is (the templates' page and Use template say the file could not
+be read) — the desktop's answer, so that a broken file costs a
 message, not a phone that cannot take a single note. The phone's folder
 is its own, where no person can open it, so a backup `.zip` carries such
 a copy under `unreadable/`, which an import on either device leaves
@@ -297,8 +297,10 @@ desktop's own answers (`tools/make_unknown_fixture.py`):
 - **On a phone**, Android's JSON reader holds an integer outside 64 bits
   (from 2^63 up, or below −2^63) as a double, so such a field holding one
   comes back as another number: its digits rounded, or 9223372036854775807
-  or −9223372036854775808 where it rounds to the edge (the desktop and the
-  unit tests keep it whole); it writes 1.0 back as 1 and
+  or −9223372036854775808 where it rounds to the edge (the desktop keeps it
+  whole up to 4,300 digits, and reads a file with a longer one as damaged).
+  From about 309 digits the double is infinite, read as Infinity below; it
+  writes 1.0 back as 1 and
   -0.0 as -0, which Python reads as whole numbers; it refuses a whole
   backup holding Infinity or NaN as a member's value, where the desktop
   reads it and leaves that field out (in a list it reads them as null); and
