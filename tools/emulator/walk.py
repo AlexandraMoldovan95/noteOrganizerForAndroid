@@ -815,8 +815,8 @@ def main():
     unbroken_rows_and_caps(folder)
     refusals_and_caps_said(folder)
     message_over_a_renamed_row(folder)
-    # Written with their fixes on 2026-10-28 and walked alone then; the full
-    # walk is the check before an install, so they belong in it.
+    # Written with their fixes on 2026-10-28 (the next three on 2026-11-13) and
+    # walked alone then; the full walk is the check before an install.
     hostile_backups(folder)
     code_read_away(folder)
     shared_files(folder)

@@ -1267,22 +1267,42 @@ the walk types before the bullet; changing the walk is checked only by
 a full walk, which the release's final verification runs.
 
 The forty-first round read again every row still called fully
-automated (106) and found sixteen walked only in part (mediums): the
+automated (106) and found fifteen walked only in part (mediums): the
 walk presses Ctrl+V, Ctrl+A and Ctrl+End where a person uses the
 selection menu or a tap (173, 182, 185, 288, 333, 341, 352), 78's
 "closing asks" reaches only a list with no room left, and 23, 151, 158,
 440, 478, 484 and 526 leave a part of their expected result unread.
 Each says "Automated in part" now and names it. Its first agent found
 sixty rows still naming the runs of 0.9.1 beside walk steps that run
-did not have (6, 42, 45, 49, 58, 60 among them): the run dates went
-from every claim of the column, whose history is in each row's Actual
-Result, and the eye rows walked whole name their walk part. 7 (its
+did not have (6, 42, 45, 49, 58, 60 among them): those run dates went
+from the column (the history of the rows Claude had marked Pass is in
+their Actual Result; a date left marks a one-off), and the eye rows
+walked whole name their walk part. 7 (its
 Romanian search, by no walk part) and 148 ("Added 1 note." on screen)
 were walked only in part; 25, 143, 232, 250, 252, 266, 269, 293, 302,
-317, 320, 358 and 467 name all they leave (an import the walk stands in
-for by writing the file, the selection menu, the phone on its side);
-217, 175, 17, 57 and 450 give the right reason; 37 names the test that
+317, 320, 358 and 467 name what they leave (an import the walk stands
+in for by writing the file, the selection menu, the phone on its side;
+302 and 358 rightly since the round after); 217, 175, 17 and 450 give
+the right reason, and 57 since the round after; 37 names the test that
 makes its copy.
+
+The forty-second round read the rows still called whole a second time,
+by another pair of eyes, and found sixteen more walked only in part
+(mediums): the screen after a restore read from settings.json (211,
+230), a draft read gone where the case restarts the app (322), a banner
+read as the file's copy (458, 37), an import the walk stands in for by
+writing the file (234, 249), a message band seen but its words not read
+(132), a carry landing anywhere in fifteen places (457). Each says
+"Automated in part" now and names what the checks are known not to
+reach; the 73 left whole are those both readings called whole. Its
+first agent found 57, 37, 440, 173, 352, 341, 185 and 151 naming less
+than they leave, and the lows (302, 158, 526, 358, 320, 154, 195). The
+How to use tab now says "Automated in part" names what the scripts are
+known not to reach and the hand check walks the case whole, and that
+the walk moves the cursor with Home and End where a person taps. Left,
+with its reason: the reminders part checks its tap from the shade only
+when the notification is found; changing the walk is checked only by a
+full walk, which the release's final verification runs.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
