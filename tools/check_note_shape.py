@@ -40,7 +40,8 @@ WHAT IT CHECKS
 5. docs/DATA_FORMAT.md's field list (the jsonc block under "A note") is the
    desktop's `NOTE_DEFAULTS`.
 6. The fields each app knows (`KNOWN_NOTE_FIELDS`), beside which any other
-   is kept as it came, and the three bounds on those, are the same.
+   is kept as it came, and the three bounds on those, are the same; and so
+   are the fields of a template each knows (`KNOWN_TEMPLATE_FIELDS`).
 
 It reads the desktop's source. It never writes there -- that is the hard
 rule of this project, and a gate is no exception.
@@ -67,6 +68,9 @@ NORMALIZE_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                             "noteorganizer", "app", "Normalize.kt")
 MODEL_PY = os.path.join(DESKTOP, "noteorganizer", "core", "model.py")
 SHARING_PY = os.path.join(DESKTOP, "noteorganizer", "core", "sharing.py")
+STORAGE_PY = os.path.join(DESKTOP, "noteorganizer", "core", "storage.py")
+TEMPLATES_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                            "noteorganizer", "app", "Templates.kt")
 
 # Fields the desktop keeps but a phone has no business writing, with the
 # reason. An exception nobody can read is not a reviewed exception.
@@ -409,6 +413,22 @@ if model_py is not None and normalize_kt is not None:
             ok("%s is %s in both" % (name, py.group(1)))
         else:
             fail("%s is the same in both" % name, "desktop %s, phone %s" % (py.group(1), kt.group(1)))
+
+# ...and a template's, by the same rule (the owner's decision, 2026-11-14).
+storage_py, templates_kt = read(STORAGE_PY), read(TEMPLATES_KT)
+if storage_py is not None and templates_kt is not None:
+    known = re.search(r"KNOWN_TEMPLATE_FIELDS = frozenset\(\{([^}]*)\}\)", storage_py)
+    listed = re.search(r"val KNOWN_TEMPLATE_FIELDS = setOf\(([^)]*)\)", without_comments(templates_kt), re.S)
+    theirs = set(re.findall(r'"(\w+)"', known.group(1))) if known else None
+    ours = set(re.findall(r'"(\w+)"', listed.group(1))) if listed else None
+    if theirs is None or ours is None:
+        fail("I can find the fields a template holds that each app knows (KNOWN_TEMPLATE_FIELDS), in both languages")
+    elif theirs == ours:
+        ok("the two apps know the same fields of a template, and keep any other alike (%d known)" % len(theirs))
+    else:
+        fail("the two apps know the same fields of a template",
+             "the desktop knows and we do not: %s\nwe know and the desktop does not: %s"
+             % (sorted(theirs - ours) or "-", sorted(ours - theirs) or "-"))
 
 print()
 if failures:

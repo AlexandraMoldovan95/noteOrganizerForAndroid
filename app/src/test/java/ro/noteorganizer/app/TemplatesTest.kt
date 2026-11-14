@@ -415,4 +415,30 @@ class TemplatesTest {
         val draft = Templates.collected("Trip", "Packing", "", "", "General", listOf("socks" to false), "charger", JSONArray(), JSONArray())
         assertFalse(draft.toString() == opened.toString())
     }
+
+    @Test
+    fun `a template keeps a field a newer version wrote, through a save, a load, an edit and an import`() {
+        // The owner's decision of 14 November: rebuilt from its known fields, a template lost what a
+        // newer version added at the next template saved or imported, as the desktop's did.
+        val newer = Templates.normalize(JSONObject().put("name", "Weekly").put("body", "b")
+            .put("reminder_time", "09:00").put("_mark", 1).put("many", JSONObject().put("deep", JSONArray().put(1))))
+        assertEquals(listOf("09:00", true, false),
+            listOf(newer.optString("reminder_time"), newer.has("many"), newer.has("_mark")))
+        val dir = NioFiles.createTempDirectory("templates").toFile()
+        assertNull(Templates.save(dir, listOf(newer)))
+        assertEquals("09:00", Templates.load(dir).single().optString("reminder_time"))
+        // ...the editor's Save carries it over from the template it edits...
+        val edited = Templates.collected("Weekly", "", "b and more", "", "General", emptyList(), "", JSONArray(), JSONArray(),
+            keeping = newer)
+        assertEquals("09:00", edited.optString("reminder_time"))
+        // ...and a backup's template brings its own in.
+        val load = scratch("[]", attachments = true)
+        Importing.apply(load, Importing.plan(load.raw!!, emptyList(), Importing.Source.BACKUP), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray().put(JSONObject().put("name", "From backup").put("reminder_time", "08:00"))))
+        assertEquals("08:00", Templates.load(dirOf(load)).single().optString("reminder_time"))
+        // ...bounded as a note's: no more than the same number of such fields.
+        val many = JSONObject().put("name", "T").apply { for (i in 0 until 40) put("f%02d".format(i), i) }
+        assertEquals(Normalize.MAX_UNKNOWN_FIELDS,
+            Templates.normalize(many).keys().asSequence().count { Regex("f\\d\\d").matches(it) })
+    }
 }

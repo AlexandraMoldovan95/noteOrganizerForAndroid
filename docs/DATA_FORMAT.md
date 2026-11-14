@@ -275,11 +275,12 @@ such a field, through a load, a save, a backup or the Trash. A key a newer
 version adds INSIDE a checklist item, an attachment, the repeat rule, a
 day's edit or the rescue copy is still shaped away (a new kind of repeat
 reads as none), so a newer version that needs one there must also keep it
-readable without it. The same holds for a template: both apps rebuild a
-template from the fields they know (`templates.json`, and the templates a
-backup brings), so a key a newer version adds to one is lost at the next
-template saved or imported, and a newer version must keep its templates
-readable without it.
+readable without it. A template's own fields follow the same rule (the
+owner's decision, 2026-11-14): beside the eight a version knows (`name`,
+`title`, `body`, `formatting`, `paragraphs`, `comments`, `category`,
+`checklist`), any other key is kept as it came, bounded as a note's, in
+`templates.json`, through a backup and through the template editor's
+Save; inside a template's checklist it is shaped away, as in a note's.
 One rule, written twice —
 the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
 held together by `tools/check_note_shape.py` and by a fixture of the

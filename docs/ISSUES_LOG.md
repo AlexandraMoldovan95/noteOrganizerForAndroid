@@ -1054,6 +1054,16 @@ how Trip gets its rescue copy. Left, with its reason: the red line above
 the note and the line for the same note opened on another of its days
 are drawn on screen, where no JVM test reaches.
 
+The owner answered the templates question the same day: a template keeps
+the fields a newer version wrote, bounded as a note's, on both apps.
+`Templates.normalize` keeps any key beyond the eight it knows
+(`KNOWN_TEMPLATE_FIELDS`, through `Normalize.unknownFields`), so they
+survive `templates.json`, a backup's import and every save (AS865); the
+template editor's Save carries them over from the template it edits
+(`Templates.collected`'s `keeping`, AS866); and the note's-shape gate
+now holds the two apps' known template fields together. Case 537 walks
+it by hand, through a desktop backup.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

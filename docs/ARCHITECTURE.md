@@ -74,7 +74,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Backup.kt` | 470 | The `.zip`: export, the guards, unpacking only known names | `_safe_extract_zip` and friends |
 | `Styling.kt` | 340 | Format spans over a selection, and the desktop's sizes and faces | `richtext.py` |
 | `Settings.kt` | 400 | `settings.json`: the desktop's keys, the phone's theme keys, categories | `storage.py` |
-| `Templates.kt` | 370 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
+| `Templates.kt` | 380 | `templates.json`: normalising, reading, the two saving rules, a note from a template | `normalize_template`, the templates page |
 | `Editing.kt` | 1,130 | A body cut into prose and tables for the editor, a new table, a caption, Undo's history, word count, reading time | the editor |
 | `Sharing.kt` | 390 | Share codes: Base64 of zlib of JSON, and the limits that make a pasted one safe | `sharing.py` |
 | `Finding.kt` | 190 | Find in note: matches in prose and cells, the count, stepping | the find bar |
