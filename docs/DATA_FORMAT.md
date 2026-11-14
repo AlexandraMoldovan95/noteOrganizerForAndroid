@@ -187,9 +187,10 @@ The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
 are adopted with a colour, as the desktop's `adopt_categories_of` does:
 in memory at every start (the phone's start does not write them), and for
-good by a backup's import, for its notes and the trashed notes it brings,
-before it compares them with the notes here (a note refiled here under
-General and filed under the name in the backup is a changed note). A name
+good by a backup's import, in the file's order, for its notes and the
+trashed notes the Trash's window keeps, before it compares any of them with
+what is here (a note refiled here under General and filed under the name
+in the backup is a changed note), as the desktop's import does. A name
 past the ceilings (80 characters, 200 categories) stays out, its notes and
 trashed notes under General, and the import says how many and why.
 

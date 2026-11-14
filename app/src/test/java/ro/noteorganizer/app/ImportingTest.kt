@@ -894,6 +894,22 @@ class ImportingTest {
     }
 
     @Test
+    fun `a backup's categories are adopted in the file's order, as the plan adopted them`() {
+        // Apply took the new notes first, the plan the file's order: other colours, and at the
+        // 200 ceiling other names, so a note the plan offered as changed Update did not change.
+        val load = notebook("""[{"id": 1, "uid": "g1", "title": "Seeds", "body": "x", "category": "General"}]""")
+        val incoming = notes("""[{"uid": "g1", "title": "Seeds", "body": "x", "category": "Garden"},
+            {"uid": "s1", "title": "Hoe", "body": "h", "category": "Shed"}]""")
+        val expected = Importing.merged(load.categories, null, incoming).map
+        val plan = Importing.plan(load.raw!!, incoming, Importing.Source.BACKUP, expected.keys)
+        assertTrue(Importing.apply(load, plan, Importing.Answers(update = true), null) is Importing.Result.Done)
+        val saved = Settings.load(dirOf(load)).raw.getJSONObject(Settings.CATEGORIES)
+        assertNotEquals(expected["Garden"], expected["Shed"])
+        assertEquals(expected["Garden"], saved.getString("Garden"))
+        assertEquals(expected["Shed"], saved.getString("Shed"))
+    }
+
+    @Test
     fun `two twins in a backup's Trash under a category it adopts come in once, one under a refused name as General`() {
         // Signed before the name was known, the first read as General and the second under it: both came in.
         val load = notebook("[]")

@@ -62,7 +62,7 @@ with every change: `wc -l` on the folder gives today's.
 | `Notebook.kt` | 3,070 | The `Note` model, loading, every write to a note, search, sorting, share-code inspection, `_prev` and its restore | `model.py`, `storage.py`, parts of the UI |
 | `Pasting.kt` | 1,730 | HTML in, through the desktop's reader and the part of Python's parser it reaches; a selection out as HTML; where a paste lands; a PDF's column rejoined | `richtext.py`'s `html_to_note`, `reflow_wrapped`; `html.parser`, `html.unescape`; the editor's paste |
 | `Recurrence.kt` | 970 | Dates read and shown, the repeat rule, a series' days in a range, moved and edited days, the History | `recurrence.py` |
-| `Organizing.kt` | 1,090 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
+| `Organizing.kt` | 1,110 | Duplicate, pin, move, categories, the Trash for good, restore; Custom order placed and moved; files attached and taken off; duplicates found and cleaned up | `storage.py`, the settings page, the list |
 | `Exporting.kt` | 700 | A note as the desktop's web page or plain text, through its own gatekeepers for styles and lines | `richtext.py`'s `note_to_html`, `html_document` |
 | `Tables.kt` | 890 | The table grammar: pipe rows to a grid and back, `TableEdit` with the table bar's edits and where each cell came from, a merge's and a row height's writes, a column's width and hidden mark, each cell's place in a body | `tables.py`, the editor's `_grid_*` |
 | `Importing.kt` | 860 | One planner and one apply for codes and backups: the three questions, what joins without asking | `import_data`, `split_by_identity` |

@@ -300,6 +300,25 @@ class OrganizingTest {
         assertEquals(listOf("", "Work", "Work"), (0..2).map { all.getJSONObject(it).optString("category") })
     }
 
+    @Test
+    fun `a move's Undo leaves a note whose category is gone since, and ends when the one moved to is gone`() {
+        // Put back under a deleted category, the next refresh adopted it again: a deleted
+        // category came back. And the one moved to, renamed, read as "no longer where the move put them".
+        val settings = """{"categories": {"General": "#7c5cff", "Home": "#4cc9f0", "Work": "#f9c74f"}}"""
+        val load = notebook("""[{"id": 1, "category": "Home"}, {"id": 2, "category": "General"}]""", settings = settings)
+        val filed = Organizing.filedNow(load, listOf(1, 2))
+        Organizing.moveToCategory(load, listOf(1, 2), "Work")
+        val gone = Notebook.load(dirOf(load)).let { it to Organizing.deleteCategory(it, "Home", trashNotes = false) }.first
+        val back = Notebook.load(dirOf(gone))
+        assertEquals(1, Organizing.notBack(back, filed).size)
+        assertTrue(Organizing.putBackFiled(back, filed, "Work") is SaveResult.Ok)
+        assertEquals(listOf("Work", "General"), (0..1).map { onDisk(back).getJSONObject(it).optString("category") })
+        val renamed = Notebook.load(dirOf(back))
+        assertTrue(Organizing.renameCategory(renamed, "Work", "Job") is SaveResult.Ok)
+        val said = Organizing.putBackFiled(Notebook.load(dirOf(renamed)), filed, "Work")
+        assertTrue(said.toString(), (said as SaveResult.Failed).reason.startsWith("The category they were moved to"))
+    }
+
     // ---- categories ----
 
     @Test
@@ -386,6 +405,7 @@ class OrganizingTest {
             Files.holdWrites(load.settings!!.file)
             val renamed = Organizing.renameCategory(load, "Work", "Job")
             assertTrue(renamed.toString(), (renamed as SaveResult.Failed).reason.contains("settings.json"))
+            assertTrue("said that nothing moved", renamed.reason.endsWith("Nothing was changed."))
             assertTrue(Organizing.deleteCategory(load, "Work", trashNotes = true) is SaveResult.Failed)
         } finally {
             Files.newStart()

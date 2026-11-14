@@ -811,9 +811,11 @@ filed under the name in the backup read as unchanged and was skipped, its
 category coming back empty -- the very road of re-importing after the bug.
 The plan and the import now take their names from one place
 (`Importing.merged`), as the desktop adopts before it compares (AS796). The
-lows: twins in a backup's Trash under a name it adopts were signed before
-the name was known, and both came in, on the desktop too (adopted first now,
-AS797); a trashed note under a name past the ceilings kept it, and a note
+lows: on the desktop, twins in a backup's Trash under a name it adopts were
+signed before the name was known, and both came in; here the round's own
+filing under General would have done the same (the Trash's names are
+adopted before anything is signed, AS797); a trashed note under a name past
+the ceilings kept it, and a note
 under one was no look-alike of the same note here under General (filed
 under General, as `normalize_note` files it, AS806, AS807); "1 categories",
 and no reason given (AS812); the export checked a notes file the start had
@@ -828,6 +830,27 @@ nullable, so it never compiled. Left, with its reason: a category deleted
 with its notes sent to the Trash, then its map write refused on a full
 phone, leaves those notes in the Trash under the old name (nothing is lost,
 the delete is said to have failed, and the notes are restorable).
+
+The twenty-fourth round's medium was in the test plan: case 528 called "not
+practical by hand" a road four steps walk (case 525's backup imported, its
+category deleted, the backup imported again). The lows: a move's Undo put a
+note back under a category deleted since, and the next refresh brought the
+deleted name back, while after the category moved to was renamed the Undo
+said the notes were no longer where the move put them (a note whose category
+is gone stays, and is said, as the desktop says it; the category moved to,
+renamed or deleted, ends the Undo with words of its own, AS815, AS816, AS511);
+apply adopted a backup's names in another order than the plan, so at the 200
+ceiling each kept other names (the file's order in both, AS814); a delete
+over held settings asked its question and only then refused (refused before
+it now, and said to have changed nothing); AS809 could not fail, a copy
+kept aside standing in for the check it watched (the file the start read is
+read back as it is now); a copy compared byte for byte was read outside the
+words for a refused file; an export's failure was said in four seconds; the
+words for a file too large to check also covered a moment short of memory;
+and a backup holding no notes as notes dropped the words for a file past
+what the phone reads back. Left, with its reason: an added or recoloured
+category over held settings is refused here and kept for the session on the
+desktop, whose start already said no setting is saved; nothing is lost.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

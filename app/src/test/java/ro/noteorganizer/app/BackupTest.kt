@@ -427,7 +427,11 @@ class BackupTest {
             Files.newStart()
         }
         // One the start read is the app's own: never checked, never replaced.
-        assertTrue("unread no more, it goes in as it is", "unreadable/notes_data.json" !in names(dir))
+        val asIs = ByteArrayOutputStream().also { Backup.export(dir, temp("scratch"), it) }
+        ZipFile(File(temp("o"), "d.zip").apply { writeBytes(asIs.toByteArray()) }).use { a ->
+            assertEquals("unread no more, it goes in as it is", "[{damaged",
+                a.getInputStream(a.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
+        }
         notes.writeText("""[{"id": 1, "title": "Kept"}]""")
         assertFalse((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {})
             as Backup.Export.Saved).notesUnread)
