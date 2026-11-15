@@ -18,6 +18,9 @@ Alexandra Moldovan decided what it does, used it on her own phone and
 walks its test plan; Claude Code, an AI coding agent, wrote most of the
 code under her rules, and she approves every push and every merge
 ([how it was built](#how-it-was-built), [how it is checked](#how-it-is-checked)).
+Her own account of both apps is
+[In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
+in the desktop app's repository.
 
 <p align="center">
   <img src="docs/screenshots/demo.gif" alt="A note opened, a table, a new note written on the phone's keyboard, the month on the calendar, and the list in a dark theme" width="300">
@@ -101,8 +104,11 @@ agent, as she built the desktop app. She decided what it should do, used
 it on her own phone and reported what went wrong there, chose between the
 options the agent put forward, and approves what is merged. The agent
 wrote most of the code and the documentation, working under the rules in
-[CLAUDE.md](CLAUDE.md); its commits carry a `Co-Authored-By` line. In her
-own words: [In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
+[CLAUDE.md](CLAUDE.md); its commits carry a `Co-Authored-By` line. The
+latest weeks of the history are the final audit before Google Play: rounds
+of reviewers that read the app, its documents and its test plan against
+the code, each finding fixed and its fix read again; what they found is in
+the [issues log](docs/ISSUES_LOG.md). In her own words: [In my words](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/IN_MY_WORDS.md),
 in the desktop app's repository, which also tells
 [how the final audit before the stores was run](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/AI_WORKFLOW.md#the-final-audit)
 and keeps [the prompts its agents were given](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/audit/README.md),
@@ -123,6 +129,12 @@ Start wherever your question is.
 | [tools/emulator/README.md](tools/emulator/README.md) | The scripts that drive the emulator — walk, tap, type, photograph — and the ways the emulator lies to a script. |
 | [docs/screenshots/README.md](docs/screenshots/README.md) | Where the pictures come from, and how one command remakes them. |
 | [CLAUDE.md](CLAUDE.md) | How work is done in this folder: the rules, the approvals, and the environment traps that cost a day each. |
+
+Three stories from the issues log to start with:
+[a bug found on her own phone](docs/ISSUES_LOG.md#one-change-told-twice-by-samsungs-keyboard),
+settled by her test;
+[a desktop fix the port was never asked about](docs/ISSUES_LOG.md#a-desktop-fix-the-port-was-never-asked-about);
+and [a deliberate break that no test failed on, because no test had run](docs/ISSUES_LOG.md#a-silent-mutant-is-not-a-passing-one).
 
 The desktop app is the specification. Where a rule here answers "what
 should this do?", the answer comes from reading its Python, not from
