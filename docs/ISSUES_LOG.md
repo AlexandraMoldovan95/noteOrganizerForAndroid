@@ -1774,17 +1774,32 @@ refused: 523 and 522's settings steps give that recipe, untried on an
 emulator yet.
 
 The sixty-seventh round found the sixty-sixth's fixes holding, and
-seven mediums beside them, each of a class already met. 279 and 379 set
-Repeat from a day: they open the note from the list now, and so does
-every row whose steps begin at ⓘ (301, 339, 346, 349, 369, 371). 88's
+six mediums beside them, each of a class already met. 279 and 379 set
+Repeat from a day: they open the note from the list now, and so do the
+rows whose steps named no road to it (301, 339, 346, 349, 369, 371). 88's
 "Only the date" is offered only for a moved day with its own text, which
 its step now moves. 521 and 527 called a refused file beyond the hand:
 the template draft takes chmod 000 as the Trash does, and a settings
 write fails on a folder where its temporary file goes, as the walk's
 writes_fail does for the notes. That recipe, the walk's own, now stands
 in 359 (whose "if it can be arranged" named no means), 338, 283, 194 and
-492, where "a full phone" did. 392's history said the 12th's text was
-lost; the code before the fix lost the 19th's.
+492, where a full phone or disk, or the walk's name for it, did. 392's
+history said the 12th's text was lost; the code before the fix lost the
+19th's.
+
+The sixty-eighth round found the sixty-seventh's fixes holding but two
+steps, and two mediums more. 301's step opened the calendar on the
+day's date after the repeat was off, where a note that no longer
+repeats is drawn on its start date alone: it opens both dates now. 527
+looked at a Trash entry's category, which a Trash row never shows: it
+restores the entry first. 330 asked a release build to start on a
+hand-edited notebook: it follows 385's recipe. And the recipes written
+as one sh -c line fail typed on the computer, whose shell takes their
+quotes away: the writes_fail recipe is two commands now, as the walk
+sends it, and the two left say to type them at the adb shell prompt.
+By the owner's rule of the same day, a long road found to a row called
+beyond the hand (data files edited by hand, adb, another computer, a
+script, an action repeated hundreds of times) is low from now on.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
