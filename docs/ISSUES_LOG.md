@@ -1630,6 +1630,24 @@ waits for the date case 414 deleted. The lows: 9, 205, 68, 84, 155,
 445, 475, 485 and 228 carry the tab's labels; the tab and qa/README
 name the two parts that read Android's skipped frames.
 
+The fifty-ninth round's second agent, auditing the fifth fifth again
+(106 rows), found no medium, the first such sample since the owner's
+rule. Its first agent, attacking 94c4e9f and sweeping the rows still
+called whole, found two: 9 was called whole while "the notes already in
+the file are left as they are" is read of one old note's three fields
+and its uid only, and says "in part" now; 334's precondition, "the note
+of row 333, untouched since", came after 333's own step had taken the
+break away, so the case would pass without being met: it takes 333's
+note before its step. Two of the sample's lows were mediums by the
+owner's rule and are mended with them: 156's step 3 asked for a cursor
+before a list's number, where a tap lands after it (its handle gets
+there), and 481's expected result said the new note opens, where under
+the open note's failing save the open note stays and the new one waits.
+The lows: 445, 286 and 475 say what the walk does; 11, 526, 496, 506
+and 500 name the means of their setups; 296, 171, 69, 85, 456, 441 and
+516 name what else they leave; 256 says how its codes are made; 420
+takes case 414 on today's Monday.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
