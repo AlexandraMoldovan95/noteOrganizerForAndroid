@@ -1868,7 +1868,10 @@ a table's bar that goes after a delete (72), a row that turns into a
 table the moment its pipe is typed (101), a one-row keyboard bar a
 tablet never shows (162), a doubling recipe that fails past 96 letters a
 line (209), words said to stay in a copy that become a note of their own
-(391), and sizes only a refused backup says (495, 502).
+(391), and sizes only a refused backup says (495, 502). Round 83
+attacked those seven and found nothing of medium severity; round 84 read
+all 63 together again and found nothing either: two clean rounds in a
+row, which ended the phone's loop.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
