@@ -1747,13 +1747,30 @@ started a release build on a hand-made notebook (it follows 385's recipe
 now). 526's new step reads the line under Save a backup, which its cell
 still called walked by no one. 274, 290 and 299 find words ("Spent",
 "item 199", "Heading 250") only the walk's seeds hold: each precondition
-names them now. 399's expected result read an edit of the series' table
+names them now (290's from the wrong seed, as the round after found). 399's expected result read an edit of the series' table
 that no step made, and its last step turns the series off: the table is
 changed before. Its second agent, auditing the first fifth again (107
 rows), found 392's steps beyond any person: the move of a day offers an
 Undo of its own, and the newest Undo takes the bar, so the delete's
-Undo is gone before the step that taps it. 392 says so, and what it
-leaves is walked by no one.
+Undo is gone before the step that taps it. 392 said so, and that what
+it leaves is walked by no one (the round after found a road).
+
+The sixty-sixth round found the sixty-fifth's fixes holding but for
+two, and five mediums more. 290 named its rows "item 1" to "item 1000"
+from a seed of another walk part; a_rows_own_words counts from 0, so
+item 199 is the 200th row, the last before the line, and the plan's
+numbering left it a row short of crossing. 392 is a person's after all:
+↺ Reset this day offers no Undo of its own, so the delete's bar stays
+while a moved day goes home, and the Undo is refused; 392 walks that
+road, and 88, whose second move took the first one's Undo away, resets
+instead. 312 named no letter for its Find of "aaaa". The second agent,
+auditing the second fifth again (106 rows), found 408 setting Repeat
+from a day, the class of 395 once more: every row whose steps open
+Repeat (306, 366, 368, 370, 377, 378, 403, 408, 409) opens the note from
+the list first now. And 523 called a refused Trash file beyond the
+hand, where run-as can take the app's read permission from it (chmod
+000), which the code reads as refused: 523 and 522's settings steps give
+that recipe, untried on an emulator yet.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
