@@ -1798,8 +1798,21 @@ as one sh -c line fail typed on the computer, whose shell takes their
 quotes away: the writes_fail recipe is two commands now, as the walk
 sends it, and the two left say to type them at the adb shell prompt.
 By the owner's rule of the same day, a long road found to a row called
-beyond the hand (data files edited by hand, adb, another computer, a
-script, an action repeated hundreds of times) is low from now on.
+beyond the hand (data files edited by hand, adb or run-as on a debug
+build, another device, a script, an action repeated hundreds of times)
+is low from now on.
+
+The sixty-ninth round found the sixty-eighth's fixes holding, and two
+mediums. 330's steps read nothing: a note that no longer repeats draws
+its days nowhere, so only the file shows where they went, and the row
+reads it back with run-as now, saying what the desktop's load does with
+each odd day. 476 was called whole, though the walk reads only the
+filter's own label after Show all, never the list: it is "in part", the
+list left to the hand. Every chmod and rm of a recipe begins with adb
+shell now, as a command the computer can send; 527 says a held file
+stays held until the next start, between its two recipes; and 392's
+history says what the code before the fix kept: the 19th's move, hidden
+at every start.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
