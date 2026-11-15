@@ -1676,8 +1676,9 @@ and 191's sibling, left in round 56): it says "Not practical by hand"
 and names the adb recipe; 273's line numbers were true of the walk's
 note only, where the word is line 50,002, and say so now; and 343's row
 of an "x" and 80 pairs of flags was 321 letters, too short to be
-read-only, so its step could not be taken: it said 1,700 "x" and 80
-pairs (the round after found no road makes such a row). The lows:
+read-only in a note, so its step could not be taken there: it said
+1,700 "x" and 80 pairs (two rounds later found the template editor,
+which shows such a row read-only as it is). The lows:
 522's recipe closes the app first; 427's step 2 says what
 to copy; 498, 86, 358, 453, 92, 208, 513, 333 and 353 say what is
 true or what else they leave; 496 and 500 name the banner's Move to the
@@ -1687,12 +1688,12 @@ app's storage, and a hand check of them needs such a backup made again.
 
 The sixty-second round found five mediums. Its first agent, attacking
 36e734f and sweeping the labelled and whole rows, found 343's new row
-still beyond any road a person takes (both apps keep a row to 2,000
-letters, by every road), and, made by a script, its flags variant
-unable to fail on the code before the fix: it says "Not practical by
-hand", names 1,702 "x" (where the old code splits a flag), and its
-steps are walked by no one. 293's row was the same, said to come "from
-the desktop", which caps it too: it is labelled, with its means. 500
+beyond any road a person takes in a note (both apps keep a note's row
+to 2,000 letters), and, made by a script, its flags variant unable to
+fail on the code before the fix: it said "Not practical by hand" and
+named 1,702 "x" (the round after found the template editor's road and
+took it). 293's row was the same, said to come "from the desktop",
+which caps it too: it was labelled, with its means. 500
 kept "Not practical by hand" for the backup road round 61 called
 ordinary in 496: the label is gone. Its second agent, auditing the
 third fifth again (106 rows), found 8's expected result saying the
@@ -1702,6 +1703,23 @@ notifications are off only when some are: its steps turn the switch on
 and turn notifications off. The lows: 11 and 526 no longer give a reason
 the app does not bear out for closing it first; 498, 492 and 503 name
 their means; 454 says "Not walked".
+
+The sixty-third round found five mediums. Its first agent, attacking
+b6e0888, found the road 343 had been said to lack: the template editor
+shows any row longer than 300 characters read-only, with Read all and
+the same parts, so a template's row of an "x" and 80 pairs of flags
+takes the case by hand; 343 starts there now. And 293's and 343's "Not
+practical by hand" stood on a script's code, which the How to use tab
+calls one a person can import: 293 says the code a script makes now,
+without the label. Its second agent, auditing the fourth fifth again
+(106 rows), found three steps a person could not take as written: 315
+typed X into a name box that holds the title's first 30 letters, never
+200 (it pastes the title first now); 310 brought a backup back to
+delete a template, where an import only adds templates (it deletes the
+template by its 🗑 with the draft's question dismissed); 465 deleted
+two notes Show hides, which the list never shows (it deletes with Show:
+All, then sets Show). The lows: 104, 190, 205, 225, 395, 490, 498 and
+454 name their means or what else they leave.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
