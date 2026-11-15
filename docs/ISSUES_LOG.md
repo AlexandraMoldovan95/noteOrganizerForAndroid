@@ -1548,6 +1548,27 @@ names SettingsTest; the tab and qa/README no longer list a crafted file
 among what takes more than ordinary use; 55 preconditions gain a full
 stop.
 
+The fifty-fifth round's first agent attacked the fifty-fourth's fixes
+and found three mediums; its second, auditing the first fifth again
+(108 rows), ten. IdentityTest's import test read only that the note has
+a "uid" field, which an empty one passes, so the round before's "holds
+it for a share code" was untrue: it reads the minted uid now (mutant
+AS875, KILLED), and 9 no longer promises roads its steps never take.
+The walk times a screen by its longest frame from the tap on, never by
+how long the open takes (big_table alone times that): eleven rows that
+read the frame as the open's time (250, 252, 266, 267, 232, 233, 234,
+223, 249, 295, 292) say so and leave the time to the hand, and the How
+to use tab and qa/README say how the walk times a screen. 11, 526 and
+522 said no person can reach the notes file in the app's storage, where
+adb on a debug build can (522's own recipe): they give the true reason,
+and 522's steps that need a refused read of the settings are walked by
+no one. 96 read the size and the list of words pasted back, never their
+bold; 157's list back in its place was read by two cards in and out of
+sight; 272 and 287 reach the end and the start of a line by keys, and
+287 typed one letter; 227 named an auditor's backup never kept; 422
+called a hand check optional. The lows: 55, 65, 167, 242, 44, 70, 317
+and 301 say what is true; three preconditions lose a doubled stop.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.

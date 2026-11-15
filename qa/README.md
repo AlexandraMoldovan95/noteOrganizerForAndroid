@@ -494,4 +494,7 @@ same), and names what is left; a backup a script crafts is one a person
 can import. A row
 called whole reads all of a message it quotes; one whose checks read a
 message by some of its words says "in part" and leaves the rest to the
-hand.
+hand. The walk times a screen by its longest frame from the tap on,
+which catches a held screen but not work that draws nothing: a row
+promising how long something takes leaves that time to the hand
+(big_table alone times an open from the tap).

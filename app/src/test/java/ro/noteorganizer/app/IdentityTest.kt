@@ -90,11 +90,9 @@ class IdentityTest {
 
     @Test
     fun `a note already in the file WITHOUT one is left alone`() {
-        // Deliberate: the notebook as it lies is not rewritten with identities.
-        // Minted on its read, a notebook copied in before the desktop saw it
-        // would hold two identities for one note -- the collision the field
-        // exists to prevent. (A note brought IN without one is given one on its
-        // way, as the desktop gives one: the import's test below.)
+        // Deliberate: minted on its read, a notebook copied in before the desktop
+        // saw it would hold two identities for one note. (A note brought IN
+        // without one is given one: the import's test below.)
         val load = scratch("""[{"id": 1, "title": "old"}]""")
         Notebook.createNote(load, "new", "")
         assertFalse("no identity is invented for the old note",
