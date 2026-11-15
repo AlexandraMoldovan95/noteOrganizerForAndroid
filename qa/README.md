@@ -498,7 +498,8 @@ hand. The walk times a screen by its longest frame from the tap on,
 which catches work that delays a frame already due, but not work done in
 the tap itself, nor work that draws nothing: a row promising how long something
 takes leaves that time to the hand (big_table alone times an open from
-the tap). What an "in part" row names as left is what is known, a guide
+the tap; code_read_away and long_lines also read Android's "Skipped N
+frames", which does catch work in the tap). What an "in part" row names as left is what is known, a guide
 rather than a full list: the hand check walks the case whole, and a
 part found unnamed is added when found (the owner's rule of 15
 November, which grades such an omission low).
