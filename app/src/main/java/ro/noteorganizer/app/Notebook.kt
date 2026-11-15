@@ -1254,9 +1254,8 @@ object Notebook {
         val now = Files.now()
         val note = JSONObject()
         note.put("id", newId)
-        // Born here, so it is minted here. This is the only place this
-        // app creates an identity: notes that arrived from elsewhere keep
-        // whatever they came with, including nothing.
+        // Born here, so it is minted here; a note brought in without one
+        // is given one on its way in (Normalize.normalizeNote).
         note.put("uid", java.util.UUID.randomUUID().toString())
         note.put("title", mendSurrogates(title))
         note.put("body", mendSurrogates(body))
