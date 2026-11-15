@@ -50,8 +50,9 @@ data class Note(
      * The note's identity, where [id] is only its place in THIS file: two
      * devices both hand a new note `max + 1`. Empty for a note older than the
      * desktop's minting, and left so when read: this app mints one only for
-     * a note it adds -- created here, or imported without one
-     * ([Normalize.normalizeNote]) -- as the desktop mints at its own door.
+     * a note it adds -- created here, imported without one
+     * ([Normalize.normalizeNote]), or put back from the Trash without one
+     * ([Organizing.restore]) -- as the desktop mints at its own door.
      */
     val uid: String = "",
     /** Whether a rescue copy ("↩ Restore previous") is waiting. */

@@ -1550,7 +1550,7 @@ stop.
 
 The fifty-fifth round's first agent attacked the fifty-fourth's fixes
 and found three mediums; its second, auditing the first fifth again
-(108 rows), ten. IdentityTest's import test read only that the note has
+(107 rows), ten. IdentityTest's import test read only that the note has
 a "uid" field, which an empty one passes, so the round before's "holds
 it for a share code" was untrue: it reads the minted uid now (mutant
 AS875, KILLED), and 9 no longer promises roads its steps never take.
@@ -1568,6 +1568,33 @@ sight; 272 and 287 reach the end and the start of a line by keys, and
 287 typed one letter; 227 named an auditor's backup never kept; 422
 called a hand check optional. The lows: 55, 65, 167, 242, 44, 70, 317
 and 301 say what is true; three preconditions lose a doubled stop.
+
+The loop was not converging: each round's sample found six to thirteen
+"mediums" that were omissions in the lists of rows already "in part",
+with no change in the app. The owner's rule of 15 November grades such
+an omission low, since the row already sends the hand to walk the case
+whole; a row called whole that is not, a claim that something is read
+when it is not, a step or result untrue of the app, and a reason or a
+label that tells her she may skip a check stay medium. The How to use
+tab and qa/README say so. Graded by it, the fifty-sixth round's two
+agents (the first attacking ad1f408 and bf89189, the second auditing
+the second fifth again, 106 rows) found these mediums: seven rows gave
+"no person can set it up" as the reason no one walks them, where adb on
+a debug build can damage the notes or the settings, as 522's recipe
+does (190 and 191 carry the owner's own Pass on 0.12.0): 190, 191, 473,
+521, 522, 523 and 527 say "no ordinary use" now, and 190 and 191 leave
+their screens to the hand by that means; 236, 140 and 318 were called
+whole while their walk reads a frame, moves the cursor by keys, or
+types a word in one input; 518 called its hand check a choice; 283's
+precondition said what its cell contradicted. The tab and qa/README
+said the frame reading catches a held screen, which work done in the
+tap itself escapes: they say so now. The lows: 288, 313 and 314 name
+the Home key; 287, 458 and 143 name what else they leave; 272, 242,
+292, 96, 333, 513, 203, 338, 56 and 153 say what is true; a KDoc in
+Notebook.kt names the Trash's mint. Answered in writing: brand_new's
+check that a new note "is born with the desktop's whole shape" reads
+the uid's presence only; the row it serves (9) stands on IdentityTest,
+and the walk is changed with the full walk before the release.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
