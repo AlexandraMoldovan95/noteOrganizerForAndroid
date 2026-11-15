@@ -1756,7 +1756,7 @@ Undo is gone before the step that taps it. 392 said so, and that what
 it leaves is walked by no one (the round after found a road).
 
 The sixty-sixth round found the sixty-fifth's fixes holding but for
-two, and five mediums more. 290 named its rows "item 1" to "item 1000"
+two, and four mediums more (and 403, graded low, with them). 290 named its rows "item 1" to "item 1000"
 from a seed of another walk part; a_rows_own_words counts from 0, so
 item 199 is the 200th row, the last before the line, and the plan's
 numbering left it a row short of crossing. 392 is a person's after all:
@@ -1767,10 +1767,24 @@ instead. 312 named no letter for its Find of "aaaa". The second agent,
 auditing the second fifth again (106 rows), found 408 setting Repeat
 from a day, the class of 395 once more: every row whose steps open
 Repeat (306, 366, 368, 370, 377, 378, 403, 408, 409) opens the note from
-the list first now. And 523 called a refused Trash file beyond the
-hand, where run-as can take the app's read permission from it (chmod
-000), which the code reads as refused: 523 and 522's settings steps give
-that recipe, untried on an emulator yet.
+the list first now (279 and 379 did not, the round after found). And
+523 called a refused Trash file beyond the hand, where run-as can take
+the app's read permission from it (chmod 000), which the code reads as
+refused: 523 and 522's settings steps give that recipe, untried on an
+emulator yet.
+
+The sixty-seventh round found the sixty-sixth's fixes holding, and
+seven mediums beside them, each of a class already met. 279 and 379 set
+Repeat from a day: they open the note from the list now, and so does
+every row whose steps begin at ⓘ (301, 339, 346, 349, 369, 371). 88's
+"Only the date" is offered only for a moved day with its own text, which
+its step now moves. 521 and 527 called a refused file beyond the hand:
+the template draft takes chmod 000 as the Trash does, and a settings
+write fails on a folder where its temporary file goes, as the walk's
+writes_fail does for the notes. That recipe, the walk's own, now stands
+in 359 (whose "if it can be arranged" named no means), 338, 283, 194 and
+492, where "a full phone" did. 392's history said the 12th's text was
+lost; the code before the fix lost the 19th's.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
