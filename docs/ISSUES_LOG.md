@@ -1455,19 +1455,50 @@ did not leave it to the hand; 262, which 263 points to, was called whole
 while the walk reads its question by fragments and never presses Back,
 the very mechanism the round fixed on 263. Its second agent audited the
 fourth fifth of the plan (106 rows) and found three (mediums): 200 and
-215 as above (215 and 218 leave their import to the hand now); 510 was
+215, as the first agent's 200 and 213 (215 and 218 leave their import
+to the hand now); 510 was
 called whole, where trash_wide reads the row's title above Empty Trash
 and never the page's top scrolling away or the row's days-left line;
 120 said its Undo was walked, where the walk undoes the column's drag
 and never the row's. qa/README's sentence on unit-only rows, and the
-How to use tab's, now name the rows no person can set up (205, 224),
-which say "Not a hand check". The lows: 213, 219, 220 and 221 say a
+How to use tab's, now name rows no person can set up (205 and 224 among
+them), which say "Not a hand check". The lows: 213, 219, 220 and 221 say a
 backup, which carries templates, settings and files, where a share code
 carries notes only; 206 and 189 start from a backup a person imports,
 the import left to the hand; 313 names EditorTypingTest; 263 says its
 Cancel is found; 4, 63, 135, 150, 155, 165 and 290 say what their walk
 parts and mutants do; make_days_fixture.py's docstring says what its
 comments say.
+
+The fifty-second round's first agent found six mediums, its second
+eight, all in the plan's words. Ten rows called whole read a message
+the row quotes by some of its words: the walk's practice is to read a
+message by the words that tell it apart, and the rest of a quoted
+message was read by no check (139, 166, 242, 243, 253, 260, 261, 272,
+276, 299; 242 and 243 are 262 and 263's twins). A sweep of every row
+called whole for quoted words no check holds found those ten and no
+other; each says "in
+part" and leaves the rest of the words to the hand, and qa/README now
+says a row called whole reads all of a message it quotes. 212 and 526
+said no person can set them up, where crafted backups imported one
+after another grow a notebook past what the phone reads back, and a
+script can make a backup holding a damaged file: they leave those parts
+to the hand now, and the How to use tab's "Not a hand check" is said of
+what no ordinary use sets up (a refused read, a held file, a full disk),
+as 194 and 207 now say "Not practical by hand". 63 kept its days of
+their own in a unit test alone; 213's "at once" was held to two
+seconds; 215 offered a share code, which carries no moved days; 296's
+Don't save was tapped and never read closing the editor. 466's steps
+imported a backup with a note open, which Settings closes: they import
+a code from the list beside it now, on two panes. 246's precondition
+never deleted the day its expected result names. And eleven
+preconditions named the audit's codes, whose files were not kept: each
+says so, and that a hand check needs the code made again. The lows: 59,
+131, 151, 161, 189, 218, 226, 238, 241, 290, 301 and 391 say what is
+true, and 486, 493 and 497 use the tab's own label. Answered in writing:
+walk.py deletes a file's stored copy before it reads "missing", so the
+second half of "removed: ... its stored copy deleted" holds whatever
+Remove does; no row relies on it.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

@@ -486,5 +486,9 @@ allowed a script to make on her phone walks it, as Tested By then
 says), whatever the scripts already cover. The unit tests have no
 screen, so a row whose steps are taps and whose checks are unit tests
 alone says "Automated in part" and leaves the case's own steps on
-screen to the hand, unless no person can set the case up (it then says
-"Not a hand check"; a backup a script crafts is one a person can import).
+screen to the hand, unless no ordinary use sets the case up, which the
+row then says ("Not a hand check", "Not practical by hand" or "walked
+by no one"); a backup a script crafts is one a person can import. A row
+called whole reads all of a message it quotes; one whose checks read a
+message by some of its words says "in part" and leaves the rest to the
+hand.
