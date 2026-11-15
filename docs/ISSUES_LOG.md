@@ -1500,6 +1500,33 @@ walk.py deletes a file's stored copy before it reads "missing", so the
 second half of "removed: ... its stored copy deleted" holds whatever
 Remove does; no row relies on it.
 
+The fifty-third round's first agent attacked the fifty-second's fixes
+and found seven mediums, its second, reading every row still called
+whole (41), three. The labels for cases ordinary use does not set up
+had been said three ways ("Not a hand check" as what no ordinary use
+sets up, "Not practical by hand", "walked by no one"), and each round
+found a row one of them was untrue of: a full phone is ordinary, and
+207 is set up in a minute by Developer options. The How to use tab and
+qa/README now say the first two mean the same, setting the case up on
+purpose takes more than ordinary use, and the row names what is left;
+207 leaves the case by Developer options to the hand. 246's new
+precondition deleted the very edit half its result reads (a deleted
+day takes its own edit with it, on both devices): it starts from two
+series now, one for each half. 212's steps reached only one half of
+its result: both are a person's steps now, the place that will not open
+a file for writing among them (the app's own code knows such
+providers). 87 never met the refusal its result quotes, and read it by
+its start; 512 walked one screen width; 253, 260, 241 and 301 left
+words unnamed; and 259, 333, 365, 366 and 324 named session files
+never kept. Of the round before's words: 253 and 260 now leave every
+unread word to the hand, 194 and 207 no longer say "Not a hand check"
+beside "Not practical by hand", and 241, 290 and 301 say what is true.
+The lows: 75, 308, 351 and 439 say "in part" for a page never read in
+the other app, Templates never opened again, the cell typed into
+without the tap back, and Show seeded in settings; 9, 220, 235, 237, 287
+and 292 name what their checks read; ten preconditions gain the full
+stop before the sentence round 52 added.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
