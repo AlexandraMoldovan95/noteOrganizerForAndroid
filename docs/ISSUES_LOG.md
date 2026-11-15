@@ -1581,11 +1581,12 @@ agents (the first attacking ad1f408 and bf89189, the second auditing
 the second fifth again, 106 rows) found these mediums: seven rows gave
 "no person can set it up" as the reason no one walks them, where adb on
 a debug build can damage the notes or the settings, as 522's recipe
-does (190 and 191 carry the owner's own Pass on 0.12.0): 190, 191, 473,
+does, remove a file (473) or perhaps refuse a read (521, 523, 527)
+(190 and 191 carry the owner's own Pass on 0.12.0): 190, 191, 473,
 521, 522, 523 and 527 say "no ordinary use" now, and 190 and 191 leave
 their screens to the hand by that means; 236, 140 and 318 were called
 whole while their walk reads a frame, moves the cursor by keys, or
-types a word in one input; 518 called its hand check a choice; 283's
+never reads when a message comes; 518 called its hand check a choice; 283's
 precondition said what its cell contradicted. The tab and qa/README
 said the frame reading catches a held screen, which work done in the
 tap itself escapes: they say so now. The lows: 288, 313 and 314 name
@@ -1593,8 +1594,23 @@ the Home key; 287, 458 and 143 name what else they leave; 272, 242,
 292, 96, 333, 513, 203, 338, 56 and 153 say what is true; a KDoc in
 Notebook.kt names the Trash's mint. Answered in writing: brand_new's
 check that a new note "is born with the desktop's whole shape" reads
-the uid's presence only; the row it serves (9) stands on IdentityTest,
-and the walk is changed with the full walk before the release.
+its fields' presence, the uid's among them, not its value; the row it
+serves (9) stands on IdentityTest, and the walk is changed with the
+full walk before the release.
+
+The fifty-seventh round, graded by the owner's rule, found four
+mediums. The first agent attacked f264406 and swept every row still
+called whole: 134 called its cards' lines read, where only their titles
+are; 144 its answer at the cursor, where the walk finds it anywhere in
+the cell and the unit test puts the cursor itself; 81 its panes in
+place, where only the rail's is measured. Each says "in part" now. The
+second agent audited the third fifth again (106 rows) and found 499
+sending the hand to a check nothing can set up: it says "Not a hand
+check" and walked by no one. The lows: 190 names its means; 74, 194,
+334, 318, 209, 229, 289 and 354 say what is true; 13, 239, 459 and 504
+name what else they leave; 316 and 373 carry the tab's labels; the tab
+and qa/README say the frame reading catches work that delays a frame
+already due.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first

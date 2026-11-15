@@ -495,8 +495,8 @@ can import. A row
 called whole reads all of a message it quotes; one whose checks read a
 message by some of its words says "in part" and leaves the rest to the
 hand. The walk times a screen by its longest frame from the tap on,
-which catches a screen held between frames but not work done in the tap
-itself, nor work that draws nothing: a row promising how long something
+which catches work that delays a frame already due, but not work done in
+the tap itself, nor work that draws nothing: a row promising how long something
 takes leaves that time to the hand (big_table alone times an open from
 the tap). What an "in part" row names as left is what is known, a guide
 rather than a full list: the hand check walks the case whole, and a
