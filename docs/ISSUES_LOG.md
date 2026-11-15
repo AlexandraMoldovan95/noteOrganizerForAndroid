@@ -1648,6 +1648,23 @@ and 500 name the means of their setups; 296, 171, 69, 85, 456, 441 and
 516 name what else they leave; 256 says how its codes are made; 420
 takes case 414 on today's Monday.
 
+The sixtieth round's first agent, attacking b0784ca and sweeping the
+eighteen rows still called whole, found no medium; its second, auditing
+the first fifth again (107 rows), found two. 257's steps imported "C1"
+and "C2", which no column defined (256's sibling, left by the round
+before): its precondition says what each code holds and that a script
+makes them, as the desktop never gives two notes one identity. 427's
+step 2 said 'Clean' keeps its number, where a correct app renumbers
+it, so a correct app would read as a Fail: it says '2. Kiwi' and '3.
+Clean'. And a class: twenty "in part" rows kept, in their Actual
+Result, that "the release's runs fill it in again", which the How to
+use tab says only of rows the scripts walk whole; each says the
+release's runs fill in the scripts' part, and the rest is the owner's.
+The lows: 11's step and 526 name 522's recipe with the app closed
+first (a file damaged behind Home is never read again); 334, 496, 498,
+506 and 256 say how their setups are made; 286, 132, 182, 512, 86 and
+537 say what their walk parts do.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
