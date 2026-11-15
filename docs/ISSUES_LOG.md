@@ -1843,6 +1843,21 @@ narrower than the 840 dp the note needs to sit beside the list (81,
 rows whose hand part only a script or run-as reaches (9, 34, 209, 211,
 212), which now say so, by the owner's rule.
 
+Rounds 72 to 77 attacked those rewrites and swept two classes more.
+Back ends the activity on Android 8 to 11, so 176 swipes the app away;
+a downgrade needs an uninstall, which deletes the notebook, so the 29
+rows with an older build or a file written by hand say to take them on
+the emulator or a test device, never the owner's phone. A clause that
+Android's backup might bring a newer notebook back under an older
+build, which no restoreAnyVersion allows, came out of 14 of them. A
+sweep of labels found a huge note made by hand after all (209: doubling
+pastes, which stop doubling at 256 lines, as Select all takes one field
+of a long note), and 244's step contradicting its own label. A sweep of
+setups found fourteen rows whose steps needed what the precondition did
+not make (46, 72, 101, 127, 129, 130, 239, 241, 242, 245, 246, 247,
+460, 473); 460 also quoted a bar the app never shows, and 246 a
+reminder that speaks of today only.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
