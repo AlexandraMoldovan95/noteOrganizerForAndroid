@@ -707,7 +707,7 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | About 630 checks on the built app ([how many, and the last full run](../qa/README.md#the-emulator-walk)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | Checks on the built app ([how many, and the last full run](../qa/README.md#the-emulator-walk)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
 | [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Eight fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML, a series' days, the fields a newer version wrote — every answer matched; the 20 pasted fragments where the phone once parted from the desktop answer alike since the desktop's cb12941 |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
