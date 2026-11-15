@@ -1688,8 +1688,9 @@ app's storage, and a hand check of them needs such a backup made again.
 
 The sixty-second round found five mediums. Its first agent, attacking
 36e734f and sweeping the labelled and whole rows, found 343's new row
-beyond any road a person takes in a note (both apps keep a note's row
-to 2,000 letters), and, made by a script, its flags variant unable to
+beyond any road a person takes in a note (both apps' boxes take 2,000
+letters a row, though neither caps one an import brings, as the
+sixty-fourth round found), and, made by a script, its flags variant unable to
 fail on the code before the fix: it said "Not practical by hand" and
 named 1,702 "x" (the round after found the template editor's road and
 took it). 293's row was the same, said to come "from the desktop",
@@ -1720,6 +1721,24 @@ template by its 🗑 with the draft's question dismissed); 465 deleted
 two notes Show hides, which the list never shows (it deletes with Show:
 All, then sets Show). The lows: 104, 190, 205, 225, 395, 490, 498 and
 454 name their means or what else they leave.
+
+The sixty-fourth round found eight mediums, one of them a screen's
+words. Its first agent, attacking 3f3690f, found 395's expected result
+missing the note its Weekly Save makes: the series' copy kept "Agenda. /
+Book room" for that day, and the save sets it aside as "(earlier
+text)", as 400 says of the same road. 490 ticked one note, whose Trash
+ends the selection before the step: two are ticked now. 395 and six
+rows like it (376, 399, 400, 402, 404, 407) set Repeat straight after a
+day's edit, where Repeat is greyed: each opens the note from the list
+first. And the read-only texts said "The note keeps them whole" in the
+template editor too: the five say "kept whole" now, the words the walk
+reads unchanged. Its second agent, auditing the fifth fifth again (106
+rows), found 366's second road unable to keep its deleted day (with no
+day of its own text, the turn-off keeps no copy); 361 and 406 starting
+a release build on a hand-made file no release can be given (and 361's
+import, which numbers every note anew): both follow 385's recipe now, a
+debug build and run-as. 426's step named a list its precondition
+lacked, and 526 left steps to the hand with none written.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
