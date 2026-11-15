@@ -1740,6 +1740,21 @@ import, which numbers every note anew): both follow 385's recipe now, a
 debug build and run-as. 426's step named a list its precondition
 lacked, and 526 left steps to the hand with none written.
 
+The sixty-fifth round found the sixty-fourth's fixes holding, and six
+mediums beside them. Its first agent found two of the same classes
+missed: 414 set Repeat from a day on 0.13.0, greyed there too, and 367
+started a release build on a hand-made notebook (it follows 385's recipe
+now). 526's new step reads the line under Save a backup, which its cell
+still called walked by no one. 274, 290 and 299 find words ("Spent",
+"item 199", "Heading 250") only the walk's seeds hold: each precondition
+names them now. 399's expected result read an edit of the series' table
+that no step made, and its last step turns the series off: the table is
+changed before. Its second agent, auditing the first fifth again (107
+rows), found 392's steps beyond any person: the move of a day offers an
+Undo of its own, and the newest Undo takes the bar, so the delete's
+Undo is gone before the step that taps it. 392 says so, and what it
+leaves is walked by no one.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
