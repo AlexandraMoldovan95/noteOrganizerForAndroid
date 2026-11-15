@@ -1661,9 +1661,30 @@ Result, that "the release's runs fill it in again", which the How to
 use tab says only of rows the scripts walk whole; each says the
 release's runs fill in the scripts' part, and the rest is the owner's.
 The lows: 11's step and 526 name 522's recipe with the app closed
-first (a file damaged behind Home is never read again); 334, 496, 498,
-506 and 256 say how their setups are made; 286, 132, 182, 512, 86 and
-537 say what their walk parts do.
+first (a file damaged while the app runs is not read again until it
+starts afresh); 334, 496, 498, 506 and 256 say how their setups are
+made; 286, 132, 182, 512, 86 and 537 say what their walk parts do.
+
+The sixty-first round found four mediums. Its first agent, attacking
+5e5b909 and sweeping the rows still called whole, found 496 calling
+"Not practical by hand" a road an ordinary person takes: a backup made
+while the day was off the schedule, imported with Update, brings the
+day back, and moving it to the Trash again is the very road its mutant
+guards; the precondition names that road now, the debug build's as the
+other. Its second, auditing the second fifth again (106 rows), found
+138 asking for a damaged settings file with no label and no means (190
+and 191's sibling, left in round 56): it says "Not practical by hand"
+and names the adb recipe; 273's line numbers were true of the walk's
+note only, where the word is line 50,002, and say so now; and 343's row
+of an "x" and 80 flags was 321 letters, too short to be read-only, so
+step 1 could not be taken: it is 1,700 "x" and 80 flags. The lows:
+522's recipe closes the app first, and 11 and 526 say the damaged file
+is not read again until the app starts afresh; 427's step 2 says what
+to copy; 498, 86, 358, 453, 92, 208, 513, 333 and 353 say what is
+true or what else they leave; 496 and 500 name the banner's Move to the
+Trash. Answered in writing: no committed tool writes the crafted
+backups some rows name; the walk seeds those notes straight into the
+app's storage, and a hand check of them needs such a backup made again.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
