@@ -1255,7 +1255,8 @@ object Notebook {
         val note = JSONObject()
         note.put("id", newId)
         // Born here, so it is minted here; a note brought in without one
-        // is given one on its way in (Normalize.normalizeNote).
+        // is given one on its way in (Normalize.normalizeNote), and one
+        // put back from the Trash too (Organizing.restore).
         note.put("uid", java.util.UUID.randomUUID().toString())
         note.put("title", mendSurrogates(title))
         note.put("body", mendSurrogates(body))

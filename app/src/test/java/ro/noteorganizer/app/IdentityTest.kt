@@ -89,10 +89,12 @@ class IdentityTest {
     }
 
     @Test
-    fun `a note that arrived WITHOUT one is left alone`() {
-        // Deliberate: the desktop mints identities at its own door, once. Minted
-        // here too, a notebook copied in before the desktop saw it would hold
-        // two identities for one note -- the collision the field exists to prevent.
+    fun `a note already in the file WITHOUT one is left alone`() {
+        // Deliberate: the notebook as it lies is not rewritten with identities.
+        // Minted on its read, a notebook copied in before the desktop saw it
+        // would hold two identities for one note -- the collision the field
+        // exists to prevent. (A note brought IN without one is given one on its
+        // way, as the desktop gives one: the import's test below.)
         val load = scratch("""[{"id": 1, "title": "old"}]""")
         Notebook.createNote(load, "new", "")
         assertFalse("no identity is invented for the old note",
@@ -355,6 +357,8 @@ class IdentityTest {
                              "pinned", "checklist", "paragraphs")) {
             assertTrue("missing: $field", note.has(field))
         }
+        // A code that carried none: the uid is minted on its way in, not an empty field.
+        assertTrue("an identity minted for it", note.optString("uid").isNotEmpty())
     }
 
     @Test
