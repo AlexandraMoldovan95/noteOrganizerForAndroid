@@ -1809,10 +1809,22 @@ reads it back with run-as now, saying what the desktop's load does with
 each odd day. 476 was called whole, though the walk reads only the
 filter's own label after Show all, never the list: it is "in part", the
 list left to the hand. Every chmod and rm of a recipe begins with adb
-shell now, as a command the computer can send; 527 says a held file
+shell now, as a command the computer can send (but 522's two, which
+the round after made whole); 527 says a held file
 stays held until the next start, between its two recipes; and 392's
 history says what the code before the fix kept: the 19th's move, hidden
 at every start.
+
+The seventieth round found the sixty-ninth's fixes holding, and three
+mediums. Steps that close the app and start it again gave no start on
+Android 12 and later when the app is left with Back or Home: the task
+stays alive, and only a new activity runs the start's work. 19, 137,
+138, 210, 347, 365, 366, 373 and 406 swipe it away from Recents now, as
+346 already did. 522's recipe writes over the notebook it runs on, and
+so do the notebooks written by hand (330, 361, 367, 385, 406): each says
+to take it on the emulator or a test install only, and the rows that
+send the hand to 522's recipe (11, 190, 205, 526) say so too. 522's
+chmod is a whole command now, and comes before the app is opened.
 
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
