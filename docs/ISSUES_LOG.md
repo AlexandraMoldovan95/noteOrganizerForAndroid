@@ -1858,6 +1858,18 @@ not make (46, 72, 101, 127, 129, 130, 239, 241, 242, 245, 246, 247,
 460, 473); 460 also quoted a bar the app never shows, and 246 a
 reminder that speaks of today only.
 
+Rounds 78 to 82 found 418 asking an Update of a backup whose note was
+left as the file holds it, and 203 a reminder for days with no note; the
+recipes that replaced them were tested in turn, and a welcome note said
+to be asked about as a duplicate came in silently, its text having
+changed after 0.13.0. Round 81 found nothing. Round 82 read together the
+63 rows rewritten since the whole plan was read and found seven more:
+a table's bar that goes after a delete (72), a row that turns into a
+table the moment its pipe is typed (101), a one-row keyboard bar a
+tablet never shows (162), a doubling recipe that fails past 96 letters a
+line (209), words said to stay in a copy that become a note of their own
+(391), and sizes only a refused backup says (495, 502).
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
