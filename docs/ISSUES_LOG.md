@@ -1826,6 +1826,23 @@ to take it on the emulator or a test install only, and the rows that
 send the hand to 522's recipe (11, 190, 205, 526) say so too. 522's
 chmod is a whole command now, and comes before the app is opened.
 
+The seventy-first round, and the whole plan read again (cases 1 to
+218). At the owner's word the plan is being read once more case by
+case, five reviewers on five ranges; the round's two agents read with
+them. They found the same classes once more, in rows not yet reached:
+a close that is not a swipe from Recents (527, and 165's and 176's
+memory, kept while the app runs); recipes replacing a file with no
+warning (138, 191, 503); results no screen shows (385's ids, 503's
+identity, read back from the file now); a reminder said to come within
+minutes where the Reminders page says up to an hour (168, 203, whose
+"(Optional.)" told the owner she could skip it); a short note's copy
+kept only when the letters lost are most of it (182); a code sent back
+to itself meeting "Already here, unchanged" (107); a phone on its side
+narrower than the 840 dp the note needs to sit beside the list (81,
+82); a desktop that keeps its own order for notes it holds (99); and
+rows whose hand part only a script or run-as reaches (9, 34, 209, 211,
+212), which now say so, by the owner's rule.
+
 **The lesson:** a low is written down to be fixed, not lived with. And
 the second copy drifts in the corners nobody types into: ask the first
 copy the odd questions too.
