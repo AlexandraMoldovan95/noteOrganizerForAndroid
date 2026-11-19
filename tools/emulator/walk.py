@@ -934,7 +934,7 @@ def brand_new(folder):
     tap("Appearance")
     check("no Follow the phone on the page", screen_says("Follow the phone") == ["Follow the phone"])
     tap("Light", exact=True, wait=1.5)
-    shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "The light themes.")
+    shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "Light themes.")
     check("in Light, the page shows the light themes and not the dark",
           not says_soon("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
     # The change dissolves: captured as fast as the emulator can while Dark
@@ -955,7 +955,7 @@ def brand_new(folder):
     settings = read_file("settings.json") or {}
     check("Dark puts the app in the dark original at once, and shows the dark themes",
           settings.get("theme") == "dark"
-          and not says_soon("Midnight Purple", "Warm Charcoal", "The dark themes.")
+          and not says_soon("Midnight Purple", "Warm Charcoal", "Dark themes.")
           and screen_says("Soft Lavender") == ["Soft Lavender"], json.dumps(settings)[:200])
     tap("Forest Green", wait=1.5)
     settings = read_file("settings.json") or {}
