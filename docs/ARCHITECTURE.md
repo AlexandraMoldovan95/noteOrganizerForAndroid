@@ -152,6 +152,13 @@ the guards every write carries, in
 [DATA_FORMAT.md](DATA_FORMAT.md#a-partial-reader-must-not-become-a-total-writer):
 *a partial reader must not become a total writer.*
 
+The same reason keeps some of `Note`'s fields plain strings where Kotlin
+would offer a type. A repeat's frequency is `"daily"`, `"weekly"` and so
+on, as the file holds it and the desktop compares it: an `enum` would add
+a translation each way, and a value a later version writes would have
+nowhere to go but an error or a default, where the string carries it
+through.
+
 ## Decision: write to a copy, then to disk, then to the screen
 
 Every write in the rules layer follows the same three steps, but for
