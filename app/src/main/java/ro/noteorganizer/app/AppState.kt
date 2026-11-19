@@ -401,15 +401,18 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /** After a write: the screen from the arrays the write left. */
     fun refresh() {
         load = Notebook.refreshed(load)
-        dropFoldsOfGone()
-        dropArrivalsOfGone()
-        revision += 1
+        afterLoad()
     }
 
     /** From the disk, for when the files changed under the app (an import). */
     fun reload() {
         // The notes kept aside this session are still the session's to spend.
         load = Notebook.load(dir).also { it.keptAside.putAll(load.keptAside) }
+        afterLoad()
+    }
+
+    /** What both a refresh and a reload owe the screen once [load] is new: one place, so neither forgets a step. */
+    private fun afterLoad() {
         dropFoldsOfGone()
         dropArrivalsOfGone()
         revision += 1
