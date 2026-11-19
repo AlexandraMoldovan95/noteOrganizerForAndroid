@@ -165,6 +165,7 @@ past the others:
     py tools/check_comments.py         # comments say why; stories go to the issues log
     py tools/check_mutant_targets.py   # every mutant finds its code, and one left alive says why
     py tools/check_workflows.py        # CI's token only reads; every action is pinned to a commit
+    py tools/check_fix_mutants.py      # a change to the app's code names its mutant, or why it has none
     py tools/check_test_plan.py        # the test plan's count in qa/README is the plan's
 
 And for a change anybody will see, the walk on the emulator
@@ -270,6 +271,13 @@ work. A review panel found subjects such as "a word names its note as it
 is when said" unreadable there. The body tells the story; the house words
 below belong in the body and the issues log, not in a subject. Earlier
 history stays as it is.
+
+From 2026-11-20 a commit that changes anything under `app/src/main` also
+names its mutant, on a line of its own: `Mutant: <id>` for each mutant
+that guards it, an id in `tools/mutants.json`, or `No mutant: <why>`
+(words only, a pure move, a write no test reaches).
+`tools/check_fix_mutants.py` holds it, in CI; a review panel found the
+rule only asked.
 
 #### House words
 

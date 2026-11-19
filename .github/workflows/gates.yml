@@ -55,6 +55,8 @@ jobs:
         run: python tools/check_mutant_targets.py
       - name: CI may only read, and runs only the actions it pinned
         run: python tools/check_workflows.py
+      - name: A change to the app's code names its mutant, or why it has none
+        run: python tools/check_fix_mutants.py
 
   contract:
     name: The two programs still agree
