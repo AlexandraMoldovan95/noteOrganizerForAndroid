@@ -376,7 +376,10 @@ Grouped by what the app does; when each item arrived is in the
     that replaces an earlier version the note still holds; one that only
     adds attached files a backup's copy has keeps no copy, and the question
     promises none. Two arriving notes with one identity claim it
-    once: the second comes in as a note of its own.
+    once: the second comes in as a note of its own. A note or a template
+    also keeps the fields a newer version of the app wrote (the owner's
+    D2, 2026-11-13 and 14), bounded as the desktop bounds them, through
+    every load, backup and save.
 
 ### Looks and settings
 

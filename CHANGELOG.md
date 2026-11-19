@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.15.0](#0150--2026-11-19--the-lows-fixed-before-the-stores) | 2026-11-19 | The lows, fixed before the stores |
 | [0.14.2](#0142--2026-11-12--every-category-counted) | 2026-11-12 | Every category counted |
 | [0.14.1](#0141--2026-11-12--what-a-full-reading-found) | 2026-11-12 | What a full reading found |
 | [0.14.0](#0140--2026-11-08--the-final-audit) | 2026-11-08 | The final audit |
@@ -56,6 +57,155 @@ do before, not as releases anyone ran.
 | [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
 | [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
 | [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
+---
+
+## [0.15.0] — 2026-11-19 — The lows, fixed before the stores
+
+The final audit's findings of low severity, which its rule leaves for a
+wave of their own, 12 to 15 November 2026: the owner chose to fix every
+one before the stores. What reaches a person is written in below, one
+entry for each, however many rounds its fix took; a fix of a fix made
+inside the wave is folded into the entry it belongs to.
+
+### Added
+
+- **A note or a template keeps the fields a newer version of the app
+  wrote,** as the desktop does. Once the apps are in the stores they
+  update apart, and a newer version may add something to a note; this
+  one erased it at its next load. It keeps up to 32 such fields now,
+  65,536 characters in all, and a backup's Update keeps the note's own
+  for Restore previous. The owner's choice.
+
+### Fixed
+
+#### Your notes, kept
+
+- **A settings, templates or draft file the phone can neither read nor
+  copy aside is never written over.** The start replaced such a
+  `settings.json` with two keys, the category colours, painted days,
+  your name and the Trash's window gone with it, and one template saved
+  replaced every template.
+- **Nothing is decided over a file the phone could not read.** A
+  backup's Trash came in without the window it needed and the next
+  start removed it with its files; Remove attachment deleted a file a
+  trashed note it could not see still named; Android's backup could be
+  turned off for good, and the daily notification cancelled. Each
+  waits now, and the pages say the file could not be read, not "No
+  templates yet" or "The Trash is empty".
+- **Your name is kept as you type it,** when the app goes behind Home
+  and Android ends it there. It was saved only on Save, on Done or when
+  the page was left.
+- **A day taken off a series' schedule goes to the Trash once.** With
+  the notes' write refused, or the phone stopped between the Trash's
+  write and the notes', the day came back on the series with its copy
+  in the Trash, and taking it off again put a second copy there.
+- **A category renamed on a nearly full phone is put back whole when a
+  write is refused,** not left half moved, some notes under a name no
+  category had.
+- **A move's Undo after its category was renamed or deleted says so.**
+  It put a note back under a category deleted since, which then came
+  back.
+- **A selection is kept by the note, not by its place in the list.** On
+  a wide screen a note put in the Trash from the editor freed its
+  number, and a note arriving from a share code took it, ticked, into
+  the selection's own Trash. The History's open series are kept the
+  same way, and a phone on its side turned upright keeps its selection.
+- **A failed import takes back the files it brought and says what it
+  kept.** Recently deleted showed none of the Trash it said it kept,
+  and an error Android throws from a damaged backup was not caught.
+
+#### Sharing into the app
+
+- **A text file shared from Drive no longer freezes the screen** while
+  it downloads, long enough for "isn't responding"; it is read away from
+  the screen, and what is shared next waits its turn.
+- **A text file in another encoding is no longer saved with its letters
+  broken.** One saved in Notepad's old "ANSI" came in with marks for
+  every letter outside English, and a UTF-16 one as letters and NULs,
+  both said "Saved as a new note". A file is read in the encoding its
+  mark names, and refused, with a word, when it is neither that nor
+  UTF-8.
+- **A shared file that cannot be read, stalls, or is too long is said.**
+  One that could not be opened was dropped without a word, one that
+  never answered held back every share after it, and one past 500,000
+  characters was cut with "Saved as a new note".
+- **A share code reads, or is refused, as on the desktop.** A code whose
+  "NOTE1:" a chat app's wrapping broke, one that lost an "=" or gained
+  some, one holding a list or one plain value, one broken by an
+  invisible line end (NEL), or words that only say "NOTE 1:", each
+  answered otherwise on the two apps.
+
+#### Importing
+
+- **A backup imported again brings in nothing it already brought.** A
+  note or a trashed note whose attached file a note here used came in
+  on a copy of it, and every later import asked about the note again,
+  each Update added one more copy, and the trashed note came in again.
+  A file is matched by its name and its bytes now, as on the desktop.
+- **A backup's categories come in with its notes.** A note filed under
+  a category the backup's settings lacked came in under General for
+  good, unsaid; this phone's own backups lacked such categories.
+- **A skipped look-alike's attached files go to the note it looks
+  like,** as on the desktop, and Skip is offered wherever it still
+  brings something: a file, a category, a template, a Trash entry, a
+  day's marks. Cancel was the only no, and it dropped them.
+- **A note you chose to add as new is not asked about again.** The
+  look-alike question that came after could undo the whole import, or
+  skip the very note chosen.
+- **A copy asked for in an import no longer offers the original's older
+  words.** "Add as a new note" and "Add a copy anyway" kept the
+  original's rescue copy, so Restore previous on the copy offered to
+  put the original's words over a note just made.
+
+#### Large letters, narrow phones and a phone on its side
+
+- **No word breaks inside itself, and no figure is cut, at the largest
+  letters.** The Trash's "Delete for good" stood five lines tall
+  ("Dele / te / for / goo / d"), and Statistics' figures, the
+  calendar's month and weekdays, the bottom bar, every top bar's title
+  and the selection bar broke or were cut.
+- **Every question's text scrolls,** so its last sentence is never cut
+  under its answers: the import's warning that Update replaces the
+  earlier version was lost under the buttons.
+- **The Repeat sheet fits a narrow phone.** Saturday and Sunday were
+  squeezed to slivers on a 320 dp phone, Sunday could not be tapped, and
+  the stepper's − and + were smaller than a thumb.
+- **The Trash page has room for its list on a phone on its side,** and
+  its messages are drawn above its buttons: the delete's Undo bar lay
+  over Restore for its ten seconds.
+- **On Android 8 the keyboard no longer opens at every start,** over the
+  list's buttons, with nobody having asked.
+
+#### Smaller things
+
+- **The phone judges a note as the desktop does.** Two words joined by
+  a non-breaking space counted as one; 2.5 MB read "3 MB" here and "2
+  MB" there; a phone set to Arabic or Persian figures wrote its own in
+  a size; a tick written as "no" counted in templates and exports; a
+  note restored with no identity or no dates was known and sorted
+  otherwise.
+- **Restore previous's question names the previous version,** as the
+  button does: pressed a second time, it said the reverse of what it
+  did.
+- **Notes hidden in different ways are said of them all,** and Show all
+  unfolds every group holding one.
+- **A series of one says "1 time",** not "1 times".
+- **The welcome note and Settings → Backup say what Android's backup
+  does.** The welcome note opened with "It all stays on this phone",
+  where Android's backup, on unless you turn it off, copies the notes
+  to your Google account.
+
+### Changed
+
+- **Settings → Appearance says what a tap does:** "Dark themes. Tap
+  Light to go back to the light theme you used last.", and the same for
+  the light themes.
+- **What is shown read-only says it is kept whole,** not that the note
+  keeps it: the template editor shows the same blocks, where there is
+  no note.
+- **Every refusal is said as a whole sentence,** a held file's reason
+  included.
 
 ---
 
