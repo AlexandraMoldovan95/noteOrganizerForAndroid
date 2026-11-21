@@ -136,8 +136,9 @@ object Files {
      * @return the copy (an earlier one holding the same bytes, if there is
      *   one), or null if even the copy failed -- and then nothing is written
      *   over the original ([holdWrites]) until a later read copies it aside:
-     *   the app opened again on Android 8 to 11, where Back ends the activity
-     *   and not the process. Safe since a settings file read so holds its
+     *   the app's screen started again -- closed from the recent apps on any
+     *   version, or Back on Android 8 to 11, which ends the activity and not
+     *   the process. Safe since a settings file read so holds its
      *   marks in memory ([Settings.load]), which every later write carries.
      */
     fun preserveCorrupt(file: File): File? {

@@ -91,10 +91,10 @@ unpacked or ignores (since 2026-10-27).
 A file whose read the phone's storage refuses (an input-output error,
 not bytes that do not parse), or one that will not parse and cannot be
 copied aside either, is **held** instead: nothing is written over it until
-the app is closed from the recent apps and opened again (`Files.holdWrites`,
-cleared by the next start of the app's screen: closing it from the recent
-apps gives one on every version, Back only on Android 8 to 11; a new start reads
-every file afresh), and it reads as held for the rest of that run — as the
+the app's screen starts again (`Files.holdWrites`, cleared by
+`Startup.prepare`, which reads every file afresh). Closing the app from the
+recent apps and opening it does that on every version, as the app's words
+say; Back does it on Android 8 to 11 only. Until then it reads as held — as the
 desktop holds a file another program has open. While the notes or the
 Trash are not read (held, or set aside), no attached file is deleted: their
 unread entries may name any of them. A template's draft whose read is
