@@ -74,9 +74,14 @@ NOTES = [
      # Written as the app writes a table: the figures right-aligned by
      # the spaces before them, which is where both apps keep a cell's
      # alignment. A markdown "---:" under them read as a column set by
-     # hand to four characters, and the header was drawn "How…".
-     "body": "| What        |  How much |\n| rent        |      1500 |\n"
-             "| electricity |       180 |\n| internet    |        60 |",
+     # hand to four characters, and the header was drawn "How…". Three
+     # columns, the day each was paid between the two: two filled a
+     # third of the screen and left the rest empty (the review panel,
+     # 2026-11-15).
+     "body": "| What        | Paid on  |  How much |\n"
+             "| rent        | 1 Sep    |      1500 |\n"
+             "| electricity | 12 Sep   |       180 |\n"
+             "| internet    | 20 Sep   |        60 |",
      "category": "General",
      "created": "2026-10-13 18:00:00", "updated": "2026-10-13 18:20:00"},
     {"id": 3, "uid": "shot-idea", "title": "",
@@ -136,7 +141,9 @@ DARK_WORDS = {
 }
 
 # name, what it shows, the steps that get there, what the screen must
-# say, and what it must NOT say once it has arrived.
+# say, and what it must NOT say once it has arrived. KEYBOARD after them
+# keeps the keyboard in the picture, and refuses one taken without it.
+KEYBOARD = "keyboard"
 SHOTS = [
     ("01-note-list", "The note list: greeting, cards, badges, a pinned note",
      [],
@@ -144,9 +151,16 @@ SHOTS = [
     ("02-a-note", "A note open in the editor, its styling and checklist drawn",
      [("tap", "Home-made bread")],
      ["Home-made bread", "500 g flour", "yeast"], []),
+    # The same note being written in: the cursor in its words, the format
+    # bar above the keyboard. The stills had shown the editor only at rest,
+    # its tools out of sight (the review panel, 2026-11-15). Nothing is
+    # typed, so the note is not changed.
+    ("12-writing", "Writing in a note: the cursor in its words, the format bar above the keyboard",
+     [("tap_end", "Knead for 10")],
+     ["Home-made bread", "Select text to format it"], [], KEYBOARD),
     ("03-a-table", "A table drawn as a grid rather than as pipe rows",
      [("back_to", "Search notes"), ("tap", "September expenses")],
-     ["September expenses", "electricity", "1500"], []),
+     ["September expenses", "Paid on", "electricity", "1500"], []),
     ("04-search", "Search narrowing four notes to one, on a word in its body",
      [("back_to", "Search notes"), ("tap", "Search notes"), ("type", "boat")],
      ["boat trip"], ["Home-made bread", "September expenses"]),
@@ -275,8 +289,9 @@ def demo_status_bar(on):
             "-e", "command", "exit")
 
 
-def nodes():
-    """The screen's UI tree, fresh: (text, description, centre, class)."""
+def nodes(boxes=False):
+    """The screen's UI tree, fresh: (text, description, centre, class), or
+    with [boxes] the node's box (left, top, right, bottom) for its centre."""
     raw = fresh_tree(adb_bytes)
     try:
         root = ET.fromstring(raw)
@@ -289,7 +304,7 @@ def nodes():
             continue
         centre = ((bounds[0] + bounds[2]) // 2, (bounds[1] + bounds[3]) // 2)
         found.append((node.get("text", ""), node.get("content-desc", ""),
-                      centre, node.get("class", "")))
+                      bounds if boxes else centre, node.get("class", "")))
     return found
 
 
@@ -313,6 +328,25 @@ def tap(label, exact=False, patience=3.0):
             break
         time.sleep(0.4)
     print("   not found on screen: %r" % label)
+    return False
+
+
+def tap_end(label, patience=3.0):
+    """Tap the foot of the text field that says [label], at its right: the
+    cursor goes to the end of its words, and its handle hangs under them.
+    Tapped at the centre, the cursor landed on the bread's empty line and
+    its handle stood over the K of "Knead" (2026-11-21)."""
+    deadline = time.time() + patience
+    while True:
+        for text, _desc, box, kind in nodes(boxes=True):
+            if label in text and kind.endswith("EditText"):
+                adb("shell", "input", "tap", str(box[2] - 24), str(box[3] - 12))
+                time.sleep(1.5)
+                return True
+        if time.time() > deadline:
+            break
+        time.sleep(0.4)
+    print("   no text field says: %r" % label)
     return False
 
 
@@ -346,6 +380,8 @@ def act(step):
         return tap(step[1])
     if kind == "tap_exact":
         return tap(step[1], exact=True)
+    if kind == "tap_end":
+        return tap_end(step[1])
     if kind == "type":
         adb("shell", "input", "text", step[1].replace(" ", "%s"))
         time.sleep(1.5)
@@ -480,26 +516,37 @@ def main():
     # The turning as found, put back in the finally below.
     found = {key: adb("shell", "settings", "get", "system", key).strip()
              for key in ("accelerometer_rotation", "user_rotation")}
+    # The keyboard follows the phone's own light or dark, not the app's: the
+    # dark pass makes the phone dark too, as it mostly is under a dark theme,
+    # or 12-writing-dark showed a white keyboard under a dark note. "Night
+    # mode: no", as found, put back in the finally below.
+    night = adb("shell", "cmd", "uimode", "night").strip().rsplit(":", 1)[-1].strip()
 
     gif = "--gif" in sys.argv[1:]
     passes = () if gif else ((SETTINGS, ""), (DARK, "-dark"))
     failed = []
     try:
         for settings, suffix in passes:
+            adb("shell", "cmd", "uimode", "night", "yes" if suffix else "no")
             if not seed(settings):
                 return 1
             demo_status_bar(True)
-            for name, caption, steps, present, absent in SHOTS:
+            for name, caption, steps, present, absent, *rest in SHOTS:
                 if suffix and name in DARK_PASS_SKIPS:
                     continue
                 if suffix:
                     present, absent = DARK_WORDS.get(name, (present, absent))
+                keyboard = KEYBOARD in rest
                 name += suffix
                 print("-- %s: %s" % (name, caption))
                 if not all(act(step) for step in steps):
                     failed.append(name)
                     continue
-                data = shutter(present, absent)
+                if keyboard and not any(keyboard_up() or time.sleep(0.5) for _ in range(10)):
+                    print("   no keyboard came up -- not photographing")
+                    failed.append(name)
+                    continue
+                data = shutter(present, absent, keyboard)
                 if data is None:
                     failed.append(name)
                     continue
@@ -529,6 +576,14 @@ def main():
                 now = "(adb did not answer)"
             if now != value:
                 print("the emulator's %s is %s, not %r as found: set it back by hand" % (key, now, value))
+        try:
+            if night in ("yes", "no", "auto"):
+                adb("shell", "cmd", "uimode", "night", night)
+            now = adb("shell", "cmd", "uimode", "night").strip().rsplit(":", 1)[-1].strip()
+        except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+            now = "(adb did not answer)"
+        if now != night:
+            print("the emulator's night mode is %s, not %r as found: set it back by hand" % (now, night))
         demo_status_bar(False)
 
     print()

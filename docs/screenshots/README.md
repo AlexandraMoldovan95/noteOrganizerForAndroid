@@ -45,9 +45,12 @@ fixes the clock at 9:30 and the battery at full, so the frame is the app
 rather than whatever notification the emulator had pending that
 afternoon; the mobile-signal icon is hidden, because demo mode draws it
 white whatever the page behind it. It is all turned off again at the
-end. The on-screen keyboard is dismissed before every still picture — it
-is half the screen and none of it is this app — and kept only in the
-four frames of the moving picture that show the typing.
+end. The on-screen keyboard is dismissed before every still picture but
+one — it is half the screen and none of it is this app — and kept in
+`12-writing`, whose point is the format bar standing on it, and in the
+four frames of the moving picture that show the typing. The keyboard
+follows the phone's light or dark, not the app's, so the dark pass sets
+the phone dark too, and puts it back as it was after.
 
 **The pictures are looked at before they are committed.** Two bugs were
 found that way while this set was made: the card printing a date the way
@@ -61,7 +64,8 @@ white signal icon.
 |---|---|
 | `01-note-list.png` | The note list in Soft Lavender: the greeting, search, sort and show, and the cards — colour stripe, headline, preview, and the category, date, table, checklist and repeat badges. The pinned note floats to the top; the last card has no title, so it borrows its first line, set lighter |
 | `02-a-note.png` | A note open in the editor, its bold first line drawn and its checklist below, ticked rows struck through |
-| `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as, its figures right-aligned, as the spaces in those rows say |
+| `12-writing.png` | The same note being written in: the cursor at the end of its words, and on the keyboard the format bar — bold, italic, underline and strikethrough, colour and highlight, size and typeface, lists, indents, alignment, and a table |
+| `03-a-table.png` | A table drawn as a grid rather than as the pipe rows it is stored as: its header row bold on the accent's tint, the day each bill was paid, and the figures right-aligned, as the spaces in those rows say |
 | `04-search.png` | Search: one of four notes left, matched on a word in its body rather than its title |
 | `05-appearance.png` | Settings → Appearance: the Light \| Dark switch, and the four light themes |
 | `06-dark.png` | The same list in Midnight Purple |
@@ -72,7 +76,8 @@ white signal icon.
 | `11-empty.png` | What a person meets before writing anything: the greeting, search, and "No notes yet. Tap + to write your first." over an empty list |
 | `01-note-list-dark.png` | The note list in Midnight Purple: the greeting, search, sort and show, and the same cards with their stripes and badges, the pinned note at the top |
 | `02-a-note-dark.png` | The bread note open in Midnight Purple, its bold first line and its checklist below, ticked rows struck through |
-| `03-a-table-dark.png` | The expenses table in Midnight Purple, drawn as a grid, its figures right-aligned |
+| `12-writing-dark.png` | The bread note being written in, in Midnight Purple: the format bar on a keyboard the phone has made dark too |
+| `03-a-table-dark.png` | The expenses table in Midnight Purple, drawn as a grid, its header row tinted and its figures right-aligned |
 | `04-search-dark.png` | Search in Midnight Purple: one of four notes left, matched on a word in its body |
 | `05-appearance-dark.png` | Settings → Appearance in a dark theme: the Light \| Dark switch, and the four dark themes |
 | `07-calendar-dark.png` | The calendar in Midnight Purple: the series' Mondays and Thursdays as dots, a dated note, and the painted birthday |
@@ -93,17 +98,20 @@ The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
 month's notes in it would be an empty grid.
 
-**Current set:** captured 2026-11-12 on the emulator, in English, for
-0.14.1, the light set and the dark one in one run, with the empty list
-new in it (the review panel's ask). The notebook marks the
+**Current set:** captured 2026-11-21 on the emulator, in English, for
+0.15.0 — the light set, the dark one and `demo.gif` in one run — after
+Appearance's sentence changed, with the writing picture and the table's
+third column new in it (the review panel's asks of 2026-11-15: the
+editor had been shown only at rest, its tools out of sight, and two
+columns filled a third of the screen). The notebook marks the
 day's reminder as already shown, so a day the series falls on does not
 put its bar over the list; the table's seed is written as the app writes
 a table, its figures right-aligned by the spaces before them (a markdown
 `---:` under them read as a column set by hand to four characters, and
-the header was drawn "How…" — the 2026-10-23 retake). Against that
-day's light set, these differ by the date the calendar opens on and the
-dates worked out from it. `demo.gif` was made the same day for 0.14.2
-(the review panel's ask), and the whole set taken again that evening on
-0.14.2, to prove the tool's new waits: the dark pictures came out the
-same to the byte, the light ones differ only where the status bar's
-clock sits. Update this line whenever the set is recaptured.
+the header was drawn "How…" — the 2026-10-23 retake). The set before it
+was taken on 2026-11-12 for 0.14.1, with the empty list new in it, and
+`demo.gif` the same day for 0.14.2 (both the review panel's asks); the
+whole set was taken again that evening on 0.14.2, to prove the tool's
+new waits: the dark pictures came out the same to the byte, the light
+ones differ only where the status bar's clock sits. Update this line
+whenever the set is recaptured.

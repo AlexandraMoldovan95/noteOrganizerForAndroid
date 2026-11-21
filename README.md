@@ -33,7 +33,7 @@ in the desktop app's repository.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/02-a-note.png" alt="A note open, its formatting and checklist drawn" width="170">
+  <img src="docs/screenshots/12-writing.png" alt="Writing in a note: the format bar above the keyboard" width="170">
   <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="170">
   <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="170">
   <img src="docs/screenshots/05-appearance.png" alt="Settings, Appearance" width="170">
