@@ -159,7 +159,12 @@ says so). The unit ones were
 first run all together that day: 257 of 263 as the catalogue said. Of the
 six others, two had been re-aimed while it ran; four had lost their test to
 a later fix, and were given one or, where two guards now overlap, marked
-equivalent with the reason. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
+equivalent with the reason. For the release, on 21 November 2026, all 509
+on 0.15.0: the 466 the unit tests judge, 466 of 466 as the catalogue
+says (three left alive, each an equivalent with its reason), in about
+six hours; and the 43 the walk judges, each built into the app and its
+part walked on an emulator started cold, 43 of 43 (one, AS582, alive as
+its entry says), in under four. `tools/check_mutant_targets.py`, a gate in CI, fails when a mutant
 no longer finds its code, or is left alive without saying why.
 
 **A check that does the app's job proves nothing.** If the check computes
