@@ -602,7 +602,7 @@ page, so a backup run before that start keeps it. A settings file that cannot be
 turns it off until the person turns it on again, and the start says so — or,
 the file held (its read refused, or neither read nor copied aside), says the
 file cannot be written: the switch cannot be changed until the app is closed
-and opened again, the page says so, and while the app stays open Android's
+from the recent apps and opened again, the page says so, and while the app stays open Android's
 backup is handed nothing.
 The page says what Android does, when,
 and the 25 MB limit, in the words of the privacy policy; the welcome
