@@ -436,4 +436,10 @@ if failures:
     print("Each one means the two programs no longer say the same thing")
     print("about the same file. Fix it, or add an exception WITH its reason.")
     sys.exit(1)
+if model_py is None:
+    # Skipped as a courtesy, the phone's own checks having run: "the two
+    # programs agree" said a comparison that never ran was a pass.
+    print("THE NOTE'S SHAPE: the phone's own checks hold; the two programs were not compared "
+          "(no desktop app here).")
+    sys.exit(0)
 print("THE NOTE'S SHAPE: the two programs agree.")

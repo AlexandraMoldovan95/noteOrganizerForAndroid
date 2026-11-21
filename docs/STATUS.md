@@ -228,7 +228,7 @@ Grouped by what the app does; when each item arrived is in the
     A table of more than 1,000 cells — counted as drawn, every row as wide
     as the widest — says it is too large to draw and shows its first
     lines, read-only, so the note opens at once, in the note and in the
-    template editor alike; the note keeps it whole, and the desktop draws
+    template editor alike; it is kept whole, and the desktop draws
     it. Find searches its lines as written, each one stop, and shows the
     line it stops at. The 1,000 are the whole note's: a table
     past what the tables above it drew is shown so too, and says why.

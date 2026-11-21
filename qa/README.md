@@ -493,8 +493,10 @@ alone says "Automated in part" and leaves the case's own steps on
 screen to the hand. Where setting a case up, or taking its steps, on
 purpose takes more than ordinary use or cannot be done (a refused read,
 a held file, a full disk, a picker that covers the app), the row says
-so, "Not a hand check" or "Not practical by hand" (the two mean the
-same), and names what is left; a backup a script crafts is one a person
+so in its precondition: most with "Not a hand check" or "Not practical
+by hand" (the two mean the same), some by naming the debug build and the
+adb steps it takes ("which no ordinary use makes"); and it names what is
+left. A backup a script crafts is one a person
 can import. A row
 called whole reads all of a message it quotes; one whose checks read a
 message by some of its words says "in part" and leaves the rest to the
