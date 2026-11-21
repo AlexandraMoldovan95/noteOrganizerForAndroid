@@ -10,6 +10,26 @@ on its side that still expected the list to keep room under its cards
 for the +, now in the rail; rewritten, its part walked again, all 25
 passed.
 
+For the release, on 2026-11-21, one run of 0.15.0's debug build
+(versionCode 20): `walk_groups.py` walked all 79 parts in eight groups,
+each on an emulator started cold: 668 passed and 19 failed, all 19 in
+`calendar_large_letters` and the walk's own. The part opens today's
+note from under the calendar, at the largest letters on a 320 dp phone,
+where the day's heading wraps by its own length: "Saturday, 21 November
+2026" took four lines and put the note under the bottom bar, where
+"Friday, 13 November 2026", the day the step was written, had left it
+shown. The tap missed, and every step after it went with it. The walk
+now scrolls to the note as a person does. The repeat sheet had been
+photographed all the same, its "Su" found in the calendar's "Sun"; the
+photograph now waits for "Weekly" too. Walked again alone on a cold
+emulator, the part passed all 9. Two checks were new and passed: the
+welcome note is remembered by its own uid, not merely a uid; and a file's
+stored copy, taken away to test "can't be found", is put back before
+Remove, so that "its stored copy deleted" is Remove's doing. The
+photographs of the screens whose words changed since 13 November were
+looked at (Appearance on each side, the three texts shown to read), and
+the calendar's.
+
 For wave 6's fixes, on 2026-11-13, one run (the debug build, its version
 still 0.14.2's): `walk_groups.py` walked all 76 parts in eight groups,
 each on an emulator started cold: 634 of 636 passed, both failures the

@@ -842,11 +842,15 @@ def brand_new(folder):
     # Waited for, not read once after start_app's pause: the first start
     # after an install, on an emulator short of memory, wrote the notebook
     # later than that, and every step of this part failed on one read.
-    check_settled("a new notebook holds the welcome note", lambda: read_file("notes_data.json"),
-                  lambda notes: isinstance(notes, list) and len(notes) == 1
-                  and notes[0].get("title", "").startswith("Welcome"), within=12.0, first=0.0)
+    first_notes = check_settled("a new notebook holds the welcome note", lambda: read_file("notes_data.json"),
+                                lambda notes: isinstance(notes, list) and len(notes) == 1
+                                and notes[0].get("title", "").startswith("Welcome"), within=12.0, first=0.0)
+    # Remembered as THIS note: a uid merely present held for any uid at all,
+    # one that names no note in the notebook too.
+    welcome_uid = (first_notes[0].get("uid") if isinstance(first_notes, list) and first_notes else None) or None
     check_settled("the welcome note is remembered", lambda: read_file("settings.json") or {},
-                  lambda s: s.get("welcome_offered") is True and bool(s.get("welcome_note_uid")),
+                  lambda s: s.get("welcome_offered") is True and welcome_uid is not None
+                  and s.get("welcome_note_uid") == welcome_uid,
                   within=6.0, first=0.0)
     shot(folder, "01-new-notebook", "Welcome to Note Organizer", "Search notes")
 
@@ -6165,7 +6169,12 @@ def calendar_large_letters(folder):
         check("...and there the weekdays and the bottom bar's word stay whole",
               heads == [3, 3] and bar == 8, "weekdays %r, Calendar %s" % (heads, bar))
         # The repeat sheet there: its weekdays in a Row left Sa and Su slivers
-        # no thumb could tap. Su whole, and wider than ten dp.
+        # no thumb could tap. Su whole, and wider than ten dp. The note is
+        # sought below the grid, as a person scrolls to it: today's heading
+        # wraps by its own length at these letters, and on 21 November 2026
+        # "Saturday, 21 November 2026" took four lines and put the note under
+        # the bottom bar, where "Friday, 13 November 2026" had left it shown.
+        seek(lambda: find("Dentist") is not None)
         open_note("Dentist")
         tap("ⓘ", wait=1.2)
         tap("Does not repeat", wait=1.5)
@@ -6174,7 +6183,9 @@ def calendar_large_letters(folder):
         su = glyphs_drawn(sunday[0]) if sunday else None
         check("...and the repeat sheet's weekdays stay whole there, Sunday tappable",
               su == 2 and sunday[0][2] - sunday[0][0] > 10 * 540 / 160.0, "%r, %s letters" % (sunday, su))
-        shot(folder, "90d-repeat-sheet-320dp", "Su")
+        # "Weekly" as well: "Su" alone was found in the calendar's "Sun", and
+        # the sheet that never opened was photographed as if it had.
+        shot(folder, "90d-repeat-sheet-320dp", "Su", "Weekly")
         # ...and its stepper there: last in a plain Row, the + had what "2 months"
         # left, the row's end, and a number of two digits took it away. By its
         # width, not its ink: a dash draws one run as a + does. And the value on
@@ -6716,6 +6727,13 @@ def attaching(folder):
     adb("shell", "run-as", PACKAGE, "rm", "%s/attachments/%s" % (NOTEBOOK, stored))
     tap("📎  walk-receipt.txt", exact=True, wait=0.5)
     check("a file gone from the folder, tapped, is said missing", not says_soon("can't be found"))
+    # Put back before Remove: the walk took the copy away itself, and with it
+    # gone "its stored copy deleted" below held whatever Remove did.
+    adb("shell", "run-as", PACKAGE, "sh", "-c",
+        "'printf RECEIPT > %s/attachments/%s'" % (NOTEBOOK, stored))
+    back = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
+    check("the copy is back before Remove, so its deletion is Remove's",
+          bool(stored) and stored in back, back[:200])
 
     tap("Remove walk-receipt.txt", wait=1.2)
     check("removing a file asks first, and says the copy goes", not says_soon("can't be undone"))
