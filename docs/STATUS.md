@@ -1078,6 +1078,15 @@ build holding a notebook copied in, the release build installed over
 it, the same list, every note opened — and the debug build put back,
 the notebook's files had the same checksums as before.
 
+For 0.15.0, on 2026-11-21, the same judgement was made of the bundle a
+store is given rather than of the APK: `bundletool validate` read the
+`.aab`, `build-apks` made from it the APKs Google Play would send the
+emulator, for the device it reads off the emulator (ABIs, Android
+version, density, language), and they were installed together, as Play
+installs them: a base and its language and ABI splits. All 37 checks
+passed, the trip over a debug build among them, its notebook byte for
+byte as before.
+
 ### The unit tests, and their mutants
 
 The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests))
