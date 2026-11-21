@@ -42,7 +42,7 @@ object Files {
     /** Why a held [file] takes no write, in the words every refusal of it uses. */
     internal fun heldReason(file: File): String =
         "${file.name} could not be read or copied aside, so nothing is written over it until " +
-            "the app is closed and opened again"
+            "the app is closed from the recent apps and opened again"
 
     /**
      * Files a read in this run found unreadable and set aside: the desktop's

@@ -709,7 +709,12 @@ import that would bring entries into a held Trash, or templates into a held
 templates file, stops whole, where the desktop brings the notes in
 (said, and nothing is lost); and on Android 12 and later Back keeps the app
 in memory, so "closed and opened again" ends a hold only once Android or
-the person ends the app (the words stay true, nothing is lost).
+the person ends the app (the words stay true, nothing is lost). The lows
+wave (2026-11-22) changed the words, by the owner's choice: a hold lasts as
+long as the app's process, which Back and Home leave running on every
+version, so "closed and opened again" sent a person who pressed Back to a
+page still held. They now say "closed from the recent apps and opened
+again", in the three texts on Settings' pages and the five the code says.
 
 The nineteenth round found one of medium severity in the code and four in the
 documents. A template's draft refused at the background for want of room was

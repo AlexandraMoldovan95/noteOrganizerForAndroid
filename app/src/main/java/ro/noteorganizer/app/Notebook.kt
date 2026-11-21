@@ -1179,7 +1179,7 @@ object Notebook {
         if (file.isFile && Files.writesHeld(file)) {
             Files.markUnread(file)
             problems.add("$what could not be opened, so nothing will be written over it " +
-                "until the app is closed and opened again.")
+                "until the app is closed from the recent apps and opened again.")
             return null
         }
         var refused = false
@@ -1197,7 +1197,7 @@ object Notebook {
         val kept = if (refused) null.also { Files.holdWrites(file) } else Files.preserveCorrupt(file)
         if (kept == null) {
             problems.add(if (refused) "$what could not be opened, so nothing will be written over it " +
-                    "until the app is closed and opened again."
+                    "until the app is closed from the recent apps and opened again."
                 else "$what could not be read, and could not be copied aside either, " +
                     "so nothing will be written over it.")
             return null

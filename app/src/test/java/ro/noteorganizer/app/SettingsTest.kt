@@ -78,7 +78,7 @@ class SettingsTest {
             val load = Settings.load(folder)
             // A sentence, its full stop with it, as the notes' and the Trash's lines beside it.
             assertEquals("settings.json could not be opened, so nothing is written over it until the app is closed " +
-                "and opened again.", load.problem)
+                "from the recent apps and opened again.", load.problem)
             assertTrue("held", Files.writesHeld(settings))
             assertTrue("no copy aside", folder.list()!!.none { it.startsWith("settings_corrupt_") })
             assertNotNull("nothing written over it", Settings.put(load, "x", 1).let { it as? SaveResult.Failed })

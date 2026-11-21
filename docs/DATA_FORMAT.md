@@ -91,7 +91,8 @@ unpacked or ignores (since 2026-10-27).
 A file whose read the phone's storage refuses (an input-output error,
 not bytes that do not parse), or one that will not parse and cannot be
 copied aside either, is **held** instead: nothing is written over it until
-the app is closed and opened again (`Files.holdWrites`; a new start reads
+the app is closed from the recent apps and opened again (`Files.holdWrites`,
+kept as long as the app's process, which Back and Home leave running; a new start reads
 every file afresh), and it reads as held for the rest of that run — as the
 desktop holds a file another program has open. While the notes or the
 Trash are not read (held, or set aside), no attached file is deleted: their
