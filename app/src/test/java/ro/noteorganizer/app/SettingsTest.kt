@@ -449,6 +449,11 @@ class SettingsTest {
         val crossed = JSONObject("""{"phone_theme_light": "dark", "phone_theme_dark": "neon"}""")
         assertFalse(Settings.wornInMode(crossed, dark = false))
         assertFalse(Settings.wornInMode(crossed, dark = true))
+        // The desktop's key, which Light | Dark falls back to, counts as worn
+        // when it names a theme of that mode other than the first one.
+        val desktop = JSONObject("""{"theme": "dark_forest"}""")
+        assertTrue("Dark gives Forest Green, not the first", Settings.wornInMode(desktop, dark = true))
+        assertFalse(Settings.wornInMode(JSONObject("""{"theme": "dark"}"""), dark = true))
     }
 
     @Test

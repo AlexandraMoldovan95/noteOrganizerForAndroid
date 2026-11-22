@@ -235,12 +235,14 @@ object Settings {
     fun themeForMode(raw: JSONObject, dark: Boolean): String = if (dark) darkTheme(raw) else lightTheme(raw)
 
     /**
-     * Whether a theme of that mode was chosen here, for Light | Dark to go
-     * back to: at first there is none, and the mode's original is worn.
+     * Whether a theme of that mode was chosen, for Light | Dark to go back
+     * to: here, or on the desktop, whose key it falls back to. At first there
+     * is none, and the mode's original is worn -- "the first of" its themes.
      */
     fun wornInMode(raw: JSONObject, dark: Boolean): Boolean =
         (raw.opt(if (dark) PHONE_DARK_THEME else PHONE_LIGHT_THEME) as? String)
-            ?.let { it in (if (dark) Themes.DARK else Themes.LIGHT) } == true
+            ?.let { it in (if (dark) Themes.DARK else Themes.LIGHT) } == true ||
+            themeForMode(raw, dark) != (if (dark) "dark" else "light")
 
     fun lightTheme(raw: JSONObject): String {
         val name = raw.opt(PHONE_LIGHT_THEME) as? String
