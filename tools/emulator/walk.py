@@ -1757,17 +1757,22 @@ def large_letters_table(folder):
     tap("Settings", exact=True, wait=1.2)
     tap("Categories", exact=True, wait=1.2)
     tap("Add a category", wait=1.5)
+    # Save whole, measured before the keyboard rises: then the name typed and
+    # Save pressed with the keyboard up, as the panel did -- the keyboard
+    # squeezed the sheet and the message cut Delete and Save in half.
+    whole = max((b[3] - b[1] for b in bounds("Save")), default=0)
     tap("Name", exact=True, wait=0.8)
     type_text("General")
-    keyboard_down()
     tap("Save", exact=True, wait=0.3)
     unsaid = says_soon("There is already a category called")
-    # By its box on the screen, cut to what shows: a Save scrolled away is
-    # still in the tree, and find() alone would see it.
+    # By its box on the screen, cut to what shows: a Save scrolled or cut
+    # away is still in the tree, and find() alone would see it.
     saves = bounds("Save")
-    check("...and the category sheet's message leaves Save in sight under it",
-          not unsaid and any(b[3] - b[1] > 10 for b in saves), repr((unsaid, saves)))
+    check("...and the category sheet's message, over the keyboard, leaves Save whole under it",
+          not unsaid and whole > 10 and any(b[3] - b[1] >= whole - 6 for b in saves),
+          repr((unsaid, whole, saves)))
     shot(folder, "58c-category-message-largest-letters", "Save")
+    keyboard_down()
     back_to("Your name")
     back_to("Search notes")
     # ...and the Repeat sheet, its weekly rule at its longest, the same.
