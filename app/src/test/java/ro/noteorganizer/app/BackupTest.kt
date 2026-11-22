@@ -208,8 +208,8 @@ class BackupTest {
     @Test
     fun `a file that is not a backup says so`() {
         val notZip = File(temp("in"), "photo.zip").apply { writeText("not a zip at all") }
-        assertTrue((Backup.read(notZip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
-            .reason.contains("couldn't be read as a backup"))
+        assertEquals("in words, not the library's", Backup.NOT_WHOLE,
+            (Backup.read(notZip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
         val noNotes = File(temp("in"), "other.zip")
         zipOf(noNotes, "readme.txt" to "hi")
         assertTrue((Backup.read(noNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
@@ -474,8 +474,10 @@ class BackupTest {
         // backup: write failed: ENOSPC", which blamed the file, in the system's words.
         val into = File(File(temp("app"), "cache"), "import_1")
         assertEquals(Backup.NO_ROOM, Backup.unreadable(java.io.IOException("write failed: ENOSPC (No space left on device)"), into))
-        assertEquals("That file couldn't be read as a backup:\ninvalid END header.",
-            Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
+        // A file that is no whole zip, in words, not the library's (the review panel).
+        assertEquals(Backup.NOT_WHOLE, Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
+        assertEquals("That file couldn't be read as a backup:\nPermission denied.",
+            Backup.unreadable(java.io.IOException("Permission denied"), into))
         // ...and one its unpacking could not write names no path of the app's.
         val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
         val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }

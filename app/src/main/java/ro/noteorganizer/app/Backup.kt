@@ -349,12 +349,18 @@ object Backup {
     const val NO_ROOM = "The phone's storage filled up while the backup was read, so nothing from it was kept. " +
         "Free up some space and try again."
 
+    /** Said of a file that is not a whole zip, or not one this reads: the desktop's words. */
+    const val NOT_WHOLE = "That file couldn't be read as a backup: it isn't a whole Note Organizer backup, " +
+        "or it was damaged on its way here. Try another copy of it."
+
     /**
      * Why a backup could not be read, [e] met copying or unpacking it into [into]: a full
-     * phone said as one, not as the file's fault, and never the app's private path.
+     * phone said as one, not as the file's fault, and never the app's private path; a file
+     * that is no whole zip in words, not the library's ("zip END header not found").
      */
     fun unreadable(e: Throwable, into: File): String =
         if (Files.storageFull(e)) NO_ROOM
+        else if (e is java.util.zip.ZipException) NOT_WHOLE
         else "That file couldn't be read as a backup:\n" +
             Files.ended(Files.said(e, into.parentFile?.parentFile ?: into, "the phone could not copy or unpack it"))
 
