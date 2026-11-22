@@ -651,7 +651,9 @@ private fun CategoryEditor(
     // failed delete or write) keeps the sheet open and is said over it: said
     // under it, Save looked to do nothing. Scrolled, for a phone on its side.
     AppSheet(onDismissRequest = onDismiss, messages = messages) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // The fields scroll; Delete and Save stay under them, over the message:
+        // at the largest letters the message pushed them out of sight (the panel).
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(title, color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             OutlinedTextField(
                 value = draftName,
@@ -664,17 +666,17 @@ private fun CategoryEditor(
             )
             Text(stringResource(R.string.colour), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
             Swatches(Themes.PALETTE_COLORS, draftColour, allowNone = false) { draftColour = it }
-            Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (onDelete != null && !protected) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = palette.dangerText) }
-                }
-                Spacer(Modifier.weight(1f))
-                Button(
-                    onClick = { onSave(draftName, draftColour) },
-                    enabled = draftName.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(stringResource(R.string.save)) }
+        }
+        Row(Modifier.padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 32.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (onDelete != null && !protected) {
+                TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = palette.dangerText) }
             }
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = { onSave(draftName, draftColour) },
+                enabled = draftName.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
+            ) { Text(stringResource(R.string.save)) }
         }
     }
 }

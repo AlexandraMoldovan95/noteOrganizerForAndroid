@@ -1729,6 +1729,57 @@ def large_letters_table(folder):
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     time.sleep(1.5)
 
+    # At the largest letters the list's Sort and Show stand one line each:
+    # "Show: All" broke over two lines beside Sort; and a category's sheet
+    # keeps Save in sight under its message, which pushed it away (the panel).
+    def pill(start):
+        try:
+            root = ET.fromstring(screen_xml())
+        except ET.ParseError:
+            return None
+        for node in root.iter("node"):
+            if node.get("text", "").startswith(start):
+                box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+                return box if len(box) == 4 else None
+        return None
+
+    one = pill("Show: ")
+    adb("shell", "settings", "put", "system", "font_scale", "2.0")
+    time.sleep(2.0)
+    sort_b, show_b = pill("Sort: "), pill("Show: ")
+    tall = [b[3] - b[1] for b in (sort_b, show_b) if b]
+    check("at 200% the list's Sort and Show stand one line each",
+          bool(one) and len(tall) == 2 and max(tall) <= 2.2 * (one[3] - one[1]) and abs(tall[0] - tall[1]) <= 4,
+          repr((one, sort_b, show_b)))
+    shot(folder, "58b-pills-largest-letters", "Sort:", "Show:")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Categories", exact=True, wait=1.2)
+    tap("Add a category", wait=1.5)
+    tap("Name", exact=True, wait=0.8)
+    type_text("General")
+    keyboard_down()
+    tap("Save", exact=True, wait=0.3)
+    unsaid = says_soon("There is already a category called")
+    # By its box on the screen, cut to what shows: a Save scrolled away is
+    # still in the tree, and find() alone would see it.
+    saves = bounds("Save")
+    check("...and the category sheet's message leaves Save in sight under it",
+          not unsaid and any(b[3] - b[1] > 10 for b in saves), repr((unsaid, saves)))
+    shot(folder, "58c-category-message-largest-letters", "Save")
+    back_to("Your name")
+    back_to("Search notes")
+    # ...and the Repeat sheet, its weekly rule at its longest, the same.
+    open_note("Sizes")
+    tap("ⓘ", wait=1.2)
+    tap("Does not repeat", wait=1.5)
+    tap("Every week", exact=True, wait=1.0)
+    saves = bounds("Save")
+    check("...and the Repeat sheet keeps Save in sight under its weekly rule", any(b[3] - b[1] > 10 for b in saves),
+          repr(saves))
+    back_to("Search notes")
+    adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    time.sleep(1.5)
+
 
 def trash_select(folder):
     """The Trash page: what its numbers set, said above them; two entries

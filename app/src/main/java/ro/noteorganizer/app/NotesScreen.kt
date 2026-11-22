@@ -3,11 +3,14 @@ package ro.noteorganizer.app
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -671,7 +674,10 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
 
             SearchBox(query) { query = it }
 
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Wrapped whole, each pill on one line: at the largest letters "Show: All"
+            // broke over two lines, out of step with Sort beside it (the review panel).
+            FlowRow(Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box {
                     Pill(stringResource(R.string.sort_label, order.label)) { sortMenu = true }
                     DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
@@ -685,7 +691,6 @@ fun NotesScreen(state: AppState, onImportCode: () -> Unit, plusInRail: Boolean =
                         }
                     }
                 }
-                Spacer(Modifier.width(8.dp))
                 Box {
                     Pill(stringResource(R.string.show_label, if (show == Showing.ALL) stringResource(R.string.show_all) else show)) {
                         showMenu = true
@@ -1032,6 +1037,10 @@ fun Pill(label: String, onClick: () -> Unit) {
         text = "$label ▾",
         color = palette.text,
         fontSize = 13.sp,
+        // One line, cut with "…" past the row: wrapped, it stood taller than its neighbour.
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(palette.card)

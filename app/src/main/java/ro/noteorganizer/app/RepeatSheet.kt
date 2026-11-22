@@ -90,7 +90,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
     // and says why over itself: said in the window under it, it was never
     // seen.
     AppSheet(onDismissRequest = onDone, messages = state.snackbar) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // The rule scrolls; Cancel and Save stay under it, over a message, as
+        // the category sheet's do: at the largest letters it pushed them away.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(stringResource(R.string.repeat), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -180,11 +182,13 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
             if (needsDate) Text(stringResource(R.string.repeat_needs_date), color = palette.dangerText, fontSize = 13.sp,
                                 modifier = Modifier.padding(top = 8.dp))
             problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+        }
 
             val offKept = stringResource(R.string.repeat_off_kept)
             val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)
             val offNoCopy = stringResource(R.string.repeat_off_no_copy)
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
+                horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
                 TextButton(
                     enabled = !needsDate,
@@ -220,7 +224,6 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                     },
                 ) { Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium) }
             }
-        }
     }
     if (pickingStart) DateDialog(start, onPick = { start = it; pickingStart = false; problem = null }) { pickingStart = false }
     if (pickingEnd) DateDialog(end.ifEmpty { start }, onPick = { end = it; pickingEnd = false }) { pickingEnd = false }
