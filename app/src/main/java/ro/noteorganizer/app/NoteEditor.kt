@@ -3756,14 +3756,23 @@ fun attachPicked(state: AppState, context: android.content.Context, id: Int, uri
     state.scope.launch {
         val copied = mutableListOf<Pair<String, File>>()
         try {
+            // The note's files read here, on the main thread the notebook is written on.
+            val held = state.attachmentsOf(id)
             val repeats = withContext(kotlinx.coroutines.Dispatchers.IO) {
                 uris.forEach { uri -> copyToCache(context, uri)?.let { copied.add(it) } }
-                Organizing.alreadyAttached(state.load, id, state.attachments, copied)
+                Organizing.alreadyAttached(held, state.attachments, copied)
             }
             // The same file picked again: asked once for all, No kept them out.
             val taking = if (repeats.isEmpty() || state.askAttachAgain(repeats.map { Normalize.bareFileName(copied[it].first) })) copied
                          else copied.filterIndexed { at, _ -> at !in repeats }
-            if (taking.isEmpty()) return@launch
+            if (taking.isEmpty()) {
+                // Nothing to write, and still said: a pick none of which would copy
+                // ("No file could be attached"), and the room it left (then).
+                val unread = uris.size - copied.size
+                if (unread > 0) state.attach(id, emptyList(), unreadable = unread, uid = uid)
+                then?.invoke()
+                return@launch
+            }
             val empty = taking.filter { (_, temp) -> temp.length() == 0L }.map { Normalize.bareFileName(it.first) }
             val before = state.attachmentsOf(id).size
             state.attach(id, taking.map { (name, temp) ->

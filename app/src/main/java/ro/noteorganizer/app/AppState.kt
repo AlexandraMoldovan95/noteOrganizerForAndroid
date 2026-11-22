@@ -282,6 +282,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
      */
     suspend fun askAttachAgain(names: List<String>): Boolean {
         val question = AttachAgainQuestion(names)
+        // One at a time: a second pick while one waits answers the first No,
+        // where the first waited for good, its copies in the cache with it.
+        attachAgainQuestion?.answer?.complete(false)
         attachAgainQuestion = question
         return try {
             question.answer.await()

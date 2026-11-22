@@ -954,16 +954,18 @@ class OrganizingTest {
         // The same file picked again went in as a second copy, unsaid (the review panel, 22 November).
         val load = notebook("""[{"id": 1, "title": "Trip", "updated": "2026-10-01 09:00:00"}]""")
         Organizing.attach(load, 1, attachments(load), listOf(incoming("ticket.pdf", "TICKET")))
+        val atts = onDisk(load).getJSONObject(0).getJSONArray("attachments")
+        val held = (0 until atts.length()).map { atts.getJSONObject(it).let { a -> a.getString("filename") to a.getString("stored_as") } }
         val dir = NioFiles.createTempDirectory("picked").toFile()
         fun picked(name: String, bytes: String) = name to File(dir, "p${bytes.hashCode()}_$name").apply { writeText(bytes) }
-        val found = Organizing.alreadyAttached(load, 1, attachments(load), listOf(
+        val found = Organizing.alreadyAttached(held, attachments(load), listOf(
             picked("ticket.pdf", "TICKET"),          // the same file
             picked("ticket.pdf", "ANOTHER TICKET"),  // the same name, other bytes
             picked("copy.pdf", "TICKET"),            // the same bytes, another name
             picked("ticket.pdf", "TICKEX")))         // the same size, other bytes
         assertEquals(listOf(0), found)
-        assertEquals("a note gone has none", emptyList<Int>(),
-            Organizing.alreadyAttached(load, 9, attachments(load), listOf(picked("ticket.pdf", "TICKET"))))
+        assertEquals("a note with no files has none", emptyList<Int>(),
+            Organizing.alreadyAttached(emptyList(), attachments(load), listOf(picked("ticket.pdf", "TICKET"))))
     }
 
     @Test

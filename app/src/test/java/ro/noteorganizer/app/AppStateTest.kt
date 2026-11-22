@@ -3,7 +3,11 @@ package ro.noteorganizer.app
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -313,6 +317,20 @@ class AppStateTest {
         s.noteFromShared("Shared words\nand more", "Saved as a new note")
         assertEquals(1, s.openId)
         assertEquals(listOf("and more"), s.load.notes.filter { it.title == "Shared words" }.map { it.body })
+    }
+
+    @Test
+    fun `a question about files already attached is answered, and a second one answers the first No`() = runBlocking {
+        val s = state()
+        val first = async(start = CoroutineStart.UNDISPATCHED) { s.askAttachAgain(listOf("a.txt")) }
+        assertEquals(listOf("a.txt"), s.attachAgainQuestion?.names)
+        val second = async(start = CoroutineStart.UNDISPATCHED) { s.askAttachAgain(listOf("b.txt")) }
+        // Bounded: unanswered, it would wait for good, and the run with it.
+        assertFalse("the first, replaced, is answered No and waits no more", withTimeout(5_000) { first.await() })
+        assertEquals(listOf("b.txt"), s.attachAgainQuestion?.names)
+        s.answerAttachAgain(true)
+        assertTrue(second.await())
+        assertNull("answered, the question goes", s.attachAgainQuestion)
     }
 
     @Test

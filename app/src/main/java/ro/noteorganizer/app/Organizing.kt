@@ -424,23 +424,16 @@ object Organizing {
     data class Attached(val result: SaveResult, val added: Int, val failed: List<String>)
 
     /**
-     * Of the files picked for note [id] -- each its name and a copy of its
-     * bytes -- the places of those the note already holds as they are: the
-     * name it would show, then the size, then the bytes, as the desktop's
-     * _attached_already. The same file picked again made a second attachment
-     * and a second copy, unsaid (the review panel). A file that cannot be
-     * read counts as new; its copy says why it failed.
+     * Of the files picked -- each its name and a copy of its bytes -- the
+     * places of those the note already [held] (its files' shown and stored
+     * names, read on the main thread) as they are: the name it would show,
+     * then the size, then the bytes, as the desktop's _attached_already. The
+     * same file picked again made a second attachment and a second copy,
+     * unsaid (the review panel). A file that cannot be read counts as new.
      */
-    fun alreadyAttached(load: Notebook.Load, id: Int, attachmentsDir: File, picked: List<Pair<String, File>>): List<Int> {
-        val note = load.raw?.let { a -> indexOfId(a, id).takeIf { it >= 0 }?.let { a.getJSONObject(it) } } ?: return emptyList()
-        val held = (note.opt("attachments") as? JSONArray) ?: return emptyList()
+    fun alreadyAttached(held: List<Pair<String, String>>, attachmentsDir: File, picked: List<Pair<String, File>>): List<Int> {
         val byName = HashMap<String, MutableList<File>>()
-        for (i in 0 until held.length()) {
-            val one = held.opt(i) as? JSONObject ?: continue
-            val stored = one.opt("stored_as") as? String ?: continue
-            val shown = one.opt("filename") as? String ?: continue
-            byName.getOrPut(shown) { ArrayList() }.add(File(attachmentsDir, stored))
-        }
+        for ((shown, stored) in held) byName.getOrPut(shown) { ArrayList() }.add(File(attachmentsDir, stored))
         return picked.indices.filter { at ->
             val (name, copy) = picked[at]
             byName[Normalize.bareFileName(name)]?.any { sameBytes(copy, it) } == true
