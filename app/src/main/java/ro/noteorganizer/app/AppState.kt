@@ -266,6 +266,37 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         question.answer.complete(choice)
     }
 
+    /** The question [askAttachAgain] asks: files picked that the note already holds, by the names it shows. */
+    class AttachAgainQuestion(val names: List<String>) {
+        internal val answer = kotlinx.coroutines.CompletableDeferred<Boolean>()
+    }
+
+    /** The question about files already attached on the screen now, if one is. */
+    var attachAgainQuestion by mutableStateOf<AttachAgainQuestion?>(null)
+        private set
+
+    /**
+     * Whether files picked that the note already holds, exactly as they are,
+     * are attached again: asked once for all of them, as the desktop asks,
+     * where they went in as second copies, unsaid. Back, or a tap outside, is No.
+     */
+    suspend fun askAttachAgain(names: List<String>): Boolean {
+        val question = AttachAgainQuestion(names)
+        attachAgainQuestion = question
+        return try {
+            question.answer.await()
+        } finally {
+            if (attachAgainQuestion === question) attachAgainQuestion = null
+        }
+    }
+
+    /** The answer to the question on the screen ([askAttachAgain]). */
+    fun answerAttachAgain(again: Boolean) {
+        val question = attachAgainQuestion ?: return
+        attachAgainQuestion = null
+        question.answer.complete(again)
+    }
+
     val snackbar = SnackbarHostState()
 
     /**

@@ -275,6 +275,17 @@
     <string name="attach_remove_text">Remove “%1$s” from the note?\n\nThe stored copy is deleted with it, unless another note still uses it — this can\'t be undone.</string>
     <string name="attach_remove_text_kept">Remove “%1$s” from the note?\n\nIts stored copy stays on the phone this time: your notes or the Trash could not be read when the app started.</string>
     <string name="attach_remove_confirm">Remove</string>
+    <!-- The same file picked again, and an empty one: the desktop's words. -->
+    <string name="attach_again_title">Already attached</string>
+    <string name="attach_again_one">“%1$s” is already attached to this note, exactly as it is.\n\nAttach it again?</string>
+    <string name="attach_again_many">These files are already attached to this note, exactly as they are:\n%1$s\n\nAttach them again?</string>
+    <string name="attach_again_yes">Attach again</string>
+    <string name="attach_again_no">No</string>
+    <string name="attach_empty_one">“%1$s” is empty (0 bytes) — attached anyway</string>
+    <plurals name="attach_empty_many">
+        <item quantity="one">%d file is empty (0 bytes) — attached anyway</item>
+        <item quantity="other">%d files are empty (0 bytes) — attached anyway</item>
+    </plurals>
     <string name="attach_full">A note can keep %1$d attached files. Remove one to add another, or split this into two notes.</string>
     <string name="attach_too_many_title">More files than this note can hold</string>
     <string name="attach_too_many_text">A note can keep %1$d attached files, and there is room for %2$d more.\n\nAttach the first %2$d and leave the rest?</string>

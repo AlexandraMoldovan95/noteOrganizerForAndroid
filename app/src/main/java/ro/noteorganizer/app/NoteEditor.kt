@@ -3756,12 +3756,24 @@ fun attachPicked(state: AppState, context: android.content.Context, id: Int, uri
     state.scope.launch {
         val copied = mutableListOf<Pair<String, File>>()
         try {
-            withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val repeats = withContext(kotlinx.coroutines.Dispatchers.IO) {
                 uris.forEach { uri -> copyToCache(context, uri)?.let { copied.add(it) } }
+                Organizing.alreadyAttached(state.load, id, state.attachments, copied)
             }
-            state.attach(id, copied.map { (name, temp) ->
+            // The same file picked again: asked once for all, No kept them out.
+            val taking = if (repeats.isEmpty() || state.askAttachAgain(repeats.map { Normalize.bareFileName(copied[it].first) })) copied
+                         else copied.filterIndexed { at, _ -> at !in repeats }
+            if (taking.isEmpty()) return@launch
+            val empty = taking.filter { (_, temp) -> temp.length() == 0L }.map { Normalize.bareFileName(it.first) }
+            val before = state.attachmentsOf(id).size
+            state.attach(id, taking.map { (name, temp) ->
                 Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
             }, unreadable = uris.size - copied.size, uid = uid)
+            // An empty file is attached, as asked, and said: it went in without a remark.
+            if (empty.isNotEmpty() && state.attachmentsOf(id).size > before) {
+                state.say(if (empty.size == 1) context.getString(R.string.attach_empty_one, quotedFile(empty[0]))
+                          else context.resources.getQuantityString(R.plurals.attach_empty_many, empty.size, empty.size))
+            }
             then?.invoke()
         } finally {
             copied.forEach { (_, temp) -> temp.delete() }

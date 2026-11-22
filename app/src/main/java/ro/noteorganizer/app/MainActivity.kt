@@ -675,6 +675,20 @@ fun AppRoot(state: AppState, version: String) {
     }
     // Share -> PDF, for a note the PDF would leave part of: asked before anything is handed over.
     state.pdfQuestion?.let { PdfQuestionDialog(it, onAnswer = state::answerPdf) }
+    // Files picked that the note already holds: asked before they are attached again.
+    state.attachAgainQuestion?.let { question ->
+        Ask(
+            title = stringResource(R.string.attach_again_title),
+            text = if (question.names.size == 1) stringResource(R.string.attach_again_one, quotedFile(question.names[0]))
+                   else stringResource(R.string.attach_again_many,
+                       question.names.take(10).joinToString("\n") { "• " + quotedFile(it) } +
+                           if (question.names.size > 10) "\n… and ${question.names.size - 10} more" else ""),
+            confirm = stringResource(R.string.attach_again_yes),
+            onConfirm = { state.answerAttachAgain(true) },
+            onDismiss = { state.answerAttachAgain(false) },
+            dismiss = stringResource(R.string.attach_again_no),
+        )
+    }
     askBackup?.let { contents ->
         Ask(
             title = stringResource(R.string.import_notes_title),

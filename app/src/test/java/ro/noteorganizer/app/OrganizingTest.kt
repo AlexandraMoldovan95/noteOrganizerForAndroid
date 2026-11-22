@@ -950,6 +950,23 @@ class OrganizingTest {
     }
 
     @Test
+    fun `a file picked that the note already holds, name and bytes, is found, another of the same name not`() {
+        // The same file picked again went in as a second copy, unsaid (the review panel, 22 November).
+        val load = notebook("""[{"id": 1, "title": "Trip", "updated": "2026-10-01 09:00:00"}]""")
+        Organizing.attach(load, 1, attachments(load), listOf(incoming("ticket.pdf", "TICKET")))
+        val dir = NioFiles.createTempDirectory("picked").toFile()
+        fun picked(name: String, bytes: String) = name to File(dir, "p${bytes.hashCode()}_$name").apply { writeText(bytes) }
+        val found = Organizing.alreadyAttached(load, 1, attachments(load), listOf(
+            picked("ticket.pdf", "TICKET"),          // the same file
+            picked("ticket.pdf", "ANOTHER TICKET"),  // the same name, other bytes
+            picked("copy.pdf", "TICKET"),            // the same bytes, another name
+            picked("ticket.pdf", "TICKEX")))         // the same size, other bytes
+        assertEquals(listOf(0), found)
+        assertEquals("a note gone has none", emptyList<Int>(),
+            Organizing.alreadyAttached(load, 9, attachments(load), listOf(picked("ticket.pdf", "TICKET"))))
+    }
+
+    @Test
     fun `files are copied in and listed in one write, and a second file with the same name is kept apart`() {
         val load = notebook("""[{"id": 1, "title": "Trip", "updated": "2026-10-01 09:00:00"}]""")
         // The same moment for both, as two files picked together can have.

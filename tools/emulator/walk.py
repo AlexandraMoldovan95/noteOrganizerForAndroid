@@ -6765,6 +6765,9 @@ def attaching(folder):
     with open(local, "w", encoding="utf-8") as f:
         f.write("RECEIPT 120")
     adb("push", local, "/sdcard/Download/walk-receipt.txt")
+    empty = os.path.join(folder, "walk-empty.txt")
+    open(empty, "w").close()
+    adb("push", empty, "/sdcard/Download/walk-empty.txt")
     if not seed_inside([{"id": 1, "uid": "at-trip", "title": "Trip", "body": "fuel",
                          "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
                        {"welcome_offered": True}, "Trip"):
@@ -6789,6 +6792,26 @@ def attaching(folder):
     kept = adb("exec-out", "run-as", PACKAGE, "cat", "%s/attachments/%s" % (NOTEBOOK, stored), binary=True)
     check("its bytes are in the attachments folder", kept == b"RECEIPT 120", repr(kept[:40]))
     shot(folder, "50-attached", "walk-receipt.txt", "Remove walk-receipt.txt")
+
+    # The same file picked again is asked about, and No keeps it out; an empty
+    # file is attached, and said -- both went in without a word (the panel).
+    tap("⋮", exact=True, wait=1.0)
+    tap("📎 Attach files", exact=True, wait=3.0)
+    tap("walk-receipt.txt", exact=True, wait=3.0)
+    asked = not says_soon("is already attached to this note")
+    shot(folder, "50b-already-attached", "Already attached", "Attach again")
+    tap_last("No", wait=1.5)
+    check("the same file picked again is asked about, and No attaches nothing",
+          asked and len(trip().get("attachments") or []) == 1, json.dumps(trip().get("attachments")))
+    tap("⋮", exact=True, wait=1.0)
+    tap("📎 Attach files", exact=True, wait=3.0)
+    tap("walk-empty.txt", exact=True, wait=3.0)
+    unsaid = says_soon("is empty (0 bytes)")
+    check("an empty file is attached, and said", not unsaid and len(trip().get("attachments") or []) == 2,
+          repr(unsaid))
+    # Taken off again: the steps below hold one file.
+    tap("Remove walk-empty.txt", wait=1.2)
+    tap_last("Remove", wait=1.5)
 
     # A file gone from the folder, tapped: said, as the desktop says it -- it
     # opened nothing, without a word.

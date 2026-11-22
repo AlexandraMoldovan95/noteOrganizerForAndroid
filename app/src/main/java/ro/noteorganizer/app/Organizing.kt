@@ -423,6 +423,45 @@ object Organizing {
     /** What [attach] did: the write, how many files joined, and the names that would not copy. */
     data class Attached(val result: SaveResult, val added: Int, val failed: List<String>)
 
+    /**
+     * Of the files picked for note [id] -- each its name and a copy of its
+     * bytes -- the places of those the note already holds as they are: the
+     * name it would show, then the size, then the bytes, as the desktop's
+     * _attached_already. The same file picked again made a second attachment
+     * and a second copy, unsaid (the review panel). A file that cannot be
+     * read counts as new; its copy says why it failed.
+     */
+    fun alreadyAttached(load: Notebook.Load, id: Int, attachmentsDir: File, picked: List<Pair<String, File>>): List<Int> {
+        val note = load.raw?.let { a -> indexOfId(a, id).takeIf { it >= 0 }?.let { a.getJSONObject(it) } } ?: return emptyList()
+        val held = (note.opt("attachments") as? JSONArray) ?: return emptyList()
+        val byName = HashMap<String, MutableList<File>>()
+        for (i in 0 until held.length()) {
+            val one = held.opt(i) as? JSONObject ?: continue
+            val stored = one.opt("stored_as") as? String ?: continue
+            val shown = one.opt("filename") as? String ?: continue
+            byName.getOrPut(shown) { ArrayList() }.add(File(attachmentsDir, stored))
+        }
+        return picked.indices.filter { at ->
+            val (name, copy) = picked[at]
+            byName[Normalize.bareFileName(name)]?.any { sameBytes(copy, it) } == true
+        }
+    }
+
+    /** Whether [a] and [b] hold the same bytes: the size first, which is cheap. */
+    private fun sameBytes(a: File, b: File): Boolean = try {
+        a.isFile && b.isFile && a.length() == b.length() &&
+            a.inputStream().buffered().use { x -> b.inputStream().buffered().use { y ->
+                var same = true
+                while (same) {
+                    val c = x.read()
+                    if (c != y.read()) same = false else if (c == -1) break
+                }
+                same
+            } }
+    } catch (_: java.io.IOException) {
+        false
+    }
+
     private val STAMP: java.time.format.DateTimeFormatter =
         java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSSSSS", Locale.US)
 
