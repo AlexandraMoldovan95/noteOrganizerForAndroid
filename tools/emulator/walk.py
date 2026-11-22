@@ -918,10 +918,11 @@ def brand_new(folder):
     check("Undo brings it back, and out of the Trash",
           trashed and any(n.get("title") == "Groceries" for n in notes)
           and not any(t.get("title") == "Groceries" for t in trash))
-    # In the editor, not on the list: the list says "Groceries" too, and an
-    # earlier form of this check passed there.
-    check("Undo opens the note it brought back",
-          not says_soon("Groceries") and bool(screen_says("Search notes")))
+    # Deleted from the list, it comes back to the list, the editor not opened
+    # over it (the review panel): the note and the list's search box both in
+    # sight, which the editor would hide.
+    check("Undo from the list puts the note back on the list, and opens nothing",
+          not says_soon("Groceries", "Search notes"))
     back_to("Search notes")
 
     # ---- Settings ----

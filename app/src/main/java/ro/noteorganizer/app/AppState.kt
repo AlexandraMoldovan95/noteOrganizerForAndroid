@@ -937,7 +937,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     /**
      * Moves notes to the Trash and offers them back ([offerUndo]'s ten
      * seconds) -- the desktop's banner, as Android's snackbar. Undo restores
-     * exactly those entries, and opens the note when it was the only one.
+     * exactly those entries, and opens the note again when it was the only
+     * one and the one open: from the list, it took the editor (the panel).
      */
     fun trash(ids: Collection<Int>) {
         // A new note's word waiting for the list, and the queued words on these
@@ -950,7 +951,8 @@ class AppState(val dir: File, val scope: CoroutineScope) {
         if (!report(result)) return
         val count = (result as SaveResult.Ok).imported
         val keys = load.trash.takeLast(count).map { Organizing.keyOf(it) }
-        if (openId != null && openId in ids) closeNote()
+        val wasOpen = openId != null && openId in ids
+        if (wasOpen) closeNote()
         offerUndo(if (count == 1) "Moved to Trash" else "Moved $count notes to Trash") {
             val before = load.notes.map { it.id }.toSet()
             report(Organizing.restore(load, keys)) { ok ->
@@ -973,7 +975,7 @@ class AppState(val dir: File, val scope: CoroutineScope) {
                 val put = load.notes.map { it.id }.filter { it !in before }.toSet()
                 if (tab == Tab.NOTES) revealAfterUndo = UndoReveal(put, put - given)
                 else if (count == 1 && wasNew != null) noteMade(ok.id)
-                if (count == 1) openNote(ok.id)
+                if (count == 1 && wasOpen) openNote(ok.id)
             }
         }
     }

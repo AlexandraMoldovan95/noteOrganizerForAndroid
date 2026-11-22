@@ -316,6 +316,23 @@ class AppStateTest {
     }
 
     @Test
+    fun `the Trash's Undo opens again only the note that was open`() {
+        // Deleted from the list and put back, a note was opened in the editor,
+        // over what was there (the review panel, 22 November).
+        val s = state()
+        s.trash(listOf(2))
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertNull("from the list with nothing open: put back, nothing opened", s.openId)
+        s.openNote(1)
+        s.trash(listOf(s.load.notes.first { it.title == "B" }.id))
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("another note open, as on two panes: it stays", "A", s.openId?.let { s.note(it)?.title })
+        s.trash(listOf(s.openId!!))
+        s.snackbar.currentSnackbarData!!.performAction()
+        assertEquals("the note open when it went comes back open", "A", s.openId?.let { s.note(it)?.title })
+    }
+
+    @Test
     fun `the offers an Undo held back outlive a second Undo, and come after the last`() {
         val s = state()
         s.say("one")
