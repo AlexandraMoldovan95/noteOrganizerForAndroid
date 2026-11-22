@@ -297,6 +297,7 @@
         <item quantity="other">%d words</item>
     </plurals>
     <string name="cell">Cell</string>
+    <string name="cell_pipe_kept">A table cell can\'t hold “|”, so it was written as “/”.</string>
 
     <!-- The format bar's line keys -->
     <string name="list_bullet">Bullet list</string>

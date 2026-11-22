@@ -3053,6 +3053,16 @@ def table_bar(folder):
     tap("Delete", exact=True, wait=0.8)
     tap("This column", exact=True, wait=1.2)
     check_settled("Delete, This column", rows, lambda r: bool(r) and r[0][:2] == ["Item", ""])
+    # A "|" typed in a cell is the table's divider: kept as "/", and said once
+    # a cell, where the cell took it without a word (the review panel). Escaped
+    # for the device's shell, which reads a bare | as a pipe.
+    tap("Item", exact=True, wait=1.2)
+    adb("shell", "input", "text", "\\|x")
+    time.sleep(0.6)
+    unsaid = says_soon("can't hold")
+    check_settled('a "|" typed in a cell is written "/"', rows, lambda r: bool(r) and r[0][0] == "Item/x")
+    check("...and said, on the bar", not unsaid, repr(unsaid))
+    keyboard_down()
     back_to("Search notes")
 
 

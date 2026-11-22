@@ -4055,6 +4055,10 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     // The cell left: words it held back are written now ([EditorModel.typeInCell]).
     DisposableEffect(key) { onDispose { model.writeHeldCell() } }
     val said = stringResource(R.string.cell)
+    // A "|" typed or pasted is the table's divider, kept as "/" -- said once
+    // a cell, as it was not (the review panel).
+    val pipeWords = stringResource(R.string.cell_pipe_kept)
+    var pipeSaid by remember(key) { mutableStateOf(false) }
     val following = rememberFollowing()
     BasicTextField(
         value = draft,
@@ -4062,6 +4066,10 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
             // A CR that came in is one line break, as the desktop's paste puts it.
             val next = Editing.breaksCame(draft.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
                 ?.let { (text, at) -> TextFieldValue(text, TextRange(at)) } ?: given
+            if ("|" in next.text && !pipeSaid) {
+                pipeSaid = true
+                model.say(pipeWords)
+            }
             val clean = next.text.replace("|", "/")
             following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)
