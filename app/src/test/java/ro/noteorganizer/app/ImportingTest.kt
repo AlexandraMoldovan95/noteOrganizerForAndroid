@@ -36,6 +36,28 @@ class ImportingTest {
     // ---- the desktop's door ----
 
     @Test
+    fun `a backup's note that is in the Trash too is said to be, right after what was added`() {
+        // Deleted here after the backup was made: brought back into the list,
+        // its deleted copy still in the Trash, and "Added 1 note" said nothing
+        // of it (the review panel, 22 November).
+        val trash = """[{"id": 9, "uid": "gone", "title": "Gone", "body": "g", "category": "General",
+            "deleted_at": "${daysAgo(1)}"}]"""
+        val one = notebook("[]", trash)
+        val done = Importing.apply(one, backupPlan(one, """[{"id": 1, "uid": "gone", "title": "Gone", "body": "g"}]"""),
+            Importing.Answers(), null) as Importing.Result.Done
+        assertEquals(1, done.outcome.alsoInTrash)
+        assertTrue(importMessage(done.outcome),
+            importMessage(done.outcome).startsWith("Added 1 note. It is in your Trash too (Settings → Trash)."))
+        val some = notebook("[]", trash)
+        val two = Importing.apply(some, backupPlan(some, """[{"id": 1, "uid": "gone", "title": "Gone", "body": "g"},
+            {"id": 2, "uid": "kept", "title": "Kept", "body": "k"}]"""), Importing.Answers(), null) as Importing.Result.Done
+        assertTrue(importMessage(two.outcome),
+            importMessage(two.outcome).startsWith("Added 2 notes. 1 of them is in your Trash too"))
+        assertFalse(importMessage(Importing.Outcome(added = 2, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0))
+            .contains("Trash too"))
+    }
+
+    @Test
     fun `a backup moving in a 0_13_0 notebook says the earlier text it kept as notes`() {
         // Its series turned off and on as it was, the blank-looking day
         // deleted: the read sets the copy's words aside, and the message said

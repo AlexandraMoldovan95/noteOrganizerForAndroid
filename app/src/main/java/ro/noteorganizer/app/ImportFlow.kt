@@ -439,6 +439,12 @@ fun finishImport(
 fun importMessage(o: Importing.Outcome): String {
     val parts = ArrayList<String>()
     parts.add(if (o.added == 1) "Added 1 note." else "Added ${o.added} notes.")
+    // Right after "Added", which "It" and "them" are about, in the desktop's words.
+    if (o.alsoInTrash > 0) {
+        val who = if (o.alsoInTrash == o.added) (if (o.added == 1) "It is" else "They are all")
+                  else "${o.alsoInTrash} of them ${if (o.alsoInTrash == 1) "is" else "are"}"
+        parts.add("$who in your Trash too (Settings → Trash).")
+    }
     if (o.updated > 0) {
         parts.add("Updated ${o.updated} you already had (“↩ Restore previous” undoes each one).")
     }

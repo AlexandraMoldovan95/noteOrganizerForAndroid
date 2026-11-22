@@ -129,6 +129,8 @@ object Importing {
         /** The backup's trashed notes left in it, past the [keepDays] this phone's next start purges by. */
         val trashLeftOut: Int = 0,
         val keepDays: Int? = null,
+        /** Of the notes added, those in the Trash too, by identity: said beside "Added". */
+        val alsoInTrash: Int = 0,
     )
 
     sealed class Result {
@@ -894,7 +896,13 @@ object Importing {
             }
             replaceContents(notebook, candidate)
         }
+        // An added note that is in the Trash too, deleted here since the backup
+        // was made: in the list and the Trash at once, unsaid (the review panel).
+        val trashedUids = HashSet<String>()
+        for (i in 0 until trashNow.length()) (trashNow.opt(i) as? JSONObject)?.let(::uidOf)?.let(trashedUids::add)
+        val alsoInTrash = (toAdd + copies).count { note -> uidOf(note)?.let { it in trashedUids } == true }
         return Result.Done(Outcome(
+            alsoInTrash = alsoInTrash,
             added = toAdd.size + copies.size,
             updated = updated,
             unchangedSkipped = plan.unchanged.size - copies.size,
