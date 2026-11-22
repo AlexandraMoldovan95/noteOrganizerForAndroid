@@ -75,6 +75,10 @@ jobs:
       # hunting for a repository that is right where it always was. A
       # token also EXPIRES: the same message is what a lapsed one looks
       # like months from now.
+      #
+      # Once the desktop repository is public it is read without a token:
+      # this step and the checkout's `token:` line go. Until then a pull
+      # request from a fork, which GitHub hands no secrets, fails here.
       - name: The token this job needs
         env:
           TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
