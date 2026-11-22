@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ime
@@ -311,7 +313,10 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
     val pending = remember { mutableStateListOf<String>().apply { addAll(current) } }
     val full = pending.size >= Days.MAX_MARKERS
     AppSheet(onDismissRequest = onDone) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // The markers scroll, Cancel and Save under them, as the category and
+        // Repeat sheets now are: nothing scrolled here, and a smaller screen at
+        // the largest letters would have had its buttons cut away.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(stringResource(R.string.cal_markers_title), color = palette.text, fontSize = 17.sp,
                  fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 14.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -336,11 +341,12 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
             // The fourth tap is visibly unavailable before it is made, and says why.
             if (full) Text(stringResource(R.string.cal_markers_full), color = palette.subtext, fontSize = 12.sp,
                            modifier = Modifier.padding(top = 10.dp))
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
-                TextButton(onClick = { state.markDay(date, pending.toList()); onDone() }) {
-                    Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium)
-                }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
+            TextButton(onClick = { state.markDay(date, pending.toList()); onDone() }) {
+                Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium)
             }
         }
     }

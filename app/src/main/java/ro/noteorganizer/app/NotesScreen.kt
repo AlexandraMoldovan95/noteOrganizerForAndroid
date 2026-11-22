@@ -1037,9 +1037,10 @@ fun Pill(label: String, onClick: () -> Unit) {
         text = "$label ▾",
         color = palette.text,
         fontSize = 13.sp,
-        // One line, cut with "…" past the row: wrapped, it stood taller than its neighbour.
-        maxLines = 1,
-        softWrap = false,
+        // On a line of its own when its neighbour leaves too little room (the
+        // FlowRow); a long category name past that wraps once and then is cut,
+        // where one line cut it unread.
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
