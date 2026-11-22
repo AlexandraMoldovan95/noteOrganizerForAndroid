@@ -36,6 +36,20 @@ class BackupTest {
         }
     }
 
+    /** [zip] with every entry's general-purpose flag given bit 0, "encrypted", in its local and central headers. */
+    private fun withEncryptionBit(zip: ByteArray): ByteArray {
+        val out = zip.copyOf()
+        fun at(i: Int, sig: Int) = i + 3 < out.size && (out[i].toInt() and 0xff) or ((out[i + 1].toInt() and 0xff) shl 8) or
+            ((out[i + 2].toInt() and 0xff) shl 16) or ((out[i + 3].toInt() and 0xff) shl 24) == sig
+        for (i in out.indices) {
+            when {
+                at(i, 0x04034b50) -> out[i + 6] = (out[i + 6].toInt() or 1).toByte()   // local header: flag at +6
+                at(i, 0x02014b50) -> out[i + 8] = (out[i + 8].toInt() or 1).toByte()   // central header: flag at +8
+            }
+        }
+        return out
+    }
+
     @Test
     fun `a size reads as the desktop's size_text, halves to the even figure`() {
         // The desktop's own answers (core/sharing.py's size_text, 2026-11-12).
@@ -478,9 +492,14 @@ class BackupTest {
         assertEquals(Backup.NOT_WHOLE, Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
         assertEquals("That file couldn't be read as a backup:\nPermission denied.",
             Backup.unreadable(java.io.IOException("Permission denied"), into))
-        // An encrypted one keeps the library's words: another copy would not help.
-        assertEquals("That file couldn't be read as a backup:\nencrypted ZIP entry not supported.",
-            Backup.unreadable(java.util.zip.ZipException("encrypted ZIP entry not supported"), into))
+        // One protected by a password is said as that: another copy would not help. In the
+        // desktop JDK's words and in Android's older libcore's, which name only the bit.
+        assertEquals(Backup.ENCRYPTED, Backup.unreadable(java.util.zip.ZipException("encrypted ZIP entry not supported"), into))
+        assertEquals(Backup.ENCRYPTED, Backup.unreadable(java.util.zip.ZipException("Invalid General Purpose Bit Flag: 1"), into))
+        // ...and a real zip whose entry carries the encryption bit, read as the import reads it.
+        val locked = File(temp("enc"), "locked.zip").also { zipOf(it, "notes_data.json" to "[]") }
+        locked.writeBytes(withEncryptionBit(locked.readBytes()))
+        assertEquals(Backup.ENCRYPTED, (Backup.read(locked, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
         // ...and one its unpacking could not write names no path of the app's.
         val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
         val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }
