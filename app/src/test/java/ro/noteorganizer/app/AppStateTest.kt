@@ -762,7 +762,9 @@ class AppStateTest {
     }
 
     @Test
-    fun aRepeatSetOnTheOpenNoteIsReadBack() {
+    fun aRepeatSetOnTheOpenNoteIsSavedFirstAndNotReadBack() {
+        // The repeat writes no field the editor holds; read back, the editor
+        // lost its Undo and Redo at every repeat saved (the review panel).
         val s = state()
         s.openNote(1)
         val seen = ArrayList<String>()
@@ -770,7 +772,12 @@ class AppStateTest {
         val rewritten = s.openNoteRewritten
         assertTrue(s.setRepeat(1, JSONObject("""{"freq": "weekly"}""")))
         assertEquals(listOf("flush"), seen)
-        assertEquals(rewritten + 1, s.openNoteRewritten)
+        assertEquals(rewritten, s.openNoteRewritten)
+        // ...turned off too, and the fields the editor holds are as they were.
+        val held = s.note(1)!!.let { listOf(it.title, it.body, it.date, it.category, it.color) }
+        assertTrue(s.setRepeat(1, JSONObject("""{"freq": ""}""")))
+        assertEquals(rewritten, s.openNoteRewritten)
+        assertEquals(held, s.note(1)!!.let { listOf(it.title, it.body, it.date, it.category, it.color) })
     }
 
     @Test

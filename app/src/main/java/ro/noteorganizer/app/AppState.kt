@@ -880,7 +880,9 @@ class AppState(val dir: File, val scope: CoroutineScope) {
     private fun shownDay(day: String) = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun setRepeat(id: Int, rule: JSONObject?, startWas: Any? = null): Boolean {
-        val result = outside(listOf(id)) { Days.setRepeat(load, id, rule, startWas) } ?: return false
+        // Nothing read back: the repeat writes no field the editor holds (its
+        // text, date, category, colour), and the read emptied its Undo and Redo.
+        val result = outside(listOf(id), writes = false) { Days.setRepeat(load, id, rule, startWas) } ?: return false
         return report(result)
     }
 
