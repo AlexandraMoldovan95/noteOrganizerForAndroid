@@ -7702,13 +7702,14 @@ def duplicates(folder):
     put_bytes_inside("attachments/dp_map.png", b"MAP")
     tap("Settings", exact=True, wait=1.2)
     tap("Duplicates", exact=True, wait=1.5)
-    check("two groups found, by the desktop's key", not says_soon("Found 2 group(s)", "“Trip” — 2 copies"),
-          str(screen_says("Found 2 group(s)", "“Trip” — 2 copies")))
+    # Each count in the form its number takes, as the desktop's (the panel).
+    check("two groups found, by the desktop's key", not says_soon("Found 2 groups,", "“Trip” — 2 copies"),
+          str(screen_says("Found 2 groups,", "“Trip” — 2 copies")))
     check("the group with a file says it will be merged", not says_soon("differing attachments"))
-    shot(folder, "51-duplicates", "Found 2 group(s)")
+    shot(folder, "51-duplicates", "Found 2 groups,")
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
-    check("cleaning up asks first", not says_soon("Move 1 selected note(s) to the Trash?"))
+    check("cleaning up asks first, of one note as one", not says_soon("Move 1 selected note to the Trash? You can restore it"))
     tap_last("Move to Trash", wait=1.5)
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []

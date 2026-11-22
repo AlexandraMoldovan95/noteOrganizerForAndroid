@@ -545,7 +545,15 @@
     <!-- Duplicates: the desktop's panel, in its words -->
     <string name="dup_explain">Notes with the same title, text, comments, category, checklist, repeat rule and a series\' own days (ignoring case, spacing, a “(copy)” after the title, the text\'s styling, date, colour and pin). Tick the copies you want to remove — the rest are kept.</string>
     <string name="dup_none">No duplicates found — every note is unique. 🎉</string>
-    <string name="dup_found">Found %1$d group(s), up to %2$d note(s) could be removed.</string>
+    <!-- Each count in the form its number takes, as the desktop says them: "group(s)" read as the app's own words. -->
+    <plurals name="dup_found_groups">
+        <item quantity="one">Found %d group,</item>
+        <item quantity="other">Found %d groups,</item>
+    </plurals>
+    <plurals name="dup_found_notes">
+        <item quantity="one">up to %d note could be removed.</item>
+        <item quantity="other">up to %d notes could be removed.</item>
+    </plurals>
     <string name="dup_merge_note">Keep as many as you like — anything left unticked stays. Attachments from removed copies are merged into a kept one.</string>
     <string name="dup_group">“%1$s” — %2$d copies</string>
     <string name="dup_files_differ">↳ differing attachments will be merged into a kept copy, up to the %1$d a note holds; the rest stay with their copy in the Trash</string>
@@ -557,8 +565,14 @@
     <string name="dup_clean_all">🧹✨  Clean up ALL %1$d groups (keep first in each)</string>
     <string name="dup_nothing">Tick the duplicates you want to remove first.</string>
     <string name="dup_ask_title">Move duplicates to Trash</string>
-    <string name="dup_ask_text">Move %1$d selected note(s) to the Trash? You can restore them within %2$d days.</string>
-    <string name="dup_ask_text_unknown">Move %1$d selected note(s) to the Trash? You can restore them from there.</string>
+    <plurals name="dup_ask_text">
+        <item quantity="one">Move %1$d selected note to the Trash? You can restore it within %2$d days.</item>
+        <item quantity="other">Move %1$d selected notes to the Trash? You can restore them within %2$d days.</item>
+    </plurals>
+    <plurals name="dup_ask_text_unknown">
+        <item quantity="one">Move %1$d selected note to the Trash? You can restore it from there.</item>
+        <item quantity="other">Move %1$d selected notes to the Trash? You can restore them from there.</item>
+    </plurals>
     <string name="settings_stats">Statistics</string>
     <string name="settings_stats_sub">A quick snapshot of your notes</string>
     <string name="stats_explain">A quick snapshot of your notes.</string>

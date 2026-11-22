@@ -192,7 +192,9 @@ private fun DuplicatesPage(state: AppState) {
             Text(stringResource(R.string.dup_none), color = palette.subtext, fontSize = 15.sp)
             return@PageColumn
         }
-        Text(stringResource(R.string.dup_found, groups.size, groups.sumOf { it.size - 1 }),
+        val removable = groups.sumOf { it.size - 1 }
+        Text(pluralStringResource(R.plurals.dup_found_groups, groups.size, groups.size) + " " +
+                 pluralStringResource(R.plurals.dup_found_notes, removable, removable),
              color = palette.subtext, fontSize = 13.sp)
         Text(stringResource(R.string.dup_merge_note), color = palette.accentText, fontSize = 13.sp,
              fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, modifier = Modifier.padding(bottom = 10.dp))
@@ -282,8 +284,8 @@ private fun DuplicatesPage(state: AppState) {
     asking?.let { remove ->
         Ask(
             title = stringResource(R.string.dup_ask_title),
-            text = state.trashWindow?.let { stringResource(R.string.dup_ask_text, remove.size, it) }
-                ?: stringResource(R.string.dup_ask_text_unknown, remove.size),
+            text = state.trashWindow?.let { pluralStringResource(R.plurals.dup_ask_text, remove.size, remove.size, it) }
+                ?: pluralStringResource(R.plurals.dup_ask_text_unknown, remove.size, remove.size),
             confirm = stringResource(R.string.move_to_trash),
             onConfirm = {
                 asking = null
