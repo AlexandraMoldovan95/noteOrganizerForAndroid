@@ -356,11 +356,12 @@ object Backup {
     /**
      * Why a backup could not be read, [e] met copying or unpacking it into [into]: a full
      * phone said as one, not as the file's fault, and never the app's private path; a file
-     * that is no whole zip in words, not the library's ("zip END header not found").
+     * that is no whole zip in words, not the library's ("zip END header not found"). An
+     * encrypted one keeps the library's, which say why another copy would not help.
      */
     fun unreadable(e: Throwable, into: File): String =
         if (Files.storageFull(e)) NO_ROOM
-        else if (e is java.util.zip.ZipException) NOT_WHOLE
+        else if (e is java.util.zip.ZipException && e.message?.contains("encrypted", ignoreCase = true) != true) NOT_WHOLE
         else "That file couldn't be read as a backup:\n" +
             Files.ended(Files.said(e, into.parentFile?.parentFile ?: into, "the phone could not copy or unpack it"))
 

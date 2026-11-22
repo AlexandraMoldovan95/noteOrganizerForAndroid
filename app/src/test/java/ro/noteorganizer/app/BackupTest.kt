@@ -478,6 +478,9 @@ class BackupTest {
         assertEquals(Backup.NOT_WHOLE, Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
         assertEquals("That file couldn't be read as a backup:\nPermission denied.",
             Backup.unreadable(java.io.IOException("Permission denied"), into))
+        // An encrypted one keeps the library's words: another copy would not help.
+        assertEquals("That file couldn't be read as a backup:\nencrypted ZIP entry not supported.",
+            Backup.unreadable(java.util.zip.ZipException("encrypted ZIP entry not supported"), into))
         // ...and one its unpacking could not write names no path of the app's.
         val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
         val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }
