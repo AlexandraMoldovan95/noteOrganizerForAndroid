@@ -946,8 +946,10 @@ def brand_new(folder):
           not says_soon(goes) and screen_says("used last") == ["used last"])
     tap("Light", exact=True, wait=1.5)
     shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "Light themes.")
+    # Told by tiles the line never names: at first it names Midnight Purple.
     check("in Light, the page shows the light themes and not the dark",
-          not says_soon("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
+          not says_soon("Soft Lavender", "Warm Cream")
+          and screen_says("Warm Charcoal", "Ocean Blue") == ["Warm Charcoal", "Ocean Blue"])
     # The change dissolves: captured as fast as the emulator can while Dark
     # is tapped, the page passes through a shade between the light one and
     # the dark one. Cut in one frame, as it was, no capture can hold one.
@@ -967,7 +969,7 @@ def brand_new(folder):
     check("Dark puts the app in the dark original at once, and shows the dark themes",
           settings.get("theme") == "dark"
           and not says_soon("Midnight Purple", "Warm Charcoal", "Dark themes.")
-          and screen_says("Soft Lavender") == ["Soft Lavender"], json.dumps(settings)[:200])
+          and screen_says("Warm Cream", "Sky Blue") == ["Warm Cream", "Sky Blue"], json.dumps(settings)[:200])
     tap("Forest Green", wait=1.5)
     settings = read_file("settings.json") or {}
     check("a dark tile is the theme worn, and the dark mode's last",
@@ -1772,7 +1774,7 @@ def large_letters_table(folder):
     open_note("Sizes")
     tap("ⓘ", wait=1.2)
     tap("Does not repeat", wait=1.5)
-    tap("Every week", exact=True, wait=1.0)
+    tap("Weekly", exact=True, wait=1.0)
     saves = bounds("Save")
     check("...and the Repeat sheet keeps Save in sight under its weekly rule", any(b[3] - b[1] > 10 for b in saves),
           repr(saves))
