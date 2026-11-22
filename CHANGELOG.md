@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.15.1](#0151--2026-11-22--a-held-files-words-true-on-every-phone) | 2026-11-22 | A held file's words, true on every phone |
 | [0.15.0](#0150--2026-11-19--the-lows-fixed-before-the-stores) | 2026-11-19 | The lows, fixed before the stores |
 | [0.14.2](#0142--2026-11-12--every-category-counted) | 2026-11-12 | Every category counted |
 | [0.14.1](#0141--2026-11-12--what-a-full-reading-found) | 2026-11-12 | What a full reading found |
@@ -57,6 +58,23 @@ do before, not as releases anyone ran.
 | [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
 | [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
 | [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
+---
+
+## [0.15.1] — 2026-11-22 — A held file's words, true on every phone
+
+The final audit's lows wave, 21 and 22 November 2026: of the findings
+of low severity its rounds had left, the owner chose to fix the app's
+own and the test plan's rows that said something untrue. One fix
+reaches a person; the rest is the test plan, the documents and a gate.
+
+### Fixed
+
+- **A file the phone could not read at the start says how to end its
+  hold:** nothing is written over it "until the app is closed from the
+  recent apps and opened again". It said "closed and opened again", and
+  on Android 12 and later Back and Home leave the app's screen open, so
+  a person who pressed Back came back to a page still held.
 
 ---
 
