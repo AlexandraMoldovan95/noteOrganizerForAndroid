@@ -938,6 +938,12 @@ def brand_new(folder):
           json.dumps(settings)[:200])
     tap("Appearance")
     check("no Follow the phone on the page", screen_says("Follow the phone") == ["Follow the phone"])
+    # Nothing worn yet in the other mode: the line names the theme it gives,
+    # where it said "the light theme you used last" (the review panel).
+    goes = ("Tap Light for Soft Lavender" if settings.get("theme") == "dark"
+            else "Tap Dark for Midnight Purple")
+    check("at first the line names the theme the other mode gives, not one used last",
+          not says_soon(goes) and screen_says("used last") == ["used last"])
     tap("Light", exact=True, wait=1.5)
     shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "Light themes.")
     check("in Light, the page shows the light themes and not the dark",

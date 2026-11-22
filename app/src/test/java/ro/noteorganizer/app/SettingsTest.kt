@@ -438,6 +438,20 @@ class SettingsTest {
     }
 
     @Test
+    fun `a mode counts as worn once a theme of it was chosen here, not before`() {
+        // Appearance's line said "the dark theme you used last" at the first
+        // start, with none used (the review panel, 22 November).
+        val first = JSONObject(Settings.choosing("light").toMap())
+        assertTrue(Settings.wornInMode(first, dark = false))
+        assertFalse("nothing dark worn yet: the line names Midnight Purple", Settings.wornInMode(first, dark = true))
+        val both = JSONObject("""{"phone_theme_light": "light", "phone_theme_dark": "dark_forest"}""")
+        assertTrue(Settings.wornInMode(both, dark = true))
+        val crossed = JSONObject("""{"phone_theme_light": "dark", "phone_theme_dark": "neon"}""")
+        assertFalse(Settings.wornInMode(crossed, dark = false))
+        assertFalse(Settings.wornInMode(crossed, dark = true))
+    }
+
+    @Test
     fun `a theme name nobody knows, or of the wrong mode, falls back`() {
         val raw = JSONObject("""{"phone_theme_follows_phone": false, "theme": "neon"}""")
         assertEquals(Themes.DEFAULT, Settings.theme(raw, phoneIsDark = false))

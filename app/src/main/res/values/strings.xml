@@ -602,6 +602,9 @@
     <string name="themes_light">Light</string>
     <string name="themes_for_dark">Dark themes. Tap Light to go back to the light theme you used last.</string>
     <string name="themes_for_light">Light themes. Tap Dark to go back to the dark theme you used last.</string>
+    <!-- Before any theme of the other mode was worn: it gives its original, named. -->
+    <string name="themes_for_dark_first">Dark themes. Tap Light for %1$s, the first of the light ones.</string>
+    <string name="themes_for_light_first">Light themes. Tap Dark for %1$s, the first of the dark ones.</string>
     <string name="add_category">Add a category</string>
     <string name="category_name">Name</string>
     <string name="general_protected">“General” can\'t be renamed or deleted: it is where notes go when their category does.</string>

@@ -488,8 +488,14 @@ private fun AppearancePage(state: AppState) {
     val change = LocalThemeChange.current
     PageColumn {
         ModeSwitch(dark) { if (it != dark) change { state.chooseMode(it) } }
+        // "The theme you used last" only once there is one: at first the
+        // other mode gives its original, named (the review panel).
+        val settings = state.settings
         Text(
-            stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light),
+            if (Settings.wornInMode(settings, !dark))
+                stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light)
+            else stringResource(if (dark) R.string.themes_for_dark_first else R.string.themes_for_light_first,
+                Themes.LABELS[Settings.themeForMode(settings, !dark)].orEmpty()),
             color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
         )
         for (name in if (dark) Themes.DARK else Themes.LIGHT) {
