@@ -1085,7 +1085,8 @@ emulator, for the device it reads off the emulator (ABIs, Android
 version, density, language), and they were installed together, as Play
 installs them: a base and its language and ABI splits. All 37 checks
 passed, the trip over a debug build among them, its notebook byte for
-byte as before.
+byte as before. For 0.15.1, on 2026-11-22, the same run passed as
+whole, About saying 0.15.1 and versionCode 21.
 
 ### The unit tests, and their mutants
 
