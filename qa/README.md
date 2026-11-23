@@ -434,7 +434,7 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 531 cases on 14 November 2026,
+`NoteOrganizer_Android_TestPlan.xlsx` — 538 cases on 23 November 2026,
 across eighteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
 Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and
@@ -474,8 +474,8 @@ its row and gains a note saying so; one folded into another, or about a
 feature that is gone, moves to Merged cases with the case that took its
 place. A row's Status, Build, Tested By and Test Date say who recorded
 its result, on which build: no run of the scripts writes them in by
-itself. A Pass by Claude stands only where the scripts walked all of the
-case, on the build named; none stands now. Seventy rows Claude had
+itself. Until the final audit's end a Pass by Claude stood only where the
+scripts walked all of the case, on the build named. Seventy rows Claude had
 marked Pass from runs whose scripts walked only part of them went back
 to Not Tested in the final audit (fifty-two of 0.9.1, one of 0.10.0,
 one of 12 November and sixteen of 13 November), and so did the
@@ -484,7 +484,12 @@ checks, named today, were partly written after that run; each keeps its
 run in Actual Result, the automation column no longer names the scripts'
 runs of 0.9.1 beside today's checks (a date left there marks a one-off:
 a measurement, or a script on her phone), and
-the release's runs fill in the rows only scripts reach. A row that
+the release's runs fill in the rows only scripts reach. On 23 November
+2026 the owner chose otherwise: every row the unit tests or the walk
+reach, but those that need her eye, is Pass by *Claude (automated, final
+audit)* on 0.15.2's source, a pass for what the scripts walk, with what
+they leave to the hand named in Actual Result and walked by no one; the
+rows she passed by hand keep her name. A row that
 needs a person stays Not Tested until she runs it (or a check she
 allowed a script to make on her phone walks it, as Tested By then
 says), whatever the scripts already cover. The unit tests have no
