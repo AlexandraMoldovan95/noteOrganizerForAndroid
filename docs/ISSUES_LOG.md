@@ -7,7 +7,7 @@ story.
 
 Newest first. The *Kind* column says where the failure lived: in **the
 checking** (a tool or a test whose verdict could not be trusted), in
-**the code**, or in **the design**. Twenty-eight of the hundred and eleven
+**the code**, or in **the design**. Twenty-eight of the hundred and twelve
 are about the checking. A few words carry a sense of their own here (a
 bar's *word*, a *road*, a *look*, a *round*, *the lows*):
 [the house words](../CLAUDE.md#house-words).
@@ -22,6 +22,7 @@ points with.
 
 | Date | Kind | What happened | The lesson |
 |---|---|---|---|
+| [2026-11-23](#what-using-the-app-found) | code | The review panel's readers used the app on an emulator for the first time and found eight things on the phone, none losing a note: a "|" turned into "/" in silence, a backup's note in the list and the Trash at once, an Undo that opened a note never open, words for a theme never worn, Save out of sight at the largest letters | A reader of the code finds what it says; a person using the app finds where it is said, and when |
 | [2026-11-13](#a-keyboard-nobody-asked-for-on-android-8) | code | The app says it runs from Android 8.0 and had run on 16 and 17 only; on an 8.0 emulator every start opened the keyboard over the list, the search box given the focus by the system | A version the app says it supports is one it has been run on; a tool written for one system judges that system |
 | [2026-11-13](#the-lows-and-the-second-copy-fixed-before-the-stores) | code | The full reading's lows, fixed before the stores: state kept by an id, an import failing halfway, a day trashed twice, a shared file read on the screen's thread, a name lost behind Home -- and the answers the second copy gave otherwise than the desktop | A low is written down to be fixed, not lived with; ask the first copy the odd questions too |
 | [2026-11-12](#a-desktop-fix-the-port-was-never-asked-about) | code | The desktop's Statistics began counting every category on 11 November; the phone, whose tile was a port of the old rule, still counted those holding notes, and nothing compared the two | When the desktop changes a rule the phone ports, the phone is asked in the same change: a sweep by the fix's question crosses the repositories |
@@ -136,6 +137,66 @@ points with.
 
 Findings still open, and those closed since, are at the
 [end](#still-open).
+
+---
+
+## What using the app found
+
+**2026-11-23.** The review panel met a fifth time on 22 November, and
+for the first time its readers used the apps as well as reading them:
+on the phone, one at a time on the emulator, a throwaway notebook each.
+The owner chose to fix all they found on both apps but one desktop
+button. None of it lost a note; each was met by pressing what a person
+presses.
+
+- A "|" typed in a table's cell became "/" without a word (the file
+  format keeps "|" for the line between cells). It is said now, once
+  each time the cell is opened.
+- A backup that was not one said "zip END header not found", the
+  library's words. A file that is not a whole backup is said in words,
+  and a backup protected by a password is said as that.
+- A note brought back by a backup while it sat in the Trash was in the
+  list and the Trash at once, with only "Added 1 note". It is said to be
+  in the Trash too.
+- The Undo of "Moved to Trash" opened the note in the editor, though it
+  had not been open. It opens only the note that was.
+- Saving a repeat emptied the editor's Undo and Redo: the open note was
+  read back into the editor, a guard the repeat's write never needed.
+- Settings → Appearance said at the first start "Tap Dark to go back to
+  the dark theme you used last", with none used. Until a theme of the
+  other mode is chosen, the line names the one Dark gives.
+- At the largest letters, "Show: All" broke over two lines beside Sort,
+  and the category sheet's message pushed Delete and Save away.
+- Two of the desktop's were the phone's too: the same file attached
+  twice went in twice, an empty one without a word; and Settings →
+  Duplicates said "Found 2 group(s), up to 1 note(s) could be removed."
+
+Four rounds attacked the fixes; the third and fourth found nothing of
+medium severity, which closes the loop, and a fifth on the last small
+fixes found none either. The first found three:
+
+- a pick none of whose files would copy said nothing;
+- a second pick while "Already attached" waited left the first question
+  waiting for good;
+- the calendar's Mark this day sheet had the same Save out of sight that
+  the category sheet had.
+
+It also found the pill cut to one line made a long category's name
+unreadable. The second found a password-protected backup still told it
+was damaged on older phones, whose libcore says "Invalid General Purpose
+Bit Flag" where the desktop's Java says "encrypted".
+
+Two of the faults were mine. Moving the Repeat sheet's Save out of the
+scroll left the reason it does nothing ("A repeating note needs a start
+date.") at the scroll's far end, out of sight at large letters. And a
+walk check of mine found "Midnight Purple" on the Appearance page in
+the line I had just made name it, so it would have passed with the
+switch broken; it now looks for tiles the line never names.
+
+**The lesson:** a reader of the code finds what it says; a person
+using the app finds where it is said, and when: a reason below the
+fold, an offer made before the note moved, a word for a theme nobody
+chose. Whatever moves a part out of a scroll asks what was left in it.
 
 ---
 
