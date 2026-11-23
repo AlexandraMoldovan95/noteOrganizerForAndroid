@@ -40,11 +40,11 @@ failure.
     gradlew.bat testDebugUnitTest
     py tools\check_test_results.py
 
-1,094 tests across thirty-two suites on 14 November 2026 — `NotebookTest` (153),
-`DaysTest` (77), `AppStateTest` (74), `TablesTest` (72), `OrganizingTest` (63),
-`ImportingTest` (62), `RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47),
+1,100 tests across thirty-two suites on 23 November 2026 — `NotebookTest` (153),
+`DaysTest` (77), `AppStateTest` (76), `TablesTest` (72), `ImportingTest` (64),
+`OrganizingTest` (64), `RecurrenceTest` (52), `EditingTest` (49), `PastingTest` (47),
 `IdentityTest` (43), `SharingTest` (38), `CalculatorTest` (34), `StylingTest` (34),
-`ParagraphsTest` (33), `EditorTypingTest` (32), `BackupTest` (29), `SettingsTest` (29),
+`ParagraphsTest` (33), `EditorTypingTest` (32), `SettingsTest` (30), `BackupTest` (29),
 `TemplatesTest` (23), `ListingTest` (22), `FindingTest` (20), `EditorTableTest` (16),
 `ExportingTest` (16), `StartupTest` (16), `OutgoingTest` (12), `UnknownFieldsTest` (11),
 `ThemesTest` (10), `EditorCopyTest` (8), `RemindersTest` (7), `StatsTest` (5),
@@ -270,11 +270,11 @@ removed when the repositories went public.
 The built app, driven the way a person would drive it — every tap aimed
 by the words on the screen, found fresh — and after each step the
 notebook the app wrote is read back through `run-as`. 79 parts and about
-671 checks (the full run of 21 November 2026, for the release: 668 passed,
+679 checks (the full run of 23 November 2026, on 0.15.2's code: 677 passed,
 every part in `main()`'s order, in eight groups, each on an
 emulator started cold and stopped after it, by `walk_groups.py`; see
-below why. The 19 that failed were one part's, the walk's own, fixed,
-and the part walked again: [the run](WALK_RUNS.md)).
+below why. The 2 that failed were the walk's own, fixed, and their parts
+walked again: [the run](WALK_RUNS.md)).
 <!-- The desktop's site/build.py reads "N parts and about N checks" and
 "N tests across … suites" in this file: keep their words. -->
 The parts: a brand-new notebook, a notebook copied in, the
