@@ -503,7 +503,8 @@
     <string name="q_files_some">Updating replaces this device\'s copies (each can be undone with “↩ Restore previous”); %1$d of them only lack attached files, which it adds.</string>
     <string name="q_adding_both">Adding leaves both versions, so you can compare them.</string>
     <string name="q_adding_both_delete">Adding leaves both, so you can compare them and delete one.</string>
-    <string name="q_older_one">It is OLDER than the copy on this device.</string>
+    <string name="q_older_it">It is OLDER than the copy on this device.</string>
+    <string name="q_older_one">One of them is OLDER than the copy on this device.</string>
     <string name="q_older_many">%1$d of them are OLDER than the copy on this device.</string>
     <string name="q_rescued_it">It holds an earlier version that “↩ Restore previous” can bring back; updating replaces it with the version from before this update.</string>
     <string name="q_rescued_one">One of them holds an earlier version that “↩ Restore previous” can bring back; updating replaces it with the version from before this update.</string>

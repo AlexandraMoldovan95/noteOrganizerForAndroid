@@ -233,7 +233,7 @@ fun ImportQuestions(
                 }
                 if (plan.older > 0) {
                     append("\n\n")
-                    append(if (one) stringResource(R.string.q_older_one) else stringResource(R.string.q_older_many, plan.older))
+                    append(stringResource(olderSaid(one, plan.older), plan.older))
                 }
                 // One rescue copy a note: an update's takes the place of one
                 // the note still needs, which is said, not done in silence.
@@ -336,6 +336,14 @@ fun ImportQuestions(
             }
         }
     }
+}
+
+/** The words for a backup's notes older than the copies here: one of
+ *  several was said "1 of them are", where the rescue line says one. */
+internal fun olderSaid(one: Boolean, older: Int): Int = when {
+    one -> R.string.q_older_it
+    older == 1 -> R.string.q_older_one
+    else -> R.string.q_older_many
 }
 
 private fun firstStep(plan: Importing.Plan): Step = when {

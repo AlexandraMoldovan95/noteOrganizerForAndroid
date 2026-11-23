@@ -1345,4 +1345,16 @@ class ImportingTest {
         assertEquals("2024-01-01 10:00:00", note.getString("created"))
         assertEquals("2024-02-01 10:00:00", note.getString("updated"))
     }
+
+    @Test
+    fun `one of several older notes is said as one, not 1 of them are`() {
+        assertEquals(R.string.q_older_it, olderSaid(one = true, older = 1))
+        assertEquals(R.string.q_older_one, olderSaid(one = false, older = 1))
+        assertEquals(R.string.q_older_many, olderSaid(one = false, older = 2))
+        val strings = File("src/main/res/values/strings.xml").readText()
+        fun said(name: String) = Regex("<string name=\"$name\">(.*?)</string>").find(strings)?.groupValues?.get(1)
+        assertEquals("It is OLDER than the copy on this device.", said("q_older_it"))
+        assertEquals("One of them is OLDER than the copy on this device.", said("q_older_one"))
+        assertEquals("%1\$d of them are OLDER than the copy on this device.", said("q_older_many"))
+    }
 }
