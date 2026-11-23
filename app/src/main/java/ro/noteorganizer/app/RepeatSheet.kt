@@ -187,46 +187,46 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
         problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp,
                             modifier = Modifier.padding(horizontal = 20.dp).padding(top = 8.dp)) }
 
-            val offKept = stringResource(R.string.repeat_off_kept)
-            val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)
-            val offNoCopy = stringResource(R.string.repeat_off_no_copy)
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
-                horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
-                TextButton(
-                    enabled = !needsDate,
-                    onClick = {
-                        // The start as stored, before this Save writes a new one.
-                        val startWas = state.rawNote(model.id)?.opt("date")
-                        if (start != model.date) {
-                            model.date = start
-                            model.changed()
-                        }
-                        // The note first (a new one, or a new start), then its repeat,
-                        // which only a saved note can hold: the repeat's write settles
-                        // the schedule and spends the copy's days once, on the final rule.
-                        if (!model.save(force = model.id == 0, scheduleFollows = true)) {
-                            problem = model.problem
-                            return@TextButton
-                        }
-                        val before = state.rawNote(model.id)?.let { now ->
-                            if (startWas != null) JSONObject(now.toString()).put("date", startWas) else now
-                        }
-                        val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
-                        if (state.setRepeat(model.id, draft(), startWas)) {
-                            // Kept over an import's Update, the copy is the version from
-                            // before it, the series too when it repeated then (the
-                            // desktop's _repeat_off_line); a copy the save dropped promises nothing.
-                            if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
-                                Days.OffWord.SERIES_KEPT -> offKept
-                                Days.OffWord.UPDATE_KEPT -> offKeptUpdate
-                                Days.OffWord.NO_COPY -> offNoCopy
-                            })
-                            onDone()
-                        }
-                    },
-                ) { Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium) }
-            }
+        val offKept = stringResource(R.string.repeat_off_kept)
+        val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)
+        val offNoCopy = stringResource(R.string.repeat_off_no_copy)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
+            TextButton(
+                enabled = !needsDate,
+                onClick = {
+                    // The start as stored, before this Save writes a new one.
+                    val startWas = state.rawNote(model.id)?.opt("date")
+                    if (start != model.date) {
+                        model.date = start
+                        model.changed()
+                    }
+                    // The note first (a new one, or a new start), then its repeat,
+                    // which only a saved note can hold: the repeat's write settles
+                    // the schedule and spends the copy's days once, on the final rule.
+                    if (!model.save(force = model.id == 0, scheduleFollows = true)) {
+                        problem = model.problem
+                        return@TextButton
+                    }
+                    val before = state.rawNote(model.id)?.let { now ->
+                        if (startWas != null) JSONObject(now.toString()).put("date", startWas) else now
+                    }
+                    val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
+                    if (state.setRepeat(model.id, draft(), startWas)) {
+                        // Kept over an import's Update, the copy is the version from
+                        // before it, the series too when it repeated then (the
+                        // desktop's _repeat_off_line); a copy the save dropped promises nothing.
+                        if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
+                            Days.OffWord.SERIES_KEPT -> offKept
+                            Days.OffWord.UPDATE_KEPT -> offKeptUpdate
+                            Days.OffWord.NO_COPY -> offNoCopy
+                        })
+                        onDone()
+                    }
+                },
+            ) { Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium) }
+        }
     }
     if (pickingStart) DateDialog(start, onPick = { start = it; pickingStart = false; problem = null }) { pickingStart = false }
     if (pickingEnd) DateDialog(end.ifEmpty { start }, onPick = { end = it; pickingEnd = false }) { pickingEnd = false }
