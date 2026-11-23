@@ -179,10 +179,13 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 Text(next.joinToString(", ") { Recurrence.showDate(it) } + if (next.size == 3) ", …" else "",
                      color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
             }
-            if (needsDate) Text(stringResource(R.string.repeat_needs_date), color = palette.dangerText, fontSize = 13.sp,
-                                modifier = Modifier.padding(top = 8.dp))
-            problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
         }
+        // Why Save does nothing or was refused, beside it: at the end of the scroll, a
+        // long rule at large letters kept the reason out of sight.
+        if (needsDate) Text(stringResource(R.string.repeat_needs_date), color = palette.dangerText, fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 8.dp))
+        problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 8.dp)) }
 
             val offKept = stringResource(R.string.repeat_off_kept)
             val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)

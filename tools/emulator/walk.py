@@ -1783,6 +1783,13 @@ def large_letters_table(folder):
     saves = bounds("Save")
     check("...and the Repeat sheet keeps Save in sight under its weekly rule", any(b[3] - b[1] > 10 for b in saves),
           repr(saves))
+    # The note has no date, so Save does nothing: its reason stands beside
+    # it, not at the scroll's far end, where the long rule kept it out of sight.
+    why = bounds("A repeating note needs a start date.")
+    check("...and the reason Save does nothing shows beside it",
+          any(b[3] - b[1] > 10 for b in why) and any(w[3] <= s[1] + 4 for w in why for s in saves),
+          repr((why, saves)))
+    shot(folder, "58d-repeat-reason-largest-letters", "Save")
     back_to("Search notes")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     time.sleep(1.5)
