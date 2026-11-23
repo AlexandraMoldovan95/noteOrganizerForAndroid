@@ -37,6 +37,7 @@ do before, not as releases anyone ran.
 
 | Version | Date | In one line |
 |---|---|---|
+| [0.15.2](#0152--2026-11-23--what-using-the-app-found) | 2026-11-23 | What using the app found |
 | [0.15.1](#0151--2026-11-22--a-held-files-words-true-on-every-phone) | 2026-11-22 | A held file's words, true on every phone |
 | [0.15.0](#0150--2026-11-19--the-lows-fixed-before-the-stores) | 2026-11-19 | The lows, fixed before the stores |
 | [0.14.2](#0142--2026-11-12--every-category-counted) | 2026-11-12 | Every category counted |
@@ -58,6 +59,62 @@ do before, not as releases anyone ran.
 | [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
 | [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
 | [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
+---
+
+## [0.15.2] — 2026-11-23 — What using the app found
+
+The review panel's fifth meeting, 22 November 2026, was the first whose
+readers also used the app, on an emulator, as a person would; the owner
+chose to fix all it found but one. What reaches a person is below, one
+entry for each defect, however many rounds its fix took; a fix of a fix
+made inside the work is folded into the entry it belongs to. Each was
+already in 0.15.0.
+
+### Fixed
+
+- **Undo on "Moved to Trash" opens the note again only if it was the
+  one open.** Deleted from the list's selection, the note came back over
+  the list, in the editor; it is back on the list now, as it was taken
+  from there.
+- **A repeat saved keeps the note's Undo and Redo.** Saving it from the
+  Repeat sheet read the note back into the editor, and emptied both.
+- **The Appearance line names the theme the other mode gives, at
+  first.** Before any dark theme had been worn it said "Tap Dark to go
+  back to the dark theme you used last"; until one has, it names the
+  theme Dark gives, the first of the dark ones, and the same of Light.
+- **A file that is not a whole backup is said as that.** An import
+  showed the library's words, "zip END header not found", and for a zip
+  with a password "Invalid General Purpose Bit Flag: 1"; it says now
+  that the file isn't a whole Note Organizer backup, or was damaged on
+  its way here, and a zip protected by a password is said as that, Note
+  Organizer's own backups having none.
+- **An import says when a note it brings back is in the Trash too.** A
+  backup made before a note was deleted brought it back into the list
+  while its deleted copy stayed in the Trash, and "Added 1 note" said
+  nothing of it; "It is in your Trash too (Settings → Trash)." follows
+  what was added now.
+- **A "|" typed into a table cell is said, as it is kept as "/".** A
+  cell cannot hold the table's own divider, so it became "/" without a
+  word; it says so once now.
+- **At the largest letters Show no longer breaks beside Sort, and a
+  sheet's Save stays in sight.** "Show: All" broke over two lines
+  beside Sort, and a category's sheet, refusing a name, pushed Delete
+  and Save out of sight under its message. Show moves to a line of its
+  own when Sort leaves it too little room; the category and Repeat
+  sheets keep Cancel and Save under a body that scrolls, with the reason
+  Save does nothing beside them.
+- **Each count in Duplicates and in an import's question is in the form
+  its number takes.** "Found 2 group(s), up to 1 note(s) could be
+  removed.", "Move 1 selected note(s) to the Trash?" and "1 of them are
+  OLDER than the copy on this device." say "Found 2 groups, up to 1
+  note could be removed.", "Move 1 selected note to the Trash?" and "One
+  of them is OLDER" now.
+- **Attaching a file the note already holds asks first, and an empty
+  file is said.** The same file picked again became a second attachment
+  and a second copy; it asks **Already attached** once for all such
+  files, Back or a tap outside meaning No, and an empty file is attached
+  with "is empty (0 bytes) — attached anyway".
 
 ---
 
