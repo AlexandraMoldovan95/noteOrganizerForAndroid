@@ -17,8 +17,8 @@ in a temporary folder until 2026-09-13, which meant the next session
 would have written them again; the third came with the documentation
 pictures on 2026-09-14; the walk came with Phase 1, on 2026-10-15;
 `emulator_only.py`, the door the others send adb through, on 2026-10-16;
-the group runner on 2026-11-12; and the walk for older Androids on
-2026-11-13.
+the group runner on 2026-11-12; the walk for older Androids on
+2026-11-13; and the measure of a large notebook on 2026-11-23.
 
 | Tool | What it does | Why it exists |
 |---|---|---|
@@ -29,6 +29,7 @@ the group runner on 2026-11-12; and the walk for older Androids on
 | `take_screenshots.py` | writes a notebook made for the camera straight into the app's own storage, walks twelve screens — three of them on its side, one with the keyboard up to write in a note — and photographs each one, then the same screens again in a dark theme (`NN-name-dark.png`). With `--gif`, the README's `demo.gif` instead: ten frames on the same notebook, a note written in it and read back from the file | the pictures in [docs/screenshots/](../../docs/screenshots/) are remade by one command instead of by hand, and each shot names the words that must be on screen — and those that must be gone — before the shutter opens, waiting up to ten seconds for them; a screen that does not say them is not photographed |
 | `type_code.py <file> <x> <y>` | taps the field at (x, y), types the file's contents in 100-character pieces, then dumps the UI and compares what arrived against the original | `adb shell input text` truncated a 634-character share code at 181 — silently. A code cut short is indistinguishable from a damaged one, so the typing is verified rather than assumed |
 | `older_android.py <folder> --avd <name> [--avd ...]` | on each emulator named, started cold and stopped after: the first start (and that no keyboard opens), a note written and read back, the calendar, a dark theme, the phone turned, the share sheet, the reminders page, the system's file picker, a restart, with Android's crash log read for the app after every step ([older Androids](#older-androids)) | the app says it runs from Android 8.0 and had run on 16 and 17 only; the whole walk reads the Android it was written on and loses its way on 8. Its first run found the search box's keyboard opening at every start on Android 8 |
+| `big_notebook.py <folder> [<notes> ...]` | on an emulator it starts cold and stops after, at 1,000, 5,000 and 10,000 notes (or the sizes named): a notebook generated from a fixed seed written into the app, then two cold starts, fifteen flings down the list, a search typed, the newest note opened and a word typed in it, each read from the app's own frames and the slow messages on its main thread; the memory and the file's size too. It writes `results.json` and a photograph of the list, the search and the open note at each size, which are looked at | the largest real notebook seen so far is half a megabyte; what one ten times that costs, and which part of that grows with the notebook, is [measured](../../docs/ARCHITECTURE.md#a-large-notebook-measured) rather than assumed, and measured again by one command after a change that could move it |
 
 All seven need the SDK's `adb` on the machine (found through
 `local.properties`' `sdk.dir`, `ANDROID_HOME` or `ANDROID_SDK_ROOT`,
@@ -107,9 +108,11 @@ the path to adb is read before that, at import. Parts named after the
 folder (`walk.py <folder> cell_menu long_lines`) are walked alone on the
 same road, and a part called from a script of one's own takes the turn at
 its first adb call: taken only by the whole walk, such a part walked
-beside whatever else ran. The screenshot
-script and the small helpers take no turn; keep them to one at a time by
-hand.
+beside whatever else ran. `big_notebook.py` takes the turn too, once
+its emulator has started: started under the turn's memory ceiling, which
+a process started after it inherits, the emulator ended without a word.
+The screenshot script and the small helpers take no turn; keep them to
+one at a time by hand.
 
 ## Four traps, two of which these tools remove for themselves
 
