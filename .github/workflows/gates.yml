@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 # The token GitHub gives each run may read this repository and nothing
-# more; the desktop's is read with a token of its own (below).
+# more; the desktop's, public, needs none (below).
 permissions:
   contents: read
 
@@ -69,39 +69,15 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Both repositories are private, so reading the desktop app needs a
-      # token of its own: a fine-grained personal access token with
-      # Contents: Read-only, scoped to that one repository, stored here as
-      # the secret DESKTOP_REPO_TOKEN.
-      #
-      # It is checked before it is used, because "Repository not found" is
-      # what a missing token looks like, and that sends the next person
-      # hunting for a repository that is right where it always was. A
-      # token also EXPIRES: the same message is what a lapsed one looks
-      # like months from now.
-      #
-      # Once the desktop repository is public it is read without a token:
-      # this step and the checkout's `token:` line go. Until then a pull
-      # request from a fork, which GitHub hands no secrets, fails here.
-      - name: The token this job needs
-        env:
-          TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
-        run: |
-          if [ -z "$TOKEN" ]; then
-            echo "::error::DESKTOP_REPO_TOKEN is missing (or has expired)."
-            echo "Settings -> Secrets and variables -> Actions -> New repository secret."
-            echo "The value: a fine-grained PAT with Contents: Read-only on the desktop repository."
-            exit 1
-          fi
-
       # The desktop app is the specification. It is READ here and never
-      # written to, exactly as on a development machine.
+      # written to, exactly as on a development machine. Both repositories
+      # are public, so it is read with no token (while they were private it
+      # took a secret, DESKTOP_REPO_TOKEN, which a fork's pull request lacked).
       - name: Fetch the desktop app, as the specification
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: AlexandraMoldovan95/noteOrganizer
           path: .desktop
-          token: ${{ secrets.DESKTOP_REPO_TOKEN }}
           persist-credentials: false
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0

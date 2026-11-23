@@ -1,8 +1,9 @@
 # The unit tests. The expensive job, so it is the one kept on a leash.
 #
-# On a private repository every minute is billed against the account's
-# free allowance, so this runs when it can actually tell us something and
-# stays quiet otherwise:
+# Written while the repository was private and every minute was billed
+# against the account's free allowance; public now, it runs free, and a
+# run still takes a runner and a wait, so this runs when it can actually
+# tell us something and stays quiet otherwise:
 #
 #   * only when something that affects the build has changed -- a
 #     screenshot or a paragraph of documentation cannot break a test;

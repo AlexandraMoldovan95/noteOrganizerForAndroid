@@ -452,9 +452,9 @@ from the unit tests in [tests.yml](../.github/workflows/tests.yml) so a
 change to a gate does not drag a five-minute build along with it. There
 they fetch the desktop app and are run with `--require-desktop`, because
 a check that quietly could not run reads exactly like a check that
-passed. Reading a private repository from another one needs a token:
-[qa/README.md](../qa/README.md#what-runs-in-ci) says which, and
-where it goes.
+passed. Both repositories are public, so the desktop is read with no
+token; [qa/README.md](../qa/README.md#what-runs-in-ci) says what it took
+while they were private.
 
 ## Words on the phone's own surfaces, measured
 

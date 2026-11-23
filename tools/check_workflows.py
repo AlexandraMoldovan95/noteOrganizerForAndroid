@@ -6,8 +6,8 @@ GitHub gives each workflow run a token for the repository. A workflow that
 does not say what the token may do gets whatever the repository's setting
 allows, which can include pushing, editing issues and publishing releases.
 Nothing here needs any of that, so every workflow says so
-(`permissions: contents: read`); the desktop's code is read with a token
-of its own, DESKTOP_REPO_TOKEN, which this does not see. An action named
+(`permissions: contents: read`); the desktop's code, public, is read
+with no token at all. An action named
 by a tag (`@v4`) runs whatever its owner moves that tag to next, so every
 action is pinned to the commit its tag named when it was chosen, the tag
 written beside it. Both were added on 2026-11-12, before the repository

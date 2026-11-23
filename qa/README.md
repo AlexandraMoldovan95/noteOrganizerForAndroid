@@ -235,8 +235,10 @@ kept as an artifact so a failure can be read rather than guessed at.
 
 ### Kept cheap on purpose
 
-This is a private repository, so every minute is billed against the
-account's free allowance. Four measures, in order of how much they save:
+Written while the repository was private, when every minute was billed
+against the account's free allowance; public now, GitHub runs it free,
+and the measures still keep a run short and the queue empty. Four, in
+order of how much they save:
 
 1. **Once per change, not twice.** Pushes are watched only on `main`;
    work on a branch is covered by its pull request. A branch with an open
@@ -249,19 +251,17 @@ account's free allowance. Four measures, in order of how much they save:
 4. **A timeout on every job.** The default is six hours; one hung job
    would eat a fifth of the month's allowance on its own.
 
-Everything runs on Linux runners, which bill at 1× — Windows costs double
-a minute and macOS ten times. And `workflow_dispatch` is on all three,
-so any can still be run by hand from the Actions tab.
+Everything runs on Linux runners, which on a private repository bill at
+1× — Windows double a minute and macOS ten times. And `workflow_dispatch`
+is on all three, so any can still be run by hand from the Actions tab.
 
-**The one thing CI needs set up by hand.** Both repositories are private,
-so the contract job cannot read the desktop app with its own credentials.
-It needs a secret named `DESKTOP_REPO_TOKEN`: a fine-grained personal
-access token, **Contents: Read-only**, scoped to the desktop repository
-alone, added under *Settings → Secrets and variables → Actions*. The job
-checks for it first and says exactly this if it is missing, because
-"Repository not found" is what an absent token looks like — and what an
-**expired** one will look like, months from now, to somebody who has
-forgotten a token was ever involved.
+**Nothing needs setting up by hand.** Both repositories are public, so
+the contract job reads the desktop app as anyone can. While they were
+private it needed a secret, `DESKTOP_REPO_TOKEN`: a fine-grained personal
+access token, Contents: Read-only, scoped to the desktop repository
+alone, checked before use because "Repository not found" is what an
+absent or expired token looks like. The secret and its token were
+removed when the repositories went public.
 
 ## The emulator walk
 
