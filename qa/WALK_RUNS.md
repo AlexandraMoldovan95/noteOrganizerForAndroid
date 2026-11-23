@@ -10,6 +10,19 @@ on its side that still expected the list to keep room under its cards
 for the +, now in the rail; rewritten, its part walked again, all 25
 passed.
 
+For the review panel's fixes, on 2026-11-23, one run of the debug build
+of 0.15.2's code (its number still 0.15.1's, versionCode 21, moved after
+the run): `walk_groups.py` walked all 79 parts in eight groups, each on
+an emulator started cold: 677 passed and 2 failed, both the walk's own,
+left behind by the fixes. `trash_select` waited for the duplicates'
+"You can restore them from there." over one ticked note, which the
+counts' plurals now say as "it". `calendar_large_letters` measured
+Sunday right after Weekly, while the Repeat sheet's Cancel and Save, now
+held under its scroll, put the days' second row at the scroll's edge on
+a 320 dp phone; it now scrolls to Sunday as a person scrolls the sheet.
+The two parts walked again on a cold emulator passed all 17, and the
+sheet's three mutants (AS730, AS732, AS738) were killed again.
+
 For the release, on 2026-11-21, one run of 0.15.0's debug build
 (versionCode 20): `walk_groups.py` walked all 79 parts in eight groups,
 each on an emulator started cold: 668 passed and 19 failed, all 19 in
