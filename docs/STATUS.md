@@ -1086,7 +1086,13 @@ version, density, language), and they were installed together, as Play
 installs them: a base and its language and ABI splits. All 37 checks
 passed, the trip over a debug build among them, its notebook byte for
 byte as before. For 0.15.1, on 2026-11-22, the same run passed as
-whole, About saying 0.15.1 and versionCode 21.
+whole, About saying 0.15.1 and versionCode 21. For 0.15.2, on
+2026-11-23, it passed as whole again, About saying 0.15.2 and
+versionCode 22, after a first try stopped at the trip: the debug build
+put back was the walk's, built before the number moved, so 0.15.1 / 21,
+older than the release, and Android refuses to install an older build
+over a newer one. The debug build was made again at 0.15.2 and the whole
+run made again on a cold emulator.
 
 ### The unit tests, and their mutants
 
