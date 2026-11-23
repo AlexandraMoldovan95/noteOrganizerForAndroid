@@ -9,8 +9,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Android's own backup: on, as the owner chose, and the person's to
+         turn off at Settings -> Backup. NotesBackupAgent hands Android the
+         app's files by the rules files while that is on, and only a mark
+         saying it is off when it is off; fullBackupOnly keeps it Android's full backup, the one
+         the rules describe, on every version. -->
     <application
         android:allowBackup="true"
+        android:backupAgent=".NotesBackupAgent"
+        android:fullBackupOnly="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -19,11 +26,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NoteOrganizer">
         <!-- configChanges: the phone turning, going dark, growing its
-             letters or splitting its screen is drawn again by Compose,
-             not answered by destroying the Activity. All of the app's
-             state lives in that Activity, so rebuilding it dropped the
-             person out of the note they were writing and back onto the
-             list - found on the emulator, with a note open. -->
+             letters or making them bold, changing its language or
+             splitting its screen is drawn again by Compose, not answered
+             by destroying the Activity. All of the app's state lives in
+             that Activity, so rebuilding it dropped the person out of the
+             note they were writing and back onto the list - found on the
+             emulator, with a note open; bold letters and the language
+             were missing from the list until the final audit. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,7 +40,7 @@
             android:theme="@style/Theme.NoteOrganizer"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|keyboard|keyboardHidden|navigation">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|fontWeightAdjustment|locale|layoutDirection|keyboard|keyboardHidden|navigation">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -65,6 +74,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- A new time zone or clock: the next reminder is worked out
+                     again, or it rang at the old zone's hour. -->
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
         </receiver>
         <!-- The WebView a note is printed to PDF with may send Google usage

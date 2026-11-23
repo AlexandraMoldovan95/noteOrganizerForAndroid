@@ -1,24 +1,16 @@
 package ro.noteorganizer.app
 
-/**
- * Applying and removing styles over a range of a note's body.
+/*
+ * Applying and removing styles over a range of a note's body: what a style
+ * means where another one already is. Three rules shape it:
  *
- * The hard part is not the button, it is what a style means where another
- * one already is. Three rules shape everything here:
+ * 1. Within a group of styles one holds a position: two text colours on one
+ *    letter is not a thing, bold and underline on one letter is.
+ * 2. Bold and italic share a group: the desktop stores both as `bold_italic`
+ *    (two Tk tags that set a font do not compose), or it draws only one.
+ * 3. Offsets are code points, like everything the file stores.
  *
- * 1. **Styles come in groups, and within a group only one can hold a
- *    position.** Two text colours on one letter is not a thing; bold and
- *    underline on one letter is.
- * 2. **Bold and italic share a group,** because the desktop stores their
- *    combination as the single style `bold_italic` — two Tk tags that
- *    both set a font do not compose. Bolding text that is already italic
- *    must therefore produce `bold_italic`, not two overlapping spans, or
- *    the desktop would draw one and lose the other.
- * 3. **Offsets are code points,** like everything the file stores.
- *
- * The work is done by a boundary sweep: collect every edge in the group,
- * decide each elementary interval's state, then merge the runs back up.
- * That is exact where interval arithmetic by hand is where the bugs live.
+ * A boundary sweep does the work: every edge, each interval's state, merged.
  */
 
 /**
@@ -132,21 +124,11 @@ val PENDING_STYLES = setOf("bold", "italic", "underline", "strike")
 
 /**
  * The styles after typing: [deleted] code points at [at] replaced by
- * [typed], as the desktop's text box leaves them, its
- * `_spread_typed_run` included.
- *
- * - Letters typed at the start of a styled run stay outside it, and
- *   letters typed inside a run are inside it: a run takes what lands
- *   between two of its own letters.
- * - Letters glued onto a styled non-space character [before] wear its
- *   styles -- weight, lines, colour, highlight, size and face -- up to a
- *   space typed with them: "ly" typed after a highlighted "quick" is
- *   highlighted, "Very " typed before a bold "Important" is not.
- * - [pending] styles, turned on with nothing selected, go on everything
- *   typed: the desktop's pending style, on until its key is pressed again.
- *
- * The phone once did the opposite at both edges, by the rule an edit
- * found from the text alone keeps ([remapSpans]).
+ * [typed], as the desktop's text box leaves them, `_spread_typed_run`
+ * included. A run takes what lands between two of its own letters, not
+ * what lands at its start; letters glued onto a styled non-space [before]
+ * wear its styles up to a space typed with them ("ly" after a highlighted
+ * "quick"); [pending] styles go on everything typed, until their key again.
  */
 fun typedSpans(
     spans: List<FormatSpan>,
@@ -189,9 +171,10 @@ fun typedSpans(
 /**
  * [old] become [new] by typing that left the caret at [caret], in code
  * points: the edit found from the caret -- what follows it is the old
- * text's end -- and the styles moved by [typedSpans]. A change that is not
- * letters typed before the caret, or that only took letters away, is
- * moved by [remapSpans].
+ * text's end -- and the styles moved by [typedSpans]; letters only taken
+ * away, at the caret, as Tk deletes them -- read off the texts, a letter
+ * deleted beside its twin took the twin's style.
+ * Any other change is moved by [remapSpans].
  */
 fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpan>,
                      pending: Set<String> = emptySet()): List<FormatSpan> {
@@ -203,7 +186,7 @@ fun spansAfterTyping(old: String, new: String, caret: Int, spans: List<FormatSpa
     val oldTail = a.size - tail
     var at = 0
     while (at < oldTail && at < caret && a[at] == b[at]) at++
-    if (caret == at) return remapSpans(old, new, spans).spans
+    if (caret == at) return Paragraphs.moveSpans(spans, listOf(Paragraphs.Edit(at, oldTail - at, 0)))
     return typedSpans(spans, at, oldTail - at, b.copyOfRange(at, caret), if (at > 0) a[at - 1] else null, pending)
 }
 

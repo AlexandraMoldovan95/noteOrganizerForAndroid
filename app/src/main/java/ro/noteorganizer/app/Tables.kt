@@ -1,18 +1,14 @@
 package ro.noteorganizer.app
 
-/**
- * Turning a run of pipe-delimited lines into something a screen can draw.
+/*
+ * Turning a run of pipe-delimited lines into something a screen can draw,
+ * with no Compose, so the rules are tested on the computer -- the
+ * separation the desktop keeps between `core/` and its interface.
  *
- * Nothing here imports Compose, so the rules can be tested on the computer
- * with no phone — the same separation the desktop keeps between `core/`
- * and its interface.
- *
- * What a real notebook actually uses, measured before any of this was
- * written (59 table blocks across 77 notes): checkbox cells 143 times,
- * merge-left 102 times, `<br>` inside a cell 34 times, separator rows 14
- * times — and merge-UP and hidden columns not once. So merge-left is a
- * main case, not a corner one, and the two unused features are handled
- * only well enough not to lose anything.
+ * Measured on a real notebook (59 tables in 77 notes): checkbox cells 143
+ * times, merge-left 102, `<br>` in a cell 34, separator rows 14, and
+ * merge-UP and hidden columns not once. Merge-left is a main case; the
+ * two unused features are handled well enough to lose nothing.
  */
 
 /** Column alignment, as the separator's colons spell it. */
@@ -100,62 +96,9 @@ data class TableBlock(
  */
 private const val MAX_COLUMN_CHARS = 26
 
-private const val SEPARATOR_HIDDEN_MARK = "~"
-private const val MERGE_LEFT_MARK = "<"
-private const val MERGE_UP_MARK = "^"
-private const val BREAK_MARK = "<br>"
-
-/**
- * A note's body, cut into the pieces a screen draws differently.
- *
- * [Prose] carries UTF-16 indices into the body rather than the text
- * itself, so the caller can slice the already-styled text with them and
- * keep every span — re-rendering each piece separately would need the
- * formatting offsets recomputed per piece, and that is exactly the sort
- * of second copy of a rule that drifts.
- */
-sealed class BodyPart {
-    data class Prose(val from: Int, val to: Int) : BodyPart()
-    data class Grid(val table: TableBlock) : BodyPart()
-}
-
-fun splitBody(body: String): List<BodyPart> {
-    val lines = body.split("\n")
-    // Where each line starts, in the same UTF-16 indices a rendered
-    // AnnotatedString uses.
-    val starts = IntArray(lines.size)
-    var at = 0
-    for (i in lines.indices) {
-        starts[i] = at
-        at += lines[i].length + 1
-    }
-
-    val parts = ArrayList<BodyPart>()
-    var line = 0
-    for (block in tableBlocks(body)) {
-        if (block.first > line) {
-            val from = starts[line]
-            // Stop before the newline that introduces the table, so the
-            // prose does not end with a blank line the table replaces.
-            val to = (starts[block.first] - 1).coerceIn(from, body.length)
-            if (to > from) parts.add(BodyPart.Prose(from, to))
-        }
-        parts.add(BodyPart.Grid(parseTable(lines.subList(block.first, block.last + 1))))
-        line = block.last + 1
-    }
-    if (line < lines.size) {
-        val from = starts[line]
-        if (from < body.length) parts.add(BodyPart.Prose(from, body.length))
-    }
-    return parts
-}
-
 // ---- writing a table back out --------------------------------------
-//
-// A table is stored as its drawn text: the padding IS the alignment, and
-// `cell_alignments` reads it back from the spaces. So rebuilding a table
-// after an edit has to re-pad it the way the desktop would, or a right-
-// aligned column quietly becomes a left-aligned one on the next read.
+// Stored as its drawn text, the padding IS the alignment (`cell_alignments`):
+// a table rebuilt is re-padded as the desktop would, or a column turns left.
 
 /** Never narrower than this, matching `MIN_COLUMN`. */
 private const val MIN_COLUMN = 8
@@ -173,7 +116,7 @@ fun cellAlignments(line: String): List<CellAlign> {
     val out = ArrayList<CellAlign>()
     for (i in 0 until pipes.size - 1) {
         val segment = line.substring(pipes[i] + 1, pipes[i + 1])
-        if (segment.isBlank()) {
+        if (PyText.strip(segment).isEmpty()) {
             out.add(CellAlign.LEFT)
             continue
         }
@@ -191,7 +134,7 @@ fun cellAlignments(line: String): List<CellAlign> {
 }
 
 /** Extra width a cell needs before its padding can say what it means. */
-private fun paddingNeed(align: CellAlign) = when (align) {
+internal fun paddingNeed(align: CellAlign) = when (align) {
     CellAlign.CENTER -> 2
     CellAlign.RIGHT -> 1
     CellAlign.LEFT -> 0
@@ -240,26 +183,57 @@ fun formatRow(cells: List<String>, widths: List<Int>, aligns: List<CellAlign>): 
     return "|" + parts.joinToString("|") + "|"
 }
 
+/**
+ * The most spaces lining a table up may add, the desktop's
+ * MAX_TABLE_PADDING: padding is the widest cell times the rows, and one
+ * 60,000-character cell over 2,000 rows made 120 million characters of a
+ * 118 KB paste. Past it a table is left ragged, each cell with only the
+ * spaces its alignment needs; the grid, sized from the cells, looks the same.
+ */
+const val MAX_TABLE_PADDING = 100_000
+
+/**
+ * Whether padding rows whose cells are [lengths] long (in characters) to
+ * [widths] adds at most [MAX_TABLE_PADDING] spaces, counted as every row
+ * given every column: the desktop's `_padding_fits`, from sums.
+ */
+internal fun paddingFits(lengths: List<List<Int>>, widths: List<Int>): Boolean {
+    var kept = 0L
+    for (row in lengths) for (i in 0 until minOf(row.size, widths.size)) kept += minOf(row[i], widths[i])
+    return lengths.size.toLong() * widths.sumOf { it.toLong() } - kept <= MAX_TABLE_PADDING
+}
+
+/**
+ * The widths each row is padded to: the columns' [widths] for every row
+ * while that fits [MAX_TABLE_PADDING], else each row its own -- every cell
+ * as wide as its text and the spaces its alignment [needs]. The desktop's
+ * `row_widths`.
+ */
+internal fun rowWidths(lengths: List<List<Int>>, widths: List<Int>, needs: (Int, Int) -> Int): List<List<Int>> =
+    if (paddingFits(lengths, widths)) List(lengths.size) { widths }
+    else lengths.mapIndexed { r, row -> row.mapIndexed { i, length -> length + needs(r, i) } }
+
 fun formatTable(rows: List<List<String>>, aligns: List<List<CellAlign>>): List<String> {
-    val widths = layoutWidths(rows, aligns)
+    val widths = rowWidths(rows.map { row -> row.map { it.codePointCount(0, it.length) } }, layoutWidths(rows, aligns)) { r, i ->
+        paddingNeed(aligns.getOrNull(r)?.getOrNull(i) ?: CellAlign.LEFT)
+    }
     return rows.mapIndexed { r, row ->
-        formatRow(row, widths, aligns.getOrElse(r) { emptyList() })
+        formatRow(row, widths[r], aligns.getOrElse(r) { emptyList() })
     }
 }
 
 /**
  * Where a table's separator is, or -1: the desktop's `separator_index`,
  * which looks at the first two lines only. A row of dashes lower down is a
- * row of the table, as the desktop reads it; read as the separator
- * wherever it was, the phone hid that row, took its dashes for widths, and
- * numbered the rows one way while a merge wrote them another.
+ * row of the table; read as the separator, it was hidden, its dashes taken
+ * for widths, and the rows numbered one way while a merge wrote another.
  */
 fun separatorIndexOf(lines: List<String>): Int = lines.take(2).indexOfFirst { isSeparatorRow(it) }
 
 /** A cell's whole text that reads as mechanics, not words: a merge's marker, or a box. */
 fun isCellToken(text: String): Boolean {
-    val t = text.trim()
-    return t == MERGE_LEFT_MARK || t == MERGE_UP_MARK || checkboxState(t) != null
+    val t = PyText.strip(text)
+    return t == MERGE_LEFT || t == MERGE_UP || checkboxState(t) != null
 }
 
 /** One cell in a body, in code points: pipe to pipe, and its words without their padding. */
@@ -318,28 +292,21 @@ class TableEdit(private val original: List<String>) {
     fun origins(): List<List<Pair<Int, Int>?>> = from
 
     /**
-     * Set when the only change was one cell's text.
-     *
-     * A cell edit then rewrites JUST that cell's stretch of its own line
-     * and leaves every other byte of the table alone. Re-padding the whole
-     * table instead changes every line, and the span remap — which finds
-     * an edit by what did NOT change — sees one enormous changed region
-     * and drops every style inside it. Measured on a real note: editing
-     * one cell lost a colour three rows away.
-     *
-     * It also keeps each cell's alignment exactly, since the padding IS
-     * the alignment and untouched padding cannot be misread.
+     * Set when the only change was one cell's text, which then rewrites JUST
+     * that cell's stretch of its own line. Re-padding the whole table changes
+     * every line, and the span remap -- finding an edit by what did NOT
+     * change -- drops every style in one enormous region: one cell edited
+     * lost a colour three rows away. Untouched padding, the alignment, stays.
      */
     private var surgical: Pair<Int, Int>? = null
 
     /**
-     * Whether anything changed at all. Nothing did -- a marker asked for on
-     * the separator, the last row asked to go -- and the table's lines come
+     * Whether anything changed at all. Nothing did -- a cell asked for past
+     * the table, the last row asked to go -- and the table's lines come
      * back as they were, not re-padded into a change nobody made.
      */
     private var touched = false
 
-    val rowCount: Int get() = rows.size
     val columnCount: Int get() = rows.maxOfOrNull { it.size } ?: 0
 
     /**
@@ -362,7 +329,7 @@ class TableEdit(private val original: List<String>) {
         if (row in rows.indices && column in 0 until columnCount) {
             // A cell may not contain a pipe: it would split into two cells
             // on the next read, silently changing the table's shape.
-            rows[row][column] = text.replace("|", "/").trim()
+            rows[row][column] = PyText.strip(text.replace("|", "/"))
             surgical = row to column
             touched = true
         }
@@ -408,13 +375,11 @@ class TableEdit(private val original: List<String>) {
     }
 
     /**
-     * A row taken away -- the desktop's `_grid_delete_row`, which counts
-     * data rows only. The separator is never one; the last data row is
-     * never taken: an empty table is not a table, and its lines would stop
-     * reading as one. The separator stays under whichever row is first
-     * now -- deleting the header row left the dashes on top, and the table
-     * stopped being one -- and a merge marker left with nothing to join
-     * is emptied, as the desktop's `_dissolve_orphan_markers` empties it.
+     * A row taken away -- the desktop's `_grid_delete_row`, counting data
+     * rows only: never the separator, never the last data row (an empty table
+     * is no table). The separator stays under whichever row is first now --
+     * left on top, the table stopped being one -- and a merge marker with
+     * nothing to join is emptied (`_dissolve_orphan_markers`).
      */
     fun removeRow(row: Int): TableEdit {
         surgical = null
@@ -446,7 +411,7 @@ class TableEdit(private val original: List<String>) {
         for ((i, r) in data.withIndex()) {
             for (c in rows[r].indices) {
                 val value = rows[r][c]
-                if ((value == MERGE_LEFT_MARK || value == MERGE_UP_MARK) && (i to c) !in covered) rows[r][c] = ""
+                if ((value == MERGE_LEFT || value == MERGE_UP) && (i to c) !in covered) rows[r][c] = ""
             }
         }
     }
@@ -462,23 +427,6 @@ class TableEdit(private val original: List<String>) {
             from[r].add(at, null)
         }
         touched = true
-        return this
-    }
-
-    /**
-     * `_grid_set_marker`: the cell becomes a merge marker -- "<" joins it to
-     * the cell on its left, "^" to the one above -- which is how a merge is
-     * written down. A marker with nothing to join stays plain text. The
-     * marker alone, the cell's words gone: the app merges through
-     * [mergePlan], which keeps them.
-     */
-    fun setMarker(row: Int, column: Int, marker: String): TableEdit {
-        pad()
-        if (row in rows.indices && row != separatorAt && column in 0 until columnCount) {
-            rows[row][column] = marker
-            surgical = row to column
-            touched = true
-        }
         return this
     }
 
@@ -522,7 +470,7 @@ class TableEdit(private val original: List<String>) {
         surgical = null
         pad()
         if (row in rows.indices && row != separatorAt && column in 0 until columnCount &&
-            rows[row][column] != MERGE_LEFT_MARK && rows[row][column] != MERGE_UP_MARK) {
+            rows[row][column] != MERGE_LEFT && rows[row][column] != MERGE_UP) {
             aligns[row][column] = align
             touched = true
         }
@@ -566,13 +514,10 @@ class TableEdit(private val original: List<String>) {
     }
 
     /**
-     * The cheap path: replace one cell's stretch of its own line and leave
-     * every other character of the table exactly as it was.
-     *
-     * The cell keeps at least the width it had, so the columns below it do
-     * not jump; it grows only if the new text needs more room. Returns
-     * null when the line cannot be read as a row, and the caller falls
-     * back to rebuilding.
+     * The cheap path: one cell's stretch of its own line replaced, every
+     * other character of the table as it was. The cell keeps at least its
+     * width, so the columns below do not jump, and grows only for longer
+     * text. Null when the line cannot be read as a row: the caller rebuilds.
      */
     private fun rewriteOneCell(row: Int, column: Int): List<String>? {
         val line = original.getOrNull(row) ?: return null
@@ -583,10 +528,9 @@ class TableEdit(private val original: List<String>) {
         val end = pipes[column + 1]
         val text = rows[row][column]
         val align = aligns.getOrNull(row)?.getOrNull(column) ?: CellAlign.LEFT
-        // Room for the padding that says the alignment too, as the desktop's
-        // `layout_widths` counts it: a right-aligned cell typed full had no
-        // space left before its words, and read back as aligned left.
-        // Counted in characters, as the rest of the table is laid out.
+        // Room for the padding that says the alignment too, in characters, as the
+        // desktop's `layout_widths` counts it: a right-aligned cell typed full had
+        // no space left before its words, and read back as aligned left.
         val chars = text.codePointCount(0, text.length)
         val width = maxOf(line.codePointCount(start, end) - 2, chars + paddingNeed(align))
         val extra = maxOf(0, width - chars)
@@ -648,26 +592,25 @@ fun tableBlocks(body: String): List<IntRange> {
 }
 
 /**
- * Resolves merge markers into spans, the way `merge_map` does.
- *
- * A marker with nothing to attach to — `<` in the first column, `^` in
- * the first row — stays ordinary content rather than being guessed at.
- *
- * Returns the anchor each covered position belongs to.
+ * Resolves merge markers into spans, the way `merge_map` does, returning
+ * the anchor each covered position belongs to. A marker with nothing to
+ * attach to -- `<` in the first column, `^` in the first row or under a
+ * row too short to have its column -- stays ordinary content, as the
+ * desktop shows it, rather than a merge into nothing.
  */
 fun mergeAnchors(rows: List<List<String>>): Map<Pair<Int, Int>, Pair<Int, Int>> {
     val anchorOf = LinkedHashMap<Pair<Int, Int>, Pair<Int, Int>>()
     for (r in rows.indices) {
         for (c in rows[r].indices) {
             val value = rows[r][c]
-            if (value == MERGE_LEFT_MARK && c > 0) {
+            if (value == MERGE_LEFT && c > 0) {
                 val left = anchorOf[r to (c - 1)] ?: (r to (c - 1))
                 val at = rows.getOrNull(left.first)?.getOrNull(left.second)
-                if (at != MERGE_LEFT_MARK && at != MERGE_UP_MARK) anchorOf[r to c] = left
-            } else if (value == MERGE_UP_MARK && r > 0) {
+                if (at != MERGE_LEFT && at != MERGE_UP) anchorOf[r to c] = left
+            } else if (value == MERGE_UP && r > 0 && c < rows[r - 1].size) {
                 val above = anchorOf[(r - 1) to c] ?: ((r - 1) to c)
                 val at = rows.getOrNull(above.first)?.getOrNull(above.second)
-                if (at != MERGE_LEFT_MARK && at != MERGE_UP_MARK) anchorOf[r to c] = above
+                if (at != MERGE_LEFT && at != MERGE_UP) anchorOf[r to c] = above
             }
         }
     }
@@ -689,18 +632,12 @@ data class MergePlan(val writes: List<CellWrite>, val pieces: List<CellAt>) {
 }
 
 /**
- * A cell merged with its neighbour -- on its left, or above -- the
- * desktop's `_grid_merge_selection` over the two. The box they make, grown
- * until every merge it touches lies inside it whole, becomes one cell kept
- * at its top left. Nothing it swallows is thrown away: each cell's words
- * move into the kept cell, joined in reading order by a space, as the
- * desktop joins them, and an empty cell adds nothing. The phone's first
- * merge made the chosen cell a marker instead, and its words went -- the
- * words of a cell merged with an empty one among them.
- *
- * Every other cell of the box becomes a marker: "<" along the box's first
- * row and in every column but its first, "^" down its first column. Null
- * when there is no neighbour there.
+ * A cell merged with its neighbour, left or above -- the desktop's
+ * `_grid_merge_selection` over the two. Their box, grown until every merge
+ * it touches lies inside it, becomes one cell kept at its top left, every
+ * cell's words joined into it in reading order by a space; none are thrown
+ * away. The rest become markers: "<" in every column but the first, "^"
+ * down the first. Null when there is no neighbour there.
  */
 fun mergePlan(lines: List<String>, at: CellAt, up: Boolean): MergePlan? {
     val separator = separatorIndexOf(lines)
@@ -738,7 +675,7 @@ fun mergePlan(lines: List<String>, at: CellAt, up: Boolean): MergePlan? {
     for (r in r0..r1) {
         for (c in c0..c1) {
             val value = rows.getOrNull(r)?.getOrNull(c) ?: continue
-            if (value.isEmpty() || value == MERGE_LEFT_MARK || value == MERGE_UP_MARK) continue
+            if (value.isEmpty() || value == MERGE_LEFT || value == MERGE_UP) continue
             pieces.add(CellAt(r, c))
             words.add(value)
         }
@@ -747,7 +684,7 @@ fun mergePlan(lines: List<String>, at: CellAt, up: Boolean): MergePlan? {
     for (r in r0..r1) {
         for (c in c0..c1) {
             if (r == r0 && c == c0) continue
-            writes.add(CellWrite(CellAt(r, c), if (r == r0 || c != c0) MERGE_LEFT_MARK else MERGE_UP_MARK))
+            writes.add(CellWrite(CellAt(r, c), if (r == r0 || c != c0) MERGE_LEFT else MERGE_UP))
         }
     }
     return MergePlan(writes, pieces)
@@ -770,23 +707,23 @@ fun rowLinesPlan(lines: List<String>, row: Int, want: Int): List<CellWrite> {
     val mine = cells.indices.filter { c -> (row to c) !in anchors && (row to c) !in tall }
     if (mine.isEmpty()) return emptyList()
     fun core(value: String): List<String> {
-        val parts = value.split(BREAK_MARK).toMutableList()
+        val parts = value.split(LINE_BREAK).toMutableList()
         while (parts.size > 1 && parts.last().isBlank()) parts.removeAt(parts.size - 1)
         return parts
     }
     val target = maxOf(1, want, mine.maxOf { core(cells[it]).size })
-    val tallest = mine.maxBy { cells[it].split(BREAK_MARK).size }
+    val tallest = mine.maxBy { cells[it].split(LINE_BREAK).size }
     return mine.mapNotNull { c ->
         val kept = core(cells[c])
         val size = if (c == tallest) target else kept.size
-        val value = (kept + List(size - kept.size) { "" }).joinToString(BREAK_MARK)
+        val value = (kept + List(size - kept.size) { "" }).joinToString(LINE_BREAK)
         if (value == cells[c]) null else CellWrite(CellAt(row, c), value)
     }
 }
 
 /** The column mechanics a separator row spells out: the desktop's `parse_separator`. */
 fun parseSeparator(line: String): List<TableColumn> = splitRow(line).map { cell ->
-    if (cell == SEPARATOR_HIDDEN_MARK) return@map TableColumn(null, hidden = true)
+    if (cell == SEPARATOR_HIDDEN) return@map TableColumn(null, hidden = true)
     val left = cell.startsWith(":")
     val right = cell.endsWith(":")
     val align = when {
@@ -804,7 +741,7 @@ fun parseSeparator(line: String): List<TableColumn> = splitRow(line).map { cell 
  * a separator again never forgets one.
  */
 fun separatorCells(columns: List<TableColumn>): List<String> = columns.map { column ->
-    if (column.hidden) return@map SEPARATOR_HIDDEN_MARK
+    if (column.hidden) return@map SEPARATOR_HIDDEN
     val width = maxOf(3, column.width ?: 3)
     when (column.align) {
         CellAlign.CENTER -> ":" + "-".repeat(maxOf(1, width - 2)) + ":"
@@ -861,9 +798,9 @@ fun autofitAllColumns(lines: List<String>): List<String> = withColumnMechanics(l
     for (c in cols.indices) if (c in widths.indices && !cols[c].hidden) cols[c] = cols[c].copy(width = widths[c])
 }
 
-/** A column hidden, or shown again. */
-fun hideColumn(lines: List<String>, column: Int, hidden: Boolean = true): List<String> = withColumnMechanics(lines) { cols, _, _ ->
-    if (column in cols.indices) cols[column] = cols[column].copy(hidden = hidden)
+/** A column hidden; [unhideAllColumns] shows them again. */
+fun hideColumn(lines: List<String>, column: Int): List<String> = withColumnMechanics(lines) { cols, _, _ ->
+    if (column in cols.indices) cols[column] = cols[column].copy(hidden = true)
 }
 
 /** Every hidden column shown: "Unhide all columns". */
@@ -891,11 +828,11 @@ fun parseTable(lines: List<String>): TableBlock {
         List(width) { TableColumn(null, false) }
     }
 
-    // Merges are read over the data rows alone, as the desktop's `merge_map`
-    // reads them: over the whole grid, a "^" under the header joined the
-    // separator's dashes rather than the header's cell.
+    // Merges are read over the data rows as written, as the desktop's `merge_map`
+    // reads them: over the whole grid a "^" under the header joined the dashes,
+    // and over padded rows one under a short row merged into a cell padding made.
     val dataLines = grid.indices.filter { it != separatorAt }
-    val anchors = mergeAnchors(dataLines.map { grid[it] })
+    val anchors = mergeAnchors(dataLines.map { raw[it] })
     // Anchor -> how many columns it swallows to its right.
     val colSpans = HashMap<Pair<Int, Int>, Int>()
     for ((covered, anchor) in anchors) {
@@ -916,7 +853,7 @@ fun parseTable(lines: List<String>): TableBlock {
             val value = grid[r][c]
             row.add(
                 TableCell(
-                    lines = value.split(BREAK_MARK),
+                    lines = value.split(LINE_BREAK),
                     checked = checkboxState(value),
                     colSpan = colSpans[d to c] ?: 1,
                     align = padding.getOrElse(c) { CellAlign.LEFT },
@@ -926,10 +863,9 @@ fun parseTable(lines: List<String>): TableBlock {
         rows.add(row)
     }
 
-    // Column widths, in characters. A cell spanning several columns is
-    // left out: letting it set one column's width would stretch a column
-    // to fit text that is not even in it. Such a cell wraps inside the
-    // width it gets, which is taller but never clipped.
+    // Column widths, in characters, a cell spanning several left out: it would
+    // stretch one column for text not in it. It wraps in the width it gets,
+    // taller but never clipped.
     val charWidths = MutableList(width) { 1 }
     for (row in rows) {
         for (c in 0 until width) {

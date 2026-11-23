@@ -60,9 +60,17 @@ def main():
     names = set(archive.namelist())
     lookups, missing = 0, 0
     with tempfile.TemporaryDirectory() as tmp:
-        for dex in sorted(n for n in names if re.fullmatch(r"classes\d*\.dex", n)):
-            lines = subprocess.run([tool, "-d", archive.extract(dex, tmp)], capture_output=True,
-                                   text=True, errors="replace").stdout.splitlines()
+        dexes = sorted(n for n in names if re.fullmatch(r"classes\d*\.dex", n))
+        if not dexes:
+            print("Nothing to read: the APK holds no classes.dex")
+            return 2
+        for dex in dexes:
+            read = subprocess.run([tool, "-d", archive.extract(dex, tmp)], capture_output=True,
+                                  text=True, errors="replace")
+            if read.returncode != 0 or not read.stdout.strip():
+                print("Nothing to read: dexdump could not read %s (%s)" % (dex, read.stderr.strip()[:200]))
+                return 2
+            lines = read.stdout.splitlines()
             for i, line in enumerate(lines):
                 if "Ljava/lang/Class;.getResourceAsStream" not in line and "Ljava/lang/Class;.getResource:" not in line:
                     continue
@@ -84,6 +92,11 @@ def main():
     if missing:
         print("\n%d of %d lookups would find nothing in the release build." % (missing, lookups))
         return 1
+    if not lookups:
+        # The app looks a file up by name (Pasting.kt's entity table): none
+        # found means the reading failed, not that all is well.
+        print("\nNo lookup found in the release build: the code that makes one was not read.")
+        return 2
     print("\nEvery lookup in the release build finds its file (%d)." % lookups)
     return 0
 

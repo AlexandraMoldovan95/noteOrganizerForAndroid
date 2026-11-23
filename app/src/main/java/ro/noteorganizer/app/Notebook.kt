@@ -4,21 +4,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.text.Normalizer
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+
+/** The label a note without a title is listed by, as the desktop lists it. */
+const val UNTITLED = "(untitled)"
+
+/** A title as the lists show it: stripped as the desktop strips it, or [UNTITLED]. */
+fun shownTitle(title: String?): String = title?.let(PyText::strip)?.ifEmpty { null } ?: UNTITLED
 
 /**
- * One note, in the shape the Windows desktop app actually writes to disk.
- *
- * The Python is the specification. Every default here is the one
- * `normalize_note` applies, and every field is read the way the desktop
- * reads it -- not the way the JSON happens to look.
- *
- * Nothing in this file throws. A hand-edited, truncated or hostile file
- * must produce a shorter list, never a crash: that is the same promise
- * `normalize_note` makes at its single choke point, and it is the reason
- * bad data has never left the desktop app unopenable twice running.
+ * One note, in the shape the desktop app writes to disk: every default the
+ * one `normalize_note` applies, every field read as the desktop reads it.
+ * Nothing in this file throws: a hand-edited, truncated or hostile file
+ * makes a shorter list, never a crash -- the promise `normalize_note`
+ * makes at its single choke point.
  */
 data class Note(
     val id: Int = 0,
@@ -33,29 +32,27 @@ data class Note(
     val order: Double? = null,
     val pinned: Boolean = false,
     val comments: String = "",
-    val attachments: Int = 0,
+    /** How many files, how many paragraph records: counts, where the file holds the lists. */
+    val attachmentCount: Int = 0,
     val formatting: List<FormatSpan> = emptyList(),
-    val paragraphs: Int = 0,
+    val paragraphCount: Int = 0,
     val checklist: List<ChecklistItem> = emptyList(),
     val recurrenceFreq: String = "",
     val recurrenceInterval: Int = 1,
     /** The rule in words, as the desktop's card says it: "Every 2 weeks on Mon, Thu". */
     val recurrenceLabel: String = "",
-    val exceptions: Int = 0,
-    val overrides: Int = 0,
+    /** How many days the series skips, and how many keep edits of their own. */
+    val exceptionCount: Int = 0,
+    val overrideCount: Int = 0,
     /** Only a trashed note carries this: "YYYY-MM-DD HH:MM:SS". */
     val deletedAt: String = "",
     /**
-     * The note's identity, as opposed to [id], which is only its place in
-     * THIS file. Two devices both hand a new note `max + 1`, so both
-     * invent 87 and nothing can tell the two apart afterwards.
-     *
-     * Empty for a note written before the desktop app learned to mint
-     * these -- and left empty ON PURPOSE. The desktop fills them in at
-     * its own door, for every note, once; if this app filled them in too,
-     * a notebook copied here before the desktop had seen it would end up
-     * with two different identities for each note, which is the exact
-     * problem the field exists to prevent.
+     * The note's identity, where [id] is only its place in THIS file: two
+     * devices both hand a new note `max + 1`. Empty for a note older than the
+     * desktop's minting, and left so when read: this app mints one only for
+     * a note it adds -- created here, imported without one
+     * ([Normalize.normalizeNote]), or put back from the Trash without one
+     * ([Organizing.restore]) -- as the desktop mints at its own door.
      */
     val uid: String = "",
     /** Whether a rescue copy ("↩ Restore previous") is waiting. */
@@ -66,16 +63,11 @@ data class Note(
      * drastic shrink's copy, which is the text alone.
      */
     val previousAlso: List<String> = emptyList(),
-    /** Whether restoring that copy would keep what the note holds now ([Notebook.replacedByRestore]). */
-    val previousKeeps: Boolean = false,
 ) {
     /**
      * A note repeats when its rule names a frequency -- NOT when its
-     * recurrence object is non-empty.
-     *
-     * `normalize_note` gives every saved note a fully populated rule, so
-     * an emptiness test reports the whole notebook as repeating: measured
-     * against a real 77-note file, emptiness said 77 and this said 2.
+     * recurrence object is non-empty: `normalize_note` gives every note a
+     * full rule, and on a real 77-note file emptiness said 77 and this 2.
      * Mirrors `is_recurring` in core/recurrence.py.
      */
     val isRecurring: Boolean get() = recurrenceFreq.isNotEmpty()
@@ -84,7 +76,53 @@ data class Note(
     val checklistDone: Int get() = checklist.count { it.done }
 
     /**
-     * Everything this note can be found by, lowercased, computed once.
+     * Who this note is, for state kept while the notebook changes under it
+     * (the list's selection, the History's open series): its [uid], else its
+     * id. An id freed by a delete is taken by the next note added, and that
+     * note always has a uid of its own, as the desktop's `_order_identity`.
+     */
+    val identity: String get() = uid.ifEmpty { "id:$id" }
+
+    companion object {
+        /** [ids] with the note each holds now ([identity]): a selection, as it is made. */
+        fun picked(ids: Set<Int>, byId: Map<Int, Note>): Map<Int, String> =
+            ids.associateWith { byId[it]?.identity.orEmpty() }
+
+        /**
+         * The ids in [picked] that still hold the notes they were picked as:
+         * one whose note went drops out, and so does a new note given its id.
+         */
+        fun stillPicked(picked: Map<Int, String>, byId: Map<Int, Note>): Set<Int> =
+            picked.filter { (id, who) -> byId[id]?.identity == who }.keys
+
+        /**
+         * A selection as handed to Android, given back when the list comes
+         * back on screen: an id and its note's identity, in turn. None past
+         * [PICKED_KEPT] letters, as a search's words ([Showing.searchKept]):
+         * Android hands that state over in one transaction, and a selection
+         * of thousands is made again more cheaply than an app stopped at Home.
+         */
+        fun pickedKept(picked: Map<Int, String>): ArrayList<String>? {
+            val flat = ArrayList<String>(picked.size * 2)
+            var letters = 0
+            for ((id, who) in picked) {
+                flat += id.toString()
+                flat += who
+                letters += 12 + who.length
+                if (letters > PICKED_KEPT) return null
+            }
+            return flat
+        }
+
+        /** [pickedKept]'s list read back. */
+        fun pickedBack(flat: List<String>): Map<Int, String> =
+            flat.chunked(2).mapNotNull { pair -> pair.takeIf { it.size == 2 }?.let { (id, who) -> id.toIntOrNull()?.let { it to who } } }.toMap()
+
+        const val PICKED_KEPT = 20_000
+    }
+
+    /**
+     * Everything this note can be found by, folded ([searchFold]), computed once.
      *
      * Once, because the alternative is stripping a 107,000-character
      * body's table plumbing on every keystroke for every note. The
@@ -93,45 +131,38 @@ data class Note(
      */
     private val searchText: String by lazy {
         val bodyText = if (body.contains('|')) contentText(body) else body
-        fold(title + "\n" + bodyText + "\n" + comments)
+        searchFold(title + "\n" + bodyText + "\n" + comments + "\n" + checklist.joinToString("\n") { it.text })
     }
 
     /**
-     * The ONE definition of "this note matches the search".
-     *
-     * The desktop learned this the hard way: the list render and "select
-     * all visible" each carried a hand-rolled copy, the copies drifted,
-     * and "select all" quietly selected notes the filter had hidden --
-     * then bulk actions hit them. One definition, every caller.
-     *
-     * Title, body and comments. Not the category, not the checklist --
-     * matching the desktop rather than improving on it, because a
-     * difference here is a surprise, not a feature.
+     * The ONE definition of "this note matches the search": two copies drifted
+     * on the desktop, and "select all" picked notes the filter hid. Title,
+     * body, comments and checklist rows, as the desktop's rule; the query's
+     * ends left out, as a word picked from the keyboard's suggestions comes
+     * with a space after it and missed every word ending a line.
      */
     fun matches(query: String): Boolean {
-        if (query.isEmpty()) return true
-        return searchText.contains(fold(query))
+        val q = searchFold(PyText.strip(query))
+        if (q.isEmpty()) return true
+        return searchText.contains(q)
     }
-
-    /** What the desktop's list shows for a note with no title. */
-    val displayTitle: String get() = title.trim().ifEmpty { "(untitled)" }
 
     /**
      * The card's words and its table count, from the desktop's one pass
-     * ([previewText]) -- worked out ONCE per note, not on every drawing:
-     * a card scrolling into sight used to walk its whole body two or three
-     * times, and on a note of tens of thousands of characters that was a
-     * frame missed each time.
-     *
-     * Table lines are left out, as the desktop leaves them out: rows read
-     * as pipe soup at card size, and the tags line says a table is there.
+     * ([previewText]), worked out ONCE per note: walked at every drawing, a
+     * long note missed a frame each time. Table lines are left out, as on the
+     * desktop -- pipe soup at card size; the tags line says a table is there.
      */
     private val previewParts: Pair<List<String>, Int> by lazy {
         val (prose, tables) = previewText(body)
-        prose.split("\n").map { it.trim() }.filter { it.isNotEmpty() } to tables
+        // As the desktop's lines_apart: list markers off ("· • milk" read as
+        // two marks), each line's spaces squeezed, a line of none left out.
+        Pasting.stripListMarkers(prose).split("\n")
+            .map { PyText.split(it).joinToString(" ") }
+            .filter { it.isNotEmpty() } to tables
     }
 
-    /** Body lines worth previewing: blanks and table lines dropped. */
+    /** Body lines worth previewing, list markers taken off: blanks, list items with no words and table lines dropped. */
     private val spokenLines: List<String> get() = previewParts.first
 
     /** How many tables the body holds -- runs of lines a person reads as a table. */
@@ -147,10 +178,12 @@ data class Note(
     val headline: String by lazy {
         val t = title.trim()
         when {
-            t.isNotEmpty() -> t
+            // A glimpse of a title too: one of 150,000 letters with no space,
+            // which a share code can bring, held the list 3.8 s at every start.
+            t.isNotEmpty() -> glimpse(t)
             spokenLines.isNotEmpty() -> glimpse(spokenLines.first())
             // Words only in a table: the note is not empty, it is untitled.
-            body.isNotBlank() -> "(untitled)"
+            body.isNotBlank() -> UNTITLED
             else -> "(empty)"
         }
     }
@@ -162,14 +195,15 @@ data class Note(
      * The rest of the note, after whatever the headline already used --
      * a glimpse, not the whole text: the card shows two lines of it, and
      * laying out tens of thousands of characters to show two lines is
-     * what made the list stutter on a phone.
+     * what made the list stutter on a phone. Its lines are kept apart, as
+     * the desktop's card keeps them: run together, two read as one sentence.
      */
     val snippet: String by lazy {
         val rest = if (headlineIsBorrowed) spokenLines.drop(1) else spokenLines
         val out = StringBuilder()
         for (line in rest) {
             if (out.length >= GLIMPSE) break
-            if (out.isNotEmpty()) out.append(' ')
+            if (out.isNotEmpty()) out.append(" · ")
             out.append(glimpse(line))
         }
         glimpse(out.toString())
@@ -188,13 +222,13 @@ data class Note(
         val parts = StringBuilder(category)
         if (isRecurring) {
             parts.append("   🔁 ").append(recurrenceLabel)
-            if (exceptions > 0) parts.append("   ✕").append(exceptions)
-            if (overrides > 0) parts.append("   ✎").append(overrides)
+            if (exceptionCount > 0) parts.append("   ✕").append(exceptionCount)
+            if (overrideCount > 0) parts.append("   ✎").append(overrideCount)
         } else if (date.isNotEmpty()) {
             parts.append("   📅 ").append(Recurrence.showDate(date))
         }
         if (comments.isNotEmpty()) parts.append("   💬")
-        if (attachments > 0) parts.append("   📎×").append(attachments)
+        if (attachmentCount > 0) parts.append("   📎×").append(attachmentCount)
         val tables = tableCount
         if (tables > 0) {
             parts.append(if (tables == 1) "   ▦ 1 table" else "   ▦ $tables tables")
@@ -207,30 +241,39 @@ data class Note(
 }
 
 /**
- * Folds a string so that `si` finds `și` and `masina` finds `mașină`.
- *
- * **This is the first deliberate difference from the desktop**, which
- * compares the letters as typed. It is a one-way widening — a folded
- * search finds everything the strict one would and more — so it can
- * surprise by finding too much, never by finding too little.
- *
- * The reason is the language. Romanian diacritics are routinely dropped
- * when typing quickly, especially on a phone keyboard, and a notebook
- * written half with them and half without is unsearchable under a strict
- * rule. It is worth porting back to the desktop rather than leaving the
- * two apps disagreeing.
- *
- * Decomposing and dropping the combining marks handles the whole set at
- * once: ă â î ș ț, and the cedilla spellings ş ţ that older Windows
- * keyboards produce, which are a different character from the comma-below
- * ones and would otherwise not match them either.
+ * Each character of the basic plane as a search compares it: its base
+ * letter, the diacritic dropped, then lowered -- always one for one, so a
+ * match's place in the text is its place in the folded text. Only marks are
+ * dropped: a Korean syllable comes apart into letters, and cut to its first it
+ * found every syllable that starts with the same one. The desktop's
+ * `_search_fold_table`.
  */
-fun fold(text: String): String {
-    val decomposed = Normalizer.normalize(text, Normalizer.Form.NFD)
-    return COMBINING_MARKS.replace(decomposed, "").lowercase()
+private val SEARCH_FOLD: CharArray by lazy {
+    CharArray(0x10000) { code ->
+        val ch = code.toChar()
+        if (ch.isSurrogate()) ch
+        else {
+            val parts = Normalizer.normalize(ch.toString(), Normalizer.Form.NFD)
+            val marks = (1 until parts.length).all { Character.getType(parts[it]) == Character.NON_SPACING_MARK.toInt() }
+            val base = if (marks) parts[0] else ch
+            val low = base.toString().lowercase(java.util.Locale.ROOT)
+            if (low.length == 1) low[0] else base
+        }
+    }
 }
 
-private val COMBINING_MARKS = Regex("\\p{Mn}+")
+/**
+ * [text] as every search compares it -- the list, Find in note, the
+ * History: case and diacritics gone, so "sedinta" finds "Ședință" and ș with
+ * a comma finds ş with a cedilla; a character past the basic plane stays.
+ * The desktop's `fold_for_search`: diacritics dropped when typing quickly
+ * left half a notebook unsearchable, and the owner chose it for every search.
+ */
+fun searchFold(text: String): String {
+    val out = CharArray(text.length)
+    for (i in text.indices) out[i] = SEARCH_FOLD[text[i].code]
+    return String(out)
+}
 
 /**
  * How the list is ordered. The desktop's options, same rules -- and the
@@ -254,33 +297,28 @@ enum class SortOrder(val label: String) {
 }
 
 /**
- * Orders the list, then floats the pinned notes to the top.
- *
- * Pinning is applied as a SECOND, stable sort rather than as part of the
- * key, exactly as the desktop does it: pinned notes rise but keep their
- * relative order from whatever sort the user chose.
- *
- * Untitled notes sink to the bottom of an alphabetical sort instead of
- * clustering at the top, which is where empty strings would naturally
- * land and is never what anyone means.
+ * Orders the list, then floats the pinned notes to the top by a SECOND,
+ * stable sort, as the desktop does: pinned notes rise but keep the order
+ * of whatever sort was chosen. Untitled notes sink to the bottom of an
+ * alphabetical sort, not the top, where empty strings would land.
  */
 fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.formatDate(java.time.LocalDate.now()),
               nextDay: (Note) -> String? = { null }): List<Note> {
     val sorted = when (order) {
         SortOrder.UPDATED_NEW -> notes.sortedByDescending { it.updated }
         SortOrder.UPDATED_OLD -> notes.sortedBy { it.updated }
+        // Folded as a search folds: by code point, Ă Î Ș Ț came after Z.
         SortOrder.TITLE_AZ -> notes.sortedWith(
-            compareBy({ it.title.isBlank() }, { it.title.lowercase() }))
+            compareBy({ it.title.isBlank() }, { searchFold(it.title) }, { it.title }))
         SortOrder.TITLE_ZA -> notes.sortedWith(
             compareBy<Note> { it.title.isBlank() }
-                .thenByDescending { it.title.lowercase() })
+                .thenByDescending { searchFold(it.title) }.thenByDescending { it.title })
         SortOrder.CATEGORY -> notes.sortedWith(
-            compareBy({ it.category }, { it.updated }))
+            compareBy({ searchFold(it.category) }, { it.category }, { it.updated }))
         SortOrder.SOONEST -> {
-            // Each note's NEXT date from today, a series by its next day:
-            // what is coming first, then the past newest first, then the
-            // undated. A series that has ended stands with the past by its
-            // start date, as on the desktop.
+            // Each note's NEXT date from today, a series by its next day: what is
+            // coming first, then the past newest first, then the undated; an ended
+            // series stands with the past by its start, as on the desktop.
             fun group(n: Note): Pair<Int, String> {
                 if (n.isRecurring) {
                     nextDay(n)?.let { return 0 to it }
@@ -289,15 +327,18 @@ fun sortNotes(notes: List<Note>, order: SortOrder, today: String = Recurrence.fo
                 if (!Notebook.isDate(n.date)) return 2 to ""
                 return if (n.date >= today) 0 to n.date else 1 to n.date
             }
-            notes.sortedWith(Comparator { a, b ->
-                val (ga, da) = group(a)
-                val (gb, db) = group(b)
+            // Each note's place worked out once, before sorting: inside the
+            // comparison, a series' next day was worked out 7,584 times for 2,000
+            // notes, each over the whole notebook, after every save.
+            notes.map { it to group(it) }.sortedWith(Comparator { (_, a), (_, b) ->
+                val (ga, da) = a
+                val (gb, db) = b
                 when {
                     ga != gb -> ga.compareTo(gb)
                     ga == 1 -> db.compareTo(da)
                     else -> da.compareTo(db)
                 }
-            })
+            }).map { it.first }
         }
         // Plain chronology by the note's own date: the archive walk.
         SortOrder.OLDEST_DATE -> notes.sortedWith(
@@ -333,9 +374,43 @@ object Showing {
         ALL -> true
         REPEATING -> note.isRecurring
         DATED -> !note.isRecurring && note.date.isNotEmpty()
-        FILES -> note.attachments > 0
+        FILES -> note.attachmentCount > 0
         else -> note.category == selected
     }
+
+    /**
+     * In words, what keeps [notes] off the list -- the search, Show, their
+     * folded groups -- or what keeps any note off when [notes] is null: what
+     * keeps any of them off, said of them all (the desktop's
+     * `_what_hides_notes`). Of the first alone, the others' went unsaid.
+     */
+    fun hiddenBy(notes: List<Note>?, query: String, show: String, grouped: Boolean, collapsed: Set<String>): String {
+        val folded = if (grouped && notes != null) groupsOf(notes) intersect collapsed else emptySet()
+        return listOfNotNull(
+            "your search".takeIf { PyText.strip(query).isNotEmpty() && (notes == null || notes.any { !it.matches(query) }) },
+            "Show: $show".takeIf { show != ALL && (notes == null || notes.any { !passes(it, show) }) },
+            when {
+                folded.isEmpty() -> null
+                notes?.size == 1 -> "its folded group"
+                folded.size == 1 -> "their folded group"
+                else -> "their folded groups"
+            },
+        ).joinToString(" and ")
+    }
+
+    /** The groups [notes] are listed under, a note without a category under General's. */
+    fun groupsOf(notes: List<Note>): Set<String> = notes.map { it.category.ifEmpty { Themes.PROTECTED_CATEGORY } }.toSet()
+
+    /**
+     * A search's words as handed to Android, to be given back after it ends
+     * the app behind Home: nothing past [SEARCH_KEPT], though the box keeps
+     * them all while the app runs, as the desktop's takes any length.
+     * Android hands that state over in one transaction, and past half a
+     * million letters the app stopped at Home (ISSUES_LOG, "A crash in front").
+     */
+    fun searchKept(words: String): String? = words.takeIf { it.length <= SEARCH_KEPT }
+
+    const val SEARCH_KEPT = 10_000
 
     /** One row of a list grouped by category: a header, or a note under it. */
     sealed class Row {
@@ -370,6 +445,170 @@ object Showing {
      * then the Trash button sent notes nobody could see.
      */
     fun visibleIds(rows: List<Row>): Set<Int> = rows.filterIsInstance<Row.Item>().map { it.note.id }.toSet()
+
+    /** A row's key: the list keeps the card it has in sight by it, and a reveal finds that card by it. */
+    fun key(row: Row): Any = when (row) {
+        is Row.Header -> "h:" + row.category
+        is Row.Item -> row.note.id
+    }
+
+    /**
+     * Which of [ids] the change from [listed] to [rows] moved: their place
+     * differs, or they arrived. Taken whole, under a sort a move does not
+     * reorder, filing a selection made across a scroll brought the list back
+     * to the first card selected, screens above, nothing moved.
+     */
+    fun movedIds(listed: List<Row>, rows: List<Row>, ids: Set<Int>): Set<Int> {
+        fun place(of: List<Row>, id: Int) = of.indexOfFirst { (it as? Row.Item)?.note?.id == id }
+        return ids.filterTo(HashSet()) { place(listed, it) != place(rows, it) }
+    }
+
+    /**
+     * Where the list scrolls to bring the moved notes [ids] into sight among
+     * [rows] -- the first in the list's new order -- or null when none is
+     * listed or one is in the window of [seen], keys half in sight when the
+     * action was taken ([anchor], the first item, a sliver too, [lead] rows
+     * above). A moved [anchor] is followed only about a hundred rows, so no
+     * window is trusted then; [atTop] stays at the top; a group brings its header.
+     */
+    fun revealAt(rows: List<Row>, ids: Set<Int>, seen: List<Any>, atTop: Boolean, anchor: Any?, lead: Int): Int? {
+        val at = rows.indexOfFirst { (it as? Row.Item)?.note?.id in ids }
+        if (at < 0) return null
+        if (anchor is Int && anchor in ids) return toward(rows, at, seen, atTop)
+        val kept = rows.indexOfFirst { key(it) == anchor }
+        // The first item gone, the list keeps its place by index: the window
+        // counted, as best it can be, from a card in sight that did not move.
+        val k = seen.indexOfFirst { it !in ids }
+        val first = when {
+            kept >= 0 -> kept + lead
+            k < 0 -> -1
+            else -> rows.indexOfFirst { key(it) == seen[k] }.let { if (it < 0) -1 else it - k }
+        }
+        if (first >= 0 && at in first until first + seen.size) return null
+        return toward(rows, at, seen, atTop)
+    }
+
+    /** Where to scroll for the card at [at]: the top when it shows from there, its header with it. */
+    private fun toward(rows: List<Row>, at: Int, seen: List<Any>, atTop: Boolean): Int = when {
+        atTop && at < seen.size -> 0
+        at > 0 && rows[at - 1] is Row.Header -> at - 1
+        else -> at
+    }
+
+    /**
+     * Whether a dragged card's slot is still in the viewport, [start] to
+     * [end], once it trades one [step] with its neighbour, the list held by
+     * place -- laid out of it, the card went, its drag with it. Offsets and
+     * sizes are the layout's, before the trade. A card that [leads] the screen
+     * and steps up trades once until it stops leading ([ledOnce]), or a slow
+     * edge scroll chained ten or twenty trades (ISSUES_LOG, "Custom order").
+     */
+    fun tradeStaysInSight(step: Int, meOffset: Int, meSize: Int, otherOffset: Int, otherSize: Int,
+                          leads: Boolean, start: Int, end: Int, ledOnce: Boolean = false): Boolean =
+        if (step > 0) otherOffset + otherSize - meSize < end
+        else if (leads) !ledOnce
+        else otherOffset + meSize > start
+
+    /**
+     * How far to scroll to bring a card at [top], [size] tall, wholly into a
+     * viewport from 0 to [end]: 0 when it is, never so far that its top goes.
+     * A card stepped past the top or the bottom card on screen went out of
+     * sight, or was left a strip.
+     */
+    fun intoSight(top: Int, size: Int, end: Int): Int = when {
+        top < 0 -> top
+        top + size > end -> minOf(top + size - end, top)
+        else -> 0
+    }
+
+    /**
+     * The way a drag is heading (+1 down, -1 up, 0 not yet a drag) once the
+     * finger is [pulled] from the press, and its furthest point that way,
+     * from the [heading] and [far] before: a drag only past the touch [slop],
+     * as Android's own, turned only once back past it from [far] -- by each
+     * frame's sign, a hair's recoil ran the scroll against the finger.
+     */
+    fun dragHeading(heading: Int, far: Float, pulled: Float, slop: Float): Pair<Int, Float> = when {
+        heading == 0 -> if (kotlin.math.abs(pulled) > slop) Pair(if (pulled > 0f) 1 else -1, pulled) else Pair(0, far)
+        heading > 0 && pulled > far || heading < 0 && pulled < far -> Pair(heading, pulled)
+        kotlin.math.abs(pulled - far) > slop -> Pair(-heading, pulled)
+        else -> Pair(heading, far)
+    }
+
+    /**
+     * Which way a dragged card at [top], [size] tall, scrolls the list at an
+     * edge of the viewport from [start] to [end] (-1 up, +1 down, 0 not):
+     * toward the edge it is [heading], and only once the finger is past the
+     * touch [slop] beyond the press that way ([pulled]). On the heading
+     * alone, the top card nudged down and put back scrolled the list under
+     * it, and was saved a place up.
+     */
+    fun edgeScroll(heading: Int, pulled: Float, slop: Float, top: Float, size: Int,
+                   start: Int, end: Int, edge: Float): Int = when {
+        heading < 0 && pulled < -slop && top < start + edge -> -1
+        heading > 0 && pulled > slop && top + size > end - edge -> 1
+        else -> 0
+    }
+
+    /**
+     * How deep the edge zones of a list from [start] to [end] reach: [most],
+     * or an eighth of a short list. On a phone on its side every resting
+     * card sat in a zone of [most].
+     */
+    fun edgeZone(start: Int, end: Int, most: Float): Float = minOf(most, (end - start) / 8f)
+
+    /**
+     * How far one pass of the edge loop scrolls the [way] edgeScroll gave,
+     * for a card [depth] into a zone [edge] deep, [heldMs] after the scroll
+     * began: a pixel at first, up to [most] as the card goes deeper and is
+     * held longer, as Android's own reorder does. At one speed a drag of one
+     * place on a phone on its side went two or three.
+     */
+    fun edgeStep(way: Int, depth: Float, edge: Float, heldMs: Long, most: Float): Float {
+        if (way == 0) return 0f
+        val out = 1f - (depth / edge).coerceIn(0f, 1f)
+        val held = (heldMs / 2000f).coerceIn(0f, 1f)
+        val speed = most * (1f - out * out * out * out * out) * (held * held * held * held * held)
+        return way * maxOf(1f, speed)
+    }
+
+    /**
+     * When the edge's scroll began ([since], 0 for not yet), as the card at
+     * [side] (-1 the top zone, +1 the foot's, 0 neither; [sideWas] before)
+     * scrolls the list [toward]: from its first pass in a zone until it
+     * leaves it. Begun again at every turn of the finger, a nudge at full
+     * speed fell back to a crawl.
+     */
+    fun edgeSince(since: Long, sideWas: Int, side: Int, toward: Int, now: Long): Long = when {
+        side != sideWas -> if (toward != 0) now else 0L
+        since == 0L && toward != 0 -> now
+        else -> since
+    }
+
+    /**
+     * Whether the edge stays armed past the press for a list already
+     * scrolling [way] while the drag still heads that way: a settle of a
+     * few pixels back inside the slop stopped it.
+     */
+    fun edgeLatched(way: Int, heading: Int): Boolean = way != 0 && way == heading
+
+    /**
+     * How far to scroll once a card [size] tall has moved one [step], so it
+     * and the card it passed, [passedSize] tall, show together: the card at
+     * [top] when laid out, else beside the passed card at [passedTop] -- null
+     * when neither is. A pair taller than the screen keeps the moved card,
+     * as a step up does; its own [gap] below is no part of the pair
+     * (ISSUES_LOG, "Custom order, twelve rounds").
+     */
+    fun afterStep(top: Int?, size: Int, passedTop: Int?, passedSize: Int, step: Int, end: Int,
+                  gap: Int = 0): Int? = when {
+        top != null && step > 0 && passedSize + size - gap <= end ->
+            intoSight(top - passedSize, passedSize + size - gap, end)
+        top != null && step > 0 -> intoSight(top, size, end)
+        top != null -> intoSight(top, size + passedSize, end)
+        passedTop == null || size <= 0 -> null
+        else -> intoSight(if (step > 0) passedTop + passedSize else passedTop - size, size, end)
+    }
 }
 
 /** What a save did, or the reason it did not. Never silence. */
@@ -379,63 +618,54 @@ sealed class SaveResult {
         val lostStyles: Int = 0,
         /** Only an import fills this: how many notes arrived. */
         val imported: Int = 0,
+        /** The note made of the words this save took beside an Update's copy, 0 for none. */
+        val keptAside: Int = 0,
+        /** Whether that note holds the comments alone, the save taking no more. */
+        val keptComments: Boolean = false,
+        /** The notes kept aside that went again, their words back in the note. */
+        val spentAside: List<Int> = emptyList(),
     ) : SaveResult()
 
     data class Failed(val reason: String) : SaveResult()
 }
 
-/** The note's own text split into code points, which is how Python counts. */
-internal fun codePointsOf(text: String): IntArray {
-    val out = ArrayList<Int>(text.length)
-    var i = 0
-    while (i < text.length) {
-        val cp = text.codePointAt(i)
-        out.add(cp)
-        i += Character.charCount(cp)
-    }
-    return out.toIntArray()
+/**
+ * The note's own text split into code points, which is how Python counts --
+ * straight into an array: as a list of objects, a 25-million-letter note
+ * asked for some 600 MB on its way in from a backup.
+ */
+internal fun codePointsOf(text: String): IntArray = text.codePoints().toArray()
+
+/**
+ * How many items two sequences of [aSize] and [bSize] share at their start,
+ * then at their end, no item counted twice -- where an edit sits, found by
+ * what did not change. [same] compares the first's i-th with the second's j-th.
+ */
+internal inline fun sharedEnds(aSize: Int, bSize: Int, same: (Int, Int) -> Boolean): Pair<Int, Int> {
+    var prefix = 0
+    while (prefix < aSize && prefix < bSize && same(prefix, prefix)) prefix++
+    var suffix = 0
+    while (suffix < aSize - prefix && suffix < bSize - prefix && same(aSize - 1 - suffix, bSize - 1 - suffix)) suffix++
+    return prefix to suffix
 }
 
 /** Spans that survived an edit, and how many did not. */
 data class Remapped(val spans: List<FormatSpan>, val lost: Int)
 
 /**
- * Moves a note's formatting to where the text went after a plain-text edit.
- *
- * This is the whole reason editing needed thought. Formatting is stored as
- * POSITIONS — "bold from character 40 to 55". Delete a word near the top
- * and everything after it slides, while the positions do not: the bold
- * would still say 40..55 and would now sit on different words. Not lost —
- * *moved onto the wrong text*, which is worse, because nothing looks
- * broken. 41 of a real notebook's 77 notes carry formatting.
- *
- * The edit is located by what did NOT change: the longest identical
- * prefix and the longest identical suffix. Everything before the prefix
- * keeps its position, everything after the suffix shifts by the change in
- * length, and only the middle is uncertain.
- *
- * Inside that middle the rule is deliberately timid — a span's start moves
- * FORWARD past the edit and its end moves BACK to where the edit began, so
- * formatting never creeps over words the user has just typed. A span that
- * lived entirely inside deleted text collapses and is dropped, and the
- * count of those is returned rather than quietly absorbed.
- *
- * Offsets are counted in code points throughout, because that is the
- * coordinate system the file stores.
+ * Moves a note's formatting, stored as POSITIONS in code points, to where
+ * the text went after a plain-text edit -- or a word deleted above slid
+ * the bold onto other words, which looks like nothing broke. The edit is
+ * found by what did NOT change, the identical prefix and suffix; in the
+ * middle the rule is timid, a span's start moved past the edit and its end
+ * back to its start, and a span wholly in deleted text dropped and counted.
  */
 fun remapSpans(old: String, new: String, spans: List<FormatSpan>): Remapped {
     if (old == new || spans.isEmpty()) return Remapped(spans, 0)
 
     val a = codePointsOf(old)
     val b = codePointsOf(new)
-
-    var prefix = 0
-    while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-
-    var suffix = 0
-    while (suffix < a.size - prefix && suffix < b.size - prefix &&
-        a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-    ) suffix++
+    val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
 
     val oldSuffixStart = a.size - suffix
     val newSuffixStart = b.size - suffix
@@ -444,15 +674,9 @@ fun remapSpans(old: String, new: String, spans: List<FormatSpan>): Remapped {
     var lost = 0
     val kept = ArrayList<FormatSpan>(spans.size)
     for (span in spans) {
-        // A span that lay ENTIRELY inside the edited stretch styled text
-        // that is gone. Stretching it over the replacement would hand the
-        // user's new words the styling of the words they deleted -- which
-        // a first version of this did, and a test caught: bold on "bb",
-        // replaced with "NOU NOU", came back as bold "NOU NOU".
-        //
-        // A span that reaches PAST the edit on either side is different
-        // and is stretched on purpose: editing one word inside a bold
-        // sentence must not un-bold the sentence.
+        // A span ENTIRELY inside the edit styled text that is gone, and is not
+        // handed to the new words; one reaching PAST it is stretched on purpose:
+        // editing one word in a bold sentence must not un-bold the sentence.
         if (span.start >= prefix && span.end <= oldSuffixStart) {
             lost++
             continue
@@ -490,22 +714,13 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
 
     val a = old.split("\n")
     val b = new.split("\n")
-
-    var prefix = 0
-    while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-
-    var suffix = 0
-    while (suffix < a.size - prefix && suffix < b.size - prefix &&
-        a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-    ) suffix++
+    val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
 
     val oldSuffixStart = a.size - suffix
     val delta = b.size - a.size
-    // As many lines in the edited stretch after as before: its lines were
-    // typed INTO, not added or taken away, and each keeps what it was --
-    // as a line on the desktop keeps its bullet while text is typed in it.
-    // Without this, typing a letter into a list item on the phone dropped
-    // its bullet, its indent or its centring.
+    // As many lines in the edited stretch after as before: typed INTO, each
+    // keeps what it was, as a desktop line keeps its bullet while typed in --
+    // or a letter typed into a list item dropped its bullet, indent or centring.
     val inPlace = delta == 0
 
     // old line -> new line, so a caller can carry each marker's KIND with
@@ -530,13 +745,10 @@ fun remapParagraphLines(old: String, new: String, lines: List<Int>): Map<Int, In
 }
 
 /**
- * Drops unpaired surrogates, which are not characters and which a JSON
- * writer either refuses or emits as something nothing can read back.
- *
- * The desktop's `mend_surrogates` exists because an emoji in a note once
- * made every save after it fail, silently, for sixteen autosaves in a row
- * -- every edit lived only in the running app. The guard is cheap; the
- * failure it prevents is not.
+ * Drops unpaired surrogates, which are not characters, and which a JSON
+ * writer refuses or writes as something nothing reads back: the desktop's
+ * `mend_surrogates`, there since an emoji made sixteen autosaves in a row
+ * fail silently, every edit living only in the running app.
  */
 internal fun mendSurrogates(text: String): String {
     val out = StringBuilder(text.length)
@@ -566,16 +778,11 @@ internal fun mendSurrogates(text: String): String {
 data class ChecklistItem(val text: String, val done: Boolean)
 
 /**
- * One run of styling over the body.
- *
- * `start` and `end` are offsets into `body` counted the way PYTHON counts
- * them -- in characters, which are code points. Kotlin indexes strings in
- * UTF-16 units, where an emoji is two, so these numbers must be converted
- * before they touch a string index. See [utf16Offsets].
- *
- * `value` carries the extra data for the styles that need it: a `#rrggbb`
- * for `text_color` and `highlight`, a number for `font_size`, a face name
- * for `font_family`. The on/off styles leave it empty.
+ * One run of styling over the body: `start` and `end` in code points, as
+ * PYTHON counts -- converted before they touch a Kotlin index, where an
+ * emoji is two ([utf16Offsets]). `value` is a `#rrggbb` for `text_color`
+ * and `highlight`, a number for `font_size`, a face for `font_family`;
+ * the on/off styles leave it empty.
  */
 data class FormatSpan(
     val start: Int,
@@ -585,22 +792,12 @@ data class FormatSpan(
 )
 
 /**
- * Translates Python's character offsets into Kotlin's string indices.
- *
- * Python counts a body in code points, so an emoji is one character.
- * Kotlin counts UTF-16 units, so the same emoji is two. Every span that
- * begins after an emoji therefore lands one position early per emoji
- * before it. This is not theoretical: against a real notebook, 4 notes
- * would have drawn their styling in the wrong place, one of them across
- * 24 spans shifted by 3.
- *
- * The offsets are sorted and the body is walked ONCE for all of them,
- * rather than counted from the start for each. That is the same fix the
- * desktop app needed when reading formatting took 14 seconds of its
- * 15-second startup: the cost is in re-walking, not in the walk.
- *
- * An offset past the end clamps to the end, and a negative one to zero --
- * this data can be hand-edited, so it is coerced rather than trusted.
+ * Translates Python's code-point offsets into Kotlin's UTF-16 indices,
+ * where an emoji is two (on a real notebook, 4 notes would have drawn
+ * styles in the wrong place). The body is walked ONCE for all the sorted
+ * offsets, not from the start for each, as the desktop learned when
+ * reading formatting took 14 s of its start. Past the end clamps to the
+ * end, negative to zero: hand-edited data is coerced, not trusted.
  */
 fun utf16Offsets(text: String, wanted: Collection<Int>): Map<Int, Int> {
     val out = HashMap<Int, Int>(wanted.size)
@@ -628,10 +825,11 @@ fun utf16Offsets(text: String, wanted: Collection<Int>): Map<Int, Int> {
  * A line reads as a table row when BOTH ends are a pipe and it holds at
  * least two cells. A sentence that merely contains one -- "a | b" in
  * prose, a maths expression -- is not a row, and neither is a line that
- * only opens with one. Mirrors `is_table_row` in core/tables.py.
+ * only opens with one. Mirrors `is_table_row` in core/tables.py, with
+ * Python's spaces: the one answer the editor, the paste and the export ask.
  */
 internal fun isTableRow(line: String): Boolean {
-    val s = line.trim()
+    val s = PyText.strip(line)
     if (s.length < 3 || !s.startsWith("|") || !s.endsWith("|")) return false
     return splitRow(s).size >= 2
 }
@@ -643,23 +841,91 @@ internal fun isTableRow(line: String): Boolean {
  */
 private const val GLIMPSE = 300
 
-/** [text] cut to [GLIMPSE] characters, never through the middle of an emoji. */
-private fun glimpse(text: String): String {
+/**
+ * [text] cut to [GLIMPSE] characters, never through the middle of an emoji:
+ * what a line of a list, a calendar day or a picker is given of a title or
+ * a name, which no one wrote that long but a share code or a backup can.
+ */
+internal fun glimpse(text: String): String {
     if (text.length <= GLIMPSE) return text
     val end = if (Character.isLowSurrogate(text[GLIMPSE])) GLIMPSE - 1 else GLIMPSE
     return text.substring(0, end)
 }
 
 /**
+ * A checklist row as a list of rows draws it where it is not typed into --
+ * the template editor: a [glimpse], with "…" where it was cut. Drawn
+ * whole, wrapping, a 150,000-letter row saved from a note froze the
+ * template editor as it opened, and a thousand rows of 9,999 letters, each
+ * under every other limit, a thousand times over. Kept whole, drawn short,
+ * as the desktop draws a checklist item longer than its limit.
+ */
+internal fun drawnRow(text: String): String = glimpse(text).let { if (it.length < text.length) "$it…" else text }
+
+/**
+ * How much of a stored title, checklist row, template name or file name a
+ * message, a question or a screen reader quotes: enough to tell which, and
+ * a category's longest name whole.
+ */
+internal const val QUOTED = 80
+
+/**
+ * [text] as a message, a question or a screen reader's label quotes it: on
+ * one line, cut to [QUOTED] characters, never through an emoji, with "…".
+ * A quote is laid out like any text: a 150,000-letter row quoted whole
+ * froze the app at the very ✕ meant to be rid of it. The note keeps every
+ * byte; only the quote is short.
+ */
+internal fun quoted(text: String): String {
+    val cut = text.length > QUOTED
+    // The "…" takes the last place; a pair of halves is kept whole or left out.
+    val end = when {
+        !cut -> text.length
+        Character.isLowSurrogate(text[QUOTED - 1]) -> QUOTED - 2
+        else -> QUOTED - 1
+    }
+    val head = text.substring(0, end).replace('\n', ' ').replace('\r', ' ')
+    return if (cut) "$head…" else head
+}
+
+/** The longest message the bar at the foot, or a question, is given whole. */
+internal const val MAX_SAID = 1_000
+
+/**
+ * [message] as the bar at the foot or a question draws it: whole, unless it
+ * is longer than [MAX_SAID], then cut there with "…". A last guard behind
+ * [quoted]: a reason can still carry what came from outside -- a backup's
+ * entry name, a reader's error -- and the bar lays out what it is given.
+ */
+internal fun forTheScreen(message: String): String {
+    if (message.length <= MAX_SAID) return message
+    val end = if (Character.isLowSurrogate(message[MAX_SAID - 1])) MAX_SAID - 2 else MAX_SAID - 1
+    return message.substring(0, end) + "…"
+}
+
+/**
+ * A file's name as [quoted] quotes it, its type kept at the end -- "A very
+ * long name….pdf" -- in the row that opens it and in the question that
+ * removes it: the type says what will open, and the desktop's row gives way
+ * before it the same way (7aa5a85). A type too long to be one is cut with
+ * the rest.
+ */
+internal fun quotedFile(name: String): String {
+    if (name.length <= QUOTED) return quoted(name)
+    val kind = Normalize.fileTypeOf(name)
+    val at = if (kind.length in 2..16) name.lastIndexOf(kind, ignoreCase = true) else -1
+    if (at <= 0 || name.length - at > 20) return quoted(name)
+    var keep = QUOTED - 1 - (name.length - at)
+    if (Character.isHighSurrogate(name[keep - 1])) keep -= 1
+    return (name.substring(0, keep) + "…" + name.substring(at)).replace('\n', ' ').replace('\r', ' ')
+}
+
+/**
  * `_reads_as_plumbing`: whether a PERSON would see this line as part of a
- * table -- deliberately looser than [isTableRow]. That one decides what
- * the editor treats as a row, so it is strict: both ends a pipe. A row
- * whose last cell was typed past (`| a | b |and then`), or one never
- * closed (`| a | b`), is therefore not a row, and a preview that filtered
- * on it showed those lines -- "only vertical lines", reported on the
- * desktop twice and on this phone once. Loose, but not past the way a row
- * is written: every cell opens with a pipe and a space, so `|x| = 5`
- * stays words.
+ * table -- looser than the editor's strict [isTableRow], so a row typed
+ * past (`| a | b |and then`) or never closed (`| a | b`) is no card text,
+ * where the preview showed "only vertical lines". Not past how a row is
+ * written: every cell opens with a pipe and a space, so `|x| = 5` is words.
  */
 internal fun readsAsPlumbing(line: String): Boolean {
     val s = PyText.strip(line)
@@ -699,22 +965,24 @@ fun previewText(body: String): Pair<String, Int> {
     return prose.joinToString("\n") to tables
 }
 
-/** A cell holding exactly one of these is a merge marker, not content. */
-private const val MERGE_LEFT = "<"
-private const val MERGE_UP = "^"
+// A table's marks, written once for the editor, the paste, the export and find.
 
-/** The marker a cell carries instead of text when its column is hidden. */
-private const val SEPARATOR_HIDDEN = "~"
+/** A cell holding exactly one of these is a merge marker, not content. */
+internal const val MERGE_LEFT = "<"
+internal const val MERGE_UP = "^"
+
+/** The separator's cell for a hidden column. */
+internal const val SEPARATOR_HIDDEN = "~"
 
 /** Inside a cell, this stands for the line break the table draws. */
-private const val LINE_BREAK = "<br>"
+internal const val LINE_BREAK = "<br>"
 
 /**
  * None when the cell is not a checkbox; false unchecked, true checked.
  * A capital X is tolerated, which hand-written markdown uses.
  */
 fun checkboxState(value: String): Boolean? {
-    val v = value.trim()
+    val v = PyText.strip(value)
     if (v == "[ ]") return false
     if (v.lowercase() == "[x]") return true
     return null
@@ -739,16 +1007,11 @@ fun isSeparatorRow(line: String): Boolean {
 }
 
 /**
- * The text with a table's mechanics stripped out: separator rows vanish,
- * pipes and merge markers vanish, checkbox cells vanish (a checkbox is a
- * control, not a word), and the break marker becomes the gap it draws.
- * What remains is what the user actually wrote, which is the right thing
- * to search through. Prose lines pass straight through.
- *
- * Note that this is NOT the rule the card preview uses -- that drops a
- * table's lines entirely, because pipes read as soup at card size.
- * Searching wants the words inside the cells; the card does not. Two
- * purposes, two rules, both of them the desktop's.
+ * The text with a table's mechanics stripped out -- separator rows, pipes,
+ * merge markers and checkbox cells gone, the break marker the gap it
+ * draws -- leaving what was written, to search through. NOT the card
+ * preview's rule, which drops a table's lines whole: searching wants the
+ * words in the cells, the card does not. Both are the desktop's.
  */
 fun contentText(text: String): String {
     val out = ArrayList<String>()
@@ -769,12 +1032,12 @@ fun contentText(text: String): String {
 
 /** `"| Milk |   2 |"` gives `["Milk", "2"]`, as `split_row` does. */
 internal fun splitRow(line: String): List<String> {
-    val s = line.trim()
+    val s = PyText.strip(line)
     if (!s.startsWith("|")) return emptyList()
     val parts = s.split("|")
     if (parts.size < 2) return emptyList()
     // First and last are what sits outside the outer pipes: nothing.
-    return parts.subList(1, parts.size - 1).map { it.trim() }
+    return parts.subList(1, parts.size - 1).map { PyText.strip(it) }
 }
 
 /**
@@ -793,14 +1056,11 @@ object Notebook {
     private const val ROW_GONE = "That row is no longer there."
 
     /**
-     * What a read produced, including why it produced nothing.
-     *
-     * `raw` and `file` exist so a write never has to rebuild the notebook
-     * from [Note]. That model reads only what the screen draws — it drops
-     * the contents of `attachments`, `exceptions` and `overrides`, and
-     * every field a future desktop version adds. Serialising it back would
-     * silently delete all of that from every note in the file. A write
-     * appends to the array that was READ and leaves the rest untouched.
+     * What a read produced, including why it produced nothing. `raw` and
+     * `file` exist so a write never rebuilds the notebook from [Note], which
+     * reads only what the screen draws: written back, it would delete every
+     * field it drops, in every note. A write changes the array that was
+     * READ and leaves the rest untouched.
      */
     data class Load(
         val notes: List<Note>,
@@ -815,37 +1075,40 @@ object Notebook {
         val retentionDays: Int = Settings.TRASH_RETENTION_DAYS,
         /** The settings this notebook was read with; null only in tests. */
         val settings: Settings.Load? = null,
+        /** How many notes this read made of days a series' copy set aside ([settleAside]). */
+        val setAside: Int = 0,
+        /**
+         * The notes kept aside of each note's words this session, by the
+         * note's uid ([keepTextAside]): the desktop's `_kept_asides`, which
+         * its next start no longer knows either.
+         */
+        val keptAside: MutableMap<String, MutableList<KeptAside>> = HashMap(),
     )
 
+    /** A note [keepTextAside] made: its [uid], the [words] that spend it, and how it [look]ed made. */
+    class KeptAside(val uid: String, val words: Map<String, String>, val look: String)
+
     /**
-     * How many days this entry has left before the DESKTOP purges it.
+     * How many days this entry has left before the purge at the app's
+     * start removes it ([Organizing.purgeExpired]).
      *
      * An unreadable stamp counts as "keep it", never as "it is due" —
-     * the desktop's fail-safe, and the only sane direction for a guess
-     * about deleting someone's note. Null means no answer.
+     * the purge keeps it too. Null means no answer.
      */
     fun daysLeftInTrash(deletedAt: String, retentionDays: Int): Int? {
-        val when_ = try {
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(deletedAt)
-        } catch (e: Exception) {
-            null
-        } ?: return null
-        val elapsed = (Date().time - when_.time) / (1000L * 60 * 60 * 24)
+        val when_ = Organizing.deletedAt(deletedAt) ?: return null
+        // A stamp ahead of the clock (a clock put right since) is "just
+        // deleted", as the desktop counts it: 32 days of a 30-day window.
+        val elapsed = maxOf(0L, (Date().time - when_.time) / (1000L * 60 * 60 * 24))
         return maxOf(0, retentionDays - elapsed.toInt())
     }
 
     /**
-     * Reads the notebook kept in [dir]: the notes, the Trash and the
-     * settings that go with them.
-     *
-     * A file that is missing is an empty notebook, ready for its first
-     * note. A file that exists but cannot be read is the desktop's case
-     * exactly, and gets the desktop's answer: its bytes are copied aside
-     * (`notes_data_corrupt_<stamp>.json`, never deleted), the app starts
-     * with an empty list, and [Load.problem] says what happened and where
-     * the copy is. Only when even the copy fails is the file left as the
-     * one thing nothing may write over -- `raw` stays null, and every
-     * write refuses.
+     * Reads the notebook kept in [dir]: the notes, the Trash and their
+     * settings. A missing file is an empty notebook. One that cannot be read
+     * gets the desktop's answer: its bytes copied aside, never deleted, an
+     * empty list, and [Load.problem] saying where the copy is. When even the
+     * copy fails, `raw` stays null and every write refuses.
      */
     fun load(dir: File): Load {
         val settings = Settings.load(dir)
@@ -854,6 +1117,14 @@ object Notebook {
 
         val file = File(dir, "notes_data.json")
         val raw = readOrRescue(file, "Your notes file", problems)
+        // A turned-off series' days an older phone kept in its copy alone come
+        // back into the note, once, as the desktop's load brings them, and a
+        // moved day home ([settleAsRead]); the next write keeps them.
+        raw?.let { notes -> for (i in 0 until notes.length()) (notes.opt(i) as? JSONObject)?.let { settleAsRead(it) } }
+        // ...and what a day holding words could not take, notes of their own
+        // now, as the desktop's start makes them; the start writes them at
+        // once (Startup), or each start made them again under new identities.
+        val setAside = raw?.let { settleAside(it) } ?: 0
         val trashFile = File(dir, "trash.json")
         val trashRaw = readOrRescue(trashFile, "The Trash", problems)
 
@@ -869,6 +1140,7 @@ object Notebook {
             trashRaw = trashRaw,
             retentionDays = Settings.retentionDays(settings.raw),
             settings = settings,
+            setAside = setAside,
         )
     }
 
@@ -902,21 +1174,37 @@ object Notebook {
      * only when it exists, cannot be read AND could not be copied aside.
      */
     private fun readOrRescue(file: File, what: String, problems: MutableList<String>): JSONArray? {
-        if (!file.isFile) return JSONArray()
-        val parsed = try {
-            JSONArray(file.readText(Charsets.UTF_8))
+        // Held this run, it reads as held all run, as settings do and as the
+        // desktop's: read for real later, the Trash page listed what it refused.
+        if (file.isFile && Files.writesHeld(file)) {
+            Files.markUnread(file)
+            problems.add("$what could not be opened, so nothing will be written over it " +
+                "until the app is closed from the recent apps and opened again.")
+            return null
+        }
+        var refused = false
+        val parsed = if (!file.isFile) JSONArray() else try {
+            Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
+            refused = Files.refusedRead(e)
             null
         }
+        // Marked for the run, as the desktop's load once a run: cleared by the
+        // reload after an import, deleting for good took the unread notes' files.
         if (parsed != null) return parsed
-        val kept = Files.preserveCorrupt(file)
+        Files.markUnread(file)
+        // Refused, not damaged: held, never copied aside (Files.refusedRead).
+        val kept = if (refused) null.also { Files.holdWrites(file) } else Files.preserveCorrupt(file)
         if (kept == null) {
-            problems.add("$what could not be read, and could not be copied aside either, " +
-                "so nothing will be written over it.")
+            problems.add(if (refused) "$what could not be opened, so nothing will be written over it " +
+                    "until the app is closed from the recent apps and opened again."
+                else "$what could not be read, and could not be copied aside either, " +
+                    "so nothing will be written over it.")
             return null
         }
         problems.add("$what could not be read, so the app started without it. Nothing " +
-            "was deleted: the file was kept as ${kept.name}, beside the notes.")
+            "was deleted: the file was kept as ${kept.name}, and a backup saved at " +
+            "Settings → Backup carries it, in its folder \"${Backup.UNREADABLE}\".")
         return JSONArray()
     }
 
@@ -930,23 +1218,12 @@ object Notebook {
     }
 
     /**
-     * Appends one new note to the notebook on disk.
-     *
-     * Three guards, each of them a lesson the desktop paid for:
-     *
-     * 1. **The write appends to the array that was READ.** Rebuilding the
-     *    file from [Note] would drop every field this app does not model —
-     *    attachment lists, per-day overrides, anything a later desktop
-     *    version adds — from all the OTHER notes, invisibly.
-     * 2. **A file that exists but did not parse is never written over.**
-     *    Overwriting it turns "cannot read your notebook right now" into
-     *    "your notebook is gone".
-     * 3. **A failure is returned, never swallowed.** The desktop's own
-     *    comment: a save that looked fine while nothing reached the disk
-     *    is exactly how notes "vanished" on other machines.
-     *
-     * The note itself is built with the complete default shape, so what
-     * lands on disk is what `normalize_note` would have produced.
+     * Appends one new note, in the full default shape `normalize_note` gives,
+     * with the desktop's three guards: the write appends to the array that
+     * was READ (rebuilt from [Note], every other note would lose what this
+     * app does not model); a file that did not parse is never written over;
+     * a failure is returned, never swallowed -- a save that looked fine while
+     * nothing reached the disk is how notes "vanished".
      */
     fun createNote(
         load: Load,
@@ -971,29 +1248,23 @@ object Notebook {
         if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
         val array = load.raw ?: JSONArray()
 
-        // Read the highest id from the RAW array: a note the model skipped
-        // still owns its id, and reusing it would merge two notes.
-        var maxId = 0
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val id = o.opt("id")
-            if (id is Number && id.toInt() > maxId) maxId = id.toInt()
-        }
-        val newId = maxId + 1
+        // Read the ids from the RAW array: a note the model skipped still
+        // owns its id, and reusing it would merge two notes.
+        val newId = Organizing.ids(array).next()
 
-        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+        val now = Files.now()
         val note = JSONObject()
         note.put("id", newId)
-        // Born here, so it is minted here. This is the only place this
-        // app creates an identity: notes that arrived from elsewhere keep
-        // whatever they came with, including nothing.
+        // Born here, so it is minted here; a note brought in without one
+        // is given one on its way in (Normalize.normalizeNote), and one
+        // put back from the Trash too (Organizing.restore).
         note.put("uid", java.util.UUID.randomUUID().toString())
         note.put("title", mendSurrogates(title))
         note.put("body", mendSurrogates(body))
         note.put("formatting", spansToJson(formatting))
         note.put("comments", mendSurrogates(comments))
         note.put("category", category.trim().ifEmpty { "General" })
-        note.put("date", date.trim())
+        note.put("date", PyText.strip(date))
         note.put("color", sanitizeColor(color))
         note.put("attachments", JSONArray())
         note.put("updated", now)
@@ -1017,20 +1288,12 @@ object Notebook {
     }
 
     /**
-     * Rewrites one existing note's title and body, in place, in the array
-     * that was read — every other field of that note, and every other note
-     * in the file, is left exactly as it was found.
-     *
-     * Two things happen that a naive "set the text and save" would miss:
-     * the formatting and the bullet markers are moved to follow the edit
-     * (see [remapSpans]), and the previous version is kept inside the note
-     * when the edit takes a lot of text away.
-     *
-     * That last guard is the desktop's, thresholds included
-     * ([shouldKeepPrevious]): emptied completely, a big part of the text
-     * gone, or most of a short note -- counted by what is gone, not by how
-     * much shorter the text got. A 17-character shopping list cleared by
-     * accident once slipped under thresholds that only looked at size.
+     * Rewrites one note's title and body, in place, in the array that was
+     * read -- every other field and note as found. The formatting and the
+     * markers follow the edit ([remapSpans]), and the previous version is
+     * kept in the note when the edit takes a lot away, by the desktop's
+     * thresholds ([shouldKeepPrevious]): counted by what is gone, not by
+     * how much shorter the text got.
      */
     fun updateNote(
         load: Load,
@@ -1051,14 +1314,22 @@ object Notebook {
         // The same for the lines' lists, indents and alignment: an editor
         // that changes them hands back what it kept in step with its text.
         paragraphs: JSONArray? = null,
+        // A write of the repeat follows and settles the schedule once, on the
+        // final start and rule ([Days.setRepeat]): asked here, between them, a
+        // copy was spent on a state the desktop's one save never has.
+        scheduleFollows: Boolean = false,
     ): SaveResult {
         val file = load.file
             ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
 
-        val note = findById(array, id)
-            ?: return SaveResult.Failed(GONE)
+        val index = Organizing.indexOfId(array, id)
+        if (index < 0) return SaveResult.Failed(GONE)
+        // Edited as a copy, put in place only once written: changed in place, a
+        // failed write left the words in memory alone, and the next save said
+        // "Auto-saved" (ISSUES_LOG, "A save that failed, then said it had saved").
+        val note = JSONObject((array.get(index) as JSONObject).toString())
 
         val oldTitle = (note.opt("title") as? String) ?: ""
         val oldBody = (note.opt("body") as? String) ?: ""
@@ -1070,10 +1341,9 @@ object Notebook {
         if (date != null && date.isNotBlank() && !isDate(date)) {
             return SaveResult.Failed(BAD_DATE)
         }
-        // The coupling that is easy to miss: `normalize_note` THROWS AWAY a
-        // recurrence rule whose note has no valid date. Clearing the date
-        // of a repeating note here would look harmless and would delete
-        // the repeat on the desktop's next read.
+        // `normalize_note` THROWS AWAY a rule whose note has no valid date:
+        // clearing a repeating note's date here would look harmless and delete
+        // the repeat at the desktop's next read.
         val repeats = ((note.opt("recurrence") as? JSONObject)?.opt("freq") as? String)
             ?.isNotEmpty() == true
         if (repeats && date != null && date.isBlank()) {
@@ -1086,7 +1356,7 @@ object Notebook {
         val otherChanged = (formatting != null && formatting != spans) ||
             (category != null && category != note.opt("category")) ||
             (color != null && sanitizeColor(color) != (note.opt("color") ?: "")) ||
-            (date != null && date.trim() != (note.opt("date") ?: "")) ||
+            (date != null && PyText.strip(date) != (note.opt("date") ?: "")) ||
             (comments != null && mendSurrogates(comments) != (note.opt("comments") ?: "")) ||
             (paragraphs != null && Exporting.normalizeParagraphs(paragraphs, null) !=
                 Exporting.normalizeParagraphs(note.opt("paragraphs"), null))
@@ -1102,16 +1372,45 @@ object Notebook {
         }
 
         // Keep the whole state of the old version, so a rescue restores a
-        // note rather than its text with someone else's styling.
-        if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody)) {
-            val previous = JSONObject()
-            previous.put("title", oldTitle)
-            previous.put("body", oldBody)
-            previous.put("formatting", note.opt("formatting") ?: JSONArray())
-            previous.put("paragraphs", note.opt("paragraphs") ?: JSONArray())
-            previous.put("comments", note.opt("comments") ?: "")
-            note.put("_prev", previous)
+        // note rather than its text with someone else's styling -- when its
+        // words go, or its comments do.
+        val oldComments = (note.opt("comments") as? String) ?: ""
+        val newComments = comments?.let { mendSurrogates(it) } ?: oldComments
+        var kept: Pair<JSONObject, Map<String, String>>? = null
+        if (shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody, oldComments, newComments)) {
+            // Due for the comments alone, over a copy the note does not hold again:
+            // it keeps its words and takes only the comments replaced, as the
+            // desktop's save does, or a big delete of the body before was lost.
+            val waiting = note.opt("_prev") as? JSONObject
+            val commentsAlone = holdsUnspentCopy(note) && !shouldKeepPrevious(oldTitle, oldBody, newTitle, newBody)
+            // An import's Update copy is the note as it was here before the
+            // Update, in no other file: it stays, and the words this save
+            // takes become a note of their own.
+            if (waiting != null && updateCopy(waiting) && !spent(note, waiting)) {
+                kept = keepTextAside(note, commentsAlone)
+            } else {
+                val previous = if (commentsAlone) JSONObject(waiting!!.toString()) else JSONObject().apply {
+                    put("title", oldTitle)
+                    put("body", oldBody)
+                    put("formatting", note.opt("formatting") ?: JSONArray())
+                    put("paragraphs", note.opt("paragraphs") ?: JSONArray())
+                }
+                // The copy's own comments stay when theirs is the larger loss:
+                // two letters cleared after a long comment was deleted wrote over
+                // it (the desktop's 947e9d3).
+                previous.put("comments", if (commentsAlone) commentsKeptByCopy(waiting!!.opt("comments") as? String ?: "", oldComments)
+                                         else note.opt("comments") ?: "")
+                // Words alone, as the desktop's: a turned-off series' days live in
+                // the note, never only in a copy the next replaces; another series'
+                // copy replaced here sets its days with words aside first.
+                if (!commentsAlone) copyDaysSetAside(note)
+                note.put("_prev", previous)
+            }
         }
+        // No longer repeating, as the desktop's save has it: days holding no
+        // text of their own are clutter nothing shows, and go; a day's own text
+        // stays, inert until a repeat brings it back.
+        if ((wordsChanged || otherChanged) && !Recurrence.isRecurring(note) && !daysHoldOwnText(note)) clearDays(note)
 
         note.put("title", newTitle)
         note.put("body", newBody)
@@ -1121,21 +1420,115 @@ object Notebook {
             note.put("category", category.trim().ifEmpty { "General" })
         }
         if (color != null) note.put("color", sanitizeColor(color))
-        if (date != null) note.put("date", date.trim())
+        if (date != null) note.put("date", PyText.strip(date))
         if (pinned != null) note.put("pinned", pinned)
         if (comments != null) note.put("comments", mendSurrogates(comments))
         // A pin alone is not an edit: the desktop's `toggle_pin` leaves the
         // time alone, and so does a pin from the note's details here.
         if (wordsChanged || otherChanged) {
-            note.put("updated",
-                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+            note.put("updated", Files.now())
         }
-        // `created` is deliberately untouched: an edit is not a birth.
-        dropSpentCopy(note)
+        // `created` is deliberately untouched: an edit is not a birth. Repeating
+        // as the series its copy holds, the note takes the days and the copy's
+        // are spent, as at every desktop save of the whole note (not a pin alone).
+        if (!scheduleFollows) {
+            if (wordsChanged || otherChanged) {
+                Normalize.dropHiddenMoves(note)
+                spendSeriesDays(note)
+            }
+            dropSpentCopy(note)
+        }
 
-        val problem = writeAtomic(file, array)
+        val candidate = copyOf(array)
+        candidate.put(index, note)
+        // The words kept aside, then the days a series' copy set aside: notes
+        // of their own in the same write, in the desktop's order.
+        val aside = kept?.first?.put("id", Organizing.ids(candidate).next())
+        if (aside != null) candidate.put(aside)
+        val made = asideNotes(note, Organizing.ids(candidate), candidate)
+        for (fresh in made) candidate.put(fresh)
+        val uid = note.opt("uid") as? String ?: ""
+        val back = takeBackAside(load, note, candidate)
+        val problem = writeAtomic(file, candidate)
         if (problem != null) return SaveResult.Failed(problem)
-        return SaveResult.Ok(id, moved.lost)
+        Organizing.replace(array, candidate)
+        // Remembered once written: a failed write kept nothing aside.
+        load.keptAside[uid]?.removeAll(back.entries.toSet())
+        if (aside != null && kept != null) {
+            load.keptAside.getOrPut(uid) { ArrayList() }.add(KeptAside(aside.opt("uid") as? String ?: "", kept.second, asideLook(aside)))
+        }
+        if (load.keptAside[uid]?.isEmpty() == true) load.keptAside.remove(uid)
+        return SaveResult.Ok(id, moved.lost, keptAside = aside?.optInt("id") ?: 0,
+                             keptComments = kept?.second?.keys == setOf("comments"), spentAside = back.removed)
+    }
+
+    /**
+     * The words [note] holds before a save that takes them, beside an
+     * import's Update copy, as a note of their own: "<title> (earlier
+     * text)", its look along, a one-off's date too -- a series' start is no
+     * day of the words -- and only the comments when the save takes no more
+     * ([commentsOnly]). With it, the words that spend it ([takeBackAside]);
+     * null when there is nothing to keep. The desktop's `_keep_text_aside`.
+     */
+    private fun keepTextAside(note: JSONObject, commentsOnly: Boolean): Pair<JSONObject, Map<String, String>>? {
+        fun text(key: String) = note.opt(key) as? String ?: ""
+        val title = text("title")
+        val body = if (commentsOnly) "" else text("body")
+        val comments = text("comments")
+        if (pyStrip(title).isEmpty() && pyStrip(body).isEmpty() && pyStrip(comments).isEmpty()) return null
+        val stamp = Files.now()
+        val made = Normalize.normalizeNote(JSONObject()
+            .put("title", pyStrip("$title (earlier text)"))
+            .put("body", body)
+            .put("formatting", if (commentsOnly) JSONArray() else deepCopy(note.opt("formatting") ?: JSONArray()))
+            .put("paragraphs", if (commentsOnly) JSONArray() else deepCopy(note.opt("paragraphs") ?: JSONArray()))
+            .put("comments", comments)
+            .put("category", text("category").ifEmpty { "General" })
+            .put("date", if (Recurrence.isRecurring(note)) "" else text("date"))
+            .put("color", text("color"))
+            .put("created", stamp)
+            .put("updated", stamp))
+        val words = if (commentsOnly) mapOf("comments" to comments)
+                    else mapOf("title" to title, "body" to body, "comments" to comments)
+        return made to words
+    }
+
+    /** What [takeBackAside] found: the entries whose words are back, and the notes that went with them. */
+    private class TakenBack(val entries: List<KeptAside>, val removed: List<Int>)
+
+    /**
+     * The notes [keepTextAside] made of [note]'s words, once [note] holds
+     * those words again -- an Undo, a cut pasted back -- each by [wordsLost],
+     * and taken off [candidate] if untouched since, as a rescue copy is
+     * spent: one stayed in the list for good after every Undo. A note pinned
+     * or filed since is the person's, and stays. The desktop's `_take_back_aside`.
+     */
+    private fun takeBackAside(load: Load, note: JSONObject, candidate: JSONArray): TakenBack {
+        val held = load.keptAside[note.opt("uid") as? String ?: ""] ?: return TakenBack(emptyList(), emptyList())
+        val back = held.filter { entry ->
+            entry.words.all { (key, value) -> wordsLost(value, note.opt(key) as? String ?: "") == 0 }
+        }
+        val removed = ArrayList<Int>()
+        for (entry in back) {
+            val at = (0 until candidate.length()).firstOrNull {
+                entry.uid.isNotEmpty() && (candidate.opt(it) as? JSONObject)?.opt("uid") == entry.uid
+            } ?: continue
+            if (asideLook(candidate.getJSONObject(at)) == entry.look) {
+                removed.add(candidate.getJSONObject(at).optInt("id"))
+                candidate.remove(at)
+            }
+        }
+        return TakenBack(back, removed)
+    }
+
+    /** What an '(earlier text)' note is made of, to tell it untouched: its content and its stamp. */
+    private fun asideLook(note: JSONObject): String =
+        Normalize.contentSignature(note) + "\u0002" + (note.opt("updated") ?: "")
+
+    /** A note kept aside, put back from the Trash ([uids]), is the person's now: no Undo spends it again. */
+    internal fun forgetAsides(load: Load, uids: Set<String>) {
+        for (held in load.keptAside.values) held.removeAll { it.uid in uids }
+        load.keptAside.values.removeAll { it.isEmpty() }
     }
 
     /**
@@ -1151,7 +1544,7 @@ object Notebook {
             ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
+        val note = Organizing.noteById(array, id)
             ?: return SaveResult.Failed(GONE)
 
         val checklist = note.opt("checklist") as? JSONArray
@@ -1161,8 +1554,7 @@ object Notebook {
         if (item.opt("done") == done) return SaveResult.Ok(id)
 
         item.put("done", done)
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        note.put("updated", Files.now())
 
         val problem = writeAtomic(file, array)
         if (problem != null) {
@@ -1172,144 +1564,10 @@ object Notebook {
         return SaveResult.Ok(id)
     }
 
-    /**
-     * Moves a note to the Trash. Nothing is destroyed.
-     *
-     * **The order of the two writes is the whole safety argument.** A
-     * delete touches two files, and a phone can be killed between them.
-     * The trash copy is written FIRST: interrupted there, the note is
-     * still in the notebook and nothing happened. Interrupted after it,
-     * the note exists in BOTH files — a duplicate, which is visible and
-     * fixable. Written the other way round, the same interruption would
-     * leave the note in neither, which is the one outcome that cannot be
-     * undone. The desktop writes them in this order too.
-     *
-     * If the trash write fails, the notebook is not touched at all.
-     */
-    fun deleteNote(load: Load, id: Int): SaveResult {
-        val file = load.file
-            ?: return SaveResult.Failed(NOWHERE)
-        val array = load.raw
-            ?: return SaveResult.Failed(UNREADABLE)
-        val trashFile = load.trashFile
-            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
-        if (trashFile.exists() && load.trashRaw == null) {
-            return SaveResult.Failed("The Trash could not be read, so nothing was deleted.")
-        }
-
-        var index = -1
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) {
-                index = i
-                break
-            }
-        }
-        if (index < 0) return SaveResult.Failed(GONE)
-        val note = array.get(index) as JSONObject
-
-        // A deep copy, so a failure below leaves the original note whole.
-        val entry = JSONObject(note.toString())
-        entry.put("deleted_at",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
-
-        // Each write is prepared as a CANDIDATE array and the shared one is
-        // only changed once the bytes are on the disk. Undoing a failed
-        // change in place is where the bugs live: JSONArray.remove shifts
-        // everything left, so putting the note back at its old index
-        // overwrites whatever slid into that slot -- a rollback that
-        // deletes a different note.
-        val trash = load.trashRaw ?: JSONArray()
-        val trashCandidate = copyOf(trash)
-        trashCandidate.put(entry)
-        val trashProblem = writeAtomic(trashFile, trashCandidate)
-        if (trashProblem != null) {
-            return SaveResult.Failed("The Trash could not be written ($trashProblem), " +
-                "so nothing was deleted.")
-        }
-        trash.put(entry)
-
-        val candidate = copyWithout(array, index)
-        val problem = writeAtomic(file, candidate)
-        if (problem != null) {
-            // The copy in the trash stays. Say so plainly -- a duplicate the
-            // user can see beats a silent half-delete.
-            return SaveResult.Failed(
-                "$problem — the note is in the Trash and still in the list; nothing was lost.")
-        }
-        array.remove(index)
-        return SaveResult.Ok(id)
-    }
-
     private fun copyOf(array: JSONArray): JSONArray {
         val out = JSONArray()
         for (i in 0 until array.length()) out.put(array.get(i))
         return out
-    }
-
-    private fun copyWithout(array: JSONArray, index: Int): JSONArray {
-        val out = JSONArray()
-        for (i in 0 until array.length()) if (i != index) out.put(array.get(i))
-        return out
-    }
-
-    /**
-     * Brings a trashed note back.
-     *
-     * Same reasoning, mirrored: the notebook is written FIRST, so an
-     * interruption leaves the note in both places rather than in neither.
-     *
-     * The restored note gets a FRESH id. Its old one may have been handed
-     * to a note created after the delete, and two notes with one id is a
-     * corruption that only shows up much later.
-     */
-    fun restoreFromTrash(load: Load, id: Int): SaveResult {
-        val file = load.file
-            ?: return SaveResult.Failed(NOWHERE)
-        val array = load.raw
-            ?: return SaveResult.Failed(UNREADABLE)
-        val trashFile = load.trashFile
-            ?: return SaveResult.Failed("There is nowhere to keep the Trash.")
-        val trash = load.trashRaw ?: return SaveResult.Failed("The Trash could not be read.")
-
-        var index = -1
-        for (i in 0 until trash.length()) {
-            val o = trash.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) {
-                index = i
-                break
-            }
-        }
-        if (index < 0) return SaveResult.Failed("This note is no longer in the Trash.")
-        val entry = trash.get(index) as JSONObject
-
-        val restored = JSONObject(entry.toString())
-        restored.remove("deleted_at")
-        var maxId = 0
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() > maxId) maxId = itsId.toInt()
-        }
-        val newId = maxId + 1
-        restored.put("id", newId)
-
-        val candidate = copyOf(array)
-        candidate.put(restored)
-        val problem = writeAtomic(file, candidate)
-        if (problem != null) return SaveResult.Failed(problem)
-        array.put(restored)
-
-        val trashCandidate = copyWithout(trash, index)
-        val trashProblem = writeAtomic(trashFile, trashCandidate)
-        if (trashProblem != null) {
-            return SaveResult.Failed(
-                "$trashProblem — the note is restored, and is still in the Trash too.")
-        }
-        trash.remove(index)
-        return SaveResult.Ok(newId)
     }
 
     /**
@@ -1320,11 +1578,14 @@ object Notebook {
      */
     const val MAX_CHECKLIST_ITEMS = 1000
 
+    /** What is said when a list is full: a note's, and a template's in its editor. */
+    const val CHECKLIST_FULL = "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+
     /** Adds a row to the end of a note's checklist. */
     fun addChecklistItem(load: Load, id: Int, text: String): SaveResult {
         return editChecklist(load, id) { checklist ->
             if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
-                return@editChecklist "A checklist holds at most $MAX_CHECKLIST_ITEMS items."
+                return@editChecklist CHECKLIST_FULL
             }
             val item = JSONObject()
             item.put("text", mendSurrogates(text))
@@ -1375,6 +1636,25 @@ object Notebook {
     }
 
     /**
+     * A row taken off, put back at [index] -- or at the end, when the list
+     * has grown shorter since: the Undo the desktop's toast offers after a
+     * row's ✕, "the one thing that could be taken off a note with no way
+     * back at all". [row] is the row object as it was, every field kept.
+     */
+    fun restoreChecklistItem(load: Load, id: Int, index: Int, row: JSONObject): SaveResult {
+        return editChecklist(load, id) { checklist ->
+            if (checklist.length() >= MAX_CHECKLIST_ITEMS) {
+                return@editChecklist CHECKLIST_FULL
+            }
+            val rows = (0 until checklist.length()).map { checklist.get(it) }.toMutableList()
+            rows.add(index.coerceIn(0, rows.size), JSONObject(row.toString()))
+            while (checklist.length() > 0) checklist.remove(checklist.length() - 1)
+            rows.forEach { checklist.put(it) }
+            null
+        }
+    }
+
+    /**
      * The shared middle of every checklist change: find the note, work on
      * a COPY of the list, write it, and only then let the change reach the
      * array the screen is reading. A failed write leaves the screen and
@@ -1389,14 +1669,13 @@ object Notebook {
             ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw
             ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
+        val note = Organizing.noteById(array, id)
             ?: return SaveResult.Failed(GONE)
 
         val current = note.opt("checklist") as? JSONArray ?: JSONArray()
-        // A DEEP copy. A shallow one shares each row object with the
-        // original, so renaming a row in the "candidate" would rename it
-        // in the real note too -- and the rollback below would restore
-        // the same, already-changed object.
+        // A DEEP copy: a shallow one shares each row with the original, so a row
+        // renamed in the candidate is renamed in the note, and the rollback below
+        // would restore the already-changed object.
         val candidate = try {
             JSONArray(current.toString())
         } catch (e: Exception) {
@@ -1408,8 +1687,7 @@ object Notebook {
         val before = note.opt("checklist")
         val stamp = note.opt("updated")
         note.put("checklist", candidate)
-        note.put("updated",
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
+        note.put("updated", Files.now())
 
         val problem = writeAtomic(file, array)
         if (problem != null) {
@@ -1418,58 +1696,6 @@ object Notebook {
             return SaveResult.Failed(problem)
         }
         return SaveResult.Ok(id)
-    }
-
-    /**
-     * By id, never by position: the list on screen is filtered and sorted,
-     * so an index taken from it means nothing in the file.
-     */
-    private fun findById(array: JSONArray, id: Int): JSONObject? {
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) return o
-        }
-        return null
-    }
-
-    /**
-     * Replaces one table inside a note's body.
-     *
-     * Deliberately a thin wrapper over [updateNote] rather than its own
-     * write: a table's lines change length, so every formatting span and
-     * every bullet marker after it slides, and that is exactly what
-     * `updateNote` already knows how to do. A second copy of that logic
-     * is how the desktop's search rules drifted apart.
-     */
-    fun updateTable(
-        load: Load,
-        id: Int,
-        blockIndex: Int,
-        newLines: List<String>,
-    ): SaveResult {
-        val array = load.raw
-            ?: return SaveResult.Failed(UNREADABLE)
-        val note = findById(array, id)
-            ?: return SaveResult.Failed(GONE)
-        val body = (note.opt("body") as? String) ?: ""
-        val blocks = tableBlocks(body)
-        if (blockIndex !in blocks.indices) {
-            return SaveResult.Failed("That table is no longer there.")
-        }
-        val title = (note.opt("title") as? String) ?: ""
-        return updateNote(load, id, title, replaceTable(body, blocks[blockIndex], newLines))
-    }
-
-    /**
-     * A share code for one note, taken from the array as it sits on disk
-     * rather than from the [Note] model -- the model drops fields a code
-     * is supposed to carry.
-     */
-    fun shareCodeFor(load: Load, id: Int): String? {
-        val array = load.raw ?: return null
-        val note = findById(array, id) ?: return null
-        return Sharing.encode(listOf(note))
     }
 
     /**
@@ -1496,36 +1722,19 @@ object Notebook {
      * exactly when a note has been edited, which is the only time anyone
      * sends one back.
      */
-    fun inspectShareCode(load: Load, code: String): Inspection {
+    fun inspectShareCode(load: Load, code: String): Inspection =
+        inspectShareCode(load.raw ?: JSONArray(), load.categories.keys, code)
+
+    /**
+     * The same, against [notebook] and [categories] taken from the notebook
+     * beforehand: what the code dialog reads on a thread of its own.
+     */
+    fun inspectShareCode(notebook: JSONArray, categories: Set<String>, code: String): Inspection {
         val decoded = Sharing.decode(code)
         if (decoded is Sharing.Decoded.Failed) return Inspection.Failed(decoded.reason)
         val notes = (decoded as Sharing.Decoded.Notes).notes
-        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE, load.categories.keys)
+        val plan = Importing.plan(notebook, notes, Importing.Source.CODE, categories)
         return Inspection.Ready(notes, plan.differing.size + plan.unchanged.size, plan)
-    }
-
-    /**
-     * Writes a code's notes. [update] answers the one question the old
-     * panel asked: true replaces the notes this device already has, false
-     * adds them beside the originals without their identity. Notes nothing
-     * here matches are added either way. The screen now asks every
-     * question through [Importing]; this is that route with one answer.
-     */
-    fun applyShareCode(
-        load: Load,
-        notes: List<JSONObject>,
-        update: Boolean,
-    ): SaveResult {
-        val file = load.file ?: return SaveResult.Failed(NOWHERE)
-        if (file.exists() && load.raw == null) return SaveResult.Failed(UNREADABLE)
-        val plan = Importing.plan(load.raw ?: JSONArray(), notes, Importing.Source.CODE)
-        val answers = Importing.Answers(update = update, copyUnchanged = !update)
-        return when (val result = Importing.apply(load, plan, answers, attachmentsDir = null)) {
-            is Importing.Result.Failed -> SaveResult.Failed(result.reason)
-            is Importing.Result.Done ->
-                SaveResult.Ok(result.outcome.firstId,
-                              imported = result.outcome.added + result.outcome.updated)
-        }
     }
 
     /**
@@ -1548,6 +1757,563 @@ object Notebook {
 
     /** The text half of a rescue copy, which every `_prev` has. */
     val PREV_TEXT_FIELDS = listOf("title", "body", "formatting", "paragraphs", "comments")
+
+    /** A series' own days, which hang on its repeat: the desktop's DAY_FIELDS. */
+    val DAY_FIELDS = listOf("exceptions", "overrides", "moved")
+
+    /**
+     * The days of [before] that writing [recurrence] over it puts out of
+     * sight -- none unless it repeats now and will not after -- copied: the
+     * desktop's `days_to_rescue`. Whatever ends a repeat COPIES them into its
+     * rescue copy, beside the repeat, and the note keeps its own: moved out,
+     * the next copy over the one slot erased them.
+     */
+    internal fun daysToRescue(before: JSONObject, recurrence: Any?): Map<String, Any> {
+        if (!Recurrence.isRecurring(before) || Recurrence.isRecurring(JSONObject().put("recurrence", recurrence))) {
+            return emptyMap()
+        }
+        return DAY_FIELDS.associateWith { shaped(before, it) }.filterValues { daysIn(it) > 0 }
+            .mapValues { deepCopy(it.value) }
+    }
+
+    private fun daysIn(value: Any?): Int = (value as? JSONObject)?.length() ?: (value as? JSONArray)?.length() ?: 0
+
+    /**
+     * Whether the days a turned-off [note] kept belong to it turned back on
+     * with [date] and [recurrence]: only when both are as its rescue copy
+     * holds the series -- the desktop's `kept_days_fit`. True when it kept
+     * none, or nothing says what the series was. Otherwise, by the owner's
+     * answer, deleted days go (the copy keeps them) and days with words stay.
+     */
+    internal fun keptDaysFit(note: JSONObject, date: Any?, recurrence: Any?): Boolean {
+        if (Recurrence.isRecurring(note) || !Recurrence.isRecurring(JSONObject().put("recurrence", recurrence))) return true
+        val kept = DAY_FIELDS.filter { daysIn(note.opt(it)) > 0 }
+        val previous = note.opt("_prev") as? JSONObject
+        if (kept.isEmpty() || previous == null || !Recurrence.isRecurring(previous) ||
+            kept.any { !sameJson(previous.opt(it), note.opt(it)) }) return true
+        return sameSeries(previous.opt("date"), previous.opt("recurrence"), date, recurrence)
+    }
+
+    /**
+     * Whether two starts and rules are one series: a weekly rule's start
+     * weekday lit, or left to the start, is the same rule -- as a monthly
+     * rule's day. Both are stored, and a series turned back on as it was read
+     * as another (the desktop's `_same_series`).
+     */
+    internal fun sameSeries(day: Any?, rule: Any?, otherDay: Any?, otherRule: Any?): Boolean {
+        if (day != otherDay) return false
+        val whenDay = Recurrence.parseDate(day)
+        val rules = listOf(Recurrence.normalize(rule), Recurrence.normalize(otherRule))
+        if (whenDay != null) for (rec in rules) {
+            if (rec.optString("freq") == "weekly" && rec.getJSONArray("weekdays").length() == 0) {
+                rec.put("weekdays", JSONArray().put(whenDay.dayOfWeek.value - 1))
+            }
+            if (rec.optString("freq") == "monthly" && rec.getJSONArray("month_days").length() == 0) {
+                rec.put("month_days", JSONArray().put(whenDay.dayOfMonth))
+            }
+        }
+        // A field the frequency never reads changes no day: kept hidden (the Repeat
+        // sheet stores all three), a series turned back on as it was read as
+        // another, as the desktop's _same_series no longer does.
+        for (rec in rules) {
+            val freq = rec.optString("freq")
+            if (freq != "weekly") rec.put("weekdays", JSONArray())
+            if (freq != "monthly") rec.put("month_days", JSONArray())
+            val monthDays = rec.getJSONArray("month_days")
+            // "Skip that month" is read only where a month can lack the day.
+            val short = (freq == "monthly" && (0 until monthDays.length()).any { monthDays.optInt(it) > 28 }) ||
+                (freq == "yearly" && whenDay != null && whenDay.monthValue == 2 && whenDay.dayOfMonth == 29)
+            if (!short) rec.put("month_day_policy", "clamp")
+        }
+        return sameJson(rules[0], rules[1])
+    }
+
+    /**
+     * Whether a day of [note] holds a title, text or comments of its own --
+     * of what each day holds ([Recurrence.dayAsKept]), not what it shows, as
+     * the note may no longer repeat: the desktop's `days_hold_own_text`, the
+     * one answer its turn-off, saves and older-notebook read all ask, each
+     * value read as Python's `value or ""` (a title typed as a number counts).
+     */
+    internal fun daysHoldOwnText(note: JSONObject): Boolean {
+        val overrides = note.opt("overrides") as? JSONObject ?: return false
+        return overrides.keys().asSequence().any { dayHasWords(note, it) }
+    }
+
+    /** A day's words, which go with a repeat turned off; the rest of a day's edit, its look, says nothing typed: the desktop's `DAY_WORDS`. */
+    private val DAY_WORDS = listOf("title", "body", "comments")
+
+    /** A day's look, its colour and category: what a day's edit holds besides its words -- the desktop's `_DAY_LOOK`. */
+    private val DAY_LOOK = Recurrence.OVERRIDABLE_FIELDS.filter { it !in DAY_WORDS }
+
+    /**
+     * Whether [note]'s edit of [day] holds a title, text or comments of its
+     * own -- what the day holds ([Recurrence.dayAsKept]), not what it shows:
+     * the desktop's `day_has_words`, each word compared as [sameWord].
+     */
+    internal fun dayHasWords(note: JSONObject, day: String): Boolean {
+        val shown = Recurrence.dayAsKept(note, day)
+        return DAY_WORDS.any { !sameWord(it, shown.opt(it), note.opt(it)) }
+    }
+
+    /**
+     * Whether two of a day's words say the same -- the desktop's
+     * `_same_word`, each read as Python's `str(value or "")`: a title without
+     * its spaces, as [Recurrence.dayMatchesSeries] reads one; a text with the
+     * line under a closing table on both sides or neither
+     * ([Normalize.withCaretLine]), or a day only coloured read as words.
+     */
+    private fun sameWord(word: String, a: Any?, b: Any?): Boolean {
+        val x = pyText(a)
+        val y = pyText(b)
+        return when (word) {
+            "title" -> pyStrip(x) == pyStrip(y)
+            "body" -> Normalize.sameBody(x, y)
+            else -> x == y
+        }
+    }
+
+    /** Python's `str(value or "")`, for the values a note's words hold. */
+    private fun pyText(value: Any?): String = when {
+        !Exporting.truthy(value) -> ""
+        value == true -> "True"
+        else -> value.toString()
+    }
+
+    /** Python's `strip()`: U+0085 and the non-breaking spaces count as space there, not for Kotlin's isWhitespace. */
+    internal fun pyStrip(text: String): String = text.trim { it.isWhitespace() || it.code in PY_SPACES }
+
+    private val PY_SPACES = setOf(0x85, 0xA0, 0x2007, 0x202F)
+
+    /** A note's days taken out: what a repeat's end leaves when none of them holds text of its own. */
+    internal fun clearDays(note: JSONObject) {
+        note.put("exceptions", JSONArray())
+        note.put("overrides", JSONObject())
+        note.put("moved", JSONObject())
+    }
+
+    /**
+     * A turned-off series' days brought back into the note from the copy that
+     * alone held them, as an older phone kept them -- the desktop's
+     * `_days_back_from_copy`, at every read: by the owner's choice they live
+     * in the note. Only from the series' own copy ([seriesOwnCopy]), never an
+     * Update's, into a note keeping no days, not repeating or repeating as that
+     * series again; spent from the copy once it does ([spendSeriesDays]).
+     */
+    internal fun daysBackFromCopy(note: JSONObject) {
+        val previous = note.opt("_prev") as? JSONObject ?: return
+        if (daysBackWanted(note, previous)) for (field in DAY_FIELDS) note.put(field, deepCopy(shaped(previous, field)))
+        spendSeriesDays(note)
+    }
+
+    /**
+     * A series' own copy holds the days only while the note does not repeat
+     * as that series; once it does, the copy's days come back to the note
+     * ([takeDaysBack]) and only then are spent from the copy -- kept there, a
+     * day reset came back at every start; spent alone, they were in no file.
+     * The desktop's `spend_series_days`: at every read, after the move, and in
+     * the save that turns the series back on ([updateNote], [Days.setRepeat]).
+     */
+    internal fun spendSeriesDays(note: JSONObject) {
+        val previous = note.opt("_prev") as? JSONObject ?: return
+        if (!seriesDaysSpent(note, previous)) return
+        val aside = takeDaysBack(note, previous)
+        for (field in DAY_FIELDS) previous.remove(field)
+        addAside(note, aside)
+    }
+
+    /**
+     * The dates [note]'s own days speak for -- a day edited, deleted or
+     * moved, and the dates days are moved to: the desktop's `_dates_held`.
+     */
+    private fun datesHeld(note: JSONObject): Set<String> {
+        val held = HashSet<String>()
+        (note.opt("overrides") as? JSONObject)?.keys()?.forEach { held.add(it) }
+        (note.opt("exceptions") as? JSONArray)?.let { days ->
+            for (i in 0 until days.length()) (days.opt(i) as? String)?.let { held.add(it) }
+        }
+        (note.opt("moved") as? JSONObject)?.let { moved ->
+            for (day in moved.keys()) {
+                held.add(day)
+                (moved.opt(day) as? String)?.let { held.add(it) }
+            }
+        }
+        return held
+    }
+
+    /**
+     * [previous]'s days put into [note], as the desktop's `spend_series_days`:
+     * a copy's day stays out only where the note deleted it or wrote its own
+     * words, which are then set aside ([copyDaysPlaced]); deleted days and
+     * moves go only onto dates the note leaves free ([datesHeld],
+     * [copyMovesTaken]); each day's edit goes to the date the note draws it
+     * on. Deleted days written sorted, once each. Returns the days set aside.
+     */
+    private fun takeDaysBack(note: JSONObject, previous: JSONObject): JSONArray {
+        val held = datesHeld(note)
+        val moved = (note.opt("moved") as? JSONObject)?.let { JSONObject(it.toString()) } ?: JSONObject()
+        for ((day, to) in copyMovesTaken(previous.opt("moved") as? JSONObject, held, moved.length())) {
+            moved.put(day, deepCopy(to))
+        }
+        val (overrides, aside) = copyDaysPlaced(note, previous, moved)
+        val exceptions = sortedSetOf<String>()
+        exceptions.addAll(datesIn(note.opt("exceptions")))
+        exceptions.addAll(datesIn(previous.opt("exceptions")).filter { it !in held })
+        note.put("overrides", overrides)
+        note.put("exceptions", JSONArray(exceptions.toList()))
+        note.put("moved", moved)
+        return aside
+    }
+
+    /** The texts of a list of dates, anything else in it left out. */
+    private fun datesIn(list: Any?): List<String> =
+        (list as? JSONArray)?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } } ?: emptyList()
+
+    /**
+     * The copy's moves [theirs] the note takes -- the desktop's
+     * `_copy_moves_taken`: of a day its own days leave alone, onto a date
+     * they leave free ([held]), in date order, under a series' most ([room]
+     * its own); none onto a day whose own move stays behind, nor onto one of
+     * those in turn, or two days on one date are drawn as one. One worklist.
+     */
+    private fun copyMovesTaken(theirs: JSONObject?, held: Set<String>, room: Int): Map<String, Any> {
+        theirs ?: return emptyMap()
+        val taken = LinkedHashMap<String, Any>()
+        for (day in theirs.keys().asSequence().sorted()) {
+            val to = theirs.get(day)
+            // Never onto a date the note holds: a load keeps one day a date,
+            // and the first in order -- the copy's -- would push the note's out.
+            if (day !in held && !(to is String && to in held) && room + taken.size < Recurrence.MAX_OCCURRENCES) taken[day] = to
+        }
+        val onto = HashMap<Any, String>()
+        for ((day, to) in taken) onto[to] = day
+        val home = ArrayDeque(theirs.keys().asSequence().filter { it !in taken }.toList())
+        while (home.isNotEmpty()) {
+            val day = onto.remove(home.removeLast()) ?: continue
+            taken.remove(day)
+            home.addLast(day)
+        }
+        return taken
+    }
+
+    /**
+     * [note]'s days' edits with [previous]'s put in, [moved] the note's moves
+     * once the copy's are taken -- the desktop's `_copy_days_placed`: each on
+     * the date the note draws its day, an edit with no words of its own taking
+     * the copy's, look kept; one drawn on no day stays on its date; of two for
+     * one date, words first. A day already holding words sets the copy's aside
+     * ([asideEntry]), by the owner's choice (ISSUES_LOG, "Four ways of adding").
+     */
+    private fun copyDaysPlaced(note: JSONObject, previous: JSONObject, moved: JSONObject): Pair<JSONObject, JSONArray> {
+        val mine = note.opt("overrides") as? JSONObject ?: JSONObject()
+        val overrides = JSONObject(mine.toString())
+        val deleted = datesIn(note.opt("exceptions")).toHashSet()
+        val came = HashMap<Any, String>()
+        (previous.opt("moved") as? JSONObject)?.let { theirs -> for (day in theirs.keys()) came.putIfAbsent(theirs.get(day), day) }
+        val undrawn = Recurrence.offScheduleDays(previous).toHashSet()
+        datesIn(previous.opt("exceptions")).filterTo(undrawn) { it !in came }
+        class Wanted(val noWords: Boolean, val rank: Int, val at: String, val key: String, val patch: Any)
+        val wanted = ArrayList<Wanted>()
+        val gone = ArrayList<String>()
+        val theirs = previous.opt("overrides") as? JSONObject ?: JSONObject()
+        for (key in theirs.keys().asSequence().toList()) {
+            val stray = key in undrawn
+            val day = if (stray) key else came[key] ?: key
+            if (day in deleted) {
+                if (dayHasWords(previous, key)) gone.add(key)
+                continue
+            }
+            val at = if (stray) key else moved.opt(day) as? String ?: day
+            val rank = if (stray) 2 else if (at == day) 0 else 1
+            wanted.add(Wanted(!dayHasWords(previous, key), rank, at, key, theirs.get(key)))
+        }
+        val taken = HashSet<String>()
+        val aside = JSONArray()
+        // A day the note deleted stays deleted, the copy's words for it set aside,
+        // not dropped: an older phone showed such a day blank, its words in the
+        // copy alone (the owner's choice, as the desktop's _copy_days_placed).
+        for (key in gone.sorted()) {
+            if (!ownWordsHeld(previous, key, note, mine, key)) aside.put(asideEntry(previous, key, key))
+        }
+        for (want in wanted.sortedWith(compareBy<Wanted>({ it.noWords }, { it.rank }, { it.at }))) {
+            val look = mine.opt(want.at)?.takeUnless { it == JSONObject.NULL }
+            if (want.at in taken || (look != null && !want.noWords && dayHasWords(note, want.at))) {
+                if (!want.noWords && !ownWordsHeld(previous, want.key, note, overrides, want.at)) {
+                    aside.put(asideEntry(previous, want.key, want.at))
+                }
+                taken.add(want.at)
+                continue
+            }
+            taken.add(want.at)
+            if (look == null) {
+                overrides.put(want.at, deepCopy(want.patch))
+            } else if (!want.noWords) {
+                val laid = deepCopy(want.patch) as JSONObject
+                (look as? JSONObject)?.let { for (key in DAY_LOOK) if (it.has(key)) laid.put(key, it.opt(key)) }
+                overrides.put(want.at, laid)
+            }
+        }
+        return overrides to aside
+    }
+
+    /**
+     * Whether [note]'s day [at], its edits [days], holds every word
+     * [previous]'s day [key] has of its own: each title, text or comments it
+     * holds unlike its series' ([sameWord]) -- the series' words are not the
+     * day's. The desktop's `_own_words_held`. Read off the edit and the note,
+     * not off a copy of the note: copied for each day, a year of days froze
+     * the turn-on.
+     */
+    private fun ownWordsHeld(previous: JSONObject, key: String, note: JSONObject, days: JSONObject?, at: String): Boolean {
+        val theirs = Recurrence.dayAsKept(previous, key)
+        val patch = days?.opt(at) as? JSONObject
+        return DAY_WORDS.all { word ->
+            val own = theirs.opt(word)
+            val mine = if (patch != null && patch.has(word)) patch.opt(word) else note.opt(word)
+            sameWord(word, own, previous.opt(word)) || sameWord(word, own, mine)
+        }
+    }
+
+    /**
+     * [previous]'s day [key], drawn on [at], as the copy kept it: what a note
+     * of its own is made of ([asideNotes]). The desktop's `_aside_entry`.
+     */
+    private fun asideEntry(previous: JSONObject, key: String, at: String): JSONObject {
+        val kept = Recurrence.dayAsKept(previous, key)
+        val entry = JSONObject()
+        for (word in Recurrence.OVERRIDABLE_FIELDS) entry.put(word, pyText(kept.opt(word)))
+        return entry.put("day", at)
+    }
+
+    /** [aside] added to the days [note] set aside, as the desktop's `note["_set_aside"] += aside`. */
+    private fun addAside(note: JSONObject, aside: JSONArray) {
+        if (aside.length() == 0) return
+        val all = note.opt("_set_aside") as? JSONArray ?: JSONArray()
+        for (i in 0 until aside.length()) all.put(aside.get(i))
+        note.put("_set_aside", all)
+    }
+
+    /**
+     * Before [note]'s rescue copy is replaced -- a turn-off, a big delete, an
+     * Update: a series' copy's days with words, the note no longer repeating
+     * as it, set aside to be notes of their own unless the note's day holds
+     * them, or the next copy erased them (the desktop's `copy_days_set_aside`).
+     * [asked]: the series before this save; [incoming], the note a backup's
+     * Update is about to write, holds a day as well.
+     */
+    internal fun copyDaysSetAside(note: JSONObject, asked: JSONObject = note, incoming: JSONObject? = null) {
+        val previous = note.opt("_prev") as? JSONObject ?: return
+        if (!Recurrence.isRecurring(previous) || repeatsAs(asked, previous)) return
+        val came = HashMap<String, String>()
+        (previous.opt("moved") as? JSONObject)?.let { m -> for (day in m.keys()) (m.opt(day) as? String)?.let { came[it] = day } }
+        // A holder's day for it: on its date, on the day the copy moved there
+        // from, or where the holder moved that day since -- by date alone, a day
+        // the note moved was set aside as words it still held.
+        fun held(key: String): Boolean {
+            val day = came[key] ?: key
+            return listOfNotNull(note, incoming).any { holder ->
+                val mine = holder.opt("overrides") as? JSONObject
+                val there = (holder.opt("moved") as? JSONObject)?.opt(day) as? String ?: day
+                mine != null && setOf(key, day, there).any { at -> mine.has(at) && ownWordsHeld(previous, key, holder, mine, at) }
+            }
+        }
+        val aside = JSONArray()
+        (previous.opt("overrides") as? JSONObject)?.keys()?.asSequence()?.sorted()?.forEach { key ->
+            if (dayHasWords(previous, key) && !held(key)) aside.put(asideEntry(previous, key, key))
+        }
+        addAside(note, aside)
+        for (field in DAY_FIELDS) previous.remove(field)
+    }
+
+    /**
+     * A note's days set aside as a load reads them -- the desktop's
+     * `_shaped_aside`: each with a real date, written as the calendar keys
+     * one, and a word, every field text. Null when none is left.
+     */
+    internal fun shapedAside(entries: Any?): JSONArray? {
+        val list = entries as? JSONArray ?: return null
+        val kept = JSONArray()
+        for (i in 0 until list.length()) {
+            val entry = list.opt(i) as? JSONObject ?: continue
+            val day = Recurrence.parseDate(entry.opt("day")) ?: continue
+            val shaped = JSONObject()
+            for (key in Recurrence.OVERRIDABLE_FIELDS) shaped.put(key, entry.opt(key) as? String ?: "")
+            shaped.put("day", Recurrence.formatDate(day))
+            if (DAY_WORDS.any { pyStrip(shaped.getString(it)).isNotEmpty() }) kept.put(shaped)
+            // Capped as moved days are: each becomes a note at the next
+            // start, and a file can say anything (the desktop's cap).
+            if (kept.length() >= Recurrence.MAX_OCCURRENCES) break
+        }
+        return kept.takeIf { it.length() > 0 }
+    }
+
+    /**
+     * The notes made of [note]'s days set aside, each on its date with its
+     * words and look, the series' title marked "(earlier text)", numbered
+     * from [ids] -- and taken off the note. Shown on its day, those words
+     * were read four ways, each leaving a case; a note of its own is seen
+     * and kept as it is (the owner's choice:
+     * the desktop's `notes_set_aside`, made as its `_set_aside_days` makes them).
+     */
+    internal fun asideNotes(note: JSONObject, ids: Organizing.Ids, among: JSONArray): List<JSONObject> {
+        val entries = shapedAside(note.remove("_set_aside")) ?: return emptyList()
+        fun text(value: Any?): String = value as? String ?: ""
+        // Its comments among its words: other comments are another note.
+        fun key(made: JSONObject) = listOf(text(made.opt("title")), text(made.opt("date")), text(made.opt("body")),
+                                          text(made.opt("comments")))
+        // A note of [among] already holding the same words on the same day is
+        // that note: a backup's Update made it again at every import (the
+        // desktop's settle_set_aside the same).
+        val held = (0 until among.length()).mapNotNull { among.opt(it) as? JSONObject }.mapTo(HashSet()) { key(it) }
+        val stamp = Files.now()
+        val made = ArrayList<JSONObject>()
+        for (i in 0 until entries.length()) {
+            val entry = entries.getJSONObject(i)
+            val title = text(entry.opt("title")).ifEmpty { text(note.opt("title")) }
+            val fresh = Normalize.normalizeNote(JSONObject()
+                .put("title", pyStrip("$title (earlier text)"))
+                .put("body", text(entry.opt("body")))
+                .put("comments", text(entry.opt("comments")))
+                .put("category", text(entry.opt("category")).ifEmpty { text(note.opt("category")) })
+                .put("color", text(entry.opt("color")))
+                .put("date", text(entry.opt("day")))
+                .put("created", stamp)
+                .put("updated", stamp))
+            if (!held.add(key(fresh))) continue
+            made.add(fresh.put("id", ids.next()))
+        }
+        return made
+    }
+
+    /**
+     * Every note of [array] whose days were set aside given them as notes of
+     * their own, added at its end; how many. [array] is what is about to be
+     * written -- a copy, made the list on screen once written -- or the list
+     * a load just read, which its next write keeps.
+     */
+    internal fun settleAside(array: JSONArray): Int {
+        val ids = Organizing.ids(array)
+        var made = 0
+        for (i in 0 until array.length()) {
+            val note = array.opt(i) as? JSONObject ?: continue
+            if (!note.has("_set_aside")) continue
+            for (fresh in asideNotes(note, ids, array)) {
+                array.put(fresh)
+                made++
+            }
+        }
+        return made
+    }
+
+    /**
+     * Whether [previous] is [note]'s series' own copy and [note] repeats as
+     * it -- the desktop's `copy_holds_this_series`: its days are the note's
+     * now. The turn-off no longer asks it: any copy but an Update's gives
+     * the words the note has lost ([turnOffCopy]).
+     */
+    private fun seriesDaysSpent(note: JSONObject, previous: JSONObject): Boolean =
+        seriesOwnCopy(previous) && repeatsAs(note, previous)
+
+    /**
+     * Whether the copy [note] keeps is an import's Update copy: a turn-off
+     * over one keeps it, and Restore previous then brings back the version
+     * from before the Update, the series too when it repeated then -- the
+     * desktop's `_repeat_off_line`.
+     */
+    fun keepsUpdateCopy(note: JSONObject): Boolean = (note.opt("_prev") as? JSONObject)?.let { updateCopy(it) } == true
+
+    /** Whether [note] repeats as the series [previous] holds, its date and its rule: the desktop's `_repeats_as`. */
+    private fun repeatsAs(note: JSONObject, previous: JSONObject): Boolean =
+        Recurrence.isRecurring(note) &&
+            sameSeries(previous.opt("date"), previous.opt("recurrence"), note.opt("date"), note.opt("recurrence"))
+
+    /**
+     * Whether [previous] is the copy an import's Update made: the note as it
+     * was here before the backup's version replaced it. The desktop's
+     * `update_copy`.
+     */
+    internal fun updateCopy(previous: JSONObject): Boolean = UPDATE_COPY_ONLY.any { previous.has(it) }
+
+    /**
+     * Which comments a waiting copy keeps when a save taking only the comments
+     * clears [comments] over a copy holding [copyComments]: those whose loss
+     * would be the larger ([lost]) -- two letters cleared after a long comment
+     * was deleted lose to it, a long comment cleared over a short one takes its
+     * place. The desktop's `comments_kept_by_copy`.
+     */
+    internal fun commentsKeptByCopy(copyComments: String, comments: String): String =
+        if (lost(comments, copyComments) < lost(copyComments, comments)) copyComments else comments
+
+    /**
+     * What only an update's copy holds ([applyUpdate], the desktop's
+     * `apply_shared_update`): a series' own copy -- a turn-off's, on either
+     * app or an older phone -- holds the text, the date, the repeat and the
+     * days, and none of these. The desktop's `_UPDATE_COPY_ONLY`.
+     */
+    private val UPDATE_COPY_ONLY = listOf("category", "color", "checklist", "pinned")
+
+    /** Whether [previous] is the copy a repeat's turn-off made of its series: the desktop's `_series_own_copy`. */
+    private fun seriesOwnCopy(previous: JSONObject): Boolean =
+        Recurrence.isRecurring(previous) && UPDATE_COPY_ONLY.none { previous.has(it) }
+
+    /** [daysBackFromCopy]'s question, of a [note] as a load shapes it and its copy, [previous]. */
+    private fun daysBackWanted(note: JSONObject, previous: JSONObject): Boolean {
+        if (!seriesOwnCopy(previous) || DAY_FIELDS.any { daysIn(note.opt(it)) > 0 }) return false
+        // Repeating now as another series: its days are not these.
+        if (Recurrence.isRecurring(note) && !repeatsAs(note, previous)) return false
+        return daysHoldOwnText(previous)
+    }
+
+    /**
+     * What the desktop's read does to a note from a file, done to the raw
+     * note the calendar and every day's action read -- at the load and at a
+     * restore from the Trash: a series' days back from its copy
+     * ([daysBackAsRead]), and a move onto a date its rule now gives dropped
+     * ([Normalize.dropHiddenMoves]); a delete there took the hidden day.
+     * The next write keeps it.
+     */
+    internal fun settleAsRead(raw: JSONObject) {
+        daysBackAsRead(raw)
+        // One move a date, as the read's view keeps them: two moves onto one
+        // date, left by an older phone or an Undo, gave History two rows of one
+        // key, and the list threw.
+        (raw.opt("moved") as? JSONObject)?.let { moved ->
+            val clean = Normalize.cleanMoves(moved, raw.opt("exceptions") as? JSONArray ?: JSONArray(), raw)
+            if (clean.length() != moved.length()) raw.put("moved", clean)
+        }
+        Normalize.dropHiddenMoves(raw)
+    }
+
+    /**
+     * [daysBackFromCopy] for a note read from the file as it lies, [raw],
+     * asked of the note as `normalize_note` shapes it, as the desktop's load
+     * asks it, the days taken put into the note shaped; then spent from the
+     * copy as written when the note repeats as its series ([spendSeriesDays]).
+     * Only a copy that can be a series' own holding a day is shaped to ask --
+     * every Update's copy was shaped twice at each start, for nothing.
+     */
+    internal fun daysBackAsRead(raw: JSONObject) {
+        val held = raw.opt("_prev") as? JSONObject ?: return
+        if (DAY_FIELDS.none { held.has(it) } || !Recurrence.isRecurring(held) || UPDATE_COPY_ONLY.any { held.has(it) }) return
+        val view = Normalize.normalizeNote(raw, daysBack = false)
+        val previous = view.opt("_prev") as? JSONObject ?: return
+        if (daysBackWanted(view, previous)) for (field in DAY_FIELDS) {
+            val days = deepCopy(shaped(previous, field))
+            raw.put(field, days)
+            view.put(field, deepCopy(days))
+        }
+        if (seriesDaysSpent(view, previous)) {
+            addAside(view, takeDaysBack(view, previous))
+            for (field in DAY_FIELDS) {
+                raw.put(field, deepCopy(view.get(field)))
+                held.remove(field)
+            }
+            // The copy's days a day holding words could not take, set aside
+            // as the desktop's load keeps them: notes of their own at once
+            // ([settleAside]).
+            view.opt("_set_aside")?.let { raw.put("_set_aside", it) }
+        }
+    }
 
     /**
      * What else a rescue copy can hold, and the word the restore question
@@ -1595,14 +2361,21 @@ object Notebook {
     internal fun sharedUpdateChanges(
         note: JSONObject, incoming: JSONObject, fields: List<String>,
     ): Boolean {
-        // Both as a load shapes them, as the desktop compares them since its
-        // own unchanged backup read as "edited elsewhere": a day's empty
-        // colour, styles in another order, a closing table's line -- each a
-        // difference no person made, and an Update on one spent the note's
-        // only rescue copy on a copy of itself.
-        val mine = Normalize.normalizeNote(note)
+        // Both as a load shapes them, as the desktop compares them, or a difference
+        // no person made spent the only rescue copy; this side without its copy,
+        // the arriving note read as a load reads it, then compared without its own.
+        val bare = JSONObject().also { out ->
+            for (key in note.keys()) if (key != "_prev") out.put(key, note.opt(key))
+        }
+        val mine = Normalize.normalizeNote(bare)
         val theirs = Normalize.normalizeNote(incoming)
-        return fields.any { !sameJson(shaped(mine, it), shaped(theirs, it)) }
+        // The repeat by the days it gives ([sameSeries]), or a start weekday lit in
+        // one and left to the start in the other read as changed; another start is
+        // a change all the same, through "date".
+        return fields.any {
+            if (it == "recurrence") !sameSeries(mine.opt("date"), mine.opt(it), mine.opt("date"), theirs.opt(it))
+            else !sameJson(shaped(mine, it), shaped(theirs, it))
+        }
     }
 
     /**
@@ -1625,8 +2398,50 @@ object Notebook {
         for (field in fields) {
             if (!previous.has(field)) previous.put(field, deepCopy(shaped(note, field)))
         }
+        // Turned back on another way than the series was -- another start or
+        // rule ([keptDaysFit]): the old series' deleted days, which hold
+        // nothing, go with this copy instead of hiding the new series' own.
+        val shared = "overrides" !in fields && "recurrence" in fields
+        val restarted = shared && !keptDaysFit(note, shaped(incoming, "date"), shaped(incoming, "recurrence"))
+        // A share code's repeat turned off: this phone's days are copied
+        // beside the repeat they hang on, and stay in the note too, out of
+        // sight until a repeat brings them back. A backup brings its own.
+        if (shared) {
+            for ((field, days) in daysToRescue(note, shaped(incoming, "recurrence"))) previous.put(field, days)
+        }
+        if (restarted && daysIn(note.opt("exceptions")) > 0) previous.put("exceptions", deepCopy(shaped(note, "exceptions")))
+        // The copy this one replaces may hold another series' days alone:
+        // set aside once [keptDaysFit] has read them --
+        // held by the days a backup brings, too.
+        copyDaysSetAside(note, incoming = if ("overrides" in fields) incoming else null)
         note.put("_prev", previous)
         for (field in fields) note.put(field, deepCopy(shaped(incoming, field)))
+        // ...and a backup's fields this version does not know, beside this
+        // note's own, which the copy keeps for Restore previous; the two held to
+        // the bounds (the desktop's apply_shared_update). A code carries none.
+        if ("overrides" in fields) {
+            val mine = Normalize.unknownFields(note)
+            val theirs = Normalize.unknownFields(incoming)
+            if (mine.length() > 0 || theirs.length() > 0) {
+                previous.put("_unknown", JSONObject(mine.toString()))
+                for (name in mine.keys()) note.remove(name)
+                val both = JSONObject(mine.toString())
+                for (name in theirs.keys()) both.put(name, theirs.opt(name))
+                val kept = Normalize.unknownFields(both)
+                for (name in kept.keys()) note.put(name, kept.opt(name))
+            }
+        }
+        // A backup's note sets aside what its own copy kept, as it is read:
+        // an Add kept those, an Update dropped them (the
+        // desktop's apply_shared_update the same).
+        val arriving = incoming.opt("_set_aside") as? JSONArray
+        if ("overrides" in fields && arriving != null && arriving.length() > 0) {
+            val mine = note.opt("_set_aside") as? JSONArray ?: JSONArray()
+            for (i in 0 until arriving.length()) mine.put(deepCopy(arriving.get(i)))
+            note.put("_set_aside", mine)
+        }
+        if (restarted) note.put("exceptions", JSONArray())
+        Normalize.dropHiddenMoves(note)
         note.put("updated", now)
         return true
     }
@@ -1648,9 +2463,26 @@ object Notebook {
             a.length() == b.length() && a.keys().asSequence().all { b.has(it) && sameJson(a.opt(it), b.opt(it)) }
         a is JSONArray && b is JSONArray ->
             a.length() == b.length() && (0 until a.length()).all { sameJson(a.opt(it), b.opt(it)) }
-        a is Number && b is Number -> a.toDouble() == b.toDouble()
+        a is Number && b is Number -> sameNumber(a, b)
         else -> a == b
     }
+
+    /**
+     * Two numbers by value, exactly, as Python compares them: 1 and 1.0 one
+     * number, but integers past 2^53 told apart by their digits, which a
+     * double loses (a copy was spent here that the desktop keeps). A double
+     * by its exact binary value, as Python takes a float, not its shortest
+     * printing: 2^60 written as either is one number.
+     */
+    private fun sameNumber(a: Number, b: Number): Boolean {
+        val x = a.toDouble()
+        val y = b.toDouble()
+        if (!x.isFinite() || !y.isFinite()) return x == y
+        return exactly(a).compareTo(exactly(b)) == 0
+    }
+
+    private fun exactly(n: Number): java.math.BigDecimal =
+        if (n is Double || n is Float) java.math.BigDecimal(n.toDouble()) else java.math.BigDecimal(n.toString())
 
     /**
      * The rescue copy is spent once the note holds what it kept: Undo after
@@ -1660,9 +2492,127 @@ object Notebook {
      */
     internal fun dropSpentCopy(note: JSONObject) {
         val previous = note.opt("_prev") as? JSONObject ?: return
-        val same = PREV_TEXT_FIELDS.all { sameJson(shaped(note, it), shaped(previous, it)) } &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(note, field), shaped(previous, field)) }
-        if (same) note.remove("_prev")
+        if (spent(note, previous)) note.remove("_prev")
+    }
+
+    /**
+     * Whether [note] holds again everything [previous] kept: the desktop's
+     * `rescue_copy_spent`, which compares the styles and the lines' looks
+     * normalized -- compared as stored, a style the desktop drops as
+     * invalid kept the copy unspent here, and its button stayed.
+     */
+    private fun spent(note: JSONObject, previous: JSONObject): Boolean {
+        val lines = (note.opt("body") as? String ?: "").split("\n").size
+        if (!(listOf("title", "body", "comments").all { sameJson(shaped(note, it), shaped(previous, it)) } &&
+                Exporting.normalizeFormatting(note.opt("formatting")) == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+                Exporting.normalizeParagraphs(note.opt("paragraphs"), lines) ==
+                    Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines))) return false
+        return unknownHeld(note, previous) && extraFieldsHeld(note, previous)
+    }
+
+    /**
+     * Whether [note] holds each of [previous]'s own unknown fields again, kinds
+     * told apart: the spending rule (the desktop's `_copy_field_held`). A field
+     * the backup added no person can remove, so it does not count.
+     */
+    private fun unknownHeld(note: JSONObject, previous: JSONObject): Boolean {
+        val own = previous.opt("_unknown") as? JSONObject ?: return true
+        val mine = Normalize.unknownFields(note)
+        return own.keys().asSequence().all { mine.has(it) && sameJson(own.opt(it), mine.opt(it)) }
+    }
+
+    /**
+     * Whether "↩ Restore previous" keeps each unknown field [live] holds now.
+     * The restore puts back [previous]'s alone, so each must be the copy's,
+     * kinds told apart: the reverse of [unknownHeld], where a field the backup
+     * added does not count (the desktop's `_unknown_kept_by_restore`).
+     */
+    private fun unknownKeptByRestore(live: JSONObject, previous: JSONObject): Boolean {
+        val own = previous.opt("_unknown") as? JSONObject ?: return true
+        val mine = Normalize.unknownFields(live)
+        return mine.keys().asSequence().all { own.has(it) && sameJson(own.opt(it), mine.opt(it)) }
+    }
+
+    /**
+     * Whether [note] holds every field beyond the words [previous] kept.
+     * Both sides as a load shapes them, as the desktop compares them: a
+     * colour written short, a tick written 1, a date written the European
+     * way kept "↩ Restore previous" here after it went there.
+     */
+    private fun extraFieldsHeld(note: JSONObject, previous: JSONObject): Boolean {
+        val extra = PREV_EXTRA_LABELS.map { it.first }.filter { previous.has(it) }
+        if (extra.isEmpty()) return true
+        val held = Normalize.normalizeNote(JSONObject(note.toString()))
+        val kept = Normalize.normalizeNote(JSONObject().also { copy -> for (field in extra) copy.put(field, previous.opt(field)) })
+        return extra.all { copyFieldHeld(note, held, previous, kept, it) }
+    }
+
+    /**
+     * Whether [note] holds [previous]'s [field] again: a repeat rule by the
+     * days it gives ([sameSeries]), any other as a load shapes it ([held],
+     * [kept]). Compared as stored, a rule with its weekday lit was never the
+     * same, and the copy never spent (the desktop's `_copy_field_held`).
+     */
+    private fun copyFieldHeld(
+        note: JSONObject, held: JSONObject, previous: JSONObject, kept: JSONObject, field: String,
+    ): Boolean =
+        if (field == "recurrence") {
+            sameSeries(if (previous.has("date")) previous.opt("date") else note.opt("date"), previous.opt("recurrence"),
+                note.opt("date"), note.opt("recurrence"))
+        } else sameJson(shaped(held, field), shaped(kept, field))
+
+    /**
+     * Whether [note] holds a rescue copy with something the note lacks --
+     * the desktop's `_holds_unspent_rescue`. A note has one copy: an
+     * import's Update makes another over it, so its question says so.
+     */
+    internal fun holdsUnspentCopy(note: JSONObject): Boolean =
+        (note.opt("_prev") as? JSONObject)?.let { !spent(note, it) } == true
+
+    /**
+     * Whether a turn-off of [note] keeps its copy whole -- an import's
+     * Update copy not spent ([turnOffCopy]): its days stay in it, nothing
+     * set aside.
+     */
+    internal fun turnOffKeepsCopy(note: JSONObject): Boolean {
+        val existing = note.opt("_prev") as? JSONObject ?: return false
+        return !spent(note, existing) && updateCopy(existing)
+    }
+
+    /**
+     * The copy a repeat's turn-off makes, [copy] -- the note whole, repeat and
+     * days as now -- given the words of any copy [note] holds whose words the
+     * note has lost ([wordsLostTo]), or a big delete before was in no copy;
+     * an import's Update copy the note does not hold again is kept whole,
+     * given the series only where it lacks it. The desktop's
+     * `_turn_off_rescue_copy`. Returns [copy], given words, or the update's.
+     */
+    internal fun turnOffCopy(copy: JSONObject, note: JSONObject): JSONObject {
+        val existing = note.opt("_prev") as? JSONObject ?: return copy
+        if (spent(note, existing)) return copy
+        if (updateCopy(existing)) {
+            val kept = JSONObject(existing.toString())
+            for (key in listOf("date", "recurrence") + DAY_FIELDS) {
+                if (!kept.has(key)) kept.put(key, deepCopy(copy.opt(key) ?: JSONObject.NULL))
+            }
+            return kept
+        }
+        if (wordsLostTo(existing, note)) {
+            for (field in PREV_TEXT_FIELDS) if (existing.has(field)) copy.put(field, deepCopy(existing.get(field)))
+        }
+        return copy
+    }
+
+    /**
+     * Whether [note] has lost words to the copy [existing] holds -- the big
+     * delete's own question ([shouldKeepPrevious], from the copy to the note),
+     * as the desktop's `_turn_off_rescue_copy` asks it: asked only whether the
+     * two differ, a line added between two turn-offs went back at Restore previous.
+     */
+    private fun wordsLostTo(existing: JSONObject, note: JSONObject): Boolean {
+        fun text(holder: JSONObject, key: String): String = holder.opt(key) as? String ?: ""
+        return shouldKeepPrevious(text(existing, "title"), text(existing, "body"), text(note, "title"), text(note, "body"),
+            text(existing, "comments"), text(note, "comments"))
     }
 
     /**
@@ -1675,16 +2625,65 @@ object Notebook {
      */
     internal fun replacedByRestore(live: JSONObject, previous: JSONObject): JSONObject? {
         val wasTitle = (live.opt("title") as? String).orEmpty()
-        val nothingLost = (previous.opt("body") as? String).orEmpty().contains((live.opt("body") as? String).orEmpty().trim()) &&
-            (wasTitle.isBlank() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
-            PREV_EXTRA_LABELS.all { (field, _) -> !previous.has(field) || sameJson(shaped(live, field), shaped(previous, field)) }
+        // A restore that ends the repeat leaves a copy of the series' days beside
+        // the repeat in the copy, the note keeping its own, so the same banner
+        // brings the series back whole (`days_to_rescue`).
+        val taken = if (previous.has("recurrence")) {
+            daysToRescue(live, previous.opt("recurrence")).filterKeys { !previous.has(it) }
+        } else emptyMap()
+        // Everything the restore writes over is weighed, comments and the styles
+        // of the same words too, as the desktop's: comments typed since the copy
+        // went to no file, the question saying nothing of them.
+        val body = (live.opt("body") as? String).orEmpty()
+        val sameWords = body == (previous.opt("body") as? String).orEmpty()
+        val lines = body.split("\n").size
+        val formatting = Exporting.normalizeFormatting(live.opt("formatting"))
+        val paragraphs = Exporting.normalizeParagraphs(live.opt("paragraphs"), lines)
+        // Words held in the copy's but not the same: their styles cannot be laid
+        // beside the copy's, so any style counts as lost, as the desktop's
+        // `styles_kept` weighs them.
+        val stylesKept = if (sameWords) {
+            formatting == Exporting.normalizeFormatting(previous.opt("formatting")) &&
+                paragraphs == Exporting.normalizeParagraphs(previous.opt("paragraphs"), lines)
+        } else formatting.isEmpty() && paragraphs.isEmpty()
+        val nothingLost = PyText.contains((previous.opt("body") as? String).orEmpty(), PyText.strip(body)) &&
+            (PyText.strip(wasTitle).isEmpty() || wasTitle == (previous.opt("title") as? String).orEmpty()) &&
+            PyText.contains((previous.opt("comments") as? String).orEmpty(), PyText.strip((live.opt("comments") as? String).orEmpty())) &&
+            stylesKept &&
+            extraFieldsHeld(live, previous) &&
+            unknownKeptByRestore(live, previous) &&
+            taken.isEmpty()
         if (nothingLost) return null
         val replaced = JSONObject()
         for (field in PREV_TEXT_FIELDS) replaced.put(field, deepCopy(shaped(live, field)))
         for ((field, _) in PREV_EXTRA_LABELS) {
-            if (previous.has(field)) replaced.put(field, deepCopy(shaped(live, field)))
+            // A repeat hangs on its start date: a copy holding it without the date
+            // is shaped as no repeat (shapePrevious, as normalize_note), and the
+            // next restore left the note without its series.
+            if (previous.has(field) || (field == "date" && previous.has("recurrence"))) {
+                replaced.put(field, deepCopy(shaped(live, field)))
+            }
         }
+        if (previous.has("_unknown")) replaced.put("_unknown", Normalize.unknownFields(live))
+        for ((field, days) in taken) replaced.put(field, days)
         return replaced
+    }
+
+    /**
+     * Whether restoring note [id]'s rescue copy would keep what it holds
+     * now, for the restore question to promise it -- asked when the
+     * question is, of that one note. Worked out for every note at every
+     * load, a backup's rescue copy of millions of letters held the app
+     * still at each start and after each save (ISSUES_LOG, "A question
+     * asked of every note, to answer one").
+     */
+    fun previousKeeps(load: Load, id: Int): Boolean {
+        val array = load.raw ?: return false
+        val index = Organizing.indexOfId(array, id)
+        if (index < 0) return false
+        val live = array.get(index) as JSONObject
+        val previous = live.opt("_prev") as? JSONObject ?: return false
+        return replacedByRestore(live, previous) != null
     }
 
     /**
@@ -1698,16 +2697,24 @@ object Notebook {
     fun restorePrevious(load: Load, id: Int): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val index = indexById(array, id)
+        val index = Organizing.indexOfId(array, id)
         if (index < 0) return SaveResult.Failed(GONE)
         val live = array.get(index) as JSONObject
-        val previous = live.opt("_prev") as? JSONObject
+        // Shaped again, held to the note's ceilings: a file written before
+        // the import shaped it can hold a copy as it came.
+        val previous = (live.opt("_prev") as? JSONObject)?.let { Normalize.shapePrevious(it) }
             ?: return SaveResult.Failed("This note has no earlier version to bring back.")
+        // What it replaces, the series' days included when it ends the repeat.
         val replaced = replacedByRestore(live, previous)
         val note = JSONObject(live.toString())
         for (field in PREV_TEXT_FIELDS) note.put(field, shaped(previous, field))
         for ((field, _) in PREV_EXTRA_LABELS) {
             if (previous.has(field)) note.put(field, deepCopy(shaped(previous, field)))
+        }
+        // ...the fields this version does not know, as the update found them.
+        (previous.opt("_unknown") as? JSONObject)?.let { own ->
+            for (name in Normalize.unknownFields(note).keys()) note.remove(name)
+            for (name in own.keys()) note.put(name, own.opt(name))
         }
         val categories = load.categories
         if ((note.opt("category") as? String) !in categories) note.put("category", "General")
@@ -1719,6 +2726,9 @@ object Notebook {
                 }
             }
         }
+        // An older rule brought back can give a date a day was moved onto
+        // since: that move goes now, as the desktop's restore drops it.
+        Normalize.dropHiddenMoves(note)
         if (replaced == null) note.remove("_prev") else note.put("_prev", replaced)
         note.put("updated", Files.now())
         val candidate = copyOf(array)
@@ -1729,49 +2739,110 @@ object Notebook {
         return SaveResult.Ok(id)
     }
 
-    private fun indexById(array: JSONArray, id: Int): Int {
-        for (i in 0 until array.length()) {
-            val o = array.opt(i) as? JSONObject ?: continue
-            val itsId = o.opt("id")
-            if (itsId is Number && itsId.toInt() == id) return i
-        }
-        return -1
-    }
 
     /**
      * The desktop's rule for when an edit deserves a rescue copy
-     * (`rescue_copy_due`): emptied; more than 40 characters gone, 30% of
-     * the text or 200; or most of a short note, 70% and 15 characters at
-     * least. Counted by what is gone ([textLost]), not by how much shorter
-     * the text got: a short note replaced by a new line, and a paragraph
-     * replaced by one as long, kept no copy (2026-10-24, the desktop's test
-     * case 692).
+     * (`rescue_copy_due`): emptied; more than 40 characters gone, 30% of the
+     * text or 200; or most of a short note, 70% and 15 at least -- counted by
+     * what is gone ([lost]), not by how much shorter the text got. The
+     * comments are weighed as a text of their own, by the same bars: left out,
+     * wiping them kept no copy; counted in, a long comment hid a body deleted.
      */
     internal fun shouldKeepPrevious(
         oldTitle: String, oldBody: String, newTitle: String, newBody: String,
-    ): Boolean {
-        val oldLen = oldTitle.length + oldBody.length
+        oldComments: String = "", newComments: String = "",
+    ): Boolean = textDue(oldTitle, oldBody, newTitle, newBody) || textDue("", oldComments, "", newComments)
+
+    /** [shouldKeepPrevious]'s bars, for one text: a title and a body, or the comments alone -- `_text_rescue_due`. */
+    private fun textDue(oldTitle: String, oldBody: String, newTitle: String, newBody: String): Boolean {
+        // In letters, as Python's len counts them, as every count below is.
+        val oldLen = oldTitle.codePointCount(0, oldTitle.length) + oldBody.codePointCount(0, oldBody.length)
         if (oldLen == 0) return false
         if (newTitle.length + newBody.length == 0) return true   // emptied
-        val lost = textLost(oldTitle, newTitle) + textLost(oldBody, newBody)
-        if (lost > 40 && (lost >= oldLen * 0.3 || lost >= 200)) return true
-        return lost >= 15 && lost >= oldLen * 0.7
+        // Both bars ask for 15 characters gone, and [lost] is never more than the
+        // span changed: a save changing less (the autosave after each letter) is
+        // answered from the span alone, not by splitting the whole text into words.
+        if (textLost(oldTitle, newTitle) + textLost(oldBody, newBody) < 15) return false
+        val lost = lost(oldTitle, newTitle) + lost(oldBody, newBody)
+        // The shares in the unit the loss is counted in, each word with one space
+        // ([measured]): against a length with a table's padding, five rows of
+        // eight deleted at once read as under 30% and kept no copy.
+        val size = (measured(oldTitle) + measured(oldBody)).takeIf { it > 0 } ?: oldLen
+        if (lost > 40 && (lost >= size * 0.3 || lost >= 200)) return true
+        return lost >= 15 && lost >= size * 0.7
+    }
+
+    /** [text]'s length as [wordsLost] counts it: each word with one space -- the desktop's `_measured`. */
+    internal fun measured(text: String): Int = words(text).sumOf { it.codePointCount(0, it.length) + 1 }
+
+    /**
+     * [text]'s words, each line's list marker left out -- the desktop's
+     * `_words`: a marker is no word. Counted as words, numbers turned into
+     * bullets, or bullets taken one level in, read as words lost, and the
+     * autosave's copy replaced the one holding a paragraph deleted before
+     * (found on the phone first).
+     */
+    private fun words(text: String): List<String> = PyText.split(Pasting.stripListMarkers(text))
+
+    /**
+     * What a save of [new] over [old] takes away: the smaller of two counts
+     * that each never come out under it -- the desktop's `_lost`. [textLost]
+     * reads a column added to a table as the whole table lost; [wordsLost]
+     * one letter changed in a spaceless paragraph as the paragraph lost; the
+     * smaller is right for both.
+     */
+    internal fun lost(old: String, new: String): Int = minOf(textLost(old, new), wordsLost(old, new))
+
+    /**
+     * How many characters of the words in [old] are not in [new], each word
+     * counted as often as it appears, with the space it went with -- the
+     * desktop's `words_lost`: its words Python's `str.split()`, their
+     * lengths in code points. A word moved, or a cell padded wider, is not
+     * lost; a word with one letter changed is lost whole; a list's markers
+     * are no words ([words]).
+     */
+    internal fun wordsLost(old: String, new: String): Int {
+        val gone = HashMap<String, Int>()
+        for (word in words(old)) gone[word] = (gone[word] ?: 0) + 1
+        for (word in words(new)) gone[word]?.let { gone[word] = it - 1 }
+        return gone.entries.sumOf { (word, count) -> if (count > 0) (word.codePointCount(0, word.length) + 1) * count else 0 }
     }
 
     /**
      * How many characters of [old] [new] does not keep at either end: its
      * length less the longest start the two share and, of what follows, the
-     * longest end -- the desktop's `text_lost`. Words kept in the middle
-     * count as lost, so the measure errs towards keeping a copy.
+     * longest end -- the desktop's `text_lost`, in code points as Python
+     * counts. Words kept in the middle count as lost, so the measure errs
+     * towards keeping a copy.
      */
     internal fun textLost(old: String, new: String): Int {
         val limit = minOf(old.length, new.length)
         var start = 0
         while (start < limit && old[start] == new[start]) start++
+        // Ends on the edges of letters, as Python's are: an emoji the two share
+        // half of differs whole. In UTF-16 units, twelve emoji deleted were
+        // twenty-four characters, past the bars on the phone alone.
+        if (start > 0 && Character.isHighSurrogate(old[start - 1]) &&
+            (start < old.length && Character.isLowSurrogate(old[start]) ||
+                start < new.length && Character.isLowSurrogate(new[start]))) start--
         var end = 0
         while (end < limit - start && old[old.length - 1 - end] == new[new.length - 1 - end]) end++
-        return old.length - start - end
+        if (end > 0 && Character.isLowSurrogate(old[old.length - end]) &&
+            (old.length - end > 0 && Character.isHighSurrogate(old[old.length - end - 1]) ||
+                new.length - end > 0 && Character.isHighSurrogate(new[new.length - end - 1]))) end--
+        return old.codePointCount(start, old.length - end)
     }
+
+    /**
+     * [formatting] and [paragraphs] carried through one edit of the text from
+     * [old] to [new], as a note's save carries them: the styles by
+     * [remapSpans], the lines' properties by their lines. The template editor
+     * asks it at every change, or its styles stayed while the words moved,
+     * and every note made from it began with its bold on the wrong words.
+     */
+    fun throughEdit(formatting: JSONArray, paragraphs: JSONArray, old: String, new: String): Pair<JSONArray, JSONArray> =
+        spansToJson(remapSpans(old, new, readSpans(formatting)).spans) to
+            movedParagraphs(JSONObject().put("paragraphs", paragraphs), old, new)
 
     internal fun spansToJson(spans: List<FormatSpan>): JSONArray {
         val array = JSONArray()
@@ -1797,13 +2868,9 @@ object Notebook {
         val byLine = LinkedHashMap<Int, JSONObject>()
         for (i in 0 until source.length()) {
             val o = source.opt(i) as? JSONObject ?: continue
-            // The entry the desktop's normalize_paragraphs would keep for a
-            // line, and only that one. A line is a whole number -- or
-            // true/false, which Python counts as 1 and 0; not 1.0, which it
-            // refuses. Within the text as it was: a line past its end is
-            // dropped there, and an edit adding lines must not revive it.
-            // The FIRST usable entry for a line wins, as there; a later one
-            // for the same line once replaced it here.
+            // Only the entry the desktop's normalize_paragraphs keeps for a line:
+            // a whole number or true/false (1.0 is refused), within the text as it
+            // was, the FIRST usable one for a line winning, as there.
             val line = when (val raw = o.opt("line")) {
                 is Int -> raw
                 is Long -> if (raw in 0..Int.MAX_VALUE.toLong()) raw.toInt() else continue
@@ -1817,11 +2884,9 @@ object Notebook {
         val kept = JSONArray()
         for ((oldLine, newLine) in survivors) {
             val marker = byLine[oldLine] ?: continue
-            // The whole entry moves, only its line changes. A paragraph can
-            // be centred, or indented, without being a list at all; this
-            // once rebuilt each entry from its line and its kind alone, and
-            // wrote "bullet" where there was no kind -- an edit on the phone
-            // turned a centred line into a bullet and dropped its indent.
+            // The whole entry moves, only its line changes: a paragraph can be
+            // centred or indented without being a list, and rebuilt from its kind,
+            // an edit turned a centred line into a bullet.
             val moved = JSONObject(marker.toString())
             moved.put("line", newLine)
             kept.put(moved)
@@ -1880,10 +2945,12 @@ object Notebook {
      * rather than passed on to a renderer.
      */
     fun isHexColor(value: String): Boolean {
-        val v = value.trim()
+        val v = PyText.strip(value)
         if (!v.startsWith("#")) return false
         if (v.length != 4 && v.length != 7) return false
-        return v.drop(1).all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+        // 0-9 alone, as the desktop's pattern reads them: isDigit() let in
+        // any script's figures, "#١٢٣" a colour here and none there.
+        return v.drop(1).all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
     }
 
     /**
@@ -1893,7 +2960,7 @@ object Notebook {
      */
     fun sanitizeColor(value: String, fallback: String = ""): String {
         if (!isHexColor(value)) return fallback
-        val v = value.trim()
+        val v = PyText.strip(value)
         return if (v.length == 4) "#" + v.drop(1).map { "$it$it" }.joinToString("") else v
     }
 
@@ -1920,22 +2987,21 @@ object Notebook {
             order = (o.opt("order") as? Number)?.toDouble()?.takeIf { it.isFinite() && o.opt("order") !is Boolean },
             pinned = o.opt("pinned") == true,
             comments = o.str("comments"),
-            attachments = o.arrayLength("attachments"),
+            attachmentCount = o.arrayLength("attachments"),
             formatting = readSpans(o.opt("formatting") as? JSONArray),
-            paragraphs = o.arrayLength("paragraphs"),
+            paragraphCount = o.arrayLength("paragraphs"),
             checklist = readChecklist(o.opt("checklist") as? JSONArray),
             recurrenceFreq = rule?.str("freq") ?: "",
             recurrenceInterval = rule?.intOr("interval", 1) ?: 1,
             recurrenceLabel = Recurrence.describe(o),
-            exceptions = o.arrayLength("exceptions"),
-            overrides = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
+            exceptionCount = o.arrayLength("exceptions"),
+            overrideCount = (o.opt("overrides") as? JSONObject)?.length() ?: 0,
             deletedAt = o.str("deleted_at"),
             uid = o.str("uid"),
             hasPrevious = o.opt("_prev") is JSONObject,
             previousAlso = (o.opt("_prev") as? JSONObject)?.let { prev ->
                 PREV_EXTRA_LABELS.filter { (key, _) -> prev.has(key) }.map { it.second }
             } ?: emptyList(),
-            previousKeeps = (o.opt("_prev") as? JSONObject)?.let { replacedByRestore(o, it) != null } ?: false,
         )
     }
 
@@ -1954,12 +3020,9 @@ object Notebook {
             val start = o.intOr("start", -1)
             val end = o.intOr("end", -1)
             if (start < 0 || end <= start) continue
-            // A colour or a face is text in the desktop's file, but a size
-            // is a NUMBER: read as text alone, every size the desktop set
-            // came in empty -- not drawn, and written back without a value,
-            // which the desktop then dropped on its next start. And ONLY a
-            // number: a size in quotes is one the desktop refuses, and read
-            // here it went back out as a number the desktop then honoured.
+            // A colour or a face is text in the desktop's file, but a size is a
+            // NUMBER -- read as text, every size came in empty -- and ONLY a number:
+            // a size in quotes the desktop refuses went back out as one it honoured.
             val v = o.opt("value")
             val value = if (style == "font_size") {
                 if (v is Int || v is Long) v.toString() else ""
@@ -1968,10 +3031,8 @@ object Notebook {
             }
             out.add(FormatSpan(start, end, style, value))
         }
-        // Bold and italic on the same letters as two spans -- a desktop file
-        // from before its `normalize_formatting` folded them -- are read as
-        // one bold_italic, as the desktop reads them on every load: the
-        // editor's styling sees one style a letter, and with two, pressing B
+        // Bold and italic on the same letters as two spans, from an older desktop
+        // file, read as one bold_italic, as the desktop reads them: with two, B
         // to take the bold off took the italic with it.
         return Exporting.foldBoldWithItalic(out)
     }

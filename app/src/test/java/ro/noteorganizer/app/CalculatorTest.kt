@@ -149,11 +149,22 @@ class CalculatorTest {
     }
 
     @Test
-    fun `the spaces Python counts are spaces, and keyboard signs are not keys`() {
+    fun `the spaces Python counts are spaces, and a keyboard's signs are the keys'`() {
         assertEquals(8.0, ev("5 + 3"))
         assertEquals(8.0, ev("5\u0085+3"))
-        assertNull("the desktop takes its own − only", ev("5-3"))
-        assertNull(ev("5*3"))
+        // Typed on a keyboard, a sum said Error: - * x / : are the
+        // keys' − × ÷, and a comma between digits is the decimal point.
+        assertEquals(2.0, ev("5-3"))
+        assertEquals(15.0, ev("5*3"))
+        assertEquals(15.0, ev("5x3"))
+        assertEquals(2.5, ev("5/2"))
+        assertEquals(2.5, ev("5:2"))
+        assertEquals(5.0, ev("2,5+2,5"))
+        assertNull("a comma not between digits is no number", ev("2,+3"))
+        assertEquals(1.2345, ev("1,2345"))
+        // ...but not before exactly three digits: 1,000 is a thousand in English.
+        assertNull(ev("1,000+5"))
+        assertNull(ev("2,500"))
     }
 
     @Test
@@ -352,11 +363,12 @@ class CalculatorTest {
 
     @Test
     fun `the remembered place follows edits elsewhere`() {
-        assertEquals("typing before it pushes it on", 9, Calculator.follow("ab=3\nxyz", "XYZ!!ab=3\nxyz", 4))
-        assertEquals("typing after it leaves it", 4, Calculator.follow("ab=3\nxyz", "ab=3\nxyz!!", 4))
+        fun follow(old: String, new: String, at: Int?) = Calculator.follow(listOfNotNull(Calculator.changeOf(old, new)), at)
+        assertEquals("typing before it pushes it on", 9, follow("ab=3\nxyz", "XYZ!!ab=3\nxyz", 4))
+        assertEquals("typing after it leaves it", 4, follow("ab=3\nxyz", "ab=3\nxyz!!", 4))
         assertEquals("typing right at it goes before it, like a mark with right gravity", 7,
-            Calculator.follow("ab=3\nxyz", "ab=3abc\nxyz", 4))
-        assertEquals("deleting across it brings it to the cut", 1, Calculator.follow("ab=3\nxyz", "a\nxyz", 4))
-        assertNull(Calculator.follow("a", "b", null))
+            follow("ab=3\nxyz", "ab=3abc\nxyz", 4))
+        assertEquals("deleting across it brings it to the cut", 1, follow("ab=3\nxyz", "a\nxyz", 4))
+        assertNull(follow("a", "b", null))
     }
 }

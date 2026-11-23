@@ -72,8 +72,8 @@ Grouped by what the app does; when each item arrived is in the
 
 1. **Kept in the app's own storage**, where no other app can read it. A
    notebook left in the older shared folder by an earlier build is
-   copied in once, on the first start that finds none — copied, never
-   moved, so nothing is deleted on the way.
+   copied in once, on the first start that finds none, on a development
+   build only — copied, never moved, so nothing is deleted on the way.
 2. **A brand-new notebook opens on a welcome note**, once, as the
    desktop's does; one that was copied in or emptied by hand never gets
    one. Settings → About brings it back.
@@ -81,7 +81,9 @@ Grouped by what the app does; when each item arrived is in the
    unreadable bytes are copied beside it as
    `notes_data_corrupt_<stamp>.json` and the app opens on an empty list
    and says where the copy is — the desktop's answer, ported. The same
-   for `trash.json` and `settings.json`.
+   for `trash.json` and `settings.json`. The app's folder is closed to
+   the person, so the copy travels in the next backup `.zip`, under
+   `unreadable/`.
 4. A real 77-note `notes_data.json` reads without loss: Romanian
    diacritics, emoji, CJK, a 107,000-character note.
 
@@ -100,10 +102,14 @@ Grouped by what the app does; when each item arrived is in the
    list scrolls smoothly however long the notes
    ([measured](ISSUES_LOG.md#two-lines-of-text-that-cost-a-whole-note)).
 6. A greeting with the person's name, as the desktop's header has.
-7. Search by the desktop's own rule — title, body and comments, a
-   table's plumbing stripped — with diacritics folded
-   ([the one difference](#where-it-differs-from-the-desktop-on-purpose)).
-   A new search shows its results from the top, as on the desktop.
+7. Search by the desktop's own rule — title, body, comments and the
+   checklist's rows, a table's plumbing stripped — case and diacritics
+   folded, `sedinta` finding `Ședință`, on both apps since the desktop
+   took the phone's folding ([its story](ISSUES_LOG.md#a-deliberate-difference-worth-porting-back)).
+   A new search shows its results from the top, as on the desktop. A list
+   left empty says what hides its notes — the search, Show — and offers
+   Show all notes; a new note they would hide is said as it closes, with
+   Show all.
 8. **The desktop's whole Sort and Show**, remembered under its own setting
    keys: updated, title, category, Calendar: soonest and oldest, and
    Custom order; and Show by category, 🔁 Repeating, 📅 Dated or 📎 With
@@ -115,7 +121,9 @@ Grouped by what the app does; when each item arrived is in the
    Settings' order, each folding with a tap, the folds remembered.
 10. **Long press selects.** With notes selected: pin, move to a category,
     duplicate, share as a code, move to the Trash. A delete offers
-    **Undo** for eight seconds.
+    **Undo** for ten seconds from the moment it shows — longer where the
+    phone is set to give more time to act — as every Undo at the foot
+    does.
 
 ### The calendar
 
@@ -157,10 +165,42 @@ Grouped by what the app does; when each item arrived is in the
 16. **One screen for reading and writing.** A note opens ready to edit
     and saves itself 0.8 seconds after the last change, when the app
     goes to the background, and on Back — "Auto-saved" says so, and a
-    save that fails says why. Turning the phone, its dark mode coming on
+    save that fails says why, aloud too. A note that cannot be saved is
+    not closed under its words: Back, another note, + and the rail keep
+    it open and offer to leave anyway. Turning the phone, its dark mode coming on
     or its letters growing leave the note open where it was. **↶ Undo and
     ↷ Redo** (Ctrl+Z, Ctrl+Y on a keyboard) take back the note's words and
     their styling, a burst of typing at a time, as the desktop's do.
+    A line, a title, comments, a checklist row or a table's cell holding
+    a run of more than 10,000 letters no line can break — no one types
+    one, a share code can bring one, joined by no-break spaces or not —
+    or more such runs together than a note's fields can lay out at once,
+    is shown as what it is and its start, read-only, the lines around it
+    still typed in; laid out as a field it held the note for seconds. The
+    note keeps every byte, and the desktop shows it; a bar or a question
+    quotes a long title, row or file name by its first 80 characters.
+    What a note draws is counted for the whole note: long text is drawn
+    as fields of at most 1,000 lines, each typed in; past 40,000 lines in
+    all (a journal of some 880,000 characters), 500 pieces — two hundred
+    tables under their headings, a ceiling
+    for hostile notes, not ordinary ones — or one line, title or comments
+    heavier to draw than 150,000 letters with spaces, the rest is shown
+    read-only with how many lines it holds. What is shown read-only is
+    still found by Find, each line one stop, the line it stops at shown,
+    and can be read on, forty lines at a time. A line whose words go where
+    no field is — a table row typed by hand, Enter at the end of what is
+    drawn — takes the cursor to the next field, or lets the keyboard go
+    and says why. A checklist's rows are written in up to 2,000 letters
+    each, the desktop's limit counted as it counts them, and 100,000 in
+    all; a paste or a letter past the limit keeps the row's own words and
+    cuts only what came in, saying so in the desktop's words. Past either
+    limit a row is shown by its start and read whole on asking, kept
+    whole, and Find opens it on its word; a list draws its first 200 rows
+    and its last five, 200 more each time the line between them is
+    tapped, and a row moved across that line stays in sight. The template
+    editor draws a template's rows the same way. Undo keeps at most 16
+    million characters of steps, always the last; Undo and Redo put the
+    cursor where typing would.
 17. Formatting over a selection — bold, italic, underline, strike, text
     colour and highlight from the desktop's palettes, **size and face**
     from its lists — drawn as it is typed, and moved to follow the text
@@ -185,6 +225,13 @@ Grouped by what the app does; when each item arrived is in the
     numbered run counts 1, 2, 3 again.
 19. **Tables** drawn as grids — merged cells, checkbox cells, `<br>`
     breaks, each cell's own alignment and highlight, sideways scrolling.
+    A table of more than 1,000 cells — counted as drawn, every row as wide
+    as the widest — says it is too large to draw and shows its first
+    lines, read-only, so the note opens at once, in the note and in the
+    template editor alike; it is kept whole, and the desktop draws
+    it. Find searches its lines as written, each one stop, and shows the
+    line it stops at. The 1,000 are the whole note's: a table
+    past what the tables above it drew is shown so too, and says why.
     A new one inserted from a size grid, its first cell open to type. A
     cell is written in place, in the table, and a bar over the keyboard,
     shaped on Samsung Notes', changes the rest: rows and columns added
@@ -223,9 +270,15 @@ Grouped by what the app does; when each item arrived is in the
 23. Note details: category, date (Android's own calendar), colour, pin,
     repeat, and the word count with the desktop's reading time.
 24. **"↩ Restore previous".** When a note carries the desktop's `_prev`
-    rescue copy — left by a big deletion or by an update that arrived
+    rescue copy — left by a big deletion, of its words or of its comments
+    weighed on their own, by a repeat turned off, or by an update that arrived
     from elsewhere — the note says so and brings it back, its text and
-    everything else the update changed.
+    everything else the update changed. A copy due for the comments alone
+    keeps a big delete's words it already held, taking only the comments --
+    or keeping its own, when theirs would be the larger loss (since
+    2026-10-30); a repeat turned off keeps an import's Update copy; and
+    what the restore writes over -- the comments, the styles of the same
+    words -- is kept in its turn, as on the desktop (since 2026-10-29).
 25. **Find in note**: the count, back and next, case, prose and table
     cells together, then the checklist and the comments (since 2026-10-25;
     the desktop's bar looks through the text alone), every match painted
@@ -235,7 +288,10 @@ Grouped by what the app does; when each item arrived is in the
     every sum.
 27. **Export as file**, `.html` or `.txt`, through Android's "save as":
     the desktop's page byte for byte, the two kinds shown as cards saying
-    what each gives. **Share**, the mark at the top of a note: the note
+    what each gives. From one day of a series, both send that day as a
+    note of its own on its date, its words and not the series' (a code of
+    it carries no repeat and no identity, as the desktop's code of a day);
+    Duplicate is not offered on a day. **Share**, the mark at the top of a note: the note
     as a PDF, a web page, its words or a share code, chosen on one sheet
     and handed to the phone's own share sheet — WhatsApp, a mail app,
     Teams, Drive, and the people those apps put first. The PDF is the
@@ -244,7 +300,15 @@ Grouped by what the app does; when each item arrived is in the
     cannot be selected. The words are the title, the body, the
     checklist's boxes as ☐ and ☑ and the comments; a note with a table is
     not offered as words, which cannot draw one, and the sheet says to
-    send it as a PDF. The app sends nothing itself, reads no contacts and
+    send it as a PDF — nor one past what Android delivers to its share
+    sheet (measured): 100,000 Latin letters, about 60,000 Chinese ones,
+    weighed in the bytes Android carries; the sheet names the web page.
+    A share code past the same ceiling is greyed on its card with the
+    reason, before the tap. A PDF holds at most 40 pages and breaks any
+    line at the paper's edge; when it would leave part of a note out, a
+    question comes before anything is handed over — the web page, the
+    PDF as it is, or Cancel — and nothing is written into the PDF
+    itself. The app sends nothing itself, reads no contacts and
     remembers nothing; the app picked does the sending. The note's own
     files are not sent, as an export does not carry them, and the sheet
     says so. It replaced "Send by email" and the 🔗 beside it: one door
@@ -254,7 +318,13 @@ Grouped by what the app does; when each item arrived is in the
 28. **Templates**: start a note from one, save a note as one, and edit
     them in Settings → Templates — the desktop's `templates.json`, so a
     template made on either device starts notes on both. A template's
-    body shows its tables drawn, in place, as a note does.
+    body shows its tables drawn, in place, as a note does. One being
+    written when Android ends the app behind Home -- or when the app itself
+    takes the editor off the screen, the reminder's notification tapped or
+    an import's Open -- is kept as a draft, in the storage Android's backup
+    leaves out, and offered back when Templates opens: "You were writing a
+    template. Continue it?". A draft whose changes were taken back by hand
+    is not kept.
 
 ### Organising
 
@@ -300,8 +370,16 @@ Grouped by what the app does; when each item arrived is in the
     note, and the phone asks the desktop's questions in the desktop's
     words: update the copy here or add a new one; skip copies that hold
     nothing new; skip look-alikes. Nothing is written until they are
-    answered, and an update leaves the `_prev` that "↩ Restore previous"
-    undoes.
+    answered. An update that changes anything it may replace (the words,
+    the category, colour, date, checklist or a series' days) leaves the
+    `_prev` that "↩ Restore previous" undoes — the question saying so when
+    that replaces an earlier version the note still holds; one that only
+    adds attached files a backup's copy has keeps no copy, and the question
+    promises none. Two arriving notes with one identity claim it
+    once: the second comes in as a note of its own. A note or a template
+    also keeps the fields a newer version of the app wrote (the owner's
+    D2, 2026-11-13 and 14), bounded as the desktop bounds them, through
+    every load, backup and save.
 
 ### Looks and settings
 
@@ -316,8 +394,9 @@ Grouped by what the app does; when each item arrived is in the
     reach, its card outlined. What the list does to the note beside it —
     a pin, a category — the note shows at once and keeps. « in the note's
     top bar puts the list (or the calendar) aside for a wider note, »
-    brings it back; the choice holds until the app is closed. Walked on a
-    small phone and on tablets of 7, 10 and 14 inches (2026-10-24).
+    brings it back; the choice holds until the app is closed or a tab is
+    chosen. Walked at the sizes of a small phone and of 7, 10 and 14-inch
+    tablets, set on one emulator (2026-10-24).
 37. Settings: your name, appearance, categories, templates,
     **Reminders**, backup, the
     Trash and its window, **Statistics** — the desktop's snapshot of the
@@ -328,16 +407,25 @@ Grouped by what the app does; when each item arrived is in the
 
 ### Underneath
 
-39. 708 JVM unit tests in 31 suites, mutation-tested; six ports held to
-    fixtures the desktop's own Python wrote; four gates against drift
-    (the note's shape and the palettes against the desktop's Python, the
-    rules layer free of Android, the repository in English) and a fifth
-    on the built release APK (every file its code looks up by name, found
-    where the shrunk code will look); and an emulator walk of 343
-    checks that reads the files the app wrote.
+39. The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests)),
+    mutation-tested; eight ports held to fixtures the desktop's own Python
+    wrote; nine gates against drift (the note's shape and the palettes
+    against the desktop's Python, the rules layer free of Android, the
+    repository in English, comments that say why, every mutant aimed at
+    today's code, CI's token read-only and its actions pinned, the test
+    plan's count, test results no older than the
+    code), one on
+    what the tests write out (a share code made here, read back by the
+    desktop's own Python), and two on the built release APK (every file
+    its code looks up by name, found where the shrunk code will look;
+    every AndroidX library in it named in its licenses); and an [emulator walk](../qa/README.md#the-emulator-walk)
+    that reads the files the app wrote.
 40. **A release build**, the form the app is tested in from now on:
     shrunk by R8 (2.0 MB, from the debug build's 14.5), not debuggable,
-    no permission beyond one Android adds for its own receivers, its one
+    no permission beyond the day's reminder's two (`POST_NOTIFICATIONS`,
+    asked when the reminder is turned on; `RECEIVE_BOOT_COMPLETED`, to set
+    its alarm again after a restart) and one Android adds for its own
+    receivers, its one
     native library 16 KB-aligned as Play requires, and an app bundle
     (`bundleRelease`) beside the APK. Signed for now with this machine's
     debug key, so it installs over a debug build and keeps the notebook
@@ -348,27 +436,34 @@ Grouped by what the app does; when each item arrived is in the
 
 Every rule here matches the Python deliberately, including where the
 Python is arguably worse, because a difference is a surprise, not a
-feature. These are the exceptions, each with its reason.
+feature. These are the exceptions, each with its reason. (Search folding
+diacritics was one, until the desktop took it:
+[its story](ISSUES_LOG.md#a-deliberate-difference-worth-porting-back).)
 
-**Search folds diacritics.** `si` finds `și`, `masina` finds `mașină`, and
-the cedilla spellings older Windows keyboards produce (`ş`, `ţ`) match
-the comma-below ones. The desktop compares the letters as typed. This is
-a one-way widening — the folded search finds everything the strict one
-finds and more — and the reason is the phone: diacritics get dropped
-constantly when typing on one, and a notebook written half with them is
-unsearchable under a strict rule. **Worth porting back to the desktop**
-([open finding](ISSUES_LOG.md#still-open)).
-
-**Light | Dark remembers a theme for each mode.** The desktop's quick
-toggle goes between the last dark and the last light theme of a session;
-the phone keeps the two under keys of its own (`phone_theme_light`,
-`phone_theme_dark`), which the desktop ignores. Up to 0.9.0 the theme
+**Light | Dark remembers a theme for each mode.** The phone keeps the two
+under keys of its own (`phone_theme_light`, `phone_theme_dark`), which the
+desktop ignores; the desktop's quick toggle remembers them the same way
+since 2026-11-13, under its own (`last_light_theme`, `last_dark_theme`). Up to 0.9.0 the theme
 could also follow the phone's dark mode; 0.9.1 replaced it with the one
 switch, at the owner's ask.
 
+**A backup's JSON files are held to what the phone can read.** The
+notes, Trash, templates and settings a backup brings may each hold at
+most a sixteenth of the memory Android gives the app — 16 MB where it
+gives 256 — and a larger one is refused before anything is unpacked. The
+desktop holds them only to its bomb guard's 50 MB floor, sized for a
+computer: under it a 48 KB archive unpacked to a 50 MB note, and the phone
+ran out of memory reading it. Attached files are copied, never read
+whole, and are not held to it. And JSON from outside nested past 100
+levels is damage here, where the desktop's parser refuses near 1,000; no
+note comes near either, its deepest place being under ten levels down
+([the story](ISSUES_LOG.md#a-million-brackets-past-a-catch-for-exceptions)).
+
 **The Trash's automatic emptying spares files still in use.** When a
 note leaves the Trash for good, its attached files are deleted — except
-any file a living note, or another note still in the Trash, also uses.
+any file a living note, or another note still in the Trash, also uses,
+and every file while the notes file could not be read at that start (its
+notes, never read, may use any of them).
 The desktop's automatic emptying at startup did not, until its 0.95.391
 ([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses));
 the two now agree.
@@ -385,36 +480,55 @@ the two now agree.
 tour that is itself a note — but written for a phone: tap, long press,
 the share sheet, Settings at the bottom.
 
-Phase 2 added five more, each where the desktop's answer is a side
-effect or a fault rather than a rule — all five are
-[desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2):
+**A card's signs stay in one row.** Since its 0.100.524 the desktop's
+card sets its signs on two fixed lines: first where the note belongs
+(its category, its date or its repeat), then what it holds (comments,
+files, tables, a checklist), never a sign split between them. The
+phone's card keeps its badges in one row under the preview, as before:
+the owner's choice, for now (2026-11-12).
 
-* **Untitled notes stay at the bottom of "Title Z–A"** as of "Title A–Z".
-  The desktop reverses A–Z's whole order, so its untitled notes rise to
-  the top of Z–A, against the comment that says they sink.
-* **Find steps through a table row by row**, as a table is read; the
-  desktop goes column by column, because of how it sorts its matches.
-* **A sum nested past about 190 brackets shows Error.** The desktop's
-  parser raises `RecursionError` there instead of failing as it fails
-  everywhere else.
+Phase 2 added five more, each where the desktop's answer was a side
+effect or a fault rather than a rule — all five
+[desktop findings](ISSUES_LOG.md#seven-desktop-findings-from-porting-phase-2),
+and all five since closed by the desktop:
+
+* **Untitled notes stay at the bottom of "Title Z–A"** -- no longer a
+  difference: the desktop reversed A–Z's whole order, so its untitled notes
+  rose to the top of Z–A, until its 3ea673c (2026-11-11).
+* **Find steps through a table row by row**, as a table is read -- no
+  longer a difference: the desktop went column by column, because of how it
+  sorted its matches, until its 15d6dae (2026-11-11).
+* **A sum nested past about 190 brackets shows Error** -- no longer a
+  difference: the desktop's parser raised `RecursionError` there, and
+  since its fface5e (2026-10-27) answers nothing, which it shows as Error
+  too.
 * **The table size grid draws every column**, so the squares lit are the
-  table's shape. The desktop's starts at its second column and lights a
-  single one for a two-column table.
-* **The export writes a note with a `^` merge under a shorter row.** The
-  desktop's renderer raises `IndexError` on it.
+  table's shape -- no longer a difference: the desktop's started at its
+  second column, lighting one square for a two-column table, until its
+  5f82daa (2026-11-11).
+* **The export writes a note with a `^` merge under a shorter row** -- no
+  longer a difference: the desktop's renderer raised `IndexError` on it,
+  and since its f8818dd (2026-10-28) reads the marker as content, as the
+  phone does.
 
 Phase 3 added three, for the same reason —
-[desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3):
+[desktop findings](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3),
+all three since closed by the desktop:
 
-* **A day comes home only to an empty date.** Undo of a move, or "Reset
+* **A day comes home only to an empty date** -- no longer a difference:
+  the desktop asks the same since the final audit's eleventh round, and
+  both refuse a date that keeps a day's words the calendar no longer
+  shows. Undo of a move, or "Reset
   this day", is refused when another day of the series has been moved
-  onto the date it would return to; the desktop brings it back on top,
+  onto the date it would return to; the desktop brought it back on top,
   and the other day is drawn nowhere.
 * **Taking a file off a note keeps the stored file while another note
-  uses it**, as the phone's Trash already does.
-* **A pasted page's second table keeps its styles on their words.** The
-  desktop counts that table's padding in text the first table has
-  already changed, and its styles land beside their words.
+  uses it** -- no longer a difference: the desktop spares it too since
+  its 0.95.391.
+* **A pasted page's second table keeps its styles on their words** -- no
+  longer a difference: the desktop counted that table's padding in text the
+  first table had already changed, and its styles landed beside their
+  words, until its cb12941 (2026-11-11).
 
 The audit of 2026-10-19 added one more, and the phone's own
 simplifications of the table:
@@ -433,8 +547,9 @@ simplifications of the table:
 
 What is left after Phase 3, as a list, so nothing is pretended:
 
-* Styling inside a table's cells is not drawn (it is kept, and carried
-  with the cells through every edit).
+* A word's styling inside a cell (bold, italic, colour, size, face, or a
+  highlight over part of a cell) is not drawn; a whole-cell highlight is.
+  All of it is kept, and carried with the cells through every edit.
 * **Tab-separated text pasted as a table.** The desktop turns a
   spreadsheet's plain-text copy into a table; on the phone a spreadsheet
   is pasted from the HTML it also offers, and plain tab-separated text
@@ -443,12 +558,18 @@ What is left after Phase 3, as a list, so nothing is pretended:
   desktop writes one span per line
   ([open](ISSUES_LOG.md#on-the-phone-a-highlight-from-the-format-bar-covers-a-lines-end)).
 * A code can be typed, pasted or shared in, but not scanned.
+* **After the stores** (the owner's call, 2026-11-08, from the final
+  audit's panel of reviewers): the interface's own marks drawn in lines
+  in the text's colour — the pin, the repeat and the date on a card, the
+  search box's 🔍, the calendar's 📋 History — as the Calendar tab
+  already is, with emoji left to what a person chooses, as a day's 🎂.
 
 Built since the list was first written — in Phase 2: the calendar,
 repeating notes and one day of a series, the whole format bar,
 templates, the remaining sorts and filters with grouping, find, the
 calculator, export, statistics, and wide screens, where the + button no
-longer covers the last card. In Phase 3: Custom order arranged by hand,
+longer covers the last card (and since the final audit stands in the
+rail). In Phase 3: Custom order arranged by hand,
 one day moved and days off the schedule settled, attachments added and
 taken off, the duplicates finder, a table's caption, column widths and a
 line above it, undo and redo, and copy and paste with the formatting.
@@ -468,6 +589,25 @@ comments. Two limits worth knowing: an app's copy there is at most
 and the desktop cannot read it, so it is no bridge between the two —
 the `.zip` through Google Drive is.
 
+**Since 2026-10-27 the person can turn it off** (the owner's call):
+Settings → Backup has a switch, on by default so nobody's backup stops
+without them knowing, and `NotesBackupAgent.kt` hands
+Android none of the notebook while it is off — the cloud backup and the
+transfer to a new phone alike — only a small file saying it is off. That
+file replaces the copy made while it was on, which a reinstall or a new
+phone would otherwise have put back, switch on, and brings the answer
+back with a restore (2026-10-28) — the answer until the app's first
+start writes it into the settings, for Android's next backup as for the
+page, so a backup run before that start keeps it. A settings file that cannot be read
+turns it off until the person turns it on again, and the start says so — or,
+the file held (its read refused, or neither read nor copied aside), says the
+file cannot be written: the switch cannot be changed until the app is closed
+from the recent apps and opened again, the page says so, and while the app stays open Android's
+backup is handed nothing.
+The page says what Android does, when,
+and the 25 MB limit, in the words of the privacy policy; the welcome
+note says where the switch is. The setting is `phone_google_backup`.
+
 ### Before the first upload to Google Play
 
 Checked already, on the built release APK: the target SDK (37), not
@@ -480,6 +620,12 @@ do, each a decision or an account step for the owner:
   Play App Signing; the release build's signing moves to it. A phone
   holding a debug-signed build has to uninstall it to take the store's,
   so its notebook goes to a backup `.zip` first.
+* **Each release's `mapping.txt`, kept.** R8 writes it to
+  `app/build/outputs/mapping/release/`, and the next build writes over
+  it. Play reads the copy the bundle carries; another goes beside the
+  bundle uploaded, named for its version, so a crash's trace from an
+  older version can still be read here. To be added to the release
+  build's steps (CLAUDE.md's list) before the first upload.
 * **The privacy policy: published** (2026-10-21). One page for both
   apps, on Google Sites (`Links.PRIVACY`), its text the desktop
   repository's `docs/PRIVACY.md`, copied there by hand; in the app at
@@ -506,16 +652,29 @@ do, each a decision or an account step for the owner:
     form with the app's version, its theme and the notebook's size in the
     address; 0.10.0 took it out, and the form is gone.)
   * Android's own backup (`allowBackup`, on by the owner's choice) is
-    the system's, not the app's code, end to end encrypted with the
-    phone's lock, kept in the person's own Google account. Google's
-    Data safety help does not name it either way; reading "collect" as
-    what the app's code sends, it is not collected, and the privacy
-    policy says plainly that it happens. This is the one judgement in
-    the answer.
+    the system's, not the app's code, kept in the person's own Google
+    account, and the person's to turn off for this app at Settings →
+    Backup (since 2026-10-27). It is **not** always encrypted end to
+    end: Android encrypts it with the phone's screen lock where the phone
+    has one, and the app's rules do not require that
+    (`disableIfNoEncryptionCapabilities` is not set), so on a phone with
+    no lock the copy is stored as Google's backup service keeps it. This
+    reasoning used to say "end to end encrypted with the phone's lock",
+    which held only for a phone with a lock (the final audit's finding).
+    Google's Data safety help does not name Android's backup either
+    way; reading "collect" as what the app's code sends, it is not
+    collected, and the privacy policy says plainly that it happens and
+    how to turn it off. This is the one judgement in the answer.
   * The system's WebView, which prints a note to PDF, may send Google
     usage statistics when the person has allowed them for the phone; the
     app opts its WebView out in the manifest (`MetricsOptOut`, since
     0.10.0), so nothing goes from it either.
+  * Crash and "not responding" reports, and install counts, reach the
+    Play Console from Android and Google Play, not from the app's code,
+    which sends nothing: not "collected" by the form's definition
+    ("transmitting data from your app off a user's device"). The privacy
+    policy says what the Console shows the developer, and why (its "What
+    the stores tell me", since 2026-11-08).
 * **A closed test before production.** Play asks a personal developer
   account made after November 2023 to run one with at least 12 testers
   for 14 days in a row before the app can go to production — the
@@ -551,111 +710,29 @@ or the phone itself.
 
 | Part | How it was verified |
 |---|---|
-| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | 351 checks on the built app ([the last full run](#an-emulator-walk-that-reads-the-files)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
-| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Six fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML — every answer matched, the 20 pasted fragments where the phone parts from the desktop on purpose excepted and kept beside |
+| [The whole app, on a phone](#an-emulator-walk-that-reads-the-files) | Checks on the built app ([how many, and the last full run](../qa/README.md#the-emulator-walk)), upright and on its side, at larger letters and on tablet screens, reading the file the app wrote and the screen it drew |
+| [The ports since Phase 2](#the-phase-2-ports-answer-as-the-desktop-answers) | Eight fixtures written by the desktop's own Python — repeats, sums, exported pages, templates, renumbered lists, pasted HTML, a series' days, the fields a newer version wrote — every answer matched; the 20 pasted fragments where the phone once parted from the desktop answer alike since the desktop's cb12941 |
 | [Backups](#a-backup-made-on-the-phone-read-by-the-desktops-own-functions) | A backup made through the phone's file picker, read by the desktop's own import functions |
 | [Search](#search-agrees-with-the-desktop) | Four queries typed on the phone and counted, against the desktop's `_query_matches_note` over the same file |
 | [Writing a note](#the-write-was-judged-by-the-desktop-not-by-itself) | Captured on the emulator, pulled back, and checked in the desktop's Python |
 | [Identity and share codes](#the-identity-loop-walked-on-the-emulator-in-both-directions) | Walked both ways on the built app, with the desktop's Python at the other end |
 | [The icon](#the-icon-on-the-phone-not-in-a-preview) | Installed and looked at on the emulator, not judged in a preview |
-| [The rules](#the-unit-tests-and-their-mutants) | 708 JVM unit tests, each mutant watched failing |
+| [The rules](#the-unit-tests-and-their-mutants) | The JVM unit tests ([how many](../qa/README.md#the-unit-tests)), each mutant watched failing |
 | [The release build](#the-release-build-over-a-debug-one) | Read from the built APK; walked on the emulator; installed over a debug build holding a notebook, which it left byte for byte as it was |
+| [The older Androids](../tools/emulator/README.md#older-androids) | A short walk of what an older system could break, on Android 8.0, 11, 13 and 17, Android's crash log read after every step: 18 of 18 on each, after the fix to the keyboard Android 8 opened at every start, then 19 of 19 on 8.0 with a tap on the search box that must bring the keyboard; and Android Lint, no call newer than API 26 |
+| A big notebook | 100, 1,000 and 5,000 notes on an emulator held to two cores (2026-11-13): start 1.50, 1.62 and 1.91 s; the median frame 19 to 20 ms while scrolling and 30 to 32 ms while typing, at every size; a typed word on the disk within 0.1 s at every size; memory 80, 82 and 103 MB. The start and the memory grow with the notebook, and so does a save, which writes the whole file: at 5,000 notes, still inside a tenth of a second. Measured by a script of the session's own, not kept here. The emulator runs on the computer's processor, so a slow phone will be slower |
 
 ### An emulator walk that reads the files
 
 `py tools/emulator/walk.py <folder>` drives the built app the way a
 person would — every tap aimed by the words on the screen, found fresh —
 and after each step reads the notebook the app wrote, through `run-as`.
-42 parts, 351 checks. The last full run (2026-10-27), with the Trash's
-Select all, two of its entries alike in id and moment, and duplicates
-moved while its window could not be read, began on an emulator already
-running: it waited 31 seconds, then passed all 351. The one before it
-(2026-10-26), with a paragraph
-pasted under a note's last table, the checklist and comments found by a
-search, and a merge down photographed, began on an emulator just started
-cold: it waited 31 seconds, then passed all 343. The one before it
-(2026-10-25), with a checklist
-row dragged at once, a note's sections folded and opened, a day marked
-and cells merged right and down, began on an emulator just started
-cold: it waited 31 seconds, then passed all 340. The one before it
-(2026-10-24, evening), with a
-note's whole text replaced by a new line and its words kept for Restore
-previous, began on an emulator just started cold: it waited 31 seconds,
-then passed all 333. The run before it that day, with the part for
-screens of every size and the walk's own files taken out of Downloads
-again, waited 31 seconds and passed all 332. The two before that
-lost six checks to Android's picker refusing a 33rd file of one name
-([the story](ISSUES_LOG.md#thirty-two-copies-and-a-save-that-did-nothing)),
-and then one to the calendar's row of the day read once, a moment before
-it was drawn; that check, and three more read once after the calendar
-opened, now wait for what they look for. The run before them
-(2026-10-23, late), with a
-markdown table pasted into a note and a template added, was begun on an
-emulator just started and alone on the computer: it waited 66 seconds,
-then passed all 313. Earlier that evening, with an
-empty last line put back to the left under a centred one added, it
-waited 69 seconds, then passed all 309. That afternoon, with the centred empty last
-line and Your name's Saved, all 308. That morning, with the day's reminder and the note's
-⋮ added, all 305, after a wait of 72 seconds. The
-two before that, on emulators just started too, lost four checks and then
-two, every one a check whose margin was the machine's speed and none the
-app — Undo tapped after its offer had gone, the theme's fade between two
-captures, the calculator looked for before the keyboard was down, the
-cursor's line looked for before the note had scrolled back to it; each
-check was changed, not run again until it passed
-([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)). Earlier that
-day, with the checks for what the owner's phone found that evening — the
-screen following the cursor in the text and the comments, the newest
-checklist row, the keyboard rising on its side, the list put aside,
-Settings' list and the month keeping their places — all 291; before them,
-on the first of those fixes, all 278. On 2026-10-22, with the two parts for what the owner's phone and
-an agent playing an ordinary user found, the checklist's box above the
-keyboard and the note in sight on its side, all 273, after a wait of 106
-seconds; the two before it, with fewer of those checks, all 271 and all
-269. A run before them, made while the
-computer also built the app and ran the desktop's suite, failed a
-hundred checks, the emulator's own home screen hung under the load ("Pixel
-Launcher isn't responding") — the walk wants the machine to itself. The
-first run on the walk's own fixes was begun the moment an emulator had
-started: the walk waited 93 seconds for it to settle, then passed all
-259. The one before it, the same but for
-`keyboard_down`, lost two checks in the sheet part to a Back pressed off
-a table cell ([the story](ISSUES_LOG.md#a-check-that-held-by-one-frame)).
-Before them, after a new search began to show its results from the top,
-all 259; with deletes across a numbered list fixed, all 258. On 0.10.0
-(2026-10-21) all 258 passed on an emulator given a minute and a half to
-settle after it started. A run on the same build less the WebView's
-opt-out lost one: a search typed after two blind flings up the list, which
-stopped anywhere from Card 14 to Card 16, so the results opened with
-"Card 15" above the screen — the setup now scrolls until the top card is
-seen, and the part passed six times running. The run before that, with
-257, after About gained the
-privacy policy, was the first on an emulator started a moment before: its first
-typing never reached the editor, so the first part failed in a chain —
-six of its checks — and the dissolve's shades jumped from light to dark
-between two frames. The first three parts, walked again on the same
-emulator once warm, passed every check, and the other 33 had passed in
-the full run. The walk now waits for a just-started emulator to settle,
-and watches the dissolve slowed fivefold
-([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). The run before, after Appearance became one
-Light | Dark switch whose change dissolves, passed all 256 on its first try; the one before that,
-after the list learned to keep its place, all 253. Before them,
-the run after the desktop's old way was
-brought over, passed all 250 on its first try. The one before it, after
-the sheets were fixed, passed all 238 it then had; the parts written
-after it were walked on their own — once a photograph taken on the
-file's word, before the first start after an install had drawn the list,
-learned to wait for the screen. The run after Share passed 229 and failed two:
-a brand-new notebook read three seconds after the first start following
-an install, on an emulator short of memory, before the app had written
-it. Those reads now wait for the file, as every read of the autosave
-does. The run before that, after the table's audit, passed all 228 it
-then had on its first try. One earlier failed three — two at larger letters, where a cell's
-style built anew had lost the theme's line height, and one Redo read a
-moment too soon, which every read of the autosave now waits out
-(`settle`). The first run of Phase 3 had failed five steps — all the walk's own, in
-older parts the new screens had changed under them
-([the story](ISSUES_LOG.md#old-steps-walking-through-new-screens)).
+79 parts ([how many checks, and every full run](../qa/README.md#the-full-runs-newest-first)).
+It takes the machine's one turn as it starts, waits for an emulator just
+started to settle, and reads every frame check after a look at the
+screen ([why](ISSUES_LOG.md#a-check-that-held-by-one-frame)). What the
+parts walk, in the order they came:
+
 Phase 1's four:
 
 * **A brand-new notebook**: the welcome note, written and remembered; a
@@ -675,7 +752,11 @@ Phase 1's four:
   remembered; that same backup imported again — the question seen, and
   skipping it changing nothing.
 * **The doors to the rest of the phone**: a code shared in from another
-  app, a note shared out through Android's share sheet, the privacy
+  app; a text file shared in (its own part, `shared_files`, added in wave
+  6), one past 500,000 characters said cut, words shared while a file
+  is read waiting their turn, one the app cannot open said, and a share
+  code in a long file offered when whole, said when the cut broke it; a note
+  shared out through Android's share sheet, the privacy
   policy opening a browser rather than the app, and About with no
   Feedback section before the app is on Google Play.
 * **The phone changing under an open note**: its dark mode coming on,
@@ -691,7 +772,11 @@ it and read back from the file:
   History; a repeat chosen on the sheet.
 * **The list**: Show 📅 Dated, grouping, a folded group — the choices kept
   under the desktop's own keys.
-* **Statistics** over a notebook whose figures are known.
+* **Statistics** over a notebook whose figures are known: the page, its
+  first-use date and two tiles are read — Total notes, and Categories
+  counting one that holds no note; the other counts are the unit tests'
+  (`StatsTest`). Then at the largest letters on a 360 dp screen: two
+  tiles a row, a four-digit figure whole.
 * **The calculator**: keys, two inserts, the panel standing aside for the
   keyboard, Error, the history, Back — and each sum on its own line in
   the file.
@@ -717,7 +802,10 @@ it and read back from the file:
   Settings; Settings' list and the calendar's month back in their places
   after a page and the History; the pane beside the calendar; two new notes in
   a row; a code shared in over an open note, upright, and the update
-  kept; and a medium window, the note in the list's place.
+  kept; and a medium window, the note in the list's place. The Trash on
+  its side, a row brought into sight above its buttons and restored, and
+  upright at the largest letters, its two buttons whole, has a part of
+  its own (`trash_wide`, wave 6).
 * **Screens of every size** (2026-10-24, for tablets the owner has none
   of to try): the emulator's display set to a small phone and to tablets
   of 7, 10 and 14 inches, upright. The bar along a small phone's bottom,
@@ -794,6 +882,10 @@ The first test on a real phone added eight parts and grew seven:
   table no longer.
 * **A table pasted into the comments**: a row copied and pasted there,
   left out, and the line at the foot saying so.
+* **Items pasted at an item's number** (2026-11-02, the final audit's lows
+  wave): two copied items pasted into the new empty item Enter leaves,
+  one number each; a whole item with its line break pasted right after
+  an item's number, going in before that item, the numbers counted again.
 * **A tap past a line's end** (2026-10-22, the owner's phone): past an
   item's end and a letter, past a plain line's end, past an item's end and
   Enter — each landing on the line tapped.
@@ -820,6 +912,64 @@ The first test on a real phone added eight parts and grew seven:
   moved day saying where it came from; one imported note opened from the
   line that says it came.
 
+The final audit (2026-10-27 to 2026-11-02) added a part for each round's
+limits, the same way:
+
+* **`text_the_layout_cannot_break`** (19 checks): text the layout cannot break, a
+  template's long row, what a bar quotes, what Share hands over and what a
+  PDF leaves out; and two more in `google_backup`, a backup run on a
+  restored phone before its first start.
+* **`one_note_drawn_and_sent`**: what one note draws — ten tables of 1,000 cells,
+  200,000 empty lines, 3,000 tiny tables, a journal of 7,000 lines and a
+  letter typed in it, timed by the app's frames; a Chinese note refused on
+  Share → Text by what Android carries; a code too long greyed on its
+  card; and the PDF's question, each answer walked.
+* **`an_ordinary_note_at_its_size`** (20 checks): fifty weekly tables and sixty sessions
+  drawn to their ends and found there; a word in the read-only rest of a
+  note of 60,000 lines found, its line shown, read on; Enter past what is
+  drawn letting the keyboard go, nothing glued above; the calculator
+  refusing to write out of sight; 1,000 checklist rows and 120 rows of
+  150,000 letters opened and timed; a table typed row by row; a
+  two-million-letter note typed in forty times, its heap read; a
+  template's "A new item…" saved.
+* **`a_rows_own_words`** (20 checks): a letter and a paste at the start of a
+  checklist row at the desktop's 2,000 letters, the row's own words kept
+  and the cap said; rows moved and dragged across the line of rows not
+  drawn, still in sight; a search for one of the last rows drawing no
+  more; a row longer than one is written in, and one shown short, read
+  whole and found; a template of 1,000 rows of 2,000 letters opened and
+  timed, and one full at 1,000 refusing an Add and asking before its
+  waiting words go; Insert table refused out of sight; Redo of a table row
+  typed at the end.
+* **`template_draft`** (7 checks): a template being written kept aside at
+  Home, the app ended, offered back, every field continued and saved, an
+  edit discarded.
+* **`days_in_the_note`** (4 checks): a notebook 0.12.0 left, its series'
+  day back in the note at the next write; a turn-off from the Repeat sheet
+  keeping a day's own text in the note; a big delete after it, a copy of
+  words alone.
+* **`unbroken_rows_and_caps`** (9 checks): "Read all" on a checklist row of a
+  million letters with no space, timed by the app's frames; a letter at
+  the start of a title and of a template's name of 200 letters, refused
+  and said; a full list's box told so as words begin; a second long paste
+  into "A new item…" after Add said again; the reminder's own intent sent
+  while a template is written, the draft kept and offered back; a draft
+  whose change was taken back by hand gone at the next Home.
+* **`refusals_and_caps_said`** (8 checks): a category's name already used said
+  over its sheet; a paste cut to Your name's and to Save as template's
+  name said under the box; a title of 170 emoji counted 170 of 200; a tap
+  on a title holding a line break writing nothing, and letters typed after
+  the break going into the title; on a phone on its side, the turn-off's
+  word seen over the note's details, which scroll to their foot. "Read
+  all" is checked on a row of five million letters, and that Continue and
+  Discard were pressed and Android had stopped the app before it is ended
+  behind a picker is read back.
+* **`message_over_a_renamed_row`**: a message said while a checklist row is renamed
+  stands above the row and its ✕, not over them.
+* **`hostile_backups`**, **`code_read_away`** and **`long_lines`**,
+  written on 2026-10-28 and walked alone until the audit's third wave put
+  them in the full walk; and **`paste_at_marker`**, above.
+
 The photographs it takes are looked at, not only saved: the walk is
 where the Settings switch that did not redraw, Back closing the app from
 Settings, an Undo that vanished before a thumb could reach it, a merged
@@ -834,22 +984,24 @@ desktop's own Python, over cases generated for it — and the phone had to
 give every answer back exactly. The tools that write the fixtures read
 the desktop's source and never write to it.
 
-| Port | The desktop's own function | Cases |
+| Port | The desktop's own function | Cases ([how many: qa/README](../qa/README.md#fixtures-the-desktop-wrote)) |
 |---|---|---|
-| Repeating notes | its recurrence engine, expanding and reading dates | 300 seeded notes expanded, 400 typed dates read |
-| The calculator | its evaluator and its display rounding | 661 sums, 378 shown values |
-| Export | `note_to_html`, `html_document` and the page around them | 400 notes, 794 files compared byte for byte |
-| Templates | `normalize_template` | 302 templates as a hand-edited or old file might hold them |
-| Lists | its renumbering | 300 bodies |
-| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | 567 fragments read, 80 of them the app's own copies with their HTML, 117 plain texts, 86 markdown tables |
+| Repeating notes | its recurrence engine, expanding and reading dates | seeded notes expanded, typed dates read |
+| The calculator | its evaluator and its display rounding | sums, shown values |
+| Export | `note_to_html`, `html_document` and the page around them | notes, every file compared byte for byte |
+| Templates | `normalize_template` | templates as a hand-edited or old file might hold them |
+| Lists | its renumbering | bodies |
+| Pasting (Phase 3) | `html_to_note` on Python's own `html.parser`, `note_to_html` with tables bordered for the clipboard, `reflow_wrapped`, `strip_list_markers`, `forget_widths` | fragments read -- the app's own copies with their HTML among them -- plain texts, markdown tables |
+| A series' days and the rescue copy (the final audit) | its save, Restore previous, `apply_shared_update`, `restore_many_from_trash`, `normalize_note`'s `_days_back_from_copy` | notes walked step by step through turn-offs and turn-ons, deletes, restores, a code's and a backup's update -- the same backup twice -- 0.12.0's notes read and restored from the Trash, comments rewritten over a big delete's copy and typed before a restore: each step's stored note and its import |
+| The fields a newer version wrote (the owner's D2, 2026-11-13) | `unknown_fields` | notes holding fields this version does not know: kept, bounded, nested, of every kind (`unknown_cases.json`, `tools/make_unknown_fixture.py`) |
 
-Pasting is the one port where the phone answers differently on
+Pasting was the one port where the phone answered differently on
 purpose, in 20 of the 567 fragments: a style inside a pasted page's
-second table, which the desktop puts beside its words
+second table, which the desktop put beside its words
 ([the finding](ISSUES_LOG.md#two-desktop-findings-from-porting-phase-3)).
-Those answers are made by the same two-line change to the desktop's own
-function, run in the fixture tool's process, and the desktop's answer is
-kept beside each one; a test fails if the two ever differ anywhere else.
+Since the desktop's cb12941 (2026-11-11) the two answer alike there too,
+every answer in the fixture is the desktop's own, and a test fails if one
+ever parts from it.
 
 The four sorts new to the phone were checked against the desktop's
 `_sort_notes` on the same notes, and the round trip that found
@@ -913,8 +1065,9 @@ the circle inscribed in that square
 
 A release build cannot be read through `run-as`, so it was judged by
 what it is and by what it shows. Read from the APK: the certificate is
-the debug build's (`apksigner`), it is not debuggable and asks for no
-permission beyond one Android adds itself (`aapt2`), its native library
+the debug build's (`apksigner`), it is not debuggable and asked, when this
+was read (before the day's reminder brought its two), for no permission
+beyond one Android adds itself (`aapt2`), its native library
 is 16 KB-aligned in all four ABIs (`zipalign -P 16`, and the ELF's own
 segments), and every file its code looks up is where the renamed code
 will look (`tools/check_release_lookups.py`). On the emulator: a new
@@ -925,9 +1078,26 @@ build holding a notebook copied in, the release build installed over
 it, the same list, every note opened — and the debug build put back,
 the notebook's files had the same checksums as before.
 
+For 0.15.0, on 2026-11-21, the same judgement was made of the bundle a
+store is given rather than of the APK: `bundletool validate` read the
+`.aab`, `build-apks` made from it the APKs Google Play would send the
+emulator, for the device it reads off the emulator (ABIs, Android
+version, density, language), and they were installed together, as Play
+installs them: a base and its language and ABI splits. All 37 checks
+passed, the trip over a debug build among them, its notebook byte for
+byte as before. For 0.15.1, on 2026-11-22, the same run passed as
+whole, About saying 0.15.1 and versionCode 21. For 0.15.2, on
+2026-11-23, it passed as whole again, About saying 0.15.2 and
+versionCode 22, after a first try stopped at the trip: the debug build
+put back was the walk's, built before the number moved, so 0.15.1 / 21,
+older than the release, and Android refuses to install an older build
+over a newer one. The debug build was made again at 0.15.2 and the whole
+run made again on a cold emulator.
+
 ### The unit tests, and their mutants
 
-708 JVM unit tests in 31 suites pin the rules ported from Python, and
+The JVM unit tests ([how many, by suite](../qa/README.md#the-unit-tests))
+pin the rules ported from Python, and
 each mutant was watched failing before being reverted. Phase 1's rounds —
 the themes, the settings, the import and backup, organising, the
 editor's segments, startup and the card's date — ran about seventy
@@ -990,7 +1160,7 @@ measured ([the story](ISSUES_LOG.md#a-freeze-blamed-on-the-pdf-and-the-one-it-wo
 Two commit messages carry counts that were wrong when written and are
 corrected here, the history left as it is: the recurrence engine's
 (`e29e9a1`) says 26 tried, 23 killed, 3 equivalent — it was 24, 22 and
-2; the calendar days' (`314e89a`) says `DaysTest` has 17 cases — it has
+2; the calendar days' (`314e89a`) says `DaysTest` has 17 cases — it had
 16.
 
 Two lessons from running them, each with its full story in the issues

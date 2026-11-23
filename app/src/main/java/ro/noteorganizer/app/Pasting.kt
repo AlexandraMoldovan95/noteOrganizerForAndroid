@@ -5,28 +5,14 @@ import org.json.JSONObject
 
 /**
  * Pasting from another app with its formatting: HTML in; a note's text,
- * styles and lines out.
- *
- * This is the desktop's `html_to_note` (core/richtext.py) and the
- * `_Reader` behind it, ported line for line. The reader runs on Python's
- * `html.parser`, and what it hands the reader -- which text arrives in
- * which piece, what a broken tag turns into, how `&amp;` and its 2,231
- * relatives are read -- decides the note as much as the reader does. So
- * that parser is here too, the parts of it this reader can reach, as
- * Python 3.13.14 has them; and so is `html.unescape`, reading the same
- * table of named references, written out of Python by
- * `tools/make_html_entities.py`.
- *
- * Everything counts as Python does: lengths and offsets are code points,
- * spaces are Python's spaces (`PyText`), a digit is any script's digit
- * where Python's `int()` and `float()` accept one. `PastingTest` holds the
- * desktop's own answers for a few hundred fragments, and this file has to
- * give every one of them exactly.
- *
- * What the mapping keeps and drops is the desktop's decision, not this
- * file's: bold, italic, underline, strikethrough, a colour that is really
- * a colour, a pale highlight, lists, alignment and tables come in; sizes,
- * typefaces and everything else a page can say are left behind.
+ * styles and lines out -- the desktop's `html_to_note` and its `_Reader`,
+ * ported line for line, with the parts of Python's `html.parser` it reaches
+ * and `html.unescape` over the same named references
+ * (`tools/make_html_entities.py`), as they decide the note too. Everything
+ * counts as Python does (code points, `PyText`'s spaces, any script's
+ * digits), and `PastingTest` holds the desktop's answers for a few hundred
+ * fragments. What comes in -- styles, a real colour, a pale highlight,
+ * lists, alignment, tables; not sizes or faces -- is the desktop's choice.
  */
 object Pasting {
 
@@ -73,7 +59,11 @@ object Pasting {
             if (hi > lo) s.copy(start = lo - from, end = hi - from) else null
         }
         val firstLine = (0 until from).count { c[it] == '\n'.code }
-        val lineCount = text.count { it == '\n' } + 1
+        // A line's looks travel with its start: a copy ending in a break holds
+        // none of the next line's, one begun mid-line none of that line's, or a
+        // word copied out of a nested item set the level of the item pasted into.
+        val lineCount = text.count { it == '\n' } + if (text.endsWith("\n")) 0 else 1
+        val skipped = if (from > 0 && c[from - 1] != '\n'.code) 1 else 0
         val stored = Paragraphs.extract(body, props)
         val lines = JSONArray()
         // The lines the copy holds, as the desktop picks them. Both readers
@@ -81,7 +71,7 @@ object Pasting {
         for (i in 0 until stored.length()) {
             val p = stored.getJSONObject(i)
             val n = p.getInt("line") - firstLine
-            if (n in 0 until lineCount) lines.put(JSONObject(p.toString()).put("line", n))
+            if (n in skipped until lineCount) lines.put(JSONObject(p.toString()).put("line", n))
         }
         val html = Exporting.noteToHtml(text, Templates.spansJson(clipped), lines, inlineTables = true)
         return OwnCopy(text, clipped, Exporting.normalizeParagraphs(lines, lineCount), html)
@@ -133,8 +123,8 @@ object Pasting {
         return text
     }
 
-    /** `is_table_row`, with Python's spaces. */
-    fun isRow(line: String): Boolean = isTableRow(cps(line))
+    /** `is_table_row`: the one the editor asks (Notebook.kt's), not a copy. */
+    fun isRow(line: String): Boolean = ro.noteorganizer.app.isTableRow(line)
 
     /**
      * Words pasted into the comments, which are plain text and draw no
@@ -165,19 +155,21 @@ object Pasting {
         return new.substring(0, front) + kept + new.substring(new.length - back)
     }
 
-    /** A body after a paste: its text, styles and lines, and where the cursor goes. */
-    data class Inserted(val body: String, val spans: List<FormatSpan>, val props: Map<Int, Paragraphs.Props>, val caret: Int)
+    /**
+     * A body after a paste: its text, styles and lines, where the cursor
+     * goes, and the edits that made it, each in the text the one before
+     * left ([Calculator.follow]): the paste, then each marker renumbered.
+     */
+    data class Inserted(val body: String, val spans: List<FormatSpan>, val props: Map<Int, Paragraphs.Props>, val caret: Int,
+                        val edits: List<Paragraphs.Edit> = emptyList())
 
     /**
      * [text] put in place of [from, to) of [body] (code points), as the
-     * desktop's paste writes it: the selection out; a line break before or
-     * after where table rows at its edges would otherwise join the line
-     * or the table beside them (`_rows_gap`); the text in, a styled run the
-     * cursor stood INSIDE carried over it as a Tk tag is, one it stood at
-     * the edge of not; [pastedSpans] laid over -- a highlight never over a
-     * line's end, as the desktop lays one -- and [pastedLines] given their
-     * lines (an alignment a source put on a table row is not one this
-     * person chose, and is left behind); then the lists renumbered.
+     * desktop's paste writes it: the selection out; a line break where table
+     * rows at its edges would join what is beside them (`_rows_gap`); the text
+     * in, a run the cursor stood INSIDE carried over it as a Tk tag is;
+     * [pastedSpans] laid over, a highlight never over a line's end;
+     * [pastedLines] given their lines, but not on table rows; lists renumbered.
      */
     fun insert(body: String, spans: List<FormatSpan>, props: Map<Int, Paragraphs.Props>, from: Int, to: Int,
                text: String, pastedSpans: List<FormatSpan> = emptyList(),
@@ -185,20 +177,48 @@ object Pasting {
         val c = cps(body)
         var a = from.coerceIn(0, c.size)
         var b = to.coerceIn(a, c.size)
-        // Over a selection that reaches a list, the paste takes the place
-        // typing over it would (Paragraphs.deletionRange): the next item keeps
-        // its number, and no marker is left among the words -- "zz" over items
-        // 2 and 3 gave "zz4. four".
+        // Over a selection reaching a list, the paste takes the place typing would
+        // (Paragraphs.deletionRange): the next item keeps its number, and no marker
+        // stays among the words -- "zz" over items 2 and 3 gave "zz4. four".
         if (b > a && text.isNotEmpty()) {
-            val starts = ArrayList<Int>().apply { add(0) }
-            for (i in c.indices) if (c[i] == '\n'.code) starts.add(i + 1)
+            val lines = body.split("\n")
+            val starts = Paragraphs.lineStarts(lines)
             fun pos(x: Int): Paragraphs.Pos {
-                val n = starts.indexOfLast { it <= x }
+                val n = Finding.lineAt(starts, x)
                 return Paragraphs.Pos(n, x - starts[n])
             }
-            Paragraphs.deletionRange(body.split("\n"), pos(a), pos(b), typing = true)?.let { (s, e) ->
+            Paragraphs.deletionRange(lines, pos(a), pos(b), typing = true, pasted = text)?.let { (s, e) ->
                 a = starts[s.line] + s.column
                 b = starts[e.line] + e.column
+            }
+        }
+        // At an item's marker end, nothing selected, a paste's own marker goes and
+        // the item keeps its own, as Word and the desktop keep it ("3. 1. Kiwi"
+        // otherwise); with words after it and a break of its own, it goes before.
+        var put = text
+        var putSpans = pastedSpans
+        var putLines = pastedLines
+        val head = text.substringBefore('\n')
+        val headMarker = Paragraphs.parseListMarker(head)
+        if (a == b && headMarker.kind != null && !isRow(head)) {
+            var ls = a
+            while (ls > 0 && c[ls - 1] != '\n'.code) ls--
+            var le = a
+            while (le < c.size && c[le] != '\n'.code) le++
+            val item = Paragraphs.parseListMarker(String(c, ls, le - ls))
+            if (item.kind != null && a - ls == item.marker.codePointCount(0, item.marker.length)) {
+                if (PyText.strip(item.rest).isNotEmpty() && text.endsWith("\n")) {
+                    a = ls
+                    b = ls
+                } else {
+                    val own = headMarker.marker.codePointCount(0, headMarker.marker.length)
+                    put = String(cps(text), own, cps(text).size - own)
+                    putSpans = pastedSpans.mapNotNull { s ->
+                        val start = maxOf(s.start - own, 0)
+                        if (s.end - own > start) s.copy(start = start, end = s.end - own) else null
+                    }
+                    putLines = pastedLines.map { if (it.line == 0) it.copy(kind = null, indent = 0) else it }
+                }
             }
         }
         val firstLine = (0 until a).count { c[it] == '\n'.code }
@@ -216,23 +236,22 @@ object Pasting {
         val after = String(kept, a, lineEnd - a)
         val above = if (firstLine > 0) keptLines[firstLine - 1] else ""
         val below = keptLines.getOrElse(firstLine + 1) { "" }
-        val pasted = text.split("\n")
-        // Words pasted at a table row's end or start take a line of their
-        // own: the place to write after a note's last table pastes at that
-        // row's end, and a paragraph pasted there was glued onto it -- the
-        // row read as words, the table one row short (the owner, 2026-10-26).
+        val pasted = put.split("\n")
+        // Words pasted at a table row's end or start take a line of their own: a
+        // paragraph pasted after a note's last table was glued onto its row, the
+        // row read as words, the table one row short.
         val onRow = isRow(before + after)
         val trail = if ((isRow(pasted.last()) && (PyText.strip(after).isNotEmpty() || isRow(below))) ||
                         (onRow && before.isEmpty() && !isRow(pasted.last()))) "\n" else ""
         val lead = if ((isRow(pasted.first()) && (PyText.strip(before).isNotEmpty() || isRow(above))) ||
                        (onRow && after.isEmpty() && !isRow(pasted.first()))) "\n" else ""
 
-        val whole = cps(lead + text + trail)
+        val whole = cps(lead + put + trail)
         val newBody = String(kept, 0, a) + String(whole, 0, whole.size) + String(kept, a, kept.size - a)
         moved = Paragraphs.moveSpans(moved, listOf(Paragraphs.Edit(a, 0, whole.size)))
         val at = a + lead.length
         val bodyCps = cps(newBody)
-        for (s in pastedSpans) {
+        for (s in putSpans) {
             var start = s.start + at
             val end = s.end + at
             if (s.style == "highlight") {
@@ -250,20 +269,24 @@ object Pasting {
             }
         }
 
-        // The lines: those after the paste move down by the lines it brought,
-        // those the selection took away are gone, and the caret's keeps its own.
+        // The lines after the paste move down by those it brought, the selection's
+        // go, the caret's keeps its own; words a break pushes down keep their line's
+        // looks, as the desktop's tags do, or one pasted before a nested item flattened it.
         val added = whole.count { it == '\n'.code }
+        val pushed = added > 0 && after.isNotEmpty()
         val lines = HashMap<Int, Paragraphs.Props>()
         for ((n, p) in props) {
             when {
-                n <= firstLine -> lines[n] = p
+                n < firstLine -> lines[n] = p
+                n == firstLine -> if (before.isNotEmpty() || !pushed) lines[n] = p
                 n <= lastLine -> Unit
                 else -> lines[n - (lastLine - firstLine) + added] = p
             }
         }
+        if (pushed) props[lastLine]?.let { lines[firstLine + added] = it }
         val texts = newBody.split("\n")
         val base = firstLine + if (lead.isNotEmpty()) 1 else 0
-        for (p in pastedLines) {
+        for (p in putLines) {
             val n = p.line + base
             if (n >= texts.size) continue
             var align = p.align ?: "left"
@@ -273,11 +296,9 @@ object Pasting {
             if (p.kind == null && p.indent == 0) continue
             lines[n] = (lines[n] ?: Paragraphs.Props()).copy(indent = p.indent)
         }
-        // A bullet pasted as words, with no depth of its own, takes the one
-        // its glyph says -- "◦ " one in, "▪ " two -- as the desktop's
-        // _paragraph_indent_of reads a line with no margin: pasted plain,
-        // "◦ b" sat at the margin here. Only lines the paste began: a line
-        // already in the note keeps the depth it was given.
+        // A bullet pasted as words takes the depth its glyph says -- "◦ " one in,
+        // "▪ " two -- as the desktop's _paragraph_indent_of reads it; only lines
+        // the paste began, a line already in the note keeping its own.
         val first = base + if (lead.isEmpty() && before.isNotEmpty()) 1 else 0
         for (n in first..minOf(firstLine + added, texts.size - 1)) {
             if ((lines[n]?.indent ?: 0) != 0) continue
@@ -289,7 +310,8 @@ object Pasting {
         // A pasted list starts at one; renumbering makes it continue the one it joined.
         val renumbered = Paragraphs.renumber(newBody, lines.filterValues { !it.plain })
         return Inserted(renumbered.body, Paragraphs.moveSpans(moved, renumbered.edits), renumbered.props,
-                        Paragraphs.moveStart(a + whole.size, renumbered.edits))
+                        Paragraphs.moveStart(a + whole.size, renumbered.edits),
+                        listOf(Paragraphs.Edit(a, b - a, whole.size)) + renumbered.edits.sortedByDescending { it.at })
     }
 
     /** `html_to_note`. */
@@ -301,9 +323,9 @@ object Pasting {
         try {
             Parser(source, reader).run()
         } catch (e: Exception) {
-            // A pasted page is arbitrary input, and a failed paste must never
-            // take the editor with it. Python fails here too, on the same
-            // inputs: a number of more than 4,300 digits is a ValueError.
+            // A failed paste of arbitrary input never takes the editor with it, as
+            // Python fails on the same inputs; html_entities.json gone missing would
+            // hide here too, which tools/check_release_lookups.py guards.
             return NOTHING
         }
         for (open in reader.open.toList()) reader.close(open.style)
@@ -326,7 +348,7 @@ object Pasting {
         // A pasted table arrives with cells of whatever width they had;
         // padding them here keeps the offsets and the text in step, and
         // align() reports what it moved so the spans move with it.
-        if (findBlocks(text.split("\n").map(::cps)).isNotEmpty()) {
+        if (tableBlocks(text).isNotEmpty()) {
             // A page's own markdown brings its separator's dashes as whoever
             // typed them; the app's own copy is put back whole by [fromHtml].
             val (forgot, forgotten) = forgetWidths(text)
@@ -334,6 +356,17 @@ object Pasting {
             val (aligned, shifts) = align(forgot)
             out = aligned
             spans = shiftSpans(spans, shifts)
+        }
+        // The ceiling holds for what lands, padding and all: the cells' own
+        // spaces a ragged table keeps can still take a paste past it, so
+        // whole lines are kept up to it, and the paste says it was cut.
+        var cut = reader.textCut
+        if (out.codePointCount(0, out.length) > MAX_PASTE_CHARS) {
+            val limit = out.offsetByCodePoints(0, MAX_PASTE_CHARS)
+            out = out.substring(0, out.lastIndexOf('\n', limit).let { if (it < 0) limit else it })
+            val kept = out.codePointCount(0, out.length)
+            spans = spans.filter { it.start < kept }.map { it.copy(end = minOf(it.end, kept)) }
+            cut = true
         }
         val json = JSONArray()
         for (s in spans) {
@@ -345,7 +378,7 @@ object Pasting {
             out,
             Exporting.normalizeFormatting(json),
             Exporting.normalizeParagraphs(reader.paragraphs, out.split("\n").size),
-            reader.textCut,
+            cut,
             reader.stylesCut,
         )
     }
@@ -363,17 +396,17 @@ object Pasting {
         }
 
         fun lineMoved(n: Int): Int = n + lowerBound(breaks, n)
+    }
 
-        /** `bisect_left`: how many of the sorted [values] are below [key]. */
-        private fun lowerBound(values: IntArray, key: Int): Int {
-            var lo = 0
-            var hi = values.size
-            while (lo < hi) {
-                val mid = (lo + hi) ushr 1
-                if (values[mid] < key) lo = mid + 1 else hi = mid
-            }
-            return lo
+    /** `bisect_left`: how many of the sorted [values] are below [key]. */
+    private fun lowerBound(values: IntArray, key: Int): Int {
+        var lo = 0
+        var hi = values.size
+        while (lo < hi) {
+            val mid = (lo + hi) ushr 1
+            if (values[mid] < key) lo = mid + 1 else hi = mid
         }
+        return lo
     }
 
     /**
@@ -446,21 +479,15 @@ object Pasting {
     )
 
     private const val CELL = "|"
-    private const val LINE_BREAK = "<br>"
-    private const val MERGE_LEFT = "<"
-    private const val MERGE_UP = "^"
     private const val CHECKBOX_EMPTY = "[ ]"
     private const val CHECKBOX_DONE = "[x]"
 
     /**
-     * `_BLOCK_TAG_RE.search`: "<", spaces, an optional "/", spaces, one of
-     * the block tags' names and a word's end, ignoring case. Spelled out
-     * rather than handed to a regex engine, because the
-     * phone's engine is not the computer's and neither is Python's: the
-     * three letters Python also matches -- İ and ı for i, the Kelvin sign
-     * for k, the long ſ for s -- are named here, and `\b` is Python's, a
-     * letter or digit of any script or "_" (both measured over all of
-     * Unicode against Python 3.13).
+     * `_BLOCK_TAG_RE.search`: "<", spaces, an optional "/", spaces, a block
+     * tag's name and a word's end, ignoring case -- spelled out, as the phone's
+     * regex engine is not Python's: the three letters Python also matches (İ
+     * and ı for i, the Kelvin sign for k, ſ for s) are named, and `\b` is
+     * Python's, any script's letter or digit or "_" (measured over Unicode).
      */
     private val BLOCK_NAMES = (BLOCK_TAGS + setOf("li", "ul", "ol", "table")).sorted()
 
@@ -750,13 +777,9 @@ object Pasting {
     private class Entities(val named: Map<String, String>, val charrefs: Map<Int, String>, val invalid: Set<Int>)
 
     private val entities: Entities by lazy {
-        // From the root, by the file's own path: a name relative to this
-        // class is looked up in the class's package, and the release build
-        // renames the class into another (R8 made it "ca1", no package).
-        // The file was then not found, the parser's guard turned that into
-        // "nothing read", and a paste from a web page with an &, a < or an
-        // &nbsp; in it -- most of them -- came in as plain words, its
-        // formatting silently gone.
+        // From the root, by the file's own path: relative to this class, R8's
+        // renamed package lost it, and every web paste with an & or &nbsp; came in
+        // as plain words (ISSUES_LOG, "A file looked up by a name the release").
         val stream = Pasting::class.java.getResourceAsStream("/ro/noteorganizer/app/html_entities.json")
             ?: error("html_entities.json is missing from the app")
         val json = JSONObject(stream.bufferedReader(Charsets.UTF_8).use { it.readText() })
@@ -937,24 +960,6 @@ object Pasting {
         return out
     }
 
-    /** `str.split()`: runs of Python's spaces, no empty pieces. */
-    private fun pySplit(s: String): List<String> {
-        val out = ArrayList<String>()
-        var i = 0
-        while (i < s.length) {
-            i = skipSpaces(s, i)
-            if (i >= s.length) break
-            var e = i
-            while (e < s.length) {
-                val cp = s.codePointAt(e)
-                if (PyText.isSpace(cp)) break
-                e += Character.charCount(cp)
-            }
-            out.add(s.substring(i, e))
-            i = e
-        }
-        return out
-    }
 
     /**
      * The ASCII Python's `int()` and `float()` read a string as: any
@@ -1039,7 +1044,7 @@ object Pasting {
         if (!font.isNullOrEmpty()) {
             bold = false
             italic = false
-            for (token in pySplit(font.split("/")[0])) {
+            for (token in PyText.split(font.split("/")[0])) {
                 if (token == "italic" || token.startsWith("oblique")) italic = true
                 else if (weightIsBold(token)) bold = true
             }
@@ -1364,9 +1369,10 @@ object Pasting {
     }
 
     // ---- tables, as `tables.align` lines them up ----
+    // Rows, cells, alignments and widths are the editor's own rules (Tables.kt);
+    // only where the spaces go is worked out here, in code points.
 
     private const val PIPE = '|'.code
-    private const val MIN_COLUMN = 8
 
     private fun cps(s: String): IntArray = s.codePoints().toArray()
 
@@ -1377,20 +1383,6 @@ object Pasting {
         while (a < b && PyText.isSpace(c[a])) a++
         while (b > a && PyText.isSpace(c[b - 1])) b--
         return a to b
-    }
-
-    private fun isTableRow(c: IntArray): Boolean {
-        val (a, b) = stripped(c)
-        if (b - a < 3 || c[a] != PIPE || c[b - 1] != PIPE) return false
-        return splitRow(c).size >= 2
-    }
-
-    /** `split_row`: each cell as (first, end) of its stripped text. */
-    private fun splitRow(c: IntArray): List<Pair<Int, Int>> {
-        val (a, b) = stripped(c)
-        if (b == a || c[a] != PIPE) return emptyList()
-        val pipes = (a until b).filter { c[it] == PIPE }
-        return (0 until pipes.size - 1).map { stripped(c, pipes[it] + 1, pipes[it + 1]) }
     }
 
     /** `cell_bounds`: where each cell's text sits in the row, padding excluded. */
@@ -1409,82 +1401,8 @@ object Pasting {
         return bounds
     }
 
-    private enum class Align { LEFT, CENTER, RIGHT }
-
-    /** `cell_alignments`: the padding read as alignment. */
-    private fun cellAlignments(c: IntArray): List<Align> {
-        if (!isTableRow(c)) return emptyList()
-        val pipes = c.indices.filter { c[it] == PIPE }
-        return (0 until pipes.size - 1).map { k ->
-            val from = pipes[k] + 1
-            val to = pipes[k + 1]
-            val (ta, tb) = stripped(c, from, to)
-            if (tb == ta) return@map Align.LEFT
-            var lead = 0
-            while (from + lead < to && c[from + lead] == ' '.code) lead++
-            var trail = 0
-            while (to - 1 - trail >= from && c[to - 1 - trail] == ' '.code) trail++
-            when {
-                lead >= 2 && trail >= 2 -> Align.CENTER
-                lead >= 2 -> Align.RIGHT
-                else -> Align.LEFT
-            }
-        }
-    }
-
-    private fun need(align: Align) = when (align) {
-        Align.CENTER -> 2
-        Align.RIGHT -> 1
-        Align.LEFT -> 0
-    }
-
-    /** `layout_widths`. */
-    private fun layoutWidths(rows: List<List<Int>>, aligns: List<List<Align>>): MutableList<Int> {
-        val widths = ArrayList<Int>()
-        for ((r, row) in rows.withIndex()) {
-            for ((i, cell) in row.withIndex()) {
-                if (i >= widths.size) widths.add(0)
-                var want = cell
-                if (r < aligns.size && i < aligns[r].size) want += need(aligns[r][i])
-                widths[i] = maxOf(widths[i], want)
-            }
-        }
-        return widths.mapTo(ArrayList()) { maxOf(MIN_COLUMN, it) }
-    }
-
-    private fun isSeparatorRow(c: IntArray): Boolean {
-        if (!isTableRow(c)) return false
-        val cells = splitRow(c)
-        if (cells.isEmpty()) return false
-        for ((a, b) in cells) {
-            if (b - a == 1 && c[a] == '~'.code) continue
-            var from = a
-            var to = b
-            if (to > from && c[from] == ':'.code) from++
-            if (to > from && c[to - 1] == ':'.code) to--
-            if (to == from || (from until to).any { c[it] != '-'.code }) return false
-        }
-        return true
-    }
-
-    /** `find_blocks`: every run of table rows, as first and last line. */
-    private fun findBlocks(lines: List<IntArray>): List<Pair<Int, Int>> {
-        val blocks = ArrayList<Pair<Int, Int>>()
-        var start = -1
-        for ((i, line) in lines.withIndex()) {
-            if (isTableRow(line)) {
-                if (start < 0) start = i
-            } else if (start >= 0) {
-                blocks.add(start to i - 1)
-                start = -1
-            }
-        }
-        if (start >= 0) blocks.add(start to lines.size - 1)
-        return blocks
-    }
-
     /** `pad_ops`: the space edits that would line this row up, right to left. */
-    private fun padOps(c: IntArray, widths: List<Int>, aligns: List<Align>?): List<Pair<Int, Int>> {
+    private fun padOps(c: IntArray, widths: List<Int>, aligns: List<CellAlign>?): List<Pair<Int, Int>> {
         val bounds = cellBounds(c)
         if (bounds.isEmpty()) return emptyList()
         var rawEnd = c.size
@@ -1493,12 +1411,12 @@ object Pasting {
         for (i in bounds.indices.reversed()) {
             val (start, end) = bounds[i]
             val width = if (i < widths.size) widths[i] else end - start
-            val align = aligns?.getOrNull(i) ?: Align.LEFT
+            val align = aligns?.getOrNull(i) ?: CellAlign.LEFT
             val content = end - start
             val extra = maxOf(0, width - content)
             val (wantLead, wantTrail) = when {
-                align == Align.CENTER && content != 0 -> 1 + extra / 2 to 1 + extra - extra / 2
-                align == Align.RIGHT && content != 0 -> 1 + extra to 1
+                align == CellAlign.CENTER && content != 0 -> 1 + extra / 2 to 1 + extra - extra / 2
+                align == CellAlign.RIGHT && content != 0 -> 1 + extra to 1
                 else -> 1 to 1 + extra
             }
             var closing = end
@@ -1516,43 +1434,60 @@ object Pasting {
     /**
      * `tables.align`: every table re-padded, and where characters went in
      * or came out -- every offset counted in the text as it came, which is
-     * what `shift_spans` judges them against. The desktop counts a second
-     * table's offsets in the text the first one's padding has already
-     * changed, and a style in that table lands beside its words: a desktop
-     * finding, not copied (ISSUES_LOG).
+     * what `shift_spans` judges them against -- as the desktop's does since
+     * its cb12941, which counted a second table in text the first one's
+     * padding had changed (a desktop finding from this port, ISSUES_LOG).
      */
     private fun align(text: String): Pair<String, List<Pair<Int, Int>>> {
-        val lines = text.split("\n").map(::cps).toMutableList()
+        val raw = text.split("\n")
+        val lines = raw.map(::cps).toMutableList()
         val asCame = lines.map { it.size }
         val shifts = ArrayList<Pair<Int, Int>>()
-        for ((first, last) in findBlocks(lines)) {
-            val block = lines.subList(first, last + 1).toList()
-            val sepAt = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) }
-            val rows = block.map { row -> splitRow(row).map { (a, b) -> b - a } }
-            val aligns = block.map(::cellAlignments)
-            val widths = if (sepAt != null) {
-                val w = layoutWidths(rows.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
-                val sep = block[sepAt]
-                for ((i, cell) in splitRow(sep).withIndex()) {
-                    val size = cell.second - cell.first
-                    val hidden = size == 1 && sep[cell.first] == '~'.code
-                    if (i < w.size && !hidden && size > 3) w[i] = maxOf(w[i], size)
-                }
-                w
-            } else {
-                layoutWidths(rows, aligns)
-            }
-            var pos = asCame.subList(0, first).sumOf { it + 1 }
+        var counted = 0
+        var prefix = 0
+        for (block in tableBlocks(text)) {
+            val first = block.first
+            val last = block.last
+            val texts = raw.subList(first, last + 1)
+            val sepAt = (0 until minOf(2, texts.size)).firstOrNull { isSeparatorRow(texts[it]) }
+            val cells = texts.map(::splitRow)
+            val rows = cells.map { row -> row.map { it.codePointCount(0, it.length) } }
+            val aligns = texts.map(::cellAlignments)
+            // No separator here sets a width: [forgetWidths], which every
+            // paste passes first, has spelled each at markdown's minimum.
+            val widths = layoutWidths(cells.filterIndexed { i, _ -> i != sepAt }, aligns.filterIndexed { i, _ -> i != sepAt })
+            // Weighed before it is built: past MAX_TABLE_PADDING the table is left
+            // ragged, each cell padded only as its alignment needs (120 million
+            // characters from one long cell over 2,000 rows ran out of memory).
+            val perRow = rowWidths(rows, widths) { r, i -> paddingNeed(aligns[r].getOrNull(i) ?: CellAlign.LEFT) }
+            // The lines before this block, as they came, summed once and kept
+            // running: summed afresh per block, many small tables walked the
+            // text once each.
+            while (counted < first) prefix += asCame[counted++] + 1
+            var pos = prefix
             for (offset in 0..last - first) {
                 val old = lines[first + offset]
-                var new = old
-                for ((at, delta) in padOps(old, widths, aligns[offset])) {
-                    new = if (delta > 0) {
-                        new.copyOfRange(0, at) + IntArray(delta) { ' '.code } + new.copyOfRange(at, new.size)
+                // The edits come right to left, each at its place in the line as it
+                // was, and the line is put together once from its pieces: rebuilt at
+                // every edit, a row of thousands of cells was copied thousands of times.
+                val pieces = ArrayList<IntArray>()
+                var end = old.size
+                for ((at, delta) in padOps(old, perRow[offset], aligns[offset])) {
+                    if (delta > 0) {
+                        pieces.add(old.copyOfRange(at, end))
+                        pieces.add(IntArray(delta) { ' '.code })
                     } else {
-                        new.copyOfRange(0, at) + new.copyOfRange(at - delta, new.size)
+                        pieces.add(old.copyOfRange(at - delta, end))
                     }
+                    end = at
                     shifts.add(pos + at to delta)
+                }
+                pieces.add(old.copyOfRange(0, end))
+                val new = IntArray(pieces.sumOf { it.size })
+                var k = 0
+                for (piece in pieces.asReversed()) {
+                    piece.copyInto(new, k)
+                    k += piece.size
                 }
                 pos += old.size + 1
                 lines[first + offset] = new
@@ -1563,15 +1498,15 @@ object Pasting {
 
     /**
      * `tables.forget_widths`: every table's separator spelled at markdown's
-     * minimum, for text from outside the app. Its dashes are as many as its
-     * writer typed -- "---:" is how markdown spells a right-aligned column --
-     * and read as this app's own record they were a width set by hand: the
-     * column drawn four characters wide, its header cut to "How…". The
+     * minimum, for text from outside the app, whose dashes are as many as
+     * its writer typed ("---:" is a right-aligned column): read as this app's
+     * record, they were a width set by hand, a header cut to "How…". The
      * colons and a hidden mark stay. Offsets in code points, counted in the
      * text as it came, for [shiftSpans].
      */
     fun forgetWidths(text: String): Pair<String, List<Pair<Int, Int>>> {
-        val lines = text.split("\n").map(::cps).toMutableList()
+        val raw = text.split("\n")
+        val lines = raw.map(::cps).toMutableList()
         val starts = IntArray(lines.size)
         var pos = 0
         for (i in lines.indices) {
@@ -1579,14 +1514,12 @@ object Pasting {
             pos += lines[i].size + 1
         }
         val shifts = ArrayList<Pair<Int, Int>>()
-        for ((first, last) in findBlocks(lines)) {
-            val block = lines.subList(first, last + 1).toList()
-            val at = (0 until minOf(2, block.size)).firstOrNull { isSeparatorRow(block[it]) } ?: continue
-            val n = first + at
+        for (block in tableBlocks(text)) {
+            val n = (block.first..minOf(block.last, block.first + 1)).firstOrNull { isSeparatorRow(raw[it]) } ?: continue
             val line = lines[n]
             var new = line
             var cut = 0
-            for ((bounds, column) in cellBounds(line).zip(parseSeparator(String(line, 0, line.size)))) {
+            for ((bounds, column) in cellBounds(line).zip(parseSeparator(raw[n]))) {
                 if (column.width == null) continue
                 val (a, b) = bounds
                 val short = cps(separatorCells(listOf(column.copy(width = null)))[0])
@@ -1640,7 +1573,7 @@ object Pasting {
     private const val CLEARLY_SHORT = 0.7
     private val SENTENCE_END = setOf('.'.code, '!'.code, '?'.code, ':'.code, ';'.code, '"'.code, '\''.code,
         ')'.code, ']'.code, 0x2019, 0x201D)
-    private val BLANK_LINE = Regex("\\n[ \\t]*\\n")
+    private val BLANK_RUN = Regex("\\n[ \\t]*\\n(?:[ \\t]*\\n)*")
 
     private fun leading(c: IntArray): Int {
         var k = 0
@@ -1678,7 +1611,7 @@ object Pasting {
         if (lines.size < MIN_WRAPPED_LINES) return false
         // A list's breaks are the list, and a table's rows are its rows.
         if (lines.any { Paragraphs.parseListMarker(String(it, 0, it.size).trimStart(' ', '\t')).kind != null }) return false
-        if (lines.any { isTableRow(it) }) return false
+        if (lines.any { isTableRow(String(it, 0, it.size)) }) return false
         val width = lines.maxOf { it.size }
         if (width < MIN_COLUMN_WIDTH) return false
         val breaks = lines.size - 1
@@ -1720,43 +1653,50 @@ object Pasting {
 
     /**
      * `reflow_wrapped`: lines a fixed-width column broke, joined again; real
-     * breaks left alone. A run that does not look wrapped comes back as it
-     * went in.
+     * breaks left alone. Every blank line, and a run that does not look
+     * wrapped, comes back as it went in.
      */
     fun reflowWrapped(text: String?): String {
-        val blocks = ArrayList<String>()
-        for (block in BLANK_LINE.split(text ?: "")) {
-            val lines = block.split("\n").map(::cps).filter { line -> stripped(line).let { it.second > it.first } }
-                .map(::rstripped)
-            if (lines.isEmpty()) continue
-            if (!looksWrapped(lines)) {
-                blocks.add(lines.joinToString("\n") { String(it, 0, it.size) })
+        // The blank runs between blocks are kept as found, and a block that
+        // is not a column as it came: rebuilt, it lost its blank lines and ends.
+        val source = text ?: ""
+        val out = StringBuilder()
+        var from = 0
+        for (gap in BLANK_RUN.findAll(source)) {
+            out.append(reflowBlock(source.substring(from, gap.range.first))).append(gap.value)
+            from = gap.range.last + 1
+        }
+        return out.append(reflowBlock(source.substring(from))).toString()
+    }
+
+    private fun reflowBlock(block: String): String {
+        val lines = block.split("\n").map(::cps).filter { line -> stripped(line).let { it.second > it.first } }
+            .map(::rstripped)
+        if (lines.isEmpty() || !looksWrapped(lines)) return block
+        val lead = block.substring(0, block.length - block.trimStart('\n').length)
+        val tail = block.substring(block.trimEnd('\n').length)
+        val width = lines.maxOf { it.size }
+        // A first line indented past the block's edge starts a paragraph.
+        val edge = lines.minOf { leading(it) }
+        val paragraphs = ArrayList<List<IntArray>>()
+        var current = ArrayList<IntArray>()
+        for ((i, line) in lines.withIndex()) {
+            current.add(line)
+            if (i == lines.lastIndex) {
+                paragraphs.add(current)
+                current = ArrayList()
                 continue
             }
-            val width = lines.maxOf { it.size }
-            // A first line indented past the block's edge starts a paragraph.
-            val edge = lines.minOf { leading(it) }
-            val paragraphs = ArrayList<List<IntArray>>()
-            var current = ArrayList<IntArray>()
-            for ((i, line) in lines.withIndex()) {
-                current.add(line)
-                if (i == lines.lastIndex) {
-                    paragraphs.add(current)
-                    current = ArrayList()
-                    continue
-                }
-                val following = lines[i + 1]
-                val indented = leading(following) > edge
-                val couldFit = !forcedBreak(line, following, width, COLUMN_SLACK)
-                if (indented || (couldFit && endsAParagraph(line, width))) {
-                    paragraphs.add(current)
-                    current = ArrayList()
-                }
+            val following = lines[i + 1]
+            val indented = leading(following) > edge
+            val couldFit = !forcedBreak(line, following, width, COLUMN_SLACK)
+            if (indented || (couldFit && endsAParagraph(line, width))) {
+                paragraphs.add(current)
+                current = ArrayList()
             }
-            if (current.isNotEmpty()) paragraphs.add(current)
-            blocks.add(paragraphs.joinToString("\n") { joinWrapped(it) })
         }
-        return blocks.joinToString("\n\n")
+        if (current.isNotEmpty()) paragraphs.add(current)
+        return lead + paragraphs.joinToString("\n") { joinWrapped(it) } + tail
     }
 
     /**
@@ -1770,12 +1710,21 @@ object Pasting {
             if (marker.kind != null) marker.rest else line
         }
 
-    /** `shift_spans`: every offset judged against the span as it was. */
+    /**
+     * `shift_spans`: every offset judged against the span as it was, the
+     * shifts before it read off running totals of the sorted shifts. Walked
+     * whole for every span, the desktop measured seconds on a large paste.
+     */
     private fun shiftSpans(spans: List<Span>, shifts: List<Pair<Int, Int>>): List<Span> {
         if (shifts.isEmpty()) return spans
+        val order = shifts.sortedBy { it.first }
+        val places = IntArray(order.size) { order[it].first }
+        val totals = IntArray(order.size + 1).also { t ->
+            for (i in order.indices) t[i + 1] = t[i] + order[i].second
+        }
         return spans.map { s ->
-            s.copy(start = s.start + shifts.filter { it.first < s.start }.sumOf { it.second },
-                   end = s.end + shifts.filter { it.first < s.end }.sumOf { it.second })
+            s.copy(start = s.start + totals[lowerBound(places, s.start)],
+                   end = s.end + totals[lowerBound(places, s.end)])
         }
     }
 }

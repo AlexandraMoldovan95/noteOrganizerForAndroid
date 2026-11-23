@@ -238,13 +238,13 @@
 },
 {
 "expr": "5-3",
-"value": null,
-"shown": null
+"value": "2.0",
+"shown": "2"
 },
 {
 "expr": "5*3",
-"value": null,
-"shown": null
+"value": "15.0",
+"shown": "15"
 },
 {
 "expr": "",
@@ -1908,8 +1908,8 @@
 },
 {
 "expr": "1x5",
-"value": null,
-"shown": null
+"value": "5.0",
+"shown": "5"
 },
 {
 "expr": "6]0.^*7",

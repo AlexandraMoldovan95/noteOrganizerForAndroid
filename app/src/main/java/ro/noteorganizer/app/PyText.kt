@@ -37,15 +37,56 @@ object PyText {
         return words
     }
 
-    /** `str.strip()`. */
-    fun strip(text: String): String {
+    /**
+     * `needle in haystack`, in time that grows with the two lengths added,
+     * not multiplied (Knuth-Morris-Pratt). Python's `in` is about linear;
+     * the JVM's `contains` compares again from each place, and four million
+     * letters searched for a near-miss of twenty thousand took fourteen
+     * seconds a call where the desktop took twelve milliseconds.
+     */
+    fun contains(haystack: String, needle: String): Boolean {
+        if (needle.isEmpty()) return true
+        if (needle.length > haystack.length) return false
+        // For each place in the needle, how much of its start is also the
+        // end of what came before it: where a mismatch can go on from.
+        val back = IntArray(needle.length)
+        var k = 0
+        for (i in 1 until needle.length) {
+            while (k > 0 && needle[i] != needle[k]) k = back[k - 1]
+            if (needle[i] == needle[k]) k++
+            back[i] = k
+        }
+        k = 0
+        for (c in haystack) {
+            while (k > 0 && c != needle[k]) k = back[k - 1]
+            if (c == needle[k]) k++
+            if (k == needle.length) return true
+        }
+        return false
+    }
+
+    /** Where [text]'s leading Python spaces end. */
+    private fun spacesEnd(text: String): Int {
         var from = 0
-        var to = text.length
-        while (from < to) {
+        while (from < text.length) {
             val cp = text.codePointAt(from)
             if (!isSpace(cp)) break
             from += Character.charCount(cp)
         }
+        return from
+    }
+
+    /** `str.lstrip()`. */
+    fun lstrip(text: String): String = text.substring(spacesEnd(text))
+
+    /** `str.strip()`. */
+    fun strip(text: String): String = rstripFrom(text, spacesEnd(text))
+
+    /** `str.rstrip()`. */
+    fun rstrip(text: String): String = rstripFrom(text, 0)
+
+    private fun rstripFrom(text: String, from: Int): String {
+        var to = text.length
         while (to > from) {
             val cp = text.codePointBefore(to)
             if (!isSpace(cp)) break

@@ -41,6 +41,14 @@ data class Palette(
      */
     fun legibleOnCard(colour: String): Color =
         hexColor(Themes.legibleOn(colour, hex.getValue("card"), hex.getValue("text")))
+
+    /** [colour], hex, as words on a chosen card, row or bar button's fill ([Themes.onChosen]). */
+    fun onChosen(colour: String): Color = hexColor(Themes.onChosen(colour, hex))
+
+    /** The quieter words on a card, a row or a bar button, [chosen] filling it ([onChosen]). */
+    fun subtextOn(chosen: Boolean): Color = if (chosen) onChosen(hex.getValue("subtext")) else subtext
+    fun accentTextOn(chosen: Boolean): Color = if (chosen) onChosen(hex.getValue("accent_text")) else accentText
+    fun dangerTextOn(chosen: Boolean): Color = if (chosen) onChosen(hex.getValue("danger_text")) else dangerText
 }
 
 /** `#rgb` or `#rrggbb` as a Compose colour; black for anything else. */

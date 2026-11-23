@@ -15,6 +15,51 @@ import org.junit.Test
 class ThemesTest {
 
     @Test
+    fun `a control's edge at rest stands three to one from what lies around it, in every theme`() {
+        // Drawn in the hairline, a switch that was off stood 1.2 to 1 from
+        // its track and a field's border from the page; 3 to 1 is what a
+        // boundary asks (WCAG 1.4.11).
+        for ((name, theme) in Themes.THEMES) {
+            val edge = Themes.controlEdge(theme)
+            val inset = Themes.blend(theme.getValue("card"), theme.getValue("text"), 0.07)
+            for ((ground, hex) in listOf("bg" to theme.getValue("bg"), "card" to theme.getValue("card"), "inset" to inset)) {
+                val ratio = Themes.contrastRatio(edge, hex)!!
+                assertTrue("$name: edge on $ground is $ratio to 1", ratio >= 3.0)
+            }
+        }
+    }
+
+    @Test
+    fun `a dialog's Cancel and the bar's Undo read four and a half to one, in every theme`() {
+        // The raw accent: Undo on the bar 2.1 to 2.7 to 1 in six themes, the
+        // default Dark at 2.37; Cancel on a dialog 3.1 in Light Mint and Warm.
+        for ((name, theme) in Themes.THEMES) {
+            val primary = Themes.primaryRole(theme)
+            for (ground in listOf("card", "bg")) {
+                val ratio = Themes.contrastRatio(primary, theme.getValue(ground))!!
+                assertTrue("$name: a plain button's words on $ground are $ratio to 1", ratio >= 4.5)
+            }
+            assertTrue("$name: letters on the primary", Themes.contrastRatio(Themes.lettersOn(primary), primary)!! >= 4.5)
+            val undo = Themes.contrastRatio(Themes.barAction(theme), theme.getValue("text"))!!
+            assertTrue("$name: Undo on the bar is $undo to 1", undo >= 4.5)
+        }
+    }
+
+    @Test
+    fun `the quieter words on a chosen card, row or bar button read four and a half to one, in every theme`() {
+        // On the fill a chosen card takes, its first words stood 4.1 to 1 in
+        // Light and its category 3.5; the five categories a notebook starts with.
+        val picked = listOf("#7c5cff", "#4cc9f0", "#f9c74f", "#f77f00", "#ff5c7c")
+        for ((name, theme) in Themes.THEMES) {
+            val fill = theme.getValue("calendar_has_notes")
+            for (colour in listOf("subtext", "accent_text", "danger_text").map(theme::getValue) + picked) {
+                val ratio = Themes.contrastRatio(Themes.onChosen(colour, theme), fill)!!
+                assertTrue("$name: $colour on the chosen fill is $ratio to 1", ratio >= 4.5)
+            }
+        }
+    }
+
+    @Test
     fun blendMatchesTheDesktop() {
         assertEquals("#8e8e97", Themes.blend("#1e1e2f", "#ffffff", 0.5))
         assertEquals("#3c3c54", Themes.blend("#2e2e48", "#f2f2f7", 0.07))

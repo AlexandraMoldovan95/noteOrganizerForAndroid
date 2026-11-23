@@ -5,6 +5,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -20,23 +21,173 @@ import java.util.zip.ZipOutputStream
  */
 class ImportingTest {
 
-    private fun notebook(notes: String, trash: String? = null, settings: String? = null): Notebook.Load {
-        val dir = NioFiles.createTempDirectory("importing").toFile()
-        File(dir, "notes_data.json").writeText(notes)
-        if (trash != null) File(dir, "trash.json").writeText(trash)
-        if (settings != null) File(dir, "settings.json").writeText(settings)
-        File(dir, "attachments").mkdirs()
-        return Notebook.load(dir)
-    }
+    private fun notebook(notes: String, trash: String? = null, settings: String? = null) =
+        scratch(notes, trash, settings, attachments = true)
 
-    private fun dir(load: Notebook.Load) = load.file!!.parentFile!!
-    private fun onDisk(load: Notebook.Load) = JSONArray(load.file!!.readText())
     private fun notes(json: String) = JSONArray(json).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
     private fun backupPlan(load: Notebook.Load, incoming: String) =
         Importing.plan(load.raw!!, notes(incoming), Importing.Source.BACKUP)
 
+    /** A deleted_at [n] days before now: a fixed date drifts past every window. */
+    private fun daysAgo(n: Long): String = java.time.LocalDateTime.now().minusDays(n)
+        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+
     // ---- the desktop's door ----
+
+    @Test
+    fun `a backup's note that is in the Trash too is said to be, right after what was added`() {
+        // Deleted here after the backup was made: brought back into the list,
+        // its deleted copy still in the Trash, and "Added 1 note" said nothing
+        // of it (the review panel, 22 November).
+        val trash = """[{"id": 9, "uid": "gone", "title": "Gone", "body": "g", "category": "General",
+            "deleted_at": "${daysAgo(1)}"}]"""
+        val one = notebook("[]", trash)
+        val done = Importing.apply(one, backupPlan(one, """[{"id": 1, "uid": "gone", "title": "Gone", "body": "g"}]"""),
+            Importing.Answers(), null) as Importing.Result.Done
+        assertEquals(1, done.outcome.alsoInTrash)
+        assertTrue(importMessage(done.outcome),
+            importMessage(done.outcome).startsWith("Added 1 note. It is in your Trash too (Settings → Trash)."))
+        val some = notebook("[]", trash)
+        val two = Importing.apply(some, backupPlan(some, """[{"id": 1, "uid": "gone", "title": "Gone", "body": "g"},
+            {"id": 2, "uid": "kept", "title": "Kept", "body": "k"}]"""), Importing.Answers(), null) as Importing.Result.Done
+        assertTrue(importMessage(two.outcome),
+            importMessage(two.outcome).startsWith("Added 2 notes. 1 of them is in your Trash too"))
+        assertFalse(importMessage(Importing.Outcome(added = 2, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0))
+            .contains("Trash too"))
+    }
+
+    @Test
+    fun `a backup moving in a 0_13_0 notebook says the earlier text it kept as notes`() {
+        // Its series turned off and on as it was, the blank-looking day
+        // deleted: the read sets the copy's words aside, and the message said
+        // only "Added 1 note."
+        val load = notebook("[]")
+        val result = Importing.apply(load, backupPlan(load, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(), null)
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(1, outcome.earlierText)
+        assertTrue(importMessage(outcome), importMessage(outcome).contains("Earlier text of 1 day of a repeating note"))
+        assertTrue(notes(load.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" })
+        // ...and an Update of the note already here keeps them too: an Add
+        // kept what the arriving note's copy set aside, an Update dropped it
+        // (the desktop the same).
+        val here = notebook("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "here", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}}]""")
+        val updated = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(update = true), null)
+        assertEquals(1, (updated as Importing.Result.Done).outcome.earlierText)
+        assertTrue(notes(here.file!!.readText()).any { it.getString("title") == "Gym (earlier text)" && it.getString("body") == "knee" })
+        // ...once: the next Update from the same backup, the note edited here
+        // since, made the same note again.
+        assertTrue(Notebook.updateNote(here, 1, "Gym", "edited here since") is SaveResult.Ok)
+        val again = Importing.apply(here, backupPlan(here, """[{"id": 1, "uid": "gym", "title": "Gym",
+            "body": "plan", "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""), Importing.Answers(update = true), null)
+        assertEquals(1, (again as Importing.Result.Done).outcome.updated)
+        assertEquals(0, again.outcome.earlierText)
+        assertEquals(1, notes(here.file!!.readText()).count { it.getString("title") == "Gym (earlier text)" })
+        // ...its comments among its words: the same text with other comments
+        // is another note, or its comments arrived nowhere.
+        val book = JSONArray(here.file!!.readText())
+        book.getJSONObject(0).put("_set_aside", JSONArray().put(JSONObject().put("day", "2026-11-09")
+            .put("body", "knee").put("comments", "ask the physio")))
+        assertEquals(1, Notebook.settleAside(book))
+    }
+
+    @Test
+    fun `a number that is no number comes in as nothing, and the import goes on`() {
+        // Android's org.json takes NaN in an array unchecked, and toString() of
+        // what holds it gives null: a backup's template with "checklist": [NaN]
+        // stopped the import. This parser refuses one, so it is put in by hand.
+        val checklist = JSONArray().put(JSONObject().put("text", "milk"))
+        val held = JSONArray::class.java.getDeclaredField("myArrayList").apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        (held.get(checklist) as MutableList<Any?>).addAll(listOf(Double.NaN, Double.POSITIVE_INFINITY))
+        val templates = Files.parseOutside("[]") {
+            JSONArray().put(JSONObject().put("name", "Hostile template").put("checklist", checklist))
+        }
+        val read = templates.getJSONObject(0).getJSONArray("checklist")
+        assertEquals(listOf(JSONObject.NULL, JSONObject.NULL), listOf(read.opt(1), read.opt(2)))
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = templates))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals(listOf("milk"), JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0)
+            .getJSONArray("checklist").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("text") } })
+        // And whatever else a reading misses is refused, never the app stopped.
+        val unreadable = object : JSONObject() {
+            override fun opt(key: String?): Any? = throw IllegalStateException("a reading missed this")
+        }
+        val stale = Importing.Plan(Importing.Source.CODE, 1, emptyList(), emptyList(), listOf(unreadable), 0)
+        assertTrue(Importing.apply(load, stale, Importing.Answers(update = true), null) is Importing.Result.Failed)
+    }
+
+    @Test
+    fun `a backup's templates come in over a templates file here that does not read, copied aside first`() {
+        // They were skipped without a word; the desktop's empty list takes them.
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[{\"name\": ")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals("Trip", JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("name"))
+        assertTrue("the unreadable one was kept aside",
+            dirOf(load).list()!!.any { it.startsWith("templates_corrupt_") })
+    }
+
+    @Test
+    fun `a backup over a templates file held stops before writing anything, and says why`() {
+        // Its templates were dropped without a word; every other refused write
+        // stops the import and says so.
+        val load = notebook("[]")
+        val held = File(dirOf(load), "templates.json").apply { writeText("[]") }
+        Files.holdWrites(held)
+        val result = Importing.apply(load, backupPlan(load, """[{"uid": "n1", "title": "New"}]"""), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        val reason = (result as Importing.Result.Failed).reason
+        assertTrue(reason, reason.startsWith("templates.json could not be read or copied aside") &&
+            "None of the backup's notes came in." in reason)
+        assertEquals("nothing written over it", "[]", held.readText())
+        assertEquals("no note came in", 0, onDisk(load).length())
+        // ...and the same over a Trash file held.
+        val other = notebook("[]", trash = "[]")
+        val trashHeld = File(dirOf(other), "trash.json")
+        Files.holdWrites(trashHeld)
+        val stopped = Importing.apply(other, backupPlan(other, """[{"uid": "n2", "title": "New"}]"""), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[{"id": 4, "title": "Old", "deleted_at": "2026-10-01 10:00:00"}]""")))
+        val said = (stopped as Importing.Result.Failed).reason
+        assertTrue(said, said.startsWith("trash.json could not be read or copied aside"))
+        assertEquals("[]", trashHeld.readText())
+    }
+
+    @Test
+    fun `a backup's template with no name comes in as Untitled template, once, as the desktop's`() {
+        // Left out before; the desktop shapes it first and takes it by that name.
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "", "title": "t"}, {"name": 7, "title": "u"}]""")))
+        assertEquals(1, (result as Importing.Result.Done).outcome.addedTemplates)
+        assertEquals(Templates.UNTITLED,
+            JSONArray(File(dirOf(load), "templates.json").readText()).getJSONObject(0).getString("name"))
+        // ...and not beside one here that has no name either: named alike, as the
+        // desktop names its own list, it is that one.
+        val here = notebook("[]")
+        File(dirOf(here), "templates.json").writeText("""[{"title": "mine, nameless"}]""")
+        val again = Importing.apply(here, backupPlan(here, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "", "title": "theirs"}]""")))
+        assertEquals(0, (again as Importing.Result.Done).outcome.addedTemplates)
+    }
 
     @Test
     fun `a day filed under a category this phone lacks comes in under General, as the note does`() {
@@ -89,19 +240,41 @@ class ImportingTest {
              {"title": "No identity"}]
         """.trimIndent())
         assertEquals(5, plan.total)
-        assertEquals(listOf(0, 2), plan.differing.map { it.mineIndex })
-        assertEquals(listOf(1), plan.unchanged.map { it.mineIndex })
+        assertEquals(listOf("a", "c"), plan.differing.map { it.uid })
+        assertEquals(listOf("b"), plan.unchanged.map { it.uid })
         assertEquals(listOf("Fresh", "No identity"), plan.fresh.map { it.getString("title") })
         assertEquals("the backup's copy of c is older", 1, plan.older)
+        // Update does not stand out over older versions: it wrote them over
+        // the newer ones here.
+        assertFalse(Importing.updateStandsOut(plan))
         assertEquals(before, load.file!!.readText())
     }
 
     @Test
+    fun `an Update agreed to, or copies kept, lets the look-alikes question skip them and go on`() {
+        // Cancel was its only no when every new note looked like one here,
+        // and it dropped the Update agreed one question earlier.
+        val load = notebook("""
+            [{"id": 1, "uid": "a", "title": "Mine", "updated": "2026-10-10 10:00:00"},
+             {"id": 2, "uid": "b", "title": "Same", "category": "General"}]
+        """.trimIndent())
+        val plan = backupPlan(load, """
+            [{"uid": "a", "title": "Changed", "updated": "2026-10-11 10:00:00"},
+             {"uid": "b", "title": "Same", "category": "General"}]
+        """.trimIndent())
+        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(update = true)))
+        // ...and "Add as a new note" too: its copies are added past the question, as the desktop's.
+        assertTrue(Importing.goesOnPastLookAlikes(plan, Importing.Answers(update = false)))
+        val unchangedOnly = backupPlan(load, """[{"uid": "b", "title": "Same", "category": "General"}]""")
+        assertTrue(Importing.goesOnPastLookAlikes(unchangedOnly, Importing.Answers(copyUnchanged = true)))
+        assertFalse(Importing.goesOnPastLookAlikes(unchangedOnly, Importing.Answers()))
+    }
+
+    @Test
     fun `a note is compared as a load shapes it, so what no person changed is no change`() {
-        // Filed here under General when it came, from a category this phone
-        // lacks; a day's empty colour; a table closing the body, with and
-        // without its line. (Styles in another order are a difference to the
-        // desktop too: its normalize_formatting keeps their order.)
+        // Filed under General when it came, from a category this phone lacks; a
+        // day's empty colour; a table closing the body, with and without its line.
+        // (Styles in another order differ on the desktop too: it keeps their order.)
         val load = notebook("""
             [{"id": 1, "uid": "a", "title": "T", "body": "x\n| a | b |\n", "category": "General",
               "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]},
@@ -137,6 +310,84 @@ class ImportingTest {
         val plan = Importing.plan(load.raw!!, notes("""[{"uid": "a", "title": "y", "updated": "2020-01-01 00:00:00"}]"""),
             Importing.Source.CODE)
         assertEquals(0, plan.older)
+        assertTrue(Importing.updateStandsOut(plan))
+    }
+
+    @Test
+    fun `a backup's note differing by a file alone is counted apart, never older, as the desktop counts it`() {
+        // The question promised Restore previous of it and called it OLDER:
+        // Update adds the file and keeps no copy.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Ticket", "body": "trip", "updated": "2026-11-10 10:00:00"},
+            {"id": 2, "uid": "b", "title": "Plan", "body": "old", "updated": "2026-11-10 10:00:00"}]""")
+        val plan = backupPlan(load, """[
+            {"uid": "a", "title": "Ticket", "body": "trip", "updated": "2026-11-01 10:00:00",
+             "attachments": [{"filename": "t.pdf", "stored_as": "20261101_t.pdf"}]},
+            {"uid": "b", "title": "Plan", "body": "new", "updated": "2026-11-01 10:00:00"}]""")
+        assertEquals(2, plan.differing.size)
+        assertEquals("the file-alone note", 1, plan.filed)
+        assertEquals("only the note whose words differ is older", 1, plan.older)
+    }
+
+    @Test
+    fun `a note unchanged but for a newer version's field is counted, and only by the side that brings it`() {
+        // "Nothing this device lacks" was untrue of it; the device's own field,
+        // absent from the backup, is not the backup's.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Plan", "body": "b"},
+            {"id": 2, "uid": "c", "title": "Mine", "body": "m", "mood": "calm"}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "Plan", "body": "b", "mood": "calm"},
+            {"uid": "c", "title": "Mine", "body": "m"}]""")
+        assertEquals(2, plan.unchanged.size)
+        assertEquals(1, plan.newer)
+    }
+
+    @Test
+    fun `the update question knows which notes hold a rescue copy an update would replace`() {
+        // One copy a note: an update's takes the place of a big delete's,
+        // and the question said only that the update could be undone.
+        val load = notebook("""
+            [{"id": 1, "uid": "recipe", "title": "Recipe", "body": "flour", "_prev": {"title": "Recipe", "body": "flour and 370 letters"}},
+             {"id": 2, "uid": "spent", "title": "Spent", "body": "same", "_prev": {"title": "Spent", "body": "same"}},
+             {"id": 3, "uid": "plain", "title": "Plain", "body": "p"}]
+        """.trimIndent(), trash = "[]")
+        val plan = Importing.plan(load.raw!!, notes("""
+            [{"uid": "recipe", "title": "Recipe", "body": "flour, salt"}, {"uid": "spent", "title": "Spent", "body": "other"},
+             {"uid": "plain", "title": "Plain", "body": "q"}]
+        """.trimIndent()), Importing.Source.CODE)
+        assertEquals(3, plan.differing.size)
+        assertEquals(1, plan.rescued)
+        assertTrue(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(0)))
+        assertFalse(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(1)))
+        assertFalse(Notebook.holdsUnspentCopy(load.raw!!.getJSONObject(2)))
+    }
+
+    @Test
+    fun `a backup that only brings a file is not said to replace the note's earlier version`() {
+        // Its words the same as here, a file this phone lacks: the update
+        // adds the file and leaves the rescue copy alone, and the question
+        // said the copy would be replaced.
+        val load = notebook("""
+            [{"id": 1, "uid": "trip", "title": "Trip", "body": "passport",
+              "_prev": {"title": "Trip", "body": "passport, tickets and 370 more letters"}}]
+        """.trimIndent())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "map.png").writeText("MAP")
+        val plan = backupPlan(load, """
+            [{"uid": "trip", "title": "Trip", "body": "passport",
+              "attachments": [{"filename": "map.png", "stored_as": "map.png"}]}]
+        """.trimIndent())
+        assertEquals("the file is a difference", 1, plan.differing.size)
+        assertEquals(0, plan.rescued)
+        val done = Importing.apply(load, plan, Importing.Answers(update = true), File(dirOf(load), "attachments"),
+            Importing.Extras(attachments = unpacked)) as Importing.Result.Done
+        // Counted apart: "Updated 1 (Restore previous undoes each one)" was
+        // said of files Restore previous does not take back.
+        assertEquals(0, done.outcome.updated)
+        assertEquals(1, done.outcome.filesOnly)
+        assertTrue(importMessage(done.outcome), "took attached files" in importMessage(done.outcome))
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("the copy left as it was", "passport, tickets and 370 more letters",
+            note.getJSONObject("_prev").getString("body"))
+        assertEquals("map.png", note.getJSONArray("attachments").getJSONObject(0).getString("stored_as"))
     }
 
     // ---- question 1: update, or add as new ----
@@ -147,7 +398,7 @@ class ImportingTest {
             [{"id": 1, "uid": "a", "title": "Old", "pinned": false,
               "exceptions": [], "attachments": [{"filename": "mine.png", "stored_as": "mine.png"}]}]
         """.trimIndent())
-        File(dir(load), "attachments/mine.png").writeText("MINE")
+        File(dirOf(load), "attachments/mine.png").writeText("MINE")
         val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
         File(unpacked, "theirs.png").writeText("THEIRS")
         val plan = backupPlan(load, """
@@ -155,7 +406,7 @@ class ImportingTest {
               "attachments": [{"filename": "theirs.png", "stored_as": "theirs.png"}]}]
         """.trimIndent())
         val result = Importing.apply(load, plan, Importing.Answers(update = true),
-            File(dir(load), "attachments"), Importing.Extras(attachments = unpacked))
+            File(dirOf(load), "attachments"), Importing.Extras(attachments = unpacked))
         assertTrue(result is Importing.Result.Done)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("New", note.getString("title"))
@@ -164,9 +415,118 @@ class ImportingTest {
         val files = (0 until note.getJSONArray("attachments").length())
             .map { note.getJSONArray("attachments").getJSONObject(it).getString("stored_as") }
         assertEquals("a file here is never swapped out", listOf("mine.png", "theirs.png"), files)
-        assertEquals("THEIRS", File(dir(load), "attachments/theirs.png").readText())
+        assertEquals("THEIRS", File(dirOf(load), "attachments/theirs.png").readText())
         assertEquals("the rescue copy holds the old pin", false,
             note.getJSONObject("_prev").getBoolean("pinned"))
+    }
+
+    @Test
+    fun `a backup's attached files are moved into place, never copied a second time`() {
+        // Copied on the screen's thread, a notebook of photos held it still
+        // for seconds; moved, a file costs nothing however large.
+        val load = notebook("[]")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]},
+             {"uid": "p2", "title": "Two", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        assertTrue(Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"),
+            Importing.Extras(attachments = unpacked)) is Importing.Result.Done)
+        assertFalse("moved out of the unpacked backup", File(unpacked, "photo.jpg").exists())
+        assertEquals("PHOTO", File(dirOf(load), "attachments/photo.jpg").readText())
+        // The second note naming it still gets a file of its own.
+        val second = onDisk(load).getJSONObject(1).getJSONArray("attachments").getJSONObject(0).getString("stored_as")
+        assertNotEquals("photo.jpg", second)
+        assertEquals("PHOTO", File(dirOf(load), "attachments/$second").readText())
+    }
+
+    @Test
+    fun `a note with no created stamp was made when it last changed, as normalize_note has it`() {
+        val load = notebook("[]")
+        val plan = backupPlan(load, """
+            [{"uid": "a", "title": "Old", "updated": "2025-03-04 10:00:00"},
+             {"uid": "b", "title": "Bare"}]
+        """.trimIndent())
+        assertTrue(Importing.apply(load, plan, Importing.Answers(), null) is Importing.Result.Done)
+        val old = onDisk(load).getJSONObject(0)
+        assertEquals("2025-03-04 10:00:00", old.getString("created"))
+        val bare = onDisk(load).getJSONObject(1)
+        assertTrue(bare.getString("updated").isNotEmpty())
+        assertEquals("both stamps the import's", bare.getString("updated"), bare.getString("created"))
+    }
+
+    @Test
+    fun `a backup whose notes cannot be written takes back the files it brought, and says what came in`() {
+        // The templates were written, the notes were not: the file moved in for
+        // a note stayed with nothing naming it, and the reason was all that was said.
+        val load = notebook("[]")
+        val attachments = File(dirOf(load), "attachments").apply { mkdirs() }
+        File(attachments, "older.txt").writeText("HERE BEFORE")
+        File(dirOf(load), "templates.json").writeText("[]")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        // The notes' write fails: its temporary file's name is taken by a folder.
+        File(dirOf(load), "notes_data.json.tmp").mkdir()
+        val result = Importing.apply(load, plan, Importing.Answers(), attachments,
+            Importing.Extras(attachments = unpacked, templates = JSONArray("""[{"name": "Trip", "title": "t"}]""")))
+        val reason = (result as Importing.Result.Failed).reason
+        assertTrue(reason, reason.startsWith("Your notes could not be written:"))
+        assertTrue(reason, "None of the backup's notes came in" in reason && "importing it again adds only the rest" in reason)
+        assertFalse("the file it brought is taken back", File(attachments, "photo.jpg").exists())
+        assertEquals("a file here before is left alone", "HERE BEFORE", File(attachments, "older.txt").readText())
+        assertEquals("the notes are as they were", 0, onDisk(load).length())
+        assertTrue(reason, "its templates were kept" in reason)
+    }
+
+    @Test
+    fun `a failed import names what it kept, and calls a code a code`() {
+        // "What it brings besides them was kept" covered a Trash whose write
+        // had failed, and a code's import was "the backup's".
+        val load = notebook("[]")
+        File(dirOf(load), "templates.json").writeText("[]")
+        File(dirOf(load), "trash.json.tmp").mkdir()
+        val plan = backupPlan(load, """[{"uid": "t1", "title": "One"}]""")
+        val trashFailed = Importing.apply(load, plan, Importing.Answers(), null, Importing.Extras(
+            templates = JSONArray("""[{"name": "Trip", "title": "t"}]"""),
+            trash = JSONArray("""[{"uid": "gone", "title": "Gone", "deleted_at": "${daysAgo(2)}"}]""")))
+        val said = (trashFailed as Importing.Result.Failed).reason
+        assertTrue(said, said.startsWith("The Trash could not be written:"))
+        assertTrue(said, "None of the backup's notes came in; its templates were kept" in said && "Trash was" !in said)
+
+        val fresh = notebook("[]")
+        File(dirOf(fresh), "notes_data.json.tmp").mkdir()
+        val code = Importing.plan(fresh.raw!!, notes("""[{"uid": "c1", "title": "From a code"}]"""), Importing.Source.CODE)
+        val codeFailed = (Importing.apply(fresh, code, Importing.Answers(), null) as Importing.Result.Failed).reason
+        assertTrue(codeFailed, codeFailed.endsWith("None of the code's notes came in."))
+    }
+
+    @Test
+    fun `an import stopped by something it could not read takes back the files it brought`() {
+        // Stopped after the notes' files were moved in, by a Trash entry it
+        // could not read: the files stayed, named by nothing, under "your
+        // notes are as they were".
+        val load = notebook("[]")
+        val attachments = File(dirOf(load), "attachments").apply { mkdirs() }
+        File(attachments, "older.txt").writeText("HERE BEFORE")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "photo.jpg").writeText("PHOTO")
+        val plan = backupPlan(load, """
+            [{"uid": "p1", "title": "One", "attachments": [{"filename": "photo.jpg", "stored_as": "photo.jpg"}]}]
+        """.trimIndent())
+        val unreadable = object : JSONArray() {
+            override fun length() = 1
+            override fun opt(index: Int): Any? = throw IllegalStateException("unreadable")
+        }
+        val result = Importing.apply(load, plan, Importing.Answers(), attachments,
+            Importing.Extras(attachments = unpacked, trash = unreadable))
+        assertTrue("$result", result is Importing.Result.Failed)
+        assertFalse("the file it brought is taken back", File(attachments, "photo.jpg").exists())
+        assertEquals("a file here before is left alone", "HERE BEFORE", File(attachments, "older.txt").readText())
+        assertEquals("the notes are as they were", 0, onDisk(load).length())
     }
 
     @Test
@@ -194,6 +554,89 @@ class ImportingTest {
         assertEquals("New", all.getJSONObject(1).getString("title"))
         assertNotEquals("a", all.getJSONObject(1).getString("uid"))
         assertEquals(2, all.getJSONObject(1).getInt("id"))
+    }
+
+    @Test
+    fun `a backup's day mark comes in over one here this phone cannot show, as the desktop's does`() {
+        // The desktop's store is cleaned at every start; the phone counted a mark it does not show as
+        // the day decorated, and the backup's never came in.
+        val load = notebook("[]", settings = """{"day_colors": {"2026-11-14": "not a colour"}}""")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))) as Importing.Result.Done
+        assertEquals(1, result.outcome.restoredDays)
+        assertNotEquals("not a colour",
+            Settings.load(dirOf(load)).raw.getJSONObject("day_colors").getString("2026-11-14"))
+        // ...nor do marks it cannot show fill the calendar's cap, which counts the ones it shows.
+        val unread = JSONObject().apply { repeat(Days.MAX_DAY_DECORATIONS) { put("not a day $it", "#ff0000") } }
+        val full = notebook("[]", settings = JSONObject().put("day_colors", unread).toString())
+        val taken = Importing.apply(full, backupPlan(full, "[]"), Importing.Answers(), null,
+            Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))) as Importing.Result.Done
+        assertEquals(1, taken.outcome.restoredDays)
+    }
+
+    @Test
+    fun `an entry of templates json that is no template does not count toward the cap, as the desktop's list holds none`() {
+        // The phone counted it: at 999 templates and one such entry, the desktop took one more and
+        // the phone none.
+        val held = JSONArray().apply {
+            repeat(Templates.MAX_TEMPLATES - 1) { put(JSONObject().put("name", "T$it")) }
+            put("not a template")
+        }
+        val load = scratch("[]", templates = held.toString(), attachments = true)
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(templates = JSONArray("""[{"name": "New one"}]"""))) as Importing.Result.Done
+        assertEquals(1, result.outcome.addedTemplates)
+    }
+
+    @Test
+    fun `a copy asked for leaves the rescue copy with the note it was made for, as the desktop's`() {
+        // Kept, the copy offered "↩ Restore previous", which put the original's older words over a
+        // note made now; the desktop's _without_identity drops it, as a Duplicate does.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Old"},
+            {"id": 2, "uid": "b", "title": "Same", "_prev": {"title": "Before"}}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "New", "_prev": {"title": "Older"}},
+            {"uid": "b", "title": "Same", "_prev": {"title": "Before"}}]""")
+        assertEquals(listOf(1, 1), listOf(plan.differing.size, plan.unchanged.size))
+        Importing.apply(load, plan, Importing.Answers(update = false, copyUnchanged = true), null)
+        val all = onDisk(load)
+        assertEquals(listOf("New", "Same"), listOf(all.getJSONObject(2).getString("title"), all.getJSONObject(3).getString("title")))
+        assertEquals(listOf(false, false), listOf(all.getJSONObject(2).has("_prev"), all.getJSONObject(3).has("_prev")))
+    }
+
+    @Test
+    fun `a note added as new is a copy asked for, not put to the look-alike question again`() {
+        // Edited elsewhere only in its date, its copy looked like the note here: "Import it anyway
+        // as a new copy?" followed the Add, its Cancel undid it, and Skip skipped the very note
+        // chosen to be added. The desktop adds it past the question.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Trip", "body": "plan", "date": "2026-11-01"}]""")
+        val plan = backupPlan(load, """[{"uid": "a", "title": "Trip", "body": "plan", "date": "2026-11-02"}]""")
+        assertEquals(1, plan.differing.size)
+        assertEquals(0, Importing.lookAlikes(load.raw!!, plan, update = false))
+        val result = Importing.apply(load, plan, Importing.Answers(update = false, skipDuplicates = true), null)
+            as Importing.Result.Done
+        assertEquals(listOf(1, 0), listOf(result.outcome.added, result.outcome.duplicatesSkipped))
+        assertEquals(2, onDisk(load).length())
+    }
+
+    @Test
+    fun `a skipped look-alike of a note updated finds it though the note holds a field a newer version wrote`() {
+        // Keyed after the update, the note here kept the field the backup's copy lacks, found no
+        // twin, and the look-alike's file was dropped after Skip was offered for it.
+        val load = notebook("""[{"id": 1, "uid": "a", "title": "Trip", "body": "old plan", "zz_newer": "kept"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114170000000000_p.png").writeBytes("pic".toByteArray())
+        val plan = Importing.plan(load.raw!!, notes("""[{"uid": "a", "title": "Trip", "body": "new plan"},
+            {"title": "Trip (copy)", "body": "new plan",
+             "attachments": [{"filename": "p.png", "stored_as": "20261114170000000000_p.png"}]}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        assertEquals(1, Importing.lookAlikes(load.raw!!, plan, update = true))
+        val result = Importing.apply(load, plan, Importing.Answers(update = true, skipDuplicates = true), here,
+            Importing.Extras(attachments = unpacked)) as Importing.Result.Done
+        assertEquals(listOf(1, 1), listOf(result.outcome.duplicatesSkipped, result.outcome.filesGiven))
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals(listOf("kept", "p.png"),
+            listOf(note.optString("zz_newer"), note.getJSONArray("attachments").getJSONObject(0).getString("filename")))
     }
 
     // ---- question 2: the notes that are already here, unchanged ----
@@ -267,6 +710,122 @@ class ImportingTest {
         assertEquals(1, result.outcome.duplicatesSkipped)
     }
 
+    @Test
+    fun `a note sent to the Trash while a backup is planned does not turn Update onto another note`() {
+        // The plan is made away from the screen, the list usable meanwhile. Applied
+        // by place, a Trash in between moved Diary's place onto the PIN note, and
+        // Update rewrote that one with Diary's words.
+        val load = notebook("""
+            [{"id": 1, "uid": "u-shopping", "title": "Shopping", "body": "milk", "updated": "2026-10-01 09:00:00"},
+             {"id": 2, "uid": "u-diary", "title": "Diary", "body": "old diary entry", "updated": "2026-10-01 09:00:00"},
+             {"id": 3, "uid": "u-pin", "title": "Bank PIN hint", "body": "the old street", "updated": "2026-10-01 09:00:00"}]
+        """.trimIndent(), trash = "[]")
+        val atContinue = JSONArray().also { copy -> load.raw!!.let { for (i in 0 until it.length()) copy.put(it.opt(i)) } }
+        val plan = Importing.plan(atContinue, notes("""
+            [{"uid": "u-diary", "title": "Diary", "body": "old diary entry and a page written on the computer",
+              "updated": "2026-10-02 09:00:00"},
+             {"title": "Bank PIN hint", "body": "the old street"},
+             {"title": "Diary", "body": "old diary entry"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertTrue(Organizing.trashNotes(load, listOf(1)) is SaveResult.Ok)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true, skipDuplicates = true),
+            File(dirOf(load), "attachments")) as Importing.Result.Done
+        fun byUid(uid: String) = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+            .single { it.optString("uid") == uid }
+        assertEquals("Bank PIN hint", byUid("u-pin").getString("title"))
+        assertEquals("the old street", byUid("u-pin").getString("body"))
+        assertFalse("nothing of it was replaced", byUid("u-pin").has("_prev"))
+        assertEquals("old diary entry and a page written on the computer", byUid("u-diary").getString("body"))
+        assertEquals(1, result.outcome.updated)
+        // Look-alikes weighed against the list as it is: the PIN note is
+        // still here, so its twin is skipped; the old Diary is being
+        // replaced, so its twin is not a duplicate of anything.
+        assertEquals(1, result.outcome.duplicatesSkipped)
+        assertEquals(1, result.outcome.added)
+        assertEquals(listOf("Diary", "Bank PIN hint", "Diary"),
+            onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("title") } })
+    }
+
+    @Test
+    fun `the note an update was for, sent to the Trash while it was planned, comes back as a new note`() {
+        // As the plan would have sorted it a moment later: nothing here
+        // wears its identity any more, so nothing here is replaced by it.
+        val load = notebook("""
+            [{"id": 1, "uid": "u-diary", "title": "Diary", "body": "old"},
+             {"id": 2, "uid": "u-pin", "title": "Bank PIN hint", "body": "the old street"},
+             {"id": 3, "uid": "u-same", "title": "Same", "body": "same"}]
+        """.trimIndent(), trash = "[]")
+        val atContinue = JSONArray(load.raw!!.toString())
+        val plan = Importing.plan(atContinue, notes("""
+            [{"uid": "u-diary", "title": "Diary", "body": "new"}, {"uid": "u-same", "title": "Same", "body": "same"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertEquals(1, plan.differing.size)
+        assertEquals(1, plan.unchanged.size)
+        assertTrue(Organizing.trashNotes(load, listOf(1, 3)) is SaveResult.Ok)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true),
+            File(dirOf(load), "attachments")) as Importing.Result.Done
+        assertEquals(0, result.outcome.updated)
+        assertEquals(2, result.outcome.added)
+        assertEquals(0, result.outcome.unchangedSkipped)
+        val titles = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Bank PIN hint" to "the old street", "Diary" to "new", "Same" to "same"),
+            titles.map { it.getString("title") to it.getString("body") })
+        assertEquals("the arriving copy keeps its identity", "u-diary", titles[1].getString("uid"))
+    }
+
+    @Test
+    fun `two arriving notes with one identity update one note once, the second coming in as its own`() {
+        // Both claimed the note here: the question counted two, Update ran
+        // twice on it, and the second's rescue copy was the first arrival --
+        // the phone's own words in no copy.
+        val load = notebook("""[{"id": 1, "uid": "dup", "title": "Groceries", "body": "MY OWN WORDS typed on the phone"}]""",
+            trash = "[]")
+        val plan = Importing.plan(load.raw!!, notes("""
+            [{"uid": "dup", "title": "Groceries", "body": "version A from the code"},
+             {"uid": "dup", "title": "Groceries", "body": "version B from the code"}]
+        """.trimIndent()), Importing.Source.CODE)
+        assertEquals("one note here, one question", 1, plan.differing.size)
+        assertEquals(1, plan.fresh.size)
+        assertFalse(plan.fresh.single().has("uid"))
+        val result = Importing.apply(load, plan, Importing.Answers(update = true),
+            File(dirOf(load), "attachments")) as Importing.Result.Done
+        assertEquals(1, result.outcome.updated)
+        assertEquals(1, result.outcome.added)
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals("version A from the code", after[0].getString("body"))
+        assertEquals("the phone's words in the copy", "MY OWN WORDS typed on the phone",
+            after[0].getJSONObject("_prev").getString("body"))
+        assertEquals("version B from the code", after[1].getString("body"))
+        assertTrue(after[1].getString("uid") != "dup")
+        // Two new notes with one identity: both added, each its own.
+        val fresh = notebook("[]", trash = "[]")
+        val pair = Importing.plan(fresh.raw!!, notes("""
+            [{"uid": "dup2", "title": "First", "body": "1"}, {"uid": "dup2", "title": "Second", "body": "2"}]
+        """.trimIndent()), Importing.Source.CODE)
+        Importing.apply(fresh, pair, Importing.Answers(), File(dirOf(fresh), "attachments"))
+        val uids = onDisk(fresh).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("uid") } }
+        assertEquals(2, uids.toSet().size)
+        assertEquals("dup2", uids[0])
+    }
+
+    @Test
+    fun `a note restored from the Trash while a backup is planned does not come in a second time wearing its identity`() {
+        // Planned as new -- it was in the Trash at Continue -- and back by
+        // the time of apply: added wearing the same uid, nobody asked.
+        val load = notebook("""[{"id": 1, "uid": "other", "title": "Other", "body": "o"}]""",
+            trash = """[{"id": 2, "uid": "trip", "title": "Trip", "body": "the phone's", "deleted_at": "2026-10-28 10:00:00"}]""")
+        val plan = Importing.plan(JSONArray(load.raw!!.toString()), notes("""
+            [{"uid": "trip", "title": "Trip", "body": "the backup's"}]
+        """.trimIndent()), Importing.Source.BACKUP)
+        assertEquals(1, plan.fresh.size)
+        assertTrue(Organizing.restore(load, listOf(Organizing.TrashKey(2, "2026-10-28 10:00:00", "trip"))) is SaveResult.Ok)
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments")) as Importing.Result.Done
+        val after = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Other", "Trip", "Trip"), after.map { it.getString("title") })
+        assertEquals(3, after.map { it.getString("uid") }.toSet().size)
+        assertEquals("trip", after.single { it.getString("body") == "the phone's" }.getString("uid"))
+    }
+
     // ---- files ----
 
     @Test
@@ -274,16 +833,16 @@ class ImportingTest {
         val load = notebook("""
             [{"id": 1, "uid": "a", "title": "Mine", "attachments": [{"filename": "p.png", "stored_as": "p.png"}]}]
         """.trimIndent())
-        File(dir(load), "attachments/p.png").writeText("PHOTO")
+        File(dirOf(load), "attachments/p.png").writeText("PHOTO")
         val plan = backupPlan(load, """
             [{"uid": "x", "title": "Theirs", "attachments": [{"filename": "p.png", "stored_as": "p.png"}]}]
         """.trimIndent())
-        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"))
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"))
         val theirs = onDisk(load).getJSONObject(1).getJSONArray("attachments").getJSONObject(0)
         val name = theirs.getString("stored_as")
         assertNotEquals("p.png", name)
         assertTrue(name.endsWith("_p.png"))
-        assertEquals("PHOTO", File(dir(load), "attachments/$name").readText())
+        assertEquals("PHOTO", File(dirOf(load), "attachments/$name").readText())
         assertEquals("the display name stays", "p.png", theirs.getString("filename"))
     }
 
@@ -296,7 +855,7 @@ class ImportingTest {
                {"filename": "b", "stored_as": "C:\\Windows\\system.ini"},
                {"filename": "", "stored_as": ""}]}]
         """.trimIndent())
-        Importing.apply(load, plan, Importing.Answers(), File(dir(load), "attachments"))
+        Importing.apply(load, plan, Importing.Answers(), File(dirOf(load), "attachments"))
         val atts = onDisk(load).getJSONObject(0).getJSONArray("attachments")
         assertEquals(listOf("evil.txt", "system.ini"),
             (0 until atts.length()).map { atts.getJSONObject(it).getString("stored_as") })
@@ -314,7 +873,7 @@ class ImportingTest {
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedCategories)
         assertEquals(1, result.outcome.refusedCategories)
-        val saved = JSONObject(File(dir(load), "settings.json").readText()).getJSONObject("categories")
+        val saved = JSONObject(File(dirOf(load), "settings.json").readText()).getJSONObject("categories")
         assertEquals("#222222", saved.getString("Work"))
         assertEquals("#333333", saved.getString("Trips"))
         assertEquals("the note keeps its category", "Trips", onDisk(load).getJSONObject(0).getString("category"))
@@ -323,33 +882,435 @@ class ImportingTest {
     @Test
     fun `a template comes in only when none here has its name`() {
         val load = notebook("[]")
-        File(dir(load), "templates.json").writeText("""[{"name": "Weekly", "title": "mine"}]""")
+        File(dirOf(load), "templates.json").writeText("""[{"name": "Weekly", "title": "mine"}]""")
         val plan = backupPlan(load, "[]")
         val extras = Importing.Extras(templates = JSONArray("""
             [{"name": "Weekly", "title": "theirs"}, {"name": "Trip", "title": "t"}, {"title": "nameless"}]
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
-        assertEquals(1, result.outcome.addedTemplates)
-        val saved = JSONArray(File(dir(load), "templates.json").readText())
-        assertEquals(2, saved.length())
+        // "Trip", and the nameless one as "Untitled template", as the desktop's
+        // normalize_template names it; "Weekly" stays this phone's.
+        assertEquals(2, result.outcome.addedTemplates)
+        val saved = JSONArray(File(dirOf(load), "templates.json").readText())
+        assertEquals(3, saved.length())
         assertEquals("mine", saved.getJSONObject(0).getString("title"))
+        assertEquals(Templates.UNTITLED, saved.getJSONObject(2).getString("name"))
     }
 
     @Test
     fun `re-importing your own backup does not double the Trash`() {
+        // Days of late, within the 30 the next start keeps (older ones stay in the backup).
+        val stamp = { days: Long -> java.time.LocalDateTime.now().minusDays(days)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) }
+        val first = stamp(4)
+        val second = stamp(3)
         val load = notebook("[]", trash = """
-            [{"id": 4, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "2026-10-01 10:00:00"}]
+            [{"id": 4, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "$first"}]
         """.trimIndent())
         val plan = backupPlan(load, "[]")
         val extras = Importing.Extras(trash = JSONArray("""
-            [{"id": 9, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "2026-10-01 10:00:00"},
-             {"id": 5, "title": "Also gone", "deleted_at": "2026-10-02 10:00:00"}]
+            [{"id": 9, "uid": "t", "title": "Gone", "body": "b", "deleted_at": "$first"},
+             {"id": 5, "title": "Also gone", "deleted_at": "$second"}]
         """.trimIndent()))
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(1, result.outcome.addedTrash)
-        val trash = JSONArray(File(dir(load), "trash.json").readText())
+        val trash = JSONArray(File(dirOf(load), "trash.json").readText())
         assertEquals(2, trash.length())
-        assertEquals("2026-10-02 10:00:00", trash.getJSONObject(1).getString("deleted_at"))
+        assertEquals(second, trash.getJSONObject(1).getString("deleted_at"))
+    }
+
+    @Test
+    fun `look-alikes are counted once for each answer, however often the questions ask`() {
+        // Asked from the questions' drawing, two or three times and at every
+        // redraw, each time normalizing every note of both notebooks.
+        var counted = 0
+        val alikes = Importing.LookAlikes({ update -> counted += 1; if (update) 2 else 3 })
+        repeat(5) {
+            assertEquals(3, alikes.of(false))
+            assertEquals(2, alikes.of(true))
+        }
+        assertEquals(2, counted)
+        // And the real count is the one lookAlikes gives.
+        val load = notebook("""[{"uid": "a", "title": "Milk", "body": "two"}]""")
+        val plan = backupPlan(load, """[{"uid": "b", "title": "Milk", "body": "two"}]""")
+        assertEquals(Importing.lookAlikes(load.raw!!, plan, false),
+                     Importing.LookAlikes(load.raw!!, plan).warm(plan).of(false))
+        assertEquals(1, Importing.LookAlikes(load.raw!!, plan).of(false))
+    }
+
+    @Test
+    fun `a backup's Trash window comes with its Trash where none was ever chosen, and only there`() {
+        // Restored onto a new phone, entries kept for 90 days were emptied
+        // at the next start by the default 30 nobody had chosen.
+        val window = { load: Notebook.Load ->
+            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
+            File(dirOf(load), "settings.json").takeIf { it.isFile }
+                ?.let { JSONObject(it.readText()).opt(Settings.RETENTION_DAYS) }
+        }
+        val fresh = notebook("[]")
+        assertEquals(90, window(fresh))
+        assertEquals("the next start purges by it", 90, fresh.settings?.let { Settings.purgeWindow(it) })
+        assertEquals("a window chosen here is kept", 14, window(notebook("[]", settings = """{"trash_retention_days": 14}""")))
+        // Lost with a file that could not be read: chosen once, only not known.
+        assertNull(window(notebook("[]", settings = """{"phone_trash_window_unknown": true}""")))
+    }
+
+    @Test
+    fun `over settings held at the start, a backup's Trash that needs its longer window does not come in`() {
+        // Its marks in memory, the window was not adopted, the entries came in, and the
+        // next start read the real file, no window chosen: 30 days removed them.
+        // Held before the load, as a start finds it (held after, the settings write hid the guard).
+        val first = notebook("[]", settings = """{"theme": "dark"}""")
+        val trashFile = File(dirOf(first), "trash.json")
+        val before = if (trashFile.isFile) trashFile.readText() else null
+        try {
+            Files.holdWrites(first.settings!!.file)
+            val load = Notebook.load(dirOf(first))
+            val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = 90, trash = JSONArray(TRASHED_LONG_AGO)))
+            assertTrue(result is Importing.Result.Failed)
+            assertTrue((result as Importing.Result.Failed).reason.contains("settings.json"))
+        } finally {
+            Files.newStart()
+        }
+        assertEquals("nothing written to the Trash", before, if (trashFile.isFile) trashFile.readText() else null)
+    }
+
+    @Test
+    fun `the import's words for one note skipped are in the singular`() {
+        // "1 duplicates skipped." and "1 were already here", where the desktop counts in the singular.
+        val said = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 1, duplicatesSkipped = 1))
+        assertTrue(said, "1 was already here, unchanged, and was skipped." in said && "1 duplicate skipped." in said)
+        // ...and the other forms the import's words take, one and many, each read whole.
+        val one = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            addedCategories = 1, addedTrash = 1))
+        assertTrue(one, "Also restored 1 category and 1 trashed note." in one)
+        val many = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            trashLeftOut = 2, keepDays = 30))
+        assertTrue(many, "2 of the backup's trashed notes were not brought in: older than the 30 days this phone's " +
+            "Trash keeps notes, the next start would have removed them. The backup still holds them." in many)
+    }
+
+    @Test
+    fun `the import's words read whole, every part in its one and its many form`() {
+        fun said(n: Int) = importMessage(Importing.Outcome(added = n, updated = n, unchangedSkipped = n,
+            duplicatesSkipped = n, addedCategories = n, refusedCategories = n, restoredDays = n, addedTemplates = n,
+            addedTrash = n, earlierText = n, filesOnly = n, filesGiven = n, trashLeftOut = n, keepDays = 30))
+        assertEquals("Added 1 note. Updated 1 you already had (“↩ Restore previous” undoes each one). " +
+            "1 you already had took attached files this device lacked. " +
+            "1 attached file went to the notes the skipped ones look like. " +
+            "1 was already here, unchanged, and was skipped. 1 duplicate skipped. " +
+            "Also restored 1 category and 1 calendar day marking and 1 template and 1 trashed note. " +
+            "1 of the backup's trashed notes was not brought in: older than the 30 days this phone's Trash keeps " +
+            "notes, the next start would have removed it. The backup still holds it. " +
+            "1 category could not be added (a name over 80 characters, or more than 200 categories in all), so its " +
+            "notes are in General. Earlier text of 1 day of a repeating note kept as notes of their own.", said(1))
+        assertEquals("Added 2 notes. Updated 2 you already had (“↩ Restore previous” undoes each one). " +
+            "2 you already had took attached files this device lacked. " +
+            "2 attached files went to the notes the skipped ones look like. " +
+            "2 were already here, unchanged, and were skipped. 2 duplicates skipped. " +
+            "Also restored 2 categories and 2 calendar day markings and 2 templates and 2 trashed notes. " +
+            "2 of the backup's trashed notes were not brought in: older than the 30 days this phone's Trash keeps " +
+            "notes, the next start would have removed them. The backup still holds them. " +
+            "2 categories could not be added (a name over 80 characters, or more than 200 categories in all), so " +
+            "their notes are in General. Earlier text of 2 days of a repeating note kept as notes of their own.", said(2))
+    }
+
+    @Test
+    fun `an import stopped by a held file says its reason once, not inside another sentence`() {
+        // "settings.json could not be written: settings.json could not be read or copied aside…".
+        val first = notebook("[]", settings = """{"theme": "dark"}""")
+        try {
+            Files.holdWrites(first.settings!!.file)
+            val load = Notebook.load(dirOf(first))
+            val result = Importing.apply(load, backupPlan(load, """[{"title": "N", "body": "n"}]"""), Importing.Answers(),
+                null, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}""")))
+            val reason = (result as Importing.Result.Failed).reason
+            assertTrue(reason, reason.startsWith("settings.json could not be read or copied aside"))
+            assertFalse(reason, "could not be written" in reason)
+        } finally {
+            Files.newStart()
+        }
+    }
+
+    @Test
+    fun `a note here under General whose backup copy is filed under a category the backup adopts is offered as changed`() {
+        // Planned with this notebook's names alone, the backup's copy read as General, the pair as
+        // unchanged and skipped; apply adopted the name anyway and it came back empty.
+        val load = notebook("""[{"id": 1, "uid": "g1", "title": "Seeds", "body": "x", "category": "General"}]""")
+        val incoming = notes("""[{"uid": "g1", "title": "Seeds", "body": "x", "category": "Garden"}]""")
+        val plan = Importing.plan(load.raw!!, incoming, Importing.Source.BACKUP,
+            Importing.merged(load.categories, null, incoming).map.keys)
+        assertEquals(1, plan.differing.size)
+        val result = Importing.apply(load, plan, Importing.Answers(update = true), null)
+        assertEquals(1, (result as Importing.Result.Done).outcome.updated)
+        assertEquals("Garden", onDisk(load).getJSONObject(0).getString("category"))
+        // ...a note under a name the ceilings refuse looks like the same note here under General,
+        // as the desktop's normalize_note files it before comparing...
+        val here = notebook("""[{"id": 1, "uid": "n1", "title": "Far", "body": "z", "category": "General"}]""")
+        val far = notes("""[{"uid": "n2", "title": "Far", "body": "z", "category": "${"L".repeat(81)}"}]""")
+        val farPlan = Importing.plan(here.raw!!, far, Importing.Source.BACKUP, Importing.merged(here.categories, null, far).map.keys)
+        assertEquals(1, Importing.lookAlikes(here.raw!!, farPlan, update = false))
+        // ...and the words for one name a ceiling refuses say why, in the singular.
+        val said = importMessage(Importing.Outcome(added = 0, updated = 0, unchangedSkipped = 0, duplicatesSkipped = 0,
+            refusedCategories = 1))
+        assertTrue(said, "1 category could not be added (a name over 80 characters" in said && "its notes" in said)
+    }
+
+    @Test
+    fun `a backup's categories are adopted in the file's order, as the plan adopted them`() {
+        // Apply took the new notes first, the plan the file's order: other colours, and at the
+        // 200 ceiling other names, so a note the plan offered as changed Update did not change.
+        val load = notebook("""[{"id": 1, "uid": "g1", "title": "Seeds", "body": "x", "category": "General"}]""")
+        val incoming = notes("""[{"uid": "g1", "title": "Seeds", "body": "x", "category": "Garden"},
+            {"uid": "s1", "title": "Hoe", "body": "h", "category": "Shed"}]""")
+        val expected = Importing.merged(load.categories, null, incoming).map
+        val plan = Importing.plan(load.raw!!, incoming, Importing.Source.BACKUP, expected.keys)
+        assertTrue(Importing.apply(load, plan, Importing.Answers(update = true), null) is Importing.Result.Done)
+        val saved = Settings.load(dirOf(load)).raw.getJSONObject(Settings.CATEGORIES)
+        assertNotEquals(expected["Garden"], expected["Shed"])
+        assertEquals(expected["Garden"], saved.getString("Garden"))
+        assertEquals(expected["Shed"], saved.getString("Shed"))
+    }
+
+    @Test
+    fun `a skipped look-alike's file goes to the note here it looks like, as the desktop gives it`() {
+        // Skipped, it was dropped with its file: the same backup left the file on the desktop's
+        // note and not on the phone's.
+        val load = notebook("""[{"id": 1, "uid": "h1", "title": "Pic", "body": "p"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114150000000000_p.png").writeBytes("pic".toByteArray())
+        val plan = Importing.plan(load.raw!!, notes("""[{"uid": "b1", "title": "Pic", "body": "p",
+            "attachments": [{"filename": "p.png", "stored_as": "20261114150000000000_p.png"}]}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        val result = Importing.apply(load, plan, Importing.Answers(skipDuplicates = true), here,
+            Importing.Extras(attachments = unpacked))
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(listOf(1, 1), listOf(outcome.duplicatesSkipped, outcome.filesGiven))
+        val note = onDisk(load).getJSONObject(0)
+        assertEquals("p.png", note.getJSONArray("attachments").getJSONObject(0).getString("filename"))
+        assertTrue(File(here, "20261114150000000000_p.png").isFile)
+        assertTrue(importMessage(outcome), "1 attached file went to the notes the skipped ones look like" in importMessage(outcome))
+    }
+
+    @Test
+    fun `a backup of look-alikes that brings files, a template, the Trash or a day's marks offers Skip, as the desktop's`() {
+        // Every new note a look-alike, the question offered Import anyway or Cancel: the default
+        // Cancel dropped what Skip goes on with, where the desktop offers "Skip them".
+        val load = notebook("""[{"id": 1, "uid": "h1", "title": "Pic", "body": "p"}]""")
+        val here = File(dirOf(load), "attachments")
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114160000000000_p.png").writeBytes("pic".toByteArray())
+        val fileOf = Importing.filesIn(here, unpacked)
+        val alike = """[{"uid": "b1", "title": "Pic", "body": "p"}]"""
+        fun more(json: String, extras: Importing.Extras = Importing.Extras()): Boolean {
+            val plan = Importing.plan(load.raw!!, notes(json), Importing.Source.BACKUP, null, fileOf)
+            assertEquals(plan.fresh.size, Importing.lookAlikes(load.raw!!, plan, false))
+            return Importing.bringsMore(load.raw!!, plan, false, load, load.trashRaw, load.settings?.raw, extras, fileOf)
+        }
+        assertFalse("nothing beside the look-alike", more(alike))
+        assertTrue("its file", more("""[{"uid": "b1", "title": "Pic", "body": "p",
+            "attachments": [{"filename": "p.png", "stored_as": "20261114160000000000_p.png"}]}]"""))
+        assertTrue("a template", more(alike, Importing.Extras(templates = JSONArray("""[{"name": "Weekly", "body": "w"}]"""))))
+        assertTrue("a trashed note", more(alike, Importing.Extras(trash = JSONArray(
+            """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(1)}"}]"""))))
+        // ...but not one older than this phone keeps the Trash: apply leaves it in the backup.
+        assertFalse("a trashed note past the Trash's length", more(alike, Importing.Extras(trash = JSONArray(
+            """[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(400)}"}]"""))))
+        // ...asked by the length apply keeps it by: the backup's longer one, taken where none was chosen.
+        assertTrue("a trashed note within the backup's longer window", more(alike, Importing.Extras(trashWindow = 90,
+            trash = JSONArray("""[{"id": 9, "title": "Gone", "body": "g", "deleted_at": "${daysAgo(45)}"}]"""))))
+        assertTrue("a day's colour", more(alike, Importing.Extras(dayColors = JSONObject("""{"2026-11-14": "#ff0000"}"""))))
+        assertTrue("a category", more(alike, Importing.Extras(categories = JSONObject("""{"Shed": "#336699"}"""))))
+        // ...but not a template over a templates file held this run: apply stops there.
+        try {
+            Files.holdWrites(File(dirOf(load), "templates.json"))
+            assertFalse("a template over a held file", more(alike, Importing.Extras(templates = JSONArray("""[{"name": "W"}]"""))))
+        } finally {
+            Files.newStart()
+        }
+        // ...and the question has it worked out before it opens, away from the screen.
+        val plan = Importing.plan(load.raw!!, notes(alike), Importing.Source.BACKUP, null, fileOf)
+        var asked = 0
+        val alikes = Importing.LookAlikes(load.raw!!, plan) { asked += 1; true }.warm(plan)
+        assertEquals("worked out by warm", 1, asked)
+        assertTrue(Importing.offersSkip(plan, Importing.Answers(), alikes))
+        assertEquals("once", 1, asked)
+        assertFalse(Importing.offersSkip(plan, Importing.Answers(), Importing.LookAlikes(load.raw!!, plan) { false }))
+    }
+
+    @Test
+    fun `a backup's note that came in on a copy of its file is not offered as changed, nor given another copy`() {
+        // Matched by its identity, its files were compared by stored name: asked about as edited
+        // elsewhere at every import, and each Update added one more copy of the same file.
+        val load = notebook("""[{"id": 1, "uid": "nf-n", "title": "Kept", "body": "k",
+            "attachments": [{"filename": "n.pdf", "stored_as": "20261114130000000001_n.pdf"}]}]""")
+        val here = File(dirOf(load), "attachments")
+        File(here, "20261114130000000001_n.pdf").writeBytes("note file".toByteArray())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114130000000000_n.pdf").writeBytes("note file".toByteArray())
+        val files = """"attachments": [{"filename": "n.pdf", "stored_as": "20261114130000000000_n.pdf"}]"""
+        val same = Importing.plan(load.raw!!, notes("""[{"uid": "nf-n", "title": "Kept", "body": "k", $files}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        assertEquals(listOf(0, 1), listOf(same.differing.size, same.unchanged.size))
+        val edited = Importing.plan(load.raw!!, notes("""[{"uid": "nf-n", "title": "Kept", "body": "edited", $files}]"""),
+            Importing.Source.BACKUP, null, Importing.filesIn(here, unpacked))
+        Importing.apply(load, edited, Importing.Answers(update = true), here, Importing.Extras(attachments = unpacked))
+        assertEquals("edited", onDisk(load).getJSONObject(0).getString("body"))
+        assertEquals(1, onDisk(load).getJSONObject(0).getJSONArray("attachments").length())
+    }
+
+    @Test
+    fun `a backup's trashed note already here comes in once, under a refused name or on a copy of a file`() {
+        // Signed by its stored name, this Trash's entry under a name the map cannot take met
+        // its twin filed under General, and it came in twice. And one whose file a note here
+        // uses came in on a copy of it, signed under the copy's name: every import, again.
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val load = notebook("""[{"id": 1, "uid": "n1", "title": "Recipe", "body": "r",
+            "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]}]""",
+            trash = """[{"id": 2, "uid": "far-t", "title": "Far", "body": "z", "category": "$long",
+                "deleted_at": "${daysAgo(1)}"}]""")
+        File(dirOf(load), "attachments/20261114120000000000_r.png").writeBytes("picture".toByteArray())
+        val unpacked = NioFiles.createTempDirectory("unpacked").toFile()
+        File(unpacked, "20261114120000000000_r.png").writeBytes("picture".toByteArray())
+        // The same words, another picture of the same name: another note, which comes in.
+        File(unpacked, "20261114120000000001_r.png").writeBytes("another".toByteArray())
+        val backupTrash = """[{"uid": "far-t", "title": "Far", "body": "z", "category": "$long", "deleted_at": "${daysAgo(1)}"},
+            {"uid": "rf-t", "title": "Recipe", "body": "r", "deleted_at": "${daysAgo(2)}",
+             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000000_r.png"}]},
+            {"uid": "rf-2", "title": "Recipe", "body": "r", "deleted_at": "${daysAgo(2)}",
+             "attachments": [{"filename": "r.png", "stored_as": "20261114120000000001_r.png"}]}]"""
+        fun import() {
+            val here = Notebook.load(dirOf(load))
+            Importing.apply(here, backupPlan(here, "[]"), Importing.Answers(), File(dirOf(load), "attachments"),
+                Importing.Extras(trash = JSONArray(backupTrash), attachments = unpacked))
+        }
+        repeat(2) { import() }
+        // ...and with the file the copy was made from gone from here, it is found in the backup:
+        // the desktop copies every file in first, and the phone looked only here.
+        File(dirOf(load), "attachments/20261114120000000000_r.png").delete()
+        import()
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("title") } }
+        assertEquals(listOf("Far", "Recipe", "Recipe"), trash)
+    }
+
+    @Test
+    fun `two twins in a backup's Trash under a category it adopts come in once, one under a refused name as General`() {
+        // Signed before the name was known, the first read as General and the second under it: both came in.
+        val load = notebook("[]")
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[
+                {"uid": "a", "title": "Twin", "body": "same", "category": "Shed", "deleted_at": "${daysAgo(3)}"},
+                {"uid": "b", "title": "Twin", "body": "same", "category": "Shed", "deleted_at": "${daysAgo(2)}"},
+                {"uid": "c", "title": "Far", "body": "z", "category": "$long", "deleted_at": "${daysAgo(1)}"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Twin", "Far"), trash.map { it.getString("title") })
+        assertEquals("Shed", trash[0].getString("category"))
+        assertEquals("General", trash[1].getString("category"))
+        assertEquals(1, outcome.refusedCategories)
+    }
+
+    @Test
+    fun `a backup's notes and trashed notes keep the categories its settings lack, the newer twin comes in`() {
+        // Filed under General for good, unsaid, where the desktop's import adopts them:
+        // this phone's start never writes the categories it adopts, so its backups lack them.
+        // Of two twins in the backup's Trash, the older left out took the newer, uncounted.
+        val load = notebook("[]")
+        val long = "L".repeat(Settings.MAX_CATEGORY_NAME + 1)
+        val result = Importing.apply(load, backupPlan(load, """[
+            {"uid": "g1", "title": "Seeds", "category": "Garden", "date": "2026-10-05",
+             "recurrence": {"freq": "weekly", "weekdays": [0]}, "overrides": {"2026-10-12": {"category": "Gym"}}},
+            {"uid": "l1", "title": "Long", "category": "$long"}]"""), Importing.Answers(), null,
+            Importing.Extras(trash = JSONArray("""[
+                {"uid": "tw-old", "title": "Twin", "body": "same", "deleted_at": "${daysAgo(200)}"},
+                {"uid": "tw-new", "title": "Twin", "body": "same", "deleted_at": "${daysAgo(2)}"},
+                {"uid": "shed", "title": "Shed", "body": "y", "category": "OnlyInTrash", "deleted_at": "${daysAgo(3)}"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        val saved = onDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.associateBy { it.getString("title") }
+        assertEquals("Garden", saved.getValue("Seeds").getString("category"))
+        assertEquals("Gym", saved.getValue("Seeds").getJSONObject("overrides").getJSONObject("2026-10-12").getString("category"))
+        assertEquals("a name past the ceiling stays out, said", "General", saved.getValue("Long").getString("category"))
+        assertEquals(1, outcome.refusedCategories)
+        val map = Settings.load(dirOf(load)).raw.getJSONObject(Settings.CATEGORIES)
+        assertTrue(map.toString(), map.has("Garden") && map.has("Gym") && map.has("OnlyInTrash"))
+        assertEquals(3, outcome.addedCategories)
+        val trash = trashOnDisk(load).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        assertEquals(listOf("Twin", "Shed"), trash.map { it.getString("title") })
+        assertEquals("tw-new", trash[0].getString("uid"))
+        assertEquals("OnlyInTrash", trash[1].getString("category"))
+        assertEquals(1, outcome.trashLeftOut)
+        // ...and said, in the words the case reads: counted alone, the sentence could go unseen.
+        val said = importMessage(outcome)
+        assertTrue(said, "Also restored 3 categories and 2 trashed notes." in said)
+    }
+
+    @Test
+    fun `a backup's trashed notes past this phone's window stay in the backup, said, and the rest come in`() {
+        // A backup with no window of its own (its notebook's lost, or a 30-day one)
+        // brought old entries in under this phone's 30 days: the next start removed
+        // them with their files, as the desktop's did.
+        val recent = java.time.LocalDateTime.now().minusDays(3)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val old = java.time.LocalDateTime.now().minusDays(200)
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val load = notebook("[]")
+        val result = Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+            Importing.Extras(trashWindow = null, trash = JSONArray(
+                """[{"uid": "old-t", "title": "Old", "body": "x", "deleted_at": "$old"},
+                    {"uid": "new-t", "title": "New", "body": "y", "deleted_at": "$recent"}]""")))
+        val outcome = (result as Importing.Result.Done).outcome
+        assertEquals(1, outcome.addedTrash)
+        assertEquals(1, outcome.trashLeftOut)
+        assertEquals(30, outcome.keepDays)
+        // ...and said, in the words the case reads: counted alone, the sentence could go unseen.
+        val said = importMessage(outcome)
+        assertTrue(said, "1 of the backup's trashed notes was not brought in: older than the 30 days this phone's " +
+            "Trash keeps notes, the next start would have removed it. The backup still holds it." in said)
+        val kept = JSONArray(File(dirOf(load), "trash.json").readText())
+        assertEquals(listOf("New"), (0 until kept.length()).map { kept.getJSONObject(it).getString("title") })
+    }
+
+    @Test
+    fun `a backup never shortens the Trash window, nor sets one with no Trash to keep by it`() {
+        // A backup from a 7-day notebook, with no Trash at all, set this
+        // phone's window to 7, and the next start emptied the phone's own
+        // Trash -- kept under the 30 days promised -- for good, files and all.
+        val mine = """[{"uid": "t1", "title": "Mine", "body": "kept", "deleted_at": "%s"}]"""
+            .format(java.time.LocalDateTime.now().minusDays(12).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
+        val window = { days: Int, trash: String? ->
+            val load = notebook("[]", trash = mine)
+            Importing.apply(load, backupPlan(load, "[]"), Importing.Answers(), null,
+                Importing.Extras(trashWindow = days, trash = trash?.let { JSONArray(it) }))
+            Settings.purgeWindow(Settings.load(dirOf(load)))
+        }
+        for (days in listOf(7, 14, 29, 30)) {
+            // The phone's own entry, deleted 12 days ago, stays past the next start.
+            assertEquals("a backup's $days days leave the default", 30, window(days, TRASHED_LONG_AGO))
+        }
+        assertEquals("a longer window with no Trash in the backup is not taken", 30, window(90, null))
+        assertEquals("... nor with an empty one", 30, window(90, "[]"))
+        assertEquals("a longer one with its Trash is", 31, window(31, TRASHED_LONG_AGO))
+    }
+
+    private companion object {
+        const val TRASHED_LONG_AGO = """[{"uid": "old-t", "title": "Theirs", "body": "x", "deleted_at": "2026-01-02 10:00"}]"""
+    }
+
+    @Test
+    fun `only a whole number of days from 1 to 365 is taken from a backup's settings`() {
+        val taken = { settings: String ->
+            Backup.Contents(emptyList(), null, null, JSONObject(settings), null).extras().trashWindow
+        }
+        assertEquals(90, taken("""{"trash_retention_days": 90}"""))
+        assertEquals(365, taken("""{"trash_retention_days": 365}"""))
+        for (bad in listOf("0", "366", "7.5", "\"90\"", "-3", "null", "true")) {
+            assertNull(bad, taken("""{"trash_retention_days": $bad}"""))
+        }
+        assertNull(taken("{}"))
     }
 
     @Test
@@ -362,7 +1323,7 @@ class ImportingTest {
         )
         val result = Importing.apply(load, plan, Importing.Answers(), null, extras) as Importing.Result.Done
         assertEquals(3, result.outcome.restoredDays)
-        val saved = JSONObject(File(dir(load), "settings.json").readText())
+        val saved = JSONObject(File(dirOf(load), "settings.json").readText())
         assertEquals("#111111", saved.getJSONObject("day_colors").getString("2026-10-12"))
         assertEquals("#222222", saved.getJSONObject("day_colors").getString("2026-10-13"))
         assertFalse(saved.getJSONObject("day_colors").has("2026-10-14"))
@@ -383,5 +1344,17 @@ class ImportingTest {
         assertEquals(3.5, note.getDouble("order"), 0.0)
         assertEquals("2024-01-01 10:00:00", note.getString("created"))
         assertEquals("2024-02-01 10:00:00", note.getString("updated"))
+    }
+
+    @Test
+    fun `one of several older notes is said as one, not 1 of them are`() {
+        assertEquals(R.string.q_older_it, olderSaid(one = true, older = 1))
+        assertEquals(R.string.q_older_one, olderSaid(one = false, older = 1))
+        assertEquals(R.string.q_older_many, olderSaid(one = false, older = 2))
+        val strings = File("src/main/res/values/strings.xml").readText()
+        fun said(name: String) = Regex("<string name=\"$name\">(.*?)</string>").find(strings)?.groupValues?.get(1)
+        assertEquals("It is OLDER than the copy on this device.", said("q_older_it"))
+        assertEquals("One of them is OLDER than the copy on this device.", said("q_older_one"))
+        assertEquals("%1\$d of them are OLDER than the copy on this device.", said("q_older_many"))
     }
 }

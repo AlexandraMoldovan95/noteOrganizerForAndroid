@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +26,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.TextButton
@@ -31,7 +36,11 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +54,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -56,18 +69,30 @@ import ro.noteorganizer.app.ui.theme.LocalPalette
 import ro.noteorganizer.app.ui.theme.hexColor
 
 /**
- * A sheet from the bottom, as every one in the app is drawn. The sheet is
- * a window of its own, and Android drew its bars for the phone's light or
- * dark, not the app's: on a light phone with the app dark, a white bar of
- * buttons over the sheet and the clock dark on dark, seen on the owner's
- * phone. And a sheet taller than half the screen opened half-way, the
- * rest below the screen's edge until dragged up: Share's last card lay
- * under the buttons there. A sheet opens whole, as tall as it needs.
+ * What a screen reader says for a button drawn as a symbol -- "+", "⋮",
+ * "🗑" -- which it otherwise read by the symbol's name, or not at all. The
+ * symbol stays the button's text, so a sighted reader and the walk see it
+ * as before.
+ */
+@Composable
+fun Modifier.said(id: Int): Modifier {
+    val words = stringResource(id)
+    return semantics { contentDescription = words }
+}
+
+/**
+ * A sheet from the bottom, as every one in the app is drawn: a window of its
+ * own, whose bars Android drew for the phone's light or dark, not the app's
+ * (a white bar of buttons on a light phone with the app dark), and which
+ * opened half-way when taller than half the screen, Share's last card under
+ * the buttons. A sheet opens whole, as tall as it needs, its bars the app's.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun AppSheet(onDismissRequest: () -> Unit, messages: SnackbarHostState? = null,
+             content: @Composable ColumnScope.() -> Unit) {
     val palette = LocalPalette.current
+    val depth = LocalMessagesDepth.current + 1
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -76,21 +101,82 @@ fun AppSheet(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -
             isAppearanceLightStatusBars = !palette.isDark,
             isAppearanceLightNavigationBars = !palette.isDark,
         ),
-        content = content,
-    )
+    ) {
+        // The app's [messages] in the sheet that stays open over what said them
+        // -- drawn in the window under it, they were never seen -- with their
+        // room kept (the sheet scrolls), and in the topmost sheet only ([MessagesShown]).
+        CompositionLocalProvider(LocalMessagesDepth provides depth) {
+            if (messages == null) content()
+            else {
+                Column(Modifier.weight(1f, fill = false)) { content() }
+                if (MessagesShown.Over(messages)) SnackbarHost(messages, Modifier.fillMaxWidth().padding(bottom = 8.dp))
+            }
+        }
+    }
+}
+
+/** How deep the sheets around what is composed here stand: a host's place in [MessagesShown]. */
+private val LocalMessagesDepth = compositionLocalOf { 0 }
+
+/**
+ * The hosts drawing the app's messages over the window -- a sheet's, the
+ * template editor's -- counted for each state they draw. While one does,
+ * the window's own host draws none, and of them only the deepest draws,
+ * the newest of equals: a message is one live region, read out once, not
+ * two TalkBack could read twice. A host that goes leaves a message still
+ * standing to the next, which shows it again.
+ */
+object MessagesShown {
+    private val over = mutableStateMapOf<Any, Map<Any, Int>>()
+
+    /** Whether a host over the window draws [messages] now. */
+    fun elsewhere(messages: Any): Boolean = over[messages]?.isNotEmpty() == true
+
+    /** [host], [depth] sheets deep, stands over the window for [messages]. */
+    internal fun shown(messages: Any, host: Any, depth: Int) {
+        over[messages] = (over[messages] ?: emptyMap()) - host + (host to depth)
+    }
+
+    internal fun gone(messages: Any, host: Any) {
+        val left = (over[messages] ?: emptyMap()) - host
+        if (left.isNotEmpty()) over[messages] = left else over.remove(messages)
+    }
+
+    /** Whether [host] is the one of [messages]' hosts that draws them: the deepest, the newest of equals. */
+    internal fun drawn(messages: Any, host: Any): Boolean {
+        val hosts = over[messages] ?: return false
+        val deepest = hosts.values.maxOrNull() ?: return false
+        return hosts.entries.last { it.value == deepest }.key === host
+    }
+
+    /** A host over the window for [messages] while this is composed; true while it is the one that draws them. */
+    @Composable
+    fun Over(messages: SnackbarHostState): Boolean {
+        val host = remember { Any() }
+        val depth = LocalMessagesDepth.current
+        DisposableEffect(messages, depth) {
+            shown(messages, host, depth)
+            onDispose { gone(messages, host) }
+        }
+        return drawn(messages, host)
+    }
 }
 
 /**
+ * Words that appear to say what just happened, read out by a screen reader
+ * as they come, as the app's messages at the foot are: where a dialog or a
+ * page says them under its own box instead, a plain line of text was read
+ * by nobody.
+ */
+fun Modifier.saidAloud(): Modifier = semantics { liveRegion = LiveRegionMode.Polite }
+
+/**
  * A text field in a column that scrolls, kept in sight where it is typed
- * into. Compose's field brings its cursor into view only when it takes the
- * focus: Enter on the last line the keyboard left showing made the next one
- * under the keys, and the screen stayed where it was (the owner's phone,
- * 2026-10-23). After each change to the words, once they are laid out, the
- * place where the change ended is brought into view.
- *
- * On the field: [requester] in its modifier, after any padding, so its box
- * is the words' own; [laidOut] as its onTextLayout; [typed] from its
- * onValueChange.
+ * into: Compose brings the cursor into view only as the field takes the
+ * focus, and Enter on the last line in sight made the next one under the
+ * keys. After each change, once laid out, where it ended is brought into
+ * view. On the field: [requester] in its modifier, after any padding;
+ * [laidOut] as its onTextLayout; [typed] from its onValueChange.
  */
 @Stable
 class Following {
@@ -113,13 +199,10 @@ class Following {
 
 /**
  * [cursor], given while the field has the focus, is also kept in sight as
- * the keyboard rises. Compose keeps the focused field in view as the screen
- * shrinks, and for a field longer than what is left that showed another part
- * of it: a tap on line 2 of a long note, the phone on its side, left lines
- * 20 to 22 in sight (2026-10-23). Asked at each height the keyboard passes
- * through, as the checklist's box is. The note still jumps away as the
- * keyboard rises and scrolls back to the line: Compose's own move comes
- * first, at each height, and a request can only answer it.
+ * the keyboard rises, asked at each height it passes: Compose keeps a long
+ * field in view by another part of it (a tap on line 2, lines 20 to 22 in
+ * sight). The note still jumps away and back as the keyboard rises:
+ * Compose's own move comes first, and a request can only answer it.
  */
 @Composable
 fun rememberFollowing(cursor: Int? = null): Following {
@@ -132,7 +215,7 @@ fun rememberFollowing(cursor: Int? = null): Following {
         val laidOut = drawn ?: return@LaunchedEffect
         val laid = laidOut.layoutInput.text
         if (at > length || !(laid.length == length ||
-                laid.length == length + 1 && laid.text.endsWith('​'))) return@LaunchedEffect
+                laid.length == length + 1 && laid.text.endsWith(STAND_IN))) return@LaunchedEffect
         following.pending = null
         following.requester.bringIntoView(laidOut.getCursorRect(at))
     }
@@ -162,7 +245,9 @@ fun FoldLabel(text: String, folded: Boolean, onToggle: () -> Unit) {
     ) {
         Text(text.uppercase(), color = palette.subtext, fontSize = 12.sp, fontWeight = FontWeight.Medium,
              letterSpacing = 0.8.sp)
-        Text(if (folded) "  ▸" else "  ▾", color = palette.subtext, fontSize = 12.sp)
+        // The arrow is drawn, not said: the state says it.
+        Text(if (folded) "  ▸" else "  ▾", color = palette.subtext, fontSize = 12.sp,
+             modifier = Modifier.clearAndSetSemantics { })
     }
 }
 
@@ -196,8 +281,12 @@ fun Swatches(
     val none = stringResource(R.string.colour_none)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val all = (if (allowNone) listOf("") else emptyList()) + colours
-        for (colour in all) {
+        for ((position, colour) in all.withIndex()) {
             val picked = colour.equals(chosen, ignoreCase = true)
+            // Said by its place and its value, and picked or not, as a radio
+            // button is: the hex alone was all a screen reader had, and the
+            // ring all an eye had.
+            val said = if (colour.isEmpty()) none else stringResource(R.string.swatch_said, position + 1, all.size, colour)
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -207,8 +296,8 @@ fun Swatches(
                     .clip(CircleShape)
                     .background(if (colour.isEmpty()) palette.inset else hexColor(colour))
                     .border(1.dp, palette.hairline, CircleShape)
-                    .clickable { onPick(colour) }
-                    .semantics { contentDescription = if (colour.isEmpty()) none else colour },
+                    .selectable(selected = picked, role = androidx.compose.ui.semantics.Role.RadioButton) { onPick(colour) }
+                    .semantics { contentDescription = said },
                 contentAlignment = Alignment.Center,
             ) {
                 if (colour.isEmpty()) Text("✕", color = palette.subtext, fontSize = 14.sp)
@@ -226,11 +315,9 @@ fun Dot(colour: String, size: Int = 12) {
 /**
  * The desktop's note card: the colour stripe down its left edge, the
  * headline, the first words, and the tags line in a readable shade of the
- * note's colour. A headline borrowed from the text, for a note with no
- * title, is set lighter than a real one.
- *
- * [open] outlines the card of the note open beside the list, on a screen
- * wide enough for both; a selected card is filled as well.
+ * note's colour; a headline borrowed from the text is set lighter than a
+ * title. [open] outlines the card of the note open beside the list, on a
+ * screen wide enough for both; a selected card is filled as well.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -245,9 +332,15 @@ fun NoteCard(
     // Custom order's drag handle, at the card's right edge, when the list
     // is arranged by hand.
     handle: (@Composable () -> Unit)? = null,
+    // What a screen reader or Switch Access may do to the card besides
+    // open and select it: Move up, Move down.
+    actions: List<androidx.compose.ui.semantics.CustomAccessibilityAction> = emptyList(),
 ) {
     val palette = LocalPalette.current
     val stripe = hexColor(colour)
+    // Filled when selected: its quieter words take the shade that reads on the fill.
+    val quiet = palette.subtextOn(selected)
+    val tags = if (selected) palette.onChosen(colour) else palette.legibleOnCard(colour)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,22 +348,24 @@ fun NoteCard(
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) palette.calendarHasNotes else palette.card)
             .then(if (selected || open) Modifier.border(2.dp, palette.accent, RoundedCornerShape(12.dp)) else Modifier)
-            // The colour stripe painted on the card, not a child stretched
-            // to the card's height: that asked the card to be measured twice
-            // (IntrinsicSize.Min), every line of its text laid out twice, on
-            // every card that scrolled into sight.
+            // The colour stripe painted on the card, not a child stretched to its
+            // height, which measured every card twice (IntrinsicSize.Min), every
+            // line of its text laid out twice as it scrolled into sight.
             .drawBehind { drawRect(stripe, size = Size(5.dp.toPx(), size.height)) }
+            .then(if (actions.isEmpty()) Modifier else Modifier.semantics {
+                customActions = actions
+            })
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(start = 5.dp),
     ) {
         Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (selecting) {
-                    Text(if (selected) "☑ " else "☐ ", color = palette.accentText, fontSize = 16.sp)
+                    Text(if (selected) "☑ " else "☐ ", color = palette.accentTextOn(selected), fontSize = 16.sp)
                 }
                 Text(
                     text = badges(note) + note.headline,
-                    color = if (note.headlineIsBorrowed) palette.subtext else palette.text,
+                    color = if (note.headlineIsBorrowed) quiet else palette.text,
                     fontSize = 15.sp,
                     fontWeight = if (note.headlineIsBorrowed) FontWeight.Normal else FontWeight.Medium,
                     maxLines = 1,
@@ -280,7 +375,7 @@ fun NoteCard(
             if (note.snippet.isNotEmpty()) {
                 Text(
                     text = note.snippet,
-                    color = palette.subtext,
+                    color = quiet,
                     fontSize = 13.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -289,7 +384,7 @@ fun NoteCard(
             }
             Text(
                 text = note.tagLine(),
-                color = palette.legibleOnCard(colour),
+                color = tags,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -313,6 +408,42 @@ fun noteColour(note: Note, categories: Map<String, String>, accentHex: String): 
     note.color.ifEmpty { categories[note.category] ?: accentHex }
 
 /**
+ * A dialog's text, scrolled: Material's AlertDialog gives it the room its
+ * buttons leave and no scroll, and at the largest letters or on a phone on
+ * its side its end was cut under them. [key] starts a new question at its top.
+ */
+@Composable
+fun DialogBody(key: Any? = null, content: @Composable ColumnScope.() -> Unit) {
+    androidx.compose.runtime.key(key) {
+        Column(Modifier.verticalScroll(rememberScrollState()), content = content)
+    }
+}
+
+/**
+ * A top bar's title, or a short label, on one line, shrunk to its room, and
+ * "…" where even 6 sp does not fit: a plain Text broke inside its word at the
+ * largest letters ("select" / "ed", "Novembe" / "r 2026", "Mo" / "n",
+ * "Calenda" / "r"), and a bar cut the rest. [look] is laid over the place's style.
+ */
+@Composable
+fun OneLine(text: String, modifier: Modifier = Modifier,
+            color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified,
+            look: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default) {
+    val style = androidx.compose.material3.LocalTextStyle.current.merge(look)
+    val ink = if (color != androidx.compose.ui.graphics.Color.Unspecified) color
+              else if (style.color != androidx.compose.ui.graphics.Color.Unspecified) style.color
+              else androidx.compose.material3.LocalContentColor.current
+    val largest = if (style.fontSize != androidx.compose.ui.unit.TextUnit.Unspecified) style.fontSize else 22.sp
+    androidx.compose.foundation.text.BasicText(
+        text, modifier,
+        style = style.merge(androidx.compose.ui.text.TextStyle(color = ink)),
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        maxLines = 1, softWrap = false,
+        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = largest),
+    )
+}
+
+/**
  * A question with a safe answer. The safe one is the highlighted button,
  * as on the desktop -- Enter there, the thumb's first landing here -- and
  * the one that cannot be taken back is quieter, in the warning colour.
@@ -331,7 +462,10 @@ fun Ask(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { Text(text) },
+        // Whatever a question quotes is quoted short already; this is the
+        // last guard, for a reason that carries text from outside. Scrolled,
+        // or its end was cut at the largest letters or on its side.
+        text = { Text(forTheScreen(text), Modifier.verticalScroll(rememberScrollState())) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(confirm, color = if (destructive) palette.dangerText else palette.accentText)

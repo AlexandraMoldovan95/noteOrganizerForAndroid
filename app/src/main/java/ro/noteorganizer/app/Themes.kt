@@ -1,19 +1,16 @@
 package ro.noteorganizer.app
 
 /**
- * The desktop's palettes and swatches, colour for colour.
+ * The desktop's palettes and swatches, colour for colour. Its
+ * `core/themes.py` is the specification: eight themes with the same role
+ * names (`bg`, `card`, `text`, `accent`...), the names it shows for them,
+ * the categories a new notebook starts with, and the swatches a person
+ * picks from -- copied rather than re-chosen, so a note coloured on one
+ * device is the same colour on the other. `tools/check_palettes.py` reads
+ * both files and fails on any difference.
  *
- * The desktop's `core/themes.py` is the specification: eight themes with
- * the same role names (`bg`, `card`, `text`, `accent`...), the names it
- * shows for them, the categories a new notebook starts with, and the
- * swatches a person picks from. Copied rather than re-chosen, so a note
- * coloured on one device is the same colour on the other, and a theme is
- * recognisably the same theme. `tools/check_palettes.py` reads both files
- * and fails on any difference.
- *
- * Plain strings and arithmetic, no Compose: like the rest of the rules
- * layer, this is tested on the computer. `AppTheme.kt` turns it into
- * colours to draw with.
+ * Plain strings and arithmetic, no Compose, tested on the computer;
+ * `AppTheme` (ui/theme/Theme.kt) turns it into colours to draw with.
  */
 object Themes {
 
@@ -259,6 +256,44 @@ object Themes {
         return "#%02x%02x%02x".format(mixed[0], mixed[1], mixed[2])
     }
 
+    /**
+     * The edge of a control at rest -- a switch that is off, its knob and
+     * rim; a text field's border; an outlined button's: the theme's
+     * subtext. The hairline it was drawn in stood 1.2 to 1 from what lies
+     * around it, and a switch that was off all but
+     * vanished; a boundary asks 3 to 1, which ThemesTest holds every theme to.
+     */
+    fun controlEdge(theme: Map<String, String>): String = theme.getValue("subtext")
+
+    /**
+     * Material's primary role, which Android draws words and marks in -- a
+     * dialog's Cancel and its other plain buttons, a focused field's label,
+     * the date picker's day -- on a dialog's card or the page: the accent as
+     * words read there at 4.5 to 1. The raw accent was 3.1 to 1 for Cancel,
+     * the safe answer, in Light Mint and Light Warm.
+     */
+    fun primaryRole(theme: Map<String, String>): String =
+        legibleOn(theme.getValue("accent_text"), theme.getValue("card"), theme.getValue("text"))
+
+    /**
+     * The bar at the foot's action -- Undo, Open, Leave anyway -- which
+     * Android draws in its inverse primary on its inverse surface, the
+     * theme's text colour turned into a ground: the accent, as words read
+     * there. The raw accent stood 2.1 to 2.7 to 1 in six themes, the default
+     * Dark among them, on the one control that brings a removed row back.
+     */
+    fun barAction(theme: Map<String, String>): String =
+        legibleOn(theme.getValue("accent"), theme.getValue("text"), theme.getValue("bg"))
+
+    /**
+     * [colour] -- the subtext, the accent's or the warning's words, a
+     * category's -- as words on the fill a chosen card, row or bar button
+     * takes: on a chosen card the subtext stood 4.1 to 1 in Light, a
+     * category 3.5. Itself where it reads, else its nearest shade that does.
+     */
+    fun onChosen(colour: String, theme: Map<String, String>): String =
+        legibleOn(colour, theme.getValue("calendar_has_notes"), theme.getValue("text"))
+
     /** WCAG 2.1 relative luminance. */
     fun relativeLuminance(hex: String): Double? {
         val c = channels(hex) ?: return null
@@ -282,17 +317,20 @@ object Themes {
         return if (dark > light) LETTERS_DARK else LETTERS_LIGHT
     }
 
+    /** What [legibleOn] asks of words: WCAG's 4.5 to 1, and a little over. */
+    private const val LEGIBLE = 4.6
+
     /**
      * [colour] as words on [ground]: itself when it reads there at
-     * [minimum], else the nearest shade of it that does -- darker in the
+     * [LEGIBLE], else the nearest shade of it that does -- darker in the
      * same hue on a light ground, mixed toward [ink] on a dark one. For a
      * colour a person picked (a category's, a note's own) shown as words;
      * the stripe beside it keeps the colour whole. The desktop's
      * `legible_on`.
      */
-    fun legibleOn(colour: String, ground: String, ink: String, minimum: Double = 4.6): String {
+    fun legibleOn(colour: String, ground: String, ink: String): String {
         val first = contrastRatio(colour, ground) ?: return ink
-        if (first >= minimum) return colour
+        if (first >= LEGIBLE) return colour
         val darkWins = (contrastRatio(LETTERS_DARK, ground) ?: 0.0) >=
             (contrastRatio(LETTERS_LIGHT, ground) ?: 0.0)
         if (darkWins) {
@@ -303,12 +341,12 @@ object Themes {
                                    hsv[2] * (1 - step / 100.0))
                 val darker = "#%02x%02x%02x".format(
                     pyRound(rgb[0] * 255), pyRound(rgb[1] * 255), pyRound(rgb[2] * 255))
-                if ((contrastRatio(darker, ground) ?: 0.0) >= minimum) return darker
+                if ((contrastRatio(darker, ground) ?: 0.0) >= LEGIBLE) return darker
             }
         } else {
             for (step in 1..20) {
                 val mixed = blend(colour, ink, step / 20.0)
-                if ((contrastRatio(mixed, ground) ?: 0.0) >= minimum) return mixed
+                if ((contrastRatio(mixed, ground) ?: 0.0) >= LEGIBLE) return mixed
             }
         }
         return ink

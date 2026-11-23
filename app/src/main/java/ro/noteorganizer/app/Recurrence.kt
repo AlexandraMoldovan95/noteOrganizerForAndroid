@@ -9,20 +9,14 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
- * Repeating notes: the rules, and working out which dates they land on.
- * A port of the desktop's `core/recurrence.py`, whose `test_recurrence.py`
- * is this file's acceptance suite (`RecurrenceTest`).
- *
- * **A repeating note is stored exactly once.** Its days are worked out on
- * demand for whatever range is being shown, and never written to the
- * file: a note repeating daily since 1990 is still one entry. Four fields
- * describe it all -- `date` (the series' first day), `recurrence` (the
- * rule), `exceptions` (days deleted one by one), `overrides` (days edited
- * on their own) -- and since the desktop's 0.92.374 a fifth, `moved` (a day
- * held on another date).
- *
- * Dates are `java.time.LocalDate`, there from Android 8, this app's
- * minimum; the file keeps one form, YYYY-MM-DD, whatever was typed.
+ * Repeating notes: the rules, and which dates they land on -- a port of the
+ * desktop's `core/recurrence.py`, whose `test_recurrence.py` is this file's
+ * acceptance suite (`RecurrenceTest`). **A repeating note is stored
+ * exactly once:** its days are worked out for the range shown, never
+ * written. Five fields describe it: `date` (the first day), `recurrence`
+ * (the rule), `exceptions` (days deleted), `overrides` (days edited on
+ * their own) and `moved` (a day held on another date). Dates are
+ * `java.time.LocalDate`; the file keeps one form, YYYY-MM-DD.
  */
 object Recurrence {
 
@@ -44,9 +38,6 @@ object Recurrence {
     /** "Every 1000 years" is past any real use, and far from any overflow. */
     const val MAX_INTERVAL = 1000
 
-    /** What the empty date field shows: the order a typed date is read in. */
-    const val DATE_FORM = "DD.MM.YYYY"
-
     // ---- the stored form ----
 
     private val STORED = Regex("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})$")
@@ -57,7 +48,9 @@ object Recurrence {
      * Python's `%m` and `%d`, one figure for the month or the day is read.
      */
     fun parseDate(value: Any?): LocalDate? {
-        val text = (value as? String)?.trim() ?: return null
+        // Python's strip: Kotlin's trim kept U+0085, and a date the desktop
+        // reads was no date here.
+        val text = (value as? String)?.let(PyText::strip) ?: return null
         val parts = STORED.matchEntire(text) ?: return null
         return dateOf(parts.groupValues[1].toInt(), parts.groupValues[2].toInt(), parts.groupValues[3].toInt())
     }
@@ -77,10 +70,8 @@ object Recurrence {
         String.format(Locale.US, "%04d-%02d-%02d", d.year, d.monthValue, d.dayOfMonth)
 
     // ---- dates as people write them, and as the app shows them ----
-    //
-    // In figures the day comes first, as the field's form asks, and the
-    // month first only where the day first cannot be: 10/17/2026 is October
-    // 17th, the American way, while 10/12/2026 is the tenth of December.
+    // In figures the day comes first, and the month first only where the day
+    // cannot be: 10/17/2026 is October 17th, 10/12/2026 the tenth of December.
 
     /**
      * The month names a typed date may use, in English and in Romanian, as
@@ -111,10 +102,9 @@ object Recurrence {
     // of figures, or a word. Figures are 0-9 only: digits of another script
     // are not a date. Letters are any script's, as Python's [^\W\d_].
     private val DATE_PART = Regex("[0-9]{1,2}(?:st|nd|rd|th)|[0-9]+|\\p{L}+", RegexOption.IGNORE_CASE)
-    // What a typed date may be made of, taken away run by run: anything left
-    // over means it is not a date. One pass, never a backtracking search.
-    // The spaces are Python's `\s`, written out: Android's regex engine and
-    // the computer's do not agree on the name of that class.
+    // What a typed date may be made of, taken away run by run in one pass:
+    // anything left over is no date. The spaces are Python's `\s`, written
+    // out, as Android's regex engine and the computer's name that class apart.
     private const val SPACES = "\\t\\n\\u000B\\f\\r\\u001C-\\u001F \\u0085\\u00A0\\u1680" +
         "\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000"
     private val DATE_RUNS = Regex("[0-9]+|\\p{L}+|[$SPACES./,\\-]+")
@@ -143,24 +133,18 @@ object Recurrence {
     }
 
     /**
-     * A date as a person writes it -> that day, or null.
-     *
-     * Read: 17.10.2026, 17/10/2026, 17-10-2026 (the day first; the month
-     * first only where the day first cannot be); 2026-10-17; and the month
-     * as a word before or after the day -- 17 oct 2026, 17 octombrie 2026,
-     * October 17, 2026. A day name, an ordinal ending, "the" and "of" are
-     * read and set aside.
-     *
-     * [settled]: the person has finished with the field. Only then is a
-     * short year read as this century's and a missing one as this year's:
-     * read while typing, "17.10.20" on its way to 2026 would be saved as
-     * 2020. [today] is for tests.
+     * A date as a person writes it -> that day, or null: 17.10.2026,
+     * 17/10/2026, 17-10-2026, 2026-10-17, and the month as a word before or
+     * after the day (17 oct 2026, October 17, 2026); a day name, an ordinal,
+     * "the" and "of" set aside. Only once [settled] -- the field finished --
+     * is a short or missing year filled in: while typing, "17.10.20" on its
+     * way to 2026 would be saved as 2020. [today] is for tests.
      */
     fun readDate(value: Any?, settled: Boolean = false, today: LocalDate? = null): LocalDate? =
         readDate(value, settled, today, MONTH_NAMES)
 
     internal fun readDate(value: Any?, settled: Boolean, today: LocalDate?, months: Map<String, Int>): LocalDate? {
-        val text = (value as? String)?.trim() ?: return null
+        val text = (value as? String)?.let(PyText::strip) ?: return null
         if (text.isEmpty() || text.length > DATE_MAX_CHARS || DATE_RUNS.replace(text, "").isNotEmpty()) return null
         val numbers = ArrayList<String>()
         val words = ArrayList<String>()
@@ -241,29 +225,12 @@ object Recurrence {
         return String.format(Locale.US, "%02d.%02d.%04d", d.dayOfMonth, d.monthValue, d.year)
     }
 
-    /** A stored moment: 2026-10-17 09:30 -> 17.10.2026 09:30, the time kept as it is. */
-    fun showStamp(value: Any?): String {
-        val text = value as? String ?: return ""
-        val gap = text.indexOf(' ')
-        if (gap < 0) return showDate(text)
-        return showDate(text.substring(0, gap)) + text.substring(gap)
-    }
-
     /** A day written out, the day first: Saturday, 3 October 2026. */
     fun showDay(d: LocalDate, year: Boolean = true, shortMonth: Boolean = false): String {
         var month = LONG_MONTHS[d.monthValue - 1]
         if (shortMonth) month = month.take(3)
         val text = "${LONG_DAYS[d.dayOfWeek.value - 1]}, ${d.dayOfMonth} $month"
         return if (year) "$text ${d.year}" else text
-    }
-
-    /** Whether two date texts name the same day, or are the same text. */
-    fun sameDate(a: Any?, b: Any?): Boolean {
-        val first = (a as? String)?.trim() ?: ""
-        val second = (b as? String)?.trim() ?: ""
-        if (first == second) return true
-        val x = readDate(first)
-        return x != null && x == readDate(second)
     }
 
     // ---- the rule ----
@@ -297,15 +264,70 @@ object Recurrence {
         is Int -> value
         is Long -> value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
         is Number -> value.toDouble().let { if (it.isFinite()) it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt() else null }
-        is String -> value.trim().toIntOrNull()
+        is String -> pythonIntOf(value)
         else -> null
     }
 
+    /**
+     * Python's `int(text)`, base 10: its spaces either side, a sign, digits
+     * of any script with single underscores between ("1_000"), at most 4,300
+     * digits; null where Python raises, past an Int held at its edge. Its
+     * spaces are ASCII's six, so the separators U+001C to U+001F, which `str.isspace()`
+     * counts, are refused -- read as spaces, "\u001c7" repeated weekly on
+     * the phone and daily on the desktop.
+     */
+    internal fun pythonIntOf(text: String): Int? =
+        pythonBigIntOf(text)?.max(java.math.BigInteger.valueOf(Int.MIN_VALUE.toLong()))
+            ?.min(java.math.BigInteger.valueOf(Int.MAX_VALUE.toLong()))?.toInt()
+
+    /** [pythonIntOf]'s number whole, however large: an id past an Int is no id here ([Organizing.heldId]), not one at the edge. */
+    internal fun pythonBigIntOf(text: String): java.math.BigInteger? {
+        var from = 0
+        var to = text.length
+        while (from < to && intSpace(text.codePointAt(from))) from += Character.charCount(text.codePointAt(from))
+        while (to > from && intSpace(text.codePointBefore(to))) to -= Character.charCount(text.codePointBefore(to))
+        val t = text.substring(from, to)
+        var i = 0
+        val negative = t.startsWith("-")
+        if (t.startsWith("-") || t.startsWith("+")) i = 1
+        val digits = StringBuilder()
+        var afterSeparator = true      // an underscore neither leads nor follows another
+        while (i < t.length) {
+            val cp = t.codePointAt(i)
+            if (cp == '_'.code) {
+                if (afterSeparator) return null
+                afterSeparator = true
+            } else {
+                if (Character.getType(cp) != Character.DECIMAL_DIGIT_NUMBER.toInt()) return null
+                digits.append('0' + Character.digit(cp, 10))
+                afterSeparator = false
+            }
+            i += Character.charCount(cp)
+        }
+        // Nor ends: "1_" is refused, and so is a sign alone.
+        if (afterSeparator || digits.isEmpty() || digits.length > PYTHON_INT_DIGITS) return null
+        return java.math.BigInteger(digits.toString()).let { if (negative) it.negate() else it }
+    }
+
+    private const val PYTHON_INT_DIGITS = 4300
+
+    /** A space `int()` skips at a number's ends: ASCII's Py_ISSPACE six, or any space past ASCII ([PyText.isSpace]). */
+    private fun intSpace(cp: Int): Boolean = if (cp < 0x80) cp == 0x20 || cp in 0x09..0x0D else PyText.isSpace(cp)
+
+    /**
+     * Python's `sorted({d for d in value if isinstance(d, int) and lo <= d <= hi})`.
+     * True and False are ints there, 1 and 0, and kept as the days they are:
+     * left out, a hand-made rule's [true, 3] was Thursday alone on the phone
+     * and Tuesday and Thursday on the desktop, and "the same series" answered
+     * no for a rule the desktop read as the same.
+     * Written as the numbers, which Python reads as equal to them.
+     */
     private fun sortedInts(value: Any?, range: IntRange): JSONArray {
         val list = value as? JSONArray ?: return JSONArray()
         val kept = sortedSetOf<Int>()
         for (i in 0 until list.length()) {
             when (val v = list.opt(i)) {
+                is Boolean -> (if (v) 1 else 0).let { if (it in range) kept.add(it) }
                 is Int -> if (v in range) kept.add(v)
                 is Long -> if (v in range.first.toLong()..range.last.toLong()) kept.add(v.toInt())
             }
@@ -339,38 +361,112 @@ object Recurrence {
         return (0 until list.length()).mapNotNull { list.opt(it) as? String }.toSet()
     }
 
+    /**
+     * How many times a note's moved days have been read whole: a count the
+     * tests hold to, never a time. Asking about one day at a time read all
+     * 5,000 of a backup's moved days for each, and the note froze as it
+     * opened and at every letter typed (ISSUES_LOG, "Fixes that
+     * were holes").
+     */
+    internal var movesRead = 0L
+
     /** A repeating note's days held on other dates: the rule's date -> where it is. */
     private fun moves(note: JSONObject): List<Pair<String, Any?>> {
         if (!isRecurring(note)) return emptyList()
         val moved = note.opt("moved") as? JSONObject ?: return emptyList()
+        movesRead += 1
         return moved.keys().asSequence().map { it to moved.opt(it) }.toList()
+    }
+
+    /** A rule worked out once: its first day, its normalized rule, and its deleted days. */
+    private class RuleParts(note: JSONObject, withExceptions: Boolean = true) {
+        val anchor: LocalDate? = parseDate(note.opt("date"))
+        val rule: JSONObject = normalize(note.opt("recurrence"))
+        val exceptions: Set<String> = if (withExceptions) stringsOf(note.opt("exceptions")) else emptySet()
+    }
+
+    /**
+     * One note's days asked of many single dates: for each, what
+     * `expand(note, day, day)` says, with the rule, the deleted days and the
+     * moved days read once for them all -- the desktop's `_drawn_on_days`.
+     * A rule that stops after N times is walked once from its first day.
+     * [withExceptions] false asks of the schedule alone, deleted days drawn.
+     */
+    private class Schedule(note: JSONObject, withExceptions: Boolean = true) {
+        private val parts = RuleParts(note, withExceptions)
+        private val moved = moves(note)
+        private val origins = moved.mapTo(HashSet()) { it.first }
+        private val landing = HashMap<LocalDate, MutableList<Pair<String, String>>>().also { map ->
+            for ((orig, new) in moved) {
+                val text = new as? String ?: continue
+                val day = parseDate(text) ?: continue
+                map.getOrPut(day) { ArrayList(1) }.add(orig to text)
+            }
+        }
+        private val cameFrom = HashMap<Any?, String>().also { map -> for ((orig, new) in moved) map.putIfAbsent(new, orig) }
+        private val counted: Set<String>? = parts.anchor?.takeIf { parts.rule.getInt("count") > 0 }?.let {
+            expandRule(parts, it, LocalDate.of(9999, 12, 31), null, emptySet()).toHashSet()
+        }
+
+        /** Whether the rule itself gives [day], deleted days apart. */
+        fun ruleGives(day: LocalDate): Boolean {
+            val text = formatDate(day)
+            return counted?.contains(text) ?: (expandRule(parts, day, day, null, emptySet()) == listOf(text))
+        }
+
+        /** `expand(note, day, day)`, answered from what was read once. */
+        fun on(day: LocalDate): List<String> {
+            val text = formatDate(day)
+            val out = ArrayList<String>(1)
+            if (text !in origins && ruleGives(day)) out.add(text)
+            for ((orig, newText) in landing[day].orEmpty()) {
+                if (newText in out || orig in parts.exceptions) continue
+                val origin = parseDate(orig) ?: continue
+                if (formatDate(origin) != orig || !ruleGives(origin)) continue
+                out.add(newText)
+            }
+            out.sort()
+            return out
+        }
+
+        /** `movedFrom(note, day)`. */
+        fun movedFrom(day: String): String? = cameFrom[day]
+    }
+
+    /**
+     * Which of [days] -- date texts -- the note's rule itself gives, its
+     * deleted and moved days aside: the desktop's `_rule_days_among`. A text
+     * written another way than the calendar writes a date is never one.
+     */
+    fun ruleDaysAmong(note: JSONObject, days: Collection<String>): Set<String> {
+        if (days.isEmpty()) return emptySet()
+        val schedule = Schedule(note, withExceptions = false)
+        return days.filterTo(HashSet()) { text -> parseDate(text)?.let { formatDate(it) == text && schedule.ruleGives(it) } == true }
     }
 
     /**
      * Every date this note lands on between [start] and [end], inclusive, as
      * YYYY-MM-DD, in order: deleted days left out, a moved day drawn on its
-     * new date. [limit] stops after that many -- the first ones.
-     *
-     * The one place a series' days are worked out: the calendar, the
-     * History, the sort by next day and the days off the schedule all ask
-     * it, so a moved day is moved everywhere.
+     * new date; [limit] the first that many. The one place a series' days are
+     * worked out -- calendar, History, the sort, the days off the schedule --
+     * so a moved day is moved everywhere.
      */
     fun expand(note: JSONObject, start: LocalDate, end: LocalDate, limit: Int? = null): List<String> {
         val moved = moves(note)
+        val parts = RuleParts(note)
         // The rule's own days, less the ones moved away: each still counts as
         // one of a "10 times" series' ten, wherever it is held.
-        val dates = expandRule(note, start, end, limit, moved.map { it.first }.toSet()).toMutableList()
+        val dates = expandRule(parts, start, end, limit, moved.mapTo(HashSet()) { it.first }).toMutableList()
         if (moved.isEmpty()) return dates
         // ...and each moved day on its new date, while the day it was moved
         // from is still one the rule gives and was not deleted.
         val drawn = dates.toMutableSet()
-        val exceptions = stringsOf(note.opt("exceptions"))
         for ((orig, new) in moved) {
             val newText = new as? String ?: continue
             val day = parseDate(newText) ?: continue
-            if (newText in drawn || orig in exceptions || day < start || day > end) continue
+            if (newText in drawn || orig in parts.exceptions || day < start || day > end) continue
             val origin = parseDate(orig) ?: continue
-            if (expandRule(note, origin, origin) != listOf(orig)) continue
+            if (expandRule(parts, origin, origin, null, emptySet()) != listOf(orig)) continue
             dates.add(newText)
             drawn.add(newText)
         }
@@ -396,6 +492,12 @@ object Recurrence {
             note.put("moved", moved)
         }
         val orig = movedFrom(note, day) ?: day
+        // Another move onto [to], which the caller found free, is a dead one --
+        // its own date no longer the rule's -- and goes, as the desktop's move_day
+        // drops it: two moves onto one date were read as the dead one.
+        for (dead in moved.keys().asSequence().toList()) {
+            if (dead != orig && moved.opt(dead) == to) moved.remove(dead)
+        }
         if (to == orig) moved.remove(orig) else moved.put(orig, to)
         val overrides = note.opt("overrides") as? JSONObject
         if (overrides != null && overrides.has(day) && to != day) {
@@ -416,15 +518,20 @@ object Recurrence {
      * The days the rule gives between [start] and [end], less its exceptions
      * and the dates in [skip] -- which still count towards "N times".
      */
-    private fun expandRule(note: JSONObject, start: LocalDate, end: LocalDate,
-                           limit: Int? = null, skip: Set<String> = emptySet()): List<String> {
-        val anchor = parseDate(note.opt("date")) ?: return emptyList()
-        val rule = normalize(note.opt("recurrence"))
-        val exceptions = stringsOf(note.opt("exceptions")) + skip
+    private fun expandRule(parts: RuleParts, start: LocalDate, end: LocalDate,
+                           limit: Int?, skip: Set<String>): List<String> {
+        val anchor = parts.anchor ?: return emptyList()
+        val rule = parts.rule
+        // Asked of both sets, never of their union: built at every call, the
+        // union of 5,000 deleted and 5,000 moved days was rebuilt per day.
+        fun gone(text: String) = text in parts.exceptions || text in skip
         val freq = rule.getString("freq")
         if (freq.isEmpty()) {
+            // The deleted days belong to the series it was, kept for a repeat
+            // brought back: asked here, a series whose first day was deleted fell
+            // off the calendar and the reminder once its repeat was turned off.
             val oneOff = formatDate(anchor)
-            return if (anchor in start..end && oneOff !in exceptions) listOf(oneOff) else emptyList()
+            return if (anchor in start..end && oneOff !in skip) listOf(oneOff) else emptyList()
         }
         val interval = rule.getInt("interval")
         val endDate = parseDate(rule.getString("end"))
@@ -446,7 +553,7 @@ object Recurrence {
             produced += 1
             if (candidate in start..end) {
                 val text = formatDate(candidate)
-                if (text !in exceptions) {
+                if (!gone(text)) {
                     results.add(candidate to text)
                     if (limit != null && results.size >= limit) return false
                 }
@@ -562,9 +669,22 @@ object Recurrence {
 
     /**
      * The note as it appears on one day: the series with that day's own
-     * edit on top -- a copy; the stored note is never changed.
+     * edit on top -- a copy; the stored note is never changed. A note that no
+     * longer repeats is itself on its day: the days a share code or "↩
+     * Restore previous" left in it are kept for a repeat brought back, and
+     * read here they stood in for it. The desktop's `effective_note`; what a
+     * day HOLDS is [dayAsKept].
      */
-    fun effectiveNote(note: JSONObject, day: String): JSONObject {
+    fun effectiveNote(note: JSONObject, day: String): JSONObject =
+        if (!isRecurring(note)) note else dayAsKept(note, day)
+
+    /**
+     * The note with [day]'s own edit on top, whether or not it still
+     * repeats: what that day holds, for the questions that decide whether a
+     * day is worth keeping -- the desktop's `day_as_kept`. What a day SHOWS
+     * is [effectiveNote].
+     */
+    fun dayAsKept(note: JSONObject, day: String): JSONObject {
         val patch = (note.opt("overrides") as? JSONObject)?.opt(day) as? JSONObject ?: return note
         val merged = JSONObject()
         for (key in note.keys()) merged.put(key, note.opt(key))
@@ -585,11 +705,13 @@ object Recurrence {
             var mine = orEmpty(patch.opt(field))
             var theirs = orEmpty(note.opt(field))
             if (mine !is String || theirs !is String) return false
+            // Stripped as Python strips (Notebook.pyStrip): Kotlin's trim
+            // kept a NEL the desktop's day_matches_series takes off.
             if (field == "title") {
-                mine = mine.trim()
-                theirs = theirs.trim()
+                mine = Notebook.pyStrip(mine)
+                theirs = Notebook.pyStrip(theirs)
             }
-            if (mine != theirs) return false
+            if (if (field == "body") !Normalize.sameBody(mine, theirs) else mine != theirs) return false
         }
         return true
     }
@@ -597,21 +719,26 @@ object Recurrence {
     /**
      * The days a repeating note keeps its own edits for that its schedule
      * no longer reaches, oldest first. Asked of [expand] itself, so it
-     * cannot disagree with the calendar. A deleted day is not counted.
+     * cannot disagree with the calendar. A deleted day is not counted -- but
+     * a deleted date a day was moved onto holds that day's words, and is
+     * asked of the series as it is: hidden there, they were listed nowhere
+     * (the desktop's off_schedule_days).
      */
     fun offScheduleDays(note: JSONObject): List<String> {
         if (!isRecurring(note)) return emptyList()
         val overrides = note.opt("overrides") as? JSONObject ?: return emptyList()
         if (overrides.length() == 0) return emptyList()
         val exceptions = stringsOf(note.opt("exceptions"))
-        val schedule = JSONObject()
-        for (key in note.keys()) schedule.put(key, note.opt(key))
-        schedule.put("exceptions", JSONArray())
+        val moved = note.opt("moved") as? JSONObject
+        val landed = moved?.keys()?.asSequence()?.mapNotNull { moved.opt(it) as? String }?.toSet().orEmpty()
+        // The schedule alone, deleted days drawn, read once for every day.
+        val schedule = Schedule(note, withExceptions = false)
+        val kept by lazy { Schedule(note) }
         val off = ArrayList<String>()
         for (day in overrides.keys().asSequence().sorted()) {
             val whenDay = parseDate(day) ?: continue
-            if (day in exceptions) continue
-            if (expand(schedule, whenDay, whenDay) != listOf(day)) off.add(day)
+            if (day in exceptions && day !in landed) continue
+            if ((if (day in exceptions) kept else schedule).on(whenDay) != listOf(day)) off.add(day)
         }
         return off
     }
@@ -620,19 +747,18 @@ object Recurrence {
      * What the series view says of its days, counted as the desktop's
      * `_update_occurrence_banner` counts them: the days keeping their own
      * edits, less those the schedule no longer reaches (the next line shows
-     * those), and the days held on another date the calendar still draws
-     * them on. An edit to the series not reaching three days looked like an
-     * edit that failed -- the desktop's field report, and the phone's until
-     * it said so.
+     * those), and the days held on another date the calendar still draws.
+     * Unsaid, an edit to the series not reaching three days looked failed.
      */
     fun seriesCounts(note: JSONObject): Pair<Int, Int> {
         if (!isRecurring(note)) return 0 to 0
         val own = ((note.opt("overrides") as? JSONObject)?.length() ?: 0) - offScheduleDays(note).size
         val moved = note.opt("moved") as? JSONObject
+        val schedule = Schedule(note)
         val held = moved?.keys()?.asSequence()?.count { key ->
             val now = moved.opt(key) as? String
             val whenDay = now?.let { parseDate(it) }
-            whenDay != null && expand(note, whenDay, whenDay) == listOf(now)
+            whenDay != null && schedule.on(whenDay) == listOf(now)
         } ?: 0
         return maxOf(0, own) to held
     }
@@ -653,7 +779,7 @@ object Recurrence {
             text += " on day " + (0 until monthDays.length()).joinToString(", ") { monthDays.getInt(it).toString() }
         }
         val count = rule.getInt("count")
-        if (count > 0) text += ", $count times"
+        if (count > 0) text += ", $count ${if (count == 1) "time" else "times"}"
         else if (rule.getString("end").isNotEmpty()) text += ", until ${showDate(rule.getString("end"))}"
         return text
     }
@@ -690,6 +816,8 @@ object Recurrence {
             val autoExpand: Boolean,
             /** Where a series with no days to unfold leads on the calendar. */
             val jumpDate: String?,
+            /** Who the series is ([Note.identity]): what its open group is kept by. */
+            val identity: String = "id:$noteId",
         ) : HistoryEntry()
     }
 
@@ -697,19 +825,22 @@ object Recurrence {
 
     private fun bucketOf(date: String, today: LocalDate): String? {
         val d = parseDate(date) ?: return null
-        return when (d.year) {
-            today.year -> "This year"
-            today.year - 1 -> "Last year"
-            today.year - 2 -> "2 years ago"
+        // A day already given words in a year to come is this year's work:
+        // under "Older" it read as the archive (as on
+        // the desktop).
+        return when {
+            d.year >= today.year -> "This year"
+            d.year == today.year - 1 -> "Last year"
+            d.year == today.year - 2 -> "2 years ago"
             else -> "Older"
         }
     }
 
-    /** The sidebar search's plain judgement: case-insensitive "contains", as typed. */
+    /** Whether [query] is in any of [texts], folded as the list's search folds ([searchFold]). */
     private fun matches(query: String, vararg texts: Any?): Boolean {
         if (query.isEmpty()) return true
-        val q = query.lowercase(Locale.ROOT)
-        return texts.any { ((it as? String) ?: "").lowercase(Locale.ROOT).contains(q) }
+        val q = searchFold(query)
+        return texts.any { searchFold((it as? String) ?: "").contains(q) }
     }
 
     /**
@@ -751,10 +882,18 @@ object Recurrence {
                     }
                 }
                 val off = offScheduleDays(note).toSet()
+                // Every day of this series asked of one reading of its moves.
+                val schedule = Schedule(note)
+                // The dates moved days are drawn on, those outside the rule's span
+                // too, or a day past the end was in no row and no search found its
+                // words (as the desktop's history_entries lists them).
+                val drawnOn = moves(note).mapNotNull { (_, new) ->
+                    (new as? String)?.takeIf { isDate(it) && schedule.on(parseDate(it)!!) == listOf(it) }
+                }.toSet()
                 val days = ArrayList<HistoryDay>()
                 var anyChildMatch = false
                 val kind: String
-                val listed = occDays
+                val listed = occDays?.let { (it + drawnOn).distinct() }
                 if (listed != null) {
                     kind = "occurrences"
                     for (day in listed.sortedDescending()) {
@@ -766,7 +905,7 @@ object Recurrence {
                         if (!(childMatch || baseMatches)) continue
                         if (query.isNotEmpty() && childMatch) anyChildMatch = true
                         days.add(HistoryDay(day, (own.opt("title") as? String)?.ifEmpty { null } ?: title,
-                            edited, false, movedFrom(note, day)))
+                            edited, false, schedule.movedFrom(day)))
                     }
                     // A day the rule no longer gives was in no row at all: listed, marked.
                     for (day in off) {
@@ -781,15 +920,17 @@ object Recurrence {
                 } else {
                     kind = "edited"
                     for (day in overrides.keys().asSequence().sortedDescending()) {
-                        // A deleted day's edit must not resurface.
-                        if (day in exceptions || !isDate(day)) continue
+                        // A deleted day's edit must not resurface -- but a day
+                        // moved onto that date holds its own words there, drawn
+                        // or off the schedule.
+                        if ((day in exceptions && day !in drawnOn && day !in off) || !isDate(day)) continue
                         if (!bucketOk(day)) continue
                         val own = overrides.opt(day) as? JSONObject ?: JSONObject()
                         val childMatch = matches(query, own.opt("title"), own.opt("body"), own.opt("comments"))
                         if (!(childMatch || baseMatches)) continue
                         if (query.isNotEmpty() && childMatch) anyChildMatch = true
                         days.add(HistoryDay(day, (own.opt("title") as? String)?.ifEmpty { null } ?: title,
-                            true, day in off, if (day in off) null else movedFrom(note, day)))
+                            true, day in off, if (day in off) null else schedule.movedFrom(day)))
                     }
                     // A day moved to another date is listed too: where it went
                     // is worth finding -- while the calendar draws it there.
@@ -797,7 +938,9 @@ object Recurrence {
                         val newText = new as? String ?: continue
                         if (overrides.has(newText) || !isDate(newText) || !bucketOk(newText) || !baseMatches) continue
                         val day = parseDate(newText)!!
-                        if (expand(note, day, day) != listOf(newText)) continue
+                        // The move the calendar draws there, once: two onto one
+                        // date gave two rows of one key, and the list threw.
+                        if (schedule.on(day) != listOf(newText) || schedule.movedFrom(newText) != orig) continue
                         days.add(HistoryDay(newText, title, false, false, orig))
                     }
                 }
@@ -813,6 +956,7 @@ object Recurrence {
                         off = days.count { it.offSchedule },
                         moved = days.count { !it.movedFrom.isNullOrEmpty() },
                         autoExpand = anyChildMatch, jumpDate = jump,
+                        identity = (note.opt("uid") as? String).orEmpty().ifEmpty { "id:$id" },
                     ))
                 }
             } else {

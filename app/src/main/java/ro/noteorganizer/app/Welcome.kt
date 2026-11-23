@@ -4,18 +4,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The note a brand-new notebook on this phone opens with.
+ * The note a brand-new notebook on this phone opens with, built the way the
+ * desktop's `core/welcome.py` builds its own: stored exactly as the editor
+ * would store it typed -- bullet markers in the text, bold as character
+ * spans, bullet lines as paragraph entries. Only a notebook that did not
+ * exist until this start gets it; Settings → About offers it again.
  *
- * Built the way the desktop's `core/welcome.py` builds its own: stored
- * exactly as the editor would have stored it had it been typed -- the
- * bullet markers in the text, bold as character spans, the bullet lines as
- * paragraph entries. Only a notebook that did not exist until this start
- * gets it; Settings → About offers it again.
- *
- * The words are this app's own, written for a phone: they name what a
- * thumb does here, not what a mouse does on the desktop. The desktop's
- * were worded with the owner over three drafts; these are a first draft,
- * and the test plan marks them NEEDS YOUR EYE.
+ * The words are this app's own, written for a phone: what a thumb does
+ * here, not a mouse on the desktop. A first draft, which the test plan
+ * marks NEEDS YOUR EYE.
  */
 object Welcome {
 
@@ -33,7 +30,7 @@ object Welcome {
      */
     val LINES = listOf(
         "Hi, and welcome! This is your own space for everything worth keeping: ideas, " +
-            "plans, lists, the things you don't want to forget. It all stays on this phone, " +
+            "plans, lists, the things you don't want to forget. Your notes are kept on this phone, " +
             "with no account and no internet needed. Here is a quick look around. When you no " +
             "longer need this note, delete it; Settings → About brings it back.",
         "",
@@ -54,7 +51,10 @@ object Welcome {
         "",
         "# 🛡 Your privacy",
         "- The app collects nothing and cannot use the internet. A note leaves this phone only when " +
-            "you share it, save a backup, or your phone backs itself up to your Google account.",
+            "you share or export it, save a backup, or your phone backs itself up to your Google account " +
+            "or moves its data to a new phone.",
+        "- When backup is on in your phone's settings, your notes go into Android's backup to your " +
+            "Google account; **Settings → Backup** turns that off for this app.",
         "- **Settings → About → Privacy policy** has the whole of it.",
         "",
         "# 🎨 Make it yours",

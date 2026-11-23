@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?><!--
    The same backup on Android 11 and older, which read this file instead
-   of data_extraction_rules.xml: everything of the app's, as there.
+   of data_extraction_rules.xml: everything of the app's, as there, and
+   only a mark saying so while Settings > Backup has it off
+   (NotesBackupAgent).
 -->
 <full-backup-content />

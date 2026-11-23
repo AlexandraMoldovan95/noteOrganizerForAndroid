@@ -12,11 +12,20 @@ emulator. Photographs are of the emulator's screen alone, saved in the
 folder given.
 
     py tools/emulator/walk.py <photos folder>
+    py tools/emulator/walk.py <photos folder> <part> [<part> ...]
+
+The second walks the parts named -- `cell_menu`, `long_lines` -- alone,
+on the same road: the machine's turn, the wait for the emulator, the
+install. A part called from a script of its own takes the turn at its first
+adb call.
 
 Needs: a running emulator, and the debug APK built
 (gradlew assembleDebug). Exit code 1 when any step's check fails.
 """
 import contextlib
+import functools
+import hashlib
+import inspect
 import io
 import json
 import os
@@ -29,7 +38,7 @@ import xml.etree.ElementTree as ET
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, SHOT, AdbTimeout, capture, command, fresh_tree, run  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,10 +47,27 @@ APK = os.path.join(ANDROID, "app", "build", "outputs", "apk", "debug", "app-debu
 NOTEBOOK = "files/notebook"
 
 failures = []
+# Checks passed so far, and each part's tally as it ends: summary.json.
+passed = [0]
+walked = []
 
 
-def adb(*args, binary=False, check=False):
-    out = subprocess.run(command(*args), capture_output=True)
+# Whether this run holds the machine's turn ([take_the_turn]).
+turn_held = False
+
+
+def adb(*args, binary=False, check=False, timeout=None):
+    """One adb call to the emulator, held to a time limit (emulator_only.run):
+    past it the walk stops, naming the call, rather than wait on for ever.
+    The first takes the machine's turn when nothing has yet: a part called
+    from a script of its own walked the emulator beside whatever else ran,
+    with no memory ceiling and no homes of its own, and took the turn only at
+    the export part, halfway."""
+    if not turn_held:
+        stop = take_the_turn()
+        if stop is not None:
+            raise SystemExit(stop)
+    out = run(command(*args), timeout=timeout, capture_output=True)
     if check and out.returncode != 0:
         raise RuntimeError("adb %s: %s" % (" ".join(args), out.stderr.decode(errors="replace")))
     return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
@@ -51,13 +77,30 @@ def busy_share(seconds=3.0):
     """How much of the emulator's processor was at work over [seconds], 0 to
     1, from the counters in /proc/stat (idle and waiting count as rest)."""
     def counters():
-        values = [int(v) for v in adb("shell", "head", "-1", "/proc/stat").split()[1:]]
-        return sum(values), values[3] + values[4]
+        # Read again while it comes back empty: right after an install the
+        # phone's shell gave back nothing for a few seconds ([install]).
+        for _ in range(15):
+            values = [int(v) for v in adb("shell", "head", "-1", "/proc/stat").split()[1:]]
+            if len(values) >= 5:
+                return sum(values), values[3] + values[4]
+            time.sleep(1.0)
+        raise RuntimeError("the emulator's /proc/stat could not be read")
     total, rest = counters()
     time.sleep(seconds)
     total_after, rest_after = counters()
     spent = total_after - total
     return 1.0 - (rest_after - rest) / spent if spent > 0 else 0.0
+
+
+def install(apk):
+    """[apk] installed, and the phone answering again before anything looks
+    at it: for some seconds after an install its shell gave back nothing, and
+    a part's first look read no tree, or a boot check no counters (after a
+    change of APK, more than once; each part fine walked again)."""
+    adb("install", "-r", apk, check=True)
+    deadline = time.time() + 60
+    while time.time() < deadline and not fresh_tree(lambda *a: adb(*a, binary=True), tries=1):
+        time.sleep(1.0)
 
 
 def wait_for_boot(limit=300, quiet_for=30.0):
@@ -84,11 +127,120 @@ def wait_for_boot(limit=300, quiet_for=30.0):
     return True
 
 
+# Looks at the screen that read no tree at all ([screen_xml]).
+unreadable = 0
+
+
+def screen_xml(tries=3):
+    """The screen's tree as uiautomator dumps it -- fresh. The last dump's
+    file goes first: a dump that writes nothing -- the app's thread held past
+    uiautomator's patience ("null root node"), or ten seconds of events
+    ("could not get idle state") -- left the screen before it in the file,
+    and the walk read that: a freeze longer than the look's patience passed
+    every check of the frames drawn in it, the worse the surer. Asked
+    [tries] times; a screen that never reads is
+    a failure of its own, so no check passes on a tree that is not there."""
+    global unreadable
+    said = []
+
+    def asked(*args):
+        out = adb(*args, binary=True)
+        if args[0] == "shell":
+            said.append(out.decode("utf-8", errors="replace"))
+        return out
+
+    raw = fresh_tree(asked, tries)
+    if raw:
+        return raw
+    unreadable += 1
+    fail("the screen could not be read: uiautomator wrote no tree (%s)"
+         % (said[-1] if said else "").strip()[:160])
+    return ""
+
+
+def tree():
+    """The screen's tree, fresh ([screen_xml]): (text, description, box,
+    path) for each node, the path its place from the root down, so the
+    block two nodes sit in apart can be found."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return []
+    out = []
+
+    def down(node, path):
+        box = re.findall(r"\d+", node.get("bounds", ""))
+        if len(box) == 4:
+            out.append((node.get("text", ""), node.get("content-desc", ""), tuple(map(int, box)), path))
+        for k, child in enumerate(node.findall("node")):
+            down(child, path + (k,))
+    down(root, ())
+    return out
+
+
+def said_over(words, *targets, within=6.0, touching=False):
+    """Waits until the screen says [words], and reads, on that same look,
+    which of [targets] -- (name, test of a node's text and description) --
+    the message's block covers: the words' ancestor just below the one they
+    share with the target, the message with its margin. A message drawn just
+    above the keyboard covered the editor's own bar and "A new item…" with
+    its Add, and took their taps. With
+    [touching], a target counts as covered when the block reaches into it
+    anywhere, not only over its middle. The words missing, and the names of
+    the targets covered or not on the screen."""
+    seen = settle(tree, lambda nodes_: any(words in t or words in d for t, d, _, _ in nodes_),
+                  within=within, first=0)
+    said = next((n for n in seen if words in n[0] or words in n[1]), None)
+    if said is None:
+        return [words], []
+    covered = []
+    for name, test in targets:
+        target = next((n for n in seen if test(n[0], n[1])), None)
+        if target is None:
+            covered.append(name + " (not on the screen)")
+            continue
+        common = 0
+        while common < min(len(said[3]), len(target[3])) and said[3][common] == target[3][common]:
+            common += 1
+        block = next((n for n in seen if n[3] == said[3][:common + 1]), said)
+        x1, y1, x2, y2 = block[2]
+        tx1, ty1, tx2, ty2 = target[2]
+        if touching:
+            over = x1 < tx2 and tx1 < x2 and y1 < ty2 and ty1 < y2
+        else:
+            cx, cy = (tx1 + tx2) // 2, (ty1 + ty2) // 2
+            over = x1 <= cx <= x2 and y1 <= cy <= y2
+        if over:
+            covered.append(name)
+    return [], covered
+
+
 def nodes():
-    """The screen's UI tree, fresh: (text, description, centre) for each node."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    """The screen's UI tree, fresh: (text, description, centre) for each node.
+    Another app's "isn't responding" over it is answered Wait, said in the
+    log, and the screen read again: on an emulator just started under load
+    its own launcher hung, and a part's first check failed an app that was
+    fine. One naming this app stays on the screen, for the checks to fail."""
+    for _ in range(3):
+        out = screen_nodes()
+        hung = next((m.group(1) for t, _d, _c in out for m in [HUNG.match(t)] if m), None)
+        wait = next((c for t, _d, c in out if t == "Wait"), None)
+        if hung is None or hung == APP_LABEL or wait is None:
+            return out
+        print("     %s was not responding: Wait tapped, the screen read again" % hung)
+        adb("shell", "input", "tap", str(wait[0]), str(wait[1]))
+        time.sleep(2.0)
+    return screen_nodes()
+
+
+# Android's dialog over a hung app, and the name this app goes by on it.
+HUNG = re.compile(r"^(.+) isn.t responding$")
+APP_LABEL = "Note Organizer"
+
+
+def screen_nodes():
+    """The screen's UI tree, read once, as it is."""
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -234,8 +386,14 @@ def screen_says(*words):
 
 
 def check(what, ok, detail=""):
-    print(("PASS " if ok else "FAIL ") + what + (("  -- " + detail) if detail and not ok else ""))
-    if not ok:
+    # One line, whatever the detail quotes (a screen's text holds line
+    # breaks): walk_groups reads the lines that are not a check's as the
+    # walk's own, and a quoted "adb did not answer" there read as stuck.
+    line = ("PASS " if ok else "FAIL ") + what + (("  -- " + str(detail)) if detail and not ok else "")
+    print(" / ".join(line.splitlines()))
+    if ok:
+        passed[0] += 1
+    else:
         failures.append(what)
 
 
@@ -265,9 +423,31 @@ def check_settled(what, read, ok, within=8.0, first=1.5):
     return value
 
 
+def logged(pids, *words):
+    """The lines of the log, since it was last cleared, that the processes
+    [pids] wrote and that hold one of [words]. The log is every process's:
+    Play services wrote a TransactionTooLargeException of its own while a
+    note went to the share sheet (2026-10-29), and a check reading every
+    line failed a step the app had passed -- once in three runs."""
+    pids = {p for p in pids if p}
+    found = []
+    for line in adb("logcat", "-d", "-v", "threadtime").splitlines():
+        m = re.match(r"\S+ \S+\s+(\d+)\s", line)
+        if m and m.group(1) in pids and any(w in line for w in words):
+            found.append(line)
+    return found
+
+
+def route_pids(app, sheet):
+    """The processes a share goes through: the app ([app], its pid read
+    before the tap, so an app the share stopped is still named), the system
+    that starts the sheet, and the sheet itself, read once it is up."""
+    return [app] + [adb("shell", "pidof", name).strip() for name in ("system_server", sheet)]
+
+
 def fail(what):
-    print("FAIL " + what)
-    failures.append(what)
+    print("FAIL " + " / ".join(str(what).splitlines()))     # one line, as check()'s
+    failures.append(str(what))                               # and JSON's to write
 
 
 def shot(folder, name, *must_say, patience=6.0):
@@ -281,10 +461,75 @@ def shot(folder, name, *must_say, patience=6.0):
         time.sleep(0.5)
         missing = screen_says(*must_say)
     if missing:
+        # What was there instead, kept: the first look after a slow cold
+        # start found something else on the screen for twenty seconds, and
+        # a failure that kept nothing could not say what (2026-11-02).
+        seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+        fail("photo %s: the screen does not say %s -- it says %r" % (name, missing, seen[:200]))
+        photograph(folder, name + "-FAILED")
+        return False
+    photograph(folder, name)
+    return True
+
+
+def shot_as_said(folder, name, *words, within=6.0, over_keys=False):
+    """[says_soon], photographed the moment the screen is read saying
+    [words]: a message lives four seconds, and [shot], reading the screen
+    again first, photographed five of them gone -- the photos named for
+    what was said showed none of it. The
+    words missing, as [says_soon] gives them; no photo without them.
+    [over_keys]: the keyboard is up here, and the first of [words] must be
+    drawn above it -- the UI tree holds a node the keys cover, and the
+    note's editor said its words under them unseen."""
+    def read():
+        seen = nodes()
+        return seen, [w for w in words if not any(w in t or w in d for t, d, _ in seen)]
+    seen, missing = settle(read, lambda r: not r[1], within=within, first=0)
+    if missing:
         fail("photo %s: the screen does not say %s" % (name, missing))
+        return missing
+    photograph(folder, name)
+    if over_keys:
+        top = keyboard_top()
+        y = next(c[1] for t, d, c in seen if words[0] in t or words[0] in d)
+        check("%s: said above the keyboard, not under its keys" % name, top is not None and y < top,
+              "the words at %d, the keyboard from %s" % (y, top))
+    return missing
+
+
+@contextlib.contextmanager
+def messages_held(ms, answered=False):
+    """The app's messages held for [ms] while this is open: Android's own
+    accessibility setting for how long words that need no answer stay, which
+    Material's messages keep (SnackbarDuration.toMillis asks the
+    accessibility manager) -- or, [answered], those with a button, by Time
+    to take action. Put back as it was after."""
+    name = "accessibility_%sinteractive_ui_timeout_ms" % ("" if answered else "non_")
+    was = adb("shell", "settings", "get", "secure", name).strip()
+    adb("shell", "settings", "put", "secure", name, str(ms))
+    try:
+        yield
+    finally:
+        if was in ("", "null"):
+            adb("shell", "settings", "delete", "secure", name)
+        else:
+            adb("shell", "settings", "put", "secure", name, was)
+
+
+def keyboard_top():
+    """Where the keyboard begins on the screen, from the window manager's
+    insets; None while it is down."""
+    if not keyboard_shown():
+        return None
+    at = re.search(r"type=ime frame=\[\d+,(\d+)\]\[\d+,\d+\][^\n]*visible=true", adb("shell", "dumpsys", "window"))
+    return int(at.group(1)) if at else None
+
+
+def photograph(folder, name):
+    if not capture(lambda *a: adb(*a, binary=True)):
+        fail("photo %s: the screen could not be captured" % name)
         return
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
-    data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
+    data = adb("exec-out", "cat", SHOT, binary=True)
     with open(os.path.join(folder, name + ".png"), "wb") as f:
         f.write(data)
     print("     photo %s.png" % name)
@@ -301,8 +546,10 @@ def shades_while_tapping(label, frames=10):
     if at is None:
         fail("tap %r: not on the screen" % label)
         return []
-    script = ("i=0\nwhile [ $i -lt %d ]; do\n  screencap /data/local/tmp/shade_$i.raw\n"
-              "  i=$((i+1))\ndone\n" % frames)
+    # The last burst's captures go first, as [capture]'s does: a burst that
+    # never ran reads as none, not as the last one.
+    script = ("rm -f /data/local/tmp/shade_*.raw\ni=0\nwhile [ $i -lt %d ]; do\n"
+              "  screencap /data/local/tmp/shade_$i.raw\n  i=$((i+1))\ndone\n" % frames)
     local = os.path.join(os.environ.get("TEMP", "."), "walk_shades.sh")
     with open(local, "w", newline="\n") as f:
         f.write(script)
@@ -312,7 +559,12 @@ def shades_while_tapping(label, frames=10):
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(0.25)
     adb("shell", "input", "tap", str(at[0]), str(at[1]))
-    burst.wait(timeout=120)
+    try:
+        burst.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        burst.kill()
+        raise AdbTimeout("the screen captures did not end within 120 s: the emulator is stuck -- "
+                         "stop it (adb emu kill) before anything else runs")
     shades = []
     for i in range(frames):
         raw = adb("exec-out", "cat", "/data/local/tmp/shade_%d.raw" % i, binary=True)
@@ -360,28 +612,148 @@ def start_app():
     time.sleep(3)
 
 
+def activity_state():
+    """The app's screen as Android has it -- RESUMED, PAUSED, STOPPED --
+    or None when it has none."""
+    out = adb("shell", "dumpsys", "activity", "activities")
+    m = re.search(r"Hist\s+#\d+: ActivityRecord\{[^}]*%s/\.MainActivity[^}]*\}.*?state=(\w+)" % re.escape(PACKAGE),
+                  out, re.S)
+    return m.group(1) if m else None
+
+
+def home(patience=15.0):
+    """Home, and back once Android has stopped the app: the moment it
+    writes what the editor holds (MainActivity.onStop). Android stops the
+    app left when the launcher has nothing more to do, or ten seconds
+    later; an emulator drawing in software keeps its launcher busy, and
+    the stop came at ten seconds, every time (2026-10-30). Read a second
+    or three after Home, the app was only paused -- its words not written
+    yet, and an `am kill` of an app still on the screen did nothing, so a
+    check that the words outlived the process passed with the process
+    never ended."""
+    adb("shell", "input", "keyevent", "KEYCODE_HOME")
+    if stopped(patience):
+        return True
+    fail("Home: Android did not stop the app within %d s" % patience)
+    return False
+
+
+def stopped(patience=15.0):
+    """Whether Android has stopped the app -- behind Home, or behind
+    another app's screen such as its file picker -- within [patience]
+    seconds, read from Android, not assumed after a pause."""
+    deadline = time.time() + patience
+    while time.time() < deadline:
+        if activity_state() == "STOPPED":
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def kill_behind():
+    """Android ending the app behind Home, as it ends one whose memory it
+    needs: True once the process is gone, read -- `am kill` ends only an
+    app off the screen, and says nothing when it ends none."""
+    adb("shell", "am", "kill", PACKAGE)
+    deadline = time.time() + 5.0
+    while adb("shell", "pidof", PACKAGE).strip() and time.time() < deadline:
+        time.sleep(0.3)
+    return adb("shell", "pidof", PACKAGE).strip() == ""
+
+
+def seek(found, tries=8, fast=False):
+    """Scrolled down until [found]() holds: the screen's tree holds only
+    what is on the screen, and a word below it is sought as a person seeks it."""
+    for _ in range(tries):
+        if found():
+            return True
+        adb("shell", "input", "swipe", "900", "1900", "900", "700", "120" if fast else "400")
+        time.sleep(0.8 if fast else 1.0)
+    return found()
+
+
+def take_the_turn():
+    """The desktop's guard over this run ([desktop_guest]): the machine's
+    turn, the memory ceiling, homes of its own. None once it is held; the
+    exit code to stop with when another run holds the turn past the wait
+    (the desktop guest's BUSY, 75), said with what was not done. Taken once
+    a run: by [main] as it starts, or by the first adb call of a part
+    walked on its own ([adb])."""
+    global turn_held
+    if turn_held:
+        return None
+    if not os.path.isdir(DESKTOP):
+        print("machine : the desktop is not at %s -- its parts are skipped, and no turn is taken" % DESKTOP)
+        turn_held = True
+        return None
+    sys.path.insert(0, os.path.join(ANDROID, "tools"))
+    import desktop_guest
+    try:
+        desktop_guest.settle(DESKTOP)
+    except SystemExit as stop:
+        if stop.code == 2:
+            raise
+        print("\nThe walk did not get the machine's turn (exit %s): nothing was installed or walked. "
+              "Stop the emulator (adb emu kill) if nothing else needs it." % stop.code)
+        return stop.code if isinstance(stop.code, int) else 75
+    turn_held = True
+    return None
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
     folder = sys.argv[1]
+    # Parts named after the folder are walked alone, on the same road as the
+    # whole walk: the turn, the wait for the emulator, the install.
+    parts = sys.argv[2:]
+    # A part is what the whole walk calls below, not any function here:
+    # "run" or "adb" passed as one and was run with the folder.
+    import inspect
+    known = set(re.findall(r"^    (\w+)\(folder\)$", inspect.getsource(main), re.M))
+    unknown = [p for p in parts if p not in known]
+    if unknown:
+        print("no such part of the walk: %s" % ", ".join(unknown))
+        return 2
     os.makedirs(folder, exist_ok=True)
+    # The machine's one heavy-job turn, taken here, before anything runs,
+    # and held for the whole walk: taken at the export part, where the
+    # desktop's guard was first called, the walk ran its first sixteen parts
+    # beside a desktop suite, then waited for it up to an hour with the
+    # emulator up. The desktop's code the
+    # walk runs (its share-code encoder, its export, its templates) runs under
+    # its memory ceiling from here on. adb's path was read before this, at
+    # import (emulator_only.ADB): the guard points LOCALAPPDATA at an empty
+    # folder of the run's own.
+    turn = take_the_turn()
+    if turn is not None:
+        return turn
     if not wait_for_boot():
         print("The emulator did not finish starting.")
         return 2
     # Off, once: the stylus tutorial swallows typed text on a fresh image.
     adb("shell", "settings", "put", "secure", "stylus_handwriting_enabled", "0")
     print("installing", APK)
-    adb("install", "-r", APK, check=True)
+    install(APK)
+
+    if parts:
+        for part in parts:
+            globals()[part](folder)
+        print("\n%d step(s) failed%s" % (len(failures), (": " + "; ".join(failures)) if failures else "."))
+        return 1 if failures else 0
 
     brand_new(folder)
     seeded(folder)
     outward(folder)
     calendar(folder)
     move_day(folder)
+    move_day_keeps_new_item(folder)
     off_schedule(folder)
     listing(folder)
     list_keeps_place(folder)
+    what_hides_the_list(folder)
+    arranged_from_the_top(folder)
     previews(folder)
     arranging(folder)
     attaching(folder)
@@ -411,11 +783,47 @@ def main():
     typing_styles(folder)
     comments_paste(folder)
     pasted_tables(folder)
+    paste_at_marker(folder)
     reminders(folder)
     wide(folder)
     screen_sizes(folder)
     trash_select(folder)
     changes(folder)
+    failed_save(folder)
+    checklist_words_kept(folder)
+    backup_too_large(folder)
+    big_table(folder)
+    code_started_once(folder)
+    second_code_while_open(folder)
+    blank_note_menu(folder)
+    symbol_labels(folder)
+    google_backup(folder)
+    arrange_without_drag(folder)
+    states_said(folder)
+    calendar_large_letters(folder)
+    import_questions_quick(folder)
+    reminder_new_zone(folder)
+    day_turns_open(folder)
+    template_long_comments(folder)
+    answers_after_restart(folder)
+    text_the_layout_cannot_break(folder)
+    one_note_drawn_and_sent(folder)
+    an_ordinary_note_at_its_size(folder)
+    a_rows_own_words(folder)
+    days_in_the_note(folder)
+    template_draft(folder)
+    unbroken_rows_and_caps(folder)
+    refusals_and_caps_said(folder)
+    message_over_a_renamed_row(folder)
+    # Each written with its fix, from 2026-10-28 on, and walked alone then; the
+    # full walk is the check before an install.
+    hostile_backups(folder)
+    code_read_away(folder)
+    shared_files(folder)
+    trash_wide(folder)
+    dialogs_on_side(folder)
+    long_lines(folder)
+    kept_aside(folder)
 
     print()
     if failures:
@@ -434,11 +842,15 @@ def brand_new(folder):
     # Waited for, not read once after start_app's pause: the first start
     # after an install, on an emulator short of memory, wrote the notebook
     # later than that, and every step of this part failed on one read.
-    check_settled("a new notebook holds the welcome note", lambda: read_file("notes_data.json"),
-                  lambda notes: isinstance(notes, list) and len(notes) == 1
-                  and notes[0].get("title", "").startswith("Welcome"), within=12.0, first=0.0)
+    first_notes = check_settled("a new notebook holds the welcome note", lambda: read_file("notes_data.json"),
+                                lambda notes: isinstance(notes, list) and len(notes) == 1
+                                and notes[0].get("title", "").startswith("Welcome"), within=12.0, first=0.0)
+    # Remembered as THIS note: a uid merely present held for any uid at all,
+    # one that names no note in the notebook too.
+    welcome_uid = (first_notes[0].get("uid") if isinstance(first_notes, list) and first_notes else None) or None
     check_settled("the welcome note is remembered", lambda: read_file("settings.json") or {},
-                  lambda s: s.get("welcome_offered") is True and bool(s.get("welcome_note_uid")),
+                  lambda s: s.get("welcome_offered") is True and welcome_uid is not None
+                  and s.get("welcome_note_uid") == welcome_uid,
                   within=6.0, first=0.0)
     shot(folder, "01-new-notebook", "Welcome to Note Organizer", "Search notes")
 
@@ -448,7 +860,7 @@ def brand_new(folder):
 
     # ---- writing a note ----
     tap("+", exact=True, wait=1.5)
-    check("+ opens an empty editor", not screen_says("Title"), str(screen_says("Title")))
+    check("+ opens an empty editor", not says_soon("Title"), str(screen_says("Title")))
     tap("Title")
     type_text("Groceries")
     tap("Write your note")
@@ -485,14 +897,18 @@ def brand_new(folder):
     # been, and the note stayed in the Trash (2026-10-23). One look finds
     # Undo; the photograph is a plain capture, with no look of its own.
     undo_at = find("Undo", exact=True)
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
+    captured = capture(lambda *a: adb(*a, binary=True))
     trash = read_file("trash.json") or []
     trashed = any(t.get("title") == "Groceries" for t in trash)
     if undo_at is not None:
         adb("shell", "input", "tap", str(undo_at[0]), str(undo_at[1]))
         time.sleep(1.5)
-    with open(os.path.join(folder, "05-undo.png"), "wb") as f:
-        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
+    if captured:
+        with open(os.path.join(folder, "05-undo.png"), "wb") as f:
+            f.write(adb("exec-out", "cat", SHOT, binary=True))
+        print("     photo 05-undo.png")
+    else:
+        fail("photo 05-undo: the screen could not be captured")
     check("Move to Trash puts the note in trash.json", trashed)
     check("...and offers Undo", undo_at is not None)
     notes = read_file("notes_data.json") or []
@@ -502,10 +918,11 @@ def brand_new(folder):
     check("Undo brings it back, and out of the Trash",
           trashed and any(n.get("title") == "Groceries" for n in notes)
           and not any(t.get("title") == "Groceries" for t in trash))
-    # In the editor, not on the list: the list says "Groceries" too, and an
-    # earlier form of this check passed there.
-    check("Undo opens the note it brought back",
-          not screen_says("Groceries") and bool(screen_says("Search notes")))
+    # Deleted from the list, it comes back to the list, the editor not opened
+    # over it (the review panel): the note and the list's search box both in
+    # sight, which the editor would hide.
+    check("Undo from the list puts the note back on the list, and opens nothing",
+          not says_soon("Groceries", "Search notes"))
     back_to("Search notes")
 
     # ---- Settings ----
@@ -521,10 +938,18 @@ def brand_new(folder):
           json.dumps(settings)[:200])
     tap("Appearance")
     check("no Follow the phone on the page", screen_says("Follow the phone") == ["Follow the phone"])
+    # Nothing worn yet in the other mode: the line names the theme it gives,
+    # where it said "the light theme you used last" (the review panel).
+    goes = ("Tap Light for Soft Lavender" if settings.get("theme") == "dark"
+            else "Tap Dark for Midnight Purple")
+    check("at first the line names the theme the other mode gives, not one used last",
+          not says_soon(goes) and screen_says("used last") == ["used last"])
     tap("Light", exact=True, wait=1.5)
-    shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "The light themes.")
+    shot(folder, "07-appearance", "Light", "Dark", "Soft Lavender", "Light themes.")
+    # Told by tiles the line never names: at first it names Midnight Purple.
     check("in Light, the page shows the light themes and not the dark",
-          not screen_says("Soft Lavender", "Warm Cream") and screen_says("Midnight Purple") == ["Midnight Purple"])
+          not says_soon("Soft Lavender", "Warm Cream")
+          and screen_says("Warm Charcoal", "Ocean Blue") == ["Warm Charcoal", "Ocean Blue"])
     # The change dissolves: captured as fast as the emulator can while Dark
     # is tapped, the page passes through a shade between the light one and
     # the dark one. Cut in one frame, as it was, no capture can hold one.
@@ -543,8 +968,8 @@ def brand_new(folder):
     settings = read_file("settings.json") or {}
     check("Dark puts the app in the dark original at once, and shows the dark themes",
           settings.get("theme") == "dark"
-          and not screen_says("Midnight Purple", "Warm Charcoal", "The dark themes.")
-          and screen_says("Soft Lavender") == ["Soft Lavender"], json.dumps(settings)[:200])
+          and not says_soon("Midnight Purple", "Warm Charcoal", "Dark themes.")
+          and screen_says("Warm Cream", "Sky Blue") == ["Warm Cream", "Sky Blue"], json.dumps(settings)[:200])
     tap("Forest Green", wait=1.5)
     settings = read_file("settings.json") or {}
     check("a dark tile is the theme worn, and the dark mode's last",
@@ -564,7 +989,7 @@ def brand_new(folder):
     time.sleep(1.5)
     settings = read_file("settings.json") or {}
     check("the phone's own dark mode, turned on and off, leaves the theme alone",
-          settings.get("theme") == "dark_ocean" and not screen_says("Ocean Blue", "Forest Green"))
+          settings.get("theme") == "dark_ocean" and not says_soon("Ocean Blue", "Forest Green"))
     shot(folder, "08-ocean-blue", "Ocean Blue")
     back_to("Your name", "Appearance")
     tap("Your name")
@@ -584,14 +1009,27 @@ def brand_new(folder):
     # for together with the list's own search box.
     keyboard_down()
     tap("Notes", exact=True)
-    check("the list greets by name", not screen_says("Hi Maria,", "Search notes"),
+    check("the list greets by name", not says_soon("Hi Maria,", "Search notes"),
           str(screen_says("Hi Maria,", "Search notes")))
     shot(folder, "09-greeting", "Hi Maria,", "Search notes")
+    # Typed and left behind Home, never saved: the page saved on Save, Done
+    # or leaving it, and an app Android ended behind Home took the name along.
+    tap("Settings", exact=True)
+    tap("Your name")
+    tap("Name", exact=True)
+    # The tap leaves the caret where it lands, after "M" once: to the end first.
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" Pop")
+    home()
+    check("a name typed and left behind Home is kept when Android ends the app there",
+          kill_behind() and (read_file("settings.json") or {}).get("username") == "Maria Pop",
+          str((read_file("settings.json") or {}).get("username")))
+    start_app()
 
 
 # ---- the second walk: a notebook written for the camera ----
 
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 
 CAMERA = [
     {"id": 1, "uid": "walk-bread", "title": "Bread",
@@ -647,6 +1085,8 @@ def note_by_uid(uid):
 
 
 def seeded(folder):
+    """A notebook copied in from the older folder, written for the camera:
+    it is read whole, and its notes, list and calendar are photographed."""
     print("\n-- a notebook copied in, written for the camera --")
     adb("shell", "pm", "clear", PACKAGE)
     adb("shell", "mkdir", "-p", "/sdcard/Android/data/%s/files" % PACKAGE)
@@ -780,7 +1220,7 @@ def seeded(folder):
         opened = tap("Open", exact=True, wait=1.5, patience=2.0)
         check("a code the desktop made is read and added", note_by_uid("from-desktop") is not None)
         check("...and the one note that came is offered to open, and opens",
-              opened and find("ⓘ", exact=True) is not None and not screen_says("From the desktop"),
+              opened and find("ⓘ", exact=True) is not None and not says_soon("From the desktop"),
               str(screen_says("From the desktop")))
 
     # Trash, from Settings.
@@ -808,7 +1248,7 @@ def seeded(folder):
             if foreground() == PACKAGE:
                 break
         time.sleep(1.0)
-        check("...and cancelled, the Trash page is back", not screen_says("Kept for"), str(screen_says("Kept for")))
+        check("...and cancelled, the Trash page is back", not says_soon("Kept for"), str(screen_says("Kept for")))
     trash = read_file("trash.json") or []
     if not trash:
         fail("a note restored from the Trash page: the delete before it put nothing in the Trash")
@@ -870,7 +1310,7 @@ def seeded(folder):
     asked = False
     if mine and tap(mine, exact=True, wait=3.0):
         tap("Continue", exact=True, wait=1.5)
-        asked = not screen_says("Already here, unchanged", "Add copies anyway")
+        asked = not says_soon("Already here, unchanged", "Add copies anyway")
         shot(folder, "17-unchanged-question", "Already here, unchanged", "Add copies anyway")
         tap("Skip the", wait=2.0)
     check("re-importing your own backup asks, and skipping changes nothing",
@@ -927,6 +1367,23 @@ def outward(folder):
     check("before the app is on Google Play, About has no Feedback section",
           find("Write a review", True) is None and find("FEEDBACK", True) is None)
     shot(folder, "69-about-privacy-policy", "PRIVACY POLICY", "Read")
+    # The licenses: the app's own MIT license and those of the libraries it
+    # is built with, on a page of their own -- and Back goes to About.
+    if find("View", True) is None:
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
+        time.sleep(0.8)
+    tap("View", exact=True, wait=1.5)
+    missing = screen_says("Open-source licenses", "MIT License", "Android Jetpack",
+                          "org.jetbrains.kotlin:kotlin-stdlib", "Apache License")
+    check("About → Open-source licenses → View shows the app's license and its libraries'",
+          not missing, ", ".join(missing))
+    shot(folder, "69b-open-source-licenses", "MIT License")
+    back(1.2)
+    missing = screen_says("Free software under the MIT license, provided as is.")
+    check("Back from the licenses returns to About", not missing, ", ".join(missing))
+    if find("Read", True) is None:
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "300")
+        time.sleep(0.8)
     tap("Read", exact=True, wait=4.0)
     opened = foreground()
     check("Privacy policy → Read opens a browser, not the app", opened not in ("", PACKAGE), opened)
@@ -975,13 +1432,15 @@ def clear_from_downloads(keep_out):
     return [name for name in downloads_list() if re.fullmatch(keep_out, name)]
 
 
-def seed_inside(notes, settings, shows):
+def seed_inside(notes, settings, shows, clear=True):
     """A notebook written for the walk, the app started on it -- and a
     failure, at once and by name, when the app does not show it. Once, of
     many runs, the first screen held a brand-new notebook's welcome note
     over a seed that was on disk; not reproduced since. Every later step
-    then failed for that one reason, ten failures for a single cause."""
-    adb("shell", "pm", "clear", PACKAGE)
+    then failed for that one reason, ten failures for a single cause.
+    [clear] False keeps what the part put inside before calling it."""
+    if clear:
+        adb("shell", "pm", "clear", PACKAGE)
     put_inside("notes_data.json", notes)
     put_inside("settings.json", settings)
     on_disk = [n.get("uid") for n in read_file("notes_data.json") or []]
@@ -1037,7 +1496,7 @@ def calendar(folder):
     # One day of the series, on its own.
     tap(said(second), wait=1.0)
     open_note("Stand-up")
-    check("a day of a series opens in day mode", not screen_says("Only this day"))
+    check("a day of a series opens in day mode", not says_soon("Only this day"))
     shot(folder, "25-day-mode", "Only this day", "Whole series")
     tap("Stand-up", exact=True, wait=0.8)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
@@ -1072,7 +1531,9 @@ def calendar(folder):
     # A day painted.
     long_press(said(other))
     tap("Colour this day", wait=1.2)
-    tap("#43aa8b", exact=True, wait=1.2)
+    # By its value within its words: a swatch says its place and its value
+    # ("Colour 5 of 12, #43aa8b"), not the hex alone.
+    tap(", #43aa8b", wait=1.2)
     settings = read_file("settings.json") or {}
     check("a painted day is kept under the desktop's key",
           (settings.get("day_colors") or {}).get(other.isoformat()) == "#43aa8b", json.dumps(settings)[:200])
@@ -1093,7 +1554,7 @@ def calendar(folder):
     # The History.
     tap("History", wait=1.5)
     check("the History lists the dated note and the series",
-          not screen_says("Dentist", "Stand-up"), str(screen_says("Dentist", "Stand-up")))
+          not says_soon("Dentist", "Stand-up"), str(screen_says("Dentist", "Stand-up")))
     shot(folder, "28-history", "Dentist", "Stand-up")
     tap("📅 Calendar", wait=1.0)
 
@@ -1270,6 +1731,69 @@ def large_letters_table(folder):
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
     time.sleep(1.5)
 
+    # At the largest letters the list's Sort and Show stand one line each:
+    # "Show: All" broke over two lines beside Sort; and a category's sheet
+    # keeps Save in sight under its message, which pushed it away (the panel).
+    def pill(start):
+        try:
+            root = ET.fromstring(screen_xml())
+        except ET.ParseError:
+            return None
+        for node in root.iter("node"):
+            if node.get("text", "").startswith(start):
+                box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+                return box if len(box) == 4 else None
+        return None
+
+    one = pill("Show: ")
+    adb("shell", "settings", "put", "system", "font_scale", "2.0")
+    time.sleep(2.0)
+    sort_b, show_b = pill("Sort: "), pill("Show: ")
+    tall = [b[3] - b[1] for b in (sort_b, show_b) if b]
+    check("at 200% the list's Sort and Show stand one line each",
+          bool(one) and len(tall) == 2 and max(tall) <= 2.2 * (one[3] - one[1]) and abs(tall[0] - tall[1]) <= 4,
+          repr((one, sort_b, show_b)))
+    shot(folder, "58b-pills-largest-letters", "Sort:", "Show:")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Categories", exact=True, wait=1.2)
+    tap("Add a category", wait=1.5)
+    # Save whole, measured before the keyboard rises: then the name typed and
+    # Save pressed with the keyboard up, as the panel did -- the keyboard
+    # squeezed the sheet and the message cut Delete and Save in half.
+    whole = max((b[3] - b[1] for b in bounds("Save")), default=0)
+    tap("Name", exact=True, wait=0.8)
+    type_text("General")
+    tap("Save", exact=True, wait=0.3)
+    unsaid = says_soon("There is already a category called")
+    # By its box on the screen, cut to what shows: a Save scrolled or cut
+    # away is still in the tree, and find() alone would see it.
+    saves = bounds("Save")
+    check("...and the category sheet's message, over the keyboard, leaves Save whole under it",
+          not unsaid and whole > 10 and any(b[3] - b[1] >= whole - 6 for b in saves),
+          repr((unsaid, whole, saves)))
+    shot(folder, "58c-category-message-largest-letters", "Save")
+    keyboard_down()
+    back_to("Your name")
+    back_to("Search notes")
+    # ...and the Repeat sheet, its weekly rule at its longest, the same.
+    open_note("Sizes")
+    tap("ⓘ", wait=1.2)
+    tap("Does not repeat", wait=1.5)
+    tap("Weekly", exact=True, wait=1.0)
+    saves = bounds("Save")
+    check("...and the Repeat sheet keeps Save in sight under its weekly rule", any(b[3] - b[1] > 10 for b in saves),
+          repr(saves))
+    # The note has no date, so Save does nothing: its reason stands beside
+    # it, not at the scroll's far end, where the long rule kept it out of sight.
+    why = bounds("A repeating note needs a start date.")
+    check("...and the reason Save does nothing shows beside it",
+          any(b[3] - b[1] > 10 for b in why) and any(w[3] <= s[1] + 4 for w in why for s in saves),
+          repr((why, saves)))
+    shot(folder, "58d-repeat-reason-largest-letters", "A repeating note needs a start date.", "Save")
+    back_to("Search notes")
+    adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    time.sleep(1.5)
+
 
 def trash_select(folder):
     """The Trash page: what its numbers set, said above them; two entries
@@ -1326,8 +1850,9 @@ def trash_select(folder):
     tap("Duplicates", exact=True, wait=1.5)
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
+    # One note ticked, said as one (the counts' plurals).
     check("with the window not known, moving duplicates promises no number of days",
-          not screen_says("You can restore them from there.") and find("within 30 days") is None,
+          not says_soon("You can restore it from there.") and find("within 30 days") is None,
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=1.0)
     back_to("Your name")
@@ -1361,6 +1886,13 @@ def changes(folder):
     check("larger letters leave the note open", still_in_note())
     shot(folder, "21-large-letters", "Welcome to Note Organizer")
     adb("shell", "settings", "put", "system", "font_scale", "1.0")
+    # Bold text (Android 12's, Samsung's "Bold font"): missing from the
+    # changes the app takes itself until it was added, it closed the note.
+    adb("shell", "settings", "put", "secure", "font_weight_adjustment", "300")
+    time.sleep(2.0)
+    check("bold letters leave the note open", still_in_note())
+    adb("shell", "settings", "put", "secure", "font_weight_adjustment", "0")
+    time.sleep(1.0)
     adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
     adb("shell", "settings", "put", "system", "user_rotation", "1")
     time.sleep(2.5)
@@ -1377,6 +1909,518 @@ def changes(folder):
     time.sleep(1.5)
 
 
+def writes_fail(on):
+    """Every write of the notebook failing, as on a full disk -- or written
+    again: a folder where the write puts its .tmp, which it cannot remove
+    while a file is in it."""
+    tmp = "%s/notes_data.json.tmp" % NOTEBOOK
+    if on:
+        adb("shell", "run-as", PACKAGE, "mkdir", "-p", tmp)
+        adb("shell", "run-as", PACKAGE, "touch", tmp + "/hold")
+    else:
+        adb("shell", "run-as", PACKAGE, "rm", "-r", tmp)
+
+
+def failed_save(folder):
+    """A note whose save fails is never closed from under its words. Back
+    keeps it open and says why in the bar at the foot, which a screen
+    reader reads out, offering to leave anyway; once the notebook can be
+    written, Back saves and leaves. A new note left anyway is gone, as
+    asked (ISSUES_LOG, "A way out that never asked whether the note was
+    saved"). The rules are AppStateTest's, + and the rail included; this
+    is the screen's half: Back reaching them."""
+    print("\n-- a save that fails --")
+    if not seed_inside([{"id": 1, "uid": "walk-f1", "title": "Shopping", "body": "milk",
+                         "category": "General", "created": "2026-10-20 09:00",
+                         "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Shopping"):
+        return
+    writes_fail(True)
+    try:
+        open_note("Shopping")
+        tap("milk", exact=True, wait=0.8)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        type_text(" eggs")
+        check("a save that fails is said, not only drawn", not says_soon("Not saved: "),
+              str(screen_says("Not saved: ")))
+        keyboard_down()
+        back(wait=1.2)
+        check("Back keeps the unsaved note open, and offers to leave anyway",
+              not says_soon("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs"),
+              str(screen_says("ⓘ", "Not saved, so the note stays open", "Leave anyway", "milk eggs")))
+        shot(folder, "83-not-saved-stays-open", "Leave anyway")
+        writes_fail(False)
+        back(wait=1.5)
+        check("once it can be written, Back saves the note and leaves it", not says_soon("Search notes"))
+        check_settled("... and the file holds the words typed while it could not be written",
+                      lambda: (note_by_uid("walk-f1") or {}).get("body"), lambda b: b == "milk eggs")
+
+        # A new note, left anyway: gone, as the person chose.
+        writes_fail(True)
+        tap("+", exact=True, wait=1.5)
+        tap("Write your note")
+        type_text("Call the dentist")
+        time.sleep(1.5)
+        keyboard_down()
+        back(wait=1.2)
+        # Waited for, not read once: on an emulator started cold the bar came
+        # after a read 1.2 s past Back, in every run, and was there a moment
+        # later (2026-11-08).
+        missing = says_soon("Call the dentist", "Leave anyway")
+        check("a new note that cannot be saved stays open on Back", not missing, str(missing))
+        tap("Leave anyway", exact=True, wait=1.5)
+        check("Leave anyway leaves it", not says_soon("Search notes"))
+    finally:
+        writes_fail(False)
+    # Read first: a file not read passed as one that holds nothing.
+    after = read_file("notes_data.json")
+    check("... and nothing was written for it",
+          after is not None and not any("dentist" in n.get("body", "") for n in after))
+
+
+def checklist_words_kept(folder):
+    """A checklist row renamed, and words in "A new item…", kept when the
+    app goes to the background -- its field never left, as Home leaves it
+    -- and after Android ends the process there; the keyboard's ✓ writes a
+    rename too. They waited in the fields, and a swipe from Recents lost
+    them (ISSUES_LOG, "Words a field kept until it was left"). The rules
+    are AppStateTest's; this is the screen's half."""
+    print("\n-- the checklist's words, kept without leaving the field --")
+    if not seed_inside([{"id": 1, "uid": "walk-c1", "title": "Bread", "body": "Knead",
+                         "category": "General", "created": "2026-10-20 09:00",
+                         "updated": "2026-10-20 09:00",
+                         "checklist": [{"text": "flour", "done": False}, {"text": "yeast", "done": False}]}],
+                       {"welcome_offered": True}, "Bread"):
+        return
+    rows = lambda: [r.get("text") for r in (note_by_uid("walk-c1") or {}).get("checklist", [])]
+    open_note("Bread")
+    tap("yeast", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" 7g")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    check_settled("the keyboard's ✓ writes a renamed row", rows, lambda r: r == ["flour", "yeast 7g"])
+    # Words left in A new item, Add not pressed; then a row renamed, its
+    # field never left: Home, as a phone is put away.
+    tap("A new item…", wait=0.8)
+    type_text("salt")
+    tap("flour", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" 500g")
+    home()
+    check_settled("Home writes the renamed row and the words waiting in A new item", rows,
+                  lambda r: r == ["flour 500g", "yeast 7g", "salt"])
+    ended = kill_behind()
+    start_app()
+    if open_note("Bread"):
+        check("... and they are there after Android ended the process",
+              ended and not says_soon("flour 500g", "yeast 7g", "salt"),
+              "ended %s, missing %s" % (ended, screen_says("flour 500g", "yeast 7g", "salt")))
+        shot(folder, "84-checklist-words-kept", "flour 500g", "salt")
+    back_to("Search notes")
+
+
+def backup_too_large(folder):
+    """A backup of 48 KB whose notes unpack to 50 MB -- under the desktop's
+    50 MB bomb floor, more than a phone app is given to read -- refused
+    with a sentence, and the app goes on. The ceiling is a sixteenth of the
+    heap the phone gives the app, which only the phone can say: BackupTest
+    holds the rule with a heap it chooses, this holds it with the real one."""
+    print("\n-- a backup too large for the phone --")
+    import zipfile
+    local = os.path.join(folder, "walk_too_large.zip")
+    body = "é" * 24_900_000
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        z.writestr("notes_data.json", '[{"id": 1, "title": "Big", "body": "%s"}]' % body)
+    name = "walk_too_large.zip"
+    adb("push", local, "/sdcard/Download/" + name)
+    adb("shell", "pm", "clear", PACKAGE)
+    start_app()
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup")
+    tap("Import a backup", wait=3.0)
+    if find(name, exact=True) is None:
+        tap("Downloads", wait=2.0) if find("Downloads") else None
+    if tap(name, exact=True, wait=0.5):
+        # Photographed the moment it shows: the bar at the foot stays four
+        # seconds, and a check that read it, then a photograph that looked
+        # again, found it gone (the full walk, 2026-10-27).
+        check("a backup too large for the phone is refused with a sentence",
+              shot(folder, "85-backup-too-large", "more than this phone can read", patience=15.0))
+        check("... and the app goes on", foreground() == PACKAGE, foreground())
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    os.remove(local)
+    back_to("Search notes")
+
+
+def import_backup_file(folder, name, entries):
+    """A backup .zip of [entries] (name -> text or bytes) imported through
+    Settings -> Backup, as a person picks it from Downloads. True when the
+    picker offered it and it was tapped."""
+    import zipfile
+    local = os.path.join(folder, name)
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED) as z:
+        for entry, data in entries.items():
+            z.writestr(entry, data)
+    adb("push", local, "/sdcard/Download/" + name)
+    os.remove(local)
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup")
+    tap("Import a backup", wait=3.0)
+    if find(name, exact=True) is None:
+        tap("Downloads", wait=2.0) if find("Downloads") else None
+    if not tap(name, exact=True, wait=3.0):
+        return False
+    # The import's own first question: what a backup brings, and Continue.
+    tap("Continue", exact=True, wait=1.5)
+    return True
+
+
+def hostile_backups(folder):
+    """Backups another program could write, imported: a template whose
+    checklist holds NaN -- Android's reader takes it inside a list, and the
+    import's copy of it stopped the app -- comes in with the number left
+    out, and the app goes on."""
+    print("\n-- hostile backups --")
+    adb("shell", "pm", "clear", PACKAGE)
+    adb("logcat", "-b", "crash", "-c")
+    put_inside("notes_data.json", [])
+    put_inside("settings.json", {"welcome_offered": True})
+    start_app()
+    name = "walk_nan_template.zip"
+    picked = import_backup_file(folder, name, {
+        "notes_data.json": '[{"id": 1, "uid": "nan-1", "title": "Plain note", "body": "words"}]',
+        "templates.json": '[{"name": "Hostile template", "body": "b", "checklist": [{"text": "milk"}, NaN]}]',
+    })
+    check("the backup with NaN in a template's checklist is offered by the picker", picked)
+    check_settled("... its note comes in", lambda: [n.get("title") for n in read_file("notes_data.json") or []],
+                  lambda titles: titles == ["Plain note"], within=15.0)
+    check("... and the app goes on, nothing in its crash log", foreground() == PACKAGE and
+          PACKAGE not in adb("logcat", "-b", "crash", "-d"), foreground())
+    templates = read_file("templates.json") or []
+    check("... the template in, the number that is no number left out",
+          [t.get("name") for t in templates] == ["Hostile template"]
+          and [c.get("text") for c in templates[0].get("checklist", [])] == ["milk"], repr(templates)[:200])
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    back_to("Search notes")
+    # A desktop file named in Cyrillic, 279 bytes long: Windows takes it,
+    # Android's storage does not, and the whole backup was refused for it.
+    long = "20261028093000123456_" + "Договор_аренды_квартиры_" * 5 + "подписанный.pdf"
+    name = "walk_long_name.zip"
+    picked = import_backup_file(folder, name, {
+        "notes_data.json": json.dumps([{"id": 1, "uid": "long-1", "title": "Lease",
+                                        "attachments": [{"filename": "Договор.pdf", "stored_as": long}]},
+                                       {"id": 2, "uid": "long-2", "title": "Second"}], ensure_ascii=False),
+        "attachments/" + long: b"%PDF-1.4 walk",
+    })
+    check_settled("a backup with a file named longer than Android holds comes in whole",
+                  lambda: sorted(n.get("title") for n in read_file("notes_data.json") or []),
+                  lambda titles: picked and titles == ["Lease", "Plain note", "Second"], within=15.0)
+    lease = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Lease"), {})
+    stored = ((lease.get("attachments") or [{}])[0]).get("stored_as", "")
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK + "/attachments")
+    check("... its file kept under a name the phone holds, the note naming it",
+          0 < len(stored.encode("utf-8")) <= 250 and stored.endswith(".pdf") and stored in held, repr(stored))
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    back_to("Search notes")
+
+
+def big_table(folder):
+    """A note holding a table of 300 by 300 -- 90,000 cells, which a share
+    code of 2.9 KB can carry -- opens at once, the table said too large to
+    draw and its first lines shown, and nothing in the file changes; one at
+    the line, 50 by 20, is still a grid and opens in time too. Past
+    Editing.MAX_DRAWN_CELLS (1,000) a table is not drawn: EditingTest holds
+    the line, this times the opening on the phone -- by the app's own frames,
+    from the tap to the last one drawn. Timed by the walk's looks at the
+    screen it read 9.8 s, then 5.0 s for a note drawn in half a second: a
+    look waits for the app to be idle, and takes seconds of its own. The
+    property the Looper reads is read as the app starts, so the app is
+    started inside ([slow_dispatches_logged]). The walk's own reads of the
+    frames are messages on that thread too, left out ([held_after_tap])."""
+    print("\n-- a table too large to draw --")
+    with slow_dispatches_logged():
+        _tables_opened(folder)
+
+
+def _tables_opened(folder):
+    """[big_table]'s steps."""
+
+    def drawn_in(label, shows, exact=False):
+        """From the tap on [label] to the end of the last work the app's
+        thread did for it ([held_after_tap]) -- the screen read for [shows]
+        only then: no look at the screen falls inside the time measured.
+        Read once the screen showed the words, an opening ended where the
+        walk's own look had the app draw again: read 1.5 s after the tap, an
+        opening frame still drawing was in no list; read after the look, a
+        0.5 s opening could fail by a redraw
+        started 5.6 ms late, and 2.4 s of work drawing nothing passed by a
+        look made sooner."""
+        deadline = time.time() + 20.0
+        at = find(label, exact)
+        while at is None and time.time() < deadline:
+            time.sleep(0.4)
+            at = find(label, exact)
+        if at is None:
+            fail("tap %r: not on the screen" % label)
+            return None
+        time.sleep(1.0)         # the look's own redraws over before the time starts
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        adb("logcat", "-c")
+        pid = adb("shell", "pidof", PACKAGE).strip()
+        adb("shell", "input", "tap", str(at[0]), str(at[1]))
+        spans = held_after_tap(pid, within=20.0)
+        missing = says_soon(shows, within=20.0)
+        if missing or not spans:
+            print("     %r: missing %s, %d spans" % (label, missing, len(spans)))
+            return None
+        took = max(end for _, end in spans) - min(start for start, _ in spans)
+        print("     %r opened in %.2f s: %d frames and slow messages on its thread" % (label, took, len(spans)))
+        return took
+
+    def grid(rows, columns):
+        return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
+                         for r in range(rows))
+    big = "Opening words\n" + grid(300, 300)
+    at_line = grid(50, 20)
+    # 1,000 cells as written, 125,500 as drawn: every row padded to the
+    # widest. A share code of 174 characters carries it.
+    ragged = "\n".join(["|" + "x|" * 500] + ["| a | b |"] * 250)
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("templates.json", [{"name": "Big template", "title": "t", "body": big, "comments": "",
+                                   "category": "General", "checklist": []}])
+    if not seed_inside([{"id": 1, "uid": "walk-t1", "title": "Big table", "body": big,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
+                        {"id": 2, "uid": "walk-t2", "title": "Table at the line", "body": at_line,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"},
+                        {"id": 3, "uid": "walk-t3", "title": "Ragged table", "body": "Ragged\n" + ragged,
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Big table", clear=False):
+        return
+    took = drawn_in("Big table", "too large to draw here")
+    check("a note with a 300 by 300 table is drawn within two seconds (0.5 s on 2026-10-27)",
+          took is not None and took < 2.0, str(took))
+    check("... the table said too large to draw, its first lines shown",
+          not says_soon("Opening words", "too large to draw here", "| r0c0 | r0c1 |"),
+          str(screen_says("Opening words", "too large to draw here", "| r0c0 | r0c1 |")))
+    shot(folder, "86-big-table-as-text", "too large to draw here")
+    back_to("Search notes")
+    check("... and the file holds the note as it was",
+          (note_by_uid("walk-t1") or {}).get("body") == big)
+    took = drawn_in("Table at the line", "r0c0")
+    check("a table of 1,000 cells, at the line, is drawn within five seconds (2.2 s on 2026-10-27)",
+          took is not None and took < 5.0, str(took))
+    check("... and is still a grid", find("r0c0", exact=True) is not None)
+    back_to("Search notes")
+    took = drawn_in("Ragged table", "Ragged")
+    check("a ragged table drawn as 125,500 cells is weighed so, and drawn within two seconds",
+          took is not None and took < 2.0 and not says_soon("too large to draw here"), str(took))
+    back_to("Search notes")
+
+    # The page first, so the frames timed are the template's alone.
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    took = drawn_in("Big template", "too large to draw here", exact=True)
+    check("a template holding the 300 by 300 table opens within two seconds, the table said too large",
+          took is not None and took < 2.0 and not says_soon("too large to draw here"), str(took))
+    shot(folder, "86b-big-table-in-template", "too large to draw here")
+    back_to("Search notes")
+
+
+def code_started_once(folder):
+    """The app started by a share code -- cold, as "Share -> Note
+    Organizer" from a chat starts it -- offers the code once. Ended by
+    Android in the background and opened again, the activity is handed the
+    same intent: it offered the code again, its "Update this note" ready to
+    put the older words back over the newer. MainActivity's own; no unit
+    test reaches an Activity's intent."""
+    print("\n-- a share code that started the app, offered once --")
+    code = desktop_code({"uid": "walk-once", "title": "Shared once", "body": "from a chat",
+                         "category": "General"})
+    if not code:
+        fail("a code that started the app: the desktop's encoder could not be used, so nothing was tried")
+        return
+    if not seed_inside([{"id": 1, "uid": "walk-o1", "title": "Already here", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Already here"):
+        return
+    adb("shell", "am", "force-stop", PACKAGE)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+    time.sleep(3.0)
+    tap("Import", exact=True, wait=2.0)
+    check("a code that started the app is imported", note_by_uid("walk-once") is not None)
+    home()
+    ended = kill_behind()
+    start_app()
+    check("ended in the background and opened again, the app does not offer the code again",
+          ended and bool(screen_says("Import a code")) and not says_soon("Already here", "Shared once"),
+          "ended %s: " % ended + " | ".join(t for t, d, _ in nodes() if t)[:160])
+    shot(folder, "87-code-offered-once", "Already here", "Shared once")
+    back_to("Search notes")
+
+
+def second_code_while_open(folder):
+    """A second code shared in while the first one's dialog is still open
+    takes its place: the dialog kept the first code's text, Import brought
+    that one, and the second was dropped without a word."""
+    print("\n-- a second code shared in over an open code dialog --")
+    first = desktop_code({"uid": "walk-first", "title": "First code", "body": "a", "category": "General"})
+    second = desktop_code({"uid": "walk-second", "title": "Second code", "body": "b", "category": "General"})
+    if not first or not second:
+        fail("a second code: the desktop's encoder could not be used, so nothing was tried")
+        return
+    if not seed_inside([{"id": 1, "uid": "walk-s1", "title": "Already here", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Already here"):
+        return
+    for code in (first, second):
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+        time.sleep(3.0)
+    tap("Import", exact=True, wait=1.0)
+    check_settled("the code shared in second is the one imported",
+                  lambda: (note_by_uid("walk-first") is not None, note_by_uid("walk-second") is not None),
+                  lambda seen: seen == (False, True))
+    back_to("Search notes")
+
+
+def blank_note_menu(folder):
+    """Duplicate and Export on a new note with nothing in it write nothing,
+    and say why, as Share does: forced past the blank-note rule, they wrote
+    an empty note -- Duplicate its copy too."""
+    print("\n-- Duplicate and Export on a blank new note --")
+    if not seed_inside([{"id": 1, "uid": "walk-b1", "title": "Kept", "body": "x",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Kept"):
+        return
+    tap("New note", wait=1.5)
+    for item, word in (("Duplicate", "Nothing to duplicate yet"), ("Export as file", "Nothing to export yet")):
+        tap("More options", wait=1.0)
+        tap(item, wait=0.5)
+        missing = says_soon(word)
+        # Nothing written is read only once a write would have landed: the
+        # editor's autosave waits 800 ms (NoteEditor.kt), here three times over.
+        time.sleep(2.5)
+        stored = read_file("notes_data.json") or []
+        check("%s on a blank new note writes nothing, and says why" % item,
+              len(stored) == 1 and not missing,
+              "%d notes stored; missing %s" % (len(stored), missing))
+    back_to("Search notes")
+
+
+def symbol_labels(folder):
+    """The buttons drawn as a symbol say what they do to a screen reader --
+    "+" is New note, "⋮" More options, "🗑" Move to Trash, a checklist row's
+    "✕" Remove ... from the checklist -- where it read the symbol's name or
+    nothing. Read from the UI tree's descriptions, which is what TalkBack
+    reads; how TalkBack speaks them needs a person with it on."""
+    print("\n-- what a screen reader is told about the symbol buttons --")
+    if not seed_inside([{"id": 1, "uid": "walk-l1", "title": "Bread", "body": "Knead",
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00",
+                         "checklist": [{"text": "flour", "done": False}]}],
+                       {"welcome_offered": True}, "Bread"):
+        return
+    missing = screen_says("New note", "More options")
+    check("the list's + and ⋮ are named", not missing, str(missing))
+    if long_press("Bread"):
+        missing = screen_says("Clear selection", "Pin", "Move to category", "Move to Trash", "More options")
+        check("the selection bar's symbols are named", not missing, str(missing))
+        # By its own ✕: the search box stays on screen while selecting, so
+        # back_to("Search notes") stopped at once, and the next tap on the
+        # card selected it instead of opening it (the full walk, 2026-10-27).
+        tap("Clear selection", wait=1.0)
+        check("... and the selection is cleared by its ✕", find("Clear selection") is None)
+    if open_note("Bread"):
+        missing = screen_says("Back", "Note details", "More options", "Checklist: flour",
+                              "Remove flour from the checklist")
+        check("the editor's symbols and a checklist row's box and ✕ are named", not missing, str(missing))
+        # The only row has nowhere to go: no empty menu, a word instead --
+        # the empty popup was a dead end for a screen reader.
+        tap("Drag to move flour", exact=True, wait=0.3)
+        check("the only row's move handle opens no empty menu, and says why",
+              not says_soon("Nothing to move it past here.", within=4.0)
+              and find("Move up", exact=True) is None and find("Move down", exact=True) is None)
+    back_to("Search notes")
+
+
+def google_backup(folder):
+    """Settings -> Backup's switch for Android's own backup: on by default,
+    written to the file when turned off, and then Android's backup takes
+    only a mark saying so, none of the notes -- read from what the emulator's local transport is
+    handed, with the app's switch on and off (NotesBackupAgent). Points the
+    emulator's backup at its local transport; a phone never runs this."""
+    print("\n-- Android's backup, and the app's switch for it --")
+    if not seed_inside([{"id": 1, "uid": "walk-g1", "title": "Backed up", "body": "a line", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Backed up"):
+        return
+    adb("shell", "bmgr", "enable", "true")
+    adb("shell", "bmgr", "transport", "com.android.localtransport/.LocalTransport")
+
+    def backed_up():
+        # Home first: a stopped app is not backed up at all, whatever it says.
+        home()
+        out = adb("shell", "bmgr", "backupnow", PACKAGE)
+        start_app()
+        return "%s with result: Success" % PACKAGE in out, out
+
+    ok, out = backed_up()
+    check("with the switch on by default, Android's backup takes the app", ok, out[-200:])
+    tap("Settings", exact=True, wait=1.2)
+    tap("Backup", exact=True, wait=1.2)
+    adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
+    time.sleep(1.0)
+    check("the page says the switch is on", not says_soon("Android's backup to your Google account",
+                                                             "On: Android may copy", "25 MB"))
+    tap("Android's backup to your Google account", wait=1.2)
+    check_settled("turned off, the file says so", lambda: (read_file("settings.json") or {}).get("phone_google_backup"),
+                  lambda value: value is False)
+    shot(folder, "88-google-backup-off", "Off: Android's next backup")
+    # Handed nothing, Android kept the copy made while on, and a restore
+    # put it back -- notes and all, switch on. Off, the backup now holds
+    # only the mark saying so; restored, it brings back the answer alone.
+    ok, out = backed_up()
+    check("... and Android's backup then takes only the mark that it is off", ok, out[-200:])
+    sets = adb("shell", "bmgr", "list", "sets")
+    token = next((line.split(":")[0].strip() for line in sets.splitlines() if ":" in line), None)
+    # Emptied first, as a reinstall or a new phone is: a restore lays the
+    # backup's files over whatever is there and removes nothing.
+    adb("shell", "pm", "clear", PACKAGE)
+    restored = adb("shell", "bmgr", "restore", token or "1", PACKAGE) if token else ""
+    time.sleep(3.0)
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("a restore of it brings back no note, only the mark",
+          "phone_google_backup_off.json" in held and "notes_data.json" not in held,
+          "sets: %r, restore: %r, notebook: %r" % (sets[-120:], restored[-200:], held[-200:]))
+    # Android's backup can run on the restored app before it is first opened
+    # -- a new phone charging overnight. Read from settings.json alone, which
+    # a restore does not bring, that was "on": the mark, the only record of
+    # the person's off, was deleted and nothing kept, and the app came up on.
+    early = adb("shell", "bmgr", "backupnow", PACKAGE)
+    ran = "%s with result: Success" % PACKAGE in early
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("a backup of the restored app before its first start keeps the mark, and takes nothing else",
+          ran and "phone_google_backup_off.json" in held and "notes_data.json" not in held,
+          "backup ran: %s (%r), notebook: %r" % (ran, early[-160:], held[-200:]))
+    adb("shell", "pm", "clear", PACKAGE)
+    if token:
+        adb("shell", "bmgr", "restore", token, PACKAGE)
+    time.sleep(3.0)
+    held = adb("shell", "run-as", PACKAGE, "ls", NOTEBOOK)
+    check("... and restored from that backup, the mark comes back", "phone_google_backup_off.json" in held,
+          "notebook: %r" % held[-200:])
+    start_app()
+    check_settled("... and the app restored starts with the switch off",
+                  lambda: (read_file("settings.json") or {}).get("phone_google_backup"), lambda value: value is False)
+    restored = read_file("notes_data.json")
+    check("... without the note the earlier backup held",
+          restored is not None and not any(n.get("title") == "Backed up" for n in restored), repr(restored)[:200])
+    put_inside("settings.json", {"welcome_offered": True, "phone_google_backup": True})
+    ok, out = backed_up()
+    check("turned on again, it takes the app again", ok, out[-200:])
+    back_to("Search notes")
+
+
 def statistics(folder):
     """Settings -> Statistics over a notebook whose figures are known."""
     print("\n-- Statistics --")
@@ -1389,14 +2433,112 @@ def statistics(folder):
         {"id": 3, "uid": "walk-s3", "title": "Three", "category": "Personal",
          "created": "2025-06-01 09:00", "updated": "2025-06-01 09:00"},
     ], {"welcome_offered": True, "first_launch_date": "2026-09-01",
-        "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f"}}, "Three")
+        "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Personal": "#f9c74f",
+                       "Ideas": "#90be6d"}}, "Three")
     tap("Settings", exact=True, wait=1.2)
     tap("Statistics", wait=1.5)
     check("the page counts the notebook's notes and says since when",
-          not screen_says("Total notes", "Using Note Organizer since 01.09.2026"),
+          not says_soon("Total notes", "Using Note Organizer since 01.09.2026"),
           str(screen_says("Total notes", "Using Note Organizer since 01.09.2026")))
+    total = tile_figure("Total notes")
+    check("the Total notes tile says 3", total == "3", str(total))
+    # Four categories, notes in three: Ideas holds none and still counts.
+    kinds = tile_figure("Categories")
+    check("the Categories tile counts every category, the empty one too", kinds == "4", str(kinds))
     shot(folder, "31-statistics", "Total notes")
     back_to("Search notes")
+    # At the largest letters a four-digit figure stays whole: three tiles a
+    # row broke it between its digits, "123" over "4".
+    many = [{"id": i + 1, "uid": "walk-sm%d" % i, "title": "N%d" % i, "category": "General",
+             "created": "2026-10-13 09:00", "updated": "2026-10-13 09:00"} for i in range(1233)]
+    many.append({"id": 1234, "uid": "walk-sm-top", "title": "Top of many", "category": "General",
+                 "created": "2026-10-14 09:00", "updated": "2026-10-14 09:00"})
+    if not seed_inside(many, {"welcome_offered": True}, "Top of many"):
+        return
+    try:
+        # A 360 dp phone (this emulator is 411 dp wide, where four digits fit).
+        adb("shell", "wm", "density", "480")
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(3.0)
+        px = 480 / 160.0
+        tap("Settings", exact=True, wait=1.2)
+        for _ in range(3):
+            if find("Statistics") is not None:
+                break
+            adb("shell", "input", "swipe", "540", "1900", "540", "900", "400")
+            time.sleep(1.0)
+        tap("Statistics", wait=1.5)
+        total, kinds, figure = bounds("Total notes"), bounds("Categories"), bounds("1234")
+        check("at the largest letters Statistics sets two tiles a row, not three",
+              bool(total) and bool(kinds) and kinds[0][1] - total[0][1] > 20 * px, "%s %s" % (total, kinds))
+        check("...and a four-digit figure is drawn whole, on one line",
+              bool(figure) and figure[0][2] - figure[0][0] >= 78 * px
+              and figure[0][2] - figure[0][0] > figure[0][3] - figure[0][1], repr(figure))
+        shot(folder, "31b-statistics-large-letters", "1234")
+        # The time table below: its label broke as "Update" over "d".
+        adb("shell", "input", "swipe", "540", "1900", "540", "1100", "400")
+        time.sleep(1.0)
+        # Its box is its column's width, not its word's, so a line is told
+        # by height: the figures beside it are one line by construction and
+        # share its line height; a label broken in two stands twice as tall.
+        label, row = bounds("Updated"), []
+        if label:
+            try:
+                root = ET.fromstring(screen_xml())
+            except ET.ParseError:
+                root = None
+            for node in (root.iter("node") if root is not None else []):
+                box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+                if (node.get("text", "").isdigit() and len(box) == 4
+                        and label[0][1] <= (box[1] + box[3]) / 2 <= label[0][3]):
+                    row.append(box)
+        row.sort()
+        check("...and the time table's label stays on one line",
+              bool(label) and bool(row) and label[0][3] - label[0][1] < 1.4 * max(b[3] - b[1] for b in row),
+              "%r %r" % (label, row))
+        # Its header broke "this month" as "this" / "mont" / "h" (three
+        # lines where "older" takes one), and its figures ran together:
+        # "0" beside "1234" read as "01234".
+        # The figures are one line each, by construction, at the header's
+        # line height: a two-word label stands at most two lines, one word one.
+        month, older = bounds("this month"), bounds("older")
+        line = max((b[3] - b[1] for b in row), default=0)
+        check("...and its header keeps each word whole",
+              bool(month) and bool(older) and line > 0
+              and month[0][3] - month[0][1] < 2.5 * line and older[0][3] - older[0][1] < 1.4 * line,
+              "%r %r, a line %d" % (month, older, line))
+        gaps = [b[0] - a[2] for a, b in zip(row, row[1:])]
+        check("...and a gap stands between its columns' figures",
+              len(row) == 4 and min(gaps) >= 3 * px, "%r, gaps %r" % (row, gaps))
+        shot(folder, "31c-statistics-time-table", "Updated")
+        # The selection bar's count broke inside its word beside its four
+        # buttons ("1" / "select" / "ed") and the 64 dp bar cut it: one line
+        # now, its letters all drawn (lines stacked would merge their runs).
+        back_to("Search notes")
+        long_press("Top of many")
+        chosen = bounds("1 selected")
+        drawn = glyphs_drawn(chosen[0]) if chosen else None
+        check("...and the selection bar's count is one line, all of it drawn",
+              drawn == len("1selected"), "%s, %s letters" % (chosen, drawn))
+        shot(folder, "31d-selection-large-letters", "1 selected")
+        tap("Clear selection", exact=True)
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
+    back_to("Search notes")
+
+
+def tile_figure(caption):
+    """The figure printed over [caption] in a Statistics tile: the nearest
+    number above it in its own column, as the screen draws it."""
+    seen = nodes()
+    under = next((c for t, _d, c in seen if t == caption), None)
+    if under is None:
+        return None
+    above = [(under[1] - c[1], t) for t, _d, c in seen
+             if t.isdigit() and abs(c[0] - under[0]) < 150 and 0 < under[1] - c[1] < 250]
+    return min(above)[1] if above else None
 
 
 def calculator_in_cell(folder):
@@ -1442,11 +2584,11 @@ def calculator(folder):
             tap(key, exact=True, wait=0.3)
 
     insert = "⬇ Insert into note"
-    check("the menu opens the panel, Insert waiting for an answer", not screen_says(insert, "More functions"))
+    check("the menu opens the panel, Insert waiting for an answer", not says_soon(insert, "More functions"))
     press("1", "2", "0", "+", "4", "5", ".", "5", "=")
     check("equals shows the answer", bool(find("165.5", exact=True)))
     tap(insert)
-    check("Insert says what it put in the note", not screen_says("Added to the note: 120+45.5=165.5"))
+    check("Insert says what it put in the note", not says_soon("Added to the note: 120+45.5=165.5"))
     press("×", "2", "=")
     tap(insert)
     shot(folder, "32-calculator", insert, "Fuel and tolls:")
@@ -1454,7 +2596,10 @@ def calculator(folder):
     # The note's own field takes the keyboard: the panel steps aside, and
     # comes back when the keyboard goes down.
     tap("Fuel and tolls:", wait=1.5)
-    check("the panel stands aside while the keyboard is up for the note", bool(screen_says(insert)))
+    # The keyboard up is the premise: on any screen without it, the button
+    # missing passed.
+    check("the panel stands aside while the keyboard is up for the note",
+          keyboard_shown() and bool(screen_says(insert)) and not says_soon("Fuel and tolls:"))
     # Down for certain, then looked for until it is there: one look 1.5 s
     # after Back, on an emulator just started, came before the keyboard
     # had gone (2026-10-23).
@@ -1467,13 +2612,13 @@ def calculator(folder):
     check("a division by zero says Error", bool(find("Error", exact=True)))
     tap("History")
     check("the history keeps the answers, newest first, and says what a tap does",
-          not screen_says("√9=3", "165.5×2=331", "120+45.5=165.5", "Tap a line to insert it into the note"))
+          not says_soon("√9=3", "165.5×2=331", "120+45.5=165.5", "Tap a line to insert it into the note"))
     shot(folder, "33-calculator-history", "√9=3", "Tap a line to insert it into the note")
     tap("120+45.5=165.5", exact=True)
 
     back(wait=1.2)
     check("Back closes the panel and leaves the note open",
-          bool(screen_says(insert)) and not screen_says("Fuel and tolls:"))
+          bool(screen_says(insert)) and not says_soon("Fuel and tolls:"))
     back_to("Search notes")
     notes = read_file("notes_data.json") or []
     body = notes[0].get("body") if notes else None
@@ -1528,11 +2673,11 @@ def finding(folder):
             break
         back(wait=1.2)
     check("Back closes the bar and leaves the note open",
-          not find("0/0", exact=True) and not screen_says("Shopping"),
+          not find("0/0", exact=True) and not says_soon("Shopping"),
           " | ".join(t or d for t, d, _ in nodes())[:200])
     tap("⋮", exact=True)
     tap("🔍 Find in note", wait=1.2)
-    check("the bar opens again with the last search", not screen_says("milkzzz"))
+    check("the bar opens again with the last search", not says_soon("milkzzz"))
     back_to("Search notes")
     notes = read_file("notes_data.json") or []
     check("finding never changed the note", bool(notes) and notes[0].get("body") == body,
@@ -1588,7 +2733,7 @@ def exporting(folder):
             fail("the phone's picker offered no Save (%s)" % fmt)
         made = settle(lambda: sorted(f for f in downloads() - earlier if f.endswith(ext)), lambda m: len(m) == 1)
         check("one %s file is where the picker put it" % fmt, len(made) == 1, str(made))
-        check("the message says where it went", not screen_says("Exported to"))
+        check("the message says where it went", not says_soon("Exported to"))
         if fmt == "html":
             shot(folder, "36-exported", "Exported to")
         if len(made) == 1:
@@ -1684,14 +2829,17 @@ def templates(folder):
               and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}] and t.get("comments") == "every Sunday"
               and t.get("category") == "Work" and t.get("checklist") == [{"text": "groceries", "done": False}],
               repr(t))
-        if normalize is not None:
+        if normalize is None:
+            # Skipped with a print, this passed unread, while its siblings fail().
+            fail("the desktop's normalize_template could be read, to check the file's shape")
+        else:
             check("the file is already in the shape the desktop keeps", normalize(t) == t, repr(normalize(t)))
 
     # The same name again: asked, never replaced silently.
     tap("⋮", exact=True)
     tap("🧩 Save as template", wait=1.2)
     tap("Save", exact=True, wait=1.2)
-    check("a name already taken asks first", not screen_says("Template name taken"))
+    check("a name already taken asks first", not says_soon("Template name taken"))
     tap("Replace", exact=True, wait=1.2)
     check("replaced, still one", len(on_disk()) == 1)
 
@@ -1723,6 +2871,14 @@ def templates(folder):
           not any("|" in t for t in words) and "Mon" in words and "gym" in words
           and any("call mum" in t for t in words), repr(words[:16]))
     shot(folder, "39-template-editor", "Edit template")
+    # Words typed before a styled one: the bold moves with "call". Kept at
+    # its offsets, it landed on other words, and every note made from the
+    # template began with it there.
+    tap("call mum", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("Hi ")
+    keyboard_down()
     tap("A new item", wait=0.8)
     # A capital already, as in a new note's body: the field capitalises.
     type_text("Socks")
@@ -1732,8 +2888,14 @@ def templates(folder):
     check("the edit is saved, in its place",
           len(saved) == 1 and [c.get("text") for c in saved[0].get("checklist", [])] == ["groceries", "Socks"],
           repr(saved))
+    if saved:
+        t = saved[0]
+        moved = [t.get("body", "")[s.get("start", 0):s.get("end", 0)] for s in t.get("formatting", [])]
+        check("words typed before a bold word leave the bold on it, and the bullet on its line",
+              t.get("body", "").startswith("Hi • call mum") and moved == ["call"]
+              and t.get("paragraphs") == [{"line": 0, "kind": "bullet"}], repr(t)[:300])
     tap("Delete template", wait=1.2)
-    check("deleting asks, and says it is for good", not screen_says("for good"))
+    check("deleting asks, and says it is for good", not says_soon("for good"))
     tap("Delete", exact=True, wait=1.2)
     check("gone", on_disk() == [], repr(on_disk()))
     back_to("Search notes")
@@ -1745,7 +2907,9 @@ def sizes_and_faces(folder):
     shape the desktop keeps: the size a number, the face one of its own."""
     print("\n-- sizes and faces --")
     seed_inside([
-        {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style",
+        # Two lines: a size larger than the body must not draw them over each
+        # other (a size is points against a 12 pt body).
+        {"id": 1, "uid": "walk-faces", "title": "Faces", "body": "plain words to style\nand a second line under them",
          "category": "General", "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"},
     ], {"welcome_offered": True}, "Faces")
     open_note("Faces")
@@ -1845,7 +3009,7 @@ def new_table(folder):
     tap("Insert", exact=True, wait=1.5)
     # The first cell written in place, the table's bar over the keyboard.
     check("the new table's first cell is open for typing, the table's bar at hand",
-          find("Cell", exact=True) is not None and not screen_says("Row", "Column", "More"))
+          find("Cell", exact=True) is not None and not says_soon("Row", "Column", "More"))
     type_text("Day")
     back_to("Search notes")
     body = ((read_file("notes_data.json") or [{}])[0]).get("body") or ""
@@ -1955,6 +3119,16 @@ def table_bar(folder):
     tap("Delete", exact=True, wait=0.8)
     tap("This column", exact=True, wait=1.2)
     check_settled("Delete, This column", rows, lambda r: bool(r) and r[0][:2] == ["Item", ""])
+    # A "|" typed in a cell is the table's divider: kept as "/", and said once
+    # a cell, where the cell took it without a word (the review panel). Escaped
+    # for the device's shell, which reads a bare | as a pipe.
+    tap("Item", exact=True, wait=1.2)
+    adb("shell", "input", "text", "\\|x")
+    time.sleep(0.6)
+    unsaid = says_soon("can't hold")
+    check_settled('a "|" typed in a cell is written "/"', rows, lambda r: bool(r) and r[0][0] == "Item/x")
+    check("...and said, on the bar", not unsaid, repr(unsaid))
+    keyboard_down()
     back_to("Search notes")
 
 
@@ -2061,14 +3235,14 @@ def cell_menu(folder):
         return (read_file("notes_data.json") or [{}])[0]
 
     choose_cell("Cells", "120")
-    tap("Color", exact=True, wait=0.8)
+    tap("Colour", exact=True, wait=0.8)
     tap("Highlight colour 1", wait=1.2)
     choose_cell("Cells", "45")
     tap("Merge", exact=True, wait=0.8)
     tap("With the cell on the left", exact=True, wait=1.2)
     choose_cell("Cells", "fuel")
     tap("More", exact=True, wait=1.2)
-    tap("Center", exact=True, wait=1.2)
+    tap("Centre", exact=True, wait=1.2)
     shot(folder, "43-cell-menu", "Item")
     back_to("Search notes")
     saved = note()
@@ -2089,11 +3263,84 @@ def cell_menu(folder):
     choose_cell("Cells", "fuel")
     tap("Delete", exact=True, wait=0.8)
     tap("The whole table", exact=True, wait=1.0)
-    check("deleting the table asks first", not screen_says("Delete this table and everything in it?"))
+    check("deleting the table asks first", not says_soon("Delete this table and everything in it?"))
     tap_last("Delete", wait=1.2)
     back_to("Search notes")
     gone = note().get("body")
     check("the table is gone", gone == "", repr(gone))
+
+
+def move_day_keeps_new_item(folder):
+    """Words typed in "A new item…" on a day of a series, then "Move this
+    day…": refused onto a date the series has, and moved. The words stay in
+    the box both times, made no row: moved, the editor built anew lost them;
+    refused, they were finished as a row."""
+    from datetime import date, timedelta
+    print("\n-- a day moved keeps the words waiting in A new item --")
+    today = date.today()
+    first = date(today.year, today.month, 1)
+    monday = first + timedelta(days=(7 - first.weekday()) % 7)
+    second, third = monday + timedelta(days=7), monday + timedelta(days=14)
+    if not seed_inside([
+        {"id": 1, "uid": "mv-items", "title": "Team meeting", "body": "agenda", "category": "Work",
+         "date": monday.isoformat(), "recurrence": {"freq": "weekly", "weekdays": [0]},
+         "checklist": [{"text": "minutes", "done": False}],
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+    ], {"welcome_offered": True}, "Team meeting"):
+        return
+    rows = lambda: [r.get("text") for r in (note_by_uid("mv-items") or {}).get("checklist", [])]
+    tap("Calendar", exact=True, wait=1.5)
+    tap(said(second), wait=1.0)
+    open_note("Team meeting")
+    if not seek(lambda: find("A new item…") is not None):
+        fail("A new item… not on the screen")
+        return
+    tap("A new item…", wait=0.8)
+    type_text("Book the room")
+    keyboard_down()
+    adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")   # back up to the banner
+    time.sleep(1.0)
+    for target, what in ((third, "refused"), (second + timedelta(days=2), "moved")):
+        tap("Move this day", wait=1.5)
+        tap(picker_day(target), wait=0.6)
+        tap("OK", exact=True, wait=2.0)
+        seek(lambda: find("Book the room") is not None)
+        check("a day %s keeps the words in A new item, made no row" % what,
+              rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+        adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
+        time.sleep(1.0)
+    # The editor's own Reset, answered Cancel: its tap saved the box's words
+    # as a row first.
+    tap("Reset this day", wait=1.5)
+    tap("Cancel", exact=True, wait=1.5)
+    seek(lambda: find("Book the room") is not None)
+    check("Reset this day answered Cancel keeps the words in A new item, made no row",
+          rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+    # ...and "Whole series", the strip's third link, which saved them as a
+    # row before the editor built anew could carry them.
+    adb("shell", "input", "swipe", "900", "700", "900", "1900", "300")
+    time.sleep(1.0)
+    tap("Whole series", wait=1.5)
+    seek(lambda: find("Book the room") is not None)
+    check("Whole series keeps the words in A new item, made no row",
+          rows() == ["minutes"] and find("Book the room") is not None, json.dumps(rows()))
+    # A sum typed in the calculator on a day, not put in yet, then "Whole
+    # series": built anew, the editor shut the calculator and the sum went
+    # with it.
+    back_to("Search notes")
+    tap("Calendar", exact=True, wait=1.5)
+    tap(said(third), wait=1.0)
+    open_note("Team meeting")
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+    for key in ("4", "5", "7"):
+        tap(key, exact=True, wait=0.3)
+    adb("shell", "input", "swipe", "900", "500", "900", "1200", "300")    # back up to the banner
+    time.sleep(1.0)
+    tap("Whole series", wait=1.5)
+    check("Whole series keeps the calculator open with the sum typed in it",
+          find("⬇ Insert into note") is not None and find("457", exact=True) is not None)
+    back_to("Search notes")
 
 
 def move_day(folder):
@@ -2131,7 +3378,7 @@ def move_day(folder):
     tap(picker_day(third), wait=0.6)
     tap("OK", exact=True, wait=1.5)
     check("a day cannot move onto another day of its series",
-          not screen_says("already has a day on") and not (series().get("moved") or {}),
+          not says_soon("already has a day on") and not (series().get("moved") or {}),
           json.dumps(series().get("moved")))
 
     tap("Move this day", wait=1.5)
@@ -2153,9 +3400,7 @@ def move_day(folder):
     missing = [w for w in ("Only this day: " + said(to), "moved from " + said(second), "Moved to") if w not in shown]
     check("the editor follows the day, and the move offers its Undo", not missing and bool(offer),
           str(missing + ([] if offer else ["the offer's Undo"])))
-    adb("shell", "screencap", "-p", "/sdcard/shot.png")
-    with open(os.path.join(folder, "48-day-moved.png"), "wb") as f:
-        f.write(adb("exec-out", "cat", "/sdcard/shot.png", binary=True))
+    photograph(folder, "48-day-moved")
     if offer:
         adb("shell", "input", "tap", str(offer[-1][0]), str(offer[-1][1]))
 
@@ -2189,26 +3434,26 @@ def off_schedule(folder):
     tap("Yoga", wait=1.2)
     tap("off the schedule", wait=2.0)
     check("a History row off the schedule opens the series, not that day",
-          find("Only this day") is None and not screen_says("2 days' own edits are off the schedule"),
+          find("Only this day") is None and not says_soon("2 days' own edits are off the schedule"),
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=1.0)
     tap("Notes", exact=True, wait=1.5)
     open_note("Yoga")
     check("the series says two days' edits are off its schedule",
-          not screen_says("2 days' own edits are off the schedule"))
-    # And, above it, that its edits reach every day: the desktop's banner.
-    # Both days are off the schedule, so none is counted as keeping its own.
-    check("the series says its edits apply to every day, counting no day off the schedule as its own",
-          not screen_says("This note repeats", "edits here apply to every day")
+          not says_soon("2 days' own edits are off the schedule"))
+    # And, above it, that its edits reach the whole series: the desktop's
+    # banner. Both days are off the schedule, so none is counted as keeping its own.
+    check("the series says its edits apply to the whole series, counting no day off the schedule as its own",
+          not says_soon("This note repeats", "edits here apply to the whole series")
           and find("keep their own edits") is None and find("keeps its own edits") is None)
     tap("off the schedule", wait=1.5)
-    check("one question a day, in the desktop's words", not screen_says("Day 1 of 2 off the schedule", "Yoga in the park"))
+    check("one question a day, in the desktop's words", not says_soon("Day 1 of 2 off the schedule", "Yoga in the park"))
     shot(folder, "54-off-schedule", "Day 1 of 2 off the schedule")
     tap("Make it a note", exact=True, wait=1.5)
-    check("then the next", not screen_says("Day 2 of 2 off the schedule", "Yoga at home"))
+    check("then the next", not says_soon("Day 2 of 2 off the schedule", "Yoga at home"))
     tap("Move to the Trash", exact=True, wait=1.0)
     # At once: the message lasts a few seconds.
-    check("and what was done is said", not screen_says("1 made a note of its own, 1 moved to the Trash"))
+    check("and what was done is said", not says_soon("1 made a note of its own, 1 moved to the Trash"))
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []
     series = next((n for n in notes if n.get("uid") == "os-series"), {})
@@ -2275,6 +3520,37 @@ def arranging(folder):
              "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"} for i in range(1, 31)]
     if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
         return
+    # The second card dragged up over the first, at the list's top, and held:
+    # the trade took the list along by a card, and the card under the finger
+    # was drawn above the screen until let go.
+    handle, first = find("Drag to move Note 02"), find("Note 01", exact=True)
+    if not handle or not first:
+        fail("the long list's first two cards not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], first[1] - 60, -40):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    time.sleep(1.5)
+    unseen = screen_says("Note 02")                  # the words missing, while held
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(first[1] - 60))
+    check_settled("the second card dragged over the first, still held, stays on screen, and lands first",
+                  placed, lambda p: not unseen and p[:2] == ["Note 02", "Note 01"], first=0)
+    # The same card dragged again, one place down: its handle's gesture read
+    # the list as it was at its first touch, redrew that order and wrote a
+    # place counted from it.
+    mine, theirs = find("Drag to move Note 02"), find("Drag to move Note 01")
+    if not mine or not theirs:
+        fail("the first two cards' handles not on the screen after the drag")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(mine[0]), str(mine[1]))
+    for y in range(mine[1], theirs[1] + 40, 40):
+        adb("shell", "input", "motionevent", "MOVE", str(mine[0]), str(y))
+    time.sleep(1.0)
+    adb("shell", "input", "motionevent", "UP", str(mine[0]), str(theirs[1] + 40))
+    check_settled("the same card dragged a second time, one place down, lands one place down",
+                  placed, lambda p: p[:3] == ["Note 01", "Note 02", "Note 03"], first=0)
+    if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
     for _ in range(4):
         adb("shell", "input", "swipe", "540", "1700", "540", "500", "200")
         time.sleep(0.6)
@@ -2291,6 +3567,3215 @@ def arranging(folder):
     check("on a long list a card held at the edge rides the scroll to the top",
           "Note 30" in order and order.index("Note 30") <= 2
           and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:5]))
+    # The same carry by a finger that never stays quite still: a trade the edge
+    # scroll made lost its hold to the next move's measure, the list followed
+    # its top card, and the carried card went out of sight with its drag --
+    # the note left where it was.
+    if not seed_inside(many, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    for _ in range(4):
+        adb("shell", "input", "swipe", "540", "1700", "540", "500", "200")
+        time.sleep(0.6)
+    handle, top = find("Drag to move Note 30"), find("Sort: Custom order")
+    if not handle or not top:
+        fail("the long list again: the last card or the list's top not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], top[1] + 140, -60):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    for i in range(40):                              # held, trembling by a pixel
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(top[1] + 140 + i % 2))
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(top[1] + 140))
+    # Measured: the carry lands about place 8; the lost hold stopped it at 22.
+    order = settle(placed, lambda o: "Note 30" in o and o.index("Note 30") <= 14)
+    print("     (Note 30 landed at place %s)" % (order.index("Note 30") + 1 if "Note 30" in order else "-"))
+    check("on a long list a card held at the edge by a trembling finger rides the scroll up, and lands there",
+          "Note 30" in order and order.index("Note 30") <= 14
+          and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:24]))
+
+    # Cards of mixed heights: a short card held past the list's foot, the
+    # list scrolling under it. A taller card coming in at the edge took the
+    # short one's slot out of the viewport, and the drag went.
+    mixed = [dict(n, body="A first line of words\nand a second line" if n["id"] % 2 == 0 else "")
+             for n in many]
+    if not seed_inside(mixed, {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    handle, tabs = find("Drag to move Note 03"), find("Calendar", exact=True)
+    if not handle or not tabs:
+        fail("the mixed list: Note 03's handle or the tabs not on the screen")
+        return
+    adb("shell", "input", "motionevent", "DOWN", str(handle[0]), str(handle[1]))
+    for y in range(handle[1], tabs[1], 60):
+        adb("shell", "input", "motionevent", "MOVE", str(handle[0]), str(y))
+    time.sleep(3)                                    # held past the foot: the list scrolls
+    adb("shell", "input", "motionevent", "UP", str(handle[0]), str(tabs[1]))
+    order = settle(placed, lambda o: "Note 03" in o and o.index("Note 03") > 4)
+    check("a short card held past the list's foot rides on past taller cards, and lands down the list",
+          "Note 03" in order and order.index("Note 03") > 4
+          and sorted(order) == ["Note %02d" % i for i in range(1, 31)], repr(order[:12]))
+
+
+# gfxinfo's flag on a frame the render thread drew alone (FrameInfoFlags::RTAnimation).
+RENDER_THREAD_ANIMATION = 2
+
+# A message on the app's thread that runs this long, in ms, is logged by
+# Android's Looper ("Slow dispatch took N ms main"), once the app is started
+# with the property set ([slow_dispatches_logged]).
+SLOW_DISPATCH_MS = 20
+
+# The message `dumpsys gfxinfo` sends the app's thread -- the walk's own read
+# of the frames (ActivityThread.H.DUMP_GFXINFO), logged as "h=android.app.
+# ActivityThread$H ... m=165" when it runs that long.
+WALK_READ_MESSAGE = re.compile(r"h=android\.app\.ActivityThread\$H\b.*\bm=165\b")
+
+
+def frames_since_reset(starts=False):
+    """The app's frames since `gfxinfo reset`, each from its intended start
+    to its end, in seconds -- what held the screen, as the app drew it,
+    which the walk's own looks (a second or more each) cannot time. With
+    [starts], each as (its start, in seconds on the device's clock, its
+    length). Only frames that have ENDED are listed: read this after
+    [frames_once_shown]'s look at the screen, never after a fixed pause.
+
+    A frame the render thread drew alone, for an animation of its own
+    (gfxinfo's flag 2), is not listed: no code of the app ran in it. The
+    ripple of a row tapped to open a dialog went on so for seven seconds
+    under it, and a template opening in half a second read as 3.2. Work that
+    draws nothing is in no
+    list; [held_after_tap] reads it from the log."""
+    out = adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats")
+    # One block per window -- a dialog is a window of its own -- each between
+    # two "---PROFILEDATA---" lines, with its own header.
+    frames = []
+    for block in out.split("---PROFILEDATA---")[1::2]:
+        lines = [line for line in block.splitlines() if line.strip()]
+        if len(lines) < 2:
+            continue
+        at = {h: k for k, h in enumerate(lines[0].split(","))}
+        for line in lines[1:]:
+            r = line.split(",")
+            if line[0].isdigit() and len(r) > max(at["FrameCompleted"], at["IntendedVsync"]) \
+                    and not int(r[at["Flags"]]) & RENDER_THREAD_ANIMATION:
+                began = int(r[at["IntendedVsync"]])
+                took = (int(r[at["FrameCompleted"]]) - began) / 1e9
+                frames.append((began / 1e9, took) if starts else took)
+    return frames
+
+
+@contextlib.contextmanager
+def slow_dispatches_logged():
+    """Android's Looper logs each message on the app's main thread that runs
+    [SLOW_DISPATCH_MS] or more -- with the property set before the app
+    starts, which reads it as its thread begins: start the app inside."""
+    uid = re.search(r"uid:(\d+)", adb("shell", "pm", "list", "packages", "-U", PACKAGE))
+    prop = "log.looper.%s.main.slow" % (uid.group(1) if uid else "0")
+    adb("shell", "setprop", prop, str(SLOW_DISPATCH_MS))
+    try:
+        yield
+    finally:
+        adb("shell", "setprop", prop, "0")
+
+
+def held_after_tap(pid, quiet=1.0, within=20.0):
+    """What the app's thread did after a tap, each as (start, end) in
+    seconds on the device's monotonic clock: every frame it drew (the render
+    thread's own left out, [frames_since_reset]) and every message on it the
+    Looper logged as slow ([slow_dispatches_logged]) -- work that draws
+    nothing, which no frame lists. Read again, with no look at the screen,
+    until neither has grown for [quiet] seconds, or [within] are up; the
+    opening is what came before the first [quiet] seconds of nothing, on the
+    device's clock.
+
+    Read once the screen showed the words, the end of an opening was where
+    the walk's own look had the app draw again: a trivial redraw started
+    5.6 ms late was kept as work, and a mutant holding the thread 2.4 s,
+    drawing nothing, read 2.04 to 2.10 s -- killed by 2 to 5% over the line,
+    and let through by a look made sooner.
+    And each read here is a message on the app's thread ([WALK_READ_MESSAGE]):
+    with a template of 90,000 cells open it ran 40 ms, logged as slow, so
+    every read was work found and the reading never went quiet -- an opening
+    of 0.6 s, read with no read during it, timed 4.5 to 8.3 s, a lone frame
+    seconds later taken in at its end (in a full walk)."""
+    deadline = time.time() + within
+    seen, still_since, spans = None, time.time(), []
+    while True:
+        frames = [(began, began + took) for began, took in frames_since_reset(starts=True)]
+        slow = []
+        for line in adb("logcat", "-d", "-v", "monotonic", "--pid=" + pid, "-s", "Looper").splitlines():
+            m = re.match(r"\s*(\d+\.\d+)\s.*Slow dispatch took (\d+)ms main", line)
+            if m and not WALK_READ_MESSAGE.search(line):
+                slow.append((float(m.group(1)) - int(m.group(2)) / 1000.0, float(m.group(1))))
+        spans = frames + slow
+        # By the newest end too: gfxinfo keeps a window's last 120 frames,
+        # and past them a new frame leaves the count as it was.
+        now = (len(frames), len(slow), max((end for _, end in spans), default=0.0))
+        if now != seen:
+            seen, still_since = now, time.time()
+        elif spans and time.time() - still_since >= quiet:
+            break
+        if time.time() > deadline:
+            break
+        time.sleep(0.25)
+    opening, end = [], None
+    for start, stop in sorted(spans):
+        if end is not None and start - end >= quiet:
+            break
+        opening.append((start, stop))
+        end = stop if end is None else max(end, stop)
+    return opening
+
+
+def frames_once_shown(*words, within=30.0, gap=None, starts=False):
+    """The frames of an act since `gfxinfo reset`, read once the screen
+    shows [words] -- the act's own result. A look at the screen waits for
+    the app's thread, so the frame that drew them has ended: read after a
+    fixed pause, a frame longer than the pause was in no list yet, and the
+    longest frame taken was a ripple's or the cursor's -- "Read all" with
+    the old slow search put back passed. A look waits only as long as
+    uiautomator does: one that read no
+    tree waited for nothing, and the frames are [99.0] -- read anyway, a
+    freeze past its patience passed. With [gap], only the frames
+    that began within [gap] seconds of the first: an autosave due 800 ms
+    after a letter is a frame of its own. With [starts], each as (its start,
+    its length). The words missing, and the frames ([99.0] when none were
+    listed)."""
+    looked = unreadable
+    missing = says_soon(*words, within=within)
+    time.sleep(0.4)
+    timed = frames_since_reset(starts=True)
+    if not timed or unreadable != looked:
+        return missing, [(0.0, 99.0)] if starts else [99.0]
+    first = min(began for began, _ in timed)
+    kept = [(began, took) for began, took in timed if gap is None or began - first <= gap]
+    return missing, kept if starts else [took for _, took in kept]
+
+
+def reminder_new_zone(folder):
+    """The day's reminder, set for 09:00, after the phone moves to another
+    time zone with the app closed: set again for 09:00 there, where it kept
+    the old instant and rang at 03:00 New York time. Read from the alarm
+    Android holds (dumpsys, which prints it in the zone in force) until it
+    moves, for up to half a minute: Android tells the app a second or more
+    after the change, and read after a fixed 4 s, a whole walk found the
+    old instant still there with the app right. The emulator's zone is put
+    back after."""
+    print("\n-- the reminder across a time zone --")
+
+    def alarm_at():
+        out = adb("shell", "dumpsys", "alarm")
+        for m in re.finditer(r"ro\.noteorganizer\.app", out):
+            chunk = out[max(0, m.start() - 300):m.start() + 300]
+            when = re.search(r"origWhen=(\S+ \S+)", chunk)
+            if when and "RTC_WAKEUP" in chunk:
+                return when.group(1)
+        return None
+
+    was = adb("shell", "getprop", "persist.sys.timezone").strip() or "Europe/Bucharest"
+    adb("shell", "pm", "grant", PACKAGE, "android.permission.POST_NOTIFICATIONS")
+    if not seed_inside([{"id": 1, "uid": "tz-1", "title": "Today", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "phone_reminder_notify": True, "phone_reminder_hour": 9}, "Today"):
+        return
+    home()
+    before = alarm_at()
+    try:
+        adb("shell", "service", "call", "alarm", "3", "s16", "America/New_York")
+        after = settle(alarm_at, lambda at: (at or "").endswith("09:00:00.000"), within=30.0, first=1.0)
+        check("set for 09:00, the reminder is at 09:00 in the new zone too",
+              bool(before) and bool(after) and before.endswith("09:00:00.000") and after.endswith("09:00:00.000"),
+              "before %s, after %s" % (before, after))
+    finally:
+        adb("shell", "service", "call", "alarm", "3", "s16", was)
+        time.sleep(2.0)
+    start_app()
+    back_to("Search notes")
+
+
+def day_turns_open(folder):
+    """The app left open across midnight, never left: the day turns on the
+    screen too. Read once, today stayed on the day the app was opened --
+    "Calendar: soonest" kept yesterday's note first and the new day's bar
+    never came, until the person left and returned. The emulator's clock is
+    set to half a minute before midnight, and put back after by the
+    computer's own clock."""
+    print("\n-- the day turning with the app open --")
+    import datetime
+    offset = int(adb("shell", "date", "+%s").strip() or 0) - time.time()
+    auto_was = adb("shell", "settings", "get", "global", "auto_time").strip()
+    day = datetime.date.fromisoformat(adb("shell", "date", "+%Y-%m-%d").strip())
+    nxt = day + datetime.timedelta(days=1)
+    stamp = "%s 09:00" % (day - datetime.timedelta(days=7)).isoformat()
+    notes = [{"id": 1, "uid": "turn-1", "title": "Due today", "category": "General", "date": day.isoformat(),
+              "created": stamp, "updated": stamp},
+             {"id": 2, "uid": "turn-2", "title": "Due tomorrow", "category": "General", "date": nxt.isoformat(),
+              "created": stamp, "updated": stamp}]
+
+    def order():
+        ys = {t: c[1] for t, d, c in nodes() if t in ("Due today", "Due tomorrow")}
+        return sorted(ys, key=ys.get) if len(ys) == 2 else list(ys)
+
+    try:
+        adb("shell", "settings", "put", "global", "auto_time", "0")
+        adb("shell", "su", "0", "date", day.strftime("%m%d2359%Y.10"))
+        if not seed_inside(notes, {"welcome_offered": True, "note_sort": "Calendar: soonest"}, "Due tomorrow"):
+            return
+        check("before midnight, today's note comes first", order() == ["Due today", "Due tomorrow"], repr(order()))
+        # Today's bar, closed: the one that comes after midnight is the new day's.
+        check("today's bar, closed", tap("Close the reminder") and find("You have 1 note") is None)
+        while adb("shell", "date", "+%Y-%m-%d").strip() == day.isoformat():
+            time.sleep(1.0)
+        # Looked at once a minute while in front, at midnight itself here.
+        check_settled("past midnight, without leaving, the new day's note comes first",
+                      order, lambda o: o == ["Due tomorrow", "Due today"], within=70.0, first=2.0)
+        check("and the new day's bar comes", not says_soon("You have 1 note for today", within=10.0))
+        shot(folder, "91-day-turned-open", "Due tomorrow")
+    finally:
+        adb("shell", "su", "0", "date", "@%d" % int(time.time() + offset))
+        adb("shell", "settings", "put", "global", "auto_time", auto_was or "1")
+        print("     clock back: %s" % adb("shell", "date").strip())
+    back_to("Search notes")
+
+
+def template_long_comments(folder):
+    """A template whose comments run to 600,000 letters -- a backup can
+    bring one -- opened, then the app left with Home. Grown to fit them,
+    the comments field outgrew the tallest size Compose can measure and the
+    app stopped as the template opened; and its words were kept for the
+    system to hold while the app is away, past what one handover carries."""
+    print("\n-- a template with very long comments --")
+    text = ("A line of comments, words and spaces. " * 16000)[:600000]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", [{"id": 1, "uid": "long-1", "title": "Living", "body": "x", "category": "General",
+                                    "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}])
+    put_inside("settings.json", {"welcome_offered": True})
+    put_inside("templates.json", [{"name": "Long comments", "title": "t", "body": "b", "comments": text,
+                                   "category": "General", "checklist": []}])
+    adb("logcat", "-b", "crash", "-c")
+    start_app()
+    says_soon("Search notes", within=10.0)
+    alive = adb("shell", "pidof", PACKAGE).strip()
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    tap("Long comments", exact=True, wait=3.0)
+    # Its words make the screen's tree slow to read: given time.
+    opened = says_soon("Comments (optional)", "Save", within=15.0)
+    check("the template opens, the app still running",
+          not opened and adb("shell", "pidof", PACKAGE).strip() == alive, "missing %s" % opened)
+    shot(folder, "92-template-long-comments", "Comments")
+    # Stopped, the editor's words written: a crash in the writing ends the
+    # process before Android can say so.
+    home()
+    # The app's own crash: the buffer holds every process's (logged).
+    crash = adb("logcat", "-b", "crash", "-d").strip()
+    check("left with Home, the app is still running and nothing stopped it",
+          adb("shell", "pidof", PACKAGE).strip() == alive and PACKAGE not in crash, crash[:300])
+    start_app()
+    back_to("Search notes")
+
+
+def answers_after_restart(folder):
+    """Export as file and Attach files, each with the app's process ended
+    behind Android's picker -- as Android ends a backgrounded app it needs
+    the memory of -- before the picker answers. The app starts again on its
+    list, where no editor was to take the answer: the exported file stayed
+    empty, the files were not attached, and nothing was said. Then a large
+    file attached and the note left at once with Back: the copy ended with
+    the editor, the file was never attached, and the copy stayed behind."""
+    print("\n-- answers that arrive after Android ended the app --")
+    exported = r"Bread( \(\d+\))?\.html"
+    clear_from_downloads(exported)
+
+    def put_in_downloads(name, *dd):
+        """A file in Downloads, and in Android's index of it, which the
+        picker lists from: one pushed and not indexed was not listed, and
+        files deleted since were. The newest, so the first in the list."""
+        if dd:
+            adb("shell", "dd", "if=/dev/zero", "of=/sdcard/Download/" + name, *dd)
+        else:
+            local = os.path.join(folder, name)
+            with open(local, "w", encoding="utf-8") as f:
+                f.write("TICKET 9")
+            adb("push", local, "/sdcard/Download/" + name)
+        adb("shell", "am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+            "-d", "file:///sdcard/Download/" + name)
+        time.sleep(2.0)
+
+    def out_of_downloads(name):
+        adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+        adb("shell", "am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+            "-d", "file:///sdcard/Download/" + name)
+
+    def end_the_app():
+        # Once Android has stopped the app behind the picker, as Android's
+        # own ending meets it: it stops one behind another app's screen when
+        # that screen rests, or ten seconds later (home()), and saves its state
+        # then. Ended while only paused, the app had saved nothing, and the
+        # answer was lost for the walk's reason, not the app's. And read that
+        # the process is gone.
+        held = stopped()
+        pid = adb("shell", "pidof", PACKAGE).strip()
+        if pid:
+            adb("shell", "su", "0", "kill", "-9", pid)
+        deadline = time.time() + 5.0
+        while adb("shell", "pidof", PACKAGE).strip() and time.time() < deadline:
+            time.sleep(0.3)
+        if not held:
+            print("     (Android had not stopped the app behind the picker within 15 s)")
+        return held and bool(pid) and not adb("shell", "pidof", PACKAGE).strip()
+
+    try:
+        if not seed_inside([{"id": 1, "uid": "ar-bread", "title": "Bread", "body": "Knead the dough",
+                             "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
+                           {"welcome_offered": True}, "Bread"):
+            return
+        open_note("Bread")
+        tap("⋮", exact=True)
+        tap("💾 Export as file", wait=1.2)
+        tap("Web page (.html)", wait=1.0)
+        button = picker_save_button()
+        ended = end_the_app()
+        if button:
+            tap(button, exact=True, wait=1.0)
+        said = not says_soon("Exported to Bread.html", within=10.0)
+        size = adb("shell", "stat", "-c", "%s", "/sdcard/Download/Bread.html").strip()
+        check("ended behind the picker, the export still writes its file and says so",
+              ended and said and size.isdigit() and int(size) > 0, "ended %s, said %s, size %r" % (ended, said, size))
+        back_to("Search notes")
+
+        put_in_downloads("walk-ticket.txt")
+        open_note("Bread")
+        tap("⋮", exact=True, wait=1.0)
+        tap("📎 Attach files", exact=True, wait=3.0)
+        ended = end_the_app()
+        tap("walk-ticket.txt", exact=True, wait=1.0, patience=10.0)
+        said = not says_soon("1 file attached to “Bread”", within=8.0)
+        atts = settle(lambda: (note_by_uid("ar-bread") or {}).get("attachments") or [], lambda a: len(a) == 1)
+        check("ended behind the picker, the file is still attached to the note, and that is said",
+              ended and said and len(atts) == 1 and atts[0].get("filename") == "walk-ticket.txt",
+              "said %s, %s" % (said, json.dumps(atts)))
+        back_to("Search notes")
+
+        put_in_downloads("walk-large.bin", "bs=1048576", "count=300")
+        open_note("Bread")
+        tap("⋮", exact=True, wait=1.0)
+        tap("📎 Attach files", exact=True, wait=3.0)
+        if tap("walk-large.bin", exact=True, wait=0.3, patience=10.0):
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        atts = settle(lambda: (note_by_uid("ar-bread") or {}).get("attachments") or [], lambda a: len(a) == 2,
+                      within=40.0, first=3.0)
+        left = adb("shell", "run-as", PACKAGE, "ls", "cache").split()
+        check("left with Back while a large file copies, the file is attached all the same, no copy left over",
+              len(atts) == 2 and atts[1].get("filename") == "walk-large.bin"
+              and not any(n.startswith("attach_") for n in left), "%s; cache %s" % (json.dumps(atts), left))
+    finally:
+        clear_from_downloads(exported)
+        out_of_downloads("walk-ticket.txt")
+        out_of_downloads("walk-large.bin")
+        start_app()
+        back_to("Search notes")
+
+
+def import_questions_quick(folder):
+    """A backup of 1,000 notes into a notebook of 1,000 others: the plan and
+    the look-alikes, which normalize every note of both, are worked out away
+    from the screen. Worked out while the questions were drawn, the screen
+    held still 1.3 s on the emulator; after, 0.5 s, the import itself."""
+    print("\n-- an import's questions, a thousand notes each side --")
+    import zipfile
+
+    def note(i, prefix):
+        body = "\n".join("%s line %d of note %d, with a few words to read" % (prefix, j, i) for j in range(12))
+        return {"id": i, "uid": "%s-%d" % (prefix, i), "title": "%s %d" % (prefix, i), "body": body,
+                "category": "General", "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00",
+                "formatting": [{"start": 0, "end": 5, "style": "bold"}]}
+    local = os.path.join(folder, "walk_thousand.zip")
+    with zipfile.ZipFile(local, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("notes_data.json", json.dumps([note(i, "Theirs") for i in range(1, 1001)]))
+    name = "walk_thousand.zip"
+    adb("push", local, "/sdcard/Download/" + name)
+    if seed_inside([note(i, "Mine") for i in range(1, 1001)], {"welcome_offered": True}, "Mine 1"):
+        tap("Settings", exact=True, wait=1.2)
+        tap("Backup", exact=True, wait=1.2)
+        tap("Import a backup", wait=3.0)
+        if find(name, exact=True) is None:
+            tap("Downloads", wait=2.0) if find("Downloads") else None
+        tap(name, exact=True, wait=4.0)
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        tap("Continue", exact=True, wait=0.2)
+        check("the thousand notes come in", not says_soon("Added 1000 notes", within=60.0))
+        longest = max(frames_since_reset() or [0.0])
+        check("... and no frame holds the screen a second (1.3 s before, 2026-10-27)", longest < 1.0,
+              "%.2f s" % longest)
+    adb("shell", "rm", "-f", "/sdcard/Download/" + name)
+    os.remove(local)
+    back_to("Search notes")
+
+
+def code_read_away(folder):
+    """A share code of a few kilobytes that unpacks to 14 MB and 200 notes,
+    shared to the app: read, planned and weighed for look-alikes away from
+    the screen. Done in the tap on Import, the screen held still while a
+    code that size was inflated, parsed and set against the notebook."""
+    print("\n-- a large share code, read away from the screen --")
+    import base64
+    import zlib
+    body = "A line of words, read and read again.\n" * 2400
+    notes = [{"uid": "read-1", "title": "Known", "body": "changed\n" + body, "category": "General"}] + \
+            [{"uid": "read-%d" % i, "title": "Read %d" % i, "body": body, "category": "General"} for i in range(2, 201)]
+    payload = json.dumps({"v": 1, "notes": notes}).encode("utf-8")
+    code = "NOTE1:" + base64.urlsafe_b64encode(zlib.compress(payload, 9)).decode("ascii")
+    print("     %d characters of code, %d bytes unpacked" % (len(code), len(payload)))
+    # A notebook of a thousand, each of the code's notes weighed against all.
+    mine = [{"id": 1, "uid": "read-1", "title": "Known", "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}] + \
+           [{"id": i, "uid": "mine-%d" % i, "title": "Mine %d" % i, "category": "General",
+             "body": "\n".join("line %d of note %d, with a few words to read" % (j, i) for j in range(12)),
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"} for i in range(2, 1001)]
+    if not seed_inside(mine, {"welcome_offered": True}, "Mine 2"):
+        return
+    # Too long for a Windows command line: handed over in a file, and read
+    # into the intent by the emulator's own shell.
+    local = os.path.join(folder, "walk_code.txt")
+    with io.open(local, "w", encoding="ascii") as f:
+        f.write(code)
+    adb("push", local, "/data/local/tmp/walk_code.txt")
+    os.remove(local)
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"$(cat /data/local/tmp/walk_code.txt)\" -n %s/.MainActivity" % PACKAGE)
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_code.txt")
+    says_soon("Import a code", within=10.0)
+    time.sleep(2.0)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    adb("logcat", "-c")
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    tap("Import", exact=True, wait=0.2)
+    asked = not says_soon("1 note you already have", within=30.0)
+    longest = max(frames_since_reset() or [0.0])
+    # Work done in the tap itself falls between two frames, where the
+    # frames' own timings do not look: the screen's thread held still shows
+    # as Choreographer's "Skipped N frames" when it is let go.
+    skipped = [int(n) for n in re.findall(r"Skipped (\d+) frames", adb("logcat", "-d", "--pid=" + pid, "-s", "Choreographer"))]
+    check("the code's question comes", asked)
+    check("... and the screen is never held a second while it is read",
+          longest < 1.0 and max(skipped or [0]) < 60, "longest frame %.2f s, frames skipped %s" % (longest, skipped))
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def shared_files(folder):
+    """Text shared to the app as a file, as Files or a mail app shares a
+    .txt: read into a note away from the screen. One past what is read
+    (500,000 characters) is said cut, where the rest went without a word;
+    and words shared while a file is read wait their turn, so the file's
+    note comes first -- proved on a pipe the read waits on, as a plain file
+    is read before the words could come. A file the app cannot open is said,
+    and holds back nothing after it. The files are offered through the app's
+    own provider, written into its cache by run-as once the app is up, and
+    removed after."""
+    print("\n-- text shared as a file --")
+    if not seed_inside([{"id": 1, "uid": "sf-1", "title": "Here", "body": "x", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Here"):
+        return
+    first = "A line of a long shared log, with its words."
+    text = (first + "\n") * (600_000 // (len(first) + 1) + 1)
+    local = os.path.join(folder, "walk_long.txt")
+    with io.open(local, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    staging = "/data/local/tmp/walk_long.txt"
+    adb("push", local, staging)
+    os.remove(local)
+    adb("shell", "chmod", "644", staging)
+    adb("shell", "run-as", PACKAGE, "mkdir", "-p", "cache/share")
+    adb("shell", "run-as", PACKAGE, "cp", staging, "cache/share/walk_long.txt")
+    adb("shell", "rm", "-f", staging)
+    def share_file(name):
+        adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+            "--eu", "android.intent.extra.STREAM", "content://%s.files/share/%s" % (PACKAGE, name),
+            "--grant-read-uri-permission", "-n", PACKAGE + "/.MainActivity")
+
+    def notes_titled(*titles):
+        return [n for n in read_file("notes_data.json") or [] if n.get("title") in titles]
+
+    share_file("walk_long.txt")
+    said = not shot_as_said(folder, "130-shared-file-cut",
+                            "Only the first 500,000 characters of the file came in", within=20.0)
+    got = settle(lambda: notes_titled(first), lambda notes: len(notes) == 1, within=20.0, first=1.0)
+    check("a long file shared in is said cut", said)
+    kept = len(first) + 1 + len((got[0] if got else {}).get("body") or "")
+    check("...its note holds the file's first 500,000 characters, no more",
+          len(got) == 1 and 499_000 < kept <= 500_000, "%d characters" % kept)
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_long.txt")
+
+    # The order, on a file whose read cannot finish first: a pipe, which the
+    # app's read waits on until the walk writes into it, the words shared in
+    # between. Read from a plain file, in milliseconds, the old order (as each
+    # read finished) passed this too.
+    back_to("Search notes")
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_slow.txt")
+    adb("shell", "run-as", PACKAGE, "mkfifo", "cache/share/walk_slow.txt")
+    share_file("walk_slow.txt")
+    time.sleep(1.5)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", "'Words shared while the file was read'",
+        "-n", PACKAGE + "/.MainActivity")
+    time.sleep(3.0)
+    early = notes_titled("Words shared while the file was read")
+    check("words shared while a file is read wait for it", not early, repr(early)[:120])
+    source = os.path.join(folder, "walk_slow_src.txt")
+    with io.open(source, "w", encoding="utf-8", newline="\n") as f:
+        f.write("The slow file, read in the end\nwith a line of its own.\n")
+    adb("push", source, "/data/local/tmp/walk_slow_src.txt")
+    os.remove(source)
+    adb("shell", "chmod", "644", "/data/local/tmp/walk_slow_src.txt")
+    # Bounded: an app that never opened the pipe left the write blocked, and
+    # the walk said the emulator was stuck instead of failing a check.
+    adb("shell", "run-as", PACKAGE, "sh", "-c",
+        "'timeout 20 sh -c \"cat /data/local/tmp/walk_slow_src.txt > cache/share/walk_slow.txt\"'")
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_slow_src.txt")
+    both = settle(lambda: notes_titled("The slow file, read in the end", "Words shared while the file was read"),
+                  lambda notes: len(notes) == 2, within=20.0, first=1.0)
+    slow = next((n for n in both if n.get("title") == "The slow file, read in the end"), None)
+    words = next((n for n in both if n.get("title") == "Words shared while the file was read"), None)
+    check("...and once the file is in, its note comes first, the words' after it",
+          slow is not None and words is not None and slow["id"] < words["id"],
+          repr([(n.get("id"), n.get("title")) for n in both]))
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_slow.txt")
+    back_to("Search notes")
+
+    # A file the provider cannot open (no such name): said, where it went
+    # without a word, and its place does not hold back the words after it.
+    share_file("walk_missing.txt")
+    unread = not shot_as_said(folder, "131-shared-file-unread",
+                              "Nothing could be read from what was shared", within=20.0)
+    check("a shared file that cannot be opened is said, not dropped", unread)
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", "'Words after a file that could not be read'",
+        "-n", PACKAGE + "/.MainActivity")
+    after = settle(lambda: notes_titled("Words after a file that could not be read"),
+                   lambda notes: len(notes) == 1, within=20.0, first=1.0)
+    check("...and words shared after it still become a note", len(after) == 1, repr(after)[:120])
+    back_to("Search notes")
+
+    # A share code in a file past what is read: whole within its first
+    # 500,000 characters it is offered as any code; broken by the cut, said.
+    code = desktop_code({"uid": "walk-long-code", "title": "From a long file", "body": "x",
+                         "category": "General"})
+    if not code:
+        fail("a code in a long file: the desktop's encoder could not be used, so nothing was tried")
+        return
+
+    def put_shared(name, text):
+        local = os.path.join(folder, name)
+        with io.open(local, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        adb("push", local, "/data/local/tmp/" + name)
+        os.remove(local)
+        adb("shell", "chmod", "644", "/data/local/tmp/" + name)
+        adb("shell", "run-as", PACKAGE, "cp", "/data/local/tmp/" + name, "cache/share/" + name)
+        adb("shell", "rm", "-f", "/data/local/tmp/" + name)
+
+    filler = "a line of a long chat export\n" * 25_000
+    put_shared("walk_code_whole.txt", code + "\n" + filler)
+    share_file("walk_code_whole.txt")
+    check("a code whole in a long file is offered as any code", not says_soon("Import a code", within=20.0))
+    tap("Import", exact=True, wait=2.0)
+    check("...and imported", note_by_uid("walk-long-code") is not None)
+    back_to("Search notes")
+    # The import's own messages put away first: queued behind them, the cut's
+    # waited out their seconds too, and a twenty-second look missed it once.
+    for _ in range(4):
+        shown = find("Dismiss", exact=True)
+        if shown is None:
+            break
+        said = " | ".join(t for t, _d, _c in nodes() if t)
+        print("     a message still up after the import, put away: %s" % said[-160:])
+        adb("shell", "input", "tap", str(shown[0]), str(shown[1]))
+        time.sleep(0.8)
+    at = 500_000 - len(code) // 2
+    put_shared("walk_code_cut.txt", filler[:at] + code + "\n" + filler[:2000])
+    share_file("walk_code_cut.txt")
+    cut_said = not shot_as_said(folder, "134-shared-code-cut", "the share code in it is incomplete", within=20.0)
+    check("a code the cut broke is said cut, not offered as damaged", cut_said)
+    adb("shell", "run-as", PACKAGE, "rm", "-f", "cache/share/walk_code_whole.txt", "cache/share/walk_code_cut.txt")
+    back_to("Search notes")
+
+
+def box_starting(text):
+    """The box of the first node whose text starts with [text], or None:
+    what [bounds] gives, for words too long to write out whole."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return None
+    for node in root.iter("node"):
+        if node.get("text", "").startswith(text):
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return box
+    return None
+
+
+def dialogs_on_side(folder):
+    """Questions on a phone turned on its side, where Material's dialog gives
+    its text only the room its buttons leave. The code box's problem line
+    fell under the field, out of sight, so Import seemed to do nothing; the
+    table grid's last rows were squashed to nothing. Opened upright, then
+    turned: the app keeps its screen when turned, and on its side a typing
+    keyboard takes the whole screen. A node out of sight has its box cut to
+    what shows, so a line seen is one whose box has height. A 360 dp phone at
+    the largest letters, which on its side stands 360 dp tall: this emulator
+    on its side is 411 dp tall, and there the dialogs had room enough."""
+    print("\n-- questions on a phone on its side --")
+    if not seed_inside([{"id": 1, "uid": "walk-side", "title": "Plan", "body": "intro",
+                         "category": "General", "created": "2026-10-15 09:00:00",
+                         "updated": "2026-10-15 09:00:00"}], {"welcome_offered": True}, "Plan"):
+        return
+    try:
+        adb("shell", "wm", "density", "480")
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(3.0)
+        tap("⋮")
+        tap("Import a code")
+        tap("A code starts with")
+        type_text("hello")
+        keyboard_down()
+        turn(1)
+        tap("Import", exact=True, wait=2.0)
+        said = box_starting("This isn't a Note Organizer share code")
+        check("on its side, a code's problem line is brought into sight",
+              said is not None and said[3] - said[1] > 20, repr(said))
+        shot(folder, "135-code-problem-on-side", "Import a code")
+        tap("Cancel", exact=True)
+        turn(0)
+        open_note("Plan")
+        tap("intro", wait=1.0)
+        adb("shell", "input", "keyevent", "123")   # end of line
+        time.sleep(0.4)
+        tap("Insert table", wait=1.2)
+        keyboard_down(patience=2.0)
+        turn(1)
+        title = bounds("2 x 2 table")
+        if title:
+            x = (title[0][0] + title[0][2]) // 2
+            for _ in range(3):                          # to the grid's end
+                adb("shell", "input", "swipe", str(x), str(title[0][3] + 300), str(x), str(title[0][3] + 40), "500")
+                time.sleep(0.8)
+        # Seen means above the buttons: unscrolled, the last rows and the
+        # caption were laid out under the text's room, boxes of full height
+        # where nothing was drawn (the grid showed four rows).
+        last, caption = bounds_of_desc("6 x 2 table"), box_starting("Tap a square to choose the size")
+        button = tappable_box("Insert")
+        check("...and on its side the table grid's last row can be reached",
+              last is not None and caption is not None and button is not None
+              and last[3] - last[1] > 20 and last[3] <= button[1] and caption[3] <= button[1],
+              "row %r, caption %r, Insert %r, after %r" % (last, caption, button, title))
+        shot(folder, "136-table-grid-on-side", "table")
+        tap("Cancel", exact=True)
+    finally:
+        turn(0)
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
+    back_to("Search notes")
+
+
+def trash_wide(folder):
+    """The Trash page on a phone on its side. Its top (the window's days,
+    the backup, Select all) scrolls with its list: held above it, it left
+    the list less than a row and squeezed the buttons at the page's foot."""
+    print("\n-- the Trash on its side --")
+    if not seed_inside([{"id": 1, "uid": "tw-living", "title": "Living", "category": "General",
+                         "updated": "2026-10-01 09:00:00"}],
+                       {"welcome_offered": True, "trash_retention_days": 30}, "Living"):
+        return
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    put_inside("trash.json", [
+        {"id": 2, "uid": "tw-a", "title": "Sideways one", "category": "General", "deleted_at": now},
+        {"id": 3, "uid": "tw-b", "title": "Sideways two", "category": "General", "deleted_at": now}])
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    # Opened upright, then turned on the page: on its side Settings' own
+    # list holds Trash below the screen.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Trash", exact=True, wait=1.5)
+    turn(1)
+    # As a person would: the list pushed up, to bring its rows into sight.
+    adb("shell", "input", "swipe", "1400", "800", "1400", "250", "400")
+    time.sleep(1.0)
+    row = bounds("Sideways one")
+    foot = bounds("Empty Trash")
+    check("on its side the Trash's rows can be brought into sight above its buttons",
+          bool(row) and bool(foot) and row[0][3] - row[0][1] >= 40 and row[0][3] <= foot[0][1],
+          "row %s, foot %s" % (row, foot))
+    shot(folder, "132-trash-wide", "Sideways one", "Empty Trash")
+    tap("Sideways one", exact=True, wait=1.0)
+    # The button's own box: 40 dp tall when it is not squeezed.
+    px = int((re.findall(r"\d+", adb("shell", "wm", "density")) or ["420"])[-1]) / 160.0
+    restore = tappable_box("↩ Restore 1 selected")
+    check("...and its Restore button is whole, not squeezed",
+          restore is not None and restore[3] - restore[1] >= 38 * px,
+          "%s at %.2f px a dp" % (restore, px))
+    tap("↩ Restore 1 selected", exact=True, wait=1.5)
+    left = [e.get("title") for e in read_file("trash.json") or []]
+    check("...and restores from there", left == ["Sideways two"], repr(left))
+    turn(0)
+    # Upright at the largest letters: the two buttons side by side left
+    # "Delete for good" a few letters wide, wrapped a letter a line.
+    # On a 360 dp phone (this emulator is 411 dp, where the days' row fit by
+    # a hair): in a row, "days" was left a letter a line, and "90" broke.
+    try:
+        adb("shell", "wm", "density", "480")
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(3.0)
+        px = 480 / 160.0
+        adb("shell", "input", "swipe", "540", "900", "540", "1900", "400")
+        time.sleep(1.0)
+        word, ninety = bounds("days"), bounds("90")
+        check("at the largest letters the Trash's days keep each its words on one line",
+              bool(word) and bool(ninety) and word[0][2] - word[0][0] > word[0][3] - word[0][1]
+              and ninety[0][2] - ninety[0][0] > (ninety[0][3] - ninety[0][1]) * 0.6,
+              "days %s, 90 %s" % (word, ninety))
+        adb("shell", "input", "swipe", "540", "1900", "540", "900", "400")
+        time.sleep(1.0)
+        tap("Sideways two", exact=True, wait=1.0)
+        forever = tappable_box("Delete for good")
+        restore = tappable_box("↩ Restore 1 selected")
+        check("at the largest letters the Trash's buttons keep their words on one line each",
+              forever is not None and restore is not None and forever[2] - forever[0] >= 100 * px
+              and forever[3] - forever[1] <= 80 * px and restore[3] - restore[1] <= 80 * px,
+              "Delete for good %s, Restore %s at %.2f px a dp" % (forever, restore, px))
+        shot(folder, "133-trash-large-letters", "Delete for good")
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
+    back(wait=1.0)
+    back(wait=1.0)
+
+
+def arranged_from_the_top(folder):
+    """Another sort, or a first pin, with the list at its top: the list
+    starts at its new top. Keyed by note, it kept the card it had in sight,
+    and Title A–Z seemed to begin there, a pinned note above the screen."""
+    print("\n-- a new order starts at the list's top --")
+    fruit = ["Apple", "Banana", "Cherry", "Damson", "Elder", "Fig", "Grape", "Hazel",
+             "Kiwi", "Lemon", "Mango", "Nectarine"]
+    if not seed_inside([{"id": i + 1, "uid": "walk-o%d" % i, "title": name, "body": "x",
+                         "category": "General", "created": "2026-10-%02d 09:00" % (i + 1),
+                         "updated": "2026-10-%02d 09:00" % (i + 1)} for i, name in enumerate(fruit)],
+                       {"welcome_offered": True}, "Nectarine"):
+        return
+    tap("Sort: Recently updated", wait=1.0)
+    tap("Title A–Z", exact=True, wait=1.5)
+    check("Title A–Z chosen at the list's top shows its first note", not says_soon("Apple"))
+    if long_press("Cherry"):
+        tap("📌", wait=1.5)
+        check("a note pinned from the list's top is shown at its new place", not says_soon("Cherry", "Apple"))
+    # The top card unpinned: the list held by place, the note still pinned in
+    # sight; kept by its first card, it followed the card.
+    if long_press("Banana"):
+        tap("📌", wait=1.5)
+    if long_press("Banana"):
+        tap("📌", wait=1.5)
+        check("the top card unpinned leaves the list at its top, the note still pinned in sight",
+              not says_soon("Cherry", "Apple"))
+    # Two notes deleted from the top and taken back: brought into sight, where
+    # they came back above the screen and the Undo seemed to do nothing.
+    if long_press("Cherry"):
+        tap("Apple", exact=True, wait=0.8)
+        tap("🗑", wait=1.0)
+        undo_at = find("Undo", exact=True)
+        if undo_at:
+            adb("shell", "input", "tap", str(undo_at[0]), str(undo_at[1]))
+            time.sleep(1.5)
+        check("two notes taken back from the Trash are shown where they came back",
+              bool(undo_at) and not says_soon("Cherry", "Apple"))
+    back_to("Search notes")
+    # Grouped by category, a pin rises only to the top of its own group: the
+    # top of the list was the wrong place, screens from it.
+    if not seed_inside([{"id": i + 1, "uid": "walk-g%d" % i, "title": name, "body": "x",
+                         "category": "General" if i < 12 else "Work",
+                         "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
+                        for i, name in enumerate(fruit + ["Work plan %d" % n for n in range(1, 9)])],
+                       {"welcome_offered": True, "group_by_category": True, "note_sort": "Title A–Z",
+                        "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}, "Apple"):
+        return
+    seek(lambda: find("Work plan 6") is not None)
+    if long_press("Work plan 6"):
+        tap("📌", wait=1.5)
+        check("grouped, a note pinned in a later group is shown at the top of its group",
+              not says_soon("Work plan 6"))
+    back_to("Search notes")
+    # The list's own top card among those moved, and moved down by them: the
+    # list followed it, and the card now first was above the screen.
+    # Filed together, the two take one stamp and fall into file order.
+    plain = [{"id": i + 1, "uid": "walk-t%d" % i, "title": name, "body": "x", "category": "General",
+              "created": "2026-10-%02d 09:00" % (i + 1), "updated": "2026-10-%02d 09:00" % (i + 1)}
+             for i, name in enumerate(fruit)]
+    colours = {"welcome_offered": True, "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}}
+    if not seed_inside(plain, colours, "Nectarine"):
+        return
+    if long_press("Nectarine"):
+        tap("Mango", exact=True, wait=0.8)
+        tap("Move to category", wait=1.0)
+        tap("Work", exact=True, wait=1.5)
+        filed = [n.get("title") for n in read_file("notes_data.json") or [] if n.get("category") == "Work"]
+        check("the top two cards filed together are both shown, the one now first too",
+              sorted(filed) == ["Mango", "Nectarine"] and not says_soon("Mango", "Nectarine"), repr(filed))
+    back_to("Search notes")
+    # Pinned together, the top card already pinned: the newer goes first.
+    keys = {"id": 99, "uid": "walk-keys", "title": "Keys", "body": "x", "category": "General",
+            "pinned": True, "created": "2026-09-01 09:00", "updated": "2026-09-01 09:00"}
+    if not seed_inside(plain + [keys], colours, "Keys"):
+        return
+    if long_press("Keys"):
+        tap("Nectarine", exact=True, wait=0.8)
+        tap("📌", wait=1.5)
+        check("the pinned top card pinned again with a newer note: the newer one, now first, is shown",
+              not says_soon("Nectarine", "Keys"))
+    back_to("Search notes")
+    # A long list: past about a hundred rows the list does not follow its
+    # first card, and keeps its place by index -- filed from the top of
+    # "Oldest updated", the card went last and nothing scrolled.
+    import datetime
+    start = datetime.date(2026, 1, 1)
+    many = [{"id": i, "uid": "walk-l%d" % i, "title": "Old %03d" % i, "body": "x", "category": "General",
+             "created": "%s 09:00" % (start + datetime.timedelta(days=i)),
+             "updated": "%s 09:00" % (start + datetime.timedelta(days=i))} for i in range(1, 141)]
+    if not seed_inside(many, dict(colours, note_sort="Oldest updated"), "Old 001"):
+        return
+    if long_press("Old 001"):
+        tap("Move to category", wait=1.0)
+        tap("Work", exact=True, wait=2.0)
+        check("on a list of 140, the top card filed (now the last) is shown where it went",
+              not says_soon("Old 001"))
+    back_to("Search notes")
+
+
+def what_hides_the_list(folder):
+    """What hides the list, by the owner's choices:
+    a list Show leaves empty says so and offers Show all notes; the search
+    finds "Crème brûlée" by "creme" and a note by its checklist's row; a new
+    note Show hides is said as it closes, with Show all; text shared to the
+    app that holds no code is a new note, and a code with words around it is
+    still a code."""
+    print("\n-- what hides the list's notes --")
+    # The bars' buttons tapped here wait as Time to take action asks: on a
+    # busy emulator the reads before a tap took ten seconds, the bar went,
+    # and the tap opened the card beneath.
+    with messages_held(30_000, answered=True):
+        hidden_from_the_list(folder)
+
+
+def hidden_from_the_list(folder):
+    """[what_hides_the_list]'s steps, with the bars held."""
+    import base64
+    import zlib
+    stamp = {"created": "2026-11-01 09:00", "updated": "2026-11-01 09:00"}
+    older = {"created": "2026-10-01 09:00", "updated": "2026-10-01 09:00"}
+    if not seed_inside([
+            dict(stamp, id=1, uid="w2-1", title="Crème brûlée night", body="x", category="General"),
+            dict(stamp, id=2, uid="w2-2", title="Shopping", body="", category="Work",
+                 checklist=[{"text": "Gruyère", "done": False}])]
+            + [dict(older, id=10 + i, uid="w2-w%d" % i, title="Work item %d" % i, body="x", category="Work")
+               for i in range(30)],
+            {"welcome_offered": True, "note_filter": "Home",
+             "categories": {"General": "#7c5cff", "Work": "#4cc9f0", "Home": "#f9c74f"}},
+            "No notes match Show: Home."):
+        return
+    shot(folder, "130-empty-list-names-show", "No notes match Show: Home.", "Show all notes")
+    tap("Show all notes", exact=True, wait=1.5)
+    check("a list Show leaves empty names it, and Show all notes brings the notes back",
+          not says_soon("Crème brûlée night", "Shopping", "Show: All"))
+
+    def search(words, expect):
+        tap("Search notes", wait=0.8)
+        type_text(words)
+        # The field holds the words before the list is judged: the first search
+        # after a cold boot once showed neither card for six seconds, the field
+        # holding something else. Said, photographed
+        # and typed again; a field holding them still fails on a wrong list.
+        if not settle(lambda: any(t == words for t, _, _ in nodes()), bool, within=4.0, first=0):
+            seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+            print("     NOTE the field does not hold %r -- the screen says %r; typed again" % (words, seen[:300]))
+            photograph(folder, "130a-field-%s-not-typed" % words)
+            if find("Clear search", exact=True):
+                tap("Clear search", exact=True, wait=1.0)
+            tap("Search notes", wait=0.8)
+            type_text(words)
+        # Looked for until it shows, not once a second after typing: on a busy
+        # emulator the list's answer came later, and the check failed two runs
+        # in three with nothing wrong.
+        on = settle(lambda: [t for t in ("Crème brûlée night", "Shopping") if not screen_says(t)],
+                    lambda seen: seen == expect, within=6.0, first=0)
+        if on != expect:
+            # What was there instead, kept: the first search after a cold
+            # boot once showed neither card for six seconds, and the failure
+            # kept nothing to say why.
+            seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+            print("     the search for %r shows %r" % (words, seen[:300]))
+            photograph(folder, "130b-search-%s-FAILED" % words)
+        tap("Clear search", exact=True, wait=1.0)
+        keyboard_down()
+        return on
+    # What each search showed is said when it fails.
+    found = (search("creme", ["Crème brûlée night"]), search("gruyere", ["Shopping"]))
+    check("the search finds Crème brûlée by creme, and a note by its checklist's row",
+          found == (["Crème brûlée night"], ["Shopping"]), "found %s" % (found,))
+
+    # A new note filed under General while Show is at Work, the list
+    # scrolled down: Show all brings the new note's card into sight, where
+    # the list kept the card it had and the new note came in above it.
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    for _ in range(2):
+        adb("shell", "input", "swipe", "540", "1900", "540", "700", "300")
+        time.sleep(0.8)
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Call the dentist")
+    back_to("Search notes")
+    # By name, as the desktop says it.
+    said = not says_soon("“Call the dentist” saved in General, hidden by Show: Work", "Show all", within=8.0)
+    seen_at = time.time()
+    shot(folder, "131-new-note-hidden-said", "hidden by Show: Work")
+    # Tapped past the bar's own ten seconds, as a slow run taps it: still up
+    # is the hold above, which every tap on a bar in this part leans on.
+    time.sleep(max(0.0, seen_at + 11.0 - time.time()))
+    held = not screen_says("Show all")
+    tap("Show all", exact=True, wait=1.5)
+    check("a new note Show hides is said as it closes, and Show all puts it on the list",
+          said and held and not says_soon("Call the dentist", "Show: All"),
+          "said %s, still up after ten seconds %s" % (said, held))
+    # Hidden by the search, and the list left for another tab while its word
+    # shows: the word comes again with the list, and its Show all empties the
+    # search -- run on the list left, it did nothing.
+    tap("Search notes", wait=0.8)
+    type_text("gruyere")
+    keyboard_down()
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Call Ann")
+    back_to("Shopping")
+    said = not says_soon("hidden by your search", "Show all", within=8.0)
+    tap("Settings", exact=True, wait=1.5)
+    tap("Notes", exact=True, wait=1.5)
+    again = not says_soon("hidden by your search", "Show all", within=8.0)
+    tap("Show all", exact=True, wait=1.5)
+    check("...and hidden by the search, the list left for another tab, its word comes again with "
+          "the list and Show all empties the search",
+          said and again and not says_soon("Call Ann", "Search notes"),
+          "said %s, again %s" % (said, again))
+    # Two new notes in a row that Show hides: their words come one at a time,
+    # each asked when its turn comes -- after the first one's Show all, the
+    # second said "hidden by Show: Work" over a list showing everything.
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    for title in ("Alpha errand", "Beta errand"):
+        tap("+", exact=True, wait=1.5)
+        tap("Title")
+        type_text(title)
+        back_to("Show: Work")
+    first = not says_soon("“Alpha errand” saved in General, hidden by Show: Work", within=8.0)
+    tap("Show all", exact=True, wait=1.5)
+    stale = settle(lambda: not screen_says("“Beta errand” saved in General, hidden by"), lambda seen: seen,
+                   within=12.0, first=0)
+    check("two new notes Show hides are said in turn, and after the first one's Show all the second "
+          "is not said hidden", first and not stale and not says_soon("Show: All"),
+          "first said %s, the second said hidden after Show all %s" % (first, stale))
+
+    # Notes the Trash's Undo puts back where Show now hides them are said,
+    # with Show all: they came back without a word. Two,
+    # as one put back opens in the editor -- one in Work, one not, so the bar
+    # counts the one Show hides: it said both were.
+    long_press("Crème brûlée night")
+    tap("Shopping", exact=True, wait=0.6)
+    tap("🗑", wait=0.8)
+    tap("Show: All", wait=1.0)
+    tap("Work", exact=True, wait=1.5)
+    tap("Undo", exact=True, wait=1.0)
+    said = not says_soon("Put back, 1 of them hidden by Show: Work", "Show all", within=8.0)
+    shot(folder, "132-put-back-counted", "Put back")
+    tap("Show all", exact=True, wait=1.5)
+    check("notes the Trash's Undo puts back where Show hides them are said, counted, and Show all shows them",
+          said and not says_soon("Crème brûlée night", "Shopping", "Show: All"), "said %s" % said)
+
+    # Text shared to the app: a new note; a code among words: a code.
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"Buy milk and bread\" -n %s/.MainActivity" % PACKAGE)
+    made = not says_soon("Saved as a new note", within=8.0)
+    back_to("Search notes")
+    titles = [n.get("title") for n in read_file("notes_data.json") or []]
+    check("text shared to the app that holds no code is a new note, its first line the title",
+          made and "Buy milk and bread" in titles, repr(titles))
+    payload = json.dumps({"v": 1, "notes": [{"title": "From Ana", "body": "hello", "category": "General"}]})
+    code = "NOTE1:" + base64.urlsafe_b64encode(zlib.compress(payload.encode("utf-8"), 9)).decode("ascii")
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"Hi! Here it is: %s Thanks\" -n %s/.MainActivity" % (code, PACKAGE))
+    check("a code shared with words around it is still a code", not says_soon("Import a code", within=10.0))
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def long_lines(folder):
+    """Text with a run of 150,000 letters and no space -- a share code of a
+    few hundred characters brings one -- in a body, a title, comments and a
+    checklist row: each shown read-only, its start and its length, and the
+    note opens at once, where the body held the screen 12.6 s and the title
+    the list 3.8 s; the file keeps every byte. A code of 120,000 characters
+    shared to the app shows its start and its length the same way."""
+    print("\n-- lines too long to lay out --")
+    w = "W" * 150_000
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "long-line-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+    notes = [note(1, "Long body", body="Words before\n" + w + "\nwords after"),
+             note(2, "T" * 150_000),
+             note(3, "Long comments", comments=w),
+             note(4, "Long row", checklist=[{"text": w, "done": False}]),
+             # Pinned, so it stays the top card as the rest come in: the
+             # list keeps the card it has in sight, and they came in above it.
+             note(5, "Warm start", category="Work", pinned=True)]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", notes)
+    # Started on Show: Work, the long notes off the list, and timed as Show
+    # goes back to All: timed from the start, the app's own first frames
+    # were counted as the title's -- 1.3 to 3.75 s on the emulator, the most
+    # when this part ran first after the install, the title's fix in place.
+    put_inside("settings.json", {"welcome_offered": True, "note_filter": "Work",
+                                 "categories": {"General": "#7c5cff", "Work": "#4cc9f0"}})
+    start_app()
+    says_soon("Warm start", within=20.0)
+    time.sleep(1.5)
+    tap("Show: Work", wait=1.0)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("All", exact=True, wait=0.2)
+    says_soon("Long body", within=20.0)
+    longest = max(frames_since_reset() or [0.0])
+    check("the list with a title of 150,000 letters is drawn within a second (3.8 s before)", longest < 1.0,
+          "%.2f s" % longest)
+    for title, label in (("Long body", "the body's line"), ("TTTTTTTTTT", "the title"),
+                         ("Long comments", "the comments"), ("Long row", "the checklist row")):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        opened = open_note(title, limit=30.0)
+        time.sleep(1.5)
+        # A row shown, not written in, says how long it is and offers to be
+        # read whole; the rest say why
+        # they are shown read-only.
+        says = "Read all 150,000 characters" if title == "Long row" else "too long to show here"
+        if title in ("Long comments", "Long row") and screen_says(says):
+            # Folded away under its label: opened.
+            tap("Comments" if title == "Long comments" else "Checklist", wait=1.5)
+        # The screen read first, the frames once it says so (frames_once_shown).
+        missing, frames = frames_once_shown(says, within=20.0)
+        took = max(frames)
+        check("%s, too long to lay out, opens within a second and says so" % label,
+              opened and took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
+        if title == "Long body":
+            shot(folder, "92-line-too-long", "too long to show here")
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file holds every note as it was",
+          [n.get("body") for n in kept] == [n["body"] for n in notes]
+          and [n.get("title") for n in kept] == [n["title"] for n in notes]
+          and kept[2].get("comments") == w and kept[3].get("checklist", [{}])[0].get("text") == w)
+    # A code that long, shared to the app: its start and its length.
+    local = os.path.join(folder, "walk_long_code.txt")
+    with io.open(local, "w", encoding="ascii") as f:
+        f.write("NOTE1:" + "QUJD" * 30_000)
+    adb("push", local, "/data/local/tmp/walk_long_code.txt")
+    os.remove(local)
+    adb("logcat", "-c")
+    adb("shell", "am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "
+        "\"$(cat /data/local/tmp/walk_long_code.txt)\" -n %s/.MainActivity" % PACKAGE)
+    adb("shell", "rm", "-f", "/data/local/tmp/walk_long_code.txt")
+    shown = not says_soon("A code of 120,006 characters", within=15.0)
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    skipped = [int(n) for n in re.findall(r"Skipped (\d+) frames", adb("logcat", "-d", "--pid=" + pid, "-s", "Choreographer"))]
+    check("a code of 120,006 characters shared to the app shows its start and its length, the screen not held",
+          shown and find("Copy", exact=True) is not None and max(skipped or [0]) < 60, "skipped %s" % skipped)
+    shot(folder, "93-code-too-long", "A code of")
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+
+def text_the_layout_cannot_break(folder):
+    """What the layout cannot break, and what is quoted, walked: text
+    that the first rule let through -- joined by no-break spaces, a hundred
+    lines just under the limit, a run inside a table's cell -- each opens at
+    once, shown read-only; a template saved from a note with a 150,000-letter
+    row opens at once; the bar quotes that row short when its ✕ takes it off,
+    and Undo puts it back whole; Duplicate quotes a 150,000-letter title
+    short; a note too long for a message says so on the Share sheet; a page
+    shared of a table too large to draw is made without holding the app; and
+    a PDF that stops at forty pages says so."""
+    print("\n-- limits: what the layout cannot break, and what is quoted --")
+    w = "W" * 150_000
+    heavy = "a" * 9_999
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r3-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+    notes = [note(1, "NBSP body", body="Above\n" + "word\u00a0" * 30_000 + "\nBelow"),
+             note(2, "Cell run", body="Words before\n| " + w + " | x |\nwords after"),
+             # In the comments, a field of their own near the top: in the body
+             # the two lines let in fill a screen a hundred times over, and the
+             # read-only rest is out of sight. The body's rule is the same
+             # function, held by EditingTest.
+             note(3, "Many heavy", comments="\n".join([heavy] * 100)),
+             note(4, "Row for template", checklist=[{"text": w, "done": False}, {"text": "milk", "done": False}]),
+             note(5, "T" * 150_000)]
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("notes_data.json", notes)
+    put_inside("settings.json", {"welcome_offered": True})
+    start_app()
+    says_soon("NBSP body", within=20.0)
+
+    def opens_read_only(title, label):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        opened = open_note(title, limit=30.0)
+        time.sleep(1.5)
+        if screen_says("too long to show here") and screen_says("Comments") == []:
+            tap("Comments", wait=1.5)       # folded away under its label
+        missing, frames = frames_once_shown("too long to show here", within=20.0)
+        took = max(frames)
+        check("%s opens within a second, read-only, and says so" % label,
+              opened and took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
+        return opened
+
+    if opens_read_only("NBSP body", "a line of 150,000 letters joined by no-break spaces"):
+        shot(folder, "94-nbsp-line-read-only", "too long to show here")
+    opens_read_only("Cell run", "a table whose cell holds 150,000 letters")
+    if opens_read_only("Many heavy", "a hundred lines of 9,999 letters"):
+        shot(folder, "95-heavy-lines-read-only", "too long to show here")
+
+    # The ✕ of a row too long to lay out: the bar quotes it short, and Undo
+    # puts back every letter.
+    back_to("Search notes")
+    open_note("Row for template", limit=30.0)
+    time.sleep(1.0)
+    if screen_says("milk"):
+        tap("Checklist", wait=1.5)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tapped = tap("Remove WWWWWWWWWW", wait=0.3)
+    message = settle(lambda: next((t for t, d, _ in nodes() if t.startswith("Removed “")), ""), bool, within=6.0, first=0)
+    took = max(frames_since_reset() or [99.0])
+    check("the ✕ of a 150,000-letter row is said in a bar of a short quote, the screen not held",
+          tapped and message.startswith("Removed “WWWW") and message.endswith("” from the checklist")
+          and len(message) < 130 and took < 1.0, "%r (%d), %.2f s" % (message[:140], len(message), took))
+    shot(folder, "96-row-removed-quoted", "Removed")
+    tap_last("Undo", wait=1.5)       # the bar's, not the editor's ↶, also called Undo
+    rows = settle(lambda: (note_by_uid("r3-4") or {}).get("checklist") or [], lambda r: len(r) == 2, first=0.5)
+    check("... and Undo puts the row back whole", [r.get("text") for r in rows] == [w, "milk"],
+          repr([len(r.get("text", "")) for r in rows]))
+
+    # Saved as a template, the row goes whole into it; the template editor
+    # opens at once and shows the row as the note does.
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    check("the template keeps the row whole", bool(saved) and (saved[0].get("checklist") or [{}])[0].get("text") == w)
+    back_to("Search notes")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("Row for template", exact=True, wait=0.3)
+    # Shown by its start, read whole on asking.
+    missing, frames = frames_once_shown("Edit template", "Read all 150,000 characters", within=20.0)
+    took = max(frames)
+    check("the template editor opens within a second, the long row read-only",
+          took < 1.0 and not missing, "%.2f s, %s" % (took, missing))
+    shot(folder, "97-template-long-row", "Read all 150,000 characters")
+    back_to("Search notes", tries=6)
+
+    # Duplicate's bar quotes a 150,000-letter title short.
+    open_note("TTTTTTTTTT", limit=30.0)
+    tap("⋮", exact=True)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tap("📄 Duplicate", wait=0.3)
+    message = settle(lambda: next((t for t, d, _ in nodes() if t.startswith("Duplicated as")), ""), bool, within=6.0, first=0)
+    took = max(frames_since_reset() or [99.0])
+    check("Duplicate of a 150,000-letter title says so in a short quote, the screen not held",
+          message.startswith("Duplicated as “TTTT") and len(message) < 110 and took < 1.0,
+          "%r (%d), %.2f s" % (message[:120], len(message), took))
+    copies = [n for n in read_file("notes_data.json") or [] if (n.get("title") or "").startswith("TTTT")]
+    check("... and the copy keeps the whole title", len(copies) == 2 and all(len(n["title"]) >= 150_000 for n in copies),
+          repr([len(n.get("title", "")) for n in copies]))
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("the file holds every note as it was",
+          [n.get("body") for n in kept[:5]] == [n["body"] for n in notes]
+          and [n.get("comments") for n in kept[:5]] == [n.get("comments") for n in notes])
+
+    # What goes out: a notebook of its own, so each note is on the screen.
+    shared = [note(9, "Two hundred thousand", body="Today I walked to the river and back again.\n" * 4_545),
+              note(10, "Under the line", body="Today I walked to the river and back again.\n" * 2_250),
+              note(6, "Journal", body="Today I walked to the river and back again.\n" * 7_000),
+              note(7, "Empty cells", body="|" * 50_001),
+              note(8, "Forty pages", body="\n".join(
+                  "Line %d of a note that goes on far past forty pages." % i for i in range(1, 3001)))]
+    if not seed_inside(shared, {"welcome_offered": True}, "Two hundred thousand"):
+        return
+
+    def focused():
+        """The package of the window with the focus: the share sheet is a
+        window over the app (the sharing part's own reading)."""
+        out = adb("shell", "dumpsys", "window")
+        match = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", out)
+        return match.group(1) if match else foreground()
+
+    def handed(seconds):
+        deadline = time.time() + seconds
+        while focused() == PACKAGE and time.time() < deadline:
+            time.sleep(0.5)
+        return focused()
+
+    def back_in():
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.2)
+        if focused() != PACKAGE:
+            adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+            time.sleep(2.0)
+
+    # Words too long for a message: the Share sheet says so before the tap.
+    open_note("Journal", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("a note of 308,000 characters offers no words alone, and says why",
+          find("Too long for a message") is not None)
+    shot(folder, "98-share-too-long-for-words", "Too long for a message")
+    tap("Text", exact=True, wait=1.2)
+    check("... and Text does nothing", find("Share this note as") is not None and focused() == PACKAGE, focused())
+    back()
+    back_to("Search notes")
+    # The line where Android delivers the share sheet: 200,000 characters
+    # never reached it, unsaid; refused here, with the reason. And words
+    # under the line still go.
+    open_note("Two hundred thousand", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("200,000 characters, past what Android delivers to the share sheet, are refused with the reason",
+          find("Too long for a message") is not None, " | ".join(t for t, d, _ in nodes() if t)[:200])
+    back()
+    back_to("Search notes")
+    open_note("Under the line", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    adb("logcat", "-c")
+    app = adb("shell", "pidof", PACKAGE).strip()
+    tap("Text", exact=True, wait=0.3)
+    sheet = handed(15.0)
+    failed = logged(route_pids(app, sheet), "TransactionTooLarge")
+    check("99,000 characters of words reach the share sheet",
+          sheet != PACKAGE and not failed, "%s %s" % (sheet, failed[:2]))
+    back_in()
+    back_to("Search notes")
+
+    # A page of a table of 50,000 empty cells: made away from the screen,
+    # in a moment, where it took billions of steps on the screen's thread.
+    open_note("Empty cells", limit=30.0)
+    tap("Share", exact=True, wait=1.0)
+    adb("logcat", "-c")
+    started = time.time()
+    tapped = tap("Web page", exact=True, wait=0.2)
+    sheet = handed(30.0)
+    took = time.time() - started
+    pid = adb("shell", "pidof", PACKAGE).strip()
+    anr = "ANR in " + PACKAGE in adb("logcat", "-d", "-b", "events,main,system")
+    check("a page of a table of 50,000 empty cells reaches the share sheet without holding the app",
+          tapped and sheet != PACKAGE and not anr and bool(pid), "%s after %.1f s, ANR %s" % (sheet, took, anr))
+    back_in()
+    back_to("Search notes")
+
+    # A PDF that stops at forty pages says so before anything is handed
+    # over: a question (one_note_drawn_and_sent walks its answers), where it was a bar
+    # the share sheet covered.
+    open_note("Forty pages", limit=30.0)
+    tap("Share", exact=True, wait=1.0)
+    tap("PDF", exact=True, wait=0.3)
+    asked = settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=30.0, first=0)
+    shot(folder, "99-pdf-first-pages", "first 40 pages")
+    tap("PDF, first 40 pages", exact=True, wait=0.3)
+    sheet = handed(30.0)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Forty pages.pdf", binary=True)
+    with open(os.path.join(folder, "99-forty-pages.pdf"), "wb") as f:
+        f.write(pdf)
+    check("a PDF of a note longer than forty pages is asked about, then is the forty pages",
+          asked is not None and sheet != PACKAGE and page_count(pdf) == 40, "%s, %d pages" % (sheet, page_count(pdf)))
+    back_in()
+    back_to("Search notes")
+
+
+def one_note_drawn_and_sent(folder):
+    """What one note draws, and what is asked before it goes, walked: counted
+    for the whole note -- ten tables of 1,000 cells, 200,000 empty lines,
+    3,000 tables of two cells, "x" and "" after a spent limit, and a journal
+    of 7,000 lines -- each opened and timed by the app's own frames, a
+    letter typed into the journal timed too; then what goes out: a note of
+    Chinese text past what Android carries says so on Share -> Text, a code
+    too long says so on its card before the tap, and a PDF that would leave
+    part of the note out asks first -- Cancel hands nothing over, Web page
+    hands the page, the PDF is forty pages with nothing written into it."""
+    print("\n-- limits: what one note draws, and what is asked before it goes --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r4-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def grid(rows, columns):
+        return "\n".join("| " + " | ".join("---" if r == 1 else "r%dc%d" % (r, c) for c in range(columns)) + " |"
+                         for r in range(rows))
+    journal = "Today I walked to the river and back again.\n" * 7_000
+    notes = [note(1, "Ten tables", body="\n\n".join([grid(50, 20)] * 10)),
+             note(2, "Many lines", body="Above\n" + "\n" * 200_000),
+             note(3, "Tiny tables", body="\n\n".join(["| a | b |"] * 3_000)),
+             note(4, "Alternating", body="\n".join(["a" * 10_000] * 2 + ["x", ""] * 5_000)),
+             note(5, "Journal", body=journal),
+             # Where the screen shows them: a table of 1,000 cells two rows
+             # tall, a small one under it; and many lines in the comments,
+             # near the top. In a body the rest lies a screen's height times
+             # thousands below, out of the tree the walk reads. Pinned, so
+             # their cards are above the fold of the list.
+             note(6, "Wide then small", body=grid(2, 500) + "\n\n" + grid(3, 3), pinned=True),
+             note(7, "Lines in comments", comments="\n" * 200_000, pinned=True)]
+
+    def opened_in(title):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not open_note(title, limit=40.0):
+            return None
+        time.sleep(1.5)
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    # What one table at the line takes on this emulator, now: ten of them
+    # are drawn as one, so they take about as long -- a slow emulator's
+    # second is not the app's (big_table times the table alone, 2.2 s).
+    if not seed_inside([note(9, "One table", body=grid(50, 20))], {"welcome_offered": True}, "One table"):
+        return
+    one = opened_in("One table") or 99.0
+    if not seed_inside(notes, {"welcome_offered": True}, "Ten tables"):
+        return
+    took = opened_in("Ten tables")
+    check("ten tables of 1,000 cells open with one drawn, about as long as one table alone",
+          took is not None and took < 1.5 * one + 1.0 and find("r0c0", exact=True) is not None,
+          "%s s, one alone %.2f s" % (took, one))
+    took = opened_in("Wide then small")
+    check("a table under one that drew 1,000 cells is shown as its lines, and says why",
+          took is not None and took < 1.5 * one + 1.0 and not says_soon("already fill the 1,000 cells"), "%s s" % took)
+    shot(folder, "100-table-past-the-others", "already fill")
+    took = opened_in("Many lines")
+    check("200,000 empty lines open within two seconds", took is not None and took < 2.0 and find("Above") is not None,
+          "%s s" % took)
+    took = opened_in("Lines in comments")
+    if screen_says("more than is shown here at once") and screen_says("Comments") == []:
+        tap("Comments", wait=1.5)       # folded away under its label
+    check("... and comments of 200,000 lines are shown read-only, with how many lines they hold",
+          took is not None and took < 1.0 and not says_soon("more than is shown here at once", "more lines"),
+          "%s s, %s" % (took, screen_says("more than is shown here at once", "more lines")))
+    shot(folder, "101-many-lines-read-only", "more than is shown here at once")
+    took = opened_in("Tiny tables")
+    # A note draws 500 pieces, not 100 -- fifty weekly tables reached 100 --
+    # and these, the hostile case, measured 1.7 to 2.7 s there (0.3 s at 100;
+    # held still before the first limit, past 90 s).
+    check("3,000 tables of two cells open within three seconds", took is not None and took < 3.0, "%s s" % took)
+    took = opened_in("Alternating")
+    check("'x' and '' five thousand times after a spent limit open within a second", took is not None and took < 1.0,
+          "%s s" % took)
+    took = opened_in("Journal")
+    check("a journal of 7,000 lines opens within two seconds, every line a field", took is not None and took < 2.0,
+          "%s s" % took)
+    shot(folder, "101b-journal-fields", "Today I walked")
+    # A letter typed into it: one field drawn again, not the whole note --
+    # read before the autosave's 800 ms, whose write of the notebook is a
+    # frame of its own.
+    tap("Today I walked to the river and back again.", wait=0.8)
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    adb("shell", "input", "text", "Z")
+    # Read once the letter is on the screen, the frames of the first 0.7 s
+    # alone: read half a second on, a frame longer than that was in no list,
+    # and a check of "within a second" could not fail.
+    _, frames = frames_once_shown("Z", within=20.0, gap=0.7)
+    typed = max(frames)
+    print("     Journal, a letter typed: the longest frames %s s" % ["%.2f" % f for f in sorted(frames)[-3:]])
+    saved = settle(lambda: (note_by_uid("r4-5") or {}).get("body", ""), lambda b: "Z" in b, within=8.0)
+    # Measured 2026-10-28 on the emulator: a letter's frames 0.1 to 0.4 s,
+    # the autosave's write of the 308,000 characters 0.4 to 0.8 s after it;
+    # the build before the fix held 8 s and more just opening the note.
+    check("... and a letter typed into it is drawn within a second, and saved",
+          typed < 1.0 and "Z" in saved and len(saved) == len(journal) + 1, "%.2f s" % typed)
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("the file holds every other note as it was",
+          [n.get("body") for n in kept[:4]] == [n["body"] for n in notes[:4]]
+          and (kept[6] if len(kept) > 6 else {}).get("comments") == notes[6]["comments"])
+
+    # What goes out, in a notebook of its own.
+    cjk = "今日は漢字の練習をしました。"
+    import random
+    rng = random.Random(7)
+    noise = "".join(chr(97 + rng.randrange(26)) for _ in range(150_000))
+    shared = [note(11, "Long Chinese", body=cjk * (99_947 // len(cjk))),
+              note(12, "Short Chinese", body=cjk * (55_000 // len(cjk))),
+              note(13, "Noise", body=noise),
+              note(14, "Forty pages", body="\n".join(
+                  "Line %d of a note that goes on far past forty pages." % i for i in range(1, 3001))),
+              note(15, "Wide table", body=grid(4, 30))]
+    if not seed_inside(shared, {"welcome_offered": True}, "Short Chinese"):
+        return
+
+    def focused():
+        out = adb("shell", "dumpsys", "window")
+        match = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([\w.]+)/", out)
+        return match.group(1) if match else foreground()
+
+    def handed(seconds):
+        deadline = time.time() + seconds
+        while focused() == PACKAGE and time.time() < deadline:
+            time.sleep(0.5)
+        return focused()
+
+    def back_in():
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.2)
+        if focused() != PACKAGE:
+            adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity")
+            time.sleep(2.0)
+
+    open_note("Long Chinese", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    said = next((t for t, d, _ in nodes() if t.startswith("Too long for a message")), "")
+    numbers = [int(n.replace(",", "")) for n in re.findall(r"\d[\d,]*", said)]
+    print("     the Text card: %s" % said)
+    check("99,950 Chinese characters, past what Android carries, are refused on the card, its numbers agreeing",
+          len(numbers) == 2 and numbers[1] < numbers[0] and 55_000 < numbers[1] < 65_000 and "of them at most" in said,
+          repr(said))
+    shot(folder, "102-share-chinese-too-long", "Too long for a message")
+    back()
+    back_to("Search notes")
+    open_note("Short Chinese", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    adb("logcat", "-c")
+    app = adb("shell", "pidof", PACKAGE).strip()
+    tap("Text", exact=True, wait=0.3)
+    sheet = handed(15.0)
+    failed = logged(route_pids(app, sheet), "TransactionTooLarge", "Failed to deliver")
+    check("55,000 Chinese characters reach the share sheet, no binder failure in the log",
+          sheet != PACKAGE and not failed, "%s %s" % (sheet, failed[:2]))
+    back_in()
+    back_to("Search notes")
+
+    open_note("Noise", limit=30.0)
+    tap("Share", exact=True, wait=1.5)
+    check("a code too long to hand over says so on its card, before the tap",
+          find("Too long for a code") is not None, " | ".join(t for t, d, _ in nodes() if t)[:300])
+    shot(folder, "103-share-code-too-long", "Too long for a code")
+    tap("Share code", exact=True, wait=1.2)
+    check("... and the card does nothing", find("Share this note as") is not None and focused() == PACKAGE, focused())
+    back()
+    back_to("Search notes")
+
+    def ask_pdf(title, button):
+        open_note(title, limit=30.0)
+        adb("shell", "run-as", PACKAGE, "rm", "-rf", "cache/share")
+        tap("Share", exact=True, wait=1.0)
+        tap("PDF", exact=True, wait=0.3)
+        return settle(lambda: find(button, exact=True), lambda at: at is not None, within=30.0, first=0)
+
+    def in_share():
+        out = adb("shell", "run-as", PACKAGE, "ls", "cache/share")
+        return [] if "No such file" in out else [f.strip() for f in out.split("\n") if f.strip()]
+
+    asked = ask_pdf("Forty pages", "PDF, first 40 pages")
+    check("a PDF of more than forty pages asks first, with the web page, the forty pages and Cancel",
+          asked is not None and not says_soon("Not all of this note fits a PDF", "only its first 40 pages",
+                                                 "Web page", "Cancel"))
+    shot(folder, "104-pdf-asks-first", "Not all of this note fits a PDF")
+    tap("Cancel", exact=True, wait=1.5)
+    check("... Cancel hands nothing over and keeps no file", focused() == PACKAGE and in_share() == [], repr(in_share()))
+    back_to("Search notes")
+    ask_pdf("Forty pages", "Web page")
+    tap("Web page", exact=True, wait=0.3)
+    sheet = handed(20.0)
+    files = in_share()
+    check("... Web page hands the page over instead", sheet != PACKAGE and files == ["Forty pages.html"], repr(files))
+    back_in()
+    back_to("Search notes")
+    ask_pdf("Forty pages", "PDF, first 40 pages")
+    tap("PDF, first 40 pages", exact=True, wait=0.3)
+    sheet = handed(30.0)
+    pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Forty pages.pdf", binary=True)
+    with open(os.path.join(folder, "104-forty-pages.pdf"), "wb") as f:
+        f.write(pdf)
+    # The foot line was text drawn on the page, a font in the file; the
+    # pages themselves are pictures.
+    check("... the PDF is the forty pages, with nothing written into it",
+          sheet != PACKAGE and page_count(pdf) == 40 and b"/Font" not in pdf, "%d pages, font %s" % (page_count(pdf), b"/Font" in pdf))
+    back_in()
+    back_to("Search notes")
+    asked = ask_pdf("Wide table", "PDF, cut at the edge")
+    check("a note wider than the page asks the same, the PDF cut at the edge",
+          asked is not None and not says_soon("cut at the page's edge"))
+    shot(folder, "105-pdf-wide-asks", "cut at the page's edge")
+    tap("Cancel", exact=True, wait=1.5)
+    back_to("Search notes")
+
+
+def an_ordinary_note_at_its_size(folder):
+    """What an ordinary note keeps, walked:
+    fifty weekly tables and sixty sessions with tables, each a grid to the
+    end, Find reaching their ends; a checklist of 1,000 short rows opened and
+    typed into, and one of 120 rows of 150,000 letters opened within seconds,
+    its rows shown short. A note past what the phone draws: a word in its
+    rest found and its line shown, read on; Enter at the end of what is drawn
+    lets the keyboard go and says why, nothing glued on the line above; the
+    calculator refuses to write out of sight. A table typed row by row by
+    hand comes out in order; a two-million-letter note typed in forty times
+    keeps its memory; and the template editor saves the words left in its A
+    new item box. (The Share sheet of a 5 MB note was timed too, and held
+    1.3 to 1.6 s before the fix, 0.8 to 1.4 after: no check, since it
+    could not tell the two builds apart.)"""
+    print("\n-- limits: what an ordinary note keeps, and where the cursor goes --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r5-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def opened_in(title, limit=40.0):
+        back_to("Search notes")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not open_note(title, limit=limit):
+            return None
+        time.sleep(1.5)
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    def find_in_note(word):
+        # The bar opens with the last search: taken out, the new one typed.
+        if not find("Close find"):
+            tap("⋮", exact=True)
+            tap("🔍 Find in note", wait=1.2)
+        adb("shell", "input", "keyevent", *["KEYCODE_DEL"] * 24)
+        type_text(word)
+        time.sleep(1.2)
+
+    def close_find():
+        for _ in range(3):
+            if not find("Close find"):
+                break
+            back(wait=1.2)
+
+    def counter():
+        return next((t for t, d, _ in nodes() if re.fullmatch(r"\d+/\d+\+?", t or "")), "")
+
+    weeks = "\n".join("Week %d\n| Day | Spent |\n|---|---|\n| Mon | %d |" % (w, w) for w in range(1, 51))
+    sessions = "\n".join("Session %d%s\n| Set | Reps | Kg |\n|---|---|---|\n| 1 | 8 | %d |"
+                         % (s, ": deadlift" if s == 57 else "", 40 + s) for s in range(1, 61))
+    # Every line drawn as one line, so the fields draw exactly what a body
+    # may (Editing.MAX_DRAWN_LINES, 40,000): "Last", a field of its own under
+    # a table, is the last of them, and the 20,000 lines after it the rest.
+    past = "\n".join(["line %d" % k for k in range(39_999)] + ["| a | b |", "Last"]
+                     + ["line %d" % k + (" needle" if k == 50_000 else "") for k in range(40_000, 60_000)])
+    short_rows = [{"text": "item %d" % k, "done": False} for k in range(1, 1001)]
+    wide_rows = [{"text": ("word " * 30_000)[:149_994], "done": False} for _ in range(120)]
+    notes = [note(1, "Fifty weeks", body=weeks), note(2, "Sixty sessions", body=sessions),
+             note(3, "Past the lines", body=past), note(4, "Thousand rows", body="Shop", checklist=short_rows)]
+    if not seed_inside(notes, {"welcome_offered": True}, "Fifty weeks"):
+        return
+
+    # Fifty weeks, 100 pieces: the 50th table was the read-only rest.
+    took = opened_in("Fifty weeks")
+    find_in_note("Spent")
+    check("fifty weekly tables: Find counts the header of every one", counter() == "1/50", counter())
+    find_in_note("Week 50")
+    # The keyboard down: the 50th grid lies under it, below its heading.
+    keyboard_down()
+    rest_said = not screen_says("more than is shown here at once")
+    check("... and the last week is a heading, its table a grid under it, nothing read-only",
+          find("Week 50") is not None and find("50", exact=True) is not None and not rest_said
+          and took is not None and took < 3.0, "%s s, %s, rest said %s" % (took, counter(), rest_said))
+    shot(folder, "106-fifty-weeks-end", "Week 50")
+    close_find()
+    back_to("Search notes")
+
+    opened_in("Sixty sessions")
+    find_in_note("deadlift")
+    check("sixty sessions with tables: a word in the 57th is found, not 0/0", counter() == "1/1", counter())
+    shot(folder, "107-sixty-sessions-found", "deadlift")
+    close_find()
+    back_to("Search notes")
+
+    # Past what the phone draws: the rest found, read on, and its end.
+    opened_in("Past the lines")
+    find_in_note("needle")
+    check("a word in a note's read-only rest is found, its line shown",
+          counter() == "1/1" and find("line 50000 needle") is not None
+          and not says_soon("Lines 10,000 to 10,002 of 20,000"),
+          "%s, %s" % (counter(), screen_says("Lines 10,000 to 10,002 of 20,000")))
+    shot(folder, "108-rest-found", "line 50000 needle")
+    tap("Read on ›", exact=True, wait=1.5)
+    # The forty lines push the footer under the keyboard: the first of them is read instead.
+    check("... and Read on shows the next forty of its lines",
+          find("line 50002", exact=True) is not None and find("line 50000 needle") is None,
+          " | ".join(t for t, d, _ in nodes() if t)[:200])
+    find_in_note("Last")
+    close_find()
+    tap("Last", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.5)
+    # A message of four seconds, read by looks of two seconds and more on the
+    # walk's heaviest screen, raced its own reading: read once in one run of
+    # two, the app having said it both times. Held for fifteen by Android's
+    # own setting, which the app's messages keep; photographed as read; the
+    # Enter's frames timed, so a hold by the app is told from a slow look.
+    with messages_held(15_000):
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+        missing = shot_as_said(folder, "109-end-past-drawn", "The end of this note is more than the phone shows at once",
+                               within=15.0)
+        longest = max(frames_since_reset() or [0.0])
+    time.sleep(1.0)
+    type_text("glued")
+    check("Enter at the end of what is drawn lets the keyboard go", not keyboard_shown())
+    check("... and says why", not missing, "missing %s; the longest frame since the Enter %.2f s" % (missing, longest))
+    back_to("Search notes")
+    body = (note_by_uid("r5-3") or {}).get("body", "")
+    lines = body.split("\n")
+    check("... the line typed is kept, and nothing is glued onto the line above",
+          len(lines) == 60_002 and lines[40_000] == "Last" and lines[40_001] == "" and "glued" not in body,
+          repr(lines[39_999:40_003]))
+    # Opened again, the cursor never in it: the calculator does not write out of sight.
+    open_note("Past the lines", limit=40.0)
+    tap("⋮", exact=True)
+    tap("🧮 Calculator", wait=1.2)
+    for key in ("1", "+", "1", "="):
+        tap(key, exact=True, wait=0.3)
+    # The same message on the same screen as the Enter's: held as it is.
+    with messages_held(15_000):
+        tap("⬇ Insert into note", wait=0.3)
+        said = not says_soon("Tap in its text where the answer should go", within=15.0)
+    back_to("Search notes")
+    check("the calculator writes nothing where no field shows it, and says where to tap",
+          said and (note_by_uid("r5-3") or {}).get("body", "") == body, str(said))
+
+    # The checklists: 1,000 short rows, typed into; 120 rows of 150,000 letters.
+    took = opened_in("Thousand rows")
+    if screen_says("item 1") and find("CHECKLIST"):
+        tap("CHECKLIST", wait=1.5)
+    check("a checklist of 1,000 short rows opens within three seconds", took is not None and took < 3.0, "%s s" % took)
+    tap("item 1", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    type_text("0")
+    _, frames = frames_once_shown()     # a look, which waits for the letter's frame to end
+    typed = max(frames)
+    check("... and a letter typed into a row is drawn within half a second", typed < 0.5, "%.2f s" % typed)
+    back_to("Search notes")
+    check("... and saved", ((note_by_uid("r5-4") or {}).get("checklist") or [{}])[0].get("text") == "item 10")
+    # In a notebook of its own: 18 MB, and the app reads one file at a time.
+    if not seed_inside([note(5, "Wide rows", body="Rows", checklist=wide_rows)], {"welcome_offered": True}, "Wide rows"):
+        return
+    took = opened_in("Wide rows", limit=60.0)
+    # Measured 2026-10-29: 7.07 s before the fix, 1.74 after; the same text in a body, 1.63.
+    check("a checklist of 120 rows of 150,000 letters opens within two and a half seconds, each row shown short",
+          took is not None and took < 2.5 and not says_soon("Read all 149,994 characters"), "%s s" % took)
+    shot(folder, "110-wide-rows-short", "Rows")
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file keeps every row whole",
+          len(kept) == 1 and [r.get("text") for r in kept[0].get("checklist", [])] == [r["text"] for r in wide_rows])
+
+    # A table typed by hand, row by row: in order, under its grid.
+    back_to("Search notes")
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Typed table")
+    tap("Write your note")
+    type_text("Shopping")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    # Key by key, at a fast typist's pace: sent as one burst a millisecond
+    # apart, just after the cursor moved, the keyboard's own handling
+    # mangled the second row -- input no person makes (2026-10-29: right at
+    # a key every 80 ms, mangled as a burst).
+    for first, second in (("a", "b"), ("c", "d")):
+        for key in ("\\|", "%s", first, "%s", "\\|", "%s", second, "%s", "\\|"):
+            adb("shell", "input", "text", key)
+            time.sleep(0.1)
+        time.sleep(1.5)
+    shot(folder, "111-typed-table", "Typed table")
+    back_to("Search notes")
+    typed_note = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Typed table"), {})
+    # Lower-cased: the keyboard makes the first letter of a line a capital.
+    check("a table typed row by row by hand keeps its rows in order, under the line before it",
+          (typed_note.get("body") or "").lower() == "shopping\n| a | b |\n| c | d |", repr(typed_note.get("body")))
+
+    # A two-million-letter note typed in forty times: the Undo's steps are held to what a phone can keep.
+    # One letter past ASCII, so the phone keeps every copy at two bytes a letter.
+    two = note(7, "Two million", body="Café " + "x" * 1_999_000 + "\nend")
+    if not seed_inside([two], {"welcome_offered": True}, "Two million"):
+        return
+    open_note("Two million", limit=60.0)
+    tap("end", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("logcat", "-c")
+    typing = adb("shell", "pidof", PACKAGE).strip()
+    heaps = []
+    for k in range(1, 41):
+        type_text("w%d" % k)
+        time.sleep(1.2)
+        if k % 10 == 0:
+            m = re.search(r"Java Heap:\s+(\d+)", adb("shell", "dumpsys", "meminfo", PACKAGE))
+            heaps.append(int(m.group(1)) // 1024 if m else -1)
+    alive = adb("shell", "pidof", PACKAGE).strip()
+    print("     the Java heap after 10, 20, 30, 40 bursts: %s MB" % heaps)
+    check("a two-million-letter note typed in forty bursts keeps running, its heap no longer growing",
+          bool(alive) and len(heaps) == 4 and heaps[-1] - heaps[1] < 40 and not logged([typing, alive], "OutOfMemoryError"),
+          "%s, %s" % (alive, heaps))
+    back_to("Search notes")
+
+    # The template editor: the words left in A new item are saved with it.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("Trip")
+    keyboard_down()
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    tap("Save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    check("a template saved with words in its A new item box keeps them as its last row",
+          [[c.get("text") for c in t.get("checklist", [])] for t in saved if t.get("name") == "Trip"] == [["Passport"]],
+          repr(saved)[:200])
+    back_to("Search notes")
+
+
+def a_rows_own_words(folder):
+    """A row's own words, rows in sight, rows read whole, walked. A checklist
+    row at the desktop's 2,000 letters keeps its own words when a letter or a paste goes
+    in at its start: the letter refused, the paste cut, each said. A row
+    moved up or down across the line of rows not drawn, or dragged over it,
+    stays in sight; a search for one of the last rows draws no more of them.
+    A row longer than one is written in, and one past what a list draws to
+    write in, are read whole, and Find shows where their word is. A template
+    of 1,000 rows of 2,000 letters opens with its rows drawn in part; one of
+    1,000 rows refuses an Add and never drops the waiting words unsaid. Redo
+    of a table row typed at the end puts the cursor under the grid; and
+    Insert table writes nothing where it would not be seen, and says so."""
+    print("\n-- limits: a row's own words, rows in sight, rows read whole --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r6-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def rows_of(uid):
+        return [r.get("text") for r in (note_by_uid(uid) or {}).get("checklist") or []]
+
+    def opened_in(title, opens=None, limit=40.0):
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        if not (opens or (lambda: open_note(title, limit=limit)))():
+            return None
+        time.sleep(1.5)
+        _, frames = frames_once_shown()     # a look, which waits for the frames still drawing to end
+        longest = max(frames)
+        print("     %s: the longest frame %.2f s" % (title, longest))
+        return longest
+
+    def find_in_note(word):
+        if not find("Close find"):
+            tap("⋮", exact=True)
+            tap("🔍 Find in note", wait=1.2)
+        adb("shell", "input", "keyevent", *["KEYCODE_DEL"] * 24)
+        type_text(word)
+        time.sleep(1.2)
+
+    def close_find():
+        for _ in range(3):
+            if not find("Close find"):
+                break
+            back(wait=1.2)
+
+    def counter():
+        return next((t for t, d, _ in nodes() if re.fullmatch(r"\d+/\d+\+?", t or "")), "")
+
+    def shown_beside(word):
+        """Whether [word] is on the screen in a node of more than itself: the
+        find bar's own field holds the word alone."""
+        return any(word in t and t.strip() != word for t, d, _ in nodes())
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    def unfold(first_row):
+        if screen_says(first_row) and find("CHECKLIST"):
+            tap("CHECKLIST", wait=1.5)
+
+
+    key_row = "a" * (2_000 - 16) + "DON'T FORGET KEY"
+    recipe = "r" * 1_480 + " Serve with rice."
+    thousand = [{"text": "item %d" % k, "done": False} for k in range(1_000)]
+    words = " ".join("word%d" % k for k in range(600))
+    long_row = (words[:1_500] + " PINEAPPLE " + words[1_500:2_900] + " ZUCCHINI tail")
+    inventory = [{"text": ("stock " * 400)[:1_500] + "ITEM%04dX" % k + (" more" * 200)[:491], "done": False}
+                 for k in range(60)]
+    notes = [note(1, "Key row", checklist=[{"text": key_row, "done": False}, {"text": "milk", "done": False}]),
+             note(2, "Recipe row", checklist=[{"text": recipe, "done": False}, {"text": "salt", "done": False}]),
+             note(3, "Paste source", body="p" * 800),
+             note(4, "Long list", body="Shop", checklist=thousand),
+             note(5, "Long words", body="Words", checklist=[{"text": long_row, "done": False}]),
+             note(6, "Inventory", body="Stock", checklist=inventory)]
+    if not seed_inside(notes, {"welcome_offered": True}, "Key row"):
+        return
+
+    # A row at the cap: a letter at its start is refused, the row whole.
+    open_note("Key row")
+    unfold("milk")
+    tap("DON'T FORGET KEY", wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said = not shot_as_said(folder, "112-row-cap-said", "A checklist item can be up to 2,000 characters",
+                            over_keys=True)
+    tap("milk", exact=True, wait=1.0)
+    back_to("Search notes")
+    kept = rows_of("r6-1")
+    check("a letter typed at the start of a row at 2,000 letters is refused, said, the row whole",
+          said and kept[:1] == [key_row], "said %s, %r" % (said, (kept[0][-20:], len(kept[0])) if kept else kept))
+
+    # 800 letters pasted at the start of a row of 1,497: 503 of them, the row whole after them.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+    open_note("Recipe row")
+    unfold("salt")
+    tap("Serve with rice", wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    keys("CTRL_LEFT", "V")
+    said = not says_soon("Pasted text shortened: a checklist item can be up to 2,000 characters", within=6.0)
+    tap("salt", exact=True, wait=1.0)
+    back_to("Search notes")
+    kept = rows_of("r6-2")
+    check("a paste at the start of a long row is cut to the room left, the row's own words whole, and said",
+          said and kept[:1] == ["p" * 503 + recipe],
+          "said %s, %r" % (said, (kept[0][:10], kept[0][-20:], len(kept[0])) if kept else kept))
+
+    # A list of 1,000: the first 200 rows and the last five drawn, the line between.
+    open_note("Long list", limit=30.0)
+    unfold("item 0")
+    find_in_note("item 995")
+    close_find()
+    hidden = lambda: next((t for t, d, _ in nodes() if "more rows here" in t), "")
+    tap("Drag to move item 995", exact=True, wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[994:995] == ["item 995"], first=0.5)
+    check("Move up on the first of the last rows: it stays in sight, one place up",
+          order[994:996] == ["item 995", "item 994"] and find("Drag to move item 995", exact=True) is not None
+          and "794 more rows" in hidden(), "%r, %r" % (order[993:997], hidden()))
+    shot(folder, "113-moved-row-in-sight", "item 995")
+    tap("Drag to move item 995", exact=True, wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[995:996] == ["item 995"], first=0.5)
+    check("... and Move down puts it back in its place, still in sight",
+          order[994:996] == ["item 994", "item 995"] and find("Drag to move item 995", exact=True) is not None,
+          repr(order[993:997]))
+    # The last of the first 200, moved down past the line, and back.
+    find_in_note("item 199")
+    close_find()
+    tap("Drag to move item 199", exact=True, wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[200:201] == ["item 199"], first=0.5)
+    check("Move down on the 200th row: it stays in sight, one place down",
+          order[199:201] == ["item 200", "item 199"] and find("Drag to move item 199", exact=True) is not None,
+          repr(order[198:202]))
+    tap("Drag to move item 199", exact=True, wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    settle(lambda: rows_of("r6-4"), lambda r: r[199:200] == ["item 199"], first=0.5)
+    # Dragged from the last rows over the line onto the 200th: there, both in sight.
+    find_in_note("item 997")
+    close_find()
+    # Both on the screen: the found row may stand at the top of it, the 200th above.
+    for _ in range(3):
+        if find("Drag to move item 199", exact=True):
+            break
+        adb("shell", "input", "swipe", "900", "900", "900", "1300", "400")
+        time.sleep(1.0)
+    start, end = find("Drag to move item 997", exact=True), find("Drag to move item 199", exact=True)
+    if start and end:
+        adb("shell", "input", "swipe", str(start[0]), str(start[1]), str(end[0]), str(end[1]), "1500")
+        time.sleep(1.5)
+    order = settle(lambda: rows_of("r6-4"), lambda r: r[199:200] == ["item 997"], first=0.5)
+    check("a row dragged over the line of rows not drawn lands where it was let go, and every row stays in sight",
+          bool(start and end) and order[199:201] == ["item 997", "item 199"]
+          and find("Drag to move item 997", exact=True) is not None and find("Drag to move item 199", exact=True) is not None,
+          "%s %s, %r" % (start, end, order[198:202]))
+    # A search for one of the last rows draws no more of them.
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    find_in_note("item 998")
+    _, frames = frames_once_shown()     # a look, which waits for the search's frames to end
+    took = max(frames)
+    check("Find on one of the last rows draws no more rows, each letter in the bar quick",
+          counter() == "1/1" and "more rows here" in hidden() and took < 1.0, "%s, %r, %.2f s" % (counter(), hidden(), took))
+    close_find()
+    back_to("Search notes")
+
+    # A row longer than one is written in: read whole on asking; Find shows its word.
+    open_note("Long words")
+    unfold("Read all")
+    asked = find("Read all %s characters" % format(len(long_row), ","))
+    if asked:
+        tap("Read all", wait=1.5)
+        # Its middle lies under the screen's edge, as it would for a person: read down to it.
+        seek(lambda: shown_beside("PINEAPPLE"))
+    check("a row of %s letters says it can be read whole, and shows its middle when asked" % format(len(long_row), ","),
+          asked is not None and shown_beside("PINEAPPLE"), str(asked))
+    shot(folder, "114-long-row-read", "PINEAPPLE")
+    seek(lambda: find("‹ Show less", exact=True) is not None)
+    tap("‹ Show less", exact=True, wait=1.0)
+    find_in_note("ZUCCHINI")
+    check("... and Find opens it on the part its word is in", counter() == "1/1" and shown_beside("ZUCCHINI"),
+          counter())
+    close_find()
+    back_to("Search notes")
+    # Past what a list draws to write in: row 56 of 60 rows of 2,000 letters.
+    open_note("Inventory", limit=30.0)
+    unfold("stock")
+    find_in_note("ITEM0055X")
+    check("a row shown short, past what a list draws to write in, shows the word Find stopped on",
+          counter() == "1/1" and shown_beside("ITEM0055X"), counter())
+    keyboard_down()
+    shot(folder, "115-shown-short-found", "ITEM0055X")
+    close_find()
+    back_to("Search notes")
+    kept = read_file("notes_data.json") or []
+    check("... and the file keeps every row as it was",
+          [r.get("text") for r in next((n for n in kept if n.get("uid") == "r6-6"), {}).get("checklist", [])]
+          == [r["text"] for r in inventory]
+          and [r.get("text") for r in next((n for n in kept if n.get("uid") == "r6-5"), {}).get("checklist", [])]
+          == [long_row])
+
+    # Templates: one of 1,000 rows of 2,000 letters, and one of 1,000 rows, full.
+    adb("shell", "pm", "clear", PACKAGE)
+    long_rows = [{"text": ("long words " * 200)[:1_990] + " row%04d" % k, "done": False} for k in range(1_000)]
+    full_rows = [{"text": "row %d" % k, "done": False} for k in range(1_000)]
+    put_inside("templates.json", [
+        {"name": "Thousand long", "title": "t", "body": "b", "comments": "", "category": "General", "checklist": long_rows},
+        {"name": "Full template", "title": "t", "body": "b", "comments": "", "category": "General", "checklist": full_rows}])
+    if not seed_inside([note(7, "Past the tables", body="\n".join("Heading %d\n| a%d | b |" % (k, k) for k in range(1, 601)))],
+                       {"welcome_offered": True}, "Past the tables", clear=False):
+        return
+    tap("Settings", exact=True, wait=1.5)
+    tap("Templates", exact=True, wait=1.5)
+    took = opened_in("Thousand long", opens=lambda: tap("Thousand long", exact=True, wait=0.5, patience=20.0))
+    # Measured 2026-10-29 in one session, the first opening and two more:
+    # 7.2 and 4.3 s before the fix, 3.0, 1.9 and 1.4 after it.
+    check("a template of 1,000 rows of 2,000 letters opens within four seconds, its rows drawn in part",
+          took is not None and took < 4.0 and not says_soon("Edit template"), "%s s" % took)
+    tap("Template name", exact=True, wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    type_text("s")
+    # Read once the letter is drawn, not 1.4 s on (frames_once_shown).
+    _, frames = frames_once_shown("Thousand longs", within=20.0)
+    letter = max(frames)
+    print("     a letter in its name: the longest frame %.2f s" % letter)
+    check("... and a letter typed in its name is drawn within a quarter of a second", letter < 0.25, "%.2f s" % letter)
+    tap("Close", exact=True, wait=1.0)
+    if find("Don't save", exact=True):
+        tap("Don't save", exact=True, wait=1.5)
+    # Full at 1,000: Add refused and said; the words waiting asked about, never dropped.
+    tap("Full template", exact=True, wait=2.0, patience=10.0)
+    # Under the 205 rows drawn: scrolled to, as a person would.
+    seek(lambda: find("A new item") is not None, tries=40, fast=True)
+    check("a template of 1,000 rows draws its first 200 and its last five, the line between saying so",
+          not says_soon("795 more rows here, not drawn yet. Show 200 of them", "row 999"),
+          str(screen_says("795 more rows here, not drawn yet. Show 200 of them", "row 999")))
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    keyboard_down()
+    tap("+ Add", exact=True, wait=0.3)
+    said = not shot_as_said(folder, "116-template-full-said", "A checklist holds at most 1000 items.", "Passport")
+    tap("Close", exact=True, wait=1.0)
+    asked = find("Save changes?") is not None
+    tap_last("Save", wait=0.3)
+    still = not says_soon("A checklist holds at most 1000 items.", within=6.0) and find("Passport") is not None
+    check("a template of 1,000 rows refuses Add and says so; closing asks, and Save keeps the editor open, the words in it",
+          said and asked and still, "said %s, asked %s, still open %s" % (said, asked, still))
+    tap("Close", exact=True, wait=1.0)
+    tap("Don't save", exact=True, wait=1.5)
+    saved = read_file("templates.json") or []
+    full = next((t for t in saved if t.get("name") == "Full template"), {})
+    check("... and nothing was saved over it", [c.get("text") for c in full.get("checklist", [])] == [r["text"] for r in full_rows])
+    back_to("Search notes")
+
+    # Insert table past what the note draws: nothing written, and said.
+    open_note("Past the tables", limit=40.0)
+    find_in_note("Heading 250")
+    close_find()
+    before = (note_by_uid("r6-7") or {}).get("body")
+    tap("Heading 250", exact=True, wait=1.0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.4)
+    tap("Insert table", wait=1.2)
+    # Held as the Enter's message above is: its first look here took five
+    # seconds, the four-second message gone before it.
+    with messages_held(15_000):
+        tap("Insert", exact=True, wait=0.3)
+        said = not says_soon("Tap in its text where the table should go", within=15.0)
+    back_to("Search notes")
+    check("Insert table where the note's drawing has ended writes nothing, and says where to tap",
+          said and (note_by_uid("r6-7") or {}).get("body") == before, str(said))
+
+    # Redo of a table row typed at the end: the cursor under the grid, the next row after it.
+    tap("+", exact=True, wait=1.5)
+    tap("Title")
+    type_text("Redo table")
+    tap("Write your note")
+    type_text("Costs")
+    adb("shell", "input", "keyevent", "KEYCODE_ENTER")
+    for k, key in enumerate(("\\|", "%s", "a", "%s", "\\|", "%s", "b", "%s", "\\|")):
+        adb("shell", "input", "text", key)
+        time.sleep(0.1)
+    time.sleep(1.5)
+    tap("Undo", exact=True, wait=1.2)
+    tap("Redo", exact=True, wait=1.2)
+    for key in ("\\|", "%s", "c", "%s", "\\|", "%s", "d", "%s", "\\|"):
+        adb("shell", "input", "text", key)
+        time.sleep(0.1)
+    time.sleep(1.5)
+    shot(folder, "117-redo-under-grid", "Redo table")
+    back_to("Search notes")
+    typed = next((n for n in read_file("notes_data.json") or [] if n.get("title") == "Redo table"), {})
+    check("after Undo and Redo of a table row typed at the end, the next row goes under the grid",
+          (typed.get("body") or "").lower() == "costs\n| a | b |\n| c | d |", repr(typed.get("body")))
+
+
+def days_in_the_note(folder):
+    """A turned-off series' days live in one place, the note (the owner's
+    choice). A notebook as the phone's 0.12.0
+    left one -- the days in the series' copy alone -- has them back in the
+    note at its next write; a series turned off from the Repeat sheet keeps
+    a day's own text in the note, and a big delete after it makes a copy of
+    words alone, the day still in the note: on the desktop that delete's copy
+    was where the day's text was erased. Read back from the file."""
+    print("\n-- a turned-off series' days, in the note --")
+    days = {"overrides": {"2026-11-09": {"body": "Leg day - knee hurt"}}, "exceptions": ["2026-11-16"]}
+    series = {"date": "2026-11-02", "recurrence": {"freq": "weekly", "interval": 1}}
+    gym = dict({"id": 1, "uid": "dn-gym", "title": "Gym", "category": "General",
+                "body": "Warm up.\nPhysio said: no squats for three weeks, swap in the bike.\nThen the plan.",
+                "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:03:00"}, **series, **days)
+    shipped = {"id": 2, "uid": "dn-shipped", "title": "Swim", "body": "Lengths.", "category": "General",
+               "date": "2026-11-02", "recurrence": {"freq": ""}, "exceptions": [], "overrides": {}, "moved": {},
+               "_prev": dict({"title": "Swim", "body": "Lengths.", "comments": "", "formatting": [], "paragraphs": [],
+                              "overrides": {"2026-11-09": {"body": "Arm day - elbow"}}, "exceptions": [], "moved": {}},
+                             **series),
+               "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:02:00"}
+    other = {"id": 3, "uid": "dn-other", "title": "Other", "body": "x", "category": "General",
+             "created": "2026-10-20 09:00:00", "updated": "2026-10-20 09:01:00"}
+    if not seed_inside([gym, shipped, other], {"welcome_offered": True}, "Gym"):
+        return
+
+    def note_said(uid):
+        return note_by_uid(uid) or {}
+
+    def day_text(note, day):
+        return ((note.get("overrides") or {}).get(day) or {}).get("body")
+
+    # Any write keeps what the read brought back into 0.12.0's note.
+    open_note("Other")
+    tap_last("x", wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text("y")
+    back_to("Search notes")
+    swim = settle(lambda: note_said("dn-shipped"), lambda n: day_text(n, "2026-11-09") is not None)
+    check("a series' day 0.12.0 kept only in its copy is in the note, the copy keeping it too",
+          day_text(swim, "2026-11-09") == "Arm day - elbow"
+          and day_text(swim.get("_prev") or {}, "2026-11-09") == "Arm day - elbow", json.dumps(swim)[:300])
+
+    # Turned off from the Repeat sheet: the day's own text stays in the note.
+    open_note("Gym")
+    tap("ⓘ", wait=1.2)
+    tap("Every week", wait=1.5)
+    tap("Does not repeat", exact=True, wait=0.8)
+    tap("Save", exact=True, wait=0.3)
+    said = not shot_as_said(folder, "118-repeat-off-kept", "Restore previous brings it back", "Note details")
+    back_to("Search notes")
+    off = settle(lambda: note_said("dn-gym"), lambda n: not (n.get("recurrence") or {}).get("freq"))
+    check("a series turned off from the Repeat sheet keeps its day's own text in the note, and the series in its copy",
+          said and not (off.get("recurrence") or {}).get("freq") and day_text(off, "2026-11-09") == "Leg day - knee hurt"
+          and off.get("exceptions") == ["2026-11-16"]
+          and ((off.get("_prev") or {}).get("recurrence") or {}).get("freq") == "weekly",
+          "said %s, %s" % (said, json.dumps(off)[:300]))
+
+    # A big delete after it: a copy of words alone, the day still in the note.
+    open_note("Gym")
+    tap("Physio said", wait=0.8)
+    adb("shell", "input", "keycombination", "KEYCODE_CTRL_LEFT", "KEYCODE_A")
+    time.sleep(0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    time.sleep(1.5)
+    back_to("Search notes")
+    cut = settle(lambda: note_said("dn-gym"), lambda n: (n.get("body") or "") == "")
+    copy = cut.get("_prev") or {}
+    check("a big delete after the turn-off keeps a copy of words alone, the day's text still in the note",
+          (cut.get("body") or "") == "" and "Physio said" in (copy.get("body") or "") and "overrides" not in copy
+          and day_text(cut, "2026-11-09") == "Leg day - knee hurt", json.dumps(cut)[:300])
+
+
+def template_draft(folder):
+    """A template being written when Android ends the app behind Home: kept
+    aside in the app's storage that Android's backup leaves out, and offered
+    back -- "You were writing a template. Continue it?" -- Continue bringing
+    every field back, the words left in A new item among them, and Save
+    keeping them; Discard leaving no draft and the template as it was."""
+    print("\n-- a template being written, kept as a draft --")
+    adb("shell", "pm", "clear", PACKAGE)
+    put_inside("templates.json", [{"name": "Trip", "title": "Trip list", "body": "", "comments": "",
+                                   "category": "General", "checklist": [{"text": "tickets", "done": False}]}])
+    if not seed_inside([{"id": 1, "uid": "td-1", "title": "Living", "body": "x", "category": "General",
+                         "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True}, "Living", clear=False):
+        return
+
+    def draft():
+        data = adb("exec-out", "run-as", PACKAGE, "cat", "no_backup/template_draft.json", binary=True)
+        try:
+            return json.loads(data.decode("utf-8"))
+        except ValueError:
+            return None
+
+    def ended_behind_home():
+        return home() and kill_behind()
+
+    def to_templates():
+        start_app()
+        says_soon("Search notes", within=10.0)
+        tap("Settings", exact=True, wait=1.5)
+        tap("Templates", exact=True, wait=1.5)
+
+    # A new one: a name, a title, a row added, and words left in A new item.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("Packing")
+    tap("Note title (optional)", wait=0.6)
+    type_text("Weekend")
+    keyboard_down()
+    tap("A new item", wait=0.8)
+    type_text("socks")
+    tap("+ Add", exact=True, wait=0.8)
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    gone = ended_behind_home()
+    kept = draft() or {}
+    fields = kept.get("fields") or {}
+    check("Home with a template being written keeps it aside, in the storage Android's backup leaves out",
+          gone and fields.get("name") == "Packing" and kept.get("waiting") == "Passport" and kept.get("edits") is None
+          and [r.get("text") for r in fields.get("checklist") or []] == ["socks"]
+          and not any(t.get("name") == "Packing" for t in read_file("templates.json") or []),
+          "ended %s, %s" % (gone, json.dumps(kept)[:300]))
+    to_templates()
+    asked = not says_soon("You were writing a template. Continue it?", within=6.0)
+    check("... and Settings > Templates asks about it, Continue and Discard said",
+          asked and find("Continue", exact=True) is not None and find("Discard", exact=True) is not None, str(asked))
+    shot(folder, "119-template-draft-asked", "Continue it?")
+    # The question asked and Continue pressed, read: with neither, the editor
+    # left open by an `am kill` that ended nothing passed this check (the
+    # walk of 2026-10-30).
+    continued = asked and tap("Continue", exact=True, wait=2.0)
+    back_open = not says_soon("Packing", "Weekend", "socks", "Passport")
+    check("Continue brings every field back, the words waiting in A new item among them", continued and back_open,
+          "continued %s, missing %s" % (continued, screen_says("Packing", "Weekend", "socks", "Passport")))
+    shot(folder, "120-template-draft-continued", "Passport")
+    tap("Save", exact=True, wait=1.5)
+    saved = next((t for t in read_file("templates.json") or [] if t.get("name") == "Packing"), {})
+    check("... and Save keeps them, the draft gone",
+          [r.get("text") for r in saved.get("checklist") or []] == ["socks", "Passport"]
+          and saved.get("title") == "Weekend" and draft() is None, json.dumps(saved)[:200])
+
+    # Editing one that exists, then Discard: nothing kept, the template as it was.
+    tap("Trip", exact=True, wait=1.5)
+    tap("Trip list", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(" changed")
+    gone = ended_behind_home()
+    kept = draft() or {}
+    check("a template being edited is kept aside over the one it edits",
+          gone and kept.get("edits") == "Trip" and (kept.get("fields") or {}).get("title") == "Trip list changed",
+          json.dumps(kept)[:200])
+    to_templates()
+    asked_again = not says_soon("You were writing a template. Continue it?", within=6.0)
+    discarded = asked_again and tap("Discard", exact=True, wait=1.5)
+    trip = next((t for t in read_file("templates.json") or [] if t.get("name") == "Trip"), {})
+    check("Discard leaves no draft, and the template as it was saved",
+          discarded and draft() is None and trip.get("title") == "Trip list" and not says_soon("Trip")
+          and screen_says("You were writing a template"), "discarded %s, %s" % (discarded, json.dumps(trip)[:200]))
+    back_to("Search notes")
+
+
+def unbroken_rows_and_caps(folder):
+    """A long unbroken row, the boxes' caps, the template the app closed,
+    walked. A checklist row of a million
+    letters with no space is read in parts at once, its "Read all" and a
+    search's stop in it no frame of seconds; a title, and a template's name,
+    keep their own words at 200 letters, the key refused and said; a full
+    list's box says it is full as words begin there; a second long paste
+    into "A new item…" after Add is said again; a template being written
+    taken off the screen by the app itself -- the reminder's notification
+    tapped while the app is in front -- is kept as a draft and offered back;
+    and a draft taken back by hand leaves none behind."""
+    print("\n-- limits: a long unbroken row, the boxes' caps, the template the app closed --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r7-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def draft():
+        data = adb("exec-out", "run-as", PACKAGE, "cat", "no_backup/template_draft.json", binary=True)
+        try:
+            return json.loads(data.decode("utf-8"))
+        except ValueError:
+            return None
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    def unfold(first_row):
+        if screen_says(first_row) and find("CHECKLIST"):
+            tap("CHECKLIST", wait=1.5)
+
+    title_200 = "t" * 199 + "!"
+    # Five million letters, as a share code of 7 KB brings: the old slow
+    # search put back costs tens of seconds there, where on a million
+    # it cost 0.4 to 3.3 s, about the check's line.
+    notes = [note(1, "Unbroken row", body="Row", checklist=[{"text": "a" * 5_000_000, "done": False},
+                                                           {"text": "milk", "done": False}]),
+             note(2, title_200),
+             note(3, "Full list", body="Shop", checklist=[{"text": "item %d" % k, "done": False} for k in range(1_000)]),
+             note(4, "Paste source", body="p" * 3_000),
+             note(5, "Box note", body="Shop", checklist=[{"text": "bread", "done": False}])]
+    if not seed_inside(notes, {"welcome_offered": True}, "Unbroken row"):
+        return
+
+    # A row of a million letters and no space: each part looked back to the
+    # row's start for one, the square of the row read on the screen's thread.
+    open_note("Unbroken row", limit=30.0)
+    unfold("milk")
+    adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+    tapped = tap("Read all 5,000,000 characters", wait=0.3)
+    # Read, the row says so over its parts ("Show less" is under the first
+    # seven, far below the screen) -- and the frames read once it says so,
+    # the slow frame ended (frames_once_shown).
+    reading, frames = frames_once_shown("5,000,000 characters, shown here to read", within=60.0)
+    longest = max(frames)
+    check("Read all on a row of five million letters with no space reads it in parts at once, no frame of seconds",
+          tapped and longest < 2.0 and reading == [], "longest frame %.2f s, missing %s" % (longest, reading))
+    shot(folder, "121-unbroken-row-read", "Unbroken row")
+    back_to("Search notes")
+
+    # A title at 200 letters: a letter at its start refused, said, the title whole.
+    open_note(title_200)
+    tap(title_200[:40], wait=0.8)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said_title = not says_soon("A note title can be up to 200 characters", within=6.0)
+    back_to("Search notes")
+    kept = (note_by_uid("r7-2") or {}).get("title")
+    check("a letter typed at the start of a title of 200 letters is refused, said, the title whole",
+          said_title and kept == title_200, "said %s, %r" % (said_title, (kept or "")[-10:]))
+
+    # A full list's box says it is full as the words begin.
+    open_note("Full list", limit=30.0)
+    unfold("item 0")
+    # Under the 205 rows drawn: scrolled to, as a person would.
+    seek(lambda: find("A new item") is not None, tries=40, fast=True)
+    tap("A new item", wait=0.8)
+    type_text("Passport")
+    full_said = not says_soon("A checklist holds at most 1000 items.", within=6.0)
+    check("words typed into a full list's box are told it is full as they begin", full_said)
+    # Back with the words still waiting: a full list takes no more, so the
+    # note stays open and offers to leave anyway -- the tap fails if not.
+    keyboard_down()
+    back()
+    tap("Leave anyway", exact=True, wait=1.5)
+    back_to("Search notes")
+
+    # Two long pastes into "A new item…", Add between them: each said.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+    open_note("Box note")
+    unfold("bread")
+    shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
+    tap("A new item", wait=0.8)
+    keys("CTRL_LEFT", "V")
+    # Read on the look that finds the words: drawn just above the keyboard,
+    # the message lay over the box being typed in and its Add, and took
+    # their taps for its four seconds.
+    missing, covered = said_over(shortened, ("the box being typed in", lambda t, d: t.startswith("pppp")),
+                                 ("its Add", lambda t, d: t == "Add"))
+    first = not missing
+    check("... the words said above the box being typed in and its Add, not over them",
+          first and not covered, "missing %s, over %s" % (missing, covered))
+    tap("Add", exact=True, wait=3.0)
+    tap("A new item", wait=0.8)
+    keys("CTRL_LEFT", "V")
+    second = not says_soon(shortened, within=6.0)
+    check("a second long paste into A new item after Add is said again, as the first was",
+          first and second, "first %s, second %s" % (first, second))
+    back_to("Search notes")
+
+    # A template's name at 200 letters, then the reminder's notification
+    # tapped with the editor open: the app opens the calendar, and the
+    # template is kept as a draft, offered back.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("+ New template", wait=1.5)
+    tap("Template name", exact=True, wait=0.6)
+    type_text("n" * 200)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_HOME")
+    time.sleep(0.4)
+    type_text("X")
+    said_name = not says_soon("A template name can be up to 200 characters", within=6.0)
+    check("a letter at the start of a template's name of 200 letters is refused, said over the editor", said_name)
+    adb("shell", "am", "start", "-n", PACKAGE + "/.MainActivity", "-a", PACKAGE + ".TODAY")
+    time.sleep(3.0)
+    kept = draft() or {}
+    check("the reminder's notification tapped while a template is written keeps it as a draft",
+          (kept.get("fields") or {}).get("name") == "n" * 200 and find("Template name", exact=True) is None,
+          json.dumps(kept)[:160])
+    shot(folder, "122-template-closed-by-the-app", "Calendar")
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    asked = not says_soon("You were writing a template. Continue it?", within=6.0)
+    check("... and Settings > Templates offers it back", asked)
+    tap("Discard", exact=True, wait=1.5)
+
+    # A template edited, the app sent away (a draft kept), the change taken
+    # back by hand, the app sent away again: no draft stays to be offered.
+    put_inside("templates.json", [{"name": "Trip", "title": "Trip list", "body": "", "comments": "",
+                                   "category": "General", "checklist": []}])
+    # Started again, to read it: the app is on the screen, where `am kill` ends nothing.
+    adb("shell", "am", "force-stop", PACKAGE)
+    start_app()
+    says_soon("Search notes", within=10.0)
+    tap("Settings", exact=True, wait=1.2)
+    tap("Templates", exact=True, wait=1.2)
+    tap("Trip", exact=True, wait=1.5)
+    tap("Trip list", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text("x")
+    home()
+    written = (draft() or {}).get("fields", {}).get("title")
+    start_app()
+    time.sleep(1.5)
+    adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    time.sleep(0.6)
+    home()
+    check("a draft whose change was taken back by hand is gone at the next trip to the background",
+          written == "Trip listx" and draft() is None, "written %r, now %s" % (written, draft()))
+    start_app()
+    time.sleep(1.5)
+    back_to("Search notes")
+
+
+def refusals_and_caps_said(folder):
+    """Refusals over a sheet, a title holding a break, the caps' words, the
+    details on their side, walked. A category's name already
+    used is refused and said over its sheet, which stays open -- said in the
+    window under it, Save looked as if it did nothing; a title holding a line
+    break takes the letters typed into it, and a tap on it writes nothing;
+    Your name and Save as template's name say a paste was cut, under the box;
+    the title's counter counts 170 emoji as 170; and on a phone on its side
+    the note's details scroll to their foot, and the Repeat sheet's word that
+    a turn-off keeps the days is seen over them. Each read back from the
+    screen or the file."""
+    print("\n-- limits: refusals over a sheet, a title holding a break, the caps' words, the details on their side --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r8-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    gym = note(4, "Gym", body="Warm up.", date="2026-11-02", recurrence={"freq": "weekly", "interval": 1},
+               overrides={"2026-11-09": {"body": "Leg day - knee hurt"}}, exceptions=[])
+    notes = [note(1, "Groceries\n", body="Milk"), note(2, "😀" * 170), note(3, "Paste source", body="p" * 3_000), gym]
+    if not seed_inside(notes, {"welcome_offered": True}, "Paste source"):
+        return
+
+    # A category's name already used: refused, and said over the sheet.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Categories", exact=True, wait=1.2)
+    tap("Add a category", wait=1.5)
+    tap("Name", exact=True, wait=0.8)
+    type_text("General")
+    tap("Save", exact=True, wait=0.3)
+    said = not shot_as_said(folder, "123-category-refused-over-its-sheet", "There is already a category called",
+                            over_keys=True)
+    stays = not says_soon("Add a category", "Name")
+    check("a category's name already used is refused and said over its sheet, which stays open",
+          said and stays, "said %s, the sheet open %s" % (said, stays))
+    back_to("Your name")
+    back_to("Search notes")
+
+    # Three thousand letters to paste.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+
+    # Your name and Save as template's name: a paste cut, said under the box.
+    tap("Settings", exact=True, wait=1.2)
+    tap("Your name", wait=1.2)
+    tap("Name", exact=True, wait=0.8)
+    keys("CTRL_LEFT", "V")
+    name_said = not says_soon("Pasted text shortened: your name can be up to 80 characters", within=6.0)
+    check("a paste cut to Your name's 80 letters is said under the box", name_said)
+    shot(folder, "124-your-name-cap-said", "Pasted text shortened")
+    keyboard_down()
+    back_to("Search notes")
+    open_note("Paste source")
+    tap("⋮", exact=True)
+    tap("🧩 Save as template", wait=1.2)
+    tap("Template name", exact=True, wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "V")
+    template_said = not says_soon("Pasted text shortened: a template name can be up to 200 characters", within=6.0)
+    check("a paste cut to a template name's 200 letters is said under the box, in the dialog", template_said)
+    shot(folder, "125-template-name-cap-said", "Pasted text shortened")
+    keyboard_down()
+    tap("Cancel", exact=True, wait=1.0)
+    back_to("Search notes")
+
+    # The title's counter, in letters: 170 emoji are 170, not 340.
+    open_note("😀😀😀")
+    counted = not says_soon("170/200", within=6.0)
+    check("a title of 170 emoji is counted 170 of 200, as the desktop counts it", counted,
+          str(screen_says("170/200", "340/200")))
+    back_to("Search notes")
+
+    # A title holding a line break, as the phone before 0.11 left one: a tap
+    # on it writes nothing; a letter typed after the break is kept.
+    open_note("Groceries")
+    tap("Groceries", wait=2.0)
+    back_to("Search notes")
+    held = settle(lambda: note_by_uid("r8-1") or {}, lambda n: True, first=1.0)
+    check("a tap on a title holding a break writes nothing",
+          held.get("title") == "Groceries\n" and held.get("updated") == "2026-10-20 09:00", json.dumps(held)[:160])
+    open_note("Groceries")
+    tap("Groceries", wait=1.0)
+    keys("CTRL_LEFT", "MOVE_END")
+    type_text(" list")
+    back_to("Search notes")
+    typed = settle(lambda: note_by_uid("r8-1") or {}, lambda n: (n.get("title") or "").endswith("list"))
+    check("letters typed after a title's break go into the title, none into the note's words",
+          typed.get("title") == "Groceries  list" and typed.get("body") == "Milk", json.dumps(typed)[:160])
+
+    # On its side: the details scroll to their foot, and the Repeat sheet's
+    # word that a turn-off keeps the days is seen over them. Opened upright:
+    # on its side the list shows two notes, and Gym is the fourth.
+    try:
+        open_note("Gym")
+        turn(1)
+        tap("ⓘ", wait=1.2)
+        tap("Every week", wait=1.5)
+        tap("Does not repeat", exact=True, wait=0.8)
+        tap("Save", exact=True, wait=0.3)
+        off_said = not shot_as_said(folder, "126-details-on-its-side", "The repeat is off", "Note details")
+        check("on a phone on its side, the turn-off's word is seen over the note's details", off_said)
+        foot = False
+        for _ in range(4):
+            if find("2 words"):
+                foot = True
+                break
+            adb("shell", "input", "swipe", "1200", "900", "1200", "350", "400")
+            time.sleep(1.0)
+        check("... and the details scroll to their foot, the word count", foot)
+    finally:
+        turn(0)
+    back_to("Search notes")
+
+
+def message_over_a_renamed_row(folder):
+    """A message over a renamed row, walked. A message said while a
+    checklist row is renamed stands above the row and its ✕: the row is
+    brought just above the keyboard, where the window's messages stood, and
+    one stood over it and took the taps meant for its ✕. Read back from the
+    screen, on the look that finds the words."""
+    print("\n-- limits: a message above the row being renamed --")
+
+    def note(i, title, **fields):
+        n = {"id": i, "uid": "r10-%d" % i, "title": title, "body": "x", "category": "General",
+             "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}
+        n.update(fields)
+        return n
+
+    def keys(*names):
+        adb("shell", "input", "keycombination", *("KEYCODE_" + n for n in names))
+        time.sleep(1.0)
+
+    words = "\n".join("Line %d of the note's own words." % k for k in range(1, 61))
+    notes = [note(1, "Paste source", body="p" * 3_000),
+             note(2, "Low rows", body=words, checklist=[{"text": "bread", "done": False},
+                                                         {"text": "milk", "done": False}])]
+    if not seed_inside(notes, {"welcome_offered": True}, "Paste source"):
+        return
+
+    # Three thousand letters to paste.
+    open_note("Paste source")
+    tap("pppp", wait=0.8)
+    keys("CTRL_LEFT", "A")
+    keys("CTRL_LEFT", "C")
+    back_to("Search notes")
+
+    # The rows under sixty lines of words: renamed, the row is brought just
+    # above the keys, and a paste past its cap is said there.
+    open_note("Low rows")
+    # Scrolled to the note's foot: the last row lies low, under where the
+    # keyboard rises, and is brought up just above its keys when tapped.
+    seek(lambda: False, tries=12, fast=True)
+    tap("milk", exact=True, wait=1.5)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    time.sleep(0.4)
+    keys("CTRL_LEFT", "V")
+    shortened = "Pasted text shortened: a checklist item can be up to 2,000 characters"
+    missing, covered = said_over(shortened, ("the row being renamed", lambda t, d: t.startswith("milk")),
+                                 ("its remove button", lambda t, d: "Remove" in d and "milk" in d),
+                                 touching=True)
+    photograph(folder, "127-message-above-the-row-renamed")
+    check("a message said while a row is renamed stands above the row and its ✕, not over them",
+          not missing and not covered, "missing %s, over %s" % (missing, covered))
+    keyboard_down()
+    back_to("Search notes")
+
+
+def calendar_large_letters(folder):
+    """Today's cell, holding a note and a marker, at the phone's largest
+    letters: the cell grows, where at a fixed 56 dp the marker was cut in
+    half and the note's dot pushed out of sight. Read from the cell's box in
+    the UI tree; the photograph shows the dot."""
+    print("\n-- the calendar at the largest letters --")
+    import datetime
+    today = datetime.date.today()
+    if not seed_inside([{"id": 1, "uid": "cl-1", "title": "Dentist", "date": today.isoformat(),
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "day_emoji": {today.isoformat(): ["⭐"]}}, "Dentist"):
+        return
+    try:
+        adb("shell", "settings", "put", "system", "font_scale", "2.0")
+        time.sleep(2.5)
+        tap("Calendar", exact=True, wait=2.0)
+        box = bounds_of_desc(said(today))
+        density = int((re.findall(r"\d+", adb("shell", "wm", "density")) or ["420"])[-1]) / 160.0
+        check("at the largest letters a day's cell grows past 56 dp to hold its marker and dot",
+              box is not None and (box[3] - box[1]) > 56 * density + 4, "%s at %.2f px a dp" % (box, density))
+        # The month's title beside the arrows and History broke as
+        # "Novembe" / "r 2026"; on one line now, shrunk to its room.
+        heading = bounds("%s %d" % (LONG_MONTHS[today.month - 1], today.year))
+        check("...and the month's title stays on one line",
+              bool(heading) and heading[0][2] - heading[0][0] > 2 * (heading[0][3] - heading[0][1]), repr(heading))
+        # On one line it was cut at its room's end, "November 202", the
+        # year not whole and no mark of it: told by the letters drawn.
+        title = "%s %d" % (LONG_MONTHS[today.month - 1], today.year)
+        drawn = glyphs_drawn(heading[0]) if heading else None
+        check("...and all of it is drawn, its year not cut at the arrows",
+              drawn == len(title.replace(" ", "")), "%s letters of %r" % (drawn, title))
+        shot(folder, "90-calendar-large-letters", "Calendar")
+        # The narrowest phone and the longest month.
+        adb("shell", "wm", "density", "480")
+        time.sleep(3.0)
+        for _ in range((today.month - 9) % 12):
+            tap("Previous month", exact=True, wait=0.8)
+        september = "September %d" % (today.year if today.month >= 9 else today.year - 1)
+        narrow = bounds(september)
+        drawn = glyphs_drawn(narrow[0]) if narrow else None
+        # Every letter drawn in its own run of ink is one line: stacked lines
+        # merge their runs (a broken title counted 8 of 13). Not by height,
+        # which grows with the room the title is given (History's mark alone).
+        check("...and on a 360 dp phone September's title is drawn whole, on one line",
+              bool(narrow) and drawn == len(september.replace(" ", "")),
+              "%s, %s letters of %r" % (narrow, drawn, september))
+        shot(folder, "90b-calendar-narrow-september", "September")
+        # The narrowest phone, 320 dp: History's words left the title too
+        # little room even at 6 sp. Its mark alone there, read out whole.
+        adb("shell", "wm", "density", "540")
+        time.sleep(3.0)
+        if not bounds(september):
+            for _ in range((today.month - 9) % 12):
+                tap("Previous month", exact=True, wait=0.8)
+        narrowest = bounds(september)
+        drawn = glyphs_drawn(narrowest[0]) if narrowest else None
+        # The button's words are "📋" alone, read out as "📋 History": shown
+        # whole, no node says "📋" by itself.
+        check("...and on a 320 dp phone too, History its mark alone",
+              drawn == len(september.replace(" ", "")) and find("📋", exact=True) is not None
+              and find("History") is not None,
+              "%s, %s letters of %r" % (narrowest, drawn, september))
+        shot(folder, "90c-calendar-320dp", "September")
+        # ...where the weekdays and the bottom bar's word broke inside the
+        # word ("Mo" / "n", "Calenda" / "r"): each counted whole.
+        heads = [glyphs_drawn(b[0]) if b else None for b in (bounds("Mon"), bounds("Wed"))]
+        word = bounds("Calendar")
+        bar = glyphs_drawn(word[0]) if word else None
+        check("...and there the weekdays and the bottom bar's word stay whole",
+              heads == [3, 3] and bar == 8, "weekdays %r, Calendar %s" % (heads, bar))
+        # The repeat sheet there: its weekdays in a Row left Sa and Su slivers
+        # no thumb could tap. Su whole, and wider than ten dp. The note is
+        # sought below the grid, as a person scrolls to it: today's heading
+        # wraps by its own length at these letters, and on 21 November 2026
+        # "Saturday, 21 November 2026" took four lines and put the note under
+        # the bottom bar, where "Friday, 13 November 2026" had left it shown.
+        seek(lambda: find("Dentist") is not None)
+        open_note("Dentist")
+        tap("ⓘ", wait=1.2)
+        tap("Does not repeat", wait=1.5)
+        tap("Weekly", exact=True, wait=0.8)
+        # "Weekly" as well: "Su" alone was found in the calendar's "Sun", and
+        # the sheet that never opened was photographed as if it had.
+        shot(folder, "90d-repeat-sheet-320dp", "Su", "Weekly")
+        # With Cancel and Save held under the scroll, the days' second row
+        # starts at its edge: scrolled to, as a person scrolls a sheet.
+        seek(lambda: any(glyphs_drawn(b) == 2 for b in bounds("Su")), tries=3)
+        sunday = bounds("Su")
+        su = glyphs_drawn(sunday[0]) if sunday else None
+        check("...and the repeat sheet's weekdays stay whole there, Sunday tappable",
+              su == 2 and sunday[0][2] - sunday[0][0] > 10 * 540 / 160.0, "%r, %s letters" % (sunday, su))
+        # Opened again at its top for the stepper: a swipe back down could
+        # pull the sheet away instead.
+        tap("Cancel", exact=True, wait=1.0)
+        tap("Does not repeat", wait=1.5)
+        # ...and its stepper there: last in a plain Row, the + had what "2 months"
+        # left, the row's end, and a number of two digits took it away. By its
+        # width, not its ink: a dash draws one run as a + does. And the value on
+        # one line, every letter drawn: left to wrap, it broke "month" / "s".
+        tap("Monthly", exact=True, wait=0.8)
+        for _ in range(11):
+            tap("More", exact=True, wait=0.5)
+        plus = bounds("+")
+        value = bounds("12 months")
+        letters = glyphs_drawn(value[0]) if value else None
+        check("...and its stepper's + stays whole and tappable at \"12 months\", the words on one line",
+              bool(value) and letters == 8 and bool(plus)
+              and plus[0][2] - plus[0][0] > 36 * 540 / 160.0, "%r, %r, %s letters" % (plus, value, letters))
+        shot(folder, "90e-repeat-every-320dp", "12 months")
+    finally:
+        adb("shell", "settings", "put", "system", "font_scale", "1.0")
+        adb("shell", "wm", "density", "reset")
+        time.sleep(2.0)
+    back_to("Search notes")
+
+
+def glyphs_drawn(box):
+    """How many letters a line of words in [box] draws: runs of inked
+    columns, read from the screen's raw pixels. Ink is a pixel far from the
+    box's own ground, read at its corners, so grey words count as dark ones
+    do. Words cut at their box's end draw fewer letters than they have,
+    where the UI tree still holds them whole."""
+    raw = adb("exec-out", "screencap", binary=True)
+    if len(raw) < 16:
+        return None
+    w, h = struct.unpack_from("<II", raw, 0)
+    head = len(raw) - w * h * 4
+    if head < 12 or w <= 0 or h <= 0:
+        return None
+    left, top = max(0, box[0]), max(0, box[1])
+    right, bottom = min(w, box[2]), min(h, box[3])
+    if right - left < 3 or bottom - top < 3:
+        return None
+
+    def light(x, y):
+        at = head + (y * w + x) * 4
+        return 0.299 * raw[at] + 0.587 * raw[at + 1] + 0.114 * raw[at + 2]
+
+    ground = sorted(light(x, y) for x in (left + 1, right - 2) for y in (top + 1, bottom - 2))[2]
+    # Each run's height too: an ellipsis's three dots are runs as well, and
+    # "Calen…" counted eight, as "Calendar" does. A dot is far shorter than a letter.
+    runs, inked = [], False
+    for x in range(left, right):
+        rows = [y for y in range(top, bottom) if abs(light(x, y) - ground) > 60]
+        if rows and not inked:
+            runs.append([min(rows), max(rows)])
+        elif rows:
+            runs[-1] = [min(runs[-1][0], min(rows)), max(runs[-1][1], max(rows))]
+        inked = bool(rows)
+    tallest = max((b - a for a, b in runs), default=0)
+    return sum(1 for a, b in runs if b - a >= 0.4 * tallest)
+
+
+def bounds_of_desc(start):
+    """The box of the first node whose description starts with [start]."""
+    raw = screen_xml()
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return None
+    for node in root.iter("node"):
+        if node.get("content-desc", "").startswith(start):
+            box = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            if len(box) == 4:
+                return box
+    return None
+
+
+def node_attrs(label):
+    """The state of the control whose text or description is exactly
+    [label] -- checkable, checked, selected: what a screen reader is told,
+    which nodes() leaves out. The words sit on a child of the control in the
+    tree uiautomator dumps (a screen reader hears them merged), so the
+    nearest clickable node holding them is the one read."""
+    raw = screen_xml()
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return {}
+
+    def search(node, clickable):
+        here = node if node.get("clickable") == "true" else clickable
+        if label in (node.get("text", ""), node.get("content-desc", "")):
+            return dict((here if here is not None else node).attrib)
+        for child in node:
+            found = search(child, here)
+            if found:
+                return found
+        return {}
+    return search(root, None)
+
+
+def states_said(folder):
+    """What is on, said and not only tinted: a list key on in a list line,
+    the sort in force in its menu, a swatch by its place and value. Read from
+    the UI tree's own checked and selected, what a screen reader reads; the
+    tint's own contrast is the palette's, not checked here."""
+    print("\n-- what is on, said --")
+    if not seed_inside([{"id": 1, "uid": "st-1", "title": "Shopping", "body": "Today\n• milk",
+                         "paragraphs": [{"line": 1, "kind": "bullet"}],
+                         "category": "General", "created": "2026-10-20 09:00", "updated": "2026-10-20 09:00"}],
+                       {"welcome_offered": True, "note_sort": "Title A–Z"}, "Shopping"):
+        return
+    attrs = node_attrs("Sort: Title A–Z")
+    check("the sort pill says its words, not the arrow's", bool(attrs), str(attrs)[:120])
+    tap("Sort: Title A–Z", wait=1.0)
+    attrs = node_attrs("Title A–Z")
+    # Compose tells Android "selected" as checked, outside a tab.
+    check("the sort in force is said selected in its menu",
+          "true" in (attrs.get("selected"), attrs.get("checked")), str(attrs)[:200])
+    attrs = node_attrs("Custom order")
+    check("... and another is not", attrs.get("checked") == "false" and attrs.get("selected") == "false",
+          str(attrs)[:200])
+    back(wait=0.8)
+    if open_note("Shopping"):
+        tap("milk", wait=1.0)
+        attrs = node_attrs("Bullet list")
+        check("in a list line the bullet key is said ticked",
+              attrs.get("checkable") == "true" and attrs.get("checked") == "true", str(attrs)[:200])
+        attrs = node_attrs("Bold")
+        check("B is said as a checkbox, not ticked", attrs.get("checkable") == "true"
+              and attrs.get("checked") == "false", str(attrs)[:200])
+        keyboard_down()
+        tap("ⓘ", exact=True, wait=1.2)
+        said = [d for t, d, _ in nodes() if d.startswith("Colour ") and " of " in d]
+        check("a colour swatch says its place and its value", bool(said),
+              " | ".join(d for t, d, _ in nodes() if d)[:200])
+        back(wait=0.8)
+    back_to("Search notes")
+
+
+def arrange_without_drag(folder):
+    """Custom order's cards and a checklist's rows moved one place without
+    a drag: a tap on the handle offers Move up and Move down, the same moves
+    a screen reader and Switch Access find among the card's or the
+    handle's actions (which no adb command can press, so those are named
+    here and not pressed). Read back from the file."""
+    print("\n-- arranging without a drag --")
+    if not seed_inside([
+        {"id": 1, "uid": "nd-a", "title": "Alpha", "order": 0, "checklist": [
+            {"text": "flour", "done": False}, {"text": "yeast", "done": False}],
+         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"},
+        {"id": 2, "uid": "nd-b", "title": "Bravo", "order": 1,
+         "created": "2026-10-02 09:00:00", "updated": "2026-10-02 09:00:00"},
+    ], {"welcome_offered": True, "note_sort": "Custom order"}, "Alpha"):
+        return
+
+    def placed():
+        notes = read_file("notes_data.json") or []
+        return [n.get("title") for n in sorted(notes, key=lambda n: n.get("order", 99))]
+
+    tap("Drag to move Alpha", wait=1.0)
+    shot(folder, "89-move-menu", "Move down")
+    check("a tap on a card's handle offers to move it, with no way up from the top",
+          find("Move down", exact=True) is not None and find("Move up", exact=True) is None)
+    tap("Move down", exact=True, wait=1.5)
+    check_settled("Move down puts the card below its neighbour", placed, lambda p: p == ["Bravo", "Alpha"])
+    if open_note("Alpha"):
+        tap("Drag to move flour", wait=1.0)
+        tap("Move down", exact=True, wait=1.5)
+        check_settled("a checklist row's handle moves it down a place",
+                      lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
+                      lambda rows: rows == ["yeast", "flour"])
+        # A row's ✕ says what it took, and Undo puts it back where it was.
+        tap("Remove yeast from the checklist", wait=0.5)
+        # The row gone first: an Undo that came back to an unchanged list passed.
+        check("... the ✕ takes the row off", not find("Remove yeast from the checklist"))
+        tap_last("Undo", wait=1.5)       # the bar's, not the editor's ↶, also called Undo
+        check_settled("a row taken off by its ✕ comes back with Undo, in its place",
+                      lambda: [r.get("text") for r in (note_by_uid("nd-a") or {}).get("checklist", [])],
+                      lambda rows: rows == ["yeast", "flour"])
+    back_to("Search notes")
+    # A list longer than the screen: a card stepped past the top card went
+    # above the screen, the list following the top card by key.
+    if not seed_inside([{"id": i, "uid": "nd-l%d" % i, "title": "Note %02d" % i, "order": i,
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                        for i in range(1, 31)],
+                       {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        return
+    tap("Drag to move Note 02", wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    check("on a long list, the second card moved up is on screen, first",
+          placed()[:2] == ["Note 02", "Note 01"] and not says_soon("Note 02", "Note 01"), repr(placed()[:3]))
+    tap("Drag to move Note 02", wait=1.0)
+    tap("Move down", exact=True, wait=1.5)
+    check("...and the top card moved down shows below the one it passed, both on screen",
+          placed()[:2] == ["Note 01", "Note 02"] and not says_soon("Note 01", "Note 02"), repr(placed()[:3]))
+    # A card's handle tapped again after a step: its gesture read the list as
+    # at its first touch, and the tap drew -- or wrote -- that order.
+    tap("Drag to move Note 04", wait=1.0)
+    tap("Move up", exact=True, wait=1.5)
+    tap("Drag to move Note 04", wait=1.5)
+    adb("shell", "input", "keyevent", "4")              # its menu put away
+    time.sleep(1.0)
+    check_settled("a card's handle tapped again after a step leaves the step as it is",
+                  placed, lambda p: p[:4] == ["Note 01", "Note 02", "Note 04", "Note 03"])
+
+    # Mid-list, the card at the top of the screen stepped up, and the card
+    # just above the + button stepped down: held at the index, the first went
+    # above the screen and the second below the +.
+    def handles():
+        return sorted((centre[1], desc[len("Drag to move "):]) for _t, desc, centre in nodes()
+                      if desc.startswith("Drag to move Note "))
+
+    def unmet(what):
+        """A step whose screen was not there: said with the screen's words and
+        photographed, as a run walked again may not meet it."""
+        seen = " | ".join(part for t, d, _ in nodes() for part in (t, d) if part)
+        fail("%s -- the screen says %r" % (what, seen[:240]))
+        photograph(folder, "89x-" + re.sub(r"\W+", "-", what[:48]).strip("-"))
+
+    # A step menu open as the phone turns closes with its card, which the
+    # shorter screen leaves out -- and it came back open by itself once the
+    # card scrolled back into sight.
+    shown = handles()
+    low = shown[-2][1] if len(shown) > 1 else None
+    if low:
+        tap("Drag to move " + low, wait=1.0)
+        turn(1)
+        # Read with no menu up: a look taken while one is open holds only the
+        # menu's window, and the card in sight would read as left out.
+        seen = [part for t, d, _ in nodes() for part in (t, d)]
+        left_out = "Drag to move " + low not in seen and "Move down" not in seen and "Move up" not in seen
+        for _ in range(8):
+            if find("Drag to move " + low):
+                break
+            adb("shell", "input", "swipe", "600", "850", "600", "550", "300")
+            time.sleep(1.0)
+        back_in = find("Drag to move " + low) is not None
+        reopened = find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+        if reopened:
+            adb("shell", "input", "keyevent", "4")
+            time.sleep(0.8)
+        turn(0)
+        check("a step menu whose card the turned screen leaves out is not open again when the card comes back",
+              left_out and back_in and not reopened,
+              "left out %s, back in %s, menu open %s" % (left_out, back_in, reopened))
+    else:
+        unmet("the step menu through a turn: no card's handle low on the screen")
+    # Back to the top, where the steps below were written to start: from where
+    # the turn's swipes stopped, a search below ran past the place it looks
+    # for. A fling to the top ends at the top.
+    for _ in range(3):
+        adb("shell", "input", "swipe", "540", "900", "540", "2000", "80")
+        time.sleep(0.6)
+    time.sleep(1.5)
+    shown = handles()
+    if not shown or shown[0][1] != placed()[0]:
+        unmet("mid-list: the list not back at its top, %s first on the screen" % (shown[0][1] if shown else None))
+        return
+    adb("shell", "input", "swipe", "540", "1700", "540", "1150", "400")
+    time.sleep(1.2)
+    shown = handles()
+    if not shown:
+        unmet("mid-list: no card's handle on the screen")
+        return
+    top_card = shown[0][1]
+    was = placed().index(top_card)
+    tap("Drag to move " + top_card, wait=1.0)
+    tap("Move up", exact=True, wait=2.0)
+    order = placed()
+    check("mid-list, the card at the top of the screen moved up is still on screen",
+          order.index(top_card) == was - 1 and not says_soon(top_card), repr(order[:12]))
+    # A press held still on the top card's handle: the list scrolled under it
+    # at the edge, and the note moved with no move of the finger.
+    shown, before = handles(), placed()
+    at = find("Drag to move " + shown[0][1]) if shown else None
+    if at:
+        adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+        time.sleep(1.5)
+        adb("shell", "input", "motionevent", "UP", str(at[0]), str(at[1]))
+        time.sleep(1.0)
+        adb("shell", "input", "keyevent", "4")          # its menu put away
+        time.sleep(0.8)
+    check("a press held still on the top card's handle moves nothing", at is not None and placed() == before,
+          repr(placed()[:12]))
+    plus = find("New note", exact=True)
+    picked = None
+    for _ in range(5):
+        shown = handles()
+        under = [i for i, (y, _n) in enumerate(shown) if plus and y < plus[1] - 60]
+        if under and under[-1] + 1 < len(shown) and shown[under[-1] + 1][0] >= plus[1]:
+            picked = shown[under[-1]][1]
+            break
+        adb("shell", "input", "swipe", "540", "1500", "540", "1400", "300")
+        time.sleep(1.0)
+    if not picked:
+        unmet("mid-list: no card just above the + button with the next one under it")
+        return
+    tap("Drag to move " + picked, wait=1.0)
+    tap("Move down", exact=True, wait=2.0)
+    after = dict((name, y) for y, name in handles())
+    check("...and the card just above the + button moved down stays in sight above it",
+          picked in after and plus is not None and after[picked] < plus[1], "%s at %s, the + at %s" % (picked, after.get(picked), plus))
+
+    # The last card on screen, nothing under it in sight, stepped down: out of
+    # the layout, it was taken to the top of the screen, a screen's jump, and
+    # the card it passed went above.
+    last = None
+    tried = []
+    for _ in range(8):
+        shown = handles()
+        order = placed()
+        if shown and plus:
+            y, name = shown[-1]
+            nxt = order[order.index(name) + 1] if order.index(name) + 1 < len(order) else None
+            clear_of_plus = abs(y - plus[1]) > 110
+            hidden = nxt and screen_says(nxt) == [nxt]
+            tried.append((name, y, hidden))
+            if nxt and clear_of_plus and hidden:
+                last, passed_by = name, nxt
+                break
+        adb("shell", "input", "swipe", "540", "1500", "540", "1440", "300")
+        time.sleep(1.0)
+    if not last:
+        unmet("mid-list: no last card on screen with nothing under it in sight, clear of the + at %s; "
+              "the last handle, its y, the next one unseen: %s" % (plus, tried))
+        return
+    tap("Drag to move " + last, wait=1.0)
+    tap("Move down", exact=True, wait=2.0)
+    after = dict((name, y) for y, name in handles())
+    check("the last card on screen moved down shows just under the card it passed, both in sight",
+          last in after and not says_soon(passed_by) and placed().index(last) == placed().index(passed_by) + 1,
+          "%s, %s: %s" % (last, passed_by, sorted(after.items(), key=lambda kv: kv[1])[:6]))
+
+    # The top card on screen dragged one place down: the edge scroll took the
+    # list up first, against the finger, and the drag landed nowhere.
+    shown, pill = handles(), find("Sort: Custom order")
+    # The first card whose handle the list shows whole: its top within the
+    # top edge's reach, below the pills.
+    reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+    if len(reachable) >= 3 and reachable[0] == shown[0]:
+        (y0, top_name), (y1, _second), (y2, _third) = reachable[:3]
+        was = placed().index(top_name)
+        x = find("Drag to move " + top_name)[0]
+        # A whole card's height and more: a handle cut by the top edge is
+        # centred on what shows of it, nearer the next card than it is.
+        to = y0 + (y2 - y1) + 60
+        adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+        for y in range(y0, to, 30):
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+        time.sleep(0.8)
+        adb("shell", "input", "motionevent", "UP", str(x), str(to))
+        check_settled("the top card on screen dragged one place down lands one place down",
+                      lambda: (placed().index(top_name), was, top_name, shown[:3], pill),
+                      lambda got: got[0] == was + 1)
+        # A tap whose finger shifts a few pixels is still a tap: any shift was
+        # a drag, and the handle's menu never opened.
+        shown = handles()
+        tap_name = shown[1][1] if len(shown) > 1 else None
+        at = find("Drag to move " + tap_name) if tap_name else None
+        if at:
+            adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+            adb("shell", "input", "motionevent", "MOVE", str(at[0]), str(at[1] + 3))
+            adb("shell", "input", "motionevent", "UP", str(at[0]), str(at[1] + 3))
+            time.sleep(1.2)
+        menu_open = find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+        check("a tap on a handle with a few pixels' shift opens its menu", bool(at) and menu_open, tap_name)
+        if menu_open:
+            adb("shell", "input", "keyevent", "4")          # its menu put away
+            time.sleep(0.8)
+        # The top card nudged down, a hair's recoil, then held: the recoil
+        # read as a turn, the list scrolled up against the finger and the note
+        # was saved places ABOVE where it was.
+        shown, before = handles(), placed()
+        reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+        if reachable and reachable[0] == shown[0]:
+            y0, name = reachable[0]
+            x = find("Drag to move " + name)[0]
+            adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+            for y in range(y0, y0 + 56, 11):                 # down to y0 + 55
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 + 52))   # 3 px back
+            time.sleep(1.5)
+            adb("shell", "input", "motionevent", "UP", str(x), str(y0 + 52))
+            check_settled("the top card nudged down, a hair back and held, moves nothing",
+                          lambda: placed()[:20], lambda p: p == before[:20])
+        else:
+            unmet("mid-list: the top card's handle not whole on the screen for the nudge: %s" % shown[:3])
+        # The top card drawn down, put back where it was pressed and held: the
+        # turn back scrolled the list under it, and the note was saved a place
+        # or two up.
+        shown, before = handles(), placed()
+        reachable = [h for h in shown if pill and h[0] > pill[1] + 120]
+        if reachable and reachable[0] == shown[0]:
+            y0, name = reachable[0]
+            x = find("Drag to move " + name)[0]
+            adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+            for y in range(y0, y0 + 166, 15):                # down 165 px, short of a trade
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            for y in range(y0 + 150, y0 - 1, -15):           # back to the press...
+                adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+            adb("shell", "input", "motionevent", "MOVE", str(x), str(y0 - 4))    # ...a hair over
+            time.sleep(1.2)
+            adb("shell", "input", "motionevent", "UP", str(x), str(y0 - 4))
+            check_settled("the top card drawn down, put back and held, moves nothing",
+                          lambda: placed()[:20], lambda p: p == before[:20])
+        else:
+            unmet("mid-list: the top card's handle not whole on the screen to put back: %s" % shown[:3])
+        # A press the system cancels -- a Back swipe from the edge across a
+        # handle, a call -- read as a tap: the menu opened by itself.
+        shown, before = handles(), placed()
+        at = find("Drag to move " + shown[1][1]) if len(shown) > 1 else None
+        if at:
+            adb("shell", "input", "motionevent", "DOWN", str(at[0]), str(at[1]))
+            adb("shell", "input", "motionevent", "CANCEL", str(at[0]), str(at[1]))
+            time.sleep(1.2)
+        check("a handle's press the system cancels opens no menu and moves nothing",
+              bool(at) and find("Move down", exact=True) is None and find("Move up", exact=True) is None
+              and placed()[:20] == before[:20])
+        if find("Move down", exact=True) or find("Move up", exact=True):
+            adb("shell", "input", "keyevent", "4")
+            time.sleep(0.8)
+        # A fling stopped by a tap on a handle: the tap only stops it, and the
+        # next tap there opens the menu. Read at the handle's last lift, the
+        # first opened it and the second did nothing.
+        if at:
+            def menu_up():
+                return find("Move down", exact=True) is not None or find("Move up", exact=True) is not None
+            # Where a handle lands after a fling cannot be read while it runs:
+            # a tap on a card's words opens the note instead, and another
+            # height is tried.
+            def handle_under(x, y):
+                return any(d.startswith("Drag to move Note ") and box[0] <= x <= box[2] and box[1] <= y <= box[3]
+                           for _t, d, box, _p in tree())
+            outcome = None
+            for y in (1300, 1370, 1230, 1440, 1335, 1265, 1405, 1195):
+                adb("shell", "input", "swipe", "540", "1900", "540", "700", "80")      # a fling
+                adb("shell", "input", "tap", str(at[0]), str(y))
+                time.sleep(1.2)
+                first = not menu_up()
+                if find("ⓘ", exact=True):
+                    back_to("Search notes")
+                    continue
+                # Stopped with the gap between two cards under the tap, the
+                # second tap opened nothing either, and failed a sound app
+                # (in a full walk): another height is tried.
+                if first and not handle_under(at[0], y):
+                    continue
+                adb("shell", "input", "tap", str(at[0]), str(y))
+                time.sleep(1.2)
+                if find("ⓘ", exact=True):
+                    back_to("Search notes")
+                    continue
+                outcome = (first, menu_up())
+                if menu_up():
+                    adb("shell", "input", "keyevent", "4")
+                    time.sleep(0.8)
+                break
+            check("a tap on a handle that stops a fling only stops it, and the next tap opens the menu",
+                  outcome == (True, True), "the first opened nothing, the second the menu: %s" % (outcome,))
+    else:
+        unmet("mid-list: the top card's handle not whole on the screen for the drag: %s, the pills at %s"
+             % (shown[:3], pill))
+    back_to("Search notes")
+    # A phone on its side: the top card stepped down shows under the card it
+    # passed, both in sight; the + stands in the rail, where it once covered
+    # the card, and the list's foot no longer kept room for it.
+    if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
+                     "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                    for i in range(1, 31)],
+                   {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+        turn(1)
+        tap("Drag to move Note 01", wait=1.0)
+        tap("Move down", exact=True, wait=2.0)
+        shot(folder, "89-landscape-step", "Note 01")
+        shown, plus = handles(), find("New note", exact=True)
+        at = find("Drag to move Note 01")
+        check("on its side, the top card moved down shows under the card it passed, the + in the rail beside the list",
+              placed()[:2] == ["Note 02", "Note 01"] and [t for _, t in shown[:2]] == ["Note 02", "Note 01"]
+              and at is not None and plus is not None and plus[0] < 300,
+              "%s, Note 01 at %s, the + at %s" % (shown[:3], at, plus))
+        # ...and a drag of one place there: every resting card sat in an
+        # edge zone, the list slid at once, and the note landed two or three
+        # places down.
+        if seed_inside([{"id": i, "uid": "nd-s%d" % i, "title": "Note %02d" % i, "order": i,
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}
+                        for i in range(1, 31)],
+                       {"welcome_offered": True, "note_sort": "Custom order"}, "Note 01"):
+            shown = handles()
+            if len(shown) >= 2 and shown[0][1] == "Note 01":
+                (y0, _first), (y1, _second) = shown[:2]
+                x = find("Drag to move Note 01")[0]
+                h = y1 - y0
+                adb("shell", "input", "motionevent", "DOWN", str(x), str(y0))
+                for y in (y0 + h * 2 // 5, y0 + h * 4 // 5, y0 + h + 40):   # a quick drag
+                    adb("shell", "input", "motionevent", "MOVE", str(x), str(y))
+                time.sleep(0.3)
+                adb("shell", "input", "motionevent", "UP", str(x), str(y0 + h + 40))
+                check_settled("on its side, a card dragged one place down lands one place down",
+                              lambda: placed()[:3], lambda p: p == ["Note 02", "Note 01", "Note 03"])
+            else:
+                fail("on its side: Note 01 and the next card's handles not on the screen: %s" % shown[:3])
+        turn(0)
+        back_to("Search notes")
 
 
 def attaching(folder):
@@ -2302,6 +6787,9 @@ def attaching(folder):
     with open(local, "w", encoding="utf-8") as f:
         f.write("RECEIPT 120")
     adb("push", local, "/sdcard/Download/walk-receipt.txt")
+    empty = os.path.join(folder, "walk-empty.txt")
+    open(empty, "w").close()
+    adb("push", empty, "/sdcard/Download/walk-empty.txt")
     if not seed_inside([{"id": 1, "uid": "at-trip", "title": "Trip", "body": "fuel",
                          "created": "2026-10-15 09:00:00", "updated": "2026-10-15 09:00:00"}],
                        {"welcome_offered": True}, "Trip"):
@@ -2327,8 +6815,41 @@ def attaching(folder):
     check("its bytes are in the attachments folder", kept == b"RECEIPT 120", repr(kept[:40]))
     shot(folder, "50-attached", "walk-receipt.txt", "Remove walk-receipt.txt")
 
+    # The same file picked again is asked about, and No keeps it out; an empty
+    # file is attached, and said -- both went in without a word (the panel).
+    tap("⋮", exact=True, wait=1.0)
+    tap("📎 Attach files", exact=True, wait=3.0)
+    tap("walk-receipt.txt", exact=True, wait=3.0)
+    asked = not says_soon("is already attached to this note")
+    shot(folder, "50b-already-attached", "Already attached", "Attach again")
+    tap_last("No", wait=1.5)
+    check("the same file picked again is asked about, and No attaches nothing",
+          asked and len(trip().get("attachments") or []) == 1, json.dumps(trip().get("attachments")))
+    tap("⋮", exact=True, wait=1.0)
+    tap("📎 Attach files", exact=True, wait=3.0)
+    tap("walk-empty.txt", exact=True, wait=3.0)
+    unsaid = says_soon("is empty (0 bytes)")
+    check("an empty file is attached, and said", not unsaid and len(trip().get("attachments") or []) == 2,
+          repr(unsaid))
+    # Taken off again: the steps below hold one file.
+    tap("Remove walk-empty.txt", wait=1.2)
+    tap_last("Remove", wait=1.5)
+
+    # A file gone from the folder, tapped: said, as the desktop says it -- it
+    # opened nothing, without a word.
+    adb("shell", "run-as", PACKAGE, "rm", "%s/attachments/%s" % (NOTEBOOK, stored))
+    tap("📎  walk-receipt.txt", exact=True, wait=0.5)
+    check("a file gone from the folder, tapped, is said missing", not says_soon("can't be found"))
+    # Put back before Remove: the walk took the copy away itself, and with it
+    # gone "its stored copy deleted" below held whatever Remove did.
+    adb("shell", "run-as", PACKAGE, "sh", "-c",
+        "'printf RECEIPT > %s/attachments/%s'" % (NOTEBOOK, stored))
+    back = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
+    check("the copy is back before Remove, so its deletion is Remove's",
+          bool(stored) and stored in back, back[:200])
+
     tap("Remove walk-receipt.txt", wait=1.2)
-    check("removing a file asks first, and says the copy goes", not screen_says("can't be undone"))
+    check("removing a file asks first, and says the copy goes", not says_soon("can't be undone"))
     tap_last("Remove", wait=1.5)
     gone = adb("shell", "run-as", PACKAGE, "ls", "%s/attachments" % NOTEBOOK)
     check("removed: off the note, and its stored copy deleted",
@@ -2537,6 +7058,16 @@ def sharing(folder):
           "%s, %d bytes" % (sheet, len(page)))
     back_in()
 
+    # This app is left off its own share sheet: a code sent to itself opened
+    # the import of notes already here.
+    ask("Trip")
+    tap("Share code", exact=True, wait=1.0)
+    sheet = handed()
+    shot(folder, "60d-share-sheet-without-the-app")
+    check("the phone's share sheet does not offer this app", sheet != PACKAGE
+          and find("Note Organizer", exact=True) is None, sheet)
+    back_in()
+
     # A long note: a picture of its own for each page, each with something
     # on it. Painted on one shared picture, every page once came out as the
     # same page; read too soon, the page once came out blank.
@@ -2575,6 +7106,10 @@ def sharing(folder):
             adb("shell", "input", "tap", str(at[0]), str(at[1]))
             time.sleep(pause)
         told = any(message_shown() for _ in range(4))
+        # Longer than a PDF holds: the first share asks
+        # before it hands anything over (one_note_drawn_and_sent walks the question).
+        if settle(lambda: find("PDF, first 40 pages", exact=True), lambda at: at is not None, within=20.0, first=0):
+            tap("PDF, first 40 pages", exact=True, wait=0.3)
         time.sleep(5.0)
         sheets = len(re.findall(r"wm_create_activity.*ChooserActivity", adb("logcat", "-b", "events", "-d")))
         pdf = adb("exec-out", "run-as", PACKAGE, "cat", "cache/share/Huge.pdf", binary=True)
@@ -2895,6 +7430,74 @@ def pasted_tables(folder):
     back_to("Search notes")
 
 
+def paste_at_marker(folder):
+    """Copied items pasted where Enter in a list leaves the cursor -- a new
+    empty item -- and a whole item with its line break pasted right after an
+    item's number: the item kept its number and the paste brought its own,
+    "3. 1. Kiwi". The items
+    are copied as words from a note's comments, the plain field a walk can
+    fill. The cursor is placed by Ctrl+A and Left or Right, which close the
+    selection at the start or the end, then Right a counted number of times:
+    Up and Down, sent by adb, did not move it at all, Ctrl+Home neither, and
+    where a tap lands depends on the screen (the walk of 2026-11-02)."""
+    print("\n-- items pasted at an item's number --")
+    if not seed_inside([
+        {"id": 1, "uid": "pm-two", "title": "Two items", "body": "words", "comments": "1. Kiwi\n2. Plum",
+         "created": "2026-11-02 09:00:00", "updated": "2026-11-02 09:00:00"},
+        {"id": 2, "uid": "pm-one", "title": "One item", "body": "words", "comments": "1. Fig\n",
+         "created": "2026-11-02 09:00:01", "updated": "2026-11-02 09:00:01"},
+        {"id": 3, "uid": "pm-list", "title": "Shop list", "body": "Shop\n1. Milk\n2. Bread",
+         "paragraphs": [{"line": 1, "kind": "number"}, {"line": 2, "kind": "number"}],
+         "created": "2026-11-02 09:00:02", "updated": "2026-11-02 09:00:02"},
+    ], {"welcome_offered": True}, "Two items"):
+        return
+
+    def keys(*codes):
+        adb("shell", "input", "keycombination", *map(str, codes))
+        time.sleep(1.0)
+
+    def copy_comments(title, words):
+        open_note(title)
+        tap(words, wait=0.8)
+        keys(113, 29)                              # Ctrl+A: the comments' words
+        keys(113, 31)                              # Ctrl+C
+        keyboard_down()
+        back_to("Search notes")
+
+    def body():
+        return (note_by_uid("pm-list") or {}).get("body") or ""
+
+    copy_comments("Two items", "Plum")
+    open_note("Shop list")
+    tap("Bread", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    adb("shell", "input", "keyevent", "22")        # Right: the note's end
+    time.sleep(0.4)
+    adb("shell", "input", "keyevent", "66")        # Enter: a new empty item
+    time.sleep(0.8)
+    keys(113, 50)                                  # Ctrl+V
+    keyboard_down()
+    check_settled("copied items pasted into the new empty item fill it, one number each",
+                  body, lambda b: b == "Shop\n1. Milk\n2. Bread\n3. Kiwi\n4. Plum")
+    shot(folder, "72c-pasted-into-new-item", "Kiwi", "Plum")
+    back_to("Search notes")
+
+    copy_comments("One item", "Fig")
+    open_note("Shop list")
+    tap("Milk", wait=0.8)
+    keys(113, 29)                                  # Ctrl+A
+    adb("shell", "input", "keyevent", "21")        # Left: the note's start
+    for _ in range(len("Shop\n1. ")):
+        adb("shell", "input", "keyevent", "22")    # Right, past "1. Milk"'s number
+    time.sleep(0.4)
+    keys(113, 50)                                  # Ctrl+V
+    keyboard_down()
+    check_settled("a whole item with its line break pasted right after an item's number goes in before it",
+                  body, lambda b: b == "Shop\n1. Fig\n2. Milk\n3. Bread\n4. Kiwi\n5. Plum")
+    shot(folder, "72d-pasted-before-item", "Fig", "Milk")
+    back_to("Search notes")
+
+
 def copy_after_styling(folder):
     """Words selected, made bold and 14 from the format bar, copied at once
     and pasted into another note -- the order a person styles and copies
@@ -3144,13 +7747,14 @@ def duplicates(folder):
     put_bytes_inside("attachments/dp_map.png", b"MAP")
     tap("Settings", exact=True, wait=1.2)
     tap("Duplicates", exact=True, wait=1.5)
-    check("two groups found, by the desktop's key", not screen_says("Found 2 group(s)", "“Trip” — 2 copies"),
-          str(screen_says("Found 2 group(s)", "“Trip” — 2 copies")))
-    check("the group with a file says it will be merged", not screen_says("differing attachments"))
-    shot(folder, "51-duplicates", "Found 2 group(s)")
+    # Each count in the form its number takes, as the desktop's (the panel).
+    check("two groups found, by the desktop's key", not says_soon("Found 2 groups,", "“Trip” — 2 copies"),
+          str(screen_says("Found 2 groups,", "“Trip” — 2 copies")))
+    check("the group with a file says it will be merged", not says_soon("differing attachments"))
+    shot(folder, "51-duplicates", "Found 2 groups,")
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
-    check("cleaning up asks first", not screen_says("Move 1 selected note(s) to the Trash?"))
+    check("cleaning up asks first, of one note as one", not says_soon("Move 1 selected note to the Trash? You can restore it"))
     tap_last("Move to Trash", wait=1.5)
     notes = read_file("notes_data.json") or []
     trash = read_file("trash.json") or []
@@ -3180,9 +7784,7 @@ def bounds(label):
     """The on-screen boxes of the nodes whose text is exactly [label].
     A node scrolled out of a pane is still in the tree -- counting
     nodes says it is there -- but its box is cut to what shows."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -3194,6 +7796,25 @@ def bounds(label):
             if len(box) == 4:
                 out.append(tuple(box))
     return out
+
+
+def tappable_box(label):
+    """The box of the tappable node around the words [label]: a button's own
+    size, where [bounds] gives its words' line. None when there is none."""
+    try:
+        root = ET.fromstring(screen_xml())
+    except ET.ParseError:
+        return None
+    parent = {child: node for node in root.iter() for child in node}
+    for node in root.iter("node"):
+        if node.get("text", "") == label:
+            at = node
+            while at is not None and at.get("clickable") != "true":
+                at = parent.get(at)
+            box = list(map(int, re.findall(r"\d+", at.get("bounds", "")))) if at is not None else []
+            if len(box) == 4:
+                return tuple(box)
+    return None
 
 
 def picker_save_button(within=15.0):
@@ -3216,9 +7837,7 @@ def lines_of_field(words):
     gives the field as one node, its lines joined by the stand-in each break
     is drawn as (U+200B); where a line is comes from [body_line_px], the box
     being taller than its words when they are few."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -3390,6 +8009,32 @@ def editor_corners(folder):
           keyboard is not None and keyboard[0] > 0 and len(newest) == 1 and len(add) == 1
           and newest[0][3] - newest[0][1] >= 20 and newest[0][3] <= keyboard[0] and add[0][3] <= keyboard[0],
           "Eggs %s, Add %s, the keyboard from %s" % (newest, add, keyboard))
+    keyboard_down()
+    back_to("Search notes")
+    # A checklist, or comments, asked for from ⋮ on a new note stay through
+    # its first save. Kept by the id it gets there, they went, and the words
+    # waiting in A new item went out of sight with them.
+    tap("+", exact=True, wait=1.5)
+    tap("⋮", exact=True, wait=1.0)
+    tap("☑ Add a checklist", exact=True, wait=1.5)
+    type_text("Mil")
+    tap("Title", wait=0.8)
+    type_text("Shop")
+    time.sleep(2.0)
+    made = [n for n in read_file("notes_data.json") or [] if n.get("title") == "Shop"]
+    check("a checklist asked for on a new note stays through its first save, the words in A new item with it",
+          not says_soon("Mil") and len(made) == 1 and not made[0].get("checklist"), repr(made))
+    keyboard_down()
+    back_to("Search notes")
+    tap("+", exact=True, wait=1.5)
+    tap("⋮", exact=True, wait=1.0)
+    tap("💬 Add comments", exact=True, wait=1.5)
+    tap("Title", wait=0.8)
+    type_text("Trip")
+    time.sleep(2.0)
+    check("comments asked for on a new note stay through its first save",
+          # The label as the screen draws it: capitals.
+          not says_soon("COMMENTS") and any(n.get("title") == "Trip" for n in read_file("notes_data.json") or []))
     keyboard_down()
     back_to("Search notes")
 
@@ -3577,9 +8222,7 @@ def editor_corners(folder):
 def switches():
     """The centres of the app's switches on the screen: a switch says no
     words, so it is found by what it is -- a node that can be checked."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -3614,7 +8257,7 @@ def reminders(folder):
                          "updated": "2026-10-22 09:00:00"}], {"welcome_offered": True}, "Dentist"):
         return
     check("on a day with a note, the bar says so above the notes",
-          not screen_says("You have 1 note for today"), " | ".join(t for t, d, _ in nodes() if t)[:200])
+          not says_soon("You have 1 note for today"), " | ".join(t for t, d, _ in nodes() if t)[:200])
     check("...and its day is written where the desktop writes it",
           (read_file("settings.json") or {}).get("reminder_last_shown") == today,
           repr((read_file("settings.json") or {}).get("reminder_last_shown")))
@@ -3624,14 +8267,14 @@ def reminders(folder):
     adb("shell", "am", "force-stop", PACKAGE)
     start_app()
     check("a second start the same day shows no bar", find("You have 1 note for today") is None
-          and not screen_says("Dentist"))
+          and not says_soon("Dentist"))
     # The day forgotten, the bar back, and tapped.
     adb("shell", "am", "force-stop", PACKAGE)
     put_inside("settings.json", {"welcome_offered": True})
     start_app()
     tap("You have 1 note for today", wait=1.5)
     check("a tap on the bar opens the day on the calendar",
-          not screen_says("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
+          not says_soon("📋 History", "Dentist", "+ Add note") and find("You have 1 note for today") is None)
 
     # The notification: off until turned on, Android asked first.
     tap("Settings", exact=True, wait=1.2)
@@ -3648,12 +8291,14 @@ def reminders(folder):
         adb("shell", "input", "tap", str(allow[0]), str(allow[1]))
         time.sleep(1.5)
     check("turned on, after Android asked: the setting saved, an hour shown",
-          (read_file("settings.json") or {}).get("phone_reminder_notify") is True and not screen_says("09:00"),
+          (read_file("settings.json") or {}).get("phone_reminder_notify") is True and not says_soon("09:00"),
           repr(read_file("settings.json")))
     check("...and the next one set as an alarm", our_alarm())
     adb("shell", "am", "broadcast", "-n", PACKAGE + "/.ReminderReceiver", "-a", "ro.noteorganizer.app.REMIND")
-    time.sleep(2.0)
-    said = adb("shell", "dumpsys", "notification", "--noredact")
+    # Read until it is there, as the alarm across a time zone is: a busy
+    # emulator hands a broadcast over late.
+    said = settle(lambda: adb("shell", "dumpsys", "notification", "--noredact"),
+                  lambda text: "You have 1 note for today" in text, within=30.0, first=2.0)
     check("fired, it says how many notes the day has, and not their words",
           "You have 1 note for today" in said and "Dentist" not in said,
           "the notification %s" % ("found" if "You have 1 note" in said else "missing"))
@@ -3662,7 +8307,7 @@ def reminders(folder):
     time.sleep(1.5)
     if tap("You have 1 note for today", wait=2.5):
         check("a tap on the notification opens the day on the calendar",
-              not screen_says("📋 History", "Dentist", "+ Add note"))
+              not says_soon("📋 History", "Dentist", "+ Add note"))
     adb("shell", "cmd", "statusbar", "collapse")
     time.sleep(1.0)
     tap("Settings", exact=True, wait=1.2)
@@ -3701,7 +8346,8 @@ def wide(folder):
     # not be built again, which would drop both.
     long_press("Plans")
     turn(1)
-    check("a selection survives the phone turning", not screen_says("1 selected"))
+    check("a selection survives the phone turning", not says_soon("1 selected"))
+    check("...and the rail's + steps aside while notes are selected", find("New note", exact=True) is None)
     back()
     turn(0)
     open_note("Groceries")
@@ -3709,7 +8355,7 @@ def wide(folder):
     tap("Find in note", wait=1.0)
     type_text("milk")
     turn(1)
-    check("an open find bar survives the phone turning", not screen_says("Close find"))
+    check("an open find bar survives the phone turning", not says_soon("Close find"))
     back_to("Pick a note")
 
     turn(1)
@@ -3717,11 +8363,15 @@ def wide(folder):
     check("on its side the bar is a rail down the left edge",
           bool(notes_at and settings_at) and notes_at[0] < 300 and settings_at[0] < 300
           and notes_at[1] < settings_at[1], "%s %s" % (notes_at, settings_at))
-    check("the second pane waits for a note", not screen_says("Search notes", "Pick a note"))
+    check("the second pane waits for a note", not says_soon("Search notes", "Pick a note"))
+    plus = find("New note", exact=True)
+    check("...and the + heads the rail, above its tabs and off the list",
+          plus is not None and bool(notes_at) and plus[0] < 300 and plus[1] < notes_at[1],
+          "the + at %s, Notes at %s" % (plus, notes_at))
     shot(folder, "44-wide-list", "Search notes", "Pick a note")
 
     open_note("Groceries")
-    check("a note opens beside the list, which stays", not screen_says("Search notes", "Plans", "ⓘ"))
+    check("a note opens beside the list, which stays", not says_soon("Search notes", "Plans", "ⓘ"))
     # The editor's body, not the card's first words: the last of the two.
     tap_last("milk", wait=0.6)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
@@ -3729,14 +8379,16 @@ def wide(folder):
     # The keyboard up, the phone on its side: the top bar, a line of words
     # and two rows of format keys took every pixel it left, and not a word
     # of the note showed; + sat on the search box (an agent playing an
-    # ordinary user, 2026-10-22). A line at least now, and no +.
+    # ordinary user, 2026-10-22). A line at least now, and + in the rail.
     box, _lines = lines_of_field("milk and eggs")
     keyboard = bar_frame("ime")
     check("on its side with the keyboard up, the note's words stay in sight above the keys",
           box is not None and keyboard is not None and keyboard[0] > 0
           and box[3] - box[1] >= body_line_px() and box[1] < keyboard[0],
           "field %s, the keyboard from %s" % (box, keyboard))
-    check("...and + keeps off the search box while the keyboard is up", find("+", exact=True) is None)
+    plus = find("New note", exact=True)
+    check("...and + keeps off the search box while the keyboard is up, in the rail",
+          plus is not None and plus[0] < 300, "the + at %s" % (plus,))
     keyboard_down()
     shot(folder, "45-wide-note", "Groceries", "milk and eggs", "ⓘ")
 
@@ -3778,21 +8430,21 @@ def wide(folder):
     wider = bounds("Plans")
     check("« puts the list aside: the note takes its width, its find bar still open",
           find("Search notes") is None and narrow is not None and len(wider) == 1
-          and wider[0][0] < narrow[0] - 200 and not screen_says("Close find"),
+          and wider[0][0] < narrow[0] - 200 and not says_soon("Close find"),
           "the title from %s, then %s" % (narrow, wider))
     shot(folder, "70-wide-list-aside", "trip", "Show the list")
     tap("Show the list", exact=True, wait=1.5)
     check("» brings the list back beside the note, the find bar still open",
-          not screen_says("Search notes", "Groceries", "Close find", "Hide the list"))
+          not says_soon("Search notes", "Groceries", "Close find", "Hide the list"))
     tap("Hide the list", exact=True, wait=1.5)
     tap("←", exact=True, wait=1.5)
-    check("with the list aside, closing the note shows the list", not screen_says("Search notes", "Pick a note"))
+    check("with the list aside, closing the note shows the list", not says_soon("Search notes", "Pick a note"))
     tap("Plans", exact=True, wait=1.5)
     check("...and the next note opens with the list still aside, until the app is closed",
-          find("Search notes") is None and not screen_says("Show the list"))
+          find("Search notes") is None and not says_soon("Show the list"))
     tap("Notes", exact=True, wait=1.5)
     check("the rail's Notes brings the list back beside the note",
-          not screen_says("Search notes", "Hide the list"))
+          not says_soon("Search notes", "Hide the list"))
 
     tap("Calendar", exact=True, wait=1.5)
     check("the note stays open beside the calendar", not says_soon("📋 History", "ⓘ", "trip"))
@@ -3811,7 +8463,7 @@ def wide(folder):
           and len(header) == 1 and len(again) == 1 and abs(again[0][1] - header[0][1]) <= 8,
           "Mon at %s, then %s; + Add note at %s, after the History %s" % (days, gone, header, again))
     tap("Settings", exact=True, wait=1.5)
-    check("Settings has no note beside it: the note is closed", not screen_says("Your name") and find("ⓘ") is None)
+    check("Settings has no note beside it: the note is closed", not says_soon("Your name") and find("ⓘ") is None)
     # Its list keeps its place while a page is open: on its side the list
     # scrolls, and Back from the Trash came back at its top, the row just
     # left below the screen (the owner's phone, 2026-10-23).
@@ -3832,7 +8484,7 @@ def wide(folder):
     # the list's tab.
     tap("Calendar", exact=True, wait=1.5)
     check("beside the calendar the empty pane points to the day's notes, not to a + it has not",
-          not screen_says("Pick a note of the day") and find("tap +") is None)
+          not says_soon("Pick a note of the day") and find("tap +") is None)
     tap("Notes", exact=True, wait=1.2)
 
     # Two new notes in a row: the second + must give a second, empty note
@@ -3866,7 +8518,7 @@ def wide(folder):
         time.sleep(2.5)
         tap("Import", exact=True, wait=1.5)
         tap("Update this note", wait=1.5)
-        check("the open note shows the update", not screen_says("milk, from the desktop", "ⓘ"))
+        check("the open note shows the update", not says_soon("milk, from the desktop", "ⓘ"))
         tap_last("milk, from the desktop", wait=0.6)
         adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
         type_text(" ok")
@@ -3885,7 +8537,7 @@ def wide(folder):
           find("Search notes") is None and find("Settings", exact=True) is not None)
     shot(folder, "47-medium-note", "milk, from the desktop", "ⓘ")
     tap("Notes", exact=True, wait=1.5)
-    check("the rail leaves the note for the list", not screen_says("Search notes") and find("ⓘ") is None)
+    check("the rail leaves the note for the list", not says_soon("Search notes") and find("ⓘ") is None)
     adb("shell", "wm", "size", "reset")
     turn(0)
 
@@ -3893,9 +8545,7 @@ def wide(folder):
 def box_of(label):
     """The one on-screen box whose text or description is exactly [label],
     or None: the tabs are drawn as both."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode("utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+    raw = screen_xml()
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -3954,10 +8604,10 @@ def screen_sizes(folder):
             shot(folder, "80-size-%s-list" % tag, "Search notes", "Groceries")
             open_note("Groceries")
             if beside:
-                check("...a note opens beside the list, upright", not screen_says("Search notes", "Plans", "milk and eggs"))
+                check("...a note opens beside the list, upright", not says_soon("Search notes", "Plans", "milk and eggs"))
             else:
                 check("...a note opens in the list's place", find("Search notes") is None
-                      and not screen_says("milk and eggs"))
+                      and not says_soon("milk and eggs"))
             shot(folder, "81-size-%s-note" % tag, "Groceries", "ⓘ")
             back_to("Search notes", "Groceries")
             tap("Calendar", exact=True, wait=1.5)
@@ -3972,6 +8622,196 @@ def screen_sizes(folder):
         adb("shell", "wm", "size", "reset")
         adb("shell", "wm", "density", "reset")
         turn(0)
+
+
+def kept_aside(folder):
+    """A big delete after a share code's Update: the Update's copy -- the
+    note as it was before the Update, in no other file -- stays, and the
+    words the delete took become a note of their own, said with Show; typed
+    back, that note goes again (the desktop's rule; a big delete replaced
+    the copy here until a review found it)."""
+    print("\n-- the words a big delete takes beside an Update's copy --")
+    words = "Book the physio for Friday, then the bike at seven, then the plan for the knee"
+    # A checklist row the note kept aside does not take: a search for it
+    # finds the note and hides that one, for the wide screen below.
+    rows = [{"text": "passport", "done": False}]
+    if not seed_inside([{"id": 1, "uid": "ka-trip", "title": "Trip", "body": "Mine before", "checklist": rows,
+                         "created": "2026-10-01 09:00:00", "updated": "2026-10-01 09:00:00"}],
+                       {"welcome_offered": True}, "Trip"):
+        return
+    code = desktop_code({"uid": "ka-trip", "title": "Trip", "body": words, "category": "General",
+                         "checklist": rows, "updated": "2026-10-15 10:00:00"})
+    if not code:
+        fail("the words kept aside: the desktop's encoder could not be used, so nothing was tried")
+        return
+    adb("shell", "am", "start", "-a", "android.intent.action.SEND", "-t", "text/plain",
+        "--es", "android.intent.extra.TEXT", code, "-n", PACKAGE + "/.MainActivity")
+    time.sleep(2.5)
+    tap("Import", exact=True, wait=1.5)
+    tap("Update this note", wait=1.5)
+    check_settled("the code's Update reaches the note", lambda: (note_by_uid("ka-trip") or {}).get("body"),
+                  lambda b: b == words)
+
+    def asides():
+        return [n for n in read_file("notes_data.json") or [] if n.get("title") == "Trip (earlier text)"]
+
+    back_to("Search notes")
+    open_note("Trip")
+    tap_last(words, wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+    # Read the moment it comes, the keyboard still up: the bar goes on its
+    # own, and putting the keyboard down first left too little of its time.
+    # Up to twenty seconds: on an emulator started cold the bar came after
+    # the first ten, in every run of 2026-11-08, and Show still opened it.
+    unsaid = says_soon("kept as a note of their own", "Show", within=20.0)
+    shot(folder, "128-words-kept-aside", "kept as a note of their own")
+    tap("Show", exact=True, wait=1.5)
+    unopened = says_soon("Trip (earlier text)", words[:20], "ⓘ")
+    check("...said, with a Show that opens the note kept aside", not unsaid and not unopened,
+          "missing from the bar %s, from the note Show opened %s" % (unsaid, unopened))
+    keyboard_down()
+    check_settled("a big delete after it keeps the Update's copy, the note as it was before",
+                  lambda: ((note_by_uid("ka-trip") or {}).get("body"),
+                           ((note_by_uid("ka-trip") or {}).get("_prev") or {}).get("body")),
+                  lambda pair: pair == ("Book", "Mine before"))
+    check_settled("...and the words it took are a note of their own", asides,
+                  lambda made: [n.get("body") for n in made] == [words])
+    back_to("Search notes")
+    open_note("Trip")
+    tap_last("Book", wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    type_text(words[len("Book"):])
+    said = not says_soon("gone again", within=10.0)
+    keyboard_down()
+    check_settled("the words typed back, the note kept aside of them goes again", asides, lambda made: made == [])
+    check("...said", said)
+    # The same slip again, put back before Show is tapped: the bar that
+    # offered Show goes with the note -- left up, its Show opened an empty new
+    # note.
+    tap_last(words, wait=0.6)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+    offered = not says_soon("kept as a note of their own", "Show", within=10.0)
+    type_text(words[len("Book"):])
+    # At once, not once the bar's ten seconds run out: waited for that long,
+    # a bar left up looked the same (the mutant passed).
+    gone = not says_soon("gone again", within=4.0)
+    check("put back before Show is tapped, the note kept aside goes, and its Show with it",
+          offered and gone and find("Show", exact=True) is None, "offered %s, gone said %s" % (offered, gone))
+    back_to("Search notes")
+    # With the list beside the note, the list says where it hides the note
+    # kept aside, in a bar waiting behind the editor's: taken back, that one
+    # goes too -- shown, its Show all emptied the search for a note gone.
+    # A 14-inch tablet, as screen_sizes draws it.
+    adb("shell", "wm", "size", "1848x2960")
+    adb("shell", "wm", "density", "340")
+    time.sleep(3.0)
+    try:
+        back_to("Search notes")
+        tap("Search notes", wait=0.8)
+        type_text("passport")
+        keyboard_down()
+        if not open_note("Trip"):
+            return
+        tap_last(words, wait=0.6)
+        adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+        adb("shell", "input", "keyevent", *(["67"] * (len(words) - len("Book"))))
+        offered = not says_soon("kept as a note of their own", "Show", within=10.0)
+        type_text(words[len("Book"):])
+        gone = not says_soon("gone again", within=4.0)
+        # The list's bar would come once the editor's goes: looked for over
+        # the whole of the bars' time.
+        stale = settle(lambda: not screen_says("hidden by your search"), lambda seen: seen, within=12.0, first=0)
+        check("...and on a wide screen, the list's bar for it goes too",
+              offered and gone and not stale,
+              "offered %s, gone said %s, the list's bar shown %s" % (offered, gone, stale))
+        keyboard_down()
+    finally:
+        adb("shell", "wm", "size", "reset")
+        adb("shell", "wm", "density", "reset")
+    back_to("Search notes")
+
+
+def settle_device():
+    """The emulator's settings put back after every part, however it ended:
+    a part that enlarges the letters, turns the phone or resizes it put them
+    back only on its good path, and a check that raised left the next part
+    (and the quick-boot snapshot) at 130% or on its side."""
+    for args in (("settings", "put", "system", "font_scale", "1.0"),
+                 ("settings", "put", "secure", "font_weight_adjustment", "0"),
+                 ("settings", "put", "system", "user_rotation", "0"),
+                 ("cmd", "uimode", "night", "no"),
+                 ("wm", "size", "reset"),
+                 ("wm", "density", "reset")):
+        # One that fails does not keep the rest back; a stuck emulator ends
+        # it, as every next call would wait out its time limit. Said either
+        # way, by the error's name only: its words are the walk's "stuck"
+        # phrase, and a group whose checks had all been read would be
+        # walked again for a reset after them.
+        try:
+            adb("shell", *args)
+        except AdbTimeout:
+            print("settings not all put back: the emulator stopped answering (%s)" % args[0])
+            return
+        except Exception as stop:  # noqa: BLE001 -- under the part's own error
+            print("settings: %s not put back (%s)" % (" ".join(args[:2]), type(stop).__name__))
+
+
+def write_summary(folder):
+    """The run so far, part by part, beside its photographs: summary.json,
+    written after every part, so a walk that dies still says where."""
+    try:
+        commit = subprocess.run(["git", "-C", ANDROID, "rev-parse", "--short", "HEAD"],
+                                capture_output=True, text=True, timeout=20).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = ""
+    try:
+        with open(APK, "rb") as fh:
+            apk = hashlib.sha256(fh.read()).hexdigest()[:16]
+    except OSError:
+        apk = ""
+    summary = {"commit": commit, "apk_sha256": apk, "written": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "passed": passed[0], "failed": len(failures), "failures": list(failures),
+               "parts": [{"part": name, "passed": good, "failed": bad} for name, good, bad in walked]}
+    # Whole or not at all: a Ctrl-C in the middle left half a file that
+    # walk_groups could not read.
+    path = os.path.join(folder, "summary.json")
+    try:
+        with open(path + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, indent=1, ensure_ascii=False)
+        os.replace(path + ".tmp", path)
+    except OSError as stop:
+        # Said, and never in place of the part's own error.
+        print("summary.json could not be written: %s" % stop)
+
+
+def _settled(part):
+    """A part as main() runs it: its checks counted, the summary written, and
+    the emulator's settings put back, whatever way it ends."""
+    @functools.wraps(part)
+    def walked_part(folder):
+        good, bad = passed[0], len(failures)
+        try:
+            return part(folder)
+        except BaseException as stop:
+            # Said as a failure, so summary.json does not count a part that
+            # died halfway as walked clean; the walk still stops as before.
+            fail("%s ended early: %s %s" % (part.__name__, type(stop).__name__,
+                                            str(stop).split("\n")[0][:120]))
+            raise
+        finally:
+            walked.append((part.__name__, passed[0] - good, len(failures) - bad))
+            try:
+                settle_device()
+            finally:
+                write_summary(folder)      # a Ctrl-C in settle_device still counts
+    return walked_part
+
+
+# Every part main() names, wrapped: one place, rather than a finally in each.
+for _part in re.findall(r"^    (\w+)\(folder\)$", inspect.getsource(main), re.M):
+    globals()[_part] = _settled(globals()[_part])
 
 
 if __name__ == "__main__":

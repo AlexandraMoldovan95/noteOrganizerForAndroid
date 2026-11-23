@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,10 +48,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
@@ -76,12 +83,15 @@ fun SettingsScreen(
     val palette = LocalPalette.current
     val page = state.settingsPage
     val listKept = rememberSaveableStateHolder()
-    BackHandler(enabled = page != null) { state.settingsPage = null }
+    val up = if (page == SettingsPage.LICENSES) SettingsPage.ABOUT else null
+    BackHandler(enabled = page != null) { state.settingsPage = up }
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
-            title = { Text(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
+            title = { OneLine(page?.let { stringResource(titleOf(it)) } ?: stringResource(R.string.nav_settings)) },
             navigationIcon = {
-                if (page != null) IconButton(onClick = { state.settingsPage = null }) { Text("←", fontSize = 22.sp) }
+                if (page != null) IconButton(onClick = { state.settingsPage = up }, modifier = Modifier.said(R.string.back_said)) {
+                    Text("←", fontSize = 22.sp)
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.bg),
         )
@@ -99,6 +109,7 @@ fun SettingsScreen(
             SettingsPage.DUPLICATES -> DuplicatesPage(state)
             SettingsPage.STATS -> StatsPage(state)
             SettingsPage.ABOUT -> AboutPage(state, appVersion, openPrivacy, openReview)
+            SettingsPage.LICENSES -> LicensesPage()
         }
     }
 }
@@ -114,6 +125,7 @@ private fun titleOf(page: SettingsPage): Int = when (page) {
     SettingsPage.DUPLICATES -> R.string.settings_duplicates
     SettingsPage.STATS -> R.string.settings_stats
     SettingsPage.ABOUT -> R.string.settings_about
+    SettingsPage.LICENSES -> R.string.licenses
 }
 
 @Composable
@@ -180,7 +192,9 @@ private fun DuplicatesPage(state: AppState) {
             Text(stringResource(R.string.dup_none), color = palette.subtext, fontSize = 15.sp)
             return@PageColumn
         }
-        Text(stringResource(R.string.dup_found, groups.size, groups.sumOf { it.size - 1 }),
+        val removable = groups.sumOf { it.size - 1 }
+        Text(pluralStringResource(R.plurals.dup_found_groups, groups.size, groups.size) + " " +
+                 pluralStringResource(R.plurals.dup_found_notes, removable, removable),
              color = palette.subtext, fontSize = 13.sp)
         Text(stringResource(R.string.dup_merge_note), color = palette.accentText, fontSize = 13.sp,
              fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, modifier = Modifier.padding(bottom = 10.dp))
@@ -194,12 +208,17 @@ private fun DuplicatesPage(state: AppState) {
                     .background(palette.card)
                     .padding(12.dp),
             ) {
-                val title = notes.firstOrNull()?.optString("title")?.trim()?.ifEmpty { null } ?: "(untitled)"
-                Text(stringResource(R.string.dup_group, title.take(36), group.size), color = palette.text,
+                val title = shownTitle(notes.firstOrNull()?.optString("title"))
+                Text(stringResource(R.string.dup_group, Editing.firstLetters(title, 36), group.size), color = palette.text,
                      fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                val withFiles = notes.map { (it.optJSONArray("attachments")?.length() ?: 0) > 0 }
-                if (withFiles.any { it } && withFiles.toSet().size > 1) {
-                    Text(stringResource(R.string.dup_files_differ), color = palette.accentText, fontSize = 12.sp,
+                // By the names shown, as the desktop's hint: copies that each
+                // hold files, but not the same ones, got no word of the merge.
+                val files = notes.map { note ->
+                    val list = note.optJSONArray("attachments")
+                    (0 until (list?.length() ?: 0)).map { list!!.optJSONObject(it)?.optString("filename") ?: "" }.sorted()
+                }
+                if (files.toSet().size > 1) {
+                    Text(stringResource(R.string.dup_files_differ, Normalize.MAX_ATTACHMENTS), color = palette.accentText, fontSize = 12.sp,
                          fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                 }
                 for (note in notes) {
@@ -265,8 +284,8 @@ private fun DuplicatesPage(state: AppState) {
     asking?.let { remove ->
         Ask(
             title = stringResource(R.string.dup_ask_title),
-            text = state.trashWindow?.let { stringResource(R.string.dup_ask_text, remove.size, it) }
-                ?: stringResource(R.string.dup_ask_text_unknown, remove.size),
+            text = state.trashWindow?.let { pluralStringResource(R.plurals.dup_ask_text, remove.size, remove.size, it) }
+                ?: pluralStringResource(R.plurals.dup_ask_text_unknown, remove.size, remove.size),
             confirm = stringResource(R.string.move_to_trash),
             onConfirm = {
                 asking = null
@@ -290,7 +309,12 @@ private fun DuplicatesPage(state: AppState) {
 private fun StatsPage(state: AppState) {
     val palette = LocalPalette.current
     val snap = remember(state.revision) {
-        Stats.of(state.rawNotes(), state.load.trash.size, state.templatesCount(), state.load.categories.keys.toList(), state.settings)
+        val trashHeld = state.load.trashFile?.let { Files.writesHeld(it) } == true
+        // Counted first: a first read refused here holds the file, and "0" stood for "—".
+        val templates = state.templatesCount()
+        val templatesHeld = Files.writesHeld(java.io.File(state.dir, Backup.TEMPLATES))
+        Stats.of(state.rawNotes(), if (trashHeld) -1 else state.load.trash.size,
+                 if (templatesHeld) -1 else templates, state.load.categories.keys.toList(), state.settings)
     }
     PageColumn {
         Text(stringResource(R.string.stats_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))
@@ -299,35 +323,48 @@ private fun StatsPage(state: AppState) {
             snap.categories to R.string.stats_categories, snap.templates to R.string.stats_templates,
             snap.withChecklist to R.string.stats_checklists, snap.inTrash to R.string.stats_trash,
         )
-        // Every tile the same size: each caption keeps room for two lines,
-        // and the tiles of a row stretch to the tallest -- "Added this
-        // week" wrapping used to make its tile stand taller than the rest.
-        for (row in tiles.chunked(3)) {
+        // Tiles alike: captions keep two lines' room, a row stretches to its
+        // tallest. Two a row at the largest letters: three broke a four-digit
+        // figure between its digits ("123" over "4"), a caption mid-word.
+        val large = LocalDensity.current.fontScale >= 1.5f
+        for (row in tiles.chunked(if (large) 2 else 3)) {
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 for ((value, caption) in row) {
                     Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp)).background(palette.card).padding(14.dp)) {
-                        Text(value.toString(), color = palette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        // -1: a file held this run, read as none -- "0" said what
+                        // was not so, as "The Trash is empty" did (the desktop's dash).
+                        Figure(if (value < 0) "—" else value.toString(), palette.text, 24.sp)
                         Text(stringResource(caption), color = palette.subtext, fontSize = 12.sp, minLines = 2)
                     }
                 }
             }
         }
         // The time split: a header row said once, the figures lined up under it.
+        // No more lines than words, so a word shrinks rather than break ("mont" /
+        // "h"), and a gap before each column ("0" by "1234" read "01234"; ISSUES_LOG).
         val segments = listOf(R.string.stats_week, R.string.stats_month, R.string.stats_year, R.string.stats_older)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
             Spacer(Modifier.weight(1.3f))
-            for (seg in segments) Text(stringResource(seg), color = palette.subtext, fontSize = 11.sp,
-                                       modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+            for (seg in segments) {
+                val words = stringResource(seg)
+                androidx.compose.foundation.text.BasicText(
+                    words, Modifier.weight(1f).padding(start = 6.dp),
+                    style = androidx.compose.material3.LocalTextStyle.current.merge(androidx.compose.ui.text.TextStyle(
+                        color = palette.subtext, fontSize = 11.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End)),
+                    maxLines = words.count { it == ' ' } + 1,
+                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = 11.sp),
+                )
+            }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(palette.hairline))
         for ((caption, p) in listOf(R.string.stats_added to snap.added, R.string.stats_updated to snap.updated)) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(caption), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.weight(1.3f))
+                Figure(stringResource(caption), palette.subtext, 13.sp, Modifier.weight(1.3f), bold = false)
                 for (value in listOf(p.week, p.month, p.year, p.older)) {
-                    Text(value.toString(), color = if (value > 0) palette.text else palette.subtext, fontSize = 15.sp,
-                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
-                         textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                    Figure(value.toString(), if (value > 0) palette.text else palette.subtext, 15.sp,
+                           Modifier.weight(1f).padding(start = 6.dp), end = true)
                 }
             }
         }
@@ -340,7 +377,8 @@ private fun StatsPage(state: AppState) {
                     Row(Modifier.clip(RoundedCornerShape(10.dp)).background(palette.card).padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Dot(state.load.categories[name] ?: palette.hex.getValue("subtext"), 10)
-                        Text("  $name  ", color = palette.text, fontSize = 14.sp)
+                        // Weighted: a long name took the whole line and the count went undrawn.
+                        Text("  $name  ", color = palette.text, fontSize = 14.sp, modifier = Modifier.weight(1f, fill = false))
                         Text(count.toString(), color = palette.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -351,7 +389,28 @@ private fun StatsPage(state: AppState) {
     }
 }
 
+/**
+ * A figure (or a one-word label) on one line, shrunk to its room rather than
+ * broken or cut: at the largest letters on a narrow phone "1234" broke as
+ * "123" over "4", and "Updated" as "Update" over "d".
+ */
+@Composable
+private fun Figure(value: String, color: androidx.compose.ui.graphics.Color, size: androidx.compose.ui.unit.TextUnit,
+                   modifier: Modifier = Modifier, end: Boolean = false, bold: Boolean = true) {
+    androidx.compose.foundation.text.BasicText(
+        value, modifier,
+        style = androidx.compose.material3.LocalTextStyle.current.merge(androidx.compose.ui.text.TextStyle(
+            color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            textAlign = if (end) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start)),
+        maxLines = 1, softWrap = false,
+        autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = size),
+    )
+}
+
 // ---- Your name ----
+
+/** The longest name the box takes, in letters. */
+private const val NAME_CHARS = 80
 
 @Composable
 private fun NamePage(state: AppState) {
@@ -360,20 +419,49 @@ private fun NamePage(state: AppState) {
     // Said under the box, in green, where the eye is: said at the foot of
     // the screen, it was under the keyboard (the owner's phone, 2026-10-23).
     var saved by remember { mutableStateOf(false) }
+    // Kept to 80 letters as the app's other boxes keep theirs ([Editing.fitRow]):
+    // `take(80)` of each new value cut the name's own end, in UTF-16 units.
+    // Said under the box too, for the same reason.
+    var nameField by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
+    var capSaid by remember { mutableStateOf<String?>(null) }
+    val cap = remember { Editing.BoxCap({ capSaid = it }, NAME_CHARS, "Your name") }
     fun save() {
-        saved = state.putSetting(Settings.USERNAME, draft.trim())
+        saved = state.putSetting(Settings.USERNAME, PyText.strip(draft))
+    }
+    // Kept when the page is left by Back too, and when the app goes to the
+    // background, as the desktop's box keeps it as it is typed: the name went
+    // with the page, unsaid, and with an app Android ended behind Home.
+    fun keep() { if (PyText.strip(draft) != Settings.username(state.settings)) save() }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        state.keepNameDraft = { keep() }
+        onDispose {
+            state.keepNameDraft = null
+            keep()
+        }
     }
     PageColumn {
         Text(stringResource(R.string.name_explain), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
-        OutlinedTextField(value = draft, onValueChange = { draft = it.take(80); saved = false }, singleLine = true,
+        OutlinedTextField(value = nameField, onValueChange = { next ->
+                              val kept = keptBy(cap, nameField, next)
+                              if (kept.text != nameField.text) {
+                                  if (kept.text == next.text) capSaid = null
+                                  saved = false
+                              }
+                              nameField = kept
+                              draft = kept.text
+                          }, singleLine = true,
                           label = { Text(stringResource(R.string.category_name)) },
                           keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                               imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                           keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { save() }),
                           modifier = Modifier.fillMaxWidth())
+        // Both read out as they appear ([saidAloud]), as the app's messages are.
+        capSaid?.let {
+            Text(it, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp).saidAloud())
+        }
         if (saved) {
             Text(stringResource(R.string.name_saved), color = palette.successText, fontSize = 13.sp,
-                 modifier = Modifier.padding(top = 6.dp))
+                 modifier = Modifier.padding(top = 6.dp).saidAloud())
         }
         Button(
             onClick = { save() },
@@ -402,8 +490,14 @@ private fun AppearancePage(state: AppState) {
     val change = LocalThemeChange.current
     PageColumn {
         ModeSwitch(dark) { if (it != dark) change { state.chooseMode(it) } }
+        // "The theme you used last" only once there is one: at first the
+        // other mode gives its original, named (the review panel).
+        val settings = state.settings
         Text(
-            stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light),
+            if (Settings.wornInMode(settings, !dark))
+                stringResource(if (dark) R.string.themes_for_dark else R.string.themes_for_light)
+            else stringResource(if (dark) R.string.themes_for_dark_first else R.string.themes_for_light_first,
+                Themes.LABELS[Settings.themeForMode(settings, !dark)].orEmpty()),
             color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
         )
         for (name in if (dark) Themes.DARK else Themes.LIGHT) {
@@ -501,6 +595,7 @@ private fun CategoriesPage(state: AppState) {
             },
             onDelete = null,
             onDismiss = { adding = false },
+            messages = state.snackbar,
         )
     }
     editing?.let { old ->
@@ -514,11 +609,16 @@ private fun CategoriesPage(state: AppState) {
             onSave = { name, newColour ->
                 var ok = true
                 if (newColour != colour) ok = state.report(Organizing.recolourCategory(state.load, old, newColour))
-                if (ok && name.trim() != old) ok = state.report(Organizing.renameCategory(state.load, old, name))
+                if (ok && name.trim() != old) {
+                    ok = state.report(Organizing.renameCategory(state.load, old, name))
+                    // A move's Undo still on offer follows the new name, as the desktop's does.
+                    if (ok) state.categoryRenamed(old, PyText.strip(name))
+                }
                 if (ok) editing = null
             },
-            onDelete = { asking = true },
+            onDelete = { Organizing.categoriesHeld(state.load)?.let { state.say(it, long = true) } ?: run { asking = true } },
             onDismiss = { editing = null },
+            messages = state.snackbar,
         )
         if (asking) {
             val (filed, daysOnly) = Organizing.categoryCounts(state.load, old)
@@ -526,6 +626,7 @@ private fun CategoriesPage(state: AppState) {
                 onAnswer = { trashNotes ->
                     asking = false
                     if (trashNotes != null && state.report(Organizing.deleteCategory(state.load, old, trashNotes))) {
+                        state.categoryDeleted(old)
                         editing = null
                     }
                 })
@@ -543,12 +644,18 @@ private fun CategoryEditor(
     onSave: (String, String) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
+    messages: androidx.compose.material3.SnackbarHostState,
 ) {
     val palette = LocalPalette.current
     var draftName by remember(name) { mutableStateOf(name) }
     var draftColour by remember(colour) { mutableStateOf(colour) }
-    AppSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+    // A Save refused (a name used, over 80 letters, the most categories, a
+    // failed delete or write) keeps the sheet open and is said over it: said
+    // under it, Save looked to do nothing. Scrolled, for a phone on its side.
+    AppSheet(onDismissRequest = onDismiss, messages = messages) {
+        // The fields scroll; Delete and Save stay under them, over the message:
+        // at the largest letters the message pushed them out of sight (the panel).
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(title, color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             OutlinedTextField(
                 value = draftName,
@@ -561,17 +668,17 @@ private fun CategoryEditor(
             )
             Text(stringResource(R.string.colour), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
             Swatches(Themes.PALETTE_COLORS, draftColour, allowNone = false) { draftColour = it }
-            Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (onDelete != null && !protected) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = palette.dangerText) }
-                }
-                Spacer(Modifier.weight(1f))
-                Button(
-                    onClick = { onSave(draftName, draftColour) },
-                    enabled = draftName.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(stringResource(R.string.save)) }
+        }
+        Row(Modifier.padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 32.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (onDelete != null && !protected) {
+                TextButton(onClick = onDelete) { Text(stringResource(R.string.delete), color = palette.dangerText) }
             }
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = { onSave(draftName, draftColour) },
+                enabled = draftName.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
+            ) { Text(stringResource(R.string.save)) }
         }
     }
 }
@@ -585,15 +692,17 @@ private fun CategoryEditor(
 @Composable
 private fun DeleteCategoryQuestion(name: String, filed: Int, daysOnly: Int, days: Int?, onAnswer: (Boolean?) -> Unit) {
     val palette = LocalPalette.current
-    val dayLine = if (daysOnly > 0) "\n\n" + stringResource(R.string.category_days_move, daysOnly, name) else ""
+    val dayLine = if (daysOnly > 0) "\n\n" + pluralStringResource(R.plurals.category_days_move, daysOnly, daysOnly, name) else ""
     androidx.compose.material3.AlertDialog(
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(R.string.delete_category)) },
         text = {
-            Text(
-                if (filed == 0) stringResource(R.string.delete_category_empty, name) + dayLine
-                else pluralStringResource(R.plurals.delete_category_with, filed, name, filed) + dayLine,
-            )
+            DialogBody {
+                Text(
+                    if (filed == 0) stringResource(R.string.delete_category_empty, name) + dayLine
+                    else pluralStringResource(R.plurals.delete_category_with, filed, name, filed) + dayLine,
+                )
+            }
         },
         confirmButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -648,14 +757,47 @@ private fun BackupPage(state: AppState, backup: BackupActions) {
         }
         Text(stringResource(R.string.backup_import_explain), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         busy?.let { Text(it, color = palette.accentText, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp)) }
-        // Android's own backup, left on by the owner's choice (2026-10-20)
-        // and said here, so a person knows where else a copy may be.
-        Text(stringResource(R.string.backup_google), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
+        // Android's own backup: on by default (the owner's call), said here so a
+        // person knows where else a copy may be, and theirs to turn off --
+        // NotesBackupAgent then hands Android only a mark saying so.
+        val google = state.load.settings?.let { Settings.googleBackupOn(it) } ?: true
+        // Over a held settings file the agent hands nothing (Settings.forFullBackup):
+        // "Off ... replaced at that next backup" was untrue, and a choice refused.
+        val held = state.load.settings?.let { Files.writesHeld(it.file) } == true
+        // The whole row is the switch: its words are what a finger, and a
+        // screen reader, find.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp)
+                .toggleable(value = google, enabled = !held, role = androidx.compose.ui.semantics.Role.Switch) {
+                    state.putSetting(Settings.PHONE_GOOGLE_BACKUP, it)
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(stringResource(R.string.backup_google_title), color = palette.text, fontSize = 16.sp)
+                Text(stringResource(when {
+                    held -> R.string.backup_google_held
+                    google -> R.string.backup_google_on
+                    else -> R.string.backup_google_off
+                }), color = palette.subtext, fontSize = 13.sp)
+            }
+            androidx.compose.material3.Switch(
+                checked = google,
+                onCheckedChange = null,
+                enabled = !held,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedThumbColor = palette.onAccent, checkedTrackColor = palette.accent),
+            )
+        }
+        Text(stringResource(R.string.backup_google), color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
 // ---- Trash ----
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TrashPage(state: AppState, backup: BackupActions) {
     val palette = LocalPalette.current
@@ -670,60 +812,93 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     // What is picked AND still in the Trash: the counts and the buttons
     // never name an entry that has left it.
     val chosen = picked intersect all
+    // Where the buttons at the foot begin, told to the window: its messages
+    // are drawn above them ([AppState.pageFootTop]).
+    var footTop by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(footTop) { state.pageFootTop = footTop }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { state.pageFootTop = null } }
     // Null when the window could not be read: nothing is purged then, and
     // the page says so rather than show the default as if it were chosen.
     val known = state.trashWindow
+    // Held (a refused read, or neither read nor copied aside): no choice is
+    // kept this run, so none is advised, and a tap is refused before asking.
+    val held = load.settings?.let { Files.writesHeld(it.file) } == true
+    val heldSaid = stringResource(R.string.trash_window_held)
+    val heldBy = Organizing.windowHeldBy(load)
+    val trashHeldSaid = stringResource(R.string.trash_window_trash_held)
+    // A held Trash reads empty: "The Trash is empty" and "Kept for N days" said
+    // what was not so, the chips refusing only after a tap.
+    val trashHeld = load.trashFile?.let { Files.writesHeld(it) } == true
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 20.dp)) {
-            Text(if (known != null) stringResource(R.string.trash_window, known) else stringResource(R.string.trash_window_unknown),
-                 color = if (known != null) palette.subtext else palette.dangerText, fontSize = 13.sp)
-            // The numbers alone did not say what they set; the desktop's
-            // dropdown carries the same words (2026-10-26).
-            Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
-                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
-            Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (days in listOf(7, 14, 30, 60, 90)) {
-                    val on = days == known
-                    Text(
-                        "$days",
-                        color = if (on) palette.onAccent else palette.text,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (on) palette.accent else palette.card)
-                            .clickable {
-                                // Only a SHORTER window can take anything,
-                                // and then it says what before it does --
-                                // with none known, any window can.
-                                if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
-                                else state.chooseTrashWindow(days)
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                    )
-                }
-                Text(stringResource(R.string.days), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
-            }
-            // A backup at hand where notes wait to leave for good: the .zip
-            // holds the Trash too, and a note in it is never lost to the window.
-            if (entries.isNotEmpty()) {
-                OutlinedButton(onClick = backup.export, enabled = backup.busy() == null,
-                               modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    Text(stringResource(R.string.trash_backup), color = palette.text)
-                }
-                // Keeping a few of a long Trash and deleting the rest, or
-                // restoring it all, was a tap per row (the owner, 2026-10-26).
-                val everything = chosen.size == all.size
-                TextButton(onClick = { picked = if (everything) emptySet() else all },
-                           modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(if (everything) R.string.unselect_all else R.string.select_all),
-                         color = palette.accentText)
-                }
-            }
-        }
-        if (entries.isEmpty()) {
-            Text(stringResource(R.string.trash_empty), color = palette.subtext, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
-        }
+        // The page's top scrolls with its list: held above it, it left a
+        // phone on its side no room for one row, its buttons squeezed.
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+            item(key = "\u0000trash-head") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                    Text(when {
+                             held -> heldSaid
+                             trashHeld -> trashHeldSaid
+                             known != null -> stringResource(R.string.trash_window, known)
+                             else -> stringResource(R.string.trash_window_unknown)
+                         },
+                         color = if (known != null && !held && !trashHeld) palette.subtext else palette.dangerText,
+                         fontSize = 13.sp)
+                    // The numbers alone did not say what they set; the desktop's
+                    // dropdown carries the same words (2026-10-26).
+                    Text(stringResource(R.string.trash_keep_for), color = palette.text, fontSize = 14.sp,
+                         fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
+                    // A flow: in a row, at the largest letters "days" was left a
+                    // letter a line, and "90" broke over its digits.
+                    FlowRow(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (days in listOf(7, 14, 30, 60, 90)) {
+                            val on = days == known
+                            Text(
+                                "$days",
+                                color = if (on) palette.onAccent else palette.text,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (on) palette.accent else palette.card)
+                                    .clickable {
+                                        // Only a SHORTER window can take anything,
+                                        // and then it says what before it does --
+                                        // with none known, any window can.
+                                        if (held) state.say(heldSaid)
+                                        else if (heldBy != null) state.say(trashHeldSaid)
+                                        else if ((known == null || days < known) && Organizing.pastWindow(load, days) > 0) askWindow = days
+                                        else state.chooseTrashWindow(days)
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            )
+                        }
+                        Text(stringResource(R.string.days), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    // A backup at hand where notes wait to leave for good: the .zip
+                    // holds the Trash too, and a note in it is never lost to the window.
+                    if (entries.isNotEmpty()) {
+                        OutlinedButton(onClick = backup.export, enabled = backup.busy() == null,
+                                       modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                            Text(stringResource(R.string.trash_backup), color = palette.text)
+                        }
+                        // Keeping a few of a long Trash and deleting the rest, or
+                        // restoring it all, was a tap per row (the owner, 2026-10-26).
+                        val everything = chosen.size == all.size
+                        TextButton(onClick = { picked = if (everything) emptySet() else all },
+                                   modifier = Modifier.align(Alignment.End)) {
+                            Text(stringResource(if (everything) R.string.unselect_all else R.string.select_all),
+                                 color = palette.accentText)
+                        }
+                    }
+                }
+            }
+            if (entries.isEmpty()) {
+                item(key = "\u0000trash-empty") {
+                    Text(stringResource(if (trashHeld) R.string.trash_held_empty else R.string.trash_empty),
+                         color = palette.subtext, fontSize = 15.sp,
+                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 20.dp))
+                }
+            }
             items(rows, key = { it.second }) { (note, _) ->
                 val key = Organizing.keyOf(note)
                 val left = known?.let { Notebook.daysLeftInTrash(note.deletedAt, it) }
@@ -738,7 +913,8 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (on) "☑" else "☐", color = palette.accentText, fontSize = 18.sp, modifier = Modifier.padding(end = 10.dp))
+                    // Chosen, the row is filled: its quieter words take the shade that reads there.
+                    Text(if (on) "☑" else "☐", color = palette.accentTextOn(on), fontSize = 18.sp, modifier = Modifier.padding(end = 10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(note.headline, color = palette.text, fontSize = 15.sp, maxLines = 1)
                         Text(
@@ -748,21 +924,30 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
                                 left == 0 -> stringResource(R.string.trash_next_start)
                                 else -> pluralStringResource(R.plurals.trash_days_left, left, left)
                             },
-                            color = if (left != null && left <= 3) palette.dangerText else palette.subtext,
+                            color = if (left != null && left <= 3) palette.dangerTextOn(on) else palette.subtextOn(on),
                             fontSize = 12.sp,
                         )
                     }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth()
+                .onGloballyPositioned { footTop = if (it.size.height > 0) it.boundsInWindow().top else null }
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             if (chosen.isNotEmpty()) {
-                Button(
-                    onClick = { state.restoreFromTrash(chosen); picked = emptySet() },
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                ) { Text(pluralStringResource(R.plurals.restore_n, chosen.size, chosen.size)) }
-                TextButton(onClick = { askForever = chosen.toList() }) {
-                    Text(stringResource(R.string.delete_forever), color = palette.dangerText)
+                // A flow: side by side at the largest letters, "Delete for
+                // good" was left a few letters wide, wrapped a letter a line.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Button(
+                        onClick = { state.restoreFromTrash(chosen); picked = emptySet() },
+                        colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
+                    ) { Text(pluralStringResource(R.plurals.restore_n, chosen.size, chosen.size)) }
+                    TextButton(onClick = { askForever = chosen.toList() }) {
+                        Text(stringResource(R.string.delete_forever), color = palette.dangerText)
+                    }
                 }
             } else if (entries.isNotEmpty()) {
                 Spacer(Modifier.weight(1f))
@@ -773,7 +958,10 @@ private fun TrashPage(state: AppState, backup: BackupActions) {
     if (askEmpty) {
         Ask(
             title = stringResource(R.string.empty_trash),
-            text = pluralStringResource(R.plurals.empty_trash_text, entries.size, entries.size),
+            // Files named only where they go: none held, or this run keeps them all.
+            text = pluralStringResource(
+                if (Organizing.emptyTrashTakesFiles(state.load)) R.plurals.empty_trash_text
+                else R.plurals.empty_trash_text_plain, entries.size, entries.size),
             confirm = stringResource(R.string.empty_trash),
             destructive = true,
             onConfirm = { askEmpty = false; state.emptyTrash() },
@@ -826,6 +1014,11 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
         OutlinedButton(onClick = openPrivacy, modifier = Modifier.padding(top = 8.dp)) {
             Text(stringResource(R.string.read_policy))
         }
+        SectionLabel(stringResource(R.string.licenses))
+        Text(stringResource(R.string.licenses_sub), color = palette.subtext, fontSize = 14.sp)
+        OutlinedButton(onClick = { state.settingsPage = SettingsPage.LICENSES }, modifier = Modifier.padding(top = 8.dp)) {
+            Text(stringResource(R.string.view_licenses))
+        }
         // Feedback is a review on Google Play, so before the app is there
         // (Links.STORE is null) there is no Feedback section at all.
         if (openReview != null) {
@@ -837,6 +1030,24 @@ private fun AboutPage(state: AppState, appVersion: String, openPrivacy: () -> Un
                 colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
             ) { Text(stringResource(R.string.write_review)) }
         }
+    }
+}
+
+/**
+ * The licenses of the libraries the app is built with, and its own: the text
+ * tools/make_licenses.py writes from the release build's own dependencies.
+ */
+@Composable
+private fun LicensesPage() {
+    val palette = LocalPalette.current
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
+    // Without \r: a checkout on Windows may write the file's line ends as \r\n.
+    val text = remember {
+        resources.openRawResource(R.raw.open_source_licenses).bufferedReader().use { it.readText() }
+            .replace("\r", "")
+    }
+    PageColumn {
+        Text(text, color = palette.text, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -906,11 +1117,18 @@ private fun RemindersPage(state: AppState) {
                 }
             }
             Text(stringResource(R.string.reminder_inexact), color = palette.subtext, fontSize = 13.sp)
-            // Turned off since, in the phone's own settings: said, with the way there.
-            if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-                Text(stringResource(R.string.reminder_blocked), color = palette.dangerText, fontSize = 13.sp,
-                     modifier = Modifier.padding(top = 12.dp))
-                OutlinedButton(onClick = { openNotificationSettings(context) }, modifier = Modifier.padding(top = 6.dp)) {
+            // Turned off since, in the phone's own settings -- the app's, or the
+            // reminder's own kind, which a long press on the notification turns
+            // off: said, with the way there, and read again on each return.
+            val blocked = remember(state.resumed) { remindersBlocked(context) }
+            if (blocked != null) {
+                // Which one, by name, and its own page: told the app's were off,
+                // the person found them on there.
+                val channel = blocked == Blocked.CHANNEL
+                Text(stringResource(if (channel) R.string.reminder_channel_blocked else R.string.reminder_blocked),
+                     color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
+                OutlinedButton(onClick = { openNotificationSettings(context, channel) },
+                               modifier = Modifier.padding(top = 6.dp)) {
                     Text(openSaid)
                 }
             }
@@ -918,15 +1136,30 @@ private fun RemindersPage(state: AppState) {
     }
 }
 
-/** The phone's own page of this app's notifications. */
-private fun openNotificationSettings(context: android.content.Context) {
-    val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+/** What keeps the day's reminder from showing. */
+private enum class Blocked { APP, CHANNEL }
+
+/** What keeps the day's reminder from showing: the app's notifications off, or the reminder's own kind; null for nothing. */
+private fun remindersBlocked(context: android.content.Context): Blocked? {
+    if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) return Blocked.APP
+    val channel = context.getSystemService(android.app.NotificationManager::class.java)
+        ?.getNotificationChannel(ReminderAlarm.CHANNEL) ?: return null
+    return if (channel.importance == android.app.NotificationManager.IMPORTANCE_NONE) Blocked.CHANNEL else null
+}
+
+/** The phone's own page of this app's notifications -- or, [channel], of the reminder's own kind. */
+private fun openNotificationSettings(context: android.content.Context, channel: Boolean = false) {
+    val intent = android.content.Intent(
+        if (channel) android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS
+        else android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (channel) intent.putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, ReminderAlarm.CHANNEL)
     try {
         context.startActivity(intent)
     } catch (e: android.content.ActivityNotFoundException) {
-        // A phone with no such page: nothing to open.
+        // A phone with no channel page: the app's, or nothing to open.
+        if (channel) openNotificationSettings(context)
     }
 }
 
@@ -936,14 +1169,20 @@ private fun openNotificationSettings(context: android.content.Context) {
  * another: the desktop's Welcome note → Show.
  */
 fun showWelcome(state: AppState) {
-    val uid = state.settings.opt(Settings.WELCOME_NOTE_UID) as? String
-    state.load.notes.firstOrNull { uid != null && it.uid == uid }?.let {
+    // Either uid, as the desktop's: a stale one in settings (that note deleted,
+    // the new uid's write refused) won, and Show added a second.
+    val uids = setOfNotNull(state.settings.opt(Settings.WELCOME_NOTE_UID) as? String, state.welcomeUidRun) - ""
+    val welcome = Welcome.build()
+    // By its uid (kept in memory too), or, that write refused at the start (a
+    // full phone), by its own words: every press added another welcome note.
+    (state.load.notes.firstOrNull { it.uid in uids }
+        ?: state.load.notes.firstOrNull {
+            it.title == welcome.optString("title") && it.body == welcome.optString("body") })?.let {
         state.tab = Tab.NOTES
         state.settingsPage = null
         state.openNote(it.id)
         return
     }
-    val welcome = Welcome.build()
     val spans = welcome.getJSONArray("formatting").let { array ->
         (0 until array.length()).map { array.getJSONObject(it) }
             .map { FormatSpan(it.getInt("start"), it.getInt("end"), it.getString("style")) }
@@ -951,9 +1190,14 @@ fun showWelcome(state: AppState) {
     val result = Notebook.createNote(state.load, welcome.getString("title"), welcome.getString("body"),
         formatting = spans, paragraphs = welcome.getJSONArray("paragraphs"))
     state.report(result) { ok ->
-        state.note(ok.id)?.let { state.putSetting(Settings.WELCOME_NOTE_UID, it.uid) }
+        state.note(ok.id)?.let {
+            state.welcomeUidRun = it.uid
+            state.putSetting(Settings.WELCOME_NOTE_UID, it.uid)
+        }
         state.tab = Tab.NOTES
         state.settingsPage = null
         state.openNote(ok.id)
+        // Said as it closes when the list does not show it, as a new note is.
+        state.noteMade(ok.id)
     }
 }

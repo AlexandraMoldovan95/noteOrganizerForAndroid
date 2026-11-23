@@ -146,6 +146,33 @@ class ExportingTest {
     }
 
     @Test
+    fun `a table too large to draw is written into a page in time that grows with its size, not its square`() {
+        // A row of 50,000 empty cells (a code of 186 characters) looked for the
+        // row's pipes at each cell; 60,000 rows of "^" asked every merge at each
+        // row. Here 20,000 and 30,000: minutes the old way, a fraction of a second now.
+        val empty = JSONObject().put("title", "Empty cells").put("body", "|".repeat(20_001))
+        val merged = JSONObject().put("title", "Merged").put("body", "| a | b |\n" + List(30_000) { "| ^ | ^ |" }.joinToString("\n"))
+        val hidden = JSONObject().put("title", "Hidden").put("body",
+            "| " + List(20_000) { "x" }.joinToString(" | ") + " |\n|" + List(20_000) { if (it % 2 == 0) "---" else "~" }.joinToString("|") + "|\n" +
+            "| " + List(20_000) { if (it % 2 == 0) "y" else "<" }.joinToString(" | ") + " |")
+        for (note in listOf(empty, merged, hidden)) {
+            val started = System.nanoTime()
+            val page = Exporting.content(note, Exporting.HTML, note.getString("title"))
+            val seconds = (System.nanoTime() - started) / 1e9
+            assertTrue("${note.getString("title")}: %.1f s".format(seconds), seconds < 5)
+            assertTrue(page.contains("<table>"))
+        }
+        assertEquals(20_000, Regex("<th>").findAll(Exporting.content(empty, Exporting.HTML, "E")).count())
+        assertTrue(Exporting.content(merged, Exporting.HTML, "M").contains("rowspan=\"30001\""))
+        // A merge narrows by the hidden columns inside it, and only those:
+        // one hidden just past its end leaves it as wide as it was.
+        fun page(body: String) = Exporting.content(JSONObject().put("title", "H").put("body", body), Exporting.HTML, "H")
+        assertTrue(page("| a | < | c |\n|---|---|~|\n| d | e | f |").contains("<th colspan=\"2\">a</th>"))
+        assertTrue(page("| a | < | < |\n|---|~|---|\n| d | e | f |").contains("<th colspan=\"2\">a</th>"))
+        assertTrue(page("| a | < | c |\n|~|---|---|\n| d | e | f |").let { !it.contains("colspan") })
+    }
+
+    @Test
     fun `where the desktop's renderer raised, it is a merge under a shorter row`() {
         val cases = fixture().getJSONArray("cases")
         val raised = (0 until cases.length()).map { cases.getJSONObject(it) }.filter { it.has("raises") }

@@ -4,23 +4,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Lists, indents and alignment: what a note's lines are, beyond their words.
- *
- * The desktop's model, kept whole. A list item is told by the MARKER in its
- * text -- "• " (◦ and ▪ deeper down) or "1. " -- not by anything stored
- * beside it: the marker is what is saved, read back and copied. A line's
- * indent and alignment are its paragraph properties. What the file stores
- * in `paragraphs` is worked out from both at the moment of saving, as the
- * desktop's `_extract_paragraphs` does: the kind from the marker, the
- * indent and alignment from the properties.
- *
- * Every operation here is the desktop's, line for line, from its editor:
- * turning lines into a list and back, indenting, aligning, Enter in a list
- * (it continues; on an empty item it steps out), Backspace against a
- * marker (it climbs out a level, then takes the marker away), and
- * renumbering every numbered run afterwards. Each returns the new body
- * and the EDITS it made -- marker text put in or taken out at the start of
- * lines -- so styles move with exactly the text they were on.
+ * Lists, indents and alignment: what a note's lines are beyond their words,
+ * by the desktop's model, kept whole. A list item is told by the MARKER in
+ * its text -- "• " (◦ and ▪ deeper down) or "1. " -- which is what is saved,
+ * read back and copied; indent and alignment are paragraph properties, and
+ * `paragraphs` is worked out from both at saving, as the desktop's
+ * `_extract_paragraphs` does. Every operation is the desktop's, line for
+ * line -- lists on and off, indent, align, Enter and Backspace in a list,
+ * renumbering -- and returns the new body and the EDITS it made, so styles
+ * move with exactly the text they were on.
  */
 object Paragraphs {
 
@@ -64,6 +56,86 @@ object Paragraphs {
                 val stale = entry.kind != null && parseListMarker(lines.getOrElse(entry.line) { "" }).kind != entry.kind
                 entry.line to Props(if (stale) 0 else entry.indent, entry.align ?: "left")
             }
+            .filterValues { !it.plain }
+    }
+
+    /**
+     * The series' [paragraphs] a day of it shows, [body] the day's text: all
+     * of them while the day shows the series' words ([sameBody]); on text of
+     * its own, only the list entries whose line still carries their marker,
+     * without alignment -- the desktop's `day_paragraphs`. A list's depth
+     * lives nowhere else, and the rest, put on by line number, landed on the
+     * wrong lines.
+     */
+    fun dayProps(paragraphs: Any?, body: String, sameBody: Boolean, own: Any? = null): Map<Int, Props> =
+        propsOf(dayParagraphs(paragraphs, body, sameBody, own), body)
+
+    /**
+     * The lines' looks a day of a series shows, as stored entries -- the
+     * desktop's `day_paragraphs`: the series' [paragraphs] while the day
+     * shows the series' words, its lists' depth its [own] when it keeps
+     * them; on text of its own, its own list lines, or -- a day saved
+     * before it kept them -- the series' list entries, by line. What the day
+     * view shows ([dayProps]) and Make it a note keeps.
+     */
+    fun dayParagraphs(paragraphs: Any?, body: String, sameBody: Boolean, own: Any? = null): JSONArray {
+        if (!sameBody) return listLines(own ?: paragraphs, body)
+        val looks = sortedMapOf<Int, JSONObject>()
+        for (entry in Exporting.normalizeParagraphs(paragraphs, body.split("\n").size)) {
+            looks[entry.line] = JSONObject().put("line", entry.line).also { item ->
+                entry.kind?.let { item.put("kind", it) }
+                if (entry.indent != 0) item.put("indent", entry.indent)
+                entry.align?.takeIf { it != "left" }?.let { item.put("align", it) }
+            }
+        }
+        if (own != null) {
+            val lists = listLines(own, body)
+            for (i in 0 until lists.length()) {
+                val entry = lists.getJSONObject(i)
+                val line = entry.getInt("line")
+                val item = looks[line] ?: JSONObject().put("line", line)
+                item.put("kind", entry.getString("kind"))
+                if (entry.has("indent")) item.put("indent", entry.getInt("indent")) else item.remove("indent")
+                looks[line] = item
+            }
+        }
+        return JSONArray().also { out -> looks.values.forEach { out.put(it) } }
+    }
+
+    /**
+     * The list lines of [body] -- the desktop's `list_lines`: each line
+     * starting with a list marker, its kind and the depth [paragraphs] give
+     * it, else a bullet's glyph's. The one look a day of a series keeps of its
+     * own: its text is plain, but a nested list's depth lives nowhere else
+     * (the owner's choice). Without [body], the list entries
+     * as they are.
+     */
+    fun listLines(paragraphs: Any?, body: String?): JSONArray {
+        val out = JSONArray()
+        fun put(line: Int, kind: String, indent: Int) =
+            out.put(JSONObject().put("line", line).put("kind", kind).also { if (indent != 0) it.put("indent", indent) })
+        if (body == null) {
+            for (entry in Exporting.normalizeParagraphs(paragraphs, null)) entry.kind?.let { put(entry.line, it, entry.indent) }
+            return out
+        }
+        val lines = body.split("\n")
+        val given = Exporting.normalizeParagraphs(paragraphs, lines.size).filter { it.kind != null }
+            .associate { it.line to (it.kind to it.indent) }
+        for ((n, line) in lines.withIndex()) {
+            val marker = parseListMarker(line)
+            val kind = marker.kind ?: continue
+            val depth = given[n]?.takeIf { it.first == kind }?.second
+                ?: if (kind == "bullet") BULLET_GLYPHS.indexOf(marker.marker.trim()).coerceAtLeast(0) else 0
+            put(n, kind, depth)
+        }
+        return out
+    }
+
+    /** [props] as a day's own text keeps them once typed in: its lists' depth alone ([dayProps]). */
+    fun listDepths(props: Map<Int, Props>, body: String): Map<Int, Props> {
+        val lines = body.split("\n")
+        return props.filterKeys { parseListMarker(lines.getOrElse(it) { "" }).kind != null }
+            .mapValues { Props(it.value.indent) }
             .filterValues { !it.plain }
     }
 
@@ -115,6 +187,19 @@ object Paragraphs {
         }
     }
 
+    /**
+     * Where a mark goes through one edit, made in the text the edit before
+     * it left, as a Tk mark of right gravity moves -- the desktop's cursor,
+     * and its calculator's place: what the edit takes out goes first, a mark
+     * inside it falling to its start, then what it puts in, a mark right
+     * at that place carried after it.
+     */
+    fun moveMark(x: Int, e: Edit): Int = when {
+        x < e.at -> x
+        x <= e.at + e.removed -> e.at + e.inserted
+        else -> x - e.removed + e.inserted
+    }
+
     /** Where an end goes: text put in right at it stays after it. */
     fun moveEnd(x: Int, edits: List<Edit>): Int = x + edits.sumOf { e ->
         when {
@@ -126,8 +211,11 @@ object Paragraphs {
 
     private fun cpLength(text: String) = text.codePointCount(0, text.length)
 
-    /** Where each line starts, in code points. */
-    private fun lineStarts(lines: List<String>): IntArray {
+    /** Where line [n] of [lines] starts, in code points; [n] may be one past the last line. */
+    fun lineStart(lines: List<String>, n: Int): Int = lines.take(n).sumOf { cpLength(it) + 1 }
+
+    /** Where each line starts, in code points -- the stored note's offsets; [Finding.lineAt] reads them back. */
+    fun lineStarts(lines: List<String>): IntArray {
         val starts = IntArray(lines.size)
         var at = 0
         for ((n, line) in lines.withIndex()) {
@@ -193,14 +281,78 @@ object Paragraphs {
 
         /** A cursor or a selection's edge, carried through every step. */
         fun movePoint(at: Int): Int = steps.fold(at) { x, edits -> moveStart(x, edits) }
+
+        /**
+         * Its edits one after another, each in the text the one before left
+         * -- what a remembered place is carried through ([moveMark]): a
+         * step's own edits, made at once in its text, from the last back.
+         */
+        fun inTurn(): List<Edit> = steps.flatMap { step -> step.sortedByDescending { it.at } }
     }
 
-    /** The lines' properties after a typed edit added or took away lines. */
-    fun follow(old: String, new: String, props: Map<Int, Props>): Map<Int, Props> {
+    /**
+     * The lines' properties after a typed edit added or took away lines --
+     * the [edit] itself, in code points, when the field's cursor told where
+     * it was made ([Editing.proseEdit]): read off the two texts, Enter at the
+     * end of a centred line with a line below was the break after the old
+     * one, and the new line was left at the margin.
+     */
+    fun follow(old: String, new: String, props: Map<Int, Props>, edit: Edit? = null): Map<Int, Props> {
         if (props.isEmpty() || old == new) return props
-        breakAt(old, new)?.let { (line, column, made) -> return if (made) split(props, line, column) else join(props, line) }
+        (edit?.let { breakOf(old, new, it) } ?: breakAt(old, new))?.let { (line, column, made) ->
+            return if (made) split(props, line, column) else join(props, line)
+        }
         val moved = remapParagraphLines(old, new, props.keys.toList())
-        return moved.entries.associate { (from, to) -> to to props.getValue(from) }
+        val out = moved.entries.associate { (from, to) -> to to props.getValue(from) }.toMutableMap()
+        // Text put into or taken from a line across line breaks: each line the
+        // edit leaves carries the looks of the line it began in, as the desktop's
+        // inserted text takes the tags around it -- else pasted lines went to the margin.
+        edited(old, new, edit)?.let { (line, until) -> props[line]?.let { kept -> for (n in line until until) out[n] = kept } }
+        return out
+    }
+
+    /**
+     * The lines an edit that added or took away lines leaves of the line it
+     * began in, when it began inside that line rather than at its start: that
+     * line, and each line the text it put in makes. Read off the [edit]'s
+     * place when the field told it; else off the two texts, from the first
+     * line they differ on. Null for an edit begun at a line's start, which
+     * moves the line whole.
+     */
+    private fun edited(old: String, new: String, edit: Edit?): Pair<Int, Int>? {
+        if (old.count { it == '\n' } == new.count { it == '\n' }) return null
+        if (edit != null) {
+            val oldLength = old.codePointCount(0, old.length)
+            if (edit.at !in 0..oldLength) return null
+            val at = old.offsetByCodePoints(0, edit.at)
+            val column = at - (old.lastIndexOf('\n', at - 1) + 1)
+            if (column == 0) return null
+            val line = old.substring(0, at).count { it == '\n' }
+            val start = new.offsetByCodePoints(0, edit.at.coerceAtMost(new.codePointCount(0, new.length)))
+            val end = runCatching { new.offsetByCodePoints(start, edit.inserted) }.getOrNull() ?: return null
+            return line to line + new.substring(start, end).count { it == '\n' } + 1
+        }
+        val a = old.split("\n")
+        val b = new.split("\n")
+        val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
+        // Lines the edit leaves of its own -- not ones carried whole from below,
+        // which keep their own looks (the remap's) -- begun inside its line.
+        val end = b.size - suffix
+        if (end <= prefix || prefix >= a.size || a[prefix].commonPrefixWith(b[prefix]).isEmpty()) return null
+        return prefix to end
+    }
+
+    /** [breakAt]'s answer for an [edit] whose place is known: a line break put in, or taken out, alone. */
+    private fun breakOf(old: String, new: String, edit: Edit): Triple<Int, Int, Boolean>? {
+        val made = edit.removed == 0 && edit.inserted == 1
+        if (!made && !(edit.removed == 1 && edit.inserted == 0)) return null
+        val holder = if (made) new else old
+        if (edit.at !in 0 until holder.codePointCount(0, holder.length)) return null
+        val at = holder.offsetByCodePoints(0, edit.at)
+        if (holder[at] != '\n') return null
+        val line = holder.substring(0, at).count { it == '\n' }
+        val column = at - (holder.lastIndexOf('\n', at - 1) + 1)
+        return Triple(line, column, made)
     }
 
     /**
@@ -355,21 +507,12 @@ object Paragraphs {
     }
 
     /**
-     * What a typed edit means in a list, if anything -- the desktop's Enter
-     * and Backspace keys, read off the text the keyboard produced:
-     *
-     *  - A line break typed after an item's marker continues the list: the
-     *    new line gets a marker of the same kind, at the same depth. On an
-     *    item with nothing written in it, the break is taken back and the
-     *    item steps out a level -- or, at the margin, stops being one.
-     *  - The marker's last character deleted takes the item out a level, or
-     *    at the margin the whole marker -- not one character of it.
-     *
-     * [old] and [new] are the body before and after the keyboard's edit;
-     * [props] are the properties as they were. The result's steps start
-     * from [old] -- the keyboard's own edit is the first of them, or is
-     * taken back -- so styles move from the text before the keystroke.
-     * Null when the edit is not one of these, and the text stays as typed.
+     * What a typed edit means in a list -- the desktop's Enter and Backspace,
+     * read off the text the keyboard produced. A break after an item's marker
+     * continues the list, same kind and depth; on an empty item it steps out
+     * a level, or at the margin stops being one. The marker's last character
+     * deleted climbs a level, or at the margin takes the whole marker. The steps
+     * start from [old], so styles move from the text before the key; null otherwise.
      */
     fun afterTyping(old: String, new: String, props: Map<Int, Props>, caret: Int): Done? {
         corrected(old, new, props, caret)?.let { return it }
@@ -388,6 +531,10 @@ object Paragraphs {
         val a = old.codePoints().toArray()
         val b = new.codePoints().toArray()
         if (caret < 1 || caret > b.size || b[caret - 1] != '\n'.code || oneMore(a, b, caret - 1)) return null
+        // Lines put in before a line -- a paste the keyboard's clipboard made --
+        // are no word corrected: read as one, "• Eggs" pasted back before
+        // "• Bread" gave "• • Bread".
+        if (linesPutBefore(a, b, caret)) return null
         val m = b.copyOfRange(0, caret - 1) + b.copyOfRange(caret, b.size)
         val mid = String(m, 0, m.size)
         if (mid == old || mid.count { it == '\n' } != old.count { it == '\n' }) return null
@@ -400,6 +547,15 @@ object Paragraphs {
         while (tail < a.size - head && tail < m.size - head && a[a.size - 1 - tail] == m[m.size - 1 - tail]) tail++
         val word = Edit(head, a.size - head - tail, m.size - head - tail)
         return enter.copy(steps = listOf(listOf(word)) + enter.steps)
+    }
+
+    /** Whether [new] is [old] with text put in at a line's start, ending at [caret]. */
+    private fun linesPutBefore(old: IntArray, new: IntArray, caret: Int): Boolean {
+        val start = caret - (new.size - old.size)
+        if (start !in 0 until caret || (start > 0 && old[start - 1] != '\n'.code)) return false
+        for (i in 0 until start) if (old[i] != new[i]) return false
+        for (i in start until old.size) if (old[i] != new[i + caret - start]) return false
+        return true
     }
 
     /** Whether [longer] is [shorter] with one code point put in at [at]. */
@@ -422,11 +578,7 @@ object Paragraphs {
         val b = new.codePoints().toArray()
         val oldLines = old.split("\n")
         val starts = lineStarts(oldLines)
-        fun lineAt(offset: Int): Int {
-            var n = 0
-            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
-            return n
-        }
+        fun lineAt(offset: Int) = Finding.lineAt(starts, offset)
 
         // Enter: one line break, just before the cursor.
         if (caret >= 1 && oneMore(a, b, caret - 1) && b[caret - 1] == '\n'.code) {
@@ -449,10 +601,9 @@ object Paragraphs {
                 lines[n] = ""
                 return finish(Result(lines.joinToString("\n"), props - n, edits)) to prefix
             }
-            // The line broke in two: what follows moves down a line, and
-            // the new line carries the item's depth with a fresh marker --
-            // and its centring, as the desktop's new item carries the tags
-            // of the one it came from.
+            // The line broke in two: what follows moves down, and the new line
+            // carries the item's depth with a fresh marker, and its centring, as
+            // the desktop's new item carries the tags of the one it came from.
             val shifted = props.mapKeys { (line, _) -> if (line > n) line + 1 else line }
             val withNew = withProps(shifted, n + 1, Props(indent = indent, align = props[n]?.align ?: "left"))
             val marker = markerFor(kind, 1, indent)
@@ -487,28 +638,27 @@ object Paragraphs {
     data class Pos(val line: Int, val column: Int)
 
     /**
-     * `list_deletion_range`: where a deletion should fall when it reaches a
-     * list, or null when it reaches none. A marker is characters, and the
-     * keyboard's own deletes saw only characters: two lines joined kept the
-     * second one's marker among the words ("2. two3. three"), typing over
-     * whole items swallowed the next item's ("x4. four"), and nothing
-     * renumbered. Word's answer, where a marker is no character at all: two
-     * lines joined keep the first one's marker and lose the second's --
-     * unless nothing of the first line is kept, when the second takes its
-     * place; typing over a selection that ends at an item's start keeps
-     * that item; a deletion from just after a marker keeps it, one into a
-     * marker takes all of it, and one from a line's very start takes the
-     * marker it chose. [start] and [end] are what the key would delete;
-     * [typing]: the selection is being typed over.
+     * `list_deletion_range`: where a deletion reaching a list should fall, or
+     * null. A marker is characters: the keyboard's deletes left "2. two3. three".
+     * Word's answer, kept: joined lines keep the first one's marker
+     * (the second's when none of the first stays); typing over a selection
+     * ending at an item's start keeps the item; a deletion just after a marker
+     * keeps it, one into it takes all. [typing] over a selection, [pasted] its text.
      */
-    fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false): Pair<Pos, Pos>? {
+    fun deletionRange(lines: List<String>, start: Pos, end: Pos, typing: Boolean = false,
+                      pasted: String? = null): Pair<Pos, Pos>? {
         val (l1, c1) = start
         val (l2, c2) = end
         val first = parseListMarker(lines[l1])
         val m1 = cpLength(first.marker)
+        // A paste bringing its own marker, over a selection begun at an item's
+        // marker, takes that marker's place wherever the selection ends: kept,
+        // a whole item pasted over the last one read "3. 1. Milk".
+        val own = pasted != null && parseListMarker(pasted.substringBefore('\n')).kind != null
+        val fromMarker = own && first.kind != null && c1 <= m1
         if (l1 == l2) {
             // Within one line only its own marker can be reached.
-            if (first.kind == null || c1 >= m1) return null
+            if (first.kind == null || (c1 >= m1 && !fromMarker)) return null
             return Pos(l1, 0) to Pos(l2, maxOf(c2, m1))
         }
         val last = parseListMarker(lines[l2])
@@ -517,13 +667,17 @@ object Paragraphs {
             (l1 + 1 until l2).none { parseListMarker(lines[it]).kind != null }) return null
         val keepsWords = c1 > (if (first.kind != null) m1 else 0)
         if (last.kind != null && c2 <= m2) {
-            // The end is at the start of an item, before its words.
-            if (keepsWords) return start to Pos(l2, m2)
-            if (typing) return Pos(l1, if (first.kind != null) m1 else 0) to Pos(l2 - 1, cpLength(lines[l2 - 1]))
+            // The end is at the start of an item, before its words. A paste
+            // bringing its own line break takes the covered break's place:
+            // kept, a whole item pasted over another left an empty line.
+            val upto = if (pasted?.endsWith("\n") == true) Pos(l2, 0) else null
+            if (keepsWords) return start to (upto ?: Pos(l2, m2))
+            if (typing) return Pos(l1, if (first.kind != null && !own) m1 else 0) to
+                (upto ?: Pos(l2 - 1, cpLength(lines[l2 - 1])))
             return Pos(l1, 0) to Pos(l2, 0)
         }
         // From just after (or inside) a marker into words: the item keeps it.
-        if (first.kind != null && c1 in 1..m1) return Pos(l1, m1) to end
+        if (first.kind != null && c1 in 1..m1) return Pos(l1, if (fromMarker) 0 else m1) to end
         return start to end
     }
 
@@ -546,8 +700,7 @@ object Paragraphs {
         val typed = String(b, p, caret - p)
         if (typed == "\n") return null
         fun pos(offset: Int): Pos {
-            var n = 0
-            while (n + 1 < starts.size && starts[n + 1] <= offset) n++
+            val n = Finding.lineAt(starts, offset)
             return Pos(n, offset - starts[n])
         }
         val (from, to) = deletionRange(oldLines, pos(p), pos(end), typing = typed.isNotEmpty()) ?: return null

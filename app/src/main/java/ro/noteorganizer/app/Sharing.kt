@@ -4,19 +4,17 @@ import java.util.Base64
 import java.util.zip.Deflater
 import java.util.zip.Inflater
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
 
 /**
- * Share codes: moving notes between devices as copy-paste text.
- *
- * A code is a small JSON payload, zlib-compressed, Base64'd, behind a
- * version prefix. Measured on a real notebook, one note comes to 630
- * characters at the median and 72 of 77 fit under 2000 — small enough for
- * a message or an email, which is the whole point.
+ * Share codes: moving notes between devices as copy-paste text -- a small
+ * JSON payload, zlib-compressed, Base64'd, behind a version prefix. On a
+ * real notebook one note came to 630 characters at the median, and 72 of
+ * 77 fit under 2000: small enough for a message or an email.
  *
  * **This is not encryption.** Anyone holding the code can read the note.
- * It is a compact, pasteable spelling of the same text, nothing more.
- *
  * It carries note CONTENT and never attachments: binary files would push a
  * code past anything a chat box will accept.
  */
@@ -37,11 +35,9 @@ object Sharing {
      * without it a shared note arrives flush left with flat lists.
      */
     val SHAREABLE_FIELDS = listOf(
-        // "uid" travels; "id" does not. An id is only a note's place in
-        // one file and means nothing anywhere else. The uid is what lets
-        // the far end recognise a note it already has instead of guessing
-        // from the text -- a guess that fails exactly when the note was
-        // edited, which is the only time anyone re-sends one.
+        // "uid" travels, "id" does not: an id is a place in one file. The uid lets
+        // the far end recognise a note it has instead of guessing from the text --
+        // a guess that fails exactly when the note was edited.
         "uid",
         "title", "body", "formatting", "comments", "category", "date",
         "color", "recurrence", "paragraphs", "checklist",
@@ -51,10 +47,39 @@ object Sharing {
         "This share code is damaged or incomplete. Ask the sender to copy the whole code again."
     private const val NO_NOTES = "This share code doesn't contain any notes."
 
+    /**
+     * Whether [text] is a whole JSON value that is neither a list nor an
+     * object, as Python's json reads one, its spaces around it: a code holding
+     * one is whole but holds no notes (decode_share_code), where org.json's
+     * object reader called it damaged. A string is walked, not matched: a
+     * regex over 300,000 letters of one recursed past the thread's stack.
+     */
+    private fun pyJsonScalar(text: String): Boolean {
+        val core = text.trim(' ', '\t', '\n', '\r')
+        if (!core.startsWith("\"")) return PY_JSON_PLAIN.matches(core)
+        if (core.length < 2 || core.last() != '"') return false
+        var at = 1
+        while (at < core.length - 1) {
+            val c = core[at]
+            at += when {
+                c == '"' || c < ' ' -> return false
+                c != '\\' -> 1
+                core.getOrNull(at + 1)?.let { it in "\"\\/bfnrt" } == true -> 2
+                core.getOrNull(at + 1) == 'u' && at + 6 <= core.length - 1 &&
+                    core.substring(at + 2, at + 6).all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' } -> 6
+                else -> return false
+            }
+        }
+        return at == core.length - 1
+    }
+
+    private val PY_JSON_PLAIN = Regex("""-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|true|false|null|NaN|-?Infinity""")
+
     /** What a code turned out to be. A failure explains itself. */
     sealed class Decoded {
         data class Notes(val notes: List<JSONObject>) : Decoded()
-        data class Failed(val reason: String) : Decoded()
+        /** [unreadable]: the code's bytes do not read (its Base64, zlib or JSON). */
+        data class Failed(val reason: String, val unreadable: Boolean = false) : Decoded()
     }
 
     /** The slice of a note a share code carries -- present keys only. */
@@ -73,12 +98,61 @@ object Sharing {
     class TooLarge(message: String) : Exception(message)
 
     /**
-     * What the phone hands another app in one go, in characters. Android
-     * passes a shared text through a buffer of about a megabyte, shared by
-     * everything in flight; a code longer than this is refused here, kindly,
-     * rather than in the share sheet, where it would stop the app.
+     * What the phone hands another app at once, in characters -- a code or a
+     * note's words; longer is refused here, kindly. Measured, not reasoned:
+     * the share sheet's text travels at about three bytes a character in a
+     * call held to half a megabyte, and past 160,000 the sheet never came,
+     * nothing said. 100,000 Latin letters leave room; the ceiling itself is
+     * [MAX_HANDED_BYTES], what they come to ([handedBytes]).
      */
-    const val MAX_HANDED_CHARS = 250_000
+    const val MAX_HANDED_CHARS = 100_000
+
+    /**
+     * What [texts] come to in Android's buffer, handed to another app: each
+     * twice, as the intent's text (two bytes a UTF-16 unit) and as its clip,
+     * in UTF-8 since Android 11 (one byte a Latin letter, three a Chinese or
+     * Korean one). Measured: 210,000 Latin letters, 634,252 bytes; counted by
+     * letters, 99,890 Chinese ones were a parcel the system did not deliver.
+     */
+    fun handedBytes(vararg texts: String): Long = texts.sumOf { 2L * it.length + utf8Length(it) }
+
+    /** The ceiling on [handedBytes]: [MAX_HANDED_CHARS] Latin letters' worth. */
+    const val MAX_HANDED_BYTES = 3L * MAX_HANDED_CHARS
+
+    /** Whether [texts] are more than may be handed to another app in one go ([MAX_HANDED_BYTES]). */
+    fun tooLongToHand(vararg texts: String): Boolean = handedBytes(*texts) > MAX_HANDED_BYTES
+
+    /**
+     * How many characters like those of [texts] may be handed at most --
+     * the ceiling shared out at their bytes a character: 100,000 of the
+     * Latin alphabet, about 60,000 Chinese. Under [characters] of them
+     * exactly when [tooLongToHand], so a refusal never quotes a number
+     * under the one it refuses.
+     */
+    fun handedAtMost(vararg texts: String): Int {
+        val bytes = handedBytes(*texts)
+        val count = characters(*texts)
+        return if (bytes == 0L) MAX_HANDED_CHARS else (MAX_HANDED_BYTES * count / bytes).toInt()
+    }
+
+    /** How many characters [texts] hold, as a person counts them: code points. */
+    fun characters(vararg texts: String): Long = texts.sumOf { it.codePointCount(0, it.length).toLong() }
+
+    private fun utf8Length(text: String): Long {
+        var bytes = 0L
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            bytes += when {
+                c.code < 0x80 -> 1
+                c.code < 0x800 -> 2
+                Character.isHighSurrogate(c) && i + 1 < text.length && Character.isLowSurrogate(text[i + 1]) -> { i++; 4 }
+                else -> 3
+            }
+            i++
+        }
+        return bytes
+    }
 
     /**
      * The code for [notes] -- refused, as the desktop's `encode_share_code`
@@ -100,47 +174,148 @@ object Sharing {
         // desktop hit exactly this: an emoji typed but not yet saved took
         // the crash path on sharing, because mending only ran on save.
         val raw = mendSurrogates(payload.toString()).toByteArray(Charsets.UTF_8)
+        // Weighed before the deflate, the dearest step: a note past what a
+        // code may hold was deflated whole at level 9, then refused.
+        if (raw.size > MAX_DECOMPRESSED_BYTES) throw tooMuchForOneCode()
         val code = PREFIX + Base64.getUrlEncoder().encodeToString(deflate(raw))
-        if (raw.size > MAX_DECOMPRESSED_BYTES || code.length > MAX_CODE_CHARS) {
-            throw TooLarge("That is too much for one code. Share fewer notes at a time, " +
-                           "or send a backup instead: Settings → Backup.")
-        }
+        if (code.length > MAX_CODE_CHARS) throw tooMuchForOneCode()
         return code
     }
 
+    private fun tooMuchForOneCode() = TooLarge("That is too much for one code. Share fewer notes at a time, " +
+                                               "or send a backup instead: Settings → Backup.")
+
+    /** What a chat app wraps a code with: whitespace, and the invisible break marks. */
+    private fun wrapping(c: Char) =
+        // Written by their numbers: the marks themselves are invisible, and an
+        // editor may drop one without a trace (lint read the last as a BOM).
+        // NEL (0x85) is whitespace to Python's \s and not to isWhitespace.
+        c.isWhitespace() || c == Char(0x0085) || c == Char(0x00AD) || c in Char(0x200B)..Char(0x200D) || c == Char(0x2060) ||
+            c == Char(0xFEFF)
+
+    /** Whether [text] shows a prefix only once its wrapping is taken out ("NOTE\n1:"). */
+    private fun prefixHidden(text: String): Boolean =
+        !text.contains(PREFIX) && text.filterNot { wrapping(it) }.contains(PREFIX)
+
+    /**
+     * Whether [text] holds a share code: its prefix whole, or hidden by the
+     * wrapping and leading to bytes a code holds, refused or not (a newer
+     * version's was saved as a note). Words that say "NOTE 1:" are a note.
+     */
+    internal fun holdsCode(text: String): Boolean =
+        text.contains(PREFIX) || (prefixHidden(text) && (decode(text) as? Decoded.Failed)?.reason != NOT_A_CODE)
+
+    /**
+     * Whether the code in [text], from a file only the start of which was
+     * read, is cut: its bytes do not read. A whole code the app refuses (a
+     * newer version's, one holding no notes) goes on to the Import, which says
+     * why; calling it incomplete sent its sender to copy it again.
+     */
+    internal fun cutShort(text: String): Boolean = (decode(text) as? Decoded.Failed)?.unreadable == true
+
+    /**
+     * The share code inside [text], its wrapping taken out -- the desktop's
+     * `code_in`: from its prefix to its padding, or to the first character a
+     * code is not written in (`+` and `/` read as `-` and `_`), so that
+     * "Hi! NOTE1:… Thanks" reads. Without padding, letters past the last
+     * whole group of four are left (a word after it); a code that lost its
+     * "=" still reads. [text], whitespace out, when it holds no prefix.
+     */
+    internal fun codeIn(text: String): String {
+        val at = text.indexOf(PREFIX)
+        if (at < 0) {
+            // The prefix itself broken by the wrapping ("NOTE\n1:") is read from
+            // as a whole one is, as the desktop's code_in reads it: the two read
+            // and refused different damaged codes there.
+            val bare = text.filterNot { wrapping(it) }
+            return if (bare.contains(PREFIX)) codeIn(bare) else text.filterNot { it.isWhitespace() || it == Char(0x0085) }
+        }
+        val body = StringBuilder()
+        var padded = false
+        for (i in at + PREFIX.length until text.length) {
+            val c = text[i]
+            if (wrapping(c)) continue
+            if (c == '=') {
+                padded = true
+                body.append(c)
+                continue
+            }
+            if (padded) break
+            when {
+                c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c == '-' || c == '_' -> body.append(c)
+                c == '+' -> body.append('-')
+                c == '/' -> body.append('_')
+                else -> break
+            }
+        }
+        if (!padded) body.setLength(body.length - body.length % 4)
+        return PREFIX + body
+    }
+
+    private val NOT_A_CODE = "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”."
+
     fun decode(code: String): Decoded {
-        // Chat apps wrap long codes; whitespace anywhere is not damage.
-        val cleaned = code.filterNot { it.isWhitespace() }
+        val read = decodeFound(codeIn(code))
+        // A prefix the wrapping hid that leads to bytes no code holds is words
+        // saying "NOTE 1:", not a code: answered as such, as the desktop's. A
+        // code that reads keeps its own answer (a newer version's, too many notes).
+        return if (read is Decoded.Failed && read.unreadable && prefixHidden(code)) Decoded.Failed(NOT_A_CODE)
+               else read
+    }
+
+    /** [decode], once [codeIn] has found the code in the text. */
+    private fun decodeFound(cleaned: String): Decoded {
         // The desktop's words, from decode_share_code, so the same damaged
         // code is described the same way on both devices.
         if (cleaned.isEmpty()) return Decoded.Failed("No code was pasted.")
         if (cleaned.length > MAX_CODE_CHARS) {
             return Decoded.Failed(
                 "That code is far too large to import safely. For a transfer this " +
-                    "large, send a backup instead: Settings → Backup → Export, then " +
-                    "Import on the other device.")
+                    "large, send a backup instead: save one in Settings → Backup on the " +
+                    "device it came from, then import it on this one.")
         }
-        if (!cleaned.startsWith(PREFIX)) {
-            return Decoded.Failed(
-                "This isn't a Note Organizer share code. A valid code starts with “$PREFIX”.")
-        }
+        if (!cleaned.startsWith(PREFIX)) return Decoded.Failed(NOT_A_CODE)
         val compressed = try {
-            Base64.getUrlDecoder().decode(cleaned.substring(PREFIX.length))
+            // Python's rule: padding past the code's own is ignored (a code
+            // followed by "=)" or a line of "=====" reads), but too little is
+            // refused -- a code that lost one of its two "=" is damaged on both.
+            val body = cleaned.substring(PREFIX.length)
+            val data = body.trimEnd('=')
+            val short = when (data.length % 4) { 1 -> true; 2 -> body.length - data.length < 2; else -> false }
+            if (short && body.length != data.length) throw IllegalArgumentException("incorrect padding")
+            if (data.length % 4 == 1) throw IllegalArgumentException("a letter over")
+            Base64.getUrlDecoder().decode(data)
         } catch (e: IllegalArgumentException) {
             return Decoded.Failed(
                 "This share code is damaged or incomplete. Ask the sender to copy " +
-                    "the whole code again — chat apps sometimes cut long codes short.")
+                    "the whole code again — chat apps sometimes cut long codes short.", unreadable = true)
         }
         val raw = inflate(compressed, MAX_DECOMPRESSED_BYTES)
             ?: return Decoded.Failed(
                 "This share code is damaged, or too large to import safely. Ask the " +
                     "sender to send it again, or to send a backup instead (Settings → " +
-                    "Backup → Export).")
+                    "Backup).", unreadable = true)
 
+        // A code holding a list is whole but holds no notes, as decode_share_code
+        // says; a list is asked of by name, since org.json's own reader takes a
+        // bare word for text where Python's refuses it.
         val payload = try {
-            JSONObject(String(raw, Charsets.UTF_8))
+            val text = Files.utf8(raw)
+            if (PyText.lstrip(text).startsWith("[")) {
+                Files.parseOutside(text) { JSONArray(it) }
+                return Decoded.Failed(NO_NOTES)
+            }
+            if (pyJsonScalar(text)) return Decoded.Failed(NO_NOTES)
+            // Whole, as Python's reader takes it: anything after the object
+            // is damage there, and org.json's reader stopped at the brace.
+            Files.parseOutside(text) { whole ->
+                val reader = JSONTokener(whole)
+                val value = reader.nextValue() as? JSONObject ?: throw JSONException("not an object")
+                if (reader.nextClean() != 0.toChar()) throw JSONException("text after the object")
+                value
+            }
         } catch (e: Exception) {
-            return Decoded.Failed(DAMAGED)
+            return Decoded.Failed(DAMAGED, unreadable = true)
         }
         if (!payload.has("notes")) return Decoded.Failed(NO_NOTES)
         // The version is the code's own claim, in text anyone can edit: a
@@ -160,13 +335,11 @@ object Sharing {
                 "This code contains ${notes.length()} notes, which is over the " +
                     "$MAX_SHARED_NOTES-note limit for a single code. Ask the sender to " +
                     "split it into smaller codes, or to send a backup instead " +
-                    "(Settings → Backup → Export).")
+                    "(Settings → Backup).")
         }
-        // Projected through the SAME slice `encode` produces, so a
-        // hand-crafted code can only carry the fields a real one would.
-        // This is the boundary that stops an imported note smuggling in an
-        // attachment reference -- one whose `stored_as` could later aim a
-        // delete at a file outside the attachments folder.
+        // Through the SAME slice `encode` makes, so a hand-made code carries only
+        // a real one's fields: no attachment reference whose `stored_as` could
+        // later aim a delete outside the attachments folder.
         val out = ArrayList<JSONObject>(notes.length())
         for (i in 0 until notes.length()) {
             val note = notes.opt(i) as? JSONObject ?: JSONObject()
@@ -202,7 +375,9 @@ object Sharing {
         try {
             while (!inflater.finished()) {
                 val n = inflater.inflate(buffer)
-                if (n == 0 && (inflater.needsInput() || inflater.needsDictionary())) break
+                // A stream asking for a preset dictionary is one Python refuses.
+                if (n == 0 && inflater.needsDictionary()) return null
+                if (n == 0 && inflater.needsInput()) break
                 out.write(buffer, 0, n)
                 if (out.size() > limit) return null
             }
@@ -211,7 +386,8 @@ object Sharing {
         } finally {
             inflater.end()
         }
-        if (out.size() == 0) return null
+        // A stream that ended before any of it came out reads on as nothing, as
+        // Python's does: its JSON then fails, "damaged or incomplete", both apps.
         return out.toByteArray()
     }
 }

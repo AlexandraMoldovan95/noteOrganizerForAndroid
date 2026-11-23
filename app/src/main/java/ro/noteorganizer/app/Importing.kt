@@ -8,36 +8,48 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Bringing notes in -- from a share code or from a backup -- by the
- * desktop's rules, asked as the desktop asks them.
- *
- * Nothing is overwritten on its own. An import is planned first, without
- * writing anything, and the plan says which questions there are:
- *
- * 1. Notes this device already has, by identity, that arrive CHANGED:
- *    update them, or add them as new notes beside the originals. From a
- *    backup the question also says when the arriving copy is OLDER.
- * 2. Notes that arrive exactly as they are here: skip them, or add copies.
- * 3. Notes nothing here matches by identity that still LOOK identical to
- *    one here (the desktop's `_dup_key`): import them anyway, or skip them.
- *
- * Every answer is given before anything is written. Then [apply] writes
- * it all, the way `import_data` writes it: the backup's categories, its
- * painted calendar days, its templates and its Trash join what is here
- * without replacing any of it, and a file another note already uses is
- * given a copy of its own, so deleting one note can never take another's
- * file with it.
- *
- * The two routes share this one planner and this one apply, as they do
- * on the desktop: two hand-rolled copies of one judgement is how its
- * search rules once drifted apart.
+ * Bringing notes in, from a share code or a backup, by the desktop's rules.
+ * [plan] writes nothing: it sorts what arrived into notes here that come
+ * changed (update them, or add beside them; a backup's older copy is said),
+ * notes that come as they are (skip, or copy), and new notes that look like
+ * one here (`_dup_key`: import or skip). Every answer comes first; [apply]
+ * then writes as `import_data` does: a backup's categories, painted days,
+ * templates and Trash join what is here, and a file another note uses gets
+ * a copy of its own, so deleting one note never takes another's file. Both
+ * routes share this one planner, as on the desktop: two copies of one
+ * judgement is how its search rules once drifted apart.
  */
 object Importing {
 
     enum class Source(val word: String) { CODE("code"), BACKUP("backup") }
 
-    /** A note this device has, and the copy that arrived for it. */
-    data class Known(val mineIndex: Int, val theirs: JSONObject)
+    /**
+     * A note this device has, known by the identity both copies wear
+     * ([uid], trimmed), and the copy that arrived for it. Never by its
+     * place in the list: a plan is made away from the screen while the list
+     * can still change, and a note sent to the Trash meanwhile moved every
+     * note after it up one -- Update then rewrote a different note with the
+     * arriving copy, and left the one it was for as it was.
+     */
+    data class Known(val uid: String, val theirs: JSONObject)
+
+    /**
+     * Where each identity first stands in [notebook]: how the plan matched
+     * an arriving note, and how [apply] finds it again in the list as it is
+     * when the answers are written.
+     */
+    private fun positions(notebook: JSONArray): Map<String, Int> {
+        val byUid = HashMap<String, Int>()
+        for (i in 0 until notebook.length()) {
+            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.let { PyText.strip(it) }
+            if (!uid.isNullOrEmpty()) byUid.putIfAbsent(uid, i)
+        }
+        return byUid
+    }
+
+    // Stripped as normalize_note strips it (Python's spaces), or a uid kept
+    // with a U+0085 by one program was another note to the other.
+    private fun uidOf(note: JSONObject): String? = (note.opt("uid") as? String)?.let { PyText.strip(it) }?.ifEmpty { null }
 
     data class Plan(
         val source: Source,
@@ -47,8 +59,29 @@ object Importing {
         val unchanged: List<Known>,
         /** Notes nothing here matches by identity. */
         val fresh: List<JSONObject>,
-        /** How many of [differing] are older than the copy here (backups). */
+        /** How many of [differing] are older than the copy here (backups), files alone not counted. */
         val older: Int,
+        /**
+         * How many of [differing] are notes here holding a rescue copy they
+         * still need ([Notebook.holdsUnspentCopy]): a note has one, and an
+         * update's takes its place, so the question says so.
+         */
+        val rescued: Int = 0,
+        /**
+         * How many of [differing] differ by attached files alone (backups):
+         * Update adds the files and keeps no copy, so no Restore previous is
+         * promised of them, as the desktop's question says.
+         */
+        val filed: Int = 0,
+        /**
+         * How many of [unchanged] hold fields a newer version wrote that the
+         * note here lacks: "nothing this device lacks" was untrue of them.
+         */
+        val newer: Int = 0,
+        /** The names the notes were compared under, or null for the notes as they came. */
+        val categories: Set<String>? = null,
+        /** The notes as they arrived, in the file's order: the order names are adopted in. */
+        val arriving: List<JSONObject> = emptyList(),
     )
 
     /** The answers, one per question the plan raised. */
@@ -66,6 +99,8 @@ object Importing {
         val categories: JSONObject? = null,
         val dayColors: JSONObject? = null,
         val dayEmoji: JSONObject? = null,
+        /** How many days the backup's notebook kept its Trash, when it chose a usable window. */
+        val trashWindow: Int? = null,
         val templates: JSONArray? = null,
         val trash: JSONArray? = null,
         /** Where the backup's attached files were unpacked. */
@@ -85,6 +120,17 @@ object Importing {
         val addedTrash: Int = 0,
         /** The first note it added or updated, for the screen to open. */
         val firstId: Int = 0,
+        /** Notes '(earlier text)' made of a series' copy as it was read. */
+        val earlierText: Int = 0,
+        /** Notes here that only took files the backup had and this device lacked: no rescue copy undoes them. */
+        val filesOnly: Int = 0,
+        /** Files skipped look-alikes gave the notes here they look like, as the desktop's files_given. */
+        val filesGiven: Int = 0,
+        /** The backup's trashed notes left in it, past the [keepDays] this phone's next start purges by. */
+        val trashLeftOut: Int = 0,
+        val keepDays: Int? = null,
+        /** Of the notes added, those in the Trash too, by identity: said beside "Added". */
+        val alsoInTrash: Int = 0,
     )
 
     sealed class Result {
@@ -95,15 +141,6 @@ object Importing {
     private fun fields(source: Source) =
         if (source == Source.BACKUP) Notebook.UPDATABLE_FROM_BACKUP else Notebook.UPDATABLE_FROM_SHARED
 
-    /**
-     * Asked of no file: what arrived, sorted into the three kinds.
-     * [categories] are the ones the notebook will have -- its own, and a
-     * backup's it adds: a note filed under one it will not have is
-     * compared as the General note the import makes it, as the desktop's
-     * normalize_note compares it. Compared as it came, an unchanged note
-     * read as "edited elsewhere", and Update changed nothing but its rescue
-     * copy.
-     */
     /**
      * [note] filed as this device files it: under General when its category
      * is not one here -- and each of its days' own categories too, as the
@@ -131,49 +168,85 @@ object Importing {
         }
     }
 
+    /**
+     * Whether Update is the answer that stands out in [plan]'s question: not
+     * when a backup's versions are older than the notes here, where it wrote
+     * them over the newer ones; adding loses nothing.
+     */
+    fun updateStandsOut(plan: Plan): Boolean = plan.older == 0
+
+    /**
+     * Asked of no file: what arrived, sorted into the three kinds.
+     * [categories] are the ones the notebook will have; a note filed under
+     * one it will not have is compared as the General note the import makes
+     * it, as normalize_note does. Compared as it came, an unchanged note read
+     * as "edited elsewhere", and Update changed nothing but its rescue copy.
+     * [fileOf] finds a stored file ([filesIn]), so a file is known by its bytes too.
+     */
     fun plan(notebook: JSONArray, incoming: List<JSONObject>, source: Source,
-             categories: Set<String>? = null): Plan {
+             categories: Set<String>? = null, fileOf: ((String) -> File?)? = null): Plan {
         val asHere: (JSONObject) -> JSONObject = { note ->
             if (categories == null || !needsFiling(note, categories)) note
             else fileUnder(JSONObject(note.toString()), categories)
         }
-        val byUid = HashMap<String, Int>()
-        for (i in 0 until notebook.length()) {
-            val uid = ((notebook.opt(i) as? JSONObject)?.opt("uid") as? String)?.trim()
-            if (!uid.isNullOrEmpty()) byUid.putIfAbsent(uid, i)
-        }
+        val byUid = positions(notebook)
+        // Each identity goes to the first note arriving with it; a second comes
+        // in as a note of its own. Both kept it, one note was updated twice
+        // (the person's words in no copy), or two notes wore it, files crossed.
+        val claimed = HashSet<String>()
+
         val differing = ArrayList<Known>()
         val unchanged = ArrayList<Known>()
         val fresh = ArrayList<JSONObject>()
         var older = 0
+        var rescued = 0
+        var filed = 0
+        var newer = 0
         for (theirs in incoming) {
-            val at = (theirs.opt("uid") as? String)?.trim()?.ifEmpty { null }?.let { byUid[it] }
-            if (at == null) {
+            val uid = uidOf(theirs)
+            if (uid != null && !claimed.add(uid)) {
+                fresh.add(withoutIdentity(theirs))
+                continue
+            }
+            val at = uid?.let { byUid[it] }
+            if (uid == null || at == null) {
                 fresh.add(theirs)
                 continue
             }
             val mine = notebook.getJSONObject(at)
-            val known = Known(at, theirs)
-            if (differs(asHere(mine), asHere(theirs), source)) {
+            val known = Known(uid, theirs)
+            val here = asHere(mine)
+            val there = asHere(theirs)
+            // Whether bringing theirs over mine would change anything: a field
+            // the route may replace, or -- from a backup, whose files are
+            // added and never swapped -- a file this device's copy lacks.
+            val fieldsChange = Notebook.sharedUpdateChanges(here, there, fields(source))
+            if (fieldsChange || (source == Source.BACKUP && filesToAdopt(here, there, fileOf).isNotEmpty())) {
                 differing.add(known)
-                if (source == Source.BACKUP &&
+                // Files alone trade no words: not OLDER, and no copy made
+                // (Notebook.applyUpdate), so no rescue copy replaced either.
+                if (!fieldsChange) filed += 1
+                if (fieldsChange && source == Source.BACKUP &&
                     (theirs.opt("updated") as? String ?: "") < (mine.opt("updated") as? String ?: "")
                 ) older += 1
+                if (fieldsChange && Notebook.holdsUnspentCopy(mine)) rescued += 1
             } else {
                 unchanged.add(known)
+                if (unknownFieldsLacked(there, here)) newer += 1
             }
         }
-        return Plan(source, incoming.size, differing, unchanged, fresh, older)
+        return Plan(source, incoming.size, differing, unchanged, fresh, older, rescued, filed, newer, categories, incoming)
     }
 
     /**
-     * Whether bringing [theirs] over [mine] would change anything: a field
-     * the route may replace, or -- from a backup, whose files are added and
-     * never swapped -- a file this device's copy lacks.
+     * Whether [theirs] holds a field this version does not know that [mine]
+     * lacks or holds otherwise, kinds told apart: the desktop's
+     * `unknown_fields_lacked`. A share code holds none.
      */
-    private fun differs(mine: JSONObject, theirs: JSONObject, source: Source): Boolean {
-        if (Notebook.sharedUpdateChanges(mine, theirs, fields(source))) return true
-        return source == Source.BACKUP && filesToAdopt(mine, theirs).isNotEmpty()
+    internal fun unknownFieldsLacked(theirs: JSONObject, mine: JSONObject): Boolean {
+        val held = Normalize.unknownFields(mine)
+        val brought = Normalize.unknownFields(theirs)
+        return brought.keys().asSequence().any { !held.has(it) || !Notebook.sameJson(held.opt(it), brought.opt(it)) }
     }
 
     private fun storedNames(note: JSONObject): Set<String> {
@@ -185,12 +258,36 @@ object Importing {
         return out
     }
 
-    private fun filesToAdopt(mine: JSONObject, theirs: JSONObject): List<JSONObject> {
+    /**
+     * The files [theirs] has and [mine] lacks: by stored name, and, where [fileOf] finds
+     * them, by the name shown and the bytes -- a note that came in on a copy of a file was
+     * asked about as edited elsewhere at every import, and its Update added one more copy.
+     */
+    private fun filesToAdopt(mine: JSONObject, theirs: JSONObject, fileOf: ((String) -> File?)? = null): List<JSONObject> {
         val have = storedNames(mine)
+        val own = Normalize.cleanAttachments(mine.opt("attachments") as? JSONArray ?: JSONArray())
         val theirFiles = Normalize.cleanAttachments(theirs.opt("attachments") as? JSONArray ?: JSONArray())
         return (0 until theirFiles.length()).map { theirFiles.getJSONObject(it) }
             .filter { it.optString("stored_as").isNotEmpty() && it.optString("stored_as") !in have }
+            .filter { att -> fileOf == null || (0 until own.length()).none { sameFile(att, own.getJSONObject(it), fileOf) } }
     }
+
+    /**
+     * Whether the import goes on past its look-alikes -- the notes known here
+     * updated or added as new ones, unchanged notes kept as copies -- so the
+     * question about them, when every new note is one, offers to skip them:
+     * Cancel was its only no, and dropped those answers unsaid, as the desktop's did.
+     */
+    fun goesOnPastLookAlikes(plan: Plan, answers: Answers): Boolean =
+        plan.differing.isNotEmpty() || (answers.copyUnchanged && plan.unchanged.isNotEmpty())
+
+    /**
+     * Whether the question, when every new note is a look-alike, offers to skip them: the
+     * import goes on past them, or Skip still brings something ([LookAlikes.more]), as the
+     * desktop's `_backup_brings_more` -- files, a template, the Trash, a day's marks.
+     */
+    fun offersSkip(plan: Plan, answers: Answers, alikes: LookAlikes): Boolean =
+        goesOnPastLookAlikes(plan, answers) || alikes.more(answers.update)
 
     /**
      * How many of the notes left to import as new look identical to a
@@ -198,30 +295,87 @@ object Importing {
      * leave it: the third question, once the first is answered.
      */
     fun lookAlikes(notebook: JSONArray, plan: Plan, update: Boolean): Int {
-        val keys = notebookKeys(notebook, plan, update)
-        return remaining(plan, update).count { keyOf(it) in keys }
+        val keys = twinsOf(notebook, plan, update).keys
+        return plan.fresh.count { keyOf(it, plan.categories) in keys }
     }
 
     /**
-     * Compared by the desktop's duplicate key, never by object: the copies
-     * [remaining] makes are new objects every time it is asked.
+     * The note here each duplicate key finds in [notes] as the updates will leave them --
+     * an updated note by the backup's copy, as the question asks -- the first in the file
+     * winning, as the desktop's `_twins_after`. Keyed after the update in apply, a note
+     * holding a field a newer version wrote found no twin, and a skipped file was dropped.
      */
-    private fun notebookKeys(notebook: JSONArray, plan: Plan, update: Boolean): Set<String> {
-        val replaced = if (update) plan.differing.map { it.mineIndex }.toSet() else emptySet()
-        val keys = HashSet<String>()
-        for (i in 0 until notebook.length()) {
-            if (i in replaced) continue
-            (notebook.opt(i) as? JSONObject)?.let { keys.add(keyOf(it)) }
+    private fun twinsOf(notes: JSONArray, plan: Plan, update: Boolean): Map<String, JSONObject> {
+        val replaced = if (!update) emptyMap() else positions(notes).let { at ->
+            plan.differing.mapNotNull { known -> at[known.uid]?.let { it to known.theirs } }.toMap() }
+        val twins = LinkedHashMap<String, JSONObject>()
+        for (i in 0 until notes.length()) {
+            (notes.opt(i) as? JSONObject)?.let { twins.putIfAbsent(keyOf(replaced[i] ?: it, plan.categories), it) }
         }
-        if (update) plan.differing.forEach { keys.add(keyOf(it.theirs)) }
-        return keys
+        return twins
     }
 
-    private fun keyOf(note: JSONObject): String = Normalize.dupKey(Normalize.normalizeNote(note))
+    /**
+     * [lookAlikes] for each answer to the first question, each worked out
+     * once. The questions asked it from their drawing, two or three times
+     * and again at every redraw, every note of both notebooks normalized
+     * each time: with a thousand here and a thousand coming, the screen
+     * held still 1.3 seconds on the emulator. A backup's are worked out
+     * before the questions open, away from the screen ([warm]).
+     */
+    class LookAlikes(private val count: (Boolean) -> Int, private val bringing: (Boolean) -> Boolean = { false }) {
+        constructor(notebook: JSONArray, plan: Plan, bringing: (Boolean) -> Boolean = { false }) :
+            this({ update -> lookAlikes(notebook, plan, update) }, bringing)
 
-    /** What would be added as new notes before the look-alike question. */
-    private fun remaining(plan: Plan, update: Boolean): List<JSONObject> =
-        if (update) plan.fresh else plan.fresh + plan.differing.map { withoutIdentity(it.theirs) }
+        private val counted = HashMap<Boolean, Int>()
+        private val brings = HashMap<Boolean, Boolean>()
+
+        fun of(update: Boolean): Int = synchronized(counted) { counted.getOrPut(update) { count(update) } }
+
+        /** Whether Skip still brings something when every new note is a look-alike ([bringsMore]). */
+        fun more(update: Boolean): Boolean = synchronized(brings) { brings.getOrPut(update) { bringing(update) } }
+
+        /** Both answers' counts, and what Skip brings where every new note looks alike, worked out now: away from the screen. */
+        fun warm(plan: Plan): LookAlikes {
+            val alike = of(false)
+            // With notes known here the import goes on past the look-alikes whatever the first
+            // answer (goesOnPastLookAlikes): what Skip brings is asked only without them.
+            if (plan.differing.isNotEmpty()) of(true)
+            else if (alike > 0 && alike == plan.fresh.size) more(false)
+            return this
+        }
+    }
+
+    /** The duplicate key of [note] as it will be kept: under General where [categories] lack its name. */
+    private fun keyOf(note: JSONObject, categories: Set<String>?): String = Normalize.dupKey(Normalize.normalizeNote(
+        if (categories == null || !needsFiling(note, categories)) note else fileUnder(JSONObject(note.toString()), categories)))
+
+    /**
+     * [plan] against the list as it is now ([at], from [positions]). A note
+     * it matched that has gone since, to the Trash while the plan was made,
+     * arrives as a new note, as a fresh plan would sort it. A note planned as
+     * new whose identity a note here wears now, restored meanwhile, comes in
+     * as a note of its own: added wearing it, two notes held one identity.
+     */
+    private fun stillMatched(plan: Plan, at: Map<String, Int>): Plan {
+        val gone = (plan.differing + plan.unchanged).filter { it.uid !in at }.toSet()
+        val back = plan.fresh.filter { note -> uidOf(note)?.let { it in at } == true }.toSet()
+        if (gone.isEmpty() && back.isEmpty()) return plan
+        return plan.copy(
+            differing = plan.differing.filter { it !in gone },
+            unchanged = plan.unchanged.filter { it !in gone },
+            fresh = plan.fresh.map { if (it in back) withoutIdentity(it) else it } + gone.map { it.theirs },
+        )
+    }
+
+    /**
+     * The notes known here added as new ones ("Add as a new note"), each without the identity
+     * it came with: copies asked for, past the look-alike question, as the desktop adds them.
+     * Asked again, a note edited elsewhere only in its date or colour read as a duplicate of
+     * itself, and the question's Cancel undid the Add.
+     */
+    private fun keptSeparate(plan: Plan, update: Boolean): List<JSONObject> =
+        if (update) emptyList() else plan.differing.map { asCopy(it.theirs) }
 
     /** A copy kept separate must not wear the original's identity. */
     private fun withoutIdentity(note: JSONObject): JSONObject {
@@ -231,11 +385,19 @@ object Importing {
     }
 
     /**
-     * Writes what the answers agreed to. [attachmentsDir] is this
-     * notebook's folder of attached files; [extras] is what a backup
-     * carries besides its notes. Every file is written by [Files] or
-     * through the notebook's own writer, and each write is whole or not
-     * at all.
+     * A copy asked for, of a note here ("Add as a new note", "Add a copy anyway"): without its
+     * identity, nor its rescue copy, which stays with the note it was made for, as a
+     * Duplicate's does and the desktop's `_without_identity` drops it. Kept, "↩ Restore
+     * previous" put the original's older words over a note made now.
+     */
+    private fun asCopy(note: JSONObject): JSONObject = withoutIdentity(note).apply { remove("_prev") }
+
+    /**
+     * Writes what the answers agreed to. [attachmentsDir] is this notebook's
+     * folder of attached files; [extras] is what a backup carries besides its
+     * notes. Every file is written by [Files] or the notebook's own writer,
+     * whole or not at all, and only after the work: outside data a reading
+     * missed is refused here, not by a crash, and leaves everything as it was.
      */
     fun apply(
         load: Notebook.Load,
@@ -243,6 +405,237 @@ object Importing {
         answers: Answers,
         attachmentsDir: File?,
         extras: Extras = Extras(),
+    ): Result {
+        // The files here before the import: whatever stops it, a write or a
+        // thing it could not read, takes back only what it brought ([dropBrought]).
+        val filesBefore = attachmentsDir?.list()?.toSet().orEmpty()
+        return try {
+            applyWhole(load, plan, answers, attachmentsDir, extras, filesBefore)
+        } catch (e: Exception) {
+            // Exception, not RuntimeException: Android's JSONException is
+            // neither, where the tests' org.json makes it one.
+            load.raw?.let { notes -> dropBrought(attachmentsDir, filesBefore, notes, load.trashRaw ?: JSONArray()) }
+            Result.Failed("The import stopped on something in it the app could not read; your notes are as they were.")
+        }
+    }
+
+    /** [note]'s signature, its files' stored names left out: they are matched by bytes ([sameFiles]). */
+    private fun looseSignature(note: JSONObject): String = Normalize.contentSignature(JSONObject(note.toString()).also {
+        (it.opt("attachments") as? JSONArray)?.let { atts ->
+            for (i in 0 until atts.length()) atts.optJSONObject(i)?.put("stored_as", "")
+        }
+    })
+
+    /**
+     * Where a stored file is: here, then in the unpacked backup, where one not placed yet
+     * still is (the desktop copies every file in first, and compared what the phone missed).
+     */
+    internal fun filesIn(attachmentsDir: File?, unpacked: File?): (String) -> File? = { name ->
+        listOfNotNull(attachmentsDir, unpacked).map { File(it, name) }.firstOrNull { it.isFile }
+    }
+
+    /** Whether two notes hold the same files, each pair one file ([sameFile]). */
+    private fun sameFiles(one: JSONObject, other: JSONObject, fileOf: (String) -> File?): Boolean {
+        val a = one.opt("attachments") as? JSONArray ?: JSONArray()
+        val b = other.opt("attachments") as? JSONArray ?: JSONArray()
+        if (a.length() != b.length()) return false
+        for (i in 0 until a.length()) {
+            val x = a.optJSONObject(i) ?: return false
+            val y = b.optJSONObject(i) ?: return false
+            if (!sameFile(x, y, fileOf)) return false
+        }
+        return true
+    }
+
+    /** One file twice: the same stored name, or the same name shown and the same bytes. */
+    private fun sameFile(x: JSONObject, y: JSONObject, fileOf: (String) -> File?): Boolean {
+        val nx = Normalize.bareFileName(x.optString("stored_as"))
+        val ny = Normalize.bareFileName(y.optString("stored_as"))
+        if (nx == ny) return true
+        if (nx.isEmpty() || ny.isEmpty() || x.optString("filename") != y.optString("filename")) return false
+        val fx = fileOf(nx) ?: return false
+        val fy = fileOf(ny) ?: return false
+        return fx.length() == fy.length() && sameBytes(fx, fy)
+    }
+
+    /** Two files of one length compared a block at a time (a byte at a time held the screen). */
+    private fun sameBytes(fx: File, fy: File): Boolean = try {
+        java.io.DataInputStream(fx.inputStream().buffered()).use { ia ->
+            java.io.DataInputStream(fy.inputStream().buffered()).use { ib ->
+                val bx = ByteArray(64 * 1024)
+                val by = ByteArray(64 * 1024)
+                var left = fx.length()
+                var same = true
+                while (same && left > 0) {
+                    val n = minOf(left, bx.size.toLong()).toInt()
+                    ia.readFully(bx, 0, n)
+                    ib.readFully(by, 0, n)
+                    for (k in 0 until n) if (bx[k] != by[k]) { same = false; break }
+                    left -= n
+                }
+                same
+            }
+        }
+    } catch (e: java.io.IOException) {
+        false
+    }
+
+    /** The map an import files by, how many names it adds, and those it refuses. */
+    internal data class Merged(val map: LinkedHashMap<String, String>, val added: Int, val refused: MutableSet<String>)
+
+    /**
+     * The categories after an import: this notebook's, the backup's settings' added
+     * (a name here keeps its colour; one the loader would drop refused whole), then
+     * those [arriving] notes are filed under where those settings lack them, as the
+     * desktop's adopt_categories_of. The plan compares by its names and apply files
+     * by them: planned with this notebook's alone, a note refiled there under General
+     * read as unchanged, was skipped, and its category came back empty.
+     */
+    internal fun merged(here: Map<String, String>, theirs: JSONObject?, arriving: List<JSONObject>): Merged {
+        val categories = LinkedHashMap(here)
+        var added = 0
+        val refused = LinkedHashSet<String>()
+        theirs?.let {
+            var seen = 0
+            for (key in it.keys()) {
+                if (seen++ >= Settings.MAX_CATEGORIES) break
+                val colour = Notebook.sanitizeColor(it.opt(key) as? String ?: "")
+                val name = PyText.strip(key)
+                if (name.isEmpty() || colour.isEmpty() || name in categories) continue
+                if (Settings.categoryNameRefusal(name, categories) != null) {
+                    refused.add(name)
+                    continue
+                }
+                categories[name] = colour
+                added += 1
+            }
+        }
+        if (arriving.isNotEmpty()) {
+            added += Settings.adoptCategoriesOf(categories, JSONArray().apply { arriving.forEach { put(it) } }, refused)
+        }
+        return Merged(categories, added, refused)
+    }
+
+    /**
+     * The backup's templates [theirs] that come in beside [mine], shaped as every reader
+     * shapes one: one with no name comes in "Untitled template", as the desktop's, a name
+     * here is not brought again, and no more than a notebook keeps (Templates.MAX_TEMPLATES).
+     */
+    private fun newTemplates(mine: JSONArray, theirs: JSONArray): JSONArray {
+        // An entry that is no template at all names nothing, as the desktop drops it.
+        val names = (0 until mine.length()).mapNotNull { i ->
+            (mine.opt(i) as? JSONObject)?.let { Templates.normalize(it).optString("name") } }.toMutableSet()
+        val out = JSONArray()
+        // Counted as the desktop's list holds them: an entry that is no template is none.
+        val held = (0 until mine.length()).count { mine.opt(it) is JSONObject }
+        for (i in 0 until theirs.length()) {
+            if (held + out.length() >= Templates.MAX_TEMPLATES) break
+            val shaped = Templates.normalize(theirs.opt(i) as? JSONObject ?: continue)
+            if (!names.add(shaped.optString("name"))) continue
+            out.put(shaped)
+        }
+        return out
+    }
+
+    /** Whether the backup's Trash window is taken: longer than the default, with Trash to keep by it, none chosen here. */
+    private fun adoptsWindow(extras: Extras, settings: Settings.Load?): Boolean {
+        val window = extras.trashWindow
+        return window != null && window > Settings.TRASH_RETENTION_DAYS &&
+            (extras.trash?.length() ?: 0) > 0 && settings != null && Settings.windowNeverChosen(settings)
+    }
+
+    /** The length this phone's next start purges the Trash by once the import is in, or null while unknown. */
+    private fun keepDays(extras: Extras, settings: Settings.Load?): Int? =
+        if (adoptsWindow(extras, settings)) extras.trashWindow else settings?.let { Settings.purgeWindow(it) }
+
+    /** A backup's trashed note as kept: normalized, its deletion time a string. */
+    private fun shapedTrash(raw: JSONObject): JSONObject =
+        Normalize.normalizeNote(raw).put("deleted_at", raw.opt("deleted_at") as? String ?: "")
+
+    /**
+     * A Trash signed as the desktop signs it, a name [names] lack under General (signed by
+     * its stored name, a twin under a refused one came in twice); and loosely, by its files'
+     * bytes ([fileOf]), for one that came in on a copy of a file.
+     */
+    private class TrashSigns(trash: JSONArray, private val names: Set<String>, private val fileOf: (String) -> File?) {
+        private val seen = HashSet<String>()
+        private val loose = HashMap<String, MutableList<JSONObject>>()
+
+        init {
+            for (i in 0 until trash.length()) {
+                (trash.opt(i) as? JSONObject)?.let { add(fileUnder(Normalize.normalizeNote(it), names)) }
+            }
+        }
+
+        fun knows(entry: JSONObject): Boolean = Normalize.contentSignature(entry) in seen ||
+            loose[looseSignature(entry)]?.any { sameFiles(entry, it, fileOf) } == true
+
+        /** [entry] signed: by the [signature] it came with, its files since placed under names of their own. */
+        fun add(entry: JSONObject, signature: String = Normalize.contentSignature(entry)) {
+            seen.add(signature)
+            loose.getOrPut(looseSignature(entry)) { ArrayList() }.add(entry)
+        }
+    }
+
+    /** The backup's painted days added to [settings], a day decorated here keeping its own: how many. */
+    private fun takenDays(settings: JSONObject, extras: Extras): Int =
+        mergeDays(settings, "day_colors", extras.dayColors) { value ->
+            (value as? String)?.let { Notebook.sanitizeColor(it) }?.ifEmpty { null }
+        } + mergeDays(settings, "day_emoji", extras.dayEmoji) { value ->
+            cleanDayMarkers(value)?.takeIf { it.length() > 0 }
+        }
+
+    /**
+     * Whether Skip still brings something with [update] as answered: a file a look-alike
+     * gives the note here it looks like, a category, a template, a Trash entry or a day's
+     * marks this phone lacks -- the desktop's `_backup_brings_more`, asked with [apply]'s
+     * own tests. Unasked, a backup whose new notes all look alike offered only Import
+     * anyway or Cancel, and Cancel dropped them. [trash] and [settings] are copies of this
+     * phone's, taken with [notebook]; [fileOf] finds a file here or in the unpacked backup.
+     */
+    fun bringsMore(notebook: JSONArray, plan: Plan, update: Boolean, load: Notebook.Load, trash: JSONArray?,
+                   settings: JSONObject?, extras: Extras, fileOf: (String) -> File?): Boolean {
+        if (plan.source != Source.BACKUP) return false
+        val twins = twinsOf(notebook, plan, update)
+        if (plan.fresh.any { note ->
+                twins[keyOf(note, plan.categories)]?.let { filesToAdopt(it, note, fileOf).isNotEmpty() } == true }) return true
+        // Over held settings the import stops at their write: Skip brings nothing there.
+        val settingsFile = load.settings?.file
+        val settingsHeld = settingsFile != null && Files.writesHeld(settingsFile)
+        val categories = merged(load.categories, extras.categories, plan.arriving)
+        if (settings != null && !settingsHeld && (categories.added > 0 || takenDays(JSONObject(settings.toString()), extras) > 0)) {
+            return true
+        }
+        val templatesFile = load.file?.parentFile?.let { File(it, "templates.json") }
+        if (extras.templates != null && templatesFile != null && !Files.writesHeld(templatesFile)) {
+            // One that does not read is copied aside, and the backup's come in over it.
+            val mine = readArray(templatesFile) ?: JSONArray()
+            if (!Files.writesHeld(templatesFile) && newTemplates(mine, extras.templates).length() > 0) return true
+        }
+        val trashFile = load.trashFile
+        if (extras.trash == null || trashFile == null || Files.writesHeld(trashFile) || settingsHeld ||
+            (trash == null && trashFile.exists())) return false
+        val names = LinkedHashMap(categories.map)
+        val keep = keepDays(extras, load.settings)
+        val incoming = (0 until extras.trash.length()).mapNotNull { extras.trash.opt(it) as? JSONObject }
+        val adopting = incoming.filter { keep == null || !Organizing.isPast(shapedTrash(it), keep) }
+        if (Settings.adoptCategoriesOf(names, JSONArray().apply { adopting.forEach { put(it) } }, LinkedHashSet()) > 0 &&
+            settings != null) return true
+        val signs = TrashSigns(trash ?: JSONArray(), names.keys, fileOf)
+        // One past the length this phone keeps the Trash stays in the backup, as apply leaves it.
+        return incoming.any { raw ->
+            val entry = fileUnder(shapedTrash(raw), names.keys)
+            !signs.knows(entry) && (keep == null || !Organizing.isPast(entry, keep))
+        }
+    }
+
+    private fun applyWhole(
+        load: Notebook.Load,
+        planned: Plan,
+        answers: Answers,
+        attachmentsDir: File?,
+        extras: Extras,
+        filesBefore: Set<String>,
     ): Result {
         val notesFile = load.file ?: return Result.Failed("There is nowhere to keep the notes.")
         val notebook = load.raw
@@ -252,27 +645,13 @@ object Importing {
         val now = Files.now()
         val settings = load.settings
 
-        // 1. The backup's categories, added -- a name already here keeps
-        //    its own colour -- and refused whole where the loader would drop
-        //    them on the next start.
-        val categories = LinkedHashMap(load.categories)
-        var addedCategories = 0
-        var refusedCategories = 0
-        extras.categories?.let { theirs ->
-            var seen = 0
-            for (key in theirs.keys()) {
-                if (seen++ >= Settings.MAX_CATEGORIES) break
-                val colour = Notebook.sanitizeColor(theirs.opt(key) as? String ?: "")
-                val name = key.trim()
-                if (name.isEmpty() || colour.isEmpty() || name in categories) continue
-                if (Settings.categoryNameRefusal(name, categories) != null) {
-                    refusedCategories += 1
-                    continue
-                }
-                categories[name] = colour
-                addedCategories += 1
-            }
-        }
+        // 1. The categories, as the plan was made with them ([merged]).
+        // In the file's order, as the plan was made: at the ceiling another order kept other names.
+        val merged = merged(load.categories, extras.categories,
+            if (planned.source == Source.BACKUP) planned.arriving else emptyList())
+        val categories = merged.map
+        var addedCategories = merged.added
+        val refusedNames = merged.refused
 
         // The files already spoken for, by a note or a Trash entry here. A
         // note arriving with one of them gets a copy of its own.
@@ -281,13 +660,19 @@ object Importing {
         for (i in 0 until trash.length()) (trash.opt(i) as? JSONObject)?.let { claimed += storedNames(it) }
 
         val candidate = JSONArray(notebook.toString())
+        // Each note the plan matched, found again by its identity in the
+        // list as it is now: the plan was made away from the screen, against
+        // the list as it was then.
+        val at = positions(candidate)
+        val plan = stillMatched(planned, at)
 
         // 2. The updates agreed to.
         var updated = 0
+        var filesOnly = 0
         var firstId = 0
         if (answers.update) {
             for (known in plan.differing) {
-                val mine = candidate.getJSONObject(known.mineIndex)
+                val mine = candidate.getJSONObject(at.getValue(known.uid))
                 val theirs = Normalize.normalizeNote(known.theirs)
                 // A category this device does not have files the note under
                 // General, as normalize_note files it on the desktop.
@@ -295,13 +680,19 @@ object Importing {
                 val claimedElsewhere = HashSet(claimed).apply { removeAll(storedNames(mine)) }
                 // Counted only when the note changed: "Updated 1" was said
                 // of an update that changed nothing.
-                var changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
+                val changed = Notebook.applyUpdate(mine, theirs, now, fields(plan.source))
+                var gotFiles = false
                 if (plan.source == Source.BACKUP) {
-                    changed = changed || filesToAdopt(mine, known.theirs).isNotEmpty()
+                    gotFiles = filesToAdopt(mine, known.theirs, filesIn(attachmentsDir, extras.attachments)).isNotEmpty()
                     adoptFiles(mine, known.theirs, claimedElsewhere, attachmentsDir, extras.attachments)
                     claimed += storedNames(mine)
                 }
-                if (!changed) continue
+                // Files alone make no rescue copy, so Restore previous does
+                // not undo them: they are counted apart, not as "Updated".
+                if (!changed) {
+                    if (gotFiles) filesOnly += 1
+                    continue
+                }
                 updated += 1
                 if (firstId == 0) firstId = mine.optInt("id")
             }
@@ -310,77 +701,127 @@ object Importing {
         // 3. The new notes: what nothing matched, the changed ones the
         //    person chose to keep separate, minus the look-alikes skipped,
         //    plus the copies of unchanged notes asked for.
-        var toAdd = remaining(plan, answers.update)
+        var toAdd = plan.fresh
         var duplicatesSkipped = 0
+        var filesGiven = 0
         if (answers.skipDuplicates) {
-            val keys = notebookKeys(notebook, plan, answers.update)
-            val kept = toAdd.filter { keyOf(it) !in keys }
+            // An updated note keyed by the backup's copy, as the question keyed it: keyed after
+            // the update, one holding a field a newer version wrote found no twin here.
+            val twins = twinsOf(candidate, plan, answers.update)
+            val kept = toAdd.filter { keyOf(it, plan.categories) !in twins }
             duplicatesSkipped = toAdd.size - kept.size
+            // A skipped look-alike's files go to the note here it looks like, as the desktop's
+            // do: dropped, the same backup left a file on the desktop's note and not here.
+            if (plan.source == Source.BACKUP && duplicatesSkipped > 0) {
+                val kept1 = kept.toSet()
+                for (skipped in toAdd.filter { it !in kept1 }) {
+                    val twin = twins[keyOf(skipped, plan.categories)] ?: continue
+                    val given = filesToAdopt(twin, skipped, filesIn(attachmentsDir, extras.attachments)).size
+                    if (given == 0) continue
+                    adoptFiles(twin, skipped, HashSet(claimed).apply { removeAll(storedNames(twin)) },
+                        attachmentsDir, extras.attachments)
+                    claimed += storedNames(twin)
+                    filesGiven += given
+                }
+            }
             toAdd = kept
         }
-        val copies = if (answers.copyUnchanged) plan.unchanged.map { withoutIdentity(it.theirs) } else emptyList()
-        var nextId = maxId(candidate) + 1
+        toAdd = toAdd + keptSeparate(plan, answers.update)
+        val copies = if (answers.copyUnchanged) plan.unchanged.map { asCopy(it.theirs) } else emptyList()
+        val newIds = Organizing.ids(candidate)
         for (incoming in toAdd + copies) {
-            // A backup's note keeps its rescue copy ("↩ Restore previous"),
-            // as the desktop's import keeps it through normalize_note:
-            // dropped here, a notebook moved to a new phone lost every one.
-            // A code never carries one, and one that claims to is not taken.
+            // A backup's note keeps its rescue copy ("↩ Restore previous"), as
+            // normalize_note does; dropped, a notebook moved to a new phone lost
+            // every one. A code never carries one, so one claiming to is dropped.
             val note = Normalize.normalizeNote(incoming)
             if (plan.source != Source.BACKUP) note.remove("_prev")
             fileUnder(note, categories.keys)
             note.put("attachments", placeFiles(note.getJSONArray("attachments"), claimed,
                 attachmentsDir, extras.attachments))
+            val nextId = newIds.next()
             note.put("id", nextId)
             if (firstId == 0) firstId = nextId
-            nextId += 1
-            if (note.optString("created").isEmpty()) note.put("created", now)
+            // In normalize_note's order: a note with no "created" was made
+            // when it was last changed, not when it was imported.
             if (note.optString("updated").isEmpty()) note.put("updated", now)
+            if (note.optString("created").isEmpty()) note.put("created", note.optString("updated"))
             candidate.put(note)
         }
 
         // 4. Templates: one comes in only when no template here has its name.
+        /** Why a held templates or Trash file stops the import, or null. */
+        var heldBy: String? = null
         var addedTemplates = 0
         var templatesCandidate: JSONArray? = null
         val templatesFile = notesFile.parentFile?.let { File(it, "templates.json") }
         if (extras.templates != null && templatesFile != null) {
-            val mine = readArray(templatesFile)
+            // One here that does not read is copied aside, as every reader does,
+            // and the backup's come in over it, as into the desktop's empty list.
+            val mine = if (Files.writesHeld(templatesFile)) null
+                       else readArray(templatesFile) ?: JSONArray().takeIf {
+                           !Files.writesHeld(templatesFile) && Files.preserveCorrupt(templatesFile) != null }
             if (mine != null) {
-                val names = (0 until mine.length()).mapNotNull { (mine.opt(it) as? JSONObject)?.opt("name") as? String }.toMutableSet()
-                val out = JSONArray(mine.toString())
-                for (i in 0 until extras.templates.length()) {
-                    val tpl = extras.templates.opt(i) as? JSONObject ?: continue
-                    val name = (tpl.opt("name") as? String)?.ifEmpty { null } ?: continue
-                    if (name in names) continue
-                    names.add(name)
-                    out.put(JSONObject(tpl.toString()))
-                    addedTemplates += 1
+                val brought = newTemplates(mine, extras.templates)
+                addedTemplates = brought.length()
+                if (addedTemplates > 0) {
+                    templatesCandidate = JSONArray(mine.toString()).also { out ->
+                        for (i in 0 until brought.length()) out.put(brought.get(i))
+                    }
                 }
-                if (addedTemplates > 0) templatesCandidate = out
+            } else if (extras.templates.length() > 0) {
+                // Held (neither read nor copied aside): said where the import
+                // stops, as every refused write is, not skipped without a word.
+                heldBy = heldBy ?: Files.heldReason(templatesFile)
             }
         }
 
+        // 7, worked out first. The backup's Trash window: only a longer one than
+        //    the default, only with Trash to keep by it, and only where none was
+        //    chosen here (smaller lessons: the backup's Trash window).
+        val window = extras.trashWindow
+        val adoptsWindow = adoptsWindow(extras, settings)
+        // The length this phone's next start purges by -- the backup's where it is
+        // taken, this phone's own (none while unknown here) -- keeps or leaves out
+        // each entry: past it, it came in to be removed with its files (the desktop's).
+        val keepDays = keepDays(extras, settings)
+        var trashLeftOut = 0
         // 5. The backup's Trash: an entry already in this Trash, content
         //    for content, is skipped -- re-importing your own backup must
         //    not double it -- and nobody is asked, so the test is strict.
         var addedTrash = 0
         var trashCandidate: JSONArray? = null
-        if (extras.trash != null && trashFile != null && (load.trashRaw != null || !trashFile.exists())) {
-            val seen = HashSet<String>()
-            for (i in 0 until trash.length()) {
-                (trash.opt(i) as? JSONObject)?.let { seen.add(Normalize.contentSignature(Normalize.normalizeNote(it))) }
-            }
+        if (extras.trash != null && trashFile != null && !Files.writesHeld(trashFile) &&
+            (load.trashRaw != null || !trashFile.exists())) {
             val out = JSONArray(trash.toString())
-            for (i in 0 until extras.trash.length()) {
-                val raw = extras.trash.opt(i) as? JSONObject ?: continue
-                val entry = Normalize.normalizeNote(raw)
-                entry.put("deleted_at", raw.opt("deleted_at") as? String ?: "")
-                if (!seen.add(Normalize.contentSignature(entry))) continue
+            val incoming = (0 until extras.trash.length()).mapNotNull { extras.trash.opt(it) as? JSONObject }
+            // The categories of the entries the window keeps, adopted before any is signed:
+            // a twin signed before its name was known read as General, and both came in.
+            addedCategories += Settings.adoptCategoriesOf(categories, JSONArray().apply {
+                incoming.filter { keepDays == null || !Organizing.isPast(shapedTrash(it), keepDays) }.forEach { put(it) }
+            }, refusedNames)
+            val signs = TrashSigns(trash, categories.keys, filesIn(attachmentsDir, extras.attachments))
+            for (raw in incoming) {
+                // One refused stays out of the map, under General, as normalize_note files it.
+                val entry = fileUnder(shapedTrash(raw), categories.keys)
+                if (signs.knows(entry)) continue
+                if (keepDays != null && Organizing.isPast(entry, keepDays)) {
+                    trashLeftOut += 1
+                    continue
+                }
+                // Only one brought in is a twin's original: an older one left out
+                // took its newer twin, unsaid, with it.
+                val signature = Normalize.contentSignature(entry)
                 entry.put("attachments", placeFiles(entry.getJSONArray("attachments"), claimed,
                     attachmentsDir, extras.attachments))
+                // Signed by its copy too: a file a note here uses, copied for it, made every
+                // import of this backup bring it again, with another copy.
+                signs.add(entry, signature)
                 out.put(entry)
                 addedTrash += 1
             }
             if (addedTrash > 0) trashCandidate = out
+        } else if (extras.trash != null && extras.trash.length() > 0 && trashFile != null && trashFile.exists()) {
+            heldBy = heldBy ?: Files.heldReason(trashFile)
         }
 
         // 6. Painted calendar days: added, a day already decorated here
@@ -391,59 +832,109 @@ object Importing {
             if (addedCategories > 0) {
                 settingsCandidate.put(Settings.CATEGORIES, Settings.categoriesJson(categories))
             }
-            restoredDays += mergeDays(settingsCandidate, "day_colors", extras.dayColors) { value ->
-                (value as? String)?.let { Notebook.sanitizeColor(it) }?.ifEmpty { null }
-            }
-            restoredDays += mergeDays(settingsCandidate, "day_emoji", extras.dayEmoji) { value ->
-                cleanDayMarkers(value)?.takeIf { it.length() > 0 }
-            }
+            restoredDays += takenDays(settingsCandidate, extras)
         }
 
-        // The writes, in the desktop's order: settings, templates, Trash,
-        // and the notes last.
-        if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0)) {
+        // 7. The window, worked out above, kept with the settings.
+        if (adoptsWindow) settingsCandidate?.put(Settings.RETENTION_DAYS, window)
+        // Over held settings (their marks in memory) the length the next start reads
+        // is not known here: brought in, the next start's 30 days, or the real file's
+        // own, removed entries with their files. Stopped whole, as over a held Trash.
+        if (trashCandidate != null && settings != null && Files.writesHeld(settings.file)) {
+            heldBy = heldBy ?: Files.heldReason(settings.file)
+        }
+
+        val changed = updated > 0 || filesOnly > 0 || filesGiven > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
+        // Days a series' copy set aside become notes of their own, and are
+        // said; worked out before the first write, as all the work is, so a
+        // failure in it leaves nothing written.
+        val earlierText = if (changed) Notebook.settleAside(candidate) else 0
+
+        // The writes, in the desktop's order: settings, templates, Trash, the
+        // notes last. One that fails takes back the files nothing uses, and
+        // names each part written before it.
+        val kept = mutableListOf<String>()
+        var trashNow = trash
+        fun stopped(problem: String): Result {
+            dropBrought(attachmentsDir, filesBefore, notebook, trashNow)
+            val parts = if (kept.size < 2) kept.joinToString() else
+                kept.dropLast(1).joinToString(", ") + " and " + kept.last()
+            val verb = if (kept.size == 1 && kept[0].startsWith("Trash")) "was" else "were"
+            return Result.Failed(problem + " None of the ${plan.source.word}'s notes came in" +
+                (if (kept.isEmpty()) "." else "; its $parts $verb kept, and importing it again adds only the rest."))
+        }
+        // A templates or Trash file held stops it before anything is written.
+        heldBy?.let { return stopped("$it.") }
+        // A held file's reason is a sentence of its own: "X could not be written: X could not be read".
+        fun refused(what: String, why: String) = stopped(if (Files.bareCause(why)) "$what could not be written: $why." else "$why.")
+        if (settings != null && settingsCandidate != null && (addedCategories > 0 || restoredDays > 0 || adoptsWindow)) {
             Files.writeAtomic(settings.file, settingsCandidate.toString(2))?.let {
-                return Result.Failed("settings.json could not be written: $it")
+                return refused("settings.json", it)
             }
             for (key in settingsCandidate.keys()) settings.raw.put(key, settingsCandidate.opt(key))
+            if (addedCategories > 0) kept += "categories"
+            if (restoredDays > 0) kept += "calendar markings"
+            if (adoptsWindow) kept += "Trash window"
         }
         if (templatesCandidate != null && templatesFile != null) {
             Files.writeAtomic(templatesFile, templatesCandidate.toString(2))?.let {
-                return Result.Failed("templates.json could not be written: $it")
+                return refused("templates.json", it)
             }
+            kept += "templates"
         }
         if (trashCandidate != null && trashFile != null) {
             Files.writeAtomic(trashFile, trashCandidate.toString(2))?.let {
-                return Result.Failed("The Trash could not be written: $it")
+                return refused("The Trash", it)
             }
             load.trashRaw?.let { live -> replaceContents(live, trashCandidate) }
+            trashNow = trashCandidate
+            kept += "Trash"
         }
-        val changed = updated > 0 || toAdd.isNotEmpty() || copies.isNotEmpty()
         if (changed) {
-            Files.writeAtomic(notesFile, candidate.toString(2))?.let { return Result.Failed(it) }
+            Files.writeAtomic(notesFile, candidate.toString(2))?.let {
+                return refused("Your notes", it)
+            }
             replaceContents(notebook, candidate)
         }
+        // An added note that is in the Trash too, deleted here since the backup
+        // was made: in the list and the Trash at once, unsaid (the review panel).
+        val trashedUids = HashSet<String>()
+        for (i in 0 until trashNow.length()) (trashNow.opt(i) as? JSONObject)?.let(::uidOf)?.let(trashedUids::add)
+        val alsoInTrash = (toAdd + copies).count { note -> uidOf(note)?.let { it in trashedUids } == true }
         return Result.Done(Outcome(
+            alsoInTrash = alsoInTrash,
             added = toAdd.size + copies.size,
             updated = updated,
             unchangedSkipped = plan.unchanged.size - copies.size,
             duplicatesSkipped = duplicatesSkipped,
             addedCategories = addedCategories,
-            refusedCategories = refusedCategories,
+            refusedCategories = refusedNames.size,
             restoredDays = restoredDays,
             addedTemplates = addedTemplates,
             addedTrash = addedTrash,
             firstId = firstId,
+            earlierText = earlierText,
+            filesOnly = filesOnly,
+            filesGiven = filesGiven,
+            trashLeftOut = trashLeftOut,
+            keepDays = keepDays,
         ))
     }
 
-    private fun maxId(array: JSONArray): Int {
-        var max = 0
-        for (i in 0 until array.length()) {
-            val id = (array.opt(i) as? JSONObject)?.opt("id")
-            if (id is Number && id.toInt() > max) max = id.toInt()
+    /**
+     * The files an import brought into [attachmentsDir] that no note and no
+     * Trash entry uses, after a write that failed: the desktop's
+     * `_drop_unclaimed_import_files`. A file here before it is never touched.
+     */
+    private fun dropBrought(attachmentsDir: File?, before: Set<String>, notes: JSONArray, trash: JSONArray) {
+        val dir = attachmentsDir ?: return
+        val used = HashSet<String>()
+        for (list in listOf(notes, trash)) {
+            for (i in 0 until list.length()) (list.opt(i) as? JSONObject)?.let { used += storedNames(it) }
         }
-        return max
+        for (name in dir.list().orEmpty()) {
+            if (name !in before && name !in used) File(dir, name).delete()
+        }
     }
 
     private fun replaceContents(live: JSONArray, from: JSONArray) {
@@ -454,8 +945,11 @@ object Importing {
     private fun readArray(file: File): JSONArray? {
         if (!file.isFile) return JSONArray()
         return try {
-            JSONArray(file.readText(Charsets.UTF_8))
+            Files.parseOwn(file) { JSONArray(it) }
         } catch (e: Exception) {
+            // Refused, not damaged: held, so no copy aside takes a good file and
+            // the backup's templates are not written over it (Files.refusedRead).
+            if (Files.refusedRead(e)) Files.holdWrites(file)
             null
         }
     }
@@ -471,7 +965,7 @@ object Importing {
     ) {
         val list = mine.optJSONArray("attachments") ?: JSONArray().also { mine.put("attachments", it) }
         val have = storedNames(mine).toMutableSet()
-        for (att in filesToAdopt(mine, theirs)) {
+        for (att in filesToAdopt(mine, theirs, filesIn(attachmentsDir, unpacked))) {
             if (list.length() >= Normalize.MAX_ATTACHMENTS) break
             val placed = placeFile(att, claimedElsewhere, attachmentsDir, unpacked) ?: continue
             if (placed.optString("stored_as") in have) continue
@@ -506,7 +1000,13 @@ object Importing {
         val here = File(attachmentsDir, name)
         if (!here.exists() && unpacked != null) {
             val from = File(unpacked, name)
-            if (from.isFile) copyWhole(from, here)
+            // Moved, not copied: the unpacked backup shares the app's disk, so
+            // a move costs nothing; copied, a notebook of photos held the screen
+            // still for seconds. Copied only where a move cannot be made.
+            if (from.isFile) {
+                here.parentFile?.mkdirs()
+                if (!from.renameTo(here)) copyWhole(from, here)
+            }
         }
         if (name !in claimed) {
             claimed.add(name)
@@ -526,10 +1026,11 @@ object Importing {
         val source = File(attachmentsDir, base)
         if (base.isEmpty() || !source.isFile) return null
         val stamp = SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.US).format(Date()) + "000"
-        var name = "${stamp}_$base"
+        // Within what the phone's storage holds, the stamp included.
+        var name = Backup.fittedPlace("${stamp}_$base")
         var n = 1
         while (File(attachmentsDir, name).exists()) {
-            name = "${stamp}_${n}_$base"
+            name = Backup.fittedPlace("${stamp}_${n}_$base")
             n += 1
         }
         return if (copyWhole(source, File(attachmentsDir, name))) name else null
@@ -553,12 +1054,21 @@ object Importing {
     ): Int {
         if (theirs == null) return 0
         val mine = settings.opt(key) as? JSONObject ?: JSONObject()
+        // A day is decorated here only by a mark this phone shows, as the desktop's store,
+        // cleaned at every start: one it cannot read neither holds the day nor counts.
+        fun shown(day: String) = Days.isCalendarDay(day) && clean(mine.opt(day)) != null
+        var held = mine.keys().asSequence().count { shown(it) }
         var added = 0
         for (day in theirs.keys()) {
-            if (mine.has(day)) continue
+            // Real days only, and no more than the calendar keeps: the
+            // desktop's _take_day_decorations. 700,000 keys that were no
+            // dates came in whole, read again at every month drawn.
+            if (held >= Days.MAX_DAY_DECORATIONS) break
+            if (shown(day) || !Days.isCalendarDay(day)) continue
             val value = clean(theirs.opt(day)) ?: continue
             mine.put(day, value)
             added += 1
+            held += 1
         }
         if (added > 0) settings.put(key, mine)
         return added
@@ -568,13 +1078,7 @@ object Importing {
      * A day's markers as kept: up to three non-empty strings, without the
      * emoji variation selector. One string on its own is the older format.
      */
-    fun cleanDayMarkers(value: Any?): JSONArray? {
-        val items = when (value) {
-            is String -> listOf(value)
-            is JSONArray -> (0 until value.length()).mapNotNull { value.opt(it) as? String }
-            else -> return null
-        }
-        val kept = items.map { it.replace("️", "") }.filter { it.isNotEmpty() }.take(3)
-        return JSONArray(kept)
-    }
+    fun cleanDayMarkers(value: Any?): JSONArray? =
+        // Each an emoji's length, as the calendar keeps them (Days.cleanMarkers).
+        if (value is String || value is JSONArray) JSONArray(Days.cleanMarkers(value)) else null
 }

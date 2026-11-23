@@ -3,6 +3,7 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,6 +19,23 @@ class StartupTest {
     private fun temp(name: String) = NioFiles.createTempDirectory(name).toFile()
 
     @Test
+    fun `an import's unpacked backup and a file being attached, left by an app that went, are cleared`() {
+        // Rebuilt while an import's question was up, the app left the whole
+        // unpacked notebook in its cache for good.
+        val cache = temp("cache")
+        File(cache, "import_1700000000000/attachments").mkdirs()
+        File(cache, "import_1700000000000/notes_data.json").writeText("[]")
+        File(cache, "import_1700000000001.zip").writeText("zip")
+        File(cache, "attach_123456").writeText("photo")
+        File(cache, "share").mkdirs()
+        File(cache, "share/Note.pdf").writeText("pdf")
+        Startup.clearLeftovers(cache)
+        assertEquals("only what an import or an attaching leaves goes", listOf("share"),
+            cache.listFiles()!!.map { it.name }.sorted())
+        assertTrue(File(cache, "share/Note.pdf").isFile)
+    }
+
+    @Test
     fun `a brand-new notebook opens on the welcome note, once`() {
         val dir = File(temp("phone"), "notebook")
         assertNull(Startup.prepare(dir, older = null))
@@ -30,6 +48,38 @@ class StartupTest {
         // The second start greets nobody.
         Startup.prepare(dir, older = null)
         assertEquals(1, JSONArray(File(dir, "notes_data.json").readText()).length())
+    }
+
+    @Test
+    fun `days a series' copy set aside become notes at the start, written at once, made once`() {
+        // Left for the next save, each start made them again under new
+        // identities and said so again.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "_set_aside": [{"day": "2026-11-09", "body": "Earlier words"}]}]""")
+        val said = Startup.prepare(dir, older = null)!!
+        assertTrue(said.contains("(earlier text)"))
+        // ...for both reasons, a day the note deleted among them (such notes
+        // were once said to be of days holding text of their own).
+        assertTrue(said, said.contains("those days now show other text, or were deleted"))
+        val first = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals(2, first.length())
+        assertEquals("Gym (earlier text)", first.getJSONObject(1).getString("title"))
+        assertFalse(first.getJSONObject(0).has("_set_aside"))
+        Startup.prepare(dir, older = null)
+        val again = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals(2, again.length())
+        assertEquals(first.getJSONObject(1).getString("uid"), again.getJSONObject(1).getString("uid"))
+        // ...and a Trash file the start could not read does not hold that
+        // write: the notes were read.
+        val damaged = temp("phone")
+        File(damaged, "notes_data.json").writeText("""[{"id": 1, "uid": "gym", "title": "Gym", "body": "x",
+            "date": "2026-11-02", "recurrence": {"freq": "weekly"},
+            "_set_aside": [{"day": "2026-11-16", "body": "More"}]}]""")
+        File(damaged, "trash.json").writeText("{")
+        Startup.prepare(damaged, older = null)
+        assertEquals(2, JSONArray(File(damaged, "notes_data.json").readText()).length())
     }
 
     @Test
@@ -55,6 +105,51 @@ class StartupTest {
         assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
         assertTrue("no welcome note in a notebook that arrived",
             JSONArray(File(dir, "notes_data.json").readText()).length() == 1)
+    }
+
+    @Test
+    fun `an older notebook whose copy cannot be written here is left there, not said brought in`() {
+        // Its writes' answers thrown away, the start said the notebook was
+        // brought in with its settings missing.
+        val older = temp("older")
+        File(older, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        File(older, "settings.json").writeText("""{"username": "Maria"}""")
+        val dir = File(temp("phone"), "notebook").apply { mkdirs() }
+        // A folder where the write's own .tmp goes: the settings' write is refused.
+        File(dir, "settings.json.tmp").mkdirs()
+        val notice = Startup.prepare(dir, older)!!
+        assertTrue(notice, notice.contains("could not be brought in"))
+        assertFalse(notice, notice.contains("brought into"))
+        assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
+    }
+
+    @Test
+    fun `only a development build looks in the older folder`() {
+        // A release build took in whatever was there: written by another app
+        // on Android 8 to 10, or a file of 2 GB that stopped every start.
+        val older = temp("older")
+        assertEquals(older, Startup.olderFolder(debuggable = true, external = older))
+        assertNull(Startup.olderFolder(debuggable = false, external = older))
+    }
+
+    @Test
+    fun `an older notebook too large to read is left there, the start goes on, and the next one does not try again`() {
+        val older = temp("older")
+        File(older, "notes_data.json").writeText("""[{"id": 1, "title": "Kept"}]""")
+        File(older, "settings.json").writeText("""{"username": "Maria"}""")
+        val dir = File(temp("phone"), "notebook")
+        // The notes read, the settings too large: what was written goes back.
+        val tooLarge: (File) -> ByteArray = { f ->
+            if (f.name == "settings.json") throw OutOfMemoryError("File $f is too big to fit in memory.") else f.readBytes()
+        }
+        val notice = Startup.prepare(dir, older, read = tooLarge)
+        assertTrue(notice!!, notice.contains("could not be brought in"))
+        val notes = JSONArray(File(dir, "notes_data.json").readText())
+        assertEquals("a notebook that starts whole: the welcome note, not half the older one",
+            Welcome.TITLE, notes.getJSONObject(0).getString("title"))
+        assertTrue("the older copy stays where it was", File(older, "notes_data.json").exists())
+        val again = Startup.prepare(dir, older, read = tooLarge)
+        assertTrue("the next start does not try again", again == null || !again.contains("could not be read"))
     }
 
     @Test
@@ -108,6 +203,41 @@ class StartupTest {
         Settings.putAll(settings, mapOf(Settings.RETENTION_DAYS to 30, Settings.PHONE_TRASH_WINDOW_UNKNOWN to null))
         Startup.prepare(dir, older = null)
         assertEquals(0, trashLeft(dir))
+    }
+
+    @Test
+    fun `Android's backup turned off stays off after settings that cannot be read, and says so`() {
+        // The answer was in the file. The fresh one written at the same start
+        // read as on, and Android's next backup took the notes to the account.
+        val dir = temp("phone")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "settings.json").writeText("""{"phone_google_backup": fal""")
+        val notice = Startup.prepare(dir, older = null)
+        assertTrue(notice, notice!!.contains("Android's backup of the app is off until you turn it on again"))
+        assertEquals(false, Settings.googleBackupOn(Settings.load(dir)))
+        Startup.prepare(dir, older = null)
+        assertEquals("the start after it, the fresh file readable, still off", false, Settings.googleBackupOn(Settings.load(dir)))
+    }
+
+    @Test
+    fun `a restore from a backup made while off brings the answer back with it`() {
+        // Handed nothing while off, Android kept the copy made while on, and
+        // a reinstall put it back with backups on. The backup made while off
+        // now holds only the mark, and the restored phone starts on it.
+        val restored = File(temp("phone"), "notebook").apply { mkdirs() }
+        File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.googleBackupOn(Settings.load(restored)))
+        assertTrue("the mark goes once read", !File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // A notebook whose settings already answer keeps its answer.
+        val answered = temp("phone")
+        File(answered, "notes_data.json").writeText("[]")
+        File(answered, "settings.json").writeText("""{"phone_google_backup": true}""")
+        File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        Startup.prepare(answered, older = null)
+        assertEquals(true, Settings.googleBackupOn(Settings.load(answered)))
+        assertTrue(!File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        assertEquals(false, JSONObject(Settings.offMark()).get(Settings.PHONE_GOOGLE_BACKUP))
     }
 
     @Test

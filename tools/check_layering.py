@@ -54,7 +54,10 @@ DRAWS = ["RichText.kt", "TableView.kt", "MainActivity.kt",
          "TemplateScreens.kt", "ShareFlow.kt", "PdfPrint.kt",
          # Not pixels, but Android's own alarm and notification: the
          # reminder's rules are in Reminders.kt, tested on the computer.
-         "ReminderAlarm.kt"]
+         "ReminderAlarm.kt",
+         # And Android's own backup agent: whether it takes part is
+         # Settings.googleBackupOn, tested on the computer.
+         "NotesBackupAgent.kt"]
 
 
 def every_kotlin_file():

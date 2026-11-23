@@ -22,16 +22,17 @@ does not say so is not saved. A screenshot tool that photographs whatever
 happens to be there is how a wrong picture ends up in the documentation
 looking like proof.
 
-    py tools/emulator/take_screenshots.py
+    py tools/emulator/take_screenshots.py          the stills, both themes
+    py tools/emulator/take_screenshots.py --gif    demo.gif alone (needs Pillow)
 
 Needs: a running emulator with the debug app installed, and adb on the
-SDK path. Writes only inside the app's own storage on the emulator.
+SDK path. Writes the app's own storage and scratch files on the emulator,
+and on the computer rewrites docs/screenshots/; never a real notebook.
 """
 import io
 import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import time
@@ -40,7 +41,7 @@ from datetime import date, timedelta
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from emulator_only import ADB, command  # noqa: E402 -- every command goes to the emulator, never a phone
+from emulator_only import ADB, SHOT, adb, adb_bytes, capture, fresh_tree  # noqa: E402 -- every command goes to the emulator, never a phone
 
 PACKAGE = "ro.noteorganizer.app"
 NOTEBOOK = "files/notebook"
@@ -73,9 +74,14 @@ NOTES = [
      # Written as the app writes a table: the figures right-aligned by
      # the spaces before them, which is where both apps keep a cell's
      # alignment. A markdown "---:" under them read as a column set by
-     # hand to four characters, and the header was drawn "How…".
-     "body": "| What        |  How much |\n| rent        |      1500 |\n"
-             "| electricity |       180 |\n| internet    |        60 |",
+     # hand to four characters, and the header was drawn "How…". Three
+     # columns, the day each was paid between the two: two filled a
+     # third of the screen and left the rest empty (the review panel,
+     # 2026-11-15).
+     "body": "| What        | Paid on  |  How much |\n"
+             "| rent        | 1 Sep    |      1500 |\n"
+             "| electricity | 12 Sep   |       180 |\n"
+             "| internet    | 20 Sep   |        60 |",
      "category": "General",
      "created": "2026-10-13 18:00:00", "updated": "2026-10-13 18:20:00"},
     {"id": 3, "uid": "shot-idea", "title": "",
@@ -94,8 +100,10 @@ NOTES = [
      "created": "2026-10-10 08:00:00", "updated": "2026-10-11 07:30:00"},
 ]
 
-# Ana's birthday, from the idea above: a painted day with its marker.
-BIRTHDAY = (TODAY + timedelta(days=7)).isoformat()
+# Ana's birthday, from the idea above: a painted day with its marker -- in
+# the month the calendar opens on, or the photo shows a grid without it.
+_MONTH_END = (TODAY.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+BIRTHDAY = min(TODAY + timedelta(days=7), _MONTH_END).isoformat()
 
 # The bread's day as the calendar's cell names it ("Monday, 26 October"),
 # for the shot of the calendar with the note open beside it.
@@ -133,7 +141,9 @@ DARK_WORDS = {
 }
 
 # name, what it shows, the steps that get there, what the screen must
-# say, and what it must NOT say once it has arrived.
+# say, and what it must NOT say once it has arrived. KEYBOARD after them
+# keeps the keyboard in the picture, and refuses one taken without it.
+KEYBOARD = "keyboard"
 SHOTS = [
     ("01-note-list", "The note list: greeting, cards, badges, a pinned note",
      [],
@@ -141,9 +151,16 @@ SHOTS = [
     ("02-a-note", "A note open in the editor, its styling and checklist drawn",
      [("tap", "Home-made bread")],
      ["Home-made bread", "500 g flour", "yeast"], []),
+    # The same note being written in: the cursor in its words, the format
+    # bar above the keyboard. The stills had shown the editor only at rest,
+    # its tools out of sight (the review panel, 2026-11-15). Nothing is
+    # typed, so the note is not changed.
+    ("12-writing", "Writing in a note: the cursor in its words, the format bar above the keyboard",
+     [("tap_end", "Knead for 10")],
+     ["Home-made bread", "Select text to format it"], [], KEYBOARD),
     ("03-a-table", "A table drawn as a grid rather than as pipe rows",
      [("back_to", "Search notes"), ("tap", "September expenses")],
-     ["September expenses", "electricity", "1500"], []),
+     ["September expenses", "Paid on", "electricity", "1500"], []),
     ("04-search", "Search narrowing four notes to one, on a word in its body",
      [("back_to", "Search notes"), ("tap", "Search notes"), ("type", "boat")],
      ["boat trip"], ["Home-made bread", "September expenses"]),
@@ -152,7 +169,7 @@ SHOTS = [
      ["Light", "Dark", "Soft Lavender", "Warm Cream"], ["Midnight Purple", "Follow the phone"]),
     ("07-calendar", "The calendar: a series' days, a dated note, a painted day",
      [("back_to", "Your name"), ("tap_exact", "Calendar")],
-     ["📋 History", "Mon", "Sun"], []),
+     ["📋 History", "Mon", "Sun", "🎂"], []),
     ("08-wide", "On its side: the note beside the list, the rail at the left",
      [("tap_exact", "Notes"), ("turn", 1), ("tap", "Home-made bread")],
      ["Search notes", "Home-made bread", "500 g flour", "Calendar"], []),
@@ -168,17 +185,38 @@ SHOTS = [
     ("10-wide-settings", "On its side: Settings, Categories open",
      [("tap_exact", "Settings"), ("tap_exact", "Categories")],
      ["General", "Work", "Personal", "Ideas", "Urgent", "1 note"], ["500 g flour", "Your name"]),
+    # What a person meets before writing anything (the review panel's ask,
+    # 2026-11-08): the notebook emptied, in the pass's own theme.
+    ("11-empty", "A notebook with no notes yet: the list says how to begin",
+     [("turn", 0), ("notes", [])],
+     ["Hi Maria,", "No notes yet. Tap + to write your first."], ["Home-made bread", "To read"]),
     ("06-dark", "The same list in Midnight Purple",
-     [("turn", 0), ("settings", DARK)],
+     [("notes", NOTES), ("settings", DARK)],
      ["Hi Maria,", "Home-made bread", "To read"], []),
 ]
 
-
-def adb(*args, binary=False):
-    env = dict(os.environ)
-    env["MSYS_NO_PATHCONV"] = "1"   # or a bash shell rewrites /sdcard/...
-    out = subprocess.run(command(*args), capture_output=True, env=env)
-    return out.stdout if binary else out.stdout.decode("utf-8", errors="replace")
+# The README's moving picture (--gif; the review panel's ask, 2026-11-08):
+# one frame after each step, on the same notebook and with the same guard
+# as every shot. A note is written in it, so the keyboard stays up while
+# its words are typed -- that is what a person writing sees -- and is
+# put away for every other frame. Each frame: how long it shows (ms), the
+# steps, what the screen must say, what it must not, and whether the
+# keyboard may be in it.
+GIF_FRAMES = [
+    (1800, [], ["Hi Maria,", "Home-made bread", "To read"], [], False),
+    (1800, [("tap", "Home-made bread")], ["Home-made bread", "500 g flour", "yeast"], [], False),
+    (1800, [("back_to", "Search notes"), ("tap", "September expenses")],
+     ["September expenses", "electricity", "1500"], [], False),
+    (700, [("back_to", "Search notes"), ("tap_exact", "+"), ("tap", "Title"), ("type", "Weekend")],
+     ["Weekend"], [], True),
+    (700, [("type", " trip")], ["Weekend trip"], [], True),
+    (700, [("tap", "Write your note"), ("type", "Pack the tent")], ["Pack the tent"], [], True),
+    (1300, [("type", " and the stove.")], ["Pack the tent and the stove."], [], True),
+    (1800, [("back_to", "Search notes")], ["Weekend trip", "Home-made bread"], [], False),
+    (1800, [("tap_exact", "Calendar")], ["📋 History", "Mon", "🎂"], [], False),
+    (2200, [("tap_exact", "Notes"), ("settings", DARK)], ["Hi Maria,", "Weekend trip"], [], False),
+]
+GIF_WIDTH = 360
 
 
 def put(name, value):
@@ -251,12 +289,10 @@ def demo_status_bar(on):
             "-e", "command", "exit")
 
 
-def nodes():
-    """The screen's UI tree, fresh: (text, description, centre, class)."""
-    adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-    raw = adb("exec-out", "cat", "/sdcard/ui.xml", binary=True).decode(
-        "utf-8", errors="replace")
-    raw = raw[raw.find("<?xml"):] if "<?xml" in raw else raw
+def nodes(boxes=False):
+    """The screen's UI tree, fresh: (text, description, centre, class), or
+    with [boxes] the node's box (left, top, right, bottom) for its centre."""
+    raw = fresh_tree(adb_bytes)
     try:
         root = ET.fromstring(raw)
     except ET.ParseError:
@@ -268,7 +304,7 @@ def nodes():
             continue
         centre = ((bounds[0] + bounds[2]) // 2, (bounds[1] + bounds[3]) // 2)
         found.append((node.get("text", ""), node.get("content-desc", ""),
-                      centre, node.get("class", "")))
+                      bounds if boxes else centre, node.get("class", "")))
     return found
 
 
@@ -276,14 +312,41 @@ def screen_text():
     return "   ".join(t or d for t, d, _c, _k in nodes())
 
 
-def tap(label, exact=False):
-    for text, desc, centre, _kind in nodes():
-        for value in (text, desc):
-            if value and ((value == label) if exact else (label in value)):
-                adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
+def tap(label, exact=False, patience=3.0):
+    """Tap what says [label], looked for again for a moment before giving
+    up, as the walk's tap: a screen still arriving answers one read
+    without it."""
+    deadline = time.time() + patience
+    while True:
+        for text, desc, centre, _kind in nodes():
+            for value in (text, desc):
+                if value and ((value == label) if exact else (label in value)):
+                    adb("shell", "input", "tap", str(centre[0]), str(centre[1]))
+                    time.sleep(1.5)
+                    return True
+        if time.time() > deadline:
+            break
+        time.sleep(0.4)
+    print("   not found on screen: %r" % label)
+    return False
+
+
+def tap_end(label, patience=3.0):
+    """Tap the foot of the text field that says [label], at its right: the
+    cursor goes to the end of its words, and its handle hangs under them.
+    Tapped at the centre, the cursor landed on the bread's empty line and
+    its handle stood over the K of "Knead" (2026-11-21)."""
+    deadline = time.time() + patience
+    while True:
+        for text, _desc, box, kind in nodes(boxes=True):
+            if label in text and kind.endswith("EditText"):
+                adb("shell", "input", "tap", str(box[2] - 24), str(box[3] - 12))
                 time.sleep(1.5)
                 return True
-    print("   not found on screen: %r" % label)
+        if time.time() > deadline:
+            break
+        time.sleep(0.4)
+    print("   no text field says: %r" % label)
     return False
 
 
@@ -317,19 +380,26 @@ def act(step):
         return tap(step[1])
     if kind == "tap_exact":
         return tap(step[1], exact=True)
+    if kind == "tap_end":
+        return tap_end(step[1])
     if kind == "type":
         adb("shell", "input", "text", step[1].replace(" ", "%s"))
         time.sleep(1.5)
         return True
     if kind == "back_to":
         # Back until the screen says it; the first Back with the keyboard
-        # up only closes the keyboard.
+        # up only closes the keyboard. Each Back is given three seconds to
+        # arrive before the next: one sent past a slow screen leaves the app.
         for _ in range(4):
             if step[1] in screen_text():
                 return True
             adb("shell", "input", "keyevent", "KEYCODE_BACK")
-            time.sleep(1.2)
-        return step[1] in screen_text()
+            deadline = time.time() + 3
+            while time.time() < deadline:
+                time.sleep(0.4)
+                if step[1] in screen_text():
+                    return True
+        return False
     if kind == "clear_search":
         # The search box keeps its words; select them all and delete, so
         # the next screen is not reached through a filtered list.
@@ -346,6 +416,13 @@ def act(step):
         put("settings.json", step[1])
         restart()
         return True
+    if kind == "notes":
+        # The notebook written again, and read back as written: an empty
+        # one for the first screen, the camera's own to go on after it.
+        put("notes_data.json", step[1])
+        restart()
+        stored = read("notes_data.json")
+        return [n.get("uid") for n in stored or []] == [n["uid"] for n in step[1]]
     if kind == "turn":
         # 0 upright, 1 on its side; the phone's own turning held off.
         adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
@@ -353,6 +430,79 @@ def act(step):
         time.sleep(2.5)
         return True
     raise ValueError(kind)
+
+
+def shutter(present, absent, keyboard=False):
+    """The screen as PNG bytes, once it says every word in [present] and
+    none in [absent]; None otherwise, said why, with what it said. The
+    keyboard is put away first unless [keyboard] lets it be in the picture.
+
+    Read again for up to ten seconds, not once: a screen read a fixed
+    moment after its step is the walk's old flake (its says_soon, 8 Nov),
+    and the first frame of the GIF, the app's first start on a cold
+    emulator, was refused by one read that came before the list."""
+    if not keyboard:
+        hide_keyboard()
+    time.sleep(0.8)
+    deadline = time.time() + 10
+    late = False
+    while True:
+        text = screen_text()
+        missing = [w for w in present if w not in text]
+        still = [w for w in absent if w in text]
+        if not (missing or still) or time.time() > deadline:
+            break
+        time.sleep(0.5)
+        late = True
+    if missing or still:
+        print("   the screen does not say %s%s -- not photographing; it says: %s"
+              % (", ".join(repr(m) for m in missing),
+                 (" and still says %s" % ", ".join(repr(s) for s in still))
+                 if still else "", text[:300] or "(nothing read)"))
+        return None
+    if late:
+        time.sleep(0.6)  # arrived during the wait: let its animation end
+    if not capture(adb_bytes):
+        print("   the screen could not be captured -- not photographing")
+        return None
+    return adb("exec-out", "cat", SHOT, binary=True)
+
+
+def take_gif():
+    """docs/screenshots/demo.gif from GIF_FRAMES; what failed, or nothing.
+    One frame that fails, or a note not saved as typed, writes no GIF: the
+    one there stays as it was."""
+    try:
+        from PIL import Image
+    except ImportError:
+        print("--gif needs Pillow (py -m pip install Pillow)")
+        return ["Pillow"]
+    if not seed(SETTINGS):
+        return ["seed"]
+    demo_status_bar(True)
+    frames = []
+    for number, (ms, steps, present, absent, keyboard) in enumerate(GIF_FRAMES, 1):
+        print("-- frame %d" % number)
+        if not all(act(step) for step in steps):
+            return ["frame %d" % number]
+        data = shutter(present, absent, keyboard)
+        if data is None:
+            return ["frame %d" % number]
+        image = Image.open(io.BytesIO(data)).convert("RGB")
+        height = round(image.height * GIF_WIDTH / image.width)
+        frames.append((image.resize((GIF_WIDTH, height), Image.LANCZOS), ms))
+    # The words typed in the picture, read back from the file the app wrote.
+    written = [n for n in read("notes_data.json") or [] if n.get("title") == "Weekend trip"]
+    if len(written) != 1 or written[0].get("body") != "Pack the tent and the stove.":
+        print("   the note written in the picture was not saved as typed: %r" % written)
+        return ["the written note"]
+    images = [im.convert("P", palette=Image.ADAPTIVE, colors=128) for im, _ms in frames]
+    path = os.path.join(OUT, "demo.gif")
+    images[0].save(path, save_all=True, append_images=images[1:],
+                   duration=[ms for _im, ms in frames], loop=0, optimize=True)
+    print("   %s: %d frames, %d KB" % (os.path.relpath(path, ANDROID), len(frames),
+                                     os.path.getsize(path) // 1024))
+    return []
 
 
 def main():
@@ -363,44 +513,77 @@ def main():
         print("No emulator running. Start one and try again.")
         return 2
     os.makedirs(OUT, exist_ok=True)
+    # The turning as found, put back in the finally below.
+    found = {key: adb("shell", "settings", "get", "system", key).strip()
+             for key in ("accelerometer_rotation", "user_rotation")}
+    # The keyboard follows the phone's own light or dark, not the app's: the
+    # dark pass makes the phone dark too, as it mostly is under a dark theme,
+    # or 12-writing-dark showed a white keyboard under a dark note. "Night
+    # mode: no", as found, put back in the finally below.
+    night = adb("shell", "cmd", "uimode", "night").strip().rsplit(":", 1)[-1].strip()
 
+    gif = "--gif" in sys.argv[1:]
+    passes = () if gif else ((SETTINGS, ""), (DARK, "-dark"))
     failed = []
     try:
-        for settings, suffix in ((SETTINGS, ""), (DARK, "-dark")):
+        for settings, suffix in passes:
+            adb("shell", "cmd", "uimode", "night", "yes" if suffix else "no")
             if not seed(settings):
                 return 1
             demo_status_bar(True)
-            for name, caption, steps, present, absent in SHOTS:
+            for name, caption, steps, present, absent, *rest in SHOTS:
                 if suffix and name in DARK_PASS_SKIPS:
                     continue
                 if suffix:
                     present, absent = DARK_WORDS.get(name, (present, absent))
+                keyboard = KEYBOARD in rest
                 name += suffix
                 print("-- %s: %s" % (name, caption))
                 if not all(act(step) for step in steps):
                     failed.append(name)
                     continue
-                hide_keyboard()
-                time.sleep(0.8)
-                text = screen_text()
-                missing = [w for w in present if w not in text]
-                still = [w for w in absent if w in text]
-                if missing or still:
-                    print("   the screen does not say %s%s -- not photographing"
-                          % (", ".join(repr(m) for m in missing),
-                             (" and still says %s" % ", ".join(repr(s) for s in still))
-                             if still else ""))
+                if keyboard and not any(keyboard_up() or time.sleep(0.5) for _ in range(10)):
+                    print("   no keyboard came up -- not photographing")
                     failed.append(name)
                     continue
-                adb("shell", "screencap", "-p", "/sdcard/shot.png")
-                data = adb("exec-out", "cat", "/sdcard/shot.png", binary=True)
+                data = shutter(present, absent, keyboard)
+                if data is None:
+                    failed.append(name)
+                    continue
                 target = os.path.join(OUT, name + ".png")
                 with open(target, "wb") as f:
                     f.write(data)
                 print("   %s" % os.path.relpath(target, ANDROID))
             # Upright again: the dark pass ends on its side, at 08-wide.
             act(("turn", 0))
+        if gif:
+            failed = take_gif()
     finally:
+        # However the run ended: a failed seed or a stuck adb left the
+        # emulator on its side, its own turning off.
+        # A key that was never set reads "null": it is unset again, not left
+        # at the run's value. One that fails does not keep the other back.
+        # Read back, and said when it is not as found: adb's settings
+        # command does not fail on a write it refused.
+        for key, value in found.items():
+            try:
+                if value.isdigit():
+                    adb("shell", "settings", "put", "system", key, value)
+                elif value == "null":
+                    adb("shell", "settings", "delete", "system", key)
+                now = adb("shell", "settings", "get", "system", key).strip()
+            except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+                now = "(adb did not answer)"
+            if now != value:
+                print("the emulator's %s is %s, not %r as found: set it back by hand" % (key, now, value))
+        try:
+            if night in ("yes", "no", "auto"):
+                adb("shell", "cmd", "uimode", "night", night)
+            now = adb("shell", "cmd", "uimode", "night").strip().rsplit(":", 1)[-1].strip()
+        except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+            now = "(adb did not answer)"
+        if now != night:
+            print("the emulator's night mode is %s, not %r as found: set it back by hand" % (now, night))
         demo_status_bar(False)
 
     print()

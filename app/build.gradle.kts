@@ -21,8 +21,8 @@ android {
         // sections there, so the two cannot drift apart; versionName is
         // the newest of them. Both were the template's 1 / "1.0" until
         // 2026-09-15, and "1.0" was not true of an app still exploring.
-        versionCode = 15
-        versionName = "0.12.0"
+        versionCode = 22
+        versionName = "0.15.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -61,7 +61,14 @@ tasks.withType<Test>().configureEach {
     val scratch = layout.buildDirectory.dir("test-tmp/$name").get().asFile
     systemProperty("java.io.tmpdir", scratch.absolutePath)
     doFirst {
-        scratch.deleteRecursively()
+        // Asked again, and said when it cannot: a file another program held
+        // for a moment (a build beside it, a scanner) let one pass keep 276
+        // of the last run's folders, and TempPlaceTest read them as a pile-up.
+        var tries = 0
+        while (scratch.exists() && !scratch.deleteRecursively() && ++tries < 5) Thread.sleep(1000)
+        if (scratch.listFiles().orEmpty().isNotEmpty()) {
+            throw GradleException("could not empty $scratch: a program may hold a file in it")
+        }
         scratch.mkdirs()
     }
 }

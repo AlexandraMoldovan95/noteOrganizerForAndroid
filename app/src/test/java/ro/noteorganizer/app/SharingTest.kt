@@ -1,7 +1,5 @@
 package ro.noteorganizer.app
 
-import java.io.File
-import java.nio.file.Files
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -17,16 +15,6 @@ import org.junit.Test
 class SharingTest {
 
     private fun note(json: String) = JSONObject(json)
-
-    private fun scratch(contents: String?): Notebook.Load {
-        val dir = Files.createTempDirectory("notebook").toFile()
-        dir.deleteOnExit()
-        if (contents != null) File(dir, "notes_data.json").writeText(contents)
-        return Notebook.load(listOf(dir))
-    }
-
-    private fun onDisk(load: Notebook.Load): JSONArray =
-        JSONArray(load.file!!.readText())
 
     // ---- the round trip ----
 
@@ -62,6 +50,28 @@ class SharingTest {
         val noise = String(CharArray(Sharing.MAX_DECOMPRESSED_BYTES + 1) { ('a' + random.nextInt(26)) })
         val tooBig = try { Sharing.encode(listOf(note("{}").put("body", noise))); null } catch (e: Sharing.TooLarge) { e.message }
         assertTrue(tooBig, tooBig != null && tooBig.contains("too much for one code"))
+    }
+
+    @Test
+    fun `a note past what a code may hold is refused before it is deflated`() {
+        // Weighed after the deflate at level 9, the dearest step, such a note
+        // paid all of it to be refused, on the screen's thread. Timed against writing
+        // its text out once, the work the refusal still does, so no machine moves the margin.
+        val words = listOf("milk", "bread", "a long day", "walked to the river", "Tuesday", "7:30")
+        val random = java.util.Random(11)
+        val body = StringBuilder()
+        while (body.length <= Sharing.MAX_DECOMPRESSED_BYTES) body.append(words[random.nextInt(words.size)]).append(' ').append(random.nextInt(1000)).append('\n')
+        val big = note("{}").put("body", body.toString())
+        fun ms(work: () -> Unit): Long {
+            val started = System.nanoTime()
+            work()
+            return (System.nanoTime() - started) / 1_000_000
+        }
+        fun refused() = try { Sharing.encode(listOf(big)); false } catch (e: Sharing.TooLarge) { true }
+        assertTrue(refused())
+        val written = (1..2).minOf { ms { big.toString().toByteArray(Charsets.UTF_8) } }
+        val weighed = (1..2).minOf { ms { assertTrue(refused()) } }
+        assertTrue("refused in $weighed ms, the text written out in $written ms", weighed <= 4 * written + 150)
     }
 
     @Test
@@ -102,10 +112,47 @@ class SharingTest {
         assertFalse(back.has("attachments"))
     }
 
+    @Test
+    fun `a code holding a list holds no notes, as the desktop says, and a bare word is damage`() {
+        // decode_share_code's own answers: a list is whole JSON with no
+        // notes in it; text Python's reader refuses is damage.
+        for (text in listOf("[]", " [1, 2]")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertEquals(text, "This share code doesn't contain any notes.", result.reason)
+        }
+        val word = Sharing.decode(codeOfText("abc")) as Sharing.Decoded.Failed
+        assertTrue(word.reason, word.reason.startsWith("This share code is damaged"))
+    }
+
+    @Test
+    fun `a code holding one plain value holds no notes, and text after its object is damage, as the desktop says`() {
+        // decode_share_code's answers, asked 2026-11-13: the phone called the
+        // first damaged, and took the last two as whole.
+        for (text in listOf("42", " \"hello\" ", "true", "null", "NaN", "-Infinity", " -1.5e3 ")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertEquals(text, "This share code doesn't contain any notes.", result.reason)
+        }
+        for (text in listOf("01", "1.", ".5", "\"tab\there\"", "{\"notes\": []} x", "{\"notes\": [{\"title\": \"a\"}]} {}")) {
+            val result = Sharing.decode(codeOfText(text)) as Sharing.Decoded.Failed
+            assertTrue(text + ": " + result.reason, result.reason.startsWith("This share code is damaged"))
+        }
+        // One long string, plain or all escapes: matched by a regex, it recursed
+        // past the thread's stack, an Error no catch here takes.
+        for (long in listOf("\"" + "a".repeat(300_000) + "\"", "\"" + "\\n".repeat(150_000) + "\"")) {
+            val result = Sharing.decode(codeOfText(long)) as Sharing.Decoded.Failed
+            assertEquals("This share code doesn't contain any notes.", result.reason)
+        }
+        val unclosed = Sharing.decode(codeOfText("\"abc\\\"")) as Sharing.Decoded.Failed
+        assertTrue(unclosed.reason, unclosed.reason.startsWith("This share code is damaged"))
+    }
+
     /** Builds a code around an arbitrary payload, the way a forger would. */
-    private fun codeOf(payload: JSONObject): String {
+    private fun codeOf(payload: JSONObject): String = codeOfText(payload.toString())
+
+    /** ...or around any text at all. */
+    private fun codeOfText(text: String): String {
         val deflate = java.util.zip.Deflater(9)
-        val raw = payload.toString().toByteArray(Charsets.UTF_8)
+        val raw = text.toByteArray(Charsets.UTF_8)
         deflate.setInput(raw)
         deflate.finish()
         val out = java.io.ByteArrayOutputStream()
@@ -116,6 +163,40 @@ class SharingTest {
             .encodeToString(out.toByteArray())
     }
 
+    @Test
+    fun `a code whose words are not UTF-8 is damage, never letters turned into marks`() {
+        // Read leniently, its letters came in as replacement marks; the
+        // desktop's decode("utf-8") refuses such a code.
+        val title = Char(0x0218) + "tampil" + Char(0x0103)
+        val raw = "{\"v\": 1, \"notes\": [{\"title\": \"$title\"}]}".toByteArray(charset("windows-1250"))
+        val deflate = java.util.zip.Deflater(9)
+        deflate.setInput(raw)
+        deflate.finish()
+        val out = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(4096)
+        while (!deflate.finished()) out.write(buffer, 0, deflate.deflate(buffer))
+        deflate.end()
+        val code = Sharing.PREFIX + java.util.Base64.getUrlEncoder().encodeToString(out.toByteArray())
+        assertTrue(Sharing.decode(code) is Sharing.Decoded.Failed)
+    }
+
+    // ---- nesting deeper than any note ----
+
+    @Test
+    fun `a code nested deeper than any note is damage, refused before it is parsed`() {
+        // Android's org.json goes a call deeper per bracket; the computer's parser
+        // stops at 512 by itself, so this nests 150 deep: that parser takes it,
+        // and only the guard refuses it.
+        val nested = { depth: Int -> "[".repeat(depth) + "]".repeat(depth) }
+        val code = codeOf(JSONObject("""{"v": 1, "notes": [{"title": "x", "deep": ${nested(150)}}]}"""))
+        val result = Sharing.decode(code)
+        assertTrue(result is Sharing.Decoded.Failed)
+        assertTrue((result as Sharing.Decoded.Failed).reason.startsWith("This share code is damaged"))
+        // A note's own depth is far inside the line.
+        val fine = codeOf(JSONObject("""{"v": 1, "notes": [{"title": "x", "deep": ${nested(20)}}]}"""))
+        assertTrue(Sharing.decode(fine) is Sharing.Decoded.Notes)
+    }
+
     // ---- what a pasted code can be ----
 
     @Test
@@ -123,6 +204,92 @@ class SharingTest {
         val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
         val wrapped = code.chunked(40).joinToString("\n  ")
         assertTrue(Sharing.decode(wrapped) is Sharing.Decoded.Notes)
+    }
+
+    @Test
+    fun `a NEL inside a code is wrapping, as Python's whitespace is`() {
+        // Python's \s takes U+0085; isWhitespace does not, and the phone cut
+        // the code at it and called it damaged where the desktop read it.
+        val code = Sharing.encode(listOf(note("""{"title": "x"}""")))
+        val middle = Sharing.PREFIX.length + 8
+        assertTrue(Sharing.decode(code.take(middle) + "\u0085" + code.drop(middle)) is Sharing.Decoded.Notes)
+    }
+
+    @Test
+    fun `what the desktop's base64 reading drops is dropped here too`() {
+        // A code ending a sentence, or followed by a closing quote or
+        // bracket, imported on the computer and was called damaged on the
+        // phone. (Before the code, either device reads it as no code.)
+        val code = Sharing.encode(listOf(note("""{"title": "Lista de cumpărături"}""")))
+        val middle = Sharing.PREFIX.length + 8
+        // And the invisible break marks a chat app puts into a long word.
+        for (pasted in listOf("$code.", "$code\"", "$code)", "$code>", code.take(middle) + "​" + code.drop(middle),
+                              code.take(middle) + "­" + code.drop(middle))) {
+            val result = Sharing.decode(pasted)
+            assertTrue(pasted.takeLast(3), result is Sharing.Decoded.Notes)
+            assertEquals("Lista de cumpărături", (result as Sharing.Decoded.Notes).notes.single().getString("title"))
+        }
+    }
+
+    @Test
+    fun `a code is found among the words around it, padded or not, as the desktop's code_in finds it`() {
+        // A greeting before it, a mail signature or "Thanks" after it: read
+        // only now and then, as the code's padding happened to fall.
+        for (title in listOf("x", "xy", "xyz", "wxyz")) {
+            val code = Sharing.encode(listOf(note("""{"title": "$title"}""")))
+            for (pasted in listOf("Hi Ana!\n$code\nThanks", "$code Sent from my phone",
+                                  "Here: ${code.take(30)}\n${code.drop(30)}", "$code and NOTE1:another")) {
+                val result = Sharing.decode(pasted)
+                assertTrue("$title in ${pasted.take(12)}…", result is Sharing.Decoded.Notes)
+                assertEquals(title, (result as Sharing.Decoded.Notes).notes.single().getString("title"))
+            }
+            // ...and a code whose "=" was lost on the way still reads, as it did
+            // before the cut for words after a code.
+            assertTrue("$title without its padding", Sharing.decode(code.trimEnd('=')) is Sharing.Decoded.Notes)
+            // ...and with its prefix broken by the wrapping, read from it as from a
+            // whole one, as the desktop's code_in does: "Thanks" after it was read
+            // into the code here, and the code refused.
+            val broken = "Hi\n${code.take(4)}\n${code.drop(4)}\nThanks"
+            assertTrue("$title, its prefix broken", Sharing.decode(broken) is Sharing.Decoded.Notes)
+            // ...so text shared into the app holding it is a code, not a note.
+            assertTrue("$title, shared in", Sharing.holdsCode(broken))
+        }
+        // A stray letter in a code whose prefix is broken is refused, as it is in a
+        // whole one: the desktop's lenient decoder read it, and the phone refused it.
+        val stray = Sharing.encode(listOf(note("""{"title": "stray"}""")))
+        assertTrue(Sharing.decode("${stray.take(4)}\n${stray.substring(4, 20)}!${stray.drop(20)}") is Sharing.Decoded.Failed)
+        // Words that say "NOTE 1:" are no code: said so as before, and shared in
+        // they are a note, not a code refused.
+        for (words in listOf("Hi NOTE 1: buy milk", "Meeting notes\nNOTE 1: call Ana about the plan")) {
+            val said = Sharing.decode(words)
+            assertTrue(words, said is Sharing.Decoded.Failed &&
+                said.reason.startsWith("This isn't a Note Organizer share code"))
+            assertFalse("$words, shared in", Sharing.holdsCode(words))
+        }
+        // A code that reads keeps its own answer behind a hidden prefix: a newer
+        // version's was called no share code at all, as the desktop's was.
+        val packed = java.io.ByteArrayOutputStream()
+        java.util.zip.DeflaterOutputStream(packed).use {
+            it.write("""{"v": 2, "notes": [{"title": "n"}]}""".toByteArray(Charsets.UTF_8))
+        }
+        val v2 = Sharing.PREFIX + java.util.Base64.getUrlEncoder().encodeToString(packed.toByteArray())
+        val newer = Sharing.decode("${v2.take(4)}\n${v2.drop(4)}")
+        assertTrue("$newer", newer is Sharing.Decoded.Failed && newer.reason.contains("newer version"))
+        // ...and shared in, it is a code (said as a newer version's), not a note.
+        assertTrue(Sharing.holdsCode("${v2.take(4)}\n${v2.drop(4)}"))
+        // From a file only the start of which was read, a whole newer-version code
+        // goes on to the Import (which says why), not called incomplete; a cut one is.
+        assertFalse("a whole newer code is not cut", Sharing.cutShort("Hi $v2 thanks"))
+        // Cut through its words, not only its checksum (which neither app reads).
+        assertTrue("a cut code is", Sharing.cutShort(v2.take(v2.length / 2)))
+        // A code cut before any of its stream came out is said as the desktop says
+        // it, "damaged or incomplete", not "too large to import safely".
+        val cut = Sharing.decode(stray.take(12))
+        assertTrue("$cut", cut is Sharing.Decoded.Failed && cut.reason.startsWith("This share code is damaged or incomplete"))
+        // ...and a stream asking for a preset dictionary is refused, as Python's
+        // zlib refuses it: no empty "incomplete" made of it.
+        val dict = Sharing.decode("NOTE1:eCAAAAABq1YqU7Iy1FHKyy9JLVayiq5WKsksyUlVslKqUKqNrQUAmZcJ_Q==")
+        assertTrue("$dict", dict is Sharing.Decoded.Failed && dict.reason.startsWith("This share code is damaged, or too large"))
     }
 
     @Test
@@ -192,22 +359,15 @@ class SharingTest {
     }
 
     // ---- importing ----
-    //
-    // These used to drive `importShareCode`, the one import route before
-    // a code carried a note's identity. The screen now inspects a code
-    // first, so a note this device already has can raise a question
-    // instead of being copied silently, and that is the only route there
-    // is. Checks that drive a function nothing calls keep it alive while
-    // proving nothing about what the app does -- and that one carried its
-    // own second copy of the new-note defaults, which is exactly how two
-    // copies of a rule drift apart without anyone noticing.
+    // By the screen's own route -- inspect, then write with the answer -- not
+    // a function nothing calls, which a check would keep alive for nothing.
 
     /** What the screen does: look first, then write with the answer. */
     private fun bring(load: Notebook.Load, code: String,
                       update: Boolean = false): SaveResult {
         val found = Notebook.inspectShareCode(load, code)
         if (found is Notebook.Inspection.Failed) return SaveResult.Failed(found.reason)
-        return Notebook.applyShareCode(
+        return Shares.apply(
             load, (found as Notebook.Inspection.Ready).notes, update)
     }
 
@@ -244,11 +404,8 @@ class SharingTest {
 
     @Test
     fun `importing the same code twice depends on whether it carries an identity`() {
-        // The old rule was: always create. A code carried no id, so there
-        // was nothing to match it against, and two notes are visible and
-        // fixable where overwriting the wrong one is not. That reasoning
-        // is exactly why the identity exists -- and it still governs the
-        // half of the world that has none.
+        // A code with no identity is always created: two notes are visible and
+        // fixable where overwriting the wrong one is not.
         val load = scratch("[]")
         val anonymous = Sharing.encode(listOf(note("""{"title": "x"}""")))
         bring(load, anonymous)
@@ -258,16 +415,14 @@ class SharingTest {
         assertEquals(listOf(1, 2),
             (0 until 2).map { onDisk(load).getJSONObject(it).getInt("id") })
 
-        // A code made from a note this device has SAVED carries that
-        // note's identity, and then the second arrival is recognised
-        // rather than guessed at -- which is the whole point of the
-        // field. Importing it still leaves two notes here, but now
-        // because that answer was chosen, not because nothing could tell.
-        val mine = Notebook.shareCodeFor(load, 1)!!
+        // A code made from a SAVED note carries its identity, so the second
+        // arrival is recognised, not guessed at: two notes here now because
+        // that answer was chosen, not because nothing could tell.
+        val mine = Shares.codeFor(load, 1)!!
         val found = Notebook.inspectShareCode(load, mine) as Notebook.Inspection.Ready
         assertEquals("a code made here is recognised when it comes back",
             1, found.known)
-        Notebook.applyShareCode(load, found.notes, update = false)
+        Shares.apply(load, found.notes, update = false)
         assertEquals(3, onDisk(load).length())
         assertEquals("the copy cannot wear the original's identity",
             onDisk(load).getJSONObject(0).getString("uid") ==
@@ -312,15 +467,96 @@ class SharingTest {
             [{"id": 3, "title": "x", "comments": "footnotes",
               "paragraphs": [{"line": 0, "kind": "bullet"}]}]
         """.trimIndent())
-        val code = Notebook.shareCodeFor(load, 3)!!
+        val code = Shares.codeFor(load, 3)!!
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals("footnotes", back.getString("comments"))
         assertEquals(1, back.getJSONArray("paragraphs").length())
     }
 
+    // ---- a text file shared in ----
+
+    private fun shared(bytes: ByteArray, most: Int = 500_000) = Files.sharedText(bytes.inputStream(), most)
+
     @Test
-    fun `asking for a code for a note that is gone gives nothing, not a crash`() {
-        val load = scratch("""[{"id": 1}]""")
-        assertEquals(null, Notebook.shareCodeFor(load, 99))
+    fun `a shared file in UTF-16 is read as its letters, not letters and NULs`() {
+        val words = "Cumpărături de joi"
+        val le = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + words.toByteArray(Charsets.UTF_16LE)
+        val be = byteArrayOf(0xFE.toByte(), 0xFF.toByte()) + words.toByteArray(Charsets.UTF_16BE)
+        assertEquals(words, shared(le)?.first)
+        assertEquals(words, shared(be)?.first)
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + words.toByteArray()
+        assertEquals(words, shared(bom)?.first)
+    }
+
+    @Test
+    fun `a shared file of a BOM, spaces or a NEL alone holds no text`() {
+        assertEquals(null, shared(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())))
+        assertEquals(null, shared(" \n\t ".toByteArray()))
+        assertEquals(null, shared("\u0085".toByteArray()))
+        assertEquals(null, shared(ByteArray(0)))
+    }
+
+    @Test
+    fun `a shared file not in UTF-8 is refused, not read as replacement marks`() {
+        // Notepad's old "ANSI" on a Romanian Windows: ă is 0xE3 in code page 1250.
+        val ansi = "mere, p".toByteArray() + byteArrayOf(0xE2.toByte()) + "ine".toByteArray()
+        var refused = false
+        try {
+            shared(ansi)
+        } catch (e: java.io.IOException) {
+            refused = true
+        }
+        assertTrue(refused)
+    }
+
+    @Test
+    fun `a shared file in UTF-16 without its BOM is refused, not read as letters and NULs`() {
+        val bare = "Shopping list: milk, eggs".toByteArray(Charsets.UTF_16LE)
+        var refused = false
+        try {
+            shared(bare)
+        } catch (e: java.io.IOException) {
+            refused = true
+        }
+        assertTrue(refused)
+    }
+
+    @Test
+    fun `NULs padding a shared file's end are left out, the file read`() {
+        assertEquals("Shopping list", shared("Shopping list".toByteArray() + ByteArray(8))?.first)
+    }
+
+    @Test
+    fun `a code followed by more equals signs reads, as the desktop reads it`() {
+        val code = Sharing.encode(listOf(note("""{"id": 1, "title": "Padded", "body": "x"}""")))
+        for (tail in listOf("=)", "\n=====", "==")) {
+            assertTrue(tail, Sharing.decode(code + tail) is Sharing.Decoded.Notes)
+        }
+    }
+
+    @Test
+    fun `a code that lost one of its two equals signs is damaged, as on the desktop`() {
+        // Python refuses too little padding ("Incorrect padding"); one "=" of
+        // two lost must not read here either.
+        val code = (1..60).asSequence()
+            .map { Sharing.encode(listOf(note("""{"id": 1, "title": "${"x".repeat(it)}", "body": "y"}"""))) }
+            .first { it.endsWith("==") }
+        assertTrue(Sharing.decode(code) is Sharing.Decoded.Notes)
+        assertTrue(Sharing.decode(code.dropLast(1)) is Sharing.Decoded.Failed)
+    }
+
+    @Test
+    fun `an emoji cut in half at the end leaves no half behind`() {
+        val text = "abcd😀"   // an emoji at characters 5 and 6
+        val got = shared(text.toByteArray(), most = 5)
+        assertEquals("abcd", got?.first)
+        assertEquals(true, got?.second)
+    }
+
+    @Test
+    fun `a shared file is said cut only when it went on past what is read`() {
+        assertEquals(false, shared("abcde".toByteArray(), most = 5)?.second)
+        assertEquals(true, shared("abcdef".toByteArray(), most = 5)?.second)
+        assertEquals("abcde", shared("abcdef".toByteArray(), most = 5)?.first)
     }
 }

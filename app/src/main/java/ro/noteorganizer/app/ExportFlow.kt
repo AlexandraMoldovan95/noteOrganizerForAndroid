@@ -25,63 +25,78 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import java.io.IOException
 import java.io.OutputStream
 
 /** Starts an export of one note in one format; the rest happens in Android's picker. */
-class Exporter internal constructor(private val start: (Int, String) -> Unit) {
-    fun export(noteId: Int, format: String) = start(noteId, format)
+class Exporter internal constructor(private val start: (Int, String, String?) -> Unit) {
+    /** The note, or the one [day] of it the editor is open on ([AppState.outgoingNote]). */
+    fun export(noteId: Int, format: String, day: String? = null) = start(noteId, format, day)
 }
 
 /**
- * The desktop's "Export as file", with Android's own "save as" in place of
- * Windows' -- the person chooses the folder and the name, which starts as
- * the desktop's. What is written is the note as saved, worked out when the
- * picker answers, so nothing typed in between is left out.
- *
- * Afterwards the message offers to open the file, as the desktop asks
- * "Open it now?": the file itself is the only honest preview of how the
- * note lays out. A cancelled picker writes nothing.
+ * The desktop's "Export as file", with Android's own "save as": the person
+ * picks the folder and the name (the desktop's, to start). The note is
+ * written as saved when the picker answers, so nothing typed meanwhile is
+ * left out, and the message offers to open the file, as the desktop asks
+ * "Open it now?". A cancelled picker writes nothing. Remembered by AppRoot:
+ * Android may end the app behind the picker (ISSUES_LOG, "Answers sent to").
  */
 @Composable
 fun rememberExporter(state: AppState): Exporter {
     val context = LocalContext.current
     // Which note, in which format, while the picker -- another activity --
-    // is up: kept as text, so it survives that trip.
+    // is up: kept as text, so it survives that trip, the app's end included.
     var pending by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun finish(uri: Uri?) {
         val job = pending ?: return
         pending = null
         if (uri == null) return
-        val id = job.substringBefore(':').toIntOrNull() ?: return
-        val format = job.substringAfter(':')
-        val note = state.rawNote(id) ?: return
+        val parts = job.split(":", limit = 3)
+        val id = parts[0].toIntOrNull() ?: return
+        val format = parts.getOrNull(1) ?: return
+        // A copy, taken here: the page is worked out and written away from
+        // the screen, which a tick in the list may change the note under.
+        val note = state.outgoingNote(id, parts.getOrNull(2)?.ifEmpty { null }) ?: return
         val title = Exporting.titleOf(note)
-        try {
-            openForWriting(context, uri).use { it.write(Exporting.content(note, format, title).toByteArray(Charsets.UTF_8)) }
-        } catch (e: IOException) {
-            state.say(context.getString(R.string.note_export_failed))
-            return
-        } catch (e: SecurityException) {
-            state.say(context.getString(R.string.note_export_failed))
-            return
-        }
-        val name = displayName(context, uri) ?: Exporting.fileName(title, format)
-        var message = context.getString(R.string.note_exported_to, name)
-        // The desktop says so too: a single note's file never carries its files.
-        if (((note.opt("attachments") as? JSONArray)?.length() ?: 0) > 0) {
-            message += " " + context.getString(R.string.note_export_no_files)
-        }
-        state.offer(message, context.getString(R.string.note_export_open)) {
-            try {
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, Exporting.mimeType(format))
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-            } catch (e: ActivityNotFoundException) {
-                state.say(context.getString(R.string.no_app_opens))
+        state.scope.launch {
+            // Off the screen's thread: a note can hold a table of tens of
+            // thousands of cells, and the place another app's.
+            val written = withContext(Dispatchers.IO) {
+                try {
+                    openForWriting(context, uri).use { it.write(Exporting.content(note, format, title).toByteArray(Charsets.UTF_8)) }
+                    true
+                } catch (e: IOException) {
+                    false
+                } catch (e: SecurityException) {
+                    false
+                }
+            }
+            if (!written) {
+                state.say(context.getString(R.string.note_export_failed))
+                return@launch
+            }
+            val name = withContext(Dispatchers.IO) { displayName(context, uri) } ?: Exporting.fileName(title, format)
+            var message = context.getString(R.string.note_exported_to, quotedFile(name))
+            // The desktop says so too: a single note's file never carries its files.
+            if (((note.opt("attachments") as? JSONArray)?.length() ?: 0) > 0) {
+                message += " " + context.getString(R.string.note_export_no_files)
+            }
+            state.offer(message, context.getString(R.string.note_export_open)) {
+                try {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW).setDataAndType(uri, Exporting.mimeType(format))
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (e: ActivityNotFoundException) {
+                    state.say(context.getString(R.string.no_app_opens))
+                }
             }
         }
     }
@@ -92,9 +107,9 @@ fun rememberExporter(state: AppState): Exporter {
         ActivityResultContracts.CreateDocument(Exporting.mimeType(Exporting.TXT))) { finish(it) }
 
     return remember {
-        Exporter { id, format ->
-            val note = state.rawNote(id) ?: return@Exporter
-            pending = "$id:$format"
+        Exporter { id, format, day ->
+            val note = (if (day == null) state.rawNote(id) else state.outgoingNote(id, day)) ?: return@Exporter
+            pending = "$id:$format:${day.orEmpty()}"
             val name = Exporting.fileName(Exporting.titleOf(note), format)
             if (format == Exporting.HTML) html.launch(name) else txt.launch(name)
         }
@@ -137,11 +152,13 @@ fun ExportDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.note_export_title)) },
         text = {
-            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp)
+            DialogBody {
+                Text(stringResource(R.string.note_export_where), color = palette.subtext, fontSize = 13.sp,
+                     modifier = Modifier.padding(bottom = 10.dp))
                 OptionCard("🌐", stringResource(R.string.note_export_html), stringResource(R.string.note_export_html_sub)) {
                     onPick(Exporting.HTML)
                 }
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 10.dp))
                 OptionCard("📄", stringResource(R.string.note_export_txt), stringResource(R.string.note_export_txt_sub)) {
                     onPick(Exporting.TXT)
                 }

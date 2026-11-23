@@ -3,8 +3,11 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -31,6 +34,71 @@ class BackupTest {
                 zip.closeEntry()
             }
         }
+    }
+
+    /** [zip] with every entry's general-purpose flag given bit 0, "encrypted", in its local and central headers. */
+    private fun withEncryptionBit(zip: ByteArray): ByteArray {
+        val out = zip.copyOf()
+        fun at(i: Int, sig: Int) = i + 3 < out.size && (out[i].toInt() and 0xff) or ((out[i + 1].toInt() and 0xff) shl 8) or
+            ((out[i + 2].toInt() and 0xff) shl 16) or ((out[i + 3].toInt() and 0xff) shl 24) == sig
+        for (i in out.indices) {
+            when {
+                at(i, 0x04034b50) -> out[i + 6] = (out[i + 6].toInt() or 1).toByte()   // local header: flag at +6
+                at(i, 0x02014b50) -> out[i + 8] = (out[i + 8].toInt() or 1).toByte()   // central header: flag at +8
+            }
+        }
+        return out
+    }
+
+    @Test
+    fun `a size reads as the desktop's size_text, halves to the even figure`() {
+        // The desktop's own answers (core/sharing.py's size_text, 2026-11-12).
+        val desktop = mapOf(2_500_000L to "2 MB", 3_500_000L to "4 MB", 400_000L to "1 MB",
+            1_250_000_000L to "1.2 GB", 1_350_000_000L to "1.4 GB", 1_150_000_000L to "1.1 GB",
+            999_999_999L to "1000 MB")
+        for ((bytes, said) in desktop) assertEquals("$bytes", said, Backup.sizeText(bytes))
+    }
+
+    @Test
+    fun `a size is written in the figures 0 to 9 whatever the phone's language`() {
+        // A phone set to write Arabic figures wrote "٣ MB" for the MB figure,
+        // where the GB figure and the desktop write "3 MB".
+        val was = java.util.Locale.getDefault()
+        val arabic = java.util.Locale.forLanguageTag("ar-u-nu-arab")
+        java.util.Locale.setDefault(arabic)
+        try {
+            assertNotEquals("fixture: this phone writes its own figures", "3", "%d".format(3))
+            assertEquals("3 MB", Backup.sizeText(3_000_000L))
+            assertEquals("1.2 GB", Backup.sizeText(1_250_000_000L))
+        } finally {
+            java.util.Locale.setDefault(was)
+        }
+    }
+
+    @Test
+    fun `an attached file named longer than the phone's storage holds comes in under a name it holds`() {
+        // 161 UTF-16 units, which Windows takes, and 279 UTF-8 bytes, which
+        // Android's storage refuses: the whole backup was refused for it,
+        // with an errno and an inner path for a message.
+        val long = "20261028093000123456_" + "Договор_аренды_квартиры_".repeat(5) + "подписанный.pdf"
+        assertTrue(long.toByteArray().size > 255)
+        val zip = File(temp("zip"), "b.zip")
+        val notes = """[{"id": 1, "uid": "a", "title": "Lease", "attachments": [{"filename": "Договор.pdf", "stored_as": "$long"}]},
+            {"id": 2, "uid": "b", "title": "Second"}]"""
+        zipOf(zip, "notes_data.json" to notes, "attachments/$long" to "pdf bytes",
+              "trash.json" to """[{"id": 3, "title": "Gone", "attachments": [{"filename": "x.pdf", "stored_as": "$long"}]}]""")
+        val read = Backup.read(zip, temp("into"), free = Long.MAX_VALUE) as Backup.Read.Ok
+        assertEquals(listOf("Lease", "Second"), read.contents.notes.map { it.getString("title") })
+        val stored = read.contents.notes[0].getJSONArray("attachments").getJSONObject(0).getString("stored_as")
+        assertTrue(stored, stored.toByteArray().size <= Backup.MAX_NAME_BYTES && stored.endsWith(".pdf"))
+        assertTrue(stored.startsWith("20261028093000123456_Договор"))
+        assertEquals("pdf bytes", File(read.contents.attachments, stored).readText())
+        assertEquals(stored, read.contents.trash!!.getJSONObject(0).getJSONArray("attachments").getJSONObject(0).getString("stored_as"))
+        // A file attached on the phone, its picked name long, fits once stamped too.
+        val picked = Organizing.storedName("Договор_аренды_".repeat(15) + ".pdf")
+        assertTrue(picked.toByteArray().size <= Backup.MAX_NAME_BYTES && picked.endsWith(".pdf"))
+        // A name that fits is left alone.
+        assertEquals("attachments/20261028_a.pdf", Backup.fittedPlace("attachments/20261028_a.pdf"))
     }
 
     @Test
@@ -100,10 +168,9 @@ class BackupTest {
 
     @Test
     fun `an entry that unpacks to more than it declares is stopped at what it declared`() {
-        // The guards above read the sizes the archive CLAIMS. A hostile one
-        // can claim a small size for a large entry, so the unpacking counts
-        // too. Built by writing an honest zip, then lowering the size its
-        // central directory declares for the attached file.
+        // The guards above read the sizes the archive CLAIMS; a hostile one can
+        // claim a small size for a large entry, so the unpacking counts too. An
+        // honest zip, then the size its central directory declares lowered.
         val zip = File(temp("in"), "liar.zip")
         zipOf(zip, "notes_data.json" to "[]", "attachments/big.txt" to "x".repeat(10_000))
         val bytes = zip.readBytes()
@@ -155,8 +222,8 @@ class BackupTest {
     @Test
     fun `a file that is not a backup says so`() {
         val notZip = File(temp("in"), "photo.zip").apply { writeText("not a zip at all") }
-        assertTrue((Backup.read(notZip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
-            .reason.contains("couldn't be read as a backup"))
+        assertEquals("in words, not the library's", Backup.NOT_WHOLE,
+            (Backup.read(notZip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
         val noNotes = File(temp("in"), "other.zip")
         zipOf(noNotes, "readme.txt" to "hi")
         assertTrue((Backup.read(noNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
@@ -165,6 +232,126 @@ class BackupTest {
         zipOf(badNotes, "notes_data.json" to "{ broken")
         assertTrue((Backup.read(badNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
             .reason.contains("Couldn't read the notes"))
+    }
+
+    @Test
+    fun `notes that do not parse are said in words of our own, never the parser's`() {
+        // Android's org.json puts the whole text it read into its message, and a
+        // notebook missing its last bracket put every note into the bar at the
+        // foot. The computer's parser does not, so the sentence is held whole.
+        val zip = File(temp("in"), "cut.zip")
+        zipOf(zip, "notes_data.json" to """[{"id": 1, "title": "Bank", "body": "Card PIN 4821"}""")
+        val reason = (Backup.read(zip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason
+        assertEquals("Couldn't read the notes in that backup. The file is damaged.", reason)
+        val deep = File(temp("in"), "deep.zip")
+        zipOf(deep, "notes_data.json" to "[".repeat(150) + "]".repeat(150))
+        assertEquals("Couldn't read the notes in that backup. It is nested deeper than any note.",
+            (Backup.read(deep, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
+    }
+
+    @Test
+    fun `a backup's JSON file larger than the phone can read is refused before it is unpacked`() {
+        // 50 MB of JSON packed into 48 KB passed the bomb guard's 50 MB
+        // floor -- a computer's number -- and ran the phone out of memory.
+        // Here the phone is given 16,000 bytes: a ceiling of 1,000.
+        val heap = 16_000L
+        val big = File(temp("in"), "big.zip")
+        zipOf(big, "notes_data.json" to """[{"title": "${"é".repeat(3000)}"}]""")
+        val failed = Backup.read(big, temp("u"), Long.MAX_VALUE, heap = heap) as Backup.Read.Failed
+        assertTrue(failed.reason, failed.reason.contains("more than this phone can read"))
+        // An attached file is copied, never read whole into memory: only
+        // the JSON is held to the ceiling.
+        val photo = File(temp("in"), "photo.zip")
+        zipOf(photo, "notes_data.json" to "[]", "attachments/photo.jpg" to "x".repeat(5000))
+        assertTrue(Backup.read(photo, temp("u"), Long.MAX_VALUE, heap = heap) is Backup.Read.Ok)
+    }
+
+    @Test
+    fun `a parser out of memory reads as too large, and the app goes on`() {
+        try {
+            Files.parseOutside("[1]") { throw OutOfMemoryError() }
+            fail("a parser out of memory got past")
+        } catch (e: Files.Unreadable) {
+            assertEquals(Files.TOO_LARGE, e.message)
+        }
+    }
+
+    // Nested 150 deep: the computer's parser takes that (it stops at 512 by
+    // itself), Android's went one call deeper per bracket until the app
+    // stopped, and only the guard refuses it here.
+    private fun nested(depth: Int) = "[".repeat(depth) + "]".repeat(depth)
+
+    @Test
+    fun `a backup whose files nest deeper than any note is read as damaged, never parsed`() {
+        val deepNotes = File(temp("in"), "deep.zip")
+        zipOf(deepNotes, "notes_data.json" to """[{"title": "x", "deep": ${nested(150)}}]""")
+        assertTrue((Backup.read(deepNotes, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed)
+            .reason.contains("Couldn't read the notes"))
+        // The files that ride along are skipped, as any bad one is.
+        val deepRest = File(temp("in"), "rest.zip")
+        zipOf(deepRest, "notes_data.json" to """[{"title": "x"}]""",
+              "trash.json" to nested(150), "templates.json" to nested(150),
+              "settings.json" to """{"deep": ${nested(150)}}""")
+        val contents = (Backup.read(deepRest, temp("u"), Long.MAX_VALUE) as Backup.Read.Ok).contents
+        assertEquals(1, contents.notes.size)
+        assertNull(contents.trash)
+        assertNull(contents.templates)
+        assertNull(contents.settings)
+    }
+
+    @Test
+    fun `the app's own files nested deeper than any note are kept aside, never parsed`() {
+        // Read with a bare catch for exceptions, Android's StackOverflowError
+        // went past it and the app stopped at every start.
+        val dir = temp("own")
+        File(dir, "notes_data.json").writeText("""[{"title": "x", "deep": ${nested(150)}}]""")
+        File(dir, "settings.json").writeText("""{"deep": ${nested(150)}}""")
+        File(dir, "templates.json").writeText(nested(150))
+        val load = Notebook.load(dir)
+        assertTrue(load.problem ?: "no problem said", load.problem!!.contains("could not be read"))
+        assertTrue(Settings.load(dir).problem != null)
+        assertTrue(Templates.load(dir).isEmpty())
+        for (name in listOf("notes_data", "settings", "templates")) {
+            assertTrue("$name kept aside", dir.listFiles()!!.any { it.name.startsWith(name + "_corrupt_") })
+        }
+    }
+
+    @Test
+    fun `a file not in UTF-8 is damage, never letters turned into marks`() {
+        // A notes file in Windows' Romanian code page came in as replacement marks,
+        // and the next save wrote them over the words; the desktop calls it damage.
+        // An S with a comma below and an a with a breve: one byte each, not UTF-8.
+        val title = Char(0x0218) + "tampil" + Char(0x0103)
+        val romanian = "[{\"id\": 1, \"uid\": \"r\", \"title\": \"$title\"}]".toByteArray(charset("windows-1250"))
+        val dir = temp("own")
+        File(dir, "notes_data.json").writeBytes(romanian)
+        val load = Notebook.load(dir)
+        assertTrue(load.problem ?: "no problem said", load.problem!!.contains("could not be read"))
+        val kept = dir.listFiles()!!.single { it.name.startsWith("notes_data_corrupt_") }
+        assertTrue("the bytes kept as they were", kept.readBytes().contentEquals(romanian))
+        // In a backup, too.
+        val zip = File(temp("in"), "cp1250.zip")
+        ZipOutputStream(FileOutputStream(zip)).use { out ->
+            out.putNextEntry(ZipEntry("notes_data.json"))
+            out.write(romanian)
+            out.closeEntry()
+        }
+        assertTrue((Backup.read(zip, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason.contains("UTF-8"))
+    }
+
+    @Test
+    fun `nesting is measured outside strings, and a parser out of stack is damage`() {
+        assertTrue(Files.nestedPast(nested(101), 100))
+        assertFalse(Files.nestedPast(nested(100), 100))
+        // An escaped quote, then brackets, inside a string: words, not nesting.
+        val words = "[\"\\\"" + "[".repeat(500) + "\"]"
+        assertEquals(1, Files.parseOutside(words) { JSONArray(it) }.length())
+        try {
+            Files.parseOutside("[1]") { throw StackOverflowError() }
+            fail("a parser that ran out of stack got past")
+        } catch (e: Files.Unreadable) {
+            assertEquals("It is nested deeper than any note.", e.message)
+        }
     }
 
     @Test
@@ -193,18 +380,214 @@ class BackupTest {
     }
 
     @Test
-    fun `a stopped export leaves nothing behind`() {
+    fun `a file kept aside as unreadable travels in the backup, and an import leaves it be`() {
+        // Kept in the app's own storage, where no person can reach it: the
+        // notice said "beside the notes", and the backup left it out.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        File(dir, "notes_data_corrupt_20261015_143000.json").writeText("[{broken")
+        File(dir, "notes_data_backup_x.json").writeText("not ours to carry")
+        val bytes = ByteArrayOutputStream()
+        Backup.export(dir, temp("scratch"), bytes)
+        val zip = File(temp("out"), "b.zip").apply { writeBytes(bytes.toByteArray()) }
+        ZipFile(zip).use { archive ->
+            assertEquals(setOf("notes_data.json", "unreadable/notes_data_corrupt_20261015_143000.json"),
+                         archive.entries().toList().map { it.name }.toSet())
+            assertEquals("[{broken", archive.getInputStream(archive.getEntry(
+                "unreadable/notes_data_corrupt_20261015_143000.json")).readBytes().toString(Charsets.UTF_8))
+        }
+        val into = temp("u")
+        assertTrue(Backup.read(zip, into, Long.MAX_VALUE) is Backup.Read.Ok)
+        assertFalse("an import does not unpack it", File(into, "unreadable").exists())
+    }
+
+    @Test
+    fun `a notes file that does not read goes in kept aside, and the backup reads back holding no notes`() {
+        // Damaged on disk until the first save: packed as it was, neither app read
+        // the backup back, and the phone said "Backup saved." and kept its date.
+        val dir = temp("notebook")
+        val notes = File(dir, "notes_data.json").apply { writeText("[{damaged") }
+        File(dir, "templates.json").writeText("""[{"name": "Trip", "title": "t"}]""")
+        // An older copy, from an earlier damage, is not this file's: its bytes went unpacked.
+        File(dir, "notes_data_corrupt_20261001_010101.json").writeText("[{older")
+        fun names(dir: File): List<String> {
+            val bytes = ByteArrayOutputStream()
+            Backup.export(dir, temp("scratch"), bytes)
+            return ZipFile(File(temp("o"), "c.zip").apply { writeBytes(bytes.toByteArray()) }).use { a ->
+                a.entries().toList().map { it.name } }
+        }
+        try {
+            Files.markUnread(notes)
+            val out = ByteArrayOutputStream()
+            val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}) as Backup.Export.Saved
+            assertTrue("said apart, its date not kept", saved.notesUnread)
+            val zip = File(temp("out"), "b.zip").apply { writeBytes(out.toByteArray()) }
+            ZipFile(zip).use { archive ->
+                assertEquals("[]", archive.getInputStream(archive.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
+                assertEquals("[{damaged", archive.getInputStream(archive.getEntry("unreadable/notes_data.json"))
+                    .readBytes().toString(Charsets.UTF_8))
+            }
+            val read = Backup.read(zip, temp("u"), Long.MAX_VALUE)
+            assertTrue("$read", read is Backup.Read.Ok)
+            assertEquals(1, (read as Backup.Read.Ok).contents.templates?.length())
+            // ...once, beside the copy the start kept of it.
+            File(dir, "notes_data_corrupt_20261114_010101.json").writeText("[{damaged")
+            assertFalse(names(dir).toString(), "unreadable/notes_data.json" in names(dir))
+            // Too large to check here, it goes in as it is, said, its date not kept.
+            val unchecked = Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {},
+                heap = 16L * 4) as Backup.Export.Saved
+            assertTrue(unchecked.notesUnchecked && !unchecked.notesUnread)
+        } finally {
+            Files.newStart()
+        }
+        // One the start read is the app's own: never checked, never replaced.
+        val asIs = ByteArrayOutputStream().also { Backup.export(dir, temp("scratch"), it) }
+        ZipFile(File(temp("o"), "d.zip").apply { writeBytes(asIs.toByteArray()) }).use { a ->
+            assertEquals("unread no more, it goes in as it is", "[{damaged",
+                a.getInputStream(a.getEntry("notes_data.json")).readBytes().toString(Charsets.UTF_8))
+        }
+        notes.writeText("""[{"id": 1, "title": "Kept"}]""")
+        assertFalse((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {})
+            as Backup.Export.Saved).notesUnread)
+    }
+
+    @Test
+    fun `an export stopped by a file the phone would not open says which, in words of its own`() {
+        // The system's words named the app's private path: "open failed: EACCES".
+        val dir = temp("notebook")
+        val notes = File(dir, "notes_data.json").apply { writeText("[]") }
+        val readWas = Files.readBytesOf
+        try {
+            Files.markUnread(notes)
+            Files.readBytesOf = { throw java.io.IOException("/data/user/0/x/files/notes_data.json: open failed: EACCES") }
+            val failed = Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {}) as Backup.Export.Failed
+            assertTrue(failed.reason, failed.reason.startsWith("notes_data.json could not be opened just now"))
+            assertFalse(failed.reason, "EACCES" in failed.reason)
+        } finally {
+            Files.readBytesOf = readWas
+            Files.newStart()
+        }
+    }
+
+    @Test
+    fun `an export the phone's storage refused says so in words of its own, never the cache's path`() {
+        // "Couldn't create the backup: /data/user/0/…/cache/backup_export.zip.tmp: open failed".
+        // Laid out as on the phone: the notebook in files/notebook, the scratch in cache.
+        val app = temp("app")
+        val dir = File(File(app, "files"), "notebook").apply { mkdirs() }
+        File(dir, "notes_data.json").writeText("[]")
+        val scratch = File(app, "cache").apply { mkdirs() }
+        File(scratch, "backup_export.zip.tmp").mkdir()
+        val failed = Backup.exportTo(dir, scratch, { ByteArrayOutputStream() }, { false }, {}) as Backup.Export.Failed
+        assertEquals(Files.STORAGE_REFUSED, failed.reason)
+    }
+
+    @Test
+    fun `a backup a full phone could not take is said as the phone's, not the file's, and never the private path`() {
+        // Bigger than the room left, it failed while copied in: "That file couldn't be read as a
+        // backup: write failed: ENOSPC", which blamed the file, in the system's words.
+        val into = File(File(temp("app"), "cache"), "import_1")
+        assertEquals(Backup.NO_ROOM, Backup.unreadable(java.io.IOException("write failed: ENOSPC (No space left on device)"), into))
+        // A file that is no whole zip, in words, not the library's (the review panel).
+        assertEquals(Backup.NOT_WHOLE, Backup.unreadable(java.util.zip.ZipException("invalid END header"), into))
+        assertEquals("That file couldn't be read as a backup:\nPermission denied.",
+            Backup.unreadable(java.io.IOException("Permission denied"), into))
+        // One protected by a password is said as that: another copy would not help. In the
+        // desktop JDK's words and in Android's older libcore's, which name only the bit.
+        assertEquals(Backup.ENCRYPTED, Backup.unreadable(java.util.zip.ZipException("encrypted ZIP entry not supported"), into))
+        assertEquals(Backup.ENCRYPTED, Backup.unreadable(java.util.zip.ZipException("Invalid General Purpose Bit Flag: 1"), into))
+        // ...and a real zip whose entry carries the encryption bit, read as the import reads it.
+        val locked = File(temp("enc"), "locked.zip").also { zipOf(it, "notes_data.json" to "[]") }
+        locked.writeBytes(withEncryptionBit(locked.readBytes()))
+        assertEquals(Backup.ENCRYPTED, (Backup.read(locked, temp("u"), Long.MAX_VALUE) as Backup.Read.Failed).reason)
+        // ...and one its unpacking could not write names no path of the app's.
+        val zip = File(temp("z"), "b.zip").also { zipOf(it, "notes_data.json" to "[]") }
+        val blocked = File(File(temp("app"), "cache"), "import_2").also { File(it, "notes_data.json").mkdirs() }
+        val failed = Backup.read(zip, blocked, Long.MAX_VALUE) as Backup.Read.Failed
+        assertEquals("That file couldn't be read as a backup:\nthe phone could not copy or unpack it.", failed.reason)
+    }
+
+    @Test
+    fun `an export opens where it goes only once the backup is built`() {
+        // Opened first, for writing, a backup chosen to be written over was
+        // emptied before a full cache stopped the new one, then deleted as
+        // half-written: no backup at all. Here the cache cannot hold it.
         val dir = temp("notebook")
         File(dir, "notes_data.json").writeText("[]")
         val scratch = temp("scratch")
-        val out = ByteArrayOutputStream()
+        File(scratch, "backup_export.zip.tmp/hold").apply { parentFile!!.mkdirs(); writeText("x") }
+        var opened = false
         try {
-            Backup.export(dir, scratch, out, stop = { true })
-        } catch (e: Backup.Stopped) {
+            Backup.export(dir, scratch, { opened = true; ByteArrayOutputStream() })
+            fail("an export the cache could not hold went through")
+        } catch (e: java.io.IOException) {
             // expected
         }
-        assertEquals(0, out.size())
-        assertEquals(0, scratch.listFiles()!!.size)
+        assertFalse("the place it goes is never opened", opened)
+        // Built, it is opened once and written.
+        val out = ByteArrayOutputStream()
+        assertEquals(1, Backup.export(dir, temp("scratch"), { opened = true; out }))
+        assertTrue(opened && out.size() > 0)
+    }
+
+    @Test
+    fun `a backup chosen to be replaced is kept when its place refuses to open`() {
+        // The flag said "opened" before the open was tried: a place refusing
+        // "wt" deleted the older backup the person chose, with nothing new.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        var discarded = 0
+        val export = { open: () -> java.io.OutputStream?, empty: Boolean ->
+            Backup.exportTo(dir, temp("scratch"), open, emptyPlace = { empty }, discard = { discarded += 1 })
+        }
+        assertTrue(export({ throw java.io.FileNotFoundException("Unsupported mode: wt") }, false) is Backup.Export.Failed)
+        assertTrue(export({ null }, false) is Backup.Export.Failed)
+        assertEquals("a refusal deletes nothing", 0, discarded)
+        // The picker's own empty file goes, as before; so does a half-written one.
+        export({ null }, true)
+        assertEquals(1, discarded)
+        val failing = object : java.io.OutputStream() {
+            override fun write(b: Int) = throw java.io.IOException("disk full")
+        }
+        assertTrue(export({ failing }, false) is Backup.Export.Failed)
+        assertEquals("a backup half-written over the older one goes", 2, discarded)
+        val out = ByteArrayOutputStream()
+        assertEquals(Backup.Export.Saved(1, null), export({ out }, false))
+        assertEquals(2, discarded)
+    }
+
+    @Test
+    fun `a backup this phone could not read back is still saved, and says so`() {
+        // "Backup saved." -- then the import refused it: the notes were past
+        // what the import reads at once on a phone with this memory.
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[" + "{\"body\": \"${"x".repeat(1000)}\"},".repeat(200) + "{}]")
+        val heap = File(dir, "notes_data.json").length() * 16 - 16
+        val out = ByteArrayOutputStream()
+        val saved = Backup.exportTo(dir, temp("scratch"), { out }, { false }, {}, heap = heap) as Backup.Export.Saved
+        assertTrue("written all the same", out.size() > 0)
+        assertTrue(saved.tooLarge, saved.tooLarge!!.startsWith("notes_data.json holds"))
+        // And the import, on that phone, refuses it for the same reason.
+        val zip = File(temp("zip"), "b.zip").apply { writeBytes(out.toByteArray()) }
+        val read = Backup.read(zip, temp("into"), free = Long.MAX_VALUE, heap = heap)
+        assertTrue(read is Backup.Read.Failed && read.reason.contains(saved.tooLarge!!))
+        // A phone with room for it is told nothing.
+        assertNull((Backup.exportTo(dir, temp("scratch"), { ByteArrayOutputStream() }, { false }, {},
+            heap = heap + 16) as Backup.Export.Saved).tooLarge)
+    }
+
+    @Test
+    fun `an export whose place will not open leaves nothing behind`() {
+        val dir = temp("notebook")
+        File(dir, "notes_data.json").writeText("[]")
+        val scratch = temp("scratch")
+        try {
+            Backup.export(dir, scratch, { null })
+            fail("an export with nowhere to go went through")
+        } catch (e: java.io.IOException) {
+            assertEquals("The file could not be opened for writing.", e.message)
+        }
+        assertEquals("the scratch copy is gone", 0, scratch.listFiles()!!.size)
     }
 
     @Test

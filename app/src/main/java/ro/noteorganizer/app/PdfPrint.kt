@@ -44,8 +44,8 @@ object PdfPrint {
     /** The printed area's width at 96 px an inch, the width a browser lays a page out at to print it: 12 pt text stays 12 pt. */
     private const val CSS_W = AREA_W * 96 / 72
 
-    /** More pages than this is not a note to mail; the PDF stops there. */
-    private const val MAX_PAGES = 40
+    /** More pages than this is not a note to mail; the PDF stops there, and says so ([Printed]). */
+    const val MAX_PAGES = 40
 
     /** Each page's picture: sharp to read and to print at 200 dots an inch, readable at 96. */
     private const val DPI = 200
@@ -56,25 +56,33 @@ object PdfPrint {
 
     private var wholeDocument = false
 
-    /** [html] printed to [out]. False when it could not be: the caller says so. */
-    suspend fun print(context: Context, html: String, out: File): Boolean {
-        val pages = draw(context, html) ?: return false
-        // The file written off the main thread: it is most of a long note's
-        // time -- 0.85 s of the 1.2 s forty pages held the app for on the
-        // emulator -- and on a phone slower than that, a touch left
-        // unanswered for five seconds is an app "not responding". The pages
-        // are drawn on the main thread, as a WebView must be.
+    /**
+     * What [print] made. Not [written]: the caller says it could not be.
+     * [firstPagesOnly]: the note went on past [MAX_PAGES]; [cutAtEdge]:
+     * something in it was wider than the paper. Either way the PDF leaves
+     * part of the note out, and the caller asks the person before it is
+     * handed over -- the PDF stopped at forty pages, and cut what ran past
+     * the margin, without a word. Nothing is written into the PDF itself.
+     */
+    data class Printed(val written: Boolean, val firstPagesOnly: Boolean = false, val cutAtEdge: Boolean = false)
+
+    /** [html] printed to [out]. */
+    suspend fun print(context: Context, html: String, out: File): Printed {
+        val pages = draw(context, html) ?: return Printed(false)
+        // The file written off the main thread, as most of a long note's time
+        // (0.85 s of 1.2 s for forty pages) would make a slow phone "not
+        // responding"; the pages are drawn on it, as a WebView must be.
         return try {
             withContext(Dispatchers.IO) { out.outputStream().use { pages.doc.writeTo(it) } }
-            true
+            Printed(true, pages.firstPagesOnly, pages.cutAtEdge)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             // Any, as when it was written here with the pages: the person
             // is told it could not be made, the app does not fall over.
-            false
+            Printed(false)
         } catch (e: OutOfMemoryError) {
-            false
+            Printed(false)
         } finally {
             pages.close()
         }
@@ -82,10 +90,18 @@ object PdfPrint {
 
     /** The pages recorded and the pictures they are drawn from, kept until the file is written. */
     private class Pages(val doc: PdfDocument, val pictures: MutableList<Bitmap>) {
+        var firstPagesOnly = false
+        var cutAtEdge = false
+
         fun close() {
             doc.close()
             pictures.forEach { it.recycle() }
         }
+    }
+
+    /** A WebView that says how wide the page it laid out is, which only a WebView itself may ask. */
+    private class PrintView(context: Context) : WebView(context) {
+        val pageWidth: Int get() = computeHorizontalScrollRange()
     }
 
     /** [html] laid out and drawn, page by page. Null when it drew nothing, twice. */
@@ -96,7 +112,7 @@ object PdfPrint {
             WebView.enableSlowWholeDocumentDraw()
             wholeDocument = true
         }
-        val web = WebView(context)
+        val web = PrintView(context)
         web.settings.javaScriptEnabled = false
         web.settings.blockNetworkLoads = true
         web.settings.allowFileAccess = false
@@ -132,11 +148,9 @@ object PdfPrint {
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String?) {
                 val main = Handler(Looper.getMainLooper())
-                // The page's height, read until it holds still -- never at a
-                // time picked in advance: shrunk to a pixel and read 300 ms
-                // later, it was read before the page had laid itself out
-                // again, once, and the PDF came out one blank page. The
-                // window stays a page tall, so a short note is one page.
+                // The page's height, read until it holds still: read at a set
+                // time, once before the page had laid out, the PDF came out one
+                // blank page. The window stays a page tall, so a short note is one.
                 val onePage = (width * AREA_H / AREA_W.toFloat()).toInt()
                 var last = -1
                 var tries = 0
@@ -155,7 +169,9 @@ object PdfPrint {
                     // after that the person is told, not sent a blank page.
                     fun attempt(left: Int) {
                         val pages = try {
-                            drawPages(web, width, height)
+                            // Wider than the paper by more than a CSS pixel:
+                            // a table of many columns, which no line breaks.
+                            drawPages(web, width, height, cutAtEdge = web.pageWidth > width + density)
                         } catch (e: Exception) {
                             null
                         } catch (e: OutOfMemoryError) {
@@ -173,18 +189,14 @@ object PdfPrint {
     }
 
     /**
-     * Each page drawn on a picture of its own and that put on the page. A
-     * WebView drawn into a PDF arrives as a picture anyway -- its words are
-     * not the PDF's text -- and drawn straight onto every page, the WHOLE
-     * document's picture went into each, cut to the page.
-     *
-     * A picture of its own, kept until the file is written: Android's PDF
-     * records each page and writes the pictures only at the end, so one
-     * picture painted again for every page came out as the same page four
-     * times. The pictures together are kept under [BUDGET]: a long note is
-     * printed at fewer dots an inch, never fewer than [MIN_DPI].
+     * Each page drawn on a picture of its own, put on the page and kept until
+     * the file is written: drawn straight onto every page, the whole
+     * document's picture went into each, and one picture painted again for
+     * every page came out as the same page four times (Android's PDF writes
+     * the pictures only at the end). Together they stay under [BUDGET]: a
+     * long note prints at fewer dots an inch, never fewer than [MIN_DPI].
      */
-    private fun drawPages(web: WebView, width: Int, height: Int): Pages? {
+    private fun drawPages(web: WebView, width: Int, height: Int, cutAtEdge: Boolean): Pages? {
         val scale = AREA_W.toFloat() / width
         val pageHeight = AREA_H / scale
         // Null when the page drew nothing at all: a note always has its
@@ -196,6 +208,9 @@ object PdfPrint {
         val dotsH = AREA_H * dpi / 72
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
         val pages = Pages(PdfDocument(), ArrayList())
+        // Stopped at MAX_PAGES with the note still going on.
+        pages.firstPagesOnly = starts.last() + pageHeight < height - 1
+        pages.cutAtEdge = cutAtEdge
         try {
             for ((i, top) in starts.withIndex()) {
                 val bottom = starts.getOrElse(i + 1) { height.toFloat() }
@@ -259,10 +274,9 @@ object PdfPrint {
                 val lowest = ((top + pageHeight * 0.8f) * probe).toInt()
                 while (y > lowest) {
                     if (blank(y)) {
-                        // The middle of the gap, not its edge: the small
-                        // drawing is a quarter the size, and a cut at the
-                        // gap's last blank row went through the letters'
-                        // tails on the full page.
+                        // The middle of the gap, not its edge: the small drawing is
+                        // a quarter the size, and a cut at the gap's last blank row
+                        // went through the letters' tails on the full page.
                         var first = y
                         while (first - 1 > lowest && blank(first - 1)) first--
                         cut = (first + y + 1) / 2f / probe

@@ -32,13 +32,11 @@ object Outgoing {
             previewText(note.opt("comments") as? String ?: "").second > 0
 
     /**
-     * One share made ready at a time. Asked for again before the last one
-     * is ready -- a long note's PDF takes a moment on a slow phone, and the
-     * Share button is there again meanwhile -- the second is not started:
-     * it would clear the folder the first is still writing into. Here, not
-     * on the screen's side, so the order is held by a test: an emulator's
-     * taps could not tell this refusal's message from the first share's
-     * failing. Used on the main thread only, so a plain flag is enough.
+     * One share made ready at a time. Asked again before the last is ready
+     * -- a long note's PDF takes a moment on a slow phone, and the Share
+     * button is back meanwhile -- the second is not started: it would clear
+     * the folder the first still writes into. Here, not on the screen's
+     * side, so a test holds the order. Main thread only: a plain flag.
      */
     class OneAtATime {
         private var busy = false
@@ -79,10 +77,79 @@ object Outgoing {
         var plain = "$title\n\n$body"
         if (checklist.isNotEmpty()) {
             plain += "\n\nChecklist:\n" + checklist.joinToString("\n") {
-                "${if (Exporting.truthy(it.opt("done"))) "☑" else "☐"} ${it.opt("text") as? String ?: ""}"
+                "${if (it.opt("done") == true) "☑" else "☐"} ${it.opt("text") as? String ?: ""}"
             }
         }
         if (comments.isNotEmpty()) plain += "\n\nComments:\n$comments"
         return Exporting.mend("$plain\n")
+    }
+
+    /**
+     * The subject a mail app is handed with a share: the title, cut as a
+     * glimpse with "…" when a share code or a backup made it very long. The
+     * words, the page and the PDF still carry it whole.
+     */
+    fun subject(title: String): String = glimpse(title).let { if (it.length < title.length) "$it…" else title }
+
+    /**
+     * Whether [words] -- with the [subject] beside them -- are more than may
+     * be handed to another app at once ([Sharing.tooLongToHand], a share
+     * code's ceiling): Android's buffer of about a megabyte, which a note of
+     * 300,000 characters overflowed at the share sheet. Weighed in that
+     * buffer, not in letters: a Chinese letter as five bytes, a Latin one as
+     * three. The page carries any length, as a file the other app reads.
+     */
+    fun tooLongForWords(words: String, subject: String): Boolean = Sharing.tooLongToHand(words, subject)
+
+    /**
+     * What the refusal says, as numbers that agree with it: the characters
+     * handed, the subject's among them -- the rule counts them, and a note
+     * refused with 99,953 under a ceiling of 100,000 read as a contradiction
+     * -- and how many characters like these may be handed at most.
+     */
+    fun tooLongNumbers(words: String, subject: String): Pair<Long, Int> =
+        Sharing.characters(words, subject) to Sharing.handedAtMost(words, subject)
+
+    /** Whether one note's share code may be handed over, and if not, why. */
+    sealed class Code {
+        object Fits : Code()
+        /** Past what may be handed in one go: its length, and the most. */
+        data class TooLong(val characters: Long, val most: Int) : Code()
+        /** Past what a code may hold at all ([Sharing.encode] refuses it). */
+        object TooMuch : Code()
+    }
+
+    /**
+     * [note]'s share code weighed as the Share sheet's card shows it, before
+     * the tap -- the ceiling the code is refused by after it, in
+     * [AppState.shareCode]: a person learnt of it only once it was too late
+     * to choose the web page or a backup instead.
+     */
+    fun codeFor(note: JSONObject): Code {
+        val code = try {
+            Sharing.encode(listOf(note))
+        } catch (e: Sharing.TooLarge) {
+            return Code.TooMuch
+        }
+        return if (Sharing.tooLongToHand(code)) Code.TooLong(Sharing.characters(code), Sharing.handedAtMost(code)) else Code.Fits
+    }
+
+    /**
+     * The note's page as the PDF prints it: any line may break anywhere at
+     * the paper's edge. The page itself lets only a table's cells do so --
+     * a browser scrolls -- and the PDF, drawn at the paper's width, cut a
+     * link's unbreakable tail at the margin and left it out, unsaid. Printed
+     * only: the page shared or exported stays as the desktop writes it.
+     */
+    fun forPrint(html: String): String {
+        val style = "<style>\nbody, body * { overflow-wrap: anywhere; }\n</style>\n"
+        val at = html.indexOf("</head>")
+        return if (at < 0) style + html else html.substring(0, at) + style + html.substring(at)
+    }
+
+    /** [tooLongForWords] for [note] as it is now, and the words it would send. */
+    fun tooLongForWords(note: JSONObject): Boolean {
+        val title = Exporting.titleOf(note)
+        return tooLongForWords(text(note, title), subject(title))
     }
 }

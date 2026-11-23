@@ -37,6 +37,11 @@ WHAT IT CHECKS
 4. The fields an arriving shared note may replace match the desktop's
    `UPDATABLE_FROM_SHARED`, and the ones a note from a backup may replace
    match `UPDATABLE_FROM_BACKUP`.
+5. docs/DATA_FORMAT.md's field list (the jsonc block under "A note") is the
+   desktop's `NOTE_DEFAULTS`.
+6. The fields each app knows (`KNOWN_NOTE_FIELDS`), beside which any other
+   is kept as it came, and the three bounds on those, are the same; and so
+   are the fields of a template each knows (`KNOWN_TEMPLATE_FIELDS`).
 
 It reads the desktop's source. It never writes there -- that is the hard
 rule of this project, and a gate is no exception.
@@ -53,7 +58,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 
 NOTEBOOK_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                            "noteorganizer", "app", "Notebook.kt")
@@ -63,6 +68,9 @@ NORMALIZE_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
                             "noteorganizer", "app", "Normalize.kt")
 MODEL_PY = os.path.join(DESKTOP, "noteorganizer", "core", "model.py")
 SHARING_PY = os.path.join(DESKTOP, "noteorganizer", "core", "sharing.py")
+STORAGE_PY = os.path.join(DESKTOP, "noteorganizer", "core", "storage.py")
+TEMPLATES_KT = os.path.join(ANDROID, "app", "src", "main", "java", "ro",
+                            "noteorganizer", "app", "Templates.kt")
 
 # Fields the desktop keeps but a phone has no business writing, with the
 # reason. An exception nobody can read is not a reviewed exception.
@@ -80,6 +88,10 @@ NOT_A_DEFAULT = {
     "id": "computed as max + 1 where a note is appended, never defaulted",
     "_prev": "carried through when a note from outside has one, never "
              "made for a new note -- see NOT_ON_THE_PHONE",
+    "_set_aside": "a series' days whose earlier text waits to become notes "
+                  "of their own: carried through when a note has some, as "
+                  "the desktop's normalize_note carries them, and never made "
+                  "for a new note",
     "order": "a note's place in Custom order: kept when it is a finite "
              "number, never defaulted -- 'not placed yet' is its own "
              "answer, and it is not in the desktop's NOTE_DEFAULTS either",
@@ -348,10 +360,86 @@ if model_py is not None:
                  % (sorted(set(theirs) - set(ours)) or "-",
                     sorted(set(ours) - set(theirs)) or "-"))
 
+# ---- 5: the field list a reader is shown -----------------------------
+# docs/DATA_FORMAT.md said this gate held its list to the Python's, and
+# nothing read it.
+
+data_format = read(os.path.join(ANDROID, "docs", "DATA_FORMAT.md"))
+parts = data_format.split("\n## A note\n", 1) if data_format is not None else []
+block = re.search(r"```jsonc\n(.*?)\n```", parts[1], re.S) if len(parts) == 2 else None
+if block is None:
+    # Quiet here, the gate ended "the two programs agree" having read no list.
+    fail("DATA_FORMAT.md has its \"A note\" section with the jsonc field list")
+elif model_py is not None:
+    documented = set(re.findall(r'^  "(\w+)":', block.group(1), re.M))
+    desktop_fields = (set(python_dict_keys(model_py, "NOTE_DEFAULTS") or [])
+                      - set(NOT_A_DEFAULT))
+    if documented - {"id"} == desktop_fields:
+        ok("DATA_FORMAT.md lists the note's fields the desktop has (%d)"
+           % len(desktop_fields))
+    else:
+        fail("DATA_FORMAT.md lists the note's fields the desktop has",
+             "the desktop has and the document does not: %s\n"
+             "the document has and the desktop does not: %s"
+             % (sorted(desktop_fields - documented) or "-",
+                sorted(documented - {"id"} - desktop_fields) or "-"))
+
+# ---- 6: the fields a version does not know ----------------------------
+# Both apps keep them by one rule (the owner's decision D2, 2026-11-13): the
+# same names known, the same bounds. A name one app knows and the other does
+# not is shaped away by one and kept as it came by the other.
+
+normalize_kt = read(NORMALIZE_KT)
+if model_py is not None and normalize_kt is not None:
+    known = re.search(r"KNOWN_NOTE_FIELDS = frozenset\(NOTE_DEFAULTS\) \| \{([^}]*)\}", model_py)
+    theirs = ((set(python_dict_keys(model_py, "NOTE_DEFAULTS") or []) | set(re.findall(r'"(\w+)"', known.group(1))))
+              if known else None)
+    listed = re.search(r"val KNOWN_NOTE_FIELDS = setOf\(([^)]*)\)", without_comments(normalize_kt), re.S)
+    ours = set(re.findall(r'"(\w+)"', listed.group(1))) if listed else None
+    if theirs is None or ours is None:
+        fail("I can find the fields each app knows (KNOWN_NOTE_FIELDS), in both languages")
+    elif theirs == ours:
+        ok("the two apps know the same fields, and keep any other alike (%d known)" % len(theirs))
+    else:
+        fail("the two apps know the same fields",
+             "the desktop knows and we do not: %s\nwe know and the desktop does not: %s"
+             % (sorted(theirs - ours) or "-", sorted(ours - theirs) or "-"))
+    for name in ("MAX_UNKNOWN_FIELDS", "MAX_UNKNOWN_UNITS", "MAX_UNKNOWN_DEPTH"):
+        py = re.search(r"^%s = (\d+)$" % name, model_py, re.M)
+        kt = re.search(r"const val %s = (\d+)" % name, normalize_kt)
+        if not py or not kt:
+            fail("I can find %s in both languages" % name)
+        elif py.group(1) == kt.group(1):
+            ok("%s is %s in both" % (name, py.group(1)))
+        else:
+            fail("%s is the same in both" % name, "desktop %s, phone %s" % (py.group(1), kt.group(1)))
+
+# ...and a template's, by the same rule (the owner's decision, 2026-11-14).
+storage_py, templates_kt = read(STORAGE_PY), read(TEMPLATES_KT)
+if storage_py is not None and templates_kt is not None:
+    known = re.search(r"KNOWN_TEMPLATE_FIELDS = frozenset\(\{([^}]*)\}\)", storage_py)
+    listed = re.search(r"val KNOWN_TEMPLATE_FIELDS = setOf\(([^)]*)\)", without_comments(templates_kt), re.S)
+    theirs = set(re.findall(r'"(\w+)"', known.group(1))) if known else None
+    ours = set(re.findall(r'"(\w+)"', listed.group(1))) if listed else None
+    if theirs is None or ours is None:
+        fail("I can find the fields a template holds that each app knows (KNOWN_TEMPLATE_FIELDS), in both languages")
+    elif theirs == ours:
+        ok("the two apps know the same fields of a template, and keep any other alike (%d known)" % len(theirs))
+    else:
+        fail("the two apps know the same fields of a template",
+             "the desktop knows and we do not: %s\nwe know and the desktop does not: %s"
+             % (sorted(theirs - ours) or "-", sorted(ours - theirs) or "-"))
+
 print()
 if failures:
     print("THE NOTE'S SHAPE: %d disagreement(s)." % len(failures))
     print("Each one means the two programs no longer say the same thing")
     print("about the same file. Fix it, or add an exception WITH its reason.")
     sys.exit(1)
+if model_py is None:
+    # Skipped as a courtesy, the phone's own checks having run: "the two
+    # programs agree" said a comparison that never ran was a pass.
+    print("THE NOTE'S SHAPE: the phone's own checks hold; the two programs were not compared "
+          "(no desktop app here).")
+    sys.exit(0)
 print("THE NOTE'S SHAPE: the two programs agree.")

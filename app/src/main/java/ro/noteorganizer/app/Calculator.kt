@@ -5,30 +5,15 @@ import java.math.RoundingMode
 
 /**
  * The editor's calculator: the desktop's `core/calculator.py`, answer for
- * answer, plus what its panel does with a key press and where a result
- * lands in the note.
- *
- * Three pieces, all without Android:
- *
- *  - [evaluate] reads a sum the way the desktop does -- `+ − × ÷` with the
- *    usual precedence, three interchangeable bracket styles, a prefix `√`,
- *    a right-associative `^` and a postfix `%` -- and gives the number, or
- *    null for anything that is not a sum. One null covers every failure:
- *    a stray character, an unclosed bracket, a division by zero.
- *  - [Pad] is the panel's display and its history, and what each key does
- *    to them: the desktop's `_calc_press`.
- *  - [place] is where an inserted calculation goes: at the cursor the first
- *    time, then each on its own line after the one before.
- *
- * Written by hand rather than handed to a script engine, as the desktop's
- * is: a pasted string is only ever arithmetic here, whatever it holds.
- *
- * Python's arithmetic is IEEE doubles, as Kotlin's is, so most of it ports
- * as written. The places where Python decides something the JVM decides
- * differently are each said where they happen: which characters are digits
- * and spaces, what a power does at the edges, how a result is rounded for
- * the display. `CalculatorTest` asks a few hundred sums of both and fails
- * on any answer that differs.
+ * answer. [evaluate] reads a sum as the desktop does (`+ − × ÷`, three
+ * bracket styles, prefix `√`, right-associative `^`, postfix `%`) and gives
+ * the number, or null for anything that is not a sum; [Pad] is the panel's
+ * display, history and keys (`_calc_press`); [place] is where an inserted
+ * calculation goes. Written by hand, not handed to a script engine, so a
+ * pasted string is only ever arithmetic. Where Python decides something the
+ * JVM decides differently -- digits, spaces, a power's edges, rounding --
+ * it is said where it happens, and `CalculatorTest` asks a few hundred
+ * sums of both.
  */
 object Calculator {
 
@@ -42,14 +27,11 @@ object Calculator {
     private const val SINGLE = "+−×÷√^%" + OPEN + CLOSE
 
     /**
-     * How deep a sum may nest before it is refused. The desktop's parser is
-     * recursive, and Python stops it at about a thousand calls -- some 190
-     * brackets inside each other -- by raising rather than answering. The
-     * phone counts the same calls, one per parsing step as Python makes
-     * them, and says Error a little before that, so the deepest sum anyone
-     * will paste is refused rather than taking the app down with a stack
-     * overflow. Every sum the desktop answers below this depth, the phone
-     * answers the same.
+     * How deep a sum may nest before it is refused. Python stops the
+     * desktop's recursive parser at about a thousand calls -- some two
+     * hundred brackets -- and the desktop answers nothing; the phone counts
+     * the same calls and says Error a little before, rather than overflow
+     * its stack. Below this depth both answer the same.
      */
     internal const val MAX_DEPTH = 900
 
@@ -58,6 +40,30 @@ object Calculator {
     /** Python's spaces, which the JVM's whitespace does not quite match. */
     private fun isSpace(cp: Int): Boolean = PyText.isSpace(cp)
 
+    /** What a keyboard types for the keys' symbols: typed sums said Error. */
+    private val TYPED = mapOf('-'.code to '−'.code, '*'.code to '×'.code, 'x'.code to '×'.code,
+                              'X'.code to '×'.code, '/'.code to '÷'.code, ':'.code to '÷'.code)
+
+    /**
+     * [cps] with what a keyboard types read as the keys' symbols, and a comma
+     * between two digits as the decimal point, as Romanian writes 2,5 --
+     * unless exactly three digits follow it: 1,000 is a thousand in English
+     * and one in Romanian, so it stays a comma and the sum says Error, never
+     * a number nobody meant. The desktop's `_as_buttons_spell`.
+     */
+    private fun asKeysSpell(cps: IntArray): IntArray = IntArray(cps.size) { k ->
+        val cp = cps[k]
+        if (cp == ','.code && k > 0 && Character.isDigit(cps[k - 1]) && digitsAfter(cps, k).let { it != 0 && it != 3 }) '.'.code
+        else TYPED[cp] ?: cp
+    }
+
+    /** How many digits follow [cps]' [at] in a row. */
+    private fun digitsAfter(cps: IntArray, at: Int): Int {
+        var run = 0
+        while (at + 1 + run < cps.size && Character.isDigit(cps[at + 1 + run])) run++
+        return run
+    }
+
     /**
      * The text cut into numbers and one-character symbols. A digit is any
      * decimal digit, in any script -- Python's `isdecimal()`, which a pasted
@@ -65,7 +71,7 @@ object Calculator {
      * value, since the JVM's number parser knows only 0-9.
      */
     private fun tokenize(expr: String): List<Any> {
-        val cps = expr.codePoints().toArray()
+        val cps = asKeysSpell(expr.codePoints().toArray())
         val tokens = ArrayList<Any>()
         var i = 0
         while (i < cps.size) {
@@ -359,23 +365,19 @@ object Calculator {
 
     /**
      * Where a calculation lands in [body]: after the previous one, on a line
-     * of its own, when there was one ([mark]); otherwise at the [caret], or
-     * at the end when the cursor was never in the note. The desktop keeps the
-     * same "own line, after the last insertion" place, so several sums in a
-     * row build a list downwards instead of landing wherever the cursor is.
-     *
-     * Never inside a table: a place that falls in one moves to the line after
-     * it, since a sum glued to a row would turn the row into something else.
-     * That covers the empty field under a table that ends the note, too: it
-     * sits one past the end, and what is written there starts a line.
-     * Positions are counted in code points, as the file counts them.
+     * of its own ([mark]), as the desktop keeps it, so sums build a list
+     * downwards; otherwise at the [caret], or the end. Never inside a table
+     * -- glued to a row, a sum changes the row -- but on the line after it,
+     * the empty field under a table that ends the note included. In code
+     * points, as the file counts.
      */
     fun place(body: String, formula: String, mark: Int?, caret: Int?): Placed {
         val length = body.codePointCount(0, body.length)
         var at = (mark ?: caret ?: length).coerceIn(0, length)
         var text = if (mark != null) "\n" + formula else formula
         for (segment in Editing.segments(body)) {
-            if (!segment.table) continue
+            // Nor inside a line too long to lay out, shown read-only.
+            if (segment.field) continue
             val end = segment.cpStart + segment.text.codePointCount(0, segment.text.length)
             if (at in segment.cpStart..end) {
                 at = end
@@ -388,28 +390,36 @@ object Calculator {
     }
 
     /**
-     * Where a remembered place is after an edit somewhere in the body: the
-     * edit is found by what did not change, as [remapSpans] finds it. A place
-     * before the edit stays, one after it moves with the text, and one inside
-     * it goes to the end of what was written there -- so typing right at the
-     * last insertion's end pushes the next one after the typing, as a text
-     * mark with right gravity does on the desktop.
+     * The one change from [old] to [new], found by what did not change: at
+     * the first place they differ, what was taken out and what was put in,
+     * in code points. Null when they are the same. Exact for a change made
+     * in one place -- a letter typed, a paste, a cut -- and nothing else: a
+     * list's markers put on three lines read as one change from the first to
+     * the last, and a place between them went to the end of it.
      */
-    fun follow(old: String, new: String, at: Int?): Int? {
-        if (at == null || old == new) return at
+    fun changeOf(old: String, new: String): Paragraphs.Edit? {
+        if (old == new) return null
         val a = old.codePoints().toArray()
         val b = new.codePoints().toArray()
-        var prefix = 0
-        while (prefix < a.size && prefix < b.size && a[prefix] == b[prefix]) prefix++
-        var suffix = 0
-        while (suffix < a.size - prefix && suffix < b.size - prefix &&
-            a[a.size - 1 - suffix] == b[b.size - 1 - suffix]
-        ) suffix++
-        val oldEnd = a.size - suffix
-        return when {
-            at < prefix -> at
-            at > oldEnd -> at + (b.size - a.size)
-            else -> b.size - suffix
-        }
+        val (prefix, suffix) = sharedEnds(a.size, b.size) { i, j -> a[i] == b[j] }
+        return Paragraphs.Edit(prefix, a.size - suffix - prefix, b.size - suffix - prefix)
     }
+
+    /**
+     * A remembered place carried through [edits], each made in the text the
+     * one before it left, as the desktop's Tk mark of right gravity moves
+     * ([Paragraphs.moveMark]): before an edit it stays, after it moves with the
+     * text, inside it goes to the end of what was written. Followed as one
+     * change through a list's markers, the next answer went into "4.".
+     */
+    fun follow(edits: List<Paragraphs.Edit>, at: Int?): Int? =
+        at?.let { edits.fold(it) { x, e -> Paragraphs.moveMark(x, e) } }
+
+    /**
+     * ...and back through them, as Ctrl+Z replays each one's opposite, the
+     * last first: an Undo of a step that changed two places put the place
+     * between them at the end of the later one.
+     */
+    fun back(edits: List<Paragraphs.Edit>, at: Int?): Int? =
+        at?.let { edits.asReversed().fold(it) { x, e -> Paragraphs.moveMark(x, Paragraphs.Edit(e.at, e.inserted, e.removed)) } }
 }

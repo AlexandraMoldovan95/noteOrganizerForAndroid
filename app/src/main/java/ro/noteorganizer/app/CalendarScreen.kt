@@ -4,9 +4,14 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,10 +92,14 @@ fun CalendarScreen(state: AppState) {
     Column(Modifier.fillMaxSize().background(palette.bg)) {
         TopAppBar(
             title = {
-                Text(
+                // It broke as "Novembe" / "r 2026", then was cut, "November 202":
+                // one line, shrunk to its room ([OneLine]; see ISSUES_LOG).
+                OneLine(
                     if (state.showHistory) stringResource(R.string.cal_history).removePrefix("📋 ")
                     else "${MONTHS[month.monthValue - 1]} ${month.year}",
-                    modifier = Modifier.clickable(enabled = !state.showHistory) { goToday(state) },
+                    modifier = Modifier.clickable(enabled = !state.showHistory,
+                        onClickLabel = stringResource(R.string.cal_today)) { goToday(state) },
+                    color = palette.text,
                 )
             },
             actions = {
@@ -105,8 +115,14 @@ fun CalendarScreen(state: AppState) {
                         Text("›", fontSize = 24.sp, color = palette.text)
                     }
                 }
-                TextButton(onClick = { state.showHistory = !state.showHistory }) {
-                    Text(stringResource(if (state.showHistory) R.string.cal_back_to_month else R.string.cal_history),
+                // At 150% letters and up, beside the arrows, History is its mark
+                // alone, read out whole: its words left the month's title no room
+                // on a 320 dp phone, or in a tablet's calendar column.
+                val history = stringResource(if (state.showHistory) R.string.cal_back_to_month else R.string.cal_history)
+                val markOnly = !state.showHistory && LocalDensity.current.fontScale >= 1.5f
+                TextButton(onClick = { state.showHistory = !state.showHistory },
+                           modifier = if (markOnly) Modifier.semantics { contentDescription = history } else Modifier) {
+                    Text(if (markOnly) history.substringBefore(' ') else history,
                          color = palette.accentText, fontSize = 13.sp)
                 }
             },
@@ -118,8 +134,9 @@ fun CalendarScreen(state: AppState) {
     }
 }
 
+/** To the day the grid marks as today ([AppState.today]), and its month. */
 private fun goToday(state: AppState) {
-    val today = LocalDate.now()
+    val today = Recurrence.parseDate(state.today) ?: LocalDate.now()
     state.calendarMonth = YearMonth.from(today)
     state.selectedDay = Recurrence.formatDate(today)
 }
@@ -153,7 +170,7 @@ private fun Month(state: AppState) {
 private fun MonthGrid(state: AppState, byDate: Map<String, List<JSONObject>>) {
     val palette = LocalPalette.current
     val month = state.calendarMonth
-    val today = Recurrence.formatDate(LocalDate.now())
+    val today = state.today
     val colours = state.dayColours
     val markers = state.dayMarkers
     var swipe by remember { mutableStateOf(0f) }
@@ -174,14 +191,17 @@ private fun MonthGrid(state: AppState, byDate: Map<String, List<JSONObject>>) {
     ) {
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             for (name in Recurrence.WEEKDAY_NAMES) {
-                Text(name, color = palette.subtext, fontSize = 11.sp, fontWeight = FontWeight.Medium,
-                     modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                OneLine(name, Modifier.weight(1f), color = palette.subtext,
+                        look = androidx.compose.ui.text.TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                                                                  textAlign = androidx.compose.ui.text.style.TextAlign.Center))
             }
         }
         for (week in Days.weeks(month.year, month.monthValue)) {
-            Row(Modifier.fillMaxWidth()) {
+            // As tall as its tallest day, every day of it: a cell grows with
+            // larger letters, and its neighbours with it.
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 for (number in week) {
-                    Box(Modifier.weight(1f).padding(2.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight().padding(2.dp)) {
                         if (number > 0) {
                             val date = dayKey(month, number)
                             DayCell(state, date, number, byDate[date].orEmpty(), date == today,
@@ -209,11 +229,15 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
     val count = if (notes.isNotEmpty()) pluralStringResource(R.plurals.note_count, notes.size, notes.size) else ""
     val label = listOf(Recurrence.showDay(LocalDate.parse(date), year = false), count, markers.joinToString(" "))
         .filter { it.isNotEmpty() }.joinToString(", ")
-    Box {
+    Box(Modifier.fillMaxHeight()) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                // At least 56, and more as the letters grow: held at 56, the
+                // number at the phone's largest letters pushed a day's markers
+                // half out of the cell and its dots out of sight.
+                .heightIn(min = 56.dp)
+                .fillMaxHeight()
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (paint != null) hexColor(paint) else if (notes.isNotEmpty()) palette.calendarHasNotes else palette.card)
                 .then(if (selected) Modifier.border(2.dp, palette.accent, RoundedCornerShape(8.dp)) else Modifier)
@@ -226,10 +250,9 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
             Box(Modifier.fillMaxWidth().height(3.dp).background(if (isToday) palette.accent else androidx.compose.ui.graphics.Color.Transparent))
             Text(number.toString(), color = ink, fontSize = 14.sp,
                  fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(top = 2.dp))
-            // Under the number, not in the corner over it: a phone's cell is
-            // narrow, and the corner's markers covered the day (the owner,
-            // 2026-10-25). Sized as the marks they are, so larger letters
-            // grow the number without pushing the dots out of the cell.
+            // Under the number, not in the corner over it, where they covered
+            // the day in a phone's narrow cell; sized as marks, so larger
+            // letters grow the number without pushing the dots out of the cell.
             if (markers.isNotEmpty()) {
                 Text(markers.joinToString(""), fontSize = with(LocalDensity.current) { 11.dp.toSp() },
                      lineHeight = with(LocalDensity.current) { 13.dp.toSp() }, maxLines = 1)
@@ -242,6 +265,8 @@ private fun DayCell(state: AppState, date: String, number: Int, notes: List<JSON
                     if (dots.size > 3) Text("+", color = ink, fontSize = 9.sp, lineHeight = 9.sp)
                 }
             }
+            // Room under the dots when the cell grows to hold them.
+            Spacer(Modifier.height(4.dp))
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(stringResource(R.string.cal_add_note)) },
@@ -288,7 +313,10 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
     val pending = remember { mutableStateListOf<String>().apply { addAll(current) } }
     val full = pending.size >= Days.MAX_MARKERS
     AppSheet(onDismissRequest = onDone) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        // The markers scroll, Cancel and Save under them, as the category and
+        // Repeat sheets now are: nothing scrolled here, and a smaller screen at
+        // the largest letters would have had its buttons cut away.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(stringResource(R.string.cal_markers_title), color = palette.text, fontSize = 17.sp,
                  fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 14.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -301,7 +329,11 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
                             .clip(RoundedCornerShape(10.dp))
                             .background(if (on) palette.calendarHasNotes else palette.inset)
                             .then(if (on) Modifier.border(2.dp, palette.accent, RoundedCornerShape(10.dp)) else Modifier)
-                            .clickable(enabled = open) { if (on) pending.remove(marker) else pending.add(marker) },
+                            // Picked or not, said as a checkbox is: the fill
+                            // and ring were all there was.
+                            .toggleable(value = on, enabled = open, role = androidx.compose.ui.semantics.Role.Checkbox) {
+                                if (on) pending.remove(marker) else pending.add(marker)
+                            },
                         contentAlignment = Alignment.Center,
                     ) { Text(marker, fontSize = 20.sp, color = if (open) palette.text else palette.subtext) }
                 }
@@ -309,11 +341,12 @@ private fun MarkDaySheet(state: AppState, date: String, current: List<String>, o
             // The fourth tap is visibly unavailable before it is made, and says why.
             if (full) Text(stringResource(R.string.cal_markers_full), color = palette.subtext, fontSize = 12.sp,
                            modifier = Modifier.padding(top = 10.dp))
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
-                TextButton(onClick = { state.markDay(date, pending.toList()); onDone() }) {
-                    Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium)
-                }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
+            TextButton(onClick = { state.markDay(date, pending.toList()); onDone() }) {
+                Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -339,11 +372,13 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
     val id = (raw.opt("id") as? Number)?.toInt() ?: return
     val series = Recurrence.isRecurring(raw)
     val shown = Recurrence.effectiveNote(raw, day)
-    val own = (raw.opt("overrides") as? JSONObject)?.has(day) == true
+    // A series' mark only: a note that no longer repeats keeps its days
+    // unused, for a repeat brought back.
+    val own = series && (raw.opt("overrides") as? JSONObject)?.has(day) == true
     val cameFrom = Recurrence.movedFrom(raw, day)
     var menu by remember { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
-    val title = (shown.opt("title") as? String)?.ifBlank { null } ?: "(untitled)"
+    val title = shownTitle(shown.opt("title") as? String)
     // A table is said, never drawn, in a row this small -- the desktop's
     // "▦ 1 table" chip, in this row's short form beside 📎×N.
     val body = shown.opt("body") as? String ?: ""
@@ -372,7 +407,7 @@ private fun DayRow(state: AppState, raw: JSONObject, day: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(4.dp).fillMaxHeight().background(hexColor(colour)))
-            Text((if (series) "🔁 " else "") + title, color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+            Text((if (series) "🔁 " else "") + glimpse(title), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                  maxLines = 1, overflow = TextOverflow.Ellipsis,
                  modifier = Modifier.weight(1f, fill = false).padding(start = 12.dp, top = 12.dp, bottom = 12.dp))
             Text(marks, color = palette.subtext, fontSize = 13.sp, maxLines = 1, modifier = Modifier.padding(end = 12.dp))
@@ -418,7 +453,7 @@ internal fun DayQuestions(state: AppState, id: Int, day: String, cameFrom: Strin
             AlertDialog(
                 onDismissRequest = onDone,
                 title = { Text(stringResource(R.string.day_reset).removePrefix("↺ ")) },
-                text = { Text(stringResource(R.string.day_reset_moved_text, home)) },
+                text = { DialogBody { Text(stringResource(R.string.day_reset_moved_text, home)) } },
                 confirmButton = {
                     Column(horizontalAlignment = Alignment.End) {
                         TextButton(onClick = { state.resetDay(id, day, dropText = false); onDone() }) {
@@ -468,9 +503,17 @@ internal fun DayQuestions(state: AppState, id: Int, day: String, cameFrom: Strin
 @Composable
 private fun History(state: AppState) {
     val palette = LocalPalette.current
-    var query by rememberSaveable { mutableStateOf("") }
+    // Handed to Android only while short, as the list's search is ([SearchSaver]).
+    var query by rememberSaveable(stateSaver = SearchSaver) { mutableStateOf("") }
     var bucket by rememberSaveable { mutableStateOf("All") }
-    val open = remember { mutableStateListOf<Int>() }
+    // A search handed over by the list, which does not read a day's own
+    // words -- on every year: a year picked here earlier hid the very day.
+    androidx.compose.runtime.LaunchedEffect(state.historyQuery) {
+        state.historyQuery?.let { query = it; bucket = "All"; state.historyQuery = null }
+    }
+    // Kept by the series, not by its id: a series made beside a deleted one
+    // took its id and opened unfolded, as on the desktop before its fix.
+    val open = remember { mutableStateListOf<String>() }
     val entries = remember(state.revision, query, bucket) {
         Recurrence.history(state.rawNotes(), query.trim(), bucket)
     }
@@ -504,24 +547,28 @@ private fun History(state: AppState) {
             }
         }
         if (entries.isEmpty()) {
-            item { Text(stringResource(R.string.history_empty), color = palette.subtext, fontSize = 14.sp, modifier = Modifier.padding(12.dp)) }
+            // A search or a chip that hides everything is not an empty calendar (the desktop's two texts).
+            val filtered = query.isNotBlank() || bucket != "All"
+            item { Text(stringResource(if (filtered) R.string.history_no_match else R.string.history_empty), color = palette.subtext,
+                        fontSize = 14.sp, modifier = Modifier.padding(12.dp)) }
         }
         for (entry in entries) {
             when (entry) {
                 is Recurrence.HistoryEntry.Dated -> item(key = "d${entry.noteId}") {
-                    HistoryRow(Recurrence.showDate(entry.date), entry.title.ifBlank { "(untitled)" }, "", 0) {
+                    HistoryRow(Recurrence.showDate(entry.date), shownTitle(entry.title), "", 0) {
                         state.openNote(entry.noteId)
                     }
                 }
                 is Recurrence.HistoryEntry.Series -> {
-                    val expanded = entry.noteId in open || entry.autoExpand
+                    val expanded = entry.identity in open || entry.autoExpand
                     item(key = "s${entry.noteId}") {
                         val count = if (entry.days.isNotEmpty()) pluralStringResource(R.plurals.history_days, entry.days.size, entry.days.size) else ""
                         HistoryRow(
                             lead = if (entry.days.isEmpty()) "🔁" else if (expanded) "▾ 🔁" else "▸ 🔁",
-                            title = entry.title.ifBlank { "(untitled)" },
-                            tail = listOf(entry.label, count).filter { it.isNotEmpty() }.joinToString(" · ")
-                                .ifEmpty { stringResource(R.string.history_series_jump) },
+                            title = shownTitle(entry.title),
+                            // With no days of its own, the row opens the calendar: say so.
+                            tail = listOf(entry.label, count.ifEmpty { stringResource(R.string.history_series_jump) })
+                                .filter { it.isNotEmpty() }.joinToString(" · "),
                             indent = 0,
                         ) {
                             if (entry.days.isEmpty()) {
@@ -532,24 +579,23 @@ private fun History(state: AppState) {
                                     state.selectedDay = Recurrence.formatDate(day)
                                     state.showHistory = false
                                 }
-                            } else if (entry.noteId in open) open.remove(entry.noteId) else open.add(entry.noteId)
+                            } else if (entry.identity in open) open.remove(entry.identity) else open.add(entry.identity)
                         }
                     }
                     if (expanded) {
                         for (day in entry.days) {
                             item(key = "s${entry.noteId}-${day.date}") {
+                                val movedFrom = day.movedFrom?.let { stringResource(R.string.history_moved_from, Recurrence.showDate(it)) }
+                                val offSchedule = stringResource(R.string.history_off_schedule)
                                 val marks = buildString {
                                     if (day.edited && !day.offSchedule) append("✎ ")
-                                    if (day.movedFrom != null) append("↷ from ${Recurrence.showDate(day.movedFrom)} ")
-                                    if (day.offSchedule) append("off the schedule")
+                                    if (movedFrom != null) append("$movedFrom ")
+                                    if (day.offSchedule) append(offSchedule)
                                 }.trim()
-                                HistoryRow(Recurrence.showDate(day.date), day.title.ifBlank { "(untitled)" }, marks, 1) {
-                                    // A day off the schedule is no day of the series
-                                    // to open: the series opens, its banner leading to
-                                    // the questions that settle such days -- the
-                                    // desktop's History sends it to the same walk.
-                                    // Opened as a day, it could be moved or deleted
-                                    // where no calendar would ever show it.
+                                HistoryRow(Recurrence.showDate(day.date), shownTitle(day.title), marks, 1) {
+                                    // A day off the schedule opens the series, whose banner
+                                    // leads to the questions that settle it, as the desktop's
+                                    // History does: as a day, it could be moved where none shows.
                                     if (day.offSchedule) state.openNote(entry.noteId)
                                     else state.openNote(entry.noteId, day.date)
                                 }
@@ -560,6 +606,10 @@ private fun History(state: AppState) {
             }
         }
         item { Spacer(Modifier.height(96.dp)) }
+        // ...and as tall as the keyboard where nothing above made room for it:
+        // up, it covered the last entries found (counted twice on a
+        // wide window).
+        item { Spacer(Modifier.windowInsetsBottomHeight(androidx.compose.foundation.layout.WindowInsets.ime)) }
     }
 }
 
@@ -577,7 +627,7 @@ private fun HistoryRow(lead: String, title: String, tail: String, indent: Int, o
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(lead, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(end = 10.dp))
-            Text(title, color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+            Text(glimpse(title), color = palette.text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1,
                  overflow = TextOverflow.Ellipsis)
         }
         if (tail.isNotEmpty()) Text(tail, color = palette.subtext, fontSize = 12.sp, maxLines = 2,

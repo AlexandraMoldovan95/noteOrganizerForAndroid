@@ -3,6 +3,7 @@ package ro.noteorganizer.app
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -84,8 +86,13 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
         else -> false
     }
 
-    AppSheet(onDismissRequest = onDone) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+    // Its Save refused -- the note's repeat not written -- the sheet stays,
+    // and says why over itself: said in the window under it, it was never
+    // seen.
+    AppSheet(onDismissRequest = onDone, messages = state.snackbar) {
+        // The rule scrolls; Cancel and Save stay under it, over a message, as
+        // the category sheet's do: at the largest letters it pushed them away.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Text(stringResource(R.string.repeat), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -113,7 +120,9 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 if (freq == "weekly") {
                     Text(stringResource(R.string.repeat_on), color = palette.subtext, fontSize = 14.sp,
                          modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Flowed, as the month's days are: in a Row on a 320 dp phone, or at
+                    // large letters on 360, Sa and Su were squeezed to slivers, not tappable.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Recurrence.WEEKDAY_NAMES.forEachIndexed { index, name ->
                             Chip(name.take(2), index in weekdays) {
                                 if (index in weekdays) weekdays.remove(index) else weekdays.add(index)
@@ -137,7 +146,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 if (shortMonthMatters) {
                     Text(stringResource(R.string.repeat_short_month), color = palette.subtext, fontSize = 14.sp,
                          modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Chip(stringResource(R.string.repeat_clamp), policy == "clamp") { policy = "clamp" }
                         Chip(stringResource(R.string.repeat_skip), policy == "skip") { policy = "skip" }
                     }
@@ -145,7 +154,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
 
                 Text(stringResource(R.string.repeat_ends), color = palette.subtext, fontSize = 14.sp,
                      modifier = Modifier.padding(top = 14.dp, bottom = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Chip(stringResource(R.string.repeat_never), endMode == "never") { endMode = "never" }
                     Chip(stringResource(R.string.repeat_on_date), endMode == "on") { endMode = "on"; if (end.isEmpty()) pickingEnd = true }
                     Chip(stringResource(R.string.repeat_after), endMode == "after") { endMode = "after" }
@@ -158,7 +167,7 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 }
                 if (endMode == "after") {
                     DetailRow(stringResource(R.string.repeat_after)) {
-                        Stepper(count, 1..Recurrence.MAX_OCCURRENCES, stringResource(R.string.repeat_times)) { count = it }
+                        Stepper(count, 1..Recurrence.MAX_OCCURRENCES, pluralStringResource(R.plurals.unit_time, count)) { count = it }
                     }
                 }
             }
@@ -170,39 +179,53 @@ fun RepeatSheet(state: AppState, model: EditorModel, onDone: () -> Unit) {
                 Text(next.joinToString(", ") { Recurrence.showDate(it) } + if (next.size == 3) ", …" else "",
                      color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
             }
-            if (needsDate) Text(stringResource(R.string.repeat_needs_date), color = palette.dangerText, fontSize = 13.sp,
-                                modifier = Modifier.padding(top = 8.dp))
-            problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+        }
+        // Why Save does nothing or was refused, beside it: at the end of the scroll, a
+        // long rule at large letters kept the reason out of sight.
+        if (needsDate) Text(stringResource(R.string.repeat_needs_date), color = palette.dangerText, fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 8.dp))
+        problem?.let { Text(it, color = palette.dangerText, fontSize = 13.sp,
+                            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 8.dp)) }
 
-            val offKept = stringResource(R.string.repeat_off_kept)
-            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
-                TextButton(
-                    enabled = !needsDate,
-                    onClick = {
-                        // The start as stored, before this Save writes a new one.
-                        val startWas = state.rawNote(model.id)?.opt("date")
-                        if (start != model.date) {
-                            model.date = start
-                            model.changed()
-                        }
-                        // The note first -- a new one, or a new start date --
-                        // then its repeat, which only a saved note can hold.
-                        if (!model.save(force = model.id == 0)) {
-                            problem = model.problem
-                            return@TextButton
-                        }
-                        val before = state.rawNote(model.id)?.let { now ->
-                            if (startWas != null) JSONObject(now.toString()).put("date", startWas) else now
-                        }
-                        val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
-                        if (state.setRepeat(model.id, draft(), startWas)) {
-                            if (losing) state.say(offKept)
-                            onDone()
-                        }
-                    },
-                ) { Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium) }
-            }
+        val offKept = stringResource(R.string.repeat_off_kept)
+        val offKeptUpdate = stringResource(R.string.repeat_off_update_kept)
+        val offNoCopy = stringResource(R.string.repeat_off_no_copy)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDone) { Text(stringResource(R.string.cancel), color = palette.text) }
+            TextButton(
+                enabled = !needsDate,
+                onClick = {
+                    // The start as stored, before this Save writes a new one.
+                    val startWas = state.rawNote(model.id)?.opt("date")
+                    if (start != model.date) {
+                        model.date = start
+                        model.changed()
+                    }
+                    // The note first (a new one, or a new start), then its repeat,
+                    // which only a saved note can hold: the repeat's write settles
+                    // the schedule and spends the copy's days once, on the final rule.
+                    if (!model.save(force = model.id == 0, scheduleFollows = true)) {
+                        problem = model.problem
+                        return@TextButton
+                    }
+                    val before = state.rawNote(model.id)?.let { now ->
+                        if (startWas != null) JSONObject(now.toString()).put("date", startWas) else now
+                    }
+                    val losing = freq.isEmpty() && before != null && Days.repeatOffLosesDays(before)
+                    if (state.setRepeat(model.id, draft(), startWas)) {
+                        // Kept over an import's Update, the copy is the version from
+                        // before it, the series too when it repeated then (the
+                        // desktop's _repeat_off_line); a copy the save dropped promises nothing.
+                        if (losing) state.say(when (Days.repeatOffWord(state.rawNote(model.id))) {
+                            Days.OffWord.SERIES_KEPT -> offKept
+                            Days.OffWord.UPDATE_KEPT -> offKeptUpdate
+                            Days.OffWord.NO_COPY -> offNoCopy
+                        })
+                        onDone()
+                    }
+                },
+            ) { Text(stringResource(R.string.save), color = palette.accentText, fontWeight = FontWeight.Medium) }
         }
     }
     if (pickingStart) DateDialog(start, onPick = { start = it; pickingStart = false; problem = null }) { pickingStart = false }
@@ -214,9 +237,11 @@ private fun ints(array: JSONArray): List<Int> = (0 until array.length()).map { a
 @Composable
 private fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
     val palette = LocalPalette.current
+    // Chosen or not, said as a screen reader says a choice: the fill was
+    // all there was.
     Text(label, color = if (on) palette.onAccent else palette.text, fontSize = 14.sp,
          modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) palette.accent else palette.inset)
-             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp))
+             .selectable(selected = on, onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp))
 }
 
 @Composable
@@ -226,7 +251,7 @@ private fun DayChip(day: Int, on: Boolean, onClick: () -> Unit) {
         Modifier.size(38.dp).clip(RoundedCornerShape(19.dp))
             .background(if (on) palette.accent else palette.inset)
             .then(if (on) Modifier else Modifier.border(1.dp, palette.hairline, RoundedCornerShape(19.dp)))
-            .clickable(onClick = onClick),
+            .selectable(selected = on, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(day.toString(), color = if (on) palette.onAccent else palette.text, fontSize = 13.sp) }
 }
@@ -242,10 +267,18 @@ private fun Hint(text: String) {
 private fun Stepper(value: Int, range: IntRange, unit: String, onChange: (Int) -> Unit) {
     val palette = LocalPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
+        // Said as what they do, where a screen reader read "minus" and "plus"; a
+        // thumb's 48 dp at least, where they measured some 36 by 24.
         Text("−", color = if (value > range.first) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
-        Text("$value $unit", color = palette.text, fontSize = 15.sp)
+             modifier = Modifier.minimumInteractiveComponentSize().said(R.string.stepper_fewer)
+                 .clickable(enabled = value > range.first) { onChange(value - 1) }.padding(horizontal = 12.dp))
+        // What the two buttons leave, on one line shrunk to it: last in a plain Row,
+        // a number of two digits squeezed the + at the largest letters on 320 dp, and
+        // left to wrap, the word broke inside itself ("month" / "s").
+        OneLine("$value $unit", Modifier.weight(1f, fill = false), color = palette.text,
+                look = androidx.compose.ui.text.TextStyle(fontSize = 15.sp))
         Text("+", color = if (value < range.last) palette.accentText else palette.subtext, fontSize = 22.sp,
-             modifier = Modifier.clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
+             modifier = Modifier.minimumInteractiveComponentSize().said(R.string.stepper_more)
+                 .clickable(enabled = value < range.last) { onChange(value + 1) }.padding(horizontal = 12.dp))
     }
 }

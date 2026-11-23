@@ -12,10 +12,11 @@ html_document) and core/storage.py (mend_surrogates), imported and run.
 The few lines that put a page together around the note -- the checklist,
 the comments, the title -- live in a method of the desktop's window
 class, which cannot be imported without starting the app, so they are
-written out here. To keep that copy honest, the method's source is
-fingerprinted: if the desktop's `_note_export_content` or its file-name
-line changes, this script stops and says so, rather than going on
-producing answers from an old copy.
+written out here. To keep that copy honest, the method's code is
+fingerprinted (`desktop_fingerprint.py`, comments left out): if the
+desktop's `_note_export_content` or its file-name line changes, this
+script stops and says so, rather than going on producing answers from an
+old copy.
 
 The notes are drawn from a fixed seed, so the file only changes when this
 script or the desktop's renderer does.
@@ -25,7 +26,6 @@ script or the desktop's renderer does.
 
 Reads the desktop's Python and writes only this repository's fixture.
 """
-import hashlib
 import io
 import json
 import os
@@ -38,17 +38,24 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from desktop_fingerprint import fingerprint  # noqa: E402 -- found beside this script
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources",
                        "export_cases.json")
 SEED = 20261015
 CASES = 400
 
 # The desktop method this script mirrors, and the file-name line, as they
-# were when the copy below was written.
-COMPOSITION_SHA1 = "664dead77a092d71d28c61244c464c3bf3d93abc"
-NAME_LINE = 'safe = re.sub(r\'[<>:"/\\\\|?*\\n\\r\\t]\', "_", title).strip(" ._")[:60]'
+# were when the copy below was written. Since the desktop's 1fcc189 the
+# name is core/model.py's export_file_stem, imported and run below rather
+# than copied; its source and the two patterns it uses are fingerprinted,
+# because Exporting.fileName is a port of them and must follow a change.
+COMPOSITION_SHA1 = "a860765e90689c751a2b34d2a508deea5e7173c3"
+NAME_LINE = "initialfile=export_file_stem(title) + ext,"
+STEM_SHA1 = "37cd1ca7ad855f78da5b067536b0c4f0994cc1d9"
 
 WORDS = ["milk", "Bread", "the", "<b>tag</b>", "a & b", "\"quoted\"", "it's", "😀", "naïve",
          "x", "  spaced  ", "café", "→", "", "1. not a list", "a|b"]
@@ -147,10 +154,18 @@ def check_desktop_copy():
     found = re.search(r"\n    def _note_export_content\(self, note, fmt, title\):\n(.*?)\n    def ", src, re.S)
     if not found:
         return "the desktop's _note_export_content was not found"
-    if hashlib.sha1(found.group(1).encode("utf-8")).hexdigest() != COMPOSITION_SHA1:
+    if fingerprint(found.group(1)) != COMPOSITION_SHA1:
         return "the desktop's _note_export_content has changed"
     if NAME_LINE not in src:
         return "the desktop's file-name line in export_note_as_file has changed"
+    model = io.open(os.path.join(DESKTOP, "noteorganizer", "core", "model.py"), encoding="utf-8").read()
+    stem = re.search(r"\ndef export_file_stem\(title\):\n(.*?)\n\n\n", model, re.S)
+    forbidden = re.search(r"\n(_FORBIDDEN_IN_FILE_NAMES = .*?)\n", model)
+    hidden = re.search(r"\n(HIDDEN_IN_NAMES = re.compile\(\n.*?\)\n)", model, re.S)
+    if not (stem and forbidden and hidden):
+        return "the desktop's export_file_stem, or a pattern it uses, was not found"
+    if fingerprint(stem.group(1) + forbidden.group(1) + hidden.group(1)) != STEM_SHA1:
+        return "the desktop's export_file_stem has changed"
     return None
 
 
@@ -165,11 +180,14 @@ def desktop_export():
     if changed:
         return (changed + ": re-read it, bring compose() and file_name() below and "
                 "Exporting.kt into line, then update the fingerprint at the top of this script")
+    from desktop_guest import settle
+    settle(DESKTOP)      # the desktop's memory ceiling, before its code runs here
     if DESKTOP not in sys.path:
         sys.path.insert(0, DESKTOP)
     try:
         from noteorganizer.core.richtext import note_to_html, html_document
         from noteorganizer.core.storage import mend_surrogates
+        from noteorganizer.core.model import export_file_stem
     except ImportError as problem:
         return "cannot import the desktop renderer: %s" % problem
 
@@ -200,8 +218,8 @@ def desktop_export():
         return mend_surrogates(content)
 
     def file_name(title, ext):
-        safe = re.sub(r'[<>:"/\\|?*\n\r\t]', "_", title).strip(" ._")[:60]
-        return (safe or "note") + ext
+        # export_note_as_file's initialfile, as fingerprinted above.
+        return export_file_stem(title) + ext
 
     return compose, file_name
 
@@ -214,8 +232,16 @@ def main():
     compose, file_name = found
     rng = random.Random(SEED)
     cases, raised = [], 0
-    for _ in range(CASES):
-        n = note(rng)
+    # After the drawn notes, titles the file name must clean, one each: every
+    # control character Windows refuses, and what hides or reorders text
+    # (export_file_stem, since the desktop's 1fcc189). Added after, so the
+    # drawn notes stay as they were.
+    named = [{"title": t, "body": "x"} for t in [
+        "bell\x07title", "esc\x1b[0m", "Invoice\u202efdp.exe", "del\x7fC1\x85here",
+        "\u200e\u200fmarks\u2066\u2069", "line\u2028sep\u2029para\ufeffbom", " _.edges._ ",
+        "\x01\x02", "名前" * 40]]
+    for i in range(CASES + len(named)):
+        n = note(rng) if i < CASES else named[i - CASES]
         title = (n.get("title") or "").strip() or "Untitled note"
         case = {"note": n, "title": title, "name": file_name(title, ".html")}
         for fmt in ("html", "txt"):

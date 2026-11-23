@@ -62,7 +62,9 @@ that reads or writes what it covers.
 ## The data contract
 
 Plain JSON, no database. When the desktop app runs as its packaged
-`.exe`, its files are in `%APPDATA%\NoteOrganizer\`; this app keeps its
+`.exe`, its files are in the profile's `Note Organizer` folder
+(`C:\Users\<name>\Note Organizer`; `%APPDATA%\NoteOrganizer` until
+2026-10-27); this app keeps its
 own notebook in its private storage, in `files/notebook/`, where no other
 app can read it. The files are the same files, byte for byte in shape;
 a notebook moves between the two as a [backup](#backups), and single
@@ -79,16 +81,42 @@ notes as [share codes](#share-codes).
 A file that exists and will not parse is **kept aside, not refused**: its
 bytes are copied beside it as `<name>_corrupt_<yyyyMMdd_HHmmss>.json`
 (once per distinct content), and the app opens without it and says where
-the copy is — the desktop's answer, so that a broken file costs a
-message, not a phone that cannot take a single note.
+the copy is (the templates' page and Use template say the file could not
+be read) — the desktop's answer, so that a broken file costs a
+message, not a phone that cannot take a single note. The phone's folder
+is its own, where no person can open it, so a backup `.zip` carries such
+a copy under `unreadable/`, which an import on either device leaves
+unpacked or ignores (since 2026-10-27).
+
+A file whose read the phone's storage refuses (an input-output error,
+not bytes that do not parse), or one that will not parse and cannot be
+copied aside either, is **held** instead: nothing is written over it until
+the app's screen starts again (`Files.holdWrites`, cleared by
+`Startup.prepare`, which reads every file afresh). Closing the app from the
+recent apps and opening it does that on every version, as the app's words
+say; Back does it on Android 8 to 11 only. Until then it reads as held — as the
+desktop holds a file another program has open. While the notes or the
+Trash are not read (held, or set aside), no attached file is deleted: their
+unread entries may name any of them. A template's draft whose read is
+refused is read once more and offered if that gets through, or offered from
+its copy when the copy's own read does; otherwise it is copied aside, or
+held when even the copy cannot read it, and the template editor then says
+only Save keeps what is typed. A settings file that cannot be read reads as
+its marks alone, the Trash's window unknown and Android's backup off, so a
+write that does go out carries them.
 
 ### Settings the two apps share
 
 `settings.json` is read with the desktop's own keys — `username`,
 `theme`, `note_sort`, `note_filter`, `categories`, `trash_retention_days`,
-`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a backup
-carries the person's choices both ways. A key the phone does not use is
-kept, never dropped.
+`welcome_offered`, `welcome_note_uid`, `last_export_at` — so a notebook's
+files mean the same choices on either device. A backup's import takes
+only the categories, the day colours and markers and the Trash's window;
+the rest is each device's own, on both apps. A backup's trashed note comes
+in only if the window this device's next start purges by keeps it; older
+ones stay in the backup, and the import says so (over a settings file held
+that window is not known, so on the phone the import stops, on the desktop
+none come in). A key the phone does not use is kept, never dropped.
 
 Phase 2 reads and writes five more, and two old ones with every value
 the desktop gives them, each as the desktop keeps it:
@@ -98,8 +126,8 @@ the desktop gives them, each as the desktop keeps it:
 | `note_sort`, `note_filter` | not new, but now every value the desktop stores: the sort's own words (`"Calendar: soonest"`, `"Custom order"`), and Show as a category's name or a type's label (`"🔁 Repeating"`, `"📅 Dated"`, `"📎 With files"`). A filter naming a category since deleted reads as All. |
 | `group_by_category` | `true` when the list is grouped |
 | `collapsed_groups` | the folded groups' category names |
-| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real colours are read |
-| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most; the older one-marker string is read too |
+| `day_colors` | `{"YYYY-MM-DD": "#rrggbb"}` — a painted day; only real days and real colours are read, 20,000 at most (the desktop's `MAX_DAY_DECORATIONS`), and a 20,001st is refused |
+| `day_emoji` | `{"YYYY-MM-DD": [str, ...]}` — a day's markers, three at most, each 16 characters at most; the older one-marker string is read too; real days only, 20,000 at most |
 | `first_launch_date` | the day this install was first used, stamped once and never again |
 
 A rename of a category carries its name along in `note_filter` and
@@ -111,7 +139,9 @@ The theme worn is `theme`, written as the desktop writes it. The phone
 adds two keys of its own beside it: `phone_theme_light` and
 `phone_theme_dark`, the last light and the last dark theme worn, where
 Settings → Appearance's Light | Dark switch goes back to. The desktop
-ignores them.
+ignores them, and keeps its own the same way for its ☀ / 🌙 switch,
+`last_light_theme` and `last_dark_theme` (since 2026-11-13), which the
+phone ignores and keeps. A backup's import takes none of the four.
 
 A third, `phone_theme_follows_phone`, is left from **"Follow the phone"**,
 on by default up to 0.9.0 and gone since 0.9.1. A notebook that still follows
@@ -128,6 +158,20 @@ the start purges nothing; choosing a window in Settings → Trash removes
 it. The desktop ignores it, and still purges by its own reading
 ([the story](ISSUES_LOG.md#a-trash-emptied-by-a-window-nobody-chose)).
 
+And one for Android's own backup: `phone_google_backup`, `false` when the
+person turned the app's part in it off at Settings → Backup; missing or
+`true`, it takes part, as it always did. A `settings.json` that cannot be
+read counts as off, and the start that finds it so writes `false` with
+`phone_trash_window_unknown`: the fresh file would otherwise read as on.
+One that is held (its read refused, or neither read nor copied aside) is
+written over by nothing, so Android's backup is handed nothing at all
+while the app holds it. While it is off, Android's backup is handed only
+`phone_google_backup_off.json`, beside the notebook, holding
+`{"phone_google_backup": false}`; restored onto a phone, the start writes
+that answer into the settings, unless they hold one, and deletes the
+file. The desktop ignores both
+([why it exists](STATUS.md#androids-own-backup-of-the-apps-data--decided)).
+
 The day's reminder (since 2026-10-23) uses the desktop's own key for its
 bar, and two of the phone's for its notification:
 
@@ -143,15 +187,21 @@ never a rescue copy or a purge.
 
 The categories are an ordered map of name to colour, and the order is the
 order Settings shows. Categories found on notes but missing from the map
-are adopted with a colour, as the desktop's `load_categories` does.
+are adopted with a colour, as the desktop's `adopt_categories_of` does:
+in memory at every start (the phone's start does not write them), and for
+good by a backup's import, in the file's order, for its notes and the
+trashed notes the Trash's window keeps, before it compares any of them with
+what is here (a note refiled here under General and filed under the name
+in the backup is a changed note), as the desktop's import does. A name
+past the ceilings (80 characters, 200 categories) stays out, its notes and
+trashed notes under General, and the import says how many and why.
 
 ## A note
 
 Every note passes through one choke point in the desktop app
 (`normalize_note`), which coerces anything malformed into these defaults.
-Field for field, as of the desktop's `0.95.382` — and
-`tools/check_note_shape.py` fails the day this list and the Python's
-stop agreeing:
+Field for field — and `tools/check_note_shape.py` fails the day this
+list and the Python's stop agreeing:
 
 ```jsonc
 {
@@ -170,9 +220,17 @@ stop agreeing:
   "date": "",               // "" or "YYYY-MM-DD"
   "color": "",              // "" or "#rrggbb"; a "#rgb" that arrives is
                             //   written back as "#rrggbb", as the desktop's
-                            //   sanitize_color expands it -- in a day's colour,
-                            //   a category's and a text colour too
-  "attachments": [],        // [{"filename": str, "stored_as": str}, ...]
+                            //   sanitize_color expands it -- in a day's colour
+                            //   and a category's too; a text colour or a
+                            //   highlight written short is dropped by both apps
+  "attachments": [],        // [{"filename": str, "stored_as": str}, ...];
+                            //   filename is a label: normalized to end in
+                            //   stored_as's type, hidden and bidi characters
+                            //   out (the desktop's attachment_display_name);
+                            //   the file handed to another app is typed by
+                            //   stored_as, never by the label; a stored_as
+                            //   longer than 250 UTF-8 bytes comes in under a
+                            //   shorter one the phone's storage holds
   "updated": "",            // "YYYY-MM-DD HH:MM:SS" -- seconds included
   "created": "",            // same shape; backfilled from updated if absent
   "recurrence": {},         // the repeat rule; "" freq = one-off. See below
@@ -188,10 +246,19 @@ stop agreeing:
 }
 ```
 
-Two more keys travel beside these and are kept whole, though they are not
-defaults: `_prev`, the one-step rescue copy
-([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)),
-and `order`, the desktop's custom order.
+Three more keys travel beside these, though they are not defaults:
+
+- `_prev`, the one-step rescue copy
+  ([what writes it, and what restores it](#what-a-shared-note-is-allowed-to-change)).
+  It is shaped as the desktop's `normalize_note` shapes it — its words as
+  text, its styles held to the line ceilings, and beside them only the
+  fields an update from a backup replaces, each by the note's own rules —
+  since a restore puts it straight back into the note
+  ([why](ISSUES_LOG.md#a-rescue-copy-let-in-whole)).
+- `_set_aside`, a series' days' words waiting to be notes of their own
+  ([below](#recurrence)), read at most `MAX_OCCURRENCES` long, as moved
+  days are.
+- `order`, the desktop's custom order, kept whole.
 
 Since Phase 3 the phone writes `order` too, as the desktop's arranging
 does: every note numbered by its place — the hidden ones too, so a
@@ -200,11 +267,78 @@ search or a filter never loses a note its place — in one write, and with
 Choosing Custom order before anything has been placed numbers the notes
 as the list was showing them, so the choice changes nothing on screen.
 
+### Fields a version does not know
+
+Once the apps are in the stores they update apart, and a newer version
+may add a field to a note. Every other key at a note's top level is
+therefore kept as it came, by both apps alike (the owner's decision,
+2026-11-13): an older app reading a newer one's notebook no longer erases
+such a field, through a load, a save, a backup or the Trash. A key a newer
+version adds INSIDE a checklist item, an attachment, the repeat rule, a
+day's edit or the rescue copy is still shaped away (a new kind of repeat
+reads as none), so a newer version that needs one there must also keep it
+readable without it. A template's own fields follow the same rule (the
+owner's decision, 2026-11-14): beside the eight a version knows (`name`,
+`title`, `body`, `formatting`, `paragraphs`, `comments`, `category`,
+`checklist`), any other key is kept as it came, bounded as a note's, in
+`templates.json`, through a backup and through the template editor's
+Save; inside a template's checklist it is shaped away, as in a note's.
+One rule, written twice —
+the desktop's `unknown_fields` and the phone's `Normalize.unknownFields` —
+held together by `tools/check_note_shape.py` and by a fixture of the
+desktop's own answers (`tools/make_unknown_fixture.py`):
+
+- **Known**, for a note, are the fields of a note above, `id`, `order`,
+  `_prev`, `_set_aside`, `deleted_at` (the Trash's, which a restore takes
+  off) and `tags` (a feature removed, still dropped); for a template, its
+  eight alone, so a key such as `id` or `order` on a template is kept as a
+  newer version's. Any other name is kept, unless it starts with `_`, an
+  app's own mark.
+- **Bounded**, as every list a file can inflate: at most 32 such fields,
+  65,536 units in all (a string counts its UTF-16 length, a name too,
+  anything else 1) and 20 levels deep; a field past a bound is left out,
+  the rest kept. They are chosen in the order of their names as UTF-16,
+  which is Kotlin's order, so both apps keep the same ones. A string, list
+  or object longer than the allowance by its count alone is not walked.
+  The desktop shapes every note at each load; the phone shapes a note at
+  its door (an import, a Duplicate) and keeps its own notebook as the file
+  holds it, so a field past a bound there is kept, never lost, until the
+  desktop next loads it.
+- **In the signatures:** two notes differing only in such a field are two
+  notes, to the duplicate groups and to the strict content signature (true
+  is not 1 there; 1 and 1.0 are one number), or a cleanup would keep one and
+  the field would go with the other. A note holding only such a field is
+  not empty.
+- **A backup's Update** brings the backup's such fields beside the note's
+  own, as it brings its pin and its days, the two held to the bounds at
+  once; such a field alone is no change for an Update to make. When either
+  side holds such fields, its rescue copy keeps the note's own under
+  `_unknown`, so "↩ Restore previous" puts them back as they were, with the
+  known fields.
+- **On a phone**, Android's JSON reader holds an integer outside 64 bits
+  (from 2^63 up, or below −2^63) as a double, so such a field holding one
+  comes back as another number: its digits rounded, or 9223372036854775807
+  or −9223372036854775808 where it rounds to the edge (the desktop keeps it
+  whole up to 4,300 digits, and reads a file with a longer one as damaged).
+  From about 309 digits the double is infinite, read as Infinity below; it
+  writes 1.0 back as 1 and
+  -0.0 as -0, which Python reads as whole numbers; it refuses a whole
+  backup whose notes hold Infinity or NaN as a member's value, and leaves
+  out, unsaid, a backup's templates, Trash or settings file holding one,
+  where the desktop reads each and leaves out the field that holds it
+  (inside a list, the phone reads them as null and keeps the field); and
+  an escaped lone surrogate, which the desktop mends to U+FFFD as it reads,
+  it keeps and writes back as "?". Neither app writes Infinity, NaN or a
+  lone surrogate of its own.
+- **A share code** stays a closed list (`SHAREABLE_FIELDS`): a stranger's
+  code cannot add a field, and a code's Update leaves the note's own.
+
 **An attached file** is kept in `attachments/` under the moment it was
 added, to the microsecond, and its own name — the desktop's
 `add_attachment` — made a name Windows will take, because a backup
 carries it there. Taking a file off a note deletes the stored file only
-when no other note, and no note in the Trash, still names it.
+when no other note, and no note in the Trash, still names it, and never in
+a run that could not read the notes or the Trash.
 
 ### Where `uid` comes from, and who may mint one
 
@@ -215,10 +349,14 @@ existed only in the desktop's memory until something saved, so a notebook
 copied to a phone could carry a set of identities the desktop itself would
 not recognise after a restart.
 
-**This app mints only for notes IT creates.** A note that arrives without
-an identity is left exactly as it is. If both programs minted, the same
-note would end up with two different names — the collision the field
-exists to prevent, manufactured by the fix for it.
+**This app mints for the notes it adds:** the ones it creates, and the ones
+an import — a backup or a share code — brings without an identity, which
+`Normalize.normalizeNote` gives one as the desktop's `normalize_note` does.
+A note already in the file is not given one when it is read. Minting on
+reading was the danger while the two programs shared one folder: each would
+have named the same note differently, the collision the field exists to
+prevent. Each now keeps a notebook of its own, and a note crosses between
+them only through an import.
 
 ### Recurrence
 
@@ -240,12 +378,9 @@ A repeating note is stored **once**. The rule:
 the dict is non-empty.** `normalize_note` fills every note's rule with
 the defaults above, so in a real saved file *all* notes carry a full
 `recurrence` object and an emptiness test marks the entire notebook as
-repeating. The desktop app's own test is one line, in
-`noteorganizer/core/recurrence.py`:
-
-```python
-return bool((note.get("recurrence") or {}).get("freq"))
-```
+repeating. The desktop app's own test, `is_recurring` in
+`noteorganizer/core/recurrence.py`, asks whether the rule is a dict whose
+`freq` is not empty.
 
 Measured against a real 77-note file: emptiness said 77 recurring,
 `freq` said 0. Copy the Python's test, not the field list's shape.
@@ -254,32 +389,130 @@ Plus three maps on the note itself: `exceptions` (dates deleted
 individually), `overrides` (date → partial note, for "edit only this
 day") and `moved` (a day of the series held on another date).
 
+Their dates are written `YYYY-MM-DD`, zero-padded, in ASCII digits, by
+both apps. The desktop's date reader (Python's `strptime`) also takes a
+few forms neither app writes -- a month or day without its zero, a space
+before a one-digit day, a year in other digits -- but these maps are
+looked up by the written form, so a key in such a form, in a backup made
+by hand, matches no day there either: a deleted day under it is kept
+and does nothing, a moved one is dropped, and an override under it is a
+day off the schedule, which the desktop settles as a note of its own.
+The phone's reader takes none of these forms. Nothing the apps write
+reaches it, so it is left, as known.
+
 **An override may only replace these fields:** `title`, `body`,
 `comments`, `category`, `color`. Everything else belongs to the series.
 Getting this wrong produces a note that looks edited and is not.
 
+Beside them an override may keep **`paragraphs`: the day's own list
+lines** -- `[{"line": int, "kind": "bullet"|"number", "indent": int}]`,
+one per line of the day's body that starts with a list marker, with no
+alignment (the owner's choice). A nested
+list's depth lives nowhere else: taken from the series by line number,
+an item added or removed on the day put the rest on the wrong level, and
+the next Enter renumbered them so. Both apps write it with every day they
+save, even empty; a day saved before it existed has none, and shows the
+series' list entries by line, as it did. A day that says what the series
+says follows the series again only when its list lines are the series'
+too.
+
 Since Phase 2 the phone writes all three, as the desktop's day mode
 writes them:
 
-- **A day saved on its own** keeps only those five fields, and only
-  plain text — a day's body carries no styles. A day that says exactly
-  what the series says keeps no override at all, and follows the series
-  again.
+- **A day saved on its own** keeps only those five fields and its list
+  lines, and only plain text — a day's body carries no styles. A day that
+  says exactly what the series says, its lists as the series' are, keeps
+  no override at all, and follows the series again.
 - **A day deleted** from its series goes into `exceptions` — a moved day
   by the date its rule gives it, not the date it was moved to — and its
   Undo finds the note by `uid`, not by `id`, and brings back the day's own
   edit and its move with it.
 - **A repeat turned off** when some day holds its own text puts the whole
   note — the rule, the deleted days, the edits — into `_prev` first, so
-  "↩ Restore previous" brings the series back whole.
+  "↩ Restore previous" brings the series back whole. A note that already
+  does not repeat keeps whatever days it holds: a share code's update or
+  a restore that ended its repeat left them there, out of sight, and they
+  show again when a repeat comes back.
+- **A repeat ended by a share code's update or by a restore** leaves the
+  series' days in the note and puts a copy of them in `_prev`, beside the
+  repeat they hang on (the desktop's `days_to_rescue`). A copy of words is
+  words alone: a series' days live in one place, the note, as the desktop
+  keeps them -- kept only in the copy, the next copy over the single slot
+  erased them (the owner's choice;
+  [the story](ISSUES_LOG.md#a-days-text-in-a-copy-the-other-program-erased)).
+- **A notebook the phone's 0.12.0 wrote** kept a turned-off series' days
+  in its copy alone. They come back into the note whenever it is read from
+  a file -- at load, as a Trash entry is restored, at an import -- as the
+  desktop's `_days_back_from_copy` brings them. Only from the series' own
+  copy: one that repeats and holds none of what only an update's copy
+  holds (`category`, `color`, `checklist`, `pinned`). Only into a note that
+  holds no days of its own and either no longer repeats or repeats again
+  as that same series, its date and rule the copy's. And only when a day
+  there holds text of its own. It is asked of the note as a load shapes it.
+
+  An update's comparison reads this side without its copy, and the
+  arriving note as a load reads it, its copy's days taken back; then it
+  compares the two without their copies. Taken in from an update's copy,
+  the same backup imported twice read as changed the second time; read
+  bare, an older backup of a turned-off series read as edited elsewhere
+  ([the story](ISSUES_LOG.md#a-rule-fixed-where-it-was-found-and-asked-again-beside-it)).
+  A backup whose copy holds a day reset here since reads, truly, as
+  changed.
+- **A series' own copy's days come back, then are spent,** once the note
+  repeats as that series again -- the same date and rule. The copy's
+  deleted days and moves go into the note only on dates the note's own
+  days leave free -- never onto a date the note holds (its edited, deleted
+  and moved days and the dates it moves days to) -- and moves only while
+  the note holds fewer moves than a series has days.
+
+  Each of the copy's day edits goes to the date the note draws that day
+  on, as a move keys a day's edit. Where the note's edit there has no
+  words, it takes the copy's, its colour and category kept; where the day
+  holds words of its own, or the note deleted it, the copy's words are set
+  aside (below); an edit the copy draws on no day stays on its date (the
+  desktop's 04044ce).
+
+  Then `exceptions`, `overrides` and `moved` are taken out of the copy, at
+  every read after the move and in the save that turns the series back on
+  -- on the phone the Repeat sheet's write of the repeat, never its write
+  of the start before it (the desktop's `spend_series_days`, since
+  8b5d6cc). Kept in the copy, a day the person then reset came back at
+  every start; spent alone, days only the copy held were in no file
+  ([the story](ISSUES_LOG.md#every-place-a-change-made-and-every-date-a-note-holds)).
+  A note that does not repeat keeps its copy's days.
+- **A copy's words for a day that holds words of its own, or that the note
+  deleted,** are not added to the day: they are set aside, in `_set_aside`, and become a note of
+  their own on that date, titled with the day's own title (the series'
+  when the day has none) and "(earlier text)". So are the days with words of another series' copy, before a
+  turn-off, a big delete or an Update replaces it. Each entry is the day's
+  five fields as text and its `day`; a read keeps the entries with a real
+  date and a word. The desktop makes the notes at its start and at every
+  save; the phone at its load and in the write that sets some aside (the
+  owner's choice;
+  [the story](ISSUES_LOG.md#four-ways-of-adding-and-a-note-of-its-own)).
+- **A repeat turned off over an import's Update copy** the note does not
+  hold again keeps that copy whole -- the note as it was before the Update
+  -- given the series' date, rule and days only where it lacks them (the
+  desktop's `_turn_off_rescue_copy`). **Over an earlier turn-off's copy of
+  the same series** the note does not hold again, the new copy takes that
+  copy's words -- title, text, styles, lines and comments -- as it takes a
+  copy of words. Replaced, a big delete's words, or a long comment kept
+  there, were in no file after the second turn-off
+  ([the story](ISSUES_LOG.md#kept-where-it-was-found-and-kept-on-after-it-moved)).
 
 Phase 3 writes the other two the day mode has:
 
 - **A day moved** is written in `moved` against the date its rule gives
   it — `{"2026-10-20": "2026-10-22"}` — and its own edit, if it has one,
   moves with it in `overrides`. Moved back home, the entry goes. A day
-  may move only to a date the series has no day on, and comes home only
-  to one ([the desktop's own date rule does not ask](STATUS.md#where-it-differs-from-the-desktop-on-purpose)).
+  may move only to a date the series has no day on and keeps no edit
+  for, and comes home only to one, on both apps. A move onto a date its
+  rule gives by itself -- the rule or its start changed since -- goes as a
+  note is read, saved, updated or restored, its edit staying on the date
+  it showed on: a day's words never move on their own (the owner's choice;
+  [the story](ISSUES_LOG.md#words-that-never-move-on-their-own)). A move onto a date whose own day stays deleted or
+  moved away stays; another day moved onto the date of a move whose own
+  date the rule no longer gives takes it, and that move goes.
 - **A day off the schedule** — an override on a date the rule no longer
   gives, after the repeat changed — is settled as the desktop settles
   it: made a note of its own on that date (its title, text, comments,
@@ -455,9 +688,9 @@ written, then caught by a test, then fixed.
 
 The stored colour is a palette swatch chosen against a white page. Paint
 it solid on a dark one and it becomes a pale wash that buries the text.
-The desktop hit this and fixed it by blending the paint 45% toward the
-current theme's surface while the **data keeps the pure colour**; its own
-comment is blunt: *"the solid palette fill buried the text under it."*
+The desktop hit this and fixed it by painting the colour at 45% over the
+current theme's surface (`_blend_hex(colour, surface, 0.45)`; the phone's
+`blend` in `RichText.kt`) while the **data keeps the pure colour**.
 Re-blend per theme, never rewrite the note.
 
 ### A format bar has two enemies on a phone, and both are the system's
@@ -518,17 +751,17 @@ Three decisions follow from that:
 * **A cell spanning several columns is left out of the width
   calculation**, or it would widen a column to fit text that is not in it.
 
-`splitBody` cuts the note into prose runs and tables and hands back
-UTF-16 offsets so the caller SLICES the already-styled text. Re-rendering
-each run on its own would need the formatting offsets recomputed per
-piece — a second copy of a rule, which is how they drift. Note the two
-coordinate systems living side by side: formatting spans are code points,
-these slices are UTF-16
-([why that matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
+`Editing.segments` cuts the note into prose runs and tables, each with
+its text and where it starts, counted in code points as the formatting
+spans are, so a run's spans are the note's own, shifted by its start
+([why the counting matters](#offsets-are-code-points-and-kotlin-counts-utf-16)).
 
 Cell text is drawn plain: a cell is not a slice of the body once the row
-has been taken apart, so styling inside a table is not shown. The screen
-says so, and only when the note has both.
+has been taken apart. One highlight is drawn, as the cell's fill: one
+covering the whole cell, in a note's table (`Exporting.cellHighlights`;
+not in the template editor's tables, nor in a table too large to draw,
+shown as text). A highlight on part of a cell, and the other styling
+inside a table, stay in the file, not drawn.
 
 ### Editing one cell must not rewrite the whole table
 
@@ -601,8 +834,10 @@ go — or the whole table comes back re-padded, every style in it at risk
 
 ## Templates
 
-`templates.json` is a list of templates, each shaped as the desktop's
-`normalize_template` leaves it:
+`templates.json` is a list of templates — a thousand at most, the
+desktop's `MAX_TEMPLATES`: a load keeps the first thousand, an import
+stops there, and a new one past it is refused with a word — each shaped
+as the desktop's `normalize_template` leaves it:
 
 ```jsonc
 {
@@ -646,9 +881,13 @@ project through the SAME field list, so the boundary is symmetric.
 
 The check that matters is not the round trip — it is that the OTHER
 program can read it. `InteropTest` decodes a code produced by the Windows
-app's own `encode_share_code`, and writes one out for that Python to
-decode in turn. Both were run and both passed, carrying diacritics, an
-emoji, formatting spans and a checklist intact. A test that only encodes
+app's own `encode_share_code`, and writes one out, with what it meant to
+send -- a note through the phone's own `normalizeNote`, every field a code
+carries; `tools/check_interop.py`, run after the tests, reads that code as
+the desktop's import does (`decode_share_code`, then `normalize_note`) and
+compares every field. Both directions carry diacritics, an emoji,
+formatting spans and a checklist intact. (Until the final audit's third wave the second half was
+promised here and run by nobody.) A test that only encodes
 and decodes with itself proves nothing about the thing it exists for.
 
 ### Why a code carries the note's identity
@@ -665,7 +904,7 @@ you already have" — and asks. See
 
 ### Build the code from the stored note, never from what is on screen
 
-`shareCodeFor` reads the note out of the array and encodes that. The
+`AppState.shareCode` reads the notes out of the array and encodes those. The
 desktop's editor did the opposite — it assembled a code from its editor
 snapshot — and so its codes silently went out without the identity,
 because identity is not something the screen holds. Fixed there in
@@ -697,10 +936,26 @@ either device. `_prev` holds the text fields and, after an update, every
 other field the update replaced; restoring puts all of them back. Since
 2026-10-22, on both apps, what the restore replaces becomes the copy in
 its turn, so the same button brings it back, unless it holds nothing
-the restored version lacks (an emptied note), when the copy is spent;
-and a save whose text matches the copy spends it too, since there is
-nothing left to rescue. An update that would change nothing does not
-touch the note at all, so it cannot spend a rescue copy on nothing.
+the restored version lacks (an emptied note), when the copy is spent --
+weighed by everything the restore writes over: the text, the comments,
+and, the words the same, their styles and lines, and every other field
+the copy brings back, those a newer version wrote included (2026-10-29: comments
+typed since the copy went to no file). A save whose text matches the
+copy spends it too, since there is nothing left to rescue; and a save
+due a copy for its comments alone, over a copy the note does not hold
+again, keeps that copy's words and takes only the comments it replaces
+(2026-10-29: the comments rewritten after a big delete replaced the only
+copy of the deleted words) -- or keeps the copy's own comments, when theirs
+would be the larger loss (2026-10-30: two letters cleared after a long
+comment was deleted wrote over it). An update's own copy is the note as
+it was here before the update, in no other file, so a big delete after it
+keeps that copy, and the words the delete takes become a note of their
+own, "<title> (earlier text)" -- a one-off's date along, only the
+comments when no more went -- gone again if they are typed back in the
+same session and it is untouched (2026-11-06 on the phone, the desktop's
+wave 2: the delete replaced the copy). An update that would change nothing
+does not touch the note at all, so it cannot spend a rescue copy on
+nothing; it is judged with both notes' copies left out.
 
 Answering "add" instead strips the `uid` from the copy before it is
 written. A note the user asked to keep SEPARATE must not wear the
@@ -715,28 +970,45 @@ notes](#a-copy-of-the-array-is-not-a-copy-of-the-notes).
 
 A backup is the whole notebook in one `.zip`, the same file the desktop's
 Settings → Backup writes and reads, so a backup made on either device
-restores on the other. It is how a notebook moves; a share code is how a
-note does.
+restores on the other -- the phone's memory permitting: a notes, Trash,
+settings or templates file larger than a sixteenth of what Android lets
+the app hold (about 16 MB) is refused on the phone (below). It is how a
+notebook moves; a share code is how a note does.
 
 ### What a backup holds
 
 `notes_data.json`, `settings.json`, `templates.json`, `trash.json`, and
 every attached file under `attachments/`. An export is built in a scratch
-folder first and checked by the import's own rules before it is handed
-to the file picker: a backup this app wrote must be one it agrees to read
-back.
+folder first and checked by the import's guards (how many files, how far
+they unpack) before it is handed to the file picker: a backup this app
+wrote must be one it agrees to read back. A notes file the start could
+not read, still on disk until the first save, is read again; if it still
+does not read, it goes in as `[]`, what the app holds of it, and its
+bytes under `unreadable/`: the copy the start kept aside of this very
+file, or the file itself when no such copy exists. Either device reads
+the backup back; the phone says it holds no notes as notes and does not
+record it as the last backup. When the phone cannot check it -- too
+large, or memory short for a moment -- it goes in as it is, said, and is
+not recorded either. A notes file the start
+read is the app's own and goes in untouched. A damaged Trash, templates
+or settings file goes in as it is, and an import skips it. One it could
+not read back, a JSON file past the phone's memory ceiling, is still
+written -- the only copy is never withheld -- and the phone says so. A
+file the phone will not open stops the export, which names the file.
 
 ### The guards on the way in
 
 A backup arrives from anywhere, so reading one is guarded as the
 desktop's `_safe_extract_zip` guards it, with the desktop's numbers —
-these are what a hostile archive could do, not a size cap:
+these are what a hostile archive could do — and one the phone adds, a
+size cap the desktop has not:
 
 | Guard | Value |
 |---|---|
 | `MAX_BACKUP_FILES` | 100,000 entries |
 | Decompression bomb | any entry, or the backup as a whole, expanding to over 50 MB **and** to more than 100 times its packed size |
 | Disk margin | 200 MB must stay free after unpacking — the attached files counted twice, since on a phone the unpacking and the notebook share one disk |
+| The phone's memory (phone only) | each JSON file at most a sixteenth of the app's heap (`Backup.jsonCeiling`, about 16 MB of 256) |
 
 And one step stricter than the desktop: **only the names a backup is made
 of are unpacked at all** — the four data files by their exact names, and
@@ -752,18 +1024,41 @@ desktop's three questions are asked before anything is written:
 
 1. Notes this device already has, by `uid`, that arrive **changed**:
    update them, or add them as new notes. The question says when the
-   arriving copy is *older* than the one here.
+   arriving copy is *older* than the one here. A file the note here holds
+   under another stored name -- the copy an earlier import gave it -- is
+   known by its shown name and bytes, so it is no change, and an update
+   adds no second copy of it. Added as new notes, they are copies asked
+   for, without the `uid` they came with or the rescue copy (`_prev`),
+   which stays with the note it was made for, and are not put to the
+   third question, as on the desktop.
 2. Notes that arrive **exactly as they are** here: skip them, or add
-   copies.
+   copies (made the same way).
 3. New notes that **look identical** to one here (the desktop's
-   `_dup_key`: title, text, comments, category, checklist and repeat
-   rule): skip them, or import them anyway.
+   `_dup_key`: title, text, comments, category, checklist, repeat rule
+   and a series' own days, and the fields a newer version wrote, which
+   the screen does not name as no one sees them): skip them, or import
+   them anyway. When every new note is one, Skip is offered only while
+   it still brings something: a note known here updated or added, copies
+   kept, a look-alike's file the note here lacks, or a category,
+   template, painted day or Trash entry this device lacks and would take
+   (not one older than the length its Trash keeps by once the import is
+   in -- the backup's longer one where it is taken -- nor one over a file
+   it may not write this run); otherwise the question is Import anyway
+   or Cancel. Skipped, a backup's look-alike
+   gives the files it holds and the note here lacks to that note -- the
+   first in the file with its key, the notebook as the updates leave it,
+   an updated note known by the backup's copy, as the desktop's does --
+   and the words say how many.
 
 Then the rest joins without replacing anything: the backup's categories
-(a name already here keeps its own colour), its painted calendar days, a
+(a name already here keeps its own colour), its painted calendar days (a
+day painted here keeps its own; a mark stored here that this app cannot
+show is no painting, and the backup's takes its place, as the desktop
+drops such a mark at every start), a
 template only when none here has its name, and its Trash — an entry
-already in this Trash is skipped, so re-importing your own backup changes
-nothing. A file another note here already uses is given a copy of its
+already in this Trash is skipped (one that came in on a copy of a file is
+known by that file's name and bytes), so re-importing your own backup
+changes nothing. A file another note here already uses is given a copy of its
 own, so deleting one note can never take another's file with it. The
 writes go in the desktop's order: settings, templates, the Trash, and
 the notes last.
@@ -780,12 +1075,17 @@ This app's `Note` model reads only what the screen needs, so a write
 never rebuilds the file from it — that would delete, from every note, the
 fields the model never read
 ([why there are two representations](ARCHITECTURE.md#decision-a-note-has-two-representations-on-purpose)).
-Every write carries the desktop's guards:
+Every write carries the desktop's guards, the third only in part:
 
 * work on the array that was READ — append to it, or replace one entry
   inside it — and never rebuild the file from the partial Kotlin model;
-* refuse to overwrite a file that exists but would not parse;
-* mend unpaired surrogates;
+* copy a file that exists but would not parse aside before anything writes
+  over it, and write nothing over it at all when even the copy fails
+  (`Files.holdWrites`, the desktop's `hold_writes`);
+* mend unpaired surrogates: the desktop mends every one on every write
+  (to U+FFFD); the phone mends those in the editor's fields, and writes
+  any other back as `?`, as said above (no road the apps write leads to
+  one);
 * write to a sibling `.tmp`, `sync()` it, then rename over the real file;
 * return the reason on failure instead of looking like it saved.
 
@@ -803,7 +1103,12 @@ rescue copy.
 **The Trash empties itself when the app starts**, of every note older
 than `trash_retention_days` (1 to 365; 30 when never chosen — a value
 that is anything else, or a window lost with an unreadable file, purges
-nothing, [above](#settings-the-two-apps-share)). A note whose `deleted_at` cannot be read
+nothing, [above](#settings-the-two-apps-share)). A backup imported into a
+notebook that never chose a window brings its own with its Trash, when it
+is a whole number from 31 to 365 and the backup holds Trash entries; a
+window chosen here is kept, and a shorter one is never taken — the
+phone's own Trash was promised the default
+([the story](ISSUES_LOG.md#a-trash-restored-without-its-window)). A note whose `deleted_at` cannot be read
 is never removed: better kept too long than gone too soon. Until
 2026-10-15 the phone never purged, because it read a folder it shared
 with the desktop and the desktop owned the purge; with a notebook of its
@@ -811,15 +1116,17 @@ own, the reason went and so did the rule.
 
 When a note leaves the Trash for good, its attached files go with it —
 **except any file a note still uses**, living or still in the Trash, and
-any stored name that tries to point outside the attachments folder. The
+any stored name that tries to point outside the attachments folder — and
+none at all in a run that could not read the notes or the Trash. The
 desktop's automatic purge spares them too, since its 0.95.391
 ([the finding](ISSUES_LOG.md#the-desktops-automatic-trash-purge-can-delete-a-file-a-living-note-uses)).
 
 A rollback must never edit the shared array in place: `JSONArray.remove`
 shifts everything left, so putting a note back at its old index
 overwrites whatever slid into that slot — a rollback that deletes a
-different note. Every write here builds a candidate array, writes it, and
-only then changes the shared one.
+different note. Every write here that replaces or removes builds a candidate
+array, writes it, and only then changes the shared one; an append is undone by
+removing the last entry, which moves nothing.
 
 **A mutant that proves nothing looks exactly like one that passed.** The
 first attempt at the ordering mutant moved the notebook write earlier but

@@ -64,6 +64,37 @@ class PastingTest {
     }
 
     @Test
+    fun `a pasted table is weighed with its padding, and never lands past the paste ceiling`() {
+        // One 60,000-character cell over 2,000 rows: padded after the ceiling,
+        // every row came to 60,000 characters -- 120 million, out of memory.
+        val hostile = "<table><tr><td>" + "x".repeat(60_000) + "</td><td>b</td></tr>" +
+            "<tr><td>a</td><td>b</td></tr>".repeat(2_000) + "</table>"
+        val p = Pasting.htmlToNote(hostile)
+        assertTrue("${p.text.length} characters", p.text.codePointCount(0, p.text.length) <= Pasting.MAX_PASTE_CHARS)
+        // Left ragged, each cell as its alignment needs; the grid reads the same cells.
+        val lines = p.text.split("\n")
+        assertEquals("| a | b |", lines[1])
+        assertEquals("x".repeat(60_000), parseTable(lines).rows[0][0]!!.lines[0])
+        // A spreadsheet's 1,000 rows with one long comment: 3 million characters once.
+        val sheet = "<table>" + (0 until 1_000).joinToString("") { r ->
+            "<tr><td>row $r</td><td>${if (r == 7) "note ".repeat(600) else "ok"}</td><td>$r</td></tr>"
+        } + "</table>"
+        val s = Pasting.htmlToNote(sheet)
+        assertTrue("${s.text.length} characters", s.text.length < 40_000)
+        assertTrue(!s.textCut)
+        // Left ragged, a row of centred cells still gains the spaces each
+        // needs: what lands is held to the ceiling, whole lines, and said.
+        val centred = "<table>" + "<tr><td style=\"text-align:center\">a</td><td style=\"text-align:center\">b</td></tr>".repeat(20_000) + "</table>"
+        val c = Pasting.htmlToNote(centred)
+        assertTrue("${c.text.length} characters", c.text.codePointCount(0, c.text.length) <= Pasting.MAX_PASTE_CHARS)
+        assertTrue(c.textCut)
+        assertTrue(c.text.split("\n").all { it.endsWith("|") })
+        // A table whose padding fits is lined up, as before.
+        assertEquals(listOf("| a        | bbbbbbbbbbb |", "| cccccccc | d           |"),
+            Pasting.htmlToNote("<table><tr><td>a</td><td>bbbbbbbbbbb</td></tr><tr><td>cccccccc</td><td>d</td></tr></table>").text.split("\n"))
+    }
+
+    @Test
     fun `bold, italic and a real colour come in - a page's grey and its dark background do not`() {
         val p = Pasting.htmlToNote("""<b>Bold</b> <i>it</i> <span style="color:#d32f2f">red</span>""" +
             """ <span style="color:#777777">grey</span> <span style="background:#222244">dark</span>""")
@@ -249,7 +280,10 @@ class PastingTest {
         val props = mapOf(0 to Paragraphs.Props(align = "center"), 1 to Paragraphs.Props(indent = 2))
         val done = Pasting.insert("top\nnext", emptyList(), props, 1, 1, "a\nb\nc")
         assertEquals("ta\nb\ncop\nnext", done.body)
-        assertEquals(mapOf(0 to Paragraphs.Props(align = "center"), 3 to Paragraphs.Props(indent = 2)), done.props)
+        // ...and so do the caret's line's words the paste pushed down, as the
+        // desktop's text carries its tags with them.
+        assertEquals(mapOf(0 to Paragraphs.Props(align = "center"), 2 to Paragraphs.Props(align = "center"),
+                           3 to Paragraphs.Props(indent = 2)), done.props)
     }
 
     @Test
@@ -279,6 +313,140 @@ class PastingTest {
         val copy = Pasting.copyOut("indented line", emptyList(), props, 0, 8)!!
         assertEquals(listOf(Exporting.Paragraph(0, null, 2, null)), copy.paragraphs)
         assertEquals(emptyList<Exporting.Paragraph>(), Pasting.fromHtml(copy.html, copy)!!.paragraphs)
+    }
+
+    /** The app's own copy of [from, to) of [body], pasted at [at] of [into]. */
+    private fun movedBy(body: String, props: Map<Int, Paragraphs.Props>, from: Int, to: Int,
+                        into: String, intoProps: Map<Int, Paragraphs.Props>, at: Int): Pasting.Inserted {
+        val copy = Pasting.copyOut(body, emptyList(), props, from, to)!!
+        val read = Pasting.fromHtml(copy.html, copy)!!
+        return Pasting.insert(into, emptyList(), intoProps, at, at, read.text, read.formatting, read.paragraphs)
+    }
+
+    @Test
+    fun `a whole line cut and pasted before another carries no looks of the line after it, and the other keeps its own`() {
+        // Counted in, the line after a copy ending in a break went with it: a
+        // line moved from above a centred one centred the line it was pasted
+        // before.
+        val week = "Call the bank\nTuesday\nDentist at 10\nBuy stamps"
+        val centred = mapOf(1 to Paragraphs.Props(align = "center"))
+        assertEquals(emptyList<Exporting.Paragraph>(), Pasting.copyOut(week, emptyList(), centred, 0, 14)!!.paragraphs)
+        val cut = "Tuesday\nDentist at 10\nBuy stamps"
+        val moved = movedBy(week, centred, 0, 14, cut, mapOf(0 to Paragraphs.Props(align = "center")), cut.indexOf("Dentist"))
+        assertEquals("Tuesday\nCall the bank\nDentist at 10\nBuy stamps", moved.body)
+        assertEquals(mapOf(0 to Paragraphs.Props(align = "center")), moved.props)
+        // Pasted straight back, before the centred line: that line's words go
+        // down with their centring, the line pasted takes none of it.
+        val back0 = movedBy(week, centred, 0, 14, cut, mapOf(0 to Paragraphs.Props(align = "center")), 0)
+        assertEquals(week, back0.body)
+        assertEquals(centred, back0.props)
+        // ...and a nested item put before another keeps both on their level:
+        // the line pasted before keeps its own depth, which stayed on the line
+        // the paste began while the words went down.
+        val agenda = "Agenda\n1. Plan the trip\n1. Book hotel\n2. Pack\n2. Go"
+        val nested = mapOf(2 to Paragraphs.Props(indent = 1), 3 to Paragraphs.Props(indent = 1))
+        val without = "Agenda\n1. Plan the trip\n1. Book hotel\n2. Go"
+        val pack = agenda.indexOf("2. Pack")
+        val back = movedBy(agenda, nested, pack, pack + "2. Pack\n".length,
+                           without, mapOf(2 to Paragraphs.Props(indent = 1)), without.indexOf("1. Book hotel"))
+        assertEquals("Agenda\n1. Plan the trip\n1. Pack\n2. Book hotel\n2. Go", back.body)
+        assertEquals(nested, back.props)
+    }
+
+    @Test
+    fun `a copy begun at a line's end carries none of that line's looks, an empty line copied whole keeps its own`() {
+        // The other end of the test below: copied from a centred title's end, the
+        // next line centred the line it was pasted into.
+        val body = "Title\nMonday: gym"
+        val centred = mapOf(0 to Paragraphs.Props(align = "center"))
+        val copy = Pasting.copyOut(body, emptyList(), centred, 5, body.length)!!
+        assertEquals(emptyList<Exporting.Paragraph>(), copy.paragraphs)
+        val read = Pasting.fromHtml(copy.html, copy)!!
+        val done = Pasting.insert("Tuesday", emptyList(), emptyMap(), 7, 7, read.text, read.formatting, read.paragraphs)
+        assertEquals("Tuesday\nMonday: gym", done.body)
+        assertEquals(emptyMap<Int, Paragraphs.Props>(), done.props)
+        assertEquals(listOf(Exporting.Paragraph(0, null, 0, "center")),
+                     Pasting.copyOut("x\n\ny", emptyList(), mapOf(1 to Paragraphs.Props(align = "center")), 2, 4)!!.paragraphs)
+    }
+
+    @Test
+    fun `a copy begun after a line's start carries none of its looks - a word from a nested item nests nothing`() {
+        // A line's looks travel with its start: the word set the level of the
+        // item it was pasted into, and the list renumbered.
+        val body = "1. Fruit\n1. Apple pie"
+        val props = mapOf(1 to Paragraphs.Props(indent = 1))
+        val from = body.indexOf("Apple")
+        assertEquals(emptyList<Exporting.Paragraph>(), Pasting.copyOut(body, emptyList(), props, from, from + 5)!!.paragraphs)
+        val moved = movedBy(body, props, from, from + 5, "1. Veg", emptyMap(), "1. Veg".length)
+        assertEquals("1. VegApple", moved.body)
+        assertEquals(emptyMap<Int, Paragraphs.Props>(), moved.props)
+    }
+
+    @Test
+    fun `a whole item pasted over another takes its place whole, its marker and its break`() {
+        // Kept as a letter typed over the selection keeps them, the paste read
+        // "2. 3. Bread".
+        val list = "Shopping\n1. Milk\n2. Eggs\n3. Bread\nCall mum"
+        val eggs = list.indexOf("2. Eggs")
+        val bread = list.indexOf("3. Bread")
+        for (pasted in listOf("3. Bread\n", "3. Bread")) {
+            val done = Pasting.insert(list, emptyList(), emptyMap(), eggs, bread, pasted)
+            assertEquals(pasted, "Shopping\n1. Milk\n2. Bread\n3. Bread\nCall mum", done.body)
+        }
+        // A letter typed over the same selection still keeps the item's marker.
+        assertEquals(Paragraphs.Pos(2, 3) to Paragraphs.Pos(2, 7),
+                     Paragraphs.deletionRange(list.split("\n"), Paragraphs.Pos(2, 0), Paragraphs.Pos(3, 0), typing = true))
+        // ...over the last item, one item's words, the note's end: begun at the
+        // item's marker, the paste's own marker takes its place.
+        val last = "Shopping\n1. Milk\n2. Bread\n3. Jam\nCall mum"
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Milk\nCall mum",
+                     Pasting.insert(last, emptyList(), emptyMap(), last.indexOf("Jam"), last.indexOf("Call mum"), "1. Milk\n").body)
+        val words = last.indexOf("Bread")
+        assertEquals("Shopping\n1. Milk\n2. Milk\n3. Jam\nCall mum",
+                     Pasting.insert(last, emptyList(), emptyMap(), words, words + 5, "1. Milk").body)
+        val end = "Shopping\n1. Milk\n2. Bread\n3. Jam"
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Milk",
+                     Pasting.insert(end, emptyList(), emptyMap(), end.indexOf("Jam"), end.length, "1. Milk").body)
+        // A letter typed over an item's words keeps its marker.
+        assertEquals(null, Paragraphs.deletionRange(last.split("\n"), Paragraphs.Pos(2, 3), Paragraphs.Pos(2, 8), typing = true))
+    }
+
+    @Test
+    fun `a paste bringing its own marker at an item's marker end, nothing selected, takes its place or goes before`() {
+        // Where Enter in a list leaves the cursor: copied items pasted into the
+        // new empty one read "3. 1. Kiwi".
+        val list = "Shopping\n1. Milk\n2. Bread\n3. "
+        assertEquals("Shopping\n1. Milk\n2. Bread\n3. Kiwi\n4. Plum",
+                     Pasting.insert(list, emptyList(), emptyMap(), list.length, list.length, "1. Kiwi\n2. Plum").body)
+        // ...a nested empty item keeps its level.
+        val nested = "Plan\n1. Fruit\n1. "
+        val done = Pasting.insert(nested, emptyList(), mapOf(2 to Paragraphs.Props(indent = 1)),
+                                  nested.length, nested.length, "1. Kiwi")
+        assertEquals("Plan\n1. Fruit\n1. Kiwi", done.body)
+        assertEquals(Paragraphs.Props(indent = 1), done.props[2])
+        // A tap on an item's marker, then a whole item with its break: it goes in before.
+        val jam = "Shopping\n1. Milk\n2. Jam\n3. Tea"
+        val at = jam.indexOf("Jam")
+        assertEquals("Shopping\n1. Milk\n2. Kiwi\n3. Jam\n4. Tea",
+                     Pasting.insert(jam, emptyList(), emptyMap(), at, at, "1. Kiwi\n").body)
+        // Words with no marker still go in after the item's.
+        assertEquals("Shopping\n1. Milk\n2. KiwiJam\n3. Tea", Pasting.insert(jam, emptyList(), emptyMap(), at, at, "Kiwi").body)
+        // The item keeps its kind and its level whatever the paste brings, as
+        // the desktop keeps the line's tags: another kind, our own copy at
+        // another level, several lines with words after.
+        val nestedProps = mapOf(2 to Paragraphs.Props(indent = 1))
+        val bullet = Pasting.insert(nested, emptyList(), nestedProps, nested.length, nested.length, "• Kiwi")
+        assertEquals("Plan\n1. Fruit\n1. Kiwi", bullet.body)
+        assertEquals(Paragraphs.Props(indent = 1), bullet.props[2])
+        val ownTop = Pasting.insert(nested, emptyList(), nestedProps, nested.length, nested.length, "3. three",
+                                    pastedLines = listOf(Exporting.Paragraph(0, "number", 0, null)))
+        assertEquals("Plan\n1. Fruit\n1. three", ownTop.body)
+        assertEquals(Paragraphs.Props(indent = 1), ownTop.props[2])
+        val fruit = "1. Fruit\n1. Apple\n2. Pear\n2. Veg"
+        val sub = mapOf(1 to Paragraphs.Props(indent = 1), 2 to Paragraphs.Props(indent = 1))
+        val two = Pasting.insert(fruit, emptyList(), sub, 12, 12, "1. Kiwi\n2. Plum")
+        assertEquals("1. Fruit\n1. Kiwi\n2. PlumApple\n3. Pear\n2. Veg", two.body)
+        assertEquals((1..3).associateWith { Paragraphs.Props(indent = 1) }, two.props)
     }
 
     @Test
@@ -372,6 +540,21 @@ class PastingTest {
     }
 
     @Test
+    fun `a pasted table narrower than its separator is laid out as the desktop lays it out`() {
+        // The desktop's html_to_note, asked on 2026-11-12: a column narrower
+        // than its separator's marker, aligned, and a table pasted as text.
+        val desktop = mapOf(
+            "<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>" to
+                "| a        | b        |\n| 1        | 2        |",
+            "<table><tr><th align=right>a</th><th>bb</th></tr><tr><td align=right>1</td><td>2</td></tr></table>" to
+                "| a        | bb       |\n| 1        | 2        |",
+            "<p>| a | b |<br>|:-:|---:|<br>| 1 | 2 |</p>" to
+                "| a        | b        |\n| :-:      | --:      |\n| 1        | 2        |",
+        )
+        for ((html, said) in desktop) assertEquals(html, said, Pasting.htmlToNote(html).text)
+    }
+
+    @Test
     fun `every fragment in the fixture is read as the desktop read it`() {
         val cases = fixture().getJSONArray("cases")
         assertTrue("the fixture is too small to mean anything", cases.length() > 500)
@@ -404,15 +587,16 @@ class PastingTest {
     }
 
     @Test
-    fun `the phone parts from the desktop only where a second table's styles land beside their words`() {
+    fun `a page of two tables or more answers as the desktop's, every style on its words`() {
         val cases = fixture().getJSONArray("cases")
-        val parted = (0 until cases.length()).map { cases.getJSONObject(it) }.filter { it.has("desktop_formatting") }
-        assertTrue("the fault is in the fixture, so the difference is checked", parted.size >= 2)
-        for (case in parted) {
-            val lines = case.getString("text").split("\n")
-            val blocks = lines.indices.count { i -> Pasting.isRow(lines[i]) && (i == 0 || !Pasting.isRow(lines[i - 1])) }
-            assertTrue("a difference without two tables: ${case.getString("html").take(120)}", blocks >= 2)
+        val all = (0 until cases.length()).map { cases.getJSONObject(it) }
+        val several = all.filter { case ->
+            val lines = case.optString("text").split("\n")
+            lines.indices.count { i -> Pasting.isRow(lines[i]) && (i == 0 || !Pasting.isRow(lines[i - 1])) } >= 2
         }
+        assertTrue("pages of two tables or more, so the agreement is checked", several.size >= 2)
+        // The desktop parted here until its cb12941; the fixture keeps no answer of its own now.
+        assertTrue("no case parts from the desktop", all.none { it.has("desktop_formatting") })
     }
 
     @Test

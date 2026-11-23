@@ -39,17 +39,22 @@ object Normalize {
     private val MAP_FIELDS = listOf("overrides", "moved")
 
     /**
-     * A note as `normalize_note` would hand it back, for the parts that
-     * matter to a file another program will read: types, the attachment
-     * names, the checklist and attachment ceilings, the repeat rule. Its
-     * `id` is the caller's to give; its `uid` is kept, or minted when it
-     * has none -- as the desktop mints one at its own door.
+     * A note as `normalize_note` would hand it back, for what a file another
+     * program reads needs: types, attachment names, the ceilings, the repeat
+     * rule. Its `id` is the caller's to give; its `uid` is kept, or minted as
+     * the desktop mints one at its own door. [daysBack] false leaves a
+     * turned-off series' days in the copy, for a caller that asks the move
+     * itself ([Notebook.daysBackAsRead]).
      */
-    fun normalizeNote(raw: JSONObject): JSONObject {
+    fun normalizeNote(raw: JSONObject, daysBack: Boolean = true): JSONObject {
         val out = JSONObject()
         val id = raw.opt("id")
-        out.put("id", if (id is Number && id !is Double && id !is Float) id.toInt() else 0)
-        val uid = (raw.opt("uid") as? String)?.trim().orEmpty()
+        // A whole number an Int holds, as it is; past one, no id, never one
+        // cut down onto another note's (4,294,967,301 read as 5).
+        // The load gives it a new number ([Organizing.repairIds]).
+        val whole = if (id is Int || id is Long || id is Short || id is Byte) (id as Number).toLong() else null
+        out.put("id", if (whole != null && whole in Int.MIN_VALUE..Int.MAX_VALUE) whole.toInt() else 0)
+        val uid = PyText.strip(raw.opt("uid") as? String ?: "")
         out.put("uid", uid.ifEmpty { java.util.UUID.randomUUID().toString() })
         for (field in TEXT_FIELDS) out.put(field, raw.opt(field) as? String ?: "")
         out.put("category", (raw.opt("category") as? String)?.ifEmpty { null } ?: "General")
@@ -75,26 +80,138 @@ object Normalize {
             Recurrence.parseDate(out.getString("date")) == null) {
             out.put("recurrence", normalizeRecurrence(null))
         }
-        // The text's own shape, as normalize_note leaves it: the line under
-        // a table that closes the body (with_caret_line), the styles the
-        // desktop keeps (normalize_formatting: known styles, sound offsets,
-        // bold with italic folded, the ceiling), the line entries bounded by
-        // the body's lines (normalize_paragraphs). Left as they came, an
-        // imported note was in a form no load of either app gives it.
+        // The text's own shape, as normalize_note leaves it -- the line under a
+        // closing table, the styles the desktop keeps, line entries within the
+        // body -- or an imported note was in a form no load of either app gives.
         val body = withCaretLine(out.getString("body"))
         out.put("body", body)
         out.put("formatting", Notebook.spansToJson(clampSpansPerLine(body, Exporting.normalizeFormatting(raw.opt("formatting")))))
         out.put("paragraphs", Templates.paragraphsJson(
             Exporting.normalizeParagraphs(raw.opt("paragraphs"), body.split("\n").size)))
         out.put("exceptions", cleanExceptions(out.getJSONArray("exceptions")))
-        out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions")))
+        out.put("moved", cleanMoves(out.getJSONObject("moved"), out.getJSONArray("exceptions"), out))
         out.put("overrides", cleanOverrides(out.getJSONObject("overrides")))
+        dropHiddenMoves(out)
         out.put("checklist", cleanChecklist(out.getJSONArray("checklist")))
         out.put("attachments", cleanAttachments(out.getJSONArray("attachments")))
-        // The rescue copy is carried through, as the desktop carries it:
-        // dropped here, "Restore previous" would promise what the file no
-        // longer holds.
-        (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", JSONObject(it.toString())) }
+        // The rescue copy carried through, or "Restore previous" would promise
+        // what the file no longer holds -- shaped as the desktop shapes it, not
+        // copied whole, as a restore puts it straight back into the note.
+        (raw.opt("_prev") as? JSONObject)?.let { out.put("_prev", shapePrevious(it)) }
+        // A copy's days set aside, kept until the notebook makes them notes
+        // of their own ([Notebook.settleAside]), as the desktop keeps them.
+        Notebook.shapedAside(raw.opt("_set_aside"))?.let { out.put("_set_aside", it) }
+        // What a newer version (or another program) wrote, kept: [KNOWN_NOTE_FIELDS].
+        val unknown = unknownFields(raw)
+        for (name in unknown.keys()) out.put(name, unknown.opt(name))
+        // A turned-off series' days kept only in its copy come into the
+        // note, as the desktop's normalize_note brings them.
+        if (daysBack) Notebook.daysBackFromCopy(out)
+        return out
+    }
+
+    /**
+     * Any other field a note holds is kept as it came, so an older app never
+     * drops what a newer one added: the desktop's `unknown_fields`, rule for
+     * rule, bounds and order of names alike (the owner's decision D2,
+     * 2026-11-13; DATA_FORMAT, "Fields a version does not know").
+     */
+    val KNOWN_NOTE_FIELDS = setOf(
+        "uid", "title", "body", "formatting", "comments", "category", "date", "color",
+        "attachments", "updated", "created", "recurrence", "exceptions", "overrides", "moved",
+        "pinned", "checklist", "paragraphs",
+        "id", "order", "_prev", "_set_aside", "tags", "deleted_at",
+    )
+    const val MAX_UNKNOWN_FIELDS = 32
+    const val MAX_UNKNOWN_UNITS = 65536
+    const val MAX_UNKNOWN_DEPTH = 20
+
+    /** What [value] costs against [MAX_UNKNOWN_UNITS], or null: not JSON, too deep, or past it all. */
+    private fun jsonUnits(value: Any?): Int? {
+        var total = 0
+        val stack = ArrayDeque<Pair<Any?, Int>>()
+        stack.addLast(value to 1)
+        while (stack.isNotEmpty()) {
+            val (item, level) = stack.removeLast()
+            // Longer than the allowance by its count alone: not walked (the desktop's too).
+            val count = when (item) { is String -> item.length; is JSONArray -> item.length(); is JSONObject -> item.length(); else -> 0 }
+            if (count > MAX_UNKNOWN_UNITS) return null
+            when (item) {
+                is String -> total += item.length
+                null, JSONObject.NULL, is Boolean -> total += 1
+                is Double -> if (item.isFinite()) total += 1 else return null
+                is Float -> if (item.isFinite()) total += 1 else return null
+                is Number -> total += 1
+                is JSONObject -> {
+                    if (level > MAX_UNKNOWN_DEPTH) return null
+                    total += 1
+                    for (key in item.keys()) {
+                        total += key.length
+                        stack.addLast(item.opt(key) to level + 1)
+                    }
+                }
+                is JSONArray -> {
+                    if (level > MAX_UNKNOWN_DEPTH) return null
+                    total += 1
+                    for (i in 0 until item.length()) stack.addLast(item.opt(i) to level + 1)
+                }
+                else -> return null
+            }
+            if (total > MAX_UNKNOWN_UNITS) return null
+        }
+        return total
+    }
+
+    /**
+     * The fields of [note] this version does not know, as [normalizeNote] keeps them: copies.
+     * [known] is the names a version knows: a note's, or a template's for [Templates.normalize]
+     * (the owner's decision of 14 November), bounded alike.
+     */
+    fun unknownFields(note: JSONObject, known: Set<String> = KNOWN_NOTE_FIELDS): JSONObject {
+        val out = JSONObject()
+        var units = 0
+        var kept = 0
+        val names = note.keys().asSequence().filter { it !in known && !it.startsWith("_") }.sorted()
+        for (name in names) {
+            if (kept >= MAX_UNKNOWN_FIELDS) break
+            val size = (jsonUnits(note.opt(name)) ?: continue) + name.length
+            if (units + size > MAX_UNKNOWN_UNITS) continue
+            out.put(name, when (val value = note.opt(name)) {
+                is JSONObject -> JSONObject(value.toString())
+                is JSONArray -> JSONArray(value.toString())
+                else -> value
+            })
+            units += size
+            kept++
+        }
+        return out
+    }
+
+    /**
+     * A rescue copy as `normalize_note` shapes `_prev`: its words as text,
+     * its styles held to the line ceilings, its line entries sound, and of
+     * anything else only what an update from a backup replaces, each by the
+     * note's own rules. An absent key stays absent: that tells an update's
+     * copy from a shrink's (ISSUES_LOG, "A rescue copy let in whole").
+     */
+    fun shapePrevious(prev: JSONObject): JSONObject {
+        val body = prev.opt("body") as? String ?: ""
+        val out = JSONObject()
+        out.put("title", prev.opt("title") as? String ?: "")
+        out.put("body", body)
+        out.put("comments", prev.opt("comments") as? String ?: "")
+        out.put("formatting", Notebook.spansToJson(clampSpansPerLine(body, Exporting.normalizeFormatting(prev.opt("formatting")))))
+        out.put("paragraphs", Templates.paragraphsJson(Exporting.normalizeParagraphs(prev.opt("paragraphs"), null)))
+        val extra = JSONObject()
+        for (key in Notebook.UPDATABLE_FROM_BACKUP) {
+            if (key !in Notebook.PREV_TEXT_FIELDS && prev.has(key)) extra.put(key, prev.opt(key))
+        }
+        if (extra.length() > 0) {
+            val shaped = normalizeNote(extra)
+            for (key in extra.keys()) out.put(key, shaped.opt(key))
+        }
+        // The fields this version did not know, as a backup's Update found them.
+        (prev.opt("_unknown") as? JSONObject)?.let { out.put("_unknown", unknownFields(it)) }
         return out
     }
 
@@ -145,6 +262,16 @@ object Normalize {
         return if (last.last == body.split("\n").size - 1) body + "\n" else body
     }
 
+    /**
+     * Whether two of a note's texts say the same, the line under a closing
+     * table counted on both sides or neither: a day's text is stored with it
+     * ([cleanOverride]), the series' as typed on this phone, and a day that
+     * said what its series said read as text of its own -- cut off from the
+     * series, its colour alone taken for words.
+     */
+    fun sameBody(a: Any?, b: Any?): Boolean =
+        if (a is String && b is String) withCaretLine(a) == withCaretLine(b) else a == b
+
     /** The deleted days of a series: real dates only, each once, in order. */
     private fun cleanExceptions(days: JSONArray): JSONArray {
         val kept = sortedSetOf<String>()
@@ -160,12 +287,20 @@ object Normalize {
      * days on one date, and no move of a deleted day. Capped as a rule's
      * days are: each is worked out on every calendar draw.
      */
-    private fun cleanMoves(moved: JSONObject, exceptions: JSONArray): JSONObject {
-        val deleted = (0 until exceptions.length()).map { exceptions.getString(it) }.toSet()
+    internal fun cleanMoves(moved: JSONObject, exceptions: JSONArray, note: JSONObject): JSONObject {
+        val deleted = (0 until exceptions.length()).mapNotNull { exceptions.opt(it) as? String }.toSet()
         val out = JSONObject()
         val heldOn = HashSet<String>()
-        val pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
-            .sortedWith(compareBy({ it.first }, { it.second }))
+        var pairs = moved.keys().asSequence().mapNotNull { orig -> (moved.opt(orig) as? String)?.let { orig to it } }
+            .sortedWith(compareBy({ it.first }, { it.second })).toList()
+        // Of two moves onto one date, the one the calendar draws -- its own date
+        // the rule's -- is kept, as the desktop's normalize_note keeps it: by date
+        // alone the read kept a dead one, and a meeting jumped back at an upgrade.
+        val twins = pairs.groupingBy { it.second }.eachCount().filter { it.value > 1 }.keys
+        if (twins.isNotEmpty() && Recurrence.isRecurring(note)) {
+            val live = Recurrence.ruleDaysAmong(note, pairs.filter { it.second in twins }.map { it.first })
+            pairs = pairs.sortedWith(compareBy({ !(it.second in twins && it.first in live) }, { it.first }, { it.second }))
+        }
         for ((orig, new) in pairs) {
             if (Recurrence.parseDate(orig) != null && Recurrence.parseDate(new) != null && orig != new &&
                 new !in heldOn && orig !in deleted) {
@@ -175,6 +310,60 @@ object Normalize {
             }
         }
         return out
+    }
+
+    /**
+     * Each move of [note] onto a date its rule now gives -- drawn nowhere,
+     * taken by a delete there -- dropped, its words staying where they showed
+     * (ISSUES_LOG, "Words that never move on their own"). Not off a date whose
+     * own day stays deleted or moved away; each chain walked once. The
+     * desktop's `drop_hidden_moves`, at every read ([Notebook.settleAsRead])
+     * and in every save, update and restore.
+     */
+    internal fun dropHiddenMoves(note: JSONObject) {
+        val moved = note.opt("moved") as? JSONObject ?: return
+        if (moved.length() == 0 || !Recurrence.isRecurring(note)) return
+        val deleted = (note.opt("exceptions") as? JSONArray)
+            ?.let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String } }.orEmpty().toSet()
+        val links = LinkedHashMap<String, String>()
+        for (orig in moved.keys().asSequence().toList().sorted()) (moved.opt(orig) as? String)?.let { links[orig] = it }
+        val gives = Recurrence.ruleDaysAmong(note, links.values)
+        val goes = linksLeaving(links, { moved.has(it) }) { new -> new in gives && new !in deleted }
+        for (orig in links.keys) if (goes[orig] == true) moved.remove(orig)
+    }
+
+    /**
+     * Which of [links] -- a day to the date it was moved onto -- leave that
+     * date: [free] says the date is the rule's own and not deleted, and the
+     * day whose date it is must leave it too, when it was moved ([origin]).
+     * Each chain walked once, [free] asked once a link: a pass a link took
+     * the square of a chain's length.
+     */
+    internal fun linksLeaving(links: Map<String, String>, origin: (String) -> Boolean,
+                              free: (String) -> Boolean): Map<String, Boolean> {
+        val goes = HashMap<String, Boolean>()
+        for (start in links.keys) {
+            val path = ArrayList<String>()
+            val onPath = HashSet<String>()
+            var at = start
+            while (at in links && at !in goes && at !in onPath) {
+                path.add(at)
+                onPath.add(at)
+                at = links.getValue(at)
+            }
+            // The chain's end, a day already settled, or a loop -- none of
+            // whose days is ever free to come back to.
+            var after = when {
+                at in onPath -> false
+                at in goes -> goes.getValue(at)
+                else -> !origin(at)
+            }
+            for (orig in path.asReversed()) {
+                after = after && free(links.getValue(orig))
+                goes[orig] = after
+            }
+        }
+        return goes
     }
 
     /** Each day's own edit, under a real date, in the shape a load gives it. */
@@ -191,8 +380,9 @@ object Normalize {
     /**
      * The desktop's `clean_override`: only the fields a day may replace, as
      * text, a colour that cannot be drawn dropped -- not the whole edit. A
-     * category this device lacks is the importer's to file under General,
-     * as it files the note's own.
+     * category this device lacks is the importer's to file under General. A
+     * day's text ending in a table gains the line under it ([withCaretLine]),
+     * as the desktop's does, or an import read the day as changed.
      */
     fun cleanOverride(patch: JSONObject): JSONObject {
         val out = JSONObject()
@@ -202,9 +392,13 @@ object Normalize {
                 val colour = Notebook.sanitizeColor(value)
                 if (colour.isNotEmpty()) out.put(key, colour)
             } else {
-                out.put(key, value)
+                out.put(key, if (key == "body") withCaretLine(value) else value)
             }
         }
+        // ...and the day's own list lines, kept even empty: a day saved since
+        // keeps its lists' structure, one saved before takes the series' by
+        // line (the desktop's clean_override; the owner's choice).
+        (patch.opt("paragraphs") as? JSONArray)?.let { out.put("paragraphs", Paragraphs.listLines(it, out.opt("body") as? String)) }
         return out
     }
 
@@ -235,10 +429,63 @@ object Normalize {
             if (stored.isEmpty() && display.isEmpty()) continue
             if (stored.isEmpty()) stored = bareFileName(display)
             if (stored.isEmpty()) continue
-            out.put(JSONObject().put("filename", display).put("stored_as", stored))
+            // The label agrees with the file that opens, and hides nothing.
+            out.put(JSONObject().put("filename", attachmentDisplayName(display, stored)).put("stored_as", stored))
             if (out.length() >= MAX_ATTACHMENTS) break
         }
         return out
+    }
+
+    /**
+     * What changes how a name reads without being seen -- controls, bidi
+     * marks and overrides ("Invoice<U+202E>fdp.exe" shows as
+     * "Invoiceexe.pdf"), line separators, the BOM: the desktop's
+     * HIDDEN_IN_NAMES, out of every name shown and every name written.
+     */
+    internal val HIDDEN_IN_NAMES = Regex(
+        "[\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069\\u2028\\u2029\\ufeff]")
+
+    /** The last dot and what follows it, as typed; "" when there is none. */
+    private fun typeSuffix(name: String): String {
+        val trimmed = name.trimEnd('.', ' ')
+        val dot = trimmed.lastIndexOf('.')
+        return if (dot >= 0) trimmed.substring(dot) else ""
+    }
+
+    /**
+     * The kind of file [name] is as Windows opens it -- what follows the
+     * last dot, lower-case, once trailing dots and spaces are gone -- or "":
+     * the desktop's `file_type_of`. ".rdp" is an .rdp file.
+     */
+    fun fileTypeOf(name: String): String =
+        typeSuffix(name.replace('\\', '/').substringAfterLast('/')).lowercase(java.util.Locale.ROOT)
+
+    /**
+     * The name a person is shown for an attachment: [filename], a label a
+     * backup can write over any file, cleaned of [HIDDEN_IN_NAMES] and made
+     * to end in the type of [storedAs], the file that opens -- "Holiday
+     * photo.jpg" over an .html shows "Holiday photo.html". The app's own
+     * records already agree and show as they were. The desktop's
+     * `attachment_display_name` (a7495d5).
+     */
+    fun attachmentDisplayName(filename: String?, storedAs: String?): String {
+        val stored = storedAs.orEmpty()
+        val storedName = HIDDEN_IN_NAMES.replace(stored.replace('\\', '/').substringAfterLast('/'), "")
+        var name = HIDDEN_IN_NAMES.replace(filename.orEmpty(), "")
+        if (name.trim('.', ' ').isEmpty()) name = storedName
+        if (stored.isEmpty()) return name
+        // Cleaned too: a type that held a hidden character is no type.
+        val real = HIDDEN_IN_NAMES.replace(fileTypeOf(stored), "")
+        if (fileTypeOf(name) == real) return name
+        var stem = name.trimEnd('.', ' ')
+        if (real.isNotEmpty()) {
+            stem = stem.substring(0, stem.length - typeSuffix(stem).length)
+        } else {
+            // A file with no type shows none: "photo.tar.jpg" over one that
+            // has none would still read as a .tar.
+            while (typeSuffix(stem).isNotEmpty()) stem = stem.substring(0, stem.length - typeSuffix(stem).length).trimEnd('.', ' ')
+        }
+        return (stem + real).ifEmpty { storedName }
     }
 
     /**
@@ -257,11 +504,13 @@ object Normalize {
     /** Any JSON value as text that compares by meaning, keys in order. */
     private fun stable(value: Any?): String = when (value) {
         is JSONObject -> value.keys().asSequence().sorted()
-            .joinToString(",", "{", "}") { "\"$it\":" + stable(value.opt(it)) }
+            .joinToString(",", "{", "}") { JSONObject.quote(it) + ":" + stable(value.opt(it)) }
         is JSONArray -> (0 until value.length()).joinToString(",", "[", "]") { stable(value.opt(it)) }
         is String -> JSONObject.quote(value)
+        // Whole, by its digits: toLong() held every number past 2^63 as one
+        // (a device reads such an integer as a double), and signed two notes alike.
         is Number -> if (value.toDouble() == Math.floor(value.toDouble()) &&
-            !value.toDouble().isInfinite()) value.toLong().toString() else value.toString()
+            !value.toDouble().isInfinite()) java.math.BigDecimal(value.toString()).toBigInteger().toString() else value.toString()
         null, JSONObject.NULL -> "null"
         else -> value.toString()
     }
@@ -271,7 +520,7 @@ object Normalize {
         val out = ArrayList<String>()
         for (i in 0 until list.length()) {
             val item = list.opt(i) as? JSONObject ?: continue
-            out.add(stable(JSONArray().put((item.opt("text") as? String)?.trim() ?: "")
+            out.add(stable(JSONArray().put(PyText.strip(item.opt("text") as? String ?: ""))
                 .put(item.opt("done") == true)))
         }
         return out.joinToString(",", "[", "]")
@@ -295,8 +544,8 @@ object Normalize {
     }
 
     private fun stripCopySuffix(title: String): String {
-        var t = title.trim()
-        while (t.lowercase().endsWith("(copy)")) t = t.dropLast("(copy)".length).trimEnd()
+        var t = PyText.strip(title)
+        while (t.lowercase().endsWith("(copy)")) t = PyText.rstrip(t.dropLast("(copy)".length))
         return t
     }
 
@@ -310,9 +559,10 @@ object Normalize {
     /**
      * The desktop's `_dup_key`: when two notes look like the same note to
      * a person. Title, body and comments compared without case or extra
-     * whitespace, a trailing "(copy)" ignored; the category, the checklist
-     * and the repeat rule exactly. The date, the colour, the files and the
-     * pin are not part of it, on purpose.
+     * whitespace, a trailing "(copy)" ignored; the category, the checklist,
+     * the repeat rule and a series' own days exactly -- the clean-up merges
+     * none of them, so copies that differ there must never group. The
+     * date, the colour, the files and the pin are not part of it, on purpose.
      */
     fun dupKey(note: JSONObject): String = listOf(
         squeeze(stripCopySuffix(str(note, "title"))).lowercase(),
@@ -321,7 +571,19 @@ object Normalize {
         str(note, "category"),
         checklistSignature(note.opt("checklist")),
         recurrenceSignature(note.opt("recurrence")),
+        seriesDaysSignature(note),
+        // A field this version does not know: grouped by the rest, the
+        // cleanup dropped the other copy's field with it (the desktop's too).
+        stable(unknownFields(note)),
     ).joinToString("\u0001")
+
+    /** A series' deleted, edited and moved days, as the desktop's `_dup_key` signs them; none reads as empty. */
+    private fun seriesDaysSignature(note: JSONObject): String {
+        val exceptions = note.opt("exceptions") as? JSONArray
+        val deleted = (0 until (exceptions?.length() ?: 0)).map { exceptions!!.opt(it).toString() }.sorted()
+        return listOf(deleted.joinToString(","), stable(note.opt("overrides") as? JSONObject ?: JSONObject()),
+                      stable(note.opt("moved") as? JSONObject ?: JSONObject())).joinToString("\u0002")
+    }
 
     /**
      * The desktop's `content_signature`: THE identity of a note's content,
@@ -330,9 +592,11 @@ object Normalize {
      * entry that is already in this Trash.
      */
     fun contentSignature(note: JSONObject): String = listOf(
-        str(note, "title").trim(),
-        str(note, "body").trim(),
-        str(note, "comments").trim(),
+        // Python's strip(), as the desktop's signature: trim() kept U+0085,
+        // and a note ending in it read as changed between the two programs.
+        PyText.strip(str(note, "title")),
+        PyText.strip(str(note, "body")),
+        PyText.strip(str(note, "comments")),
         (note.opt("category") ?: "").toString(),
         (note.opt("date") ?: "").toString(),
         checklistSignature(note.opt("checklist")),
@@ -344,6 +608,7 @@ object Normalize {
         stable(note.opt("exceptions")),
         stable(note.opt("moved")),
         (note.opt("pinned") == true).toString(),
-        str(note, "color").trim(),
+        PyText.strip(str(note, "color")),
+        stable(unknownFields(note)),
     ).joinToString("\u0001")
 }

@@ -31,7 +31,7 @@ sys.dont_write_bytecode = True
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.dirname(HERE)
-DESKTOP = os.environ.get("NOTEORGANIZER_HOME", r"D:\Projects\NoteOrganizer")
+DESKTOP = os.environ.get("NOTEORGANIZER_HOME", os.path.join(os.path.dirname(ANDROID), "NoteOrganizer"))
 FIXTURE = os.path.join(ANDROID, "app", "src", "test", "resources", "paste_cases.json")
 SEED = 20261016
 RANDOM_CASES = 340
@@ -239,40 +239,21 @@ def long_cases():
     ]
 
 
-# The one place the phone does not answer as the desktop does. The
-# desktop's `tables.align` counts a second table's offsets in the text the
-# first table's padding has already changed, while `shift_spans` judges
-# every offset against the text as it came -- so a style inside a pasted
-# page's second table lands on the spaces beside its words. The phone
-# counts them in the text as it came (ISSUES_LOG, desktop findings). Its
-# answers are made here by that same two-line change to the desktop's own
-# function, run in this process only; the desktop's file is not touched.
-ALIGN_FAULT = "pos = sum(len(line) + 1 for line in lines[:first])"
-ALIGN_FIX = "pos = sum(len(line) + 1 for line in as_came[:first])"
-ALIGN_LINES = 'lines = (text or "").split("\\n")'
-
-
-def corrected_align():
-    """`tables.align` with offsets counted in the text as it came -- or a
-    string saying why the desktop's function no longer has the line."""
-    import inspect
-    import textwrap
-    from noteorganizer.core import tables
-    source = textwrap.dedent(inspect.getsource(tables.align))
-    if source.count(ALIGN_FAULT) != 1 or source.count(ALIGN_LINES) != 1:
-        return ("the desktop's tables.align has changed: re-read it, bring "
-                "Pasting.align into line, then update ALIGN_* in this script")
-    source = source.replace(ALIGN_FAULT, ALIGN_FIX)
-    source = source.replace(ALIGN_LINES, ALIGN_LINES + "\n    as_came = list(lines)")
-    space = dict(vars(tables))
-    exec(compile(source, "<corrected tables.align>", "exec"), space)  # noqa: S102 -- the desktop's own code
-    return space["align"]
+# Until 2026-11-11 the phone parted from the desktop here: its
+# `tables.align` counted a second table's offsets in text the first table's
+# padding had changed, and this script made the phone's answers by a
+# two-line change to it. The desktop's cb12941 counts them as the phone
+# does, so every answer below is the desktop's own (ISSUES_LOG).
 
 
 def desktop():
     if not os.path.isdir(DESKTOP):
         return ("cannot find the desktop app at %s "
                 "(set NOTEORGANIZER_HOME if it lives somewhere else)" % DESKTOP)
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    from desktop_guest import settle
+    settle(DESKTOP)      # the desktop's memory ceiling, before its code runs here
     if DESKTOP not in sys.path:
         sys.path.insert(0, DESKTOP)
     try:
@@ -315,6 +296,8 @@ def plain_texts(rng):
     headings, and blank lines that are not quite blank."""
     out = ["", "one line", "a\nb\nc", "• item\n◦ deeper\n1. first\n- dash\n* star",
            "  • indented bullet\n\t2. tabbed number", "| a | b |\n| c | d |",
+           # Not a column: its blank runs and line ends come back as they went in.
+           "\n\nTitle  \n\n\n\nfirst part\n \n\nsecond part   \n\n",
            # A paragraph's last line short of the column -- between half and
            # seven tenths of it -- and ending on no full stop: short enough
            # to end the paragraph.
@@ -408,25 +391,11 @@ def main():
         print(found)
         return 2
     html_to_note, note_to_html, reflow_wrapped, strip_list_markers = found
-    fixed = corrected_align()
-    if isinstance(fixed, str):
-        print(fixed)
-        return 2
     from noteorganizer.core import tables
 
     def expect(html):
-        """The phone's answer: the desktop's, with the one fault fixed --
-        and the desktop's own beside it wherever the two differ."""
-        desktop_says = answer(html_to_note, html)
-        original = tables.align
-        tables.align = fixed
-        try:
-            phone = answer(html_to_note, html)
-        finally:
-            tables.align = original
-        if phone != desktop_says:
-            phone["desktop_formatting"] = desktop_says.get("formatting")
-        return phone
+        """The phone's answer: the desktop's own."""
+        return answer(html_to_note, html)
 
     rng = random.Random(SEED)
     sources = [("edge", h) for h in EDGES] + [("random", fragment(rng)) for _ in range(RANDOM_CASES)]
@@ -482,8 +451,6 @@ def main():
           % (len(cases) + len(big), empty, cut, raised))
     print("%d plain texts, %d of them rejoined as a column"
           % (len(plain), sum(p["reflowed"] != p["plain"] for p in plain)))
-    print("%d where the desktop's second table puts its styles beside their words"
-          % sum("desktop_formatting" in c for c in cases + big))
     print("%d texts with markdown tables, %d of them with a width forgotten"
           % (len(forgotten), sum(p["shifts"] != [] for p in forgotten)))
     print("written: %s" % os.path.relpath(FIXTURE, ANDROID))

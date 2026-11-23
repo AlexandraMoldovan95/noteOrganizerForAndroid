@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ro.noteorganizer.app.ui.theme.LocalPalette
 
-/**
+/*
  * A table, drawn as a grid.
  *
  * **Monospaced on purpose.** Column widths come out of the parser counted
@@ -106,15 +106,12 @@ private val CELL_EXTRA = 14.dp
 data class ActiveCell(val firstLine: Int, val at: CellAt)
 
 /**
- * [found] are the cells the find bar matched, [current] the one it is on --
- * outlined, as the desktop draws a box on its grid -- and [reveal] counts
- * the requests to scroll that one into sight, sideways as well as down.
- * [place] is where the table sits on the page -- left, centred or right,
- * the alignment of its lines -- and [highlights] the cells a highlight
- * covers whole, in the colour to fill them with. [active] is the cell
- * being written in: outlined, and drawn by [editor] -- the words typed
- * right in the cell, as Samsung Notes writes them -- unless it is a
- * checkbox, which a tap ticks.
+ * [found] are the cells the find bar matched, [current] the one it is on,
+ * outlined as the desktop boxes it, and [reveal] counts the requests to
+ * scroll it into sight, sideways too. [place] is where the table sits --
+ * left, centred or right, its lines' alignment -- and [highlights] the cells
+ * a highlight covers whole. [active] is the cell being written in, outlined
+ * and drawn by [editor] right in the cell, unless it is a checkbox a tap ticks.
  */
 @Composable
 fun TableView(
@@ -143,11 +140,9 @@ fun TableView(
     val rowHeights = remember { mutableStateMapOf<Int, Int>() }
     val linePx = cellLinePx()
 
-    // A width set by hand -- the separator's dash count, more than three --
-    // is the column's width exactly, as the desktop draws it: wider than
-    // what it holds, or narrower, its words cut short with "…". A plain
-    // "---" sets none, and the column takes what it holds, between the
-    // desktop's floor and the cap ([TableBlock.drawnChars]).
+    // A width set by hand -- the separator's dashes, more than three -- is the
+    // column's width exactly, as on the desktop, its words cut with "…"; a plain
+    // "---" sets none, and the column takes what it holds ([TableBlock.drawnChars]).
     val unit = charWidth()
     val widths = table.charWidths.indices.map { i ->
         val drawn = unit * table.drawnChars(i).coerceAtLeast(1)
@@ -191,11 +186,9 @@ fun TableView(
                         continue
                     }
                     val cell = row[c]
-                    // A merged cell is as wide as the cells it swallows,
-                    // each with its padding and its grid line -- the whole
-                    // CELL_EXTRA a cell adds to its text. Counting only the
-                    // line drew a merged cell short of the columns under it,
-                    // the grid showing through at its right.
+                    // A merged cell is as wide as the cells it swallows, each
+                    // with the whole CELL_EXTRA it adds to its text: counting the
+                    // line alone drew it short, the grid showing at its right.
                     fun spanOf(until: Int): androidx.compose.ui.unit.Dp {
                         var span = 0.dp
                         var counted = 0
@@ -207,13 +200,9 @@ fun TableView(
                         return if (counted > 1) span + CELL_EXTRA * (counted - 1) else span
                     }
                     if (cell == null) {
-                        // Swallowed from above: the words live in the cell
-                        // it was merged into. Drawn in that cell's colour,
-                        // over the grid's line between them and as wide as
-                        // every cell of this row the same merge swallowed,
-                        // it reads as one cell with the one above -- drawn
-                        // empty and apart, a merge down looked undone. A tap
-                        // on it chooses the merged cell.
+                        // Swallowed from above: drawn in the merged cell's colour, over
+                        // the line between them, as wide as the merge, it reads as one
+                        // cell with it (apart, a merge looked undone); a tap chooses it.
                         val anchor = table.swallowedBy[CellAt(r, c)]
                         var last = c + 1
                         while (last < row.size && row[last] == null && table.swallowedBy[CellAt(r, last)] == anchor) last++
@@ -227,10 +216,9 @@ fun TableView(
                     val here = CellAt(r, c)
                     val last = minOf(c + cell.colSpan, row.size)
                     val span = spanOf(last)
-                    // The cell's own padding says where its words sit, as the
-                    // desktop draws them; the separator's colons only travel
-                    // with it. Read as well, a ":---:" column drew centred on
-                    // the phone, left on the desktop and in the export.
+                    // The cell's own padding says where its words sit, as on the
+                    // desktop; the separator's colons only travel with it (read, a
+                    // ":---:" column drew centred here and left everywhere else).
                     val align = cell.align
                     val writing = here == active && cell.checked == null
                     // The chosen cell's edges: its last column's width, its row's height.
@@ -258,10 +246,9 @@ fun TableView(
                             if (want != lines) onResizeRow?.invoke(r, want)
                         },
                     )
-                    // Merged down, its words sit in the middle of all the rows it
-                    // covers, as the desktop draws one cell over them; they sat in
-                    // the first, the rest of the cell left empty (the owner,
-                    // 2026-10-26). Written in, the field stays at the top.
+                    // Merged down, its words sit in the middle of the rows it covers,
+                    // as the desktop draws one cell over them, not in the first;
+                    // written in, the field stays at the top.
                     val below = (r + 1 until table.rows.size).takeWhile { table.swallowedBy[CellAt(it, c)] == here }
                     val drop = with(density) { (below.sumOf { rowHeights[it] ?: 0 } / 2f).toDp() }
                     CellBox(cell, span, align, isHeader, editing,

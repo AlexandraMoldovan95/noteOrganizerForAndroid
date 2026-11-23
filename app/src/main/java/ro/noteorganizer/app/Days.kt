@@ -27,11 +27,36 @@ object Days {
     const val DAY_EMOJI = "day_emoji"
     const val MAX_MARKERS = 3
 
+    /**
+     * The desktop's ceilings on a calendar's decorations: at most 20,000
+     * painted days and as many marked -- every day of 54 years -- and a
+     * marker an emoji's length. A backup's settings came in whole: 700,000
+     * "day colours" under keys that were no dates, markers of 200,000
+     * letters, all read again at every month drawn and rewritten at every
+     * setting changed.
+     */
+    const val MAX_DAY_DECORATIONS = 20_000
+    const val MAX_DAY_MARKER_CHARS = 16
+
+    /** A day as the calendar writes one, YYYY-MM-DD and real: the desktop's `is_calendar_day`. */
+    fun isCalendarDay(day: String): Boolean = Recurrence.parseDate(day)?.let { Recurrence.formatDate(it) == day } == true
+
     /** The desktop's small set for flagging a day -- not the whole emoji picker. */
     val MARKERS = listOf("⭐", "❤", "❗", "🎉", "✅", "🔴", "🟡", "🟢", "💡", "🎂", "✈", "📌",
                          "🔔", "🎁", "💰", "🩺", "🍽", "🚗")
 
     private const val VARIATION_SELECTOR = "️"
+
+    // ---- the day turning ----
+
+    /**
+     * Milliseconds from [now] to the first moment of the next date where
+     * [now] is -- midnight, or the hour a clock change starts that day at
+     * where midnight is skipped. Never 0: a day that has just begun waits
+     * for the next one.
+     */
+    fun untilNextDay(now: java.time.ZonedDateTime): Long =
+        java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis()
 
     // ---- the month ----
 
@@ -79,53 +104,73 @@ object Days {
 
     // ---- painted days and their markers ----
 
-    /** The painted days, as kept: real colours only. */
+    /** The painted days, as kept: real days and real colours only, [MAX_DAY_DECORATIONS] at most. */
     fun dayColours(settings: JSONObject?): Map<String, String> {
         val saved = settings?.opt(DAY_COLORS) as? JSONObject ?: return emptyMap()
         val out = LinkedHashMap<String, String>()
         for (day in saved.keys()) {
+            if (out.size >= MAX_DAY_DECORATIONS) break
+            if (!isCalendarDay(day)) continue
             val colour = Notebook.sanitizeColor(saved.opt(day) as? String ?: "")
             if (colour.isNotEmpty()) out[day] = colour
         }
         return out
     }
 
-    /** A day's markers as kept: up to three, each without the variation
-     *  selector older pickers wrote. One marker alone is the older format. */
+    /** A day's markers as kept: up to three, each an emoji's length and without
+     *  the variation selector older pickers wrote. One marker alone is the
+     *  older format. */
     fun cleanMarkers(value: Any?): List<String> {
+        // As the desktop's _clean_day_markers: its first 64 entries, each measured before the
+        // selector comes off -- otherwise one day showed here a mark the desktop drops.
         val list = when (value) {
             is String -> listOf(value)
-            is JSONArray -> (0 until value.length()).mapNotNull { value.opt(it) as? String }
+            is JSONArray -> (0 until minOf(value.length(), 64)).mapNotNull { value.opt(it) as? String }
             else -> return emptyList()
         }
-        return list.map { it.replace(VARIATION_SELECTOR, "") }.filter { it.isNotEmpty() }.take(MAX_MARKERS)
+        return list.filter { it.codePointCount(0, it.length) <= MAX_DAY_MARKER_CHARS }
+            .map { it.replace(VARIATION_SELECTOR, "") }.filter { it.isNotEmpty() }.take(MAX_MARKERS)
     }
 
     fun dayMarkers(settings: JSONObject?): Map<String, List<String>> {
         val saved = settings?.opt(DAY_EMOJI) as? JSONObject ?: return emptyMap()
         val out = LinkedHashMap<String, List<String>>()
         for (day in saved.keys()) {
+            if (out.size >= MAX_DAY_DECORATIONS) break
+            if (!isCalendarDay(day)) continue
             val kept = cleanMarkers(saved.opt(day))
             if (kept.isNotEmpty()) out[day] = kept
         }
         return out
     }
 
-    /** The painted days with [day] painted [colour] -- or unpainted, for "". */
-    fun withColour(settings: JSONObject?, day: String, colour: String): JSONObject {
+    /**
+     * The painted days with [day] painted [colour] -- or unpainted, for "".
+     * Null when [day] is new and the calendar holds [MAX_DAY_DECORATIONS]
+     * already: refused, so a start never drops one a person made.
+     */
+    fun withColour(settings: JSONObject?, day: String, colour: String): JSONObject? {
         val out = JSONObject()
-        for ((d, c) in dayColours(settings)) if (d != day) out.put(d, c)
+        val kept = dayColours(settings)
+        for ((d, c) in kept) if (d != day) out.put(d, c)
         val clean = Notebook.sanitizeColor(colour)
-        if (clean.isNotEmpty()) out.put(day, clean)
+        if (clean.isNotEmpty()) {
+            if (day !in kept && kept.size >= MAX_DAY_DECORATIONS) return null
+            out.put(day, clean)
+        }
         return out
     }
 
-    /** The markers with [day] holding [markers] -- none removes the day. */
-    fun withMarkers(settings: JSONObject?, day: String, markers: List<String>): JSONObject {
+    /** The markers with [day] holding [markers] -- none removes the day; null, as [withColour]. */
+    fun withMarkers(settings: JSONObject?, day: String, markers: List<String>): JSONObject? {
         val out = JSONObject()
-        for ((d, m) in dayMarkers(settings)) if (d != day) out.put(d, JSONArray(m))
+        val kept = dayMarkers(settings)
+        for ((d, m) in kept) if (d != day) out.put(d, JSONArray(m))
         val clean = cleanMarkers(JSONArray(markers))
-        if (clean.isNotEmpty()) out.put(day, JSONArray(clean))
+        if (clean.isNotEmpty()) {
+            if (day !in kept && kept.size >= MAX_DAY_DECORATIONS) return null
+            out.put(day, JSONArray(clean))
+        }
         return out
     }
 
@@ -140,7 +185,10 @@ object Days {
         val note = candidate.getJSONObject(index)
         change(note)?.let { return SaveResult.Failed(it) }
         note.put("updated", Files.now())
-        Organizing.write(file, candidate)?.let { return SaveResult.Failed(it) }
+        // Days a series' copy set aside, notes of their own in the same write.
+        Notebook.settleAside(candidate)
+        // The bare cause, as the editor's saves give it: Day mode says "Not saved: …" before it.
+        Files.writeAtomic(file, candidate.toString(2))?.let { return SaveResult.Failed(it) }
         Organizing.replace(array, candidate)
         return SaveResult.Ok(id)
     }
@@ -161,20 +209,29 @@ object Days {
      * the two it was, for the screen to say.
      */
     fun saveDay(load: Notebook.Load, id: Int, day: String, title: String, body: String,
-                comments: String, category: String, color: String,
+                comments: String, category: String, color: String, paragraphs: JSONArray? = null,
                 result: ((DaySaved) -> Unit)? = null): SaveResult {
         var outcome = DaySaved.OWN
         val written = edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
+            // As deleteDay and moveDay ask: a day's words saved where the
+            // series draws no day are on no screen and in no search.
+            if (!givenDay(note, day)) return@edit NOT_A_DAY
+            // ...its own list lines with them ([paragraphs], the editor's):
+            // cleanOverride keeps those alone (the owner's choice).
             val patch = Normalize.cleanOverride(JSONObject()
-                .put("title", title.trim()).put("body", body).put("comments", comments)
-                .put("category", category).put("color", color))
+                .put("title", Notebook.pyStrip(title)).put("body", body).put("comments", comments)
+                .put("category", category).put("color", color).also { if (paragraphs != null) it.put("paragraphs", paragraphs) })
             // A colour cleared on one day of a coloured series stays cleared
             // in the copy the editor compares with; the next load gives the
             // day the series' colour again, as on the desktop.
             if (color.isEmpty() && !(note.opt("color") as? String).isNullOrEmpty()) patch.put("color", "")
             val overrides = overridesOf(note)
-            if (Recurrence.dayMatchesSeries(note, patch)) {
+            // ...and its lists as the series' are: a day's own depth on the
+            // series' words is kept (the desktop's save the same).
+            val listsAsSeries = !patch.has("paragraphs") || Notebook.sameJson(patch.opt("paragraphs"),
+                Paragraphs.listLines(note.opt("paragraphs"), note.opt("body") as? String ?: ""))
+            if (Recurrence.dayMatchesSeries(note, patch) && listsAsSeries) {
                 overrides.remove(day)
                 outcome = DaySaved.FOLLOWS
             } else {
@@ -215,31 +272,61 @@ object Days {
     }
 
     /**
+     * The id of the note a day's action was taken on, as it stands now
+     * ([Organizing.indexOfNote]): by the first note wearing its identity,
+     * an Undo went to the other of two notes wearing one.
+     */
+    private fun idOf(array: JSONArray, id: Int, uid: String): Int? =
+        Organizing.indexOfNote(array, id, uid).takeIf { it >= 0 }
+            ?.let { ((array.opt(it) as? JSONObject)?.opt("id") as? Number)?.toInt() }
+
+    /**
      * The Undo of [deleteDay]: the day back, its own edit and its move with
      * it -- on the note with the same identity, which an id freed since may
      * no longer name.
      */
     fun undoDeleteDay(load: Notebook.Load, gone: DayGone): SaveResult {
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val id = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-            .firstOrNull { gone.uid.isNotEmpty() && it.opt("uid") == gone.uid || gone.uid.isEmpty() && it.opt("id") == gone.id }
-            ?.let { (it.opt("id") as? Number)?.toInt() }
-            ?: return SaveResult.Failed("That note is no longer here.")
+        val id = idOf(array, gone.id, gone.uid) ?: return SaveResult.Failed("That note is no longer here.")
         return edit(load, id) { note ->
             if (!Recurrence.isRecurring(note)) return@edit "That note no longer repeats, so the day can't come back."
             val skipped = gone.cameFrom ?: gone.day
+            // Back only onto a date the series holds nothing on now, as a move comes
+            // home ([dayIsFree]): another day moved there since was hidden under it,
+            // its words read as this day's. The delete took this day's edit.
+            val on = Recurrence.parseDate(gone.day)
+            val stillSkipped = (note.opt("exceptions") as? JSONArray)?.let { a ->
+                (0 until a.length()).any { a.opt(it) == skipped } } == true
+            val drawn = on != null && Recurrence.expand(note, on, on) == listOf(gone.day)
+            if (stillSkipped && on != null && (drawn || keepsWordsOn(note, gone.day))) {
+                return@edit if (drawn) {
+                    "Another day of this series is on ${Recurrence.showDay(on)} now, so that day can't come back."
+                } else {
+                    "This series keeps text or a colour of its own on ${Recurrence.showDay(on)} now, so that day can't come back."
+                }
+            }
             val exceptions = (note.opt("exceptions") as? JSONArray)?.let { a ->
                 (0 until a.length()).mapNotNull { a.opt(it) as? String }.filter { it != skipped }
             } ?: emptyList()
             note.put("exceptions", JSONArray(exceptions))
             if (gone.cameFrom != null) {
                 val moved = note.opt("moved") as? JSONObject ?: JSONObject().also { note.put("moved", it) }
+                val others = moved.keys().asSequence().filter { it != gone.cameFrom && moved.opt(it) == gone.day }.toList()
+                // Another day still moved onto the date -- its own date one the rule
+                // gives -- holds it, as above: a Restore previous within the Undo's
+                // seconds brought one back, and the Undo dropped it as dead.
+                if (on != null && (Recurrence.ruleDaysAmong(note, others) - exceptions.toSet()).isNotEmpty()) {
+                    return@edit "Another day of this series is on ${Recurrence.showDay(on)} now, so that day can't come back."
+                }
+                // A dead move onto the date, found free, goes, as Move this day
+                // drops one: two moves onto one date gave History two rows of
+                // one key, and the list threw.
+                for (dead in others) moved.remove(dead)
                 moved.put(gone.cameFrom, gone.day)
             }
-            // The desktop's `_undo_occurrence_delete` guards: the repeat
-            // changed since may no longer give the day -- back, it would be
-            // a day off the schedule nobody made -- and an edit the day has
-            // gained since is newer than the one taken away.
+            // The desktop's `_undo_occurrence_delete` guards: a repeat changed since
+            // may no longer give the day (back, it would be off the schedule), and an
+            // edit the day gained since is newer than the one taken away.
             if (!givenDay(note, gone.day)) return@edit "The repeat no longer has that day, so it can't come back."
             gone.ownEdit?.let { if (!overridesOf(note).has(gone.day)) overridesOf(note).put(gone.day, JSONObject(it.toString())) }
             null
@@ -259,9 +346,14 @@ object Days {
         if (origin != null && sendHome) {
             // Home only when nothing else is there now (see dayIsFree).
             if (!dayIsFree(note, day, origin)) {
-                return@edit "Another day of this series is on " +
-                    "${Recurrence.parseDate(origin)?.let { Recurrence.showDay(it) } ?: origin} now, " +
-                    "so this day stays where it is."
+                val home = Recurrence.parseDate(origin)
+                val shown = home?.let { Recurrence.showDay(it) } ?: origin
+                // Said as it is: a day there, or an edit alone.
+                return@edit if (home != null && Recurrence.expand(note, home, home) != listOf(origin)) {
+                    "This series keeps text or a colour of its own on $shown, so this day stays where it is."
+                } else {
+                    "Another day of this series is on $shown now, so this day stays where it is."
+                }
             }
             Recurrence.moveDay(note, day, origin)
             if (dropText) (note.opt("overrides") as? JSONObject)?.remove(origin)
@@ -273,17 +365,6 @@ object Days {
 
     // ---- a day held on another date ----
 
-    /**
-     * Whether [note]'s day now on [day] may be held on [to]: a date no
-     * other day of the series is on -- two days on one date would be one.
-     *
-     * The desktop's `_day_is_free` also takes the day's own date as free,
-     * whatever is on it now. But while a day is away, another can be moved
-     * onto its date; the first one's return then hid the second -- its move
-     * still in the file, drawn nowhere, because a moved day is not drawn
-     * where the series already has one. So its own date is free here only
-     * when it is empty, as any other.
-     */
     /**
      * Whether the series draws a day on [day] -- a day its rule gives, or one
      * moved there. A day off the schedule is not: moved or deleted, it went
@@ -298,10 +379,30 @@ object Days {
     private const val NOT_A_DAY =
         "This day is no longer one of the series' days. Open the series to settle the days off its schedule."
 
+    /**
+     * Whether [note]'s day now on [day] may be held on [to]: a date no other
+     * day of the series is on. As the desktop's `_day_is_free`, its own date
+     * is free only when empty: while a day is away another can be moved onto
+     * its date, and the first one's return hid the second, its move still in
+     * the file and drawn nowhere.
+     */
     fun dayIsFree(note: JSONObject, day: String, to: String): Boolean {
         val target = Recurrence.parseDate(to) ?: return false
-        return to == day || Recurrence.expand(note, target, target) != listOf(to)
+        return to == day || (Recurrence.expand(note, target, target) != listOf(to) && !keepsWordsOn(note, to))
     }
+
+    /**
+     * Whether the series keeps an edit of its own under [date] that it draws
+     * no day on -- a day off its schedule, or one deleted with its edit
+     * kept. A day moved there would take that edit's place: its words were
+     * written over, and an Undo took the day back without them.
+     */
+    fun keepsWordsOn(note: JSONObject, date: String): Boolean =
+        (note.opt("overrides") as? JSONObject)?.has(date) == true
+
+    private fun keptThere(target: java.time.LocalDate) =
+        "This series still keeps text or a colour of its own for a day on ${Recurrence.showDay(target)}, " +
+            "which its calendar no longer shows. A day can move only to a date the series holds nothing for."
 
     /** What [moveDay] did, for its Undo to undo: the date the rule gives the day, and where it was and went. */
     data class DayMove(val id: Int, val uid: String, val origin: String, val from: String, val to: String)
@@ -321,6 +422,7 @@ object Days {
             if (!Recurrence.isRecurring(note)) return@edit "This note no longer repeats."
             if (!givenDay(note, day)) return@edit NOT_A_DAY
             if (!dayIsFree(note, day, to)) {
+                if (Recurrence.expand(note, target, target) != listOf(to)) return@edit keptThere(target)
                 return@edit "This series already has a day on ${Recurrence.showDay(target)}. " +
                     "A day can move only to a date the series does not have."
             }
@@ -339,10 +441,7 @@ object Days {
      */
     fun undoMoveDay(load: Notebook.Load, move: DayMove): SaveResult {
         val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
-        val id = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-            .firstOrNull { move.uid.isNotEmpty() && it.opt("uid") == move.uid || move.uid.isEmpty() && it.opt("id") == move.id }
-            ?.let { (it.opt("id") as? Number)?.toInt() }
-            ?: return SaveResult.Failed("That note is no longer here.")
+        val id = idOf(array, move.id, move.uid) ?: return SaveResult.Failed("That note is no longer here.")
         return edit(load, id) { note ->
             val on = Recurrence.parseDate(move.to)
             if (!Recurrence.isRecurring(note) || on == null ||
@@ -364,16 +463,12 @@ object Days {
     enum class Settle { NOTE, TRASH }
 
     /**
-     * One day a series keeps its own edits for, which its repeat no longer
-     * lands on -- so no calendar shows it -- made a note of its own on its
-     * date, or that note moved straight to the Trash; either way taken out
-     * of the series. The desktop's `_settle_off_schedule_day`: the new note
-     * holds what the day showed -- title, text, comments, category, colour
-     * -- the series' formatting only where the day's text is the series' own
-     * (its offsets would land on the wrong letters anywhere else), and none
-     * of the checklist and the files, which were never the day's. A move
-     * that brought the day here goes too, or a rule brought back would draw
-     * it again. The Trash is written before the notes, as every delete is.
+     * A day the series keeps edits for that its repeat no longer lands on,
+     * made a note of its own on its date or sent straight to the Trash (the
+     * desktop's `_settle_off_schedule_day`): what the day showed, the series'
+     * formatting only where the text is the series' own, no checklist or
+     * files. A move that brought it here goes too, or a rule brought back
+     * would draw it again. The Trash is written before the notes.
      */
     fun settleOffScheduleDay(load: Notebook.Load, id: Int, day: String, how: Settle): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -386,16 +481,20 @@ object Days {
         if (!Recurrence.isRecurring(note) || overrides?.has(day) != true) {
             return SaveResult.Failed("That day keeps nothing of its own any more.")
         }
-        val shown = Recurrence.effectiveNote(note, day)
-        val sameBody = shown.opt("body") == note.opt("body")
+        // What the day holds: the note made of it carries the day's words.
+        val shown = Recurrence.dayAsKept(note, day)
+        val sameBody = Normalize.sameBody(shown.opt("body"), note.opt("body"))
         val stamp = Files.now()
-        val freshId = Organizing.maxId(array) + 1
+        val freshId = Organizing.ids(array).next()
         val fresh = Normalize.normalizeNote(JSONObject()
             .put("id", freshId)
             .put("title", shown.opt("title") as? String ?: "")
             .put("body", shown.opt("body") as? String ?: "")
             .put("formatting", if (sameBody) JSONArray((note.opt("formatting") as? JSONArray)?.toString() ?: "[]") else JSONArray())
-            .put("paragraphs", JSONArray((note.opt("paragraphs") as? JSONArray)?.toString() ?: "[]"))
+            // ...and the lines' looks the day view shows (Paragraphs.dayParagraphs),
+            // as the desktop's Make it a note keeps them.
+            .put("paragraphs", Paragraphs.dayParagraphs(note.opt("paragraphs"), shown.opt("body") as? String ?: "",
+                sameBody, overrides.optJSONObject(day)?.opt("paragraphs")))
             .put("comments", shown.opt("comments") as? String ?: "")
             .put("category", (shown.opt("category") as? String)?.ifEmpty { null } ?: note.opt("category") ?: "")
             .put("color", shown.opt("color") as? String ?: "")
@@ -410,7 +509,16 @@ object Days {
             if (trashFile.exists() && load.trashRaw == null) {
                 return SaveResult.Failed("The Trash could not be read, so nothing was changed in it.")
             }
-            val trash = JSONArray((load.trashRaw ?: JSONArray()).toString()).put(JSONObject(fresh.toString()).put("deleted_at", stamp))
+            val trash = JSONArray((load.trashRaw ?: JSONArray()).toString())
+            // Written first: a day the Trash holds already (the phone stopped
+            // between the two writes) is not put in again, and the entry there is
+            // kept the whole window from now, as promised (the desktop's renew_in_trash).
+            val signature = Normalize.contentSignature(fresh)
+            val held = (0 until trash.length()).mapNotNull { trash.opt(it) as? JSONObject }.firstOrNull {
+                Normalize.contentSignature(Normalize.normalizeNote(it)) == signature
+            }
+            if (held == null) trash.put(JSONObject(fresh.toString()).put("deleted_at", stamp))
+            else held.put("deleted_at", stamp)
             Organizing.write(trashFile, trash)?.let { return SaveResult.Failed(it) }
             load.trashRaw?.let { Organizing.replace(it, trash) }
         } else {
@@ -426,32 +534,32 @@ object Days {
      * -- the desktop's `_repeat_off_loses_days`. A day differing only in its
      * colour or category loses no text.
      */
-    internal fun repeatOffLosesDays(note: JSONObject): Boolean {
-        if (!Recurrence.isRecurring(note)) return false
-        val overrides = note.opt("overrides") as? JSONObject ?: return false
-        for (day in overrides.keys()) {
-            val shown = Recurrence.effectiveNote(note, day)
-            for (key in listOf("title", "body", "comments")) {
-                if ((shown.opt(key) as? String ?: "") != (note.opt(key) as? String ?: "")) return true
-            }
-        }
-        return false
+    internal fun repeatOffLosesDays(note: JSONObject): Boolean =
+        Recurrence.isRecurring(note) && Notebook.daysHoldOwnText(note)
+
+    /** What a turn-off that took days' own text says of the copy its save left. */
+    enum class OffWord { SERIES_KEPT, UPDATE_KEPT, NO_COPY }
+
+    /**
+     * What the Repeat sheet says of a turn-off, asked of [note] as its save
+     * left it -- the desktop's `_repeat_off_line`: the copy kept is the
+     * series, or after an import's Update the note as it was before it. A
+     * copy the note holds again in full is dropped by that save
+     * ([Notebook.dropSpentCopy]), and no Restore previous is promised for it.
+     */
+    internal fun repeatOffWord(note: JSONObject?): OffWord = when {
+        note == null || !Notebook.holdsUnspentCopy(note) -> OffWord.NO_COPY
+        Notebook.keepsUpdateCopy(note) -> OffWord.UPDATE_KEPT
+        else -> OffWord.SERIES_KEPT
     }
 
     /**
-     * Sets a note's repeat, or turns it off with [rule] null or a rule
-     * that does not repeat. A repeating note needs a first day. Turned off,
-     * the repeat takes the days' own edits, skipped days and moves with it
-     * -- and when a day held text of its own, the note as it was goes into
-     * the rescue copy first, repeat and days included, so "↩ Restore
-     * previous" brings the series back whole.
-     */
-    /**
-     * [startWas] is the series' start before the sheet's Save wrote a new
-     * one, which it does first: the rescue copy keeps the series as it was,
-     * as the desktop's `save_current_note` takes it before the new date --
-     * taken after, "Restore previous" brought back a series starting on the
-     * new date, its days' own edits off its schedule.
+     * Sets a note's repeat, or turns it off ([rule] null or not repeating);
+     * a repeating note needs a first day. Turned off with days holding text
+     * of their own, the note goes whole into the rescue copy first, and the
+     * days stay in the note too, inert, as the desktop keeps them (the
+     * owner's choice); days holding no text go. [startWas]: the start before
+     * the sheet's Save wrote a new one, which the copy keeps, as the desktop's.
      */
     fun setRepeat(load: Notebook.Load, id: Int, rule: JSONObject?, startWas: Any? = null): SaveResult = edit(load, id) { note ->
         val clean = Recurrence.normalize(rule)
@@ -460,13 +568,39 @@ object Days {
             return@edit "A repeating note needs a start date. Pick a date first."
         }
         if (!repeats) {
-            val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
-            if (repeatOffLosesDays(was)) note.put("_prev", wholeNoteCopy(was))
-            note.put("exceptions", JSONArray())
-            note.put("overrides", JSONObject())
-            note.put("moved", JSONObject())
+            if (Recurrence.isRecurring(note)) {
+                val was = if (startWas != null) JSONObject(note.toString()).put("date", startWas) else note
+                // A big delete's copy goes into the turn-off's with the series; an
+                // Update copy is kept whole, given the series it lacks (turnOffCopy).
+                // Asked of the note before this Save, as the desktop's save asks.
+                if (repeatOffLosesDays(was)) {
+                    // Another series' copy, replaced here, held its days
+                    // alone: set aside first, asked of the series as it was
+                    // -- not an Update's copy the turn-off keeps whole.
+                    if (!Notebook.turnOffKeepsCopy(was)) Notebook.copyDaysSetAside(note, was)
+                    if (was !== note) (note.opt("_prev") as? JSONObject)?.let { was.put("_prev", JSONObject(it.toString())) }
+                    note.put("_prev", Notebook.turnOffCopy(wholeNoteCopy(was), was))
+                }
+            }
+            // The desktop's `if not freq and not days_kept`: asked of the
+            // days the note holds, whether it repeated or not.
+            if (!Notebook.daysHoldOwnText(note)) Notebook.clearDays(note)
         }
+        // Turned back on with another start or rule: the old deleted days, which
+        // hold nothing, no longer hide the new series' own (the copy keeps them),
+        // and days with words of their own stay (Notebook.keptDaysFit).
+        if (!Notebook.keptDaysFit(note, note.opt("date"), clean)) note.put("exceptions", JSONArray())
         note.put("recurrence", clean)
+        // A day moved onto a date the new rule gives loses its move now, not
+        // at the next start (Normalize.dropHiddenMoves).
+        Normalize.dropHiddenMoves(note)
+        // Turned back on as the series its copy holds, the copy's days are spent,
+        // as the desktop's spend_series_days spends them: kept there, a day reset
+        // after came back at every start.
+        Notebook.spendSeriesDays(note)
+        // Back on as the series was, the note holds again all its copy kept:
+        // spent, as the desktop's save drops it, the banner with it.
+        Notebook.dropSpentCopy(note)
         null
     }
 

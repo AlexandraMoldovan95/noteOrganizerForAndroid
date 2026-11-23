@@ -7,6 +7,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,18 +23,51 @@ import org.junit.Test
  */
 class IdentityTest {
 
-    private fun scratch(contents: String?): Notebook.Load {
-        val dir = Files.createTempDirectory("notebook").toFile()
-        dir.deleteOnExit()
-        if (contents != null) File(dir, "notes_data.json").writeText(contents)
-        return Notebook.load(listOf(dir))
-    }
-
-    private fun onDisk(load: Notebook.Load): JSONArray =
-        JSONArray(load.file!!.readText())
-
     private fun ready(load: Notebook.Load, code: String) =
         Notebook.inspectShareCode(load, code) as Notebook.Inspection.Ready
+
+    // ---- Python's spaces, as the desktop strips them ----
+
+    @Test
+    fun `a uid and a note's words are stripped of Python's spaces, U+0085 among them`() {
+        // trim() kept the next-line mark: the desktop's strip() takes it.
+        val marked = Normalize.normalizeNote(JSONObject().put("uid", "u-1\u0085").put("title", "Milk\u0085").put("body", "x"))
+        val plain = Normalize.normalizeNote(JSONObject().put("uid", "u-1").put("title", "Milk").put("body", "x"))
+        assertEquals("u-1", marked.getString("uid"))
+        assertEquals(Normalize.contentSignature(plain), Normalize.contentSignature(marked))
+        assertEquals("str.rstrip()", " Milk", PyText.rstrip(" Milk\u0085 "))
+    }
+
+    @Test
+    fun `a date, a colour and a name are stripped of Python's spaces, as the desktop strips them`() {
+        // parse_date, read_date, sanitize_color and the name's save all strip:
+        // with trim(), a date the desktop reads was no date here, and a colour
+        // no colour.
+        val next = Char(0x85).toString()
+        assertEquals(java.time.LocalDate.of(2026, 7, 24), Recurrence.parseDate("2026-07-24$next"))
+        assertEquals(java.time.LocalDate.of(2026, 7, 24), Recurrence.readDate("24.07.2026$next", settled = true))
+        assertEquals("#aabbcc", Notebook.sanitizeColor("#abc$next"))
+        assertEquals("Maria", Settings.username(JSONObject().put(Settings.USERNAME, "${next}Maria$next")))
+    }
+
+    @Test
+    fun `a colour's figures are 0 to 9, and a category's name is stripped, as the desktop reads them`() {
+        // sanitize_color gives "" for Arabic figures, which isDigit() let in;
+        // categories.py strips a name, U+0085 too, which trim() kept.
+        val arabic = String(charArrayOf('#', Char(0x0661), Char(0x0662), Char(0x0663)))
+        assertEquals("", Notebook.sanitizeColor(arabic))
+        assertEquals("#112233", Notebook.sanitizeColor("#123"))
+        val next = Char(0x85).toString()
+        val read = Settings.categories(JSONObject().put(Settings.CATEGORIES, JSONObject().put("Work$next", "#336699")))
+        assertTrue("$read", "Work" in read && read.keys.none { it.endsWith(next) })
+        // adopt_categories_of adopts nothing for a note filed so, and the
+        // restore's question finds nothing lost over a title of that mark alone
+        // (the desktop's answers, asked 2026-11-13).
+        val adopted = Settings.categories(JSONObject(), JSONArray().put(JSONObject().put("title", "x").put("category", "Work$next")))
+        assertTrue("$adopted", adopted.keys.none { it.endsWith(next) })
+        assertNull(Notebook.replacedByRestore(JSONObject().put("title", next).put("body", "b"),
+            JSONObject().put("title", "Old").put("body", "b")))
+    }
 
     // ---- minting, and NOT minting ----
 
@@ -55,12 +89,10 @@ class IdentityTest {
     }
 
     @Test
-    fun `a note that arrived WITHOUT one is left alone`() {
-        // Deliberate. The desktop mints identities for every note at its
-        // own door, once. If this app minted them too, a notebook copied
-        // here before the desktop had seen it would end up with two
-        // different identities for the same note -- the exact collision
-        // the field exists to prevent, manufactured by the fix for it.
+    fun `a note already in the file WITHOUT one is left alone`() {
+        // Deliberate: minted on its read, a notebook copied in before the desktop
+        // saw it would hold two identities for one note. (A note brought IN
+        // without one is given one: the import's test below.)
         val load = scratch("""[{"id": 1, "title": "old"}]""")
         Notebook.createNote(load, "new", "")
         assertFalse("no identity is invented for the old note",
@@ -76,7 +108,7 @@ class IdentityTest {
         val load = scratch("[]")
         Notebook.createNote(load, "t", "b")
         val id = onDisk(load).getJSONObject(0).getInt("id")
-        val code = Notebook.shareCodeFor(load, id)!!
+        val code = Shares.codeFor(load, id)!!
         val back = (Sharing.decode(code) as Sharing.Decoded.Notes).notes.single()
         assertEquals(onDisk(load).getJSONObject(0).getString("uid"),
                      back.getString("uid"))
@@ -122,7 +154,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New").put("body", "new body")))
         val found = ready(load, code)
-        val result = Notebook.applyShareCode(load, found.notes, update = true)
+        val result = Shares.apply(load, found.notes, update = true)
         assertTrue(result is SaveResult.Ok)
 
         val all = onDisk(load)
@@ -146,7 +178,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New").put("body", "new body")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val prev = onDisk(load).getJSONObject(0).getJSONObject("_prev")
         assertEquals("Old", prev.getString("title"))
         assertEquals("old body", prev.getString("body"))
@@ -155,10 +187,8 @@ class IdentityTest {
 
     @Test
     fun `an update carries everything the code brought, not only the words`() {
-        // Written after a mutant that dropped `checklist` from the field
-        // list survived: the first version of this suite only ever looked
-        // at the title and the body, so nine of the ten fields an update
-        // replaces were never checked at all.
+        // Every field an update replaces: a suite that looked at the title and
+        // the body alone let a mutant dropping `checklist` survive.
         val load = scratch("""
             [{"id": 7, "uid": "abc", "title": "Old", "category": "General",
               "color": "", "date": "", "checklist": [], "comments": ""}]
@@ -179,7 +209,7 @@ class IdentityTest {
                 .put("line", 0).put("kind", "bullet")))
             .put("checklist", JSONArray().put(JSONObject()
                 .put("text", "to do").put("done", false)))))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
 
         val note = onDisk(load).getJSONObject(0)
         assertEquals("a comment that came along", note.getString("comments"))
@@ -200,7 +230,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         assertNotEquals("2020-01-01 00:00:00",
             onDisk(load).getJSONObject(0).getString("updated"))
     }
@@ -209,10 +239,9 @@ class IdentityTest {
 
     @Test
     fun `a note that has no identity is not the same note as another`() {
-        // Notes that reached this device before the desktop minted any
-        // carry no uid, and a code made from one carries none either. If
-        // "" matched "", every such note would be the same note -- and
-        // the first one in the file would be silently overwritten.
+        // Notes that came before the desktop minted any carry no uid, nor do
+        // their codes: if "" matched "", every such note would be one note,
+        // and the first in the file silently overwritten.
         val load = scratch("""
             [{"id": 1, "uid": "", "title": "No identity"},
              {"id": 2, "title": "Nor this one"}]
@@ -221,7 +250,7 @@ class IdentityTest {
             JSONObject().put("uid", "").put("title", "Arrived")))
         val found = ready(load, code)
         assertEquals("none is recognised", 0, found.known)
-        Notebook.applyShareCode(load, found.notes, update = true)
+        Shares.apply(load, found.notes, update = true)
         val all = onDisk(load)
         assertEquals("added, not written over", 3, all.length())
         assertEquals("No identity", all.getJSONObject(0).getString("title"))
@@ -233,29 +262,27 @@ class IdentityTest {
     fun `a note that was added shows up on the screen, not only on disk`() {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Here"}]""")
         val code = Sharing.encode(listOf(JSONObject().put("title", "A stranger")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
         assertEquals(listOf("Here", "A stranger"),
-            Notebook.parseNotes(load.raw!!.toString()).map { it.title })
+            notesFrom(load.raw!!.toString()).map { it.title })
     }
 
     @Test
     fun `a write that fails leaves the screen exactly as it was`() {
-        // The candidate array shares its note objects with the live one,
-        // so an update applied in place would reach the screen before the
-        // write could fail -- showing a version that exists nowhere. A
-        // mutant proved this was held up by that sharing rather than by
-        // the code, so the check is here now.
+        // The candidate array shares its note objects with the live one, so an
+        // update applied in place would reach the screen before the write could
+        // fail, showing a version that exists nowhere.
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val nowhere = load.copy(file = File(load.file!!.parentFile,
             "no/such/notes_data.json"))
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        val result = Notebook.applyShareCode(
+        val result = Shares.apply(
             nowhere, ready(load, code).notes, update = true)
 
         assertTrue("the write must fail", result is SaveResult.Failed)
         assertEquals("the screen stays on the version on disk",
-            "Old", Notebook.parseNotes(load.raw!!.toString()).single().title)
+            "Old", notesFrom(load.raw!!.toString()).single().title)
         assertEquals("and the real file is untouched",
             "Old", onDisk(load).getJSONObject(0).getString("title"))
     }
@@ -268,8 +295,8 @@ class IdentityTest {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "New")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
-        assertEquals("New", Notebook.parseNotes(load.raw!!.toString()).single().title)
+        Shares.apply(load, ready(load, code).notes, update = true)
+        assertEquals("New", notesFrom(load.raw!!.toString()).single().title)
     }
 
     // ---- adding beside it instead ----
@@ -279,7 +306,7 @@ class IdentityTest {
         val load = scratch("""[{"id": 7, "uid": "abc", "title": "Old"}]""")
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "Another version")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
 
         val all = onDisk(load)
         assertEquals(2, all.length())
@@ -295,7 +322,7 @@ class IdentityTest {
         for (update in listOf(true, false)) {
             val load = scratch("""[{"id": 1, "uid": "abc"}]""")
             val code = Sharing.encode(listOf(JSONObject().put("title", "A stranger")))
-            Notebook.applyShareCode(load, ready(load, code).notes, update)
+            Shares.apply(load, ready(load, code).notes, update)
             assertEquals("update=$update", 2, onDisk(load).length())
         }
     }
@@ -309,7 +336,7 @@ class IdentityTest {
         ))
         val found = ready(load, code)
         assertEquals(1, found.known)
-        Notebook.applyShareCode(load, found.notes, update = true)
+        Shares.apply(load, found.notes, update = true)
         val all = onDisk(load)
         assertEquals(2, all.length())
         assertEquals("Here, edited", all.getJSONObject(0).getString("title"))
@@ -320,7 +347,7 @@ class IdentityTest {
     fun `an imported note arrives with the whole shape a note needs`() {
         val load = scratch("[]")
         val code = Sharing.encode(listOf(JSONObject().put("title", "x")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = false)
+        Shares.apply(load, ready(load, code).notes, update = false)
         val note = onDisk(load).getJSONObject(0)
         for (field in listOf("id", "uid", "title", "body", "formatting", "comments",
                              "category", "date", "color", "attachments", "updated",
@@ -328,6 +355,8 @@ class IdentityTest {
                              "pinned", "checklist", "paragraphs")) {
             assertTrue("missing: $field", note.has(field))
         }
+        // A code that carried none: the uid is minted on its way in, not an empty field.
+        assertTrue("an identity minted for it", note.optString("uid").isNotEmpty())
     }
 
     @Test
@@ -337,7 +366,7 @@ class IdentityTest {
             .single { it.name.startsWith("notes_data_corrupt_") }
         val code = Sharing.encode(listOf(JSONObject().put("title", "x")))
         assertTrue(Notebook.inspectShareCode(load, code) is Notebook.Inspection.Ready)
-        assertTrue(Notebook.applyShareCode(load, listOf(JSONObject().put("title", "x")), false)
+        assertTrue(Shares.apply(load, listOf(JSONObject().put("title", "x")), false)
             is SaveResult.Ok)
         assertEquals("the unreadable bytes are still kept", "{ not json", kept.readText())
     }
@@ -351,7 +380,7 @@ class IdentityTest {
         val code = Sharing.encode(listOf(
             JSONObject().put("uid", "abc").put("title", "New").put("category", "Nowhere"),
             JSONObject().put("uid", "fresh").put("title", "Other").put("category", "Nowhere")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val all = onDisk(load)
         assertEquals("General", all.getJSONObject(0).getString("category"))
         assertEquals("General", all.getJSONObject(1).getString("category"))
@@ -373,7 +402,7 @@ class IdentityTest {
             .put("uid", "abc").put("title", "New").put("body", "new body")
             .put("category", "General").put("date", "").put("color", "")
             .put("checklist", JSONArray())))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val prev = onDisk(load).getJSONObject(0).getJSONObject("_prev")
         assertEquals("Work", prev.getString("category"))
         assertEquals("2026-01-02", prev.getString("date"))
@@ -393,7 +422,7 @@ class IdentityTest {
         """.trimIndent())
         val code = Sharing.encode(listOf(JSONObject()
             .put("uid", "abc").put("title", "Same").put("body", "same")))
-        Notebook.applyShareCode(load, ready(load, code).notes, update = true)
+        Shares.apply(load, ready(load, code).notes, update = true)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("The real earlier version", note.getJSONObject("_prev").getString("title"))
         assertEquals("2020-01-01 00:00:00", note.getString("updated"))
@@ -435,7 +464,7 @@ class IdentityTest {
             [{"id": 7, "title": "t", "body": "",
               "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
         """.trimIndent())
-        assertFalse("the question does not promise to keep it", load.notes.single().previousKeeps)
+        assertFalse("the question does not promise to keep it", Notebook.previousKeeps(load, 7))
         assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
         val note = onDisk(load).getJSONObject(0)
         assertEquals("a long text that was deleted by accident", note.getString("body"))
@@ -448,7 +477,100 @@ class IdentityTest {
             [{"id": 7, "title": "t", "body": "written since",
               "_prev": {"title": "t", "body": "a long text that was deleted by accident"}}]
         """.trimIndent())
-        assertTrue(load.notes.single().previousKeeps)
+        assertTrue(Notebook.previousKeeps(load, 7))
+    }
+
+    @Test
+    fun `a restore over part of the copy's words made bold or a list since keeps them as the copy in turn`() {
+        // Styles were weighed only on the same words: part of the copy made bold
+        // since went to no file, no copy kept, the question silent. The desktop
+        // keeps it (test_data_safety's own case, "Trip" / "Packing list:").
+        val prev = """{"title": "Trip", "body": "Packing list: boots, rope, map, torch.", "comments": "",
+                       "formatting": [], "paragraphs": []}"""
+        fun keeps(extra: String): Boolean {
+            val load = scratch("""[{"id": 7, "title": "Trip", "body": "Packing list:"$extra, "_prev": $prev}]""")
+            return Notebook.previousKeeps(load, 7)
+        }
+        assertTrue("bold since", keeps(""", "formatting": [{"start": 0, "end": 7, "style": "bold"}]"""))
+        assertTrue("indented since", keeps(""", "paragraphs": [{"line": 0, "indent": 2}]"""))
+        assertFalse("plain, nothing lost", keeps(""))
+        val load = scratch("""[{"id": 7, "title": "Trip", "body": "Packing list:",
+                                "formatting": [{"start": 0, "end": 7, "style": "bold"}], "_prev": $prev}]""")
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val kept = onDisk(load).getJSONObject(0).getJSONObject("_prev")
+        assertEquals("Packing list:", kept.getString("body"))
+        assertEquals(1, kept.getJSONArray("formatting").length())
+    }
+
+    /** A rescue copy as a crafted backup brings it: past every ceiling, with what no copy holds. */
+    private fun hostileCopy(): JSONObject {
+        val body = "x".repeat(1300)
+        return JSONObject().put("title", 5).put("body", body).put("comments", JSONArray())
+            .put("checklist", JSONArray((0 until 1500).map { JSONObject().put("text", "row $it").put("done", false) }))
+            .put("formatting", JSONArray((0 until 600).map { JSONObject().put("start", 2 * it).put("end", 2 * it + 1).put("style", "bold") }))
+            .put("recurrence", JSONObject().put("freq", "weekly").put("interval", -7))
+            .put("attachments", JSONArray().put(JSONObject().put("filename", "x").put("stored_as", "../../evil")))
+            .put("mystery", "not a field")
+    }
+
+    @Test
+    fun `a backup's rescue copy comes in shaped as the desktop shapes it, held to the note's ceilings`() {
+        val prev = Normalize.normalizeNote(JSONObject().put("title", "Groceries").put("body", "milk")
+            .put("date", "2026-10-05").put("_prev", hostileCopy())).getJSONObject("_prev")
+        assertEquals("", prev.getString("title"))
+        assertEquals("", prev.getString("comments"))
+        assertEquals(Normalize.MAX_CHECKLIST_ITEMS, prev.getJSONArray("checklist").length())
+        assertEquals(Normalize.MAX_SPANS_PER_LINE, prev.getJSONArray("formatting").length())
+        assertFalse("what an update never replaces is not carried", prev.has("attachments"))
+        assertFalse(prev.has("mystery"))
+        // A shrink's copy, the text alone, stays the text alone.
+        val shrink = Normalize.normalizeNote(JSONObject().put("_prev", JSONObject().put("body", "x")))
+            .getJSONObject("_prev")
+        assertFalse(shrink.has("checklist"))
+        assertFalse(shrink.has("recurrence"))
+    }
+
+    @Test
+    fun `a restore holds a copy written before it was shaped to the note's ceilings`() {
+        val note = JSONObject().put("id", 7).put("uid", "a").put("title", "Groceries").put("body", "milk")
+            .put("_prev", hostileCopy())
+        val load = scratch(JSONArray().put(note).toString())
+        assertTrue(Notebook.restorePrevious(load, 7) is SaveResult.Ok)
+        val restored = onDisk(load).getJSONObject(0)
+        assertEquals(Normalize.MAX_CHECKLIST_ITEMS, restored.getJSONArray("checklist").length())
+        assertEquals(Normalize.MAX_SPANS_PER_LINE, restored.getJSONArray("formatting").length())
+        assertFalse("nothing an update never replaces comes back", restored.toString().contains("evil"))
+    }
+
+    @Test
+    fun `whether a restore keeps the note's words is answered in time that grows with the words, not their square`() {
+        // A rescue copy of four million letters and a note of twenty thousand
+        // nearly matching it: the JVM's contains took fourteen seconds a call, at
+        // every load. Linear, milliseconds; two seconds is a margin no machine crosses.
+        val dir = Files.createTempDirectory("notebook").toFile()
+        val note = JSONObject().put("id", 7).put("title", "t").put("body", "a".repeat(20_000) + "b")
+            .put("_prev", JSONObject().put("title", "t").put("body", "a".repeat(4_000_000)))
+        File(dir, "notes_data.json").writeText(JSONArray().put(note).toString())
+        val started = System.nanoTime()
+        val load = Notebook.load(listOf(dir))
+        assertTrue("restoring it would replace words the copy lacks", Notebook.previousKeeps(load, 7))
+        val ms = (System.nanoTime() - started) / 1_000_000
+        assertTrue("took $ms ms", ms < 2_000)
+    }
+
+    @Test
+    fun `the linear search finds what the JVM's contains finds`() {
+        val random = java.util.Random(7)
+        val cases = mutableListOf("" to "", "abc" to "", "" to "a", "aaab" to "aab", "abababc" to "ababc",
+                                  "aabaabaaa" to "aabaaa", "abc" to "abcd", "xyz" to "xyz")
+        repeat(3000) {
+            val hay = (0 until random.nextInt(12)).map { "ab"[random.nextInt(2)] }.joinToString("")
+            val needle = (0 until random.nextInt(5)).map { "ab"[random.nextInt(2)] }.joinToString("")
+            cases.add(hay to needle)
+        }
+        for ((hay, needle) in cases) {
+            assertEquals("$needle in $hay", hay.contains(needle), PyText.contains(hay, needle))
+        }
     }
 
     @Test
@@ -542,7 +664,7 @@ class IdentityTest {
         val load = scratch("[]")
         val stuck = Notebook.Load(emptyList(), load.categories, "x", file = load.file, raw = null)
         load.file!!.writeText("{ unreadable")
-        val result = Notebook.applyShareCode(stuck, listOf(JSONObject().put("title", "x")), false)
+        val result = Shares.apply(stuck, listOf(JSONObject().put("title", "x")), false)
         assertTrue(result is SaveResult.Failed)
         assertEquals("{ unreadable", load.file!!.readText())
     }

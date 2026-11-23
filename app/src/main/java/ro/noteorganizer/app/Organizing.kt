@@ -3,7 +3,6 @@ package ro.noteorganizer.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
@@ -23,8 +22,11 @@ object Organizing {
     private const val UNREADABLE = "Your notes file could not be read, so nothing will be written over it."
     private const val TRASH_UNREADABLE = "The Trash could not be read, so nothing was changed in it."
 
-    private fun now() = Files.now()
-
+    /**
+     * Where the note [id] is in the file's [array], or -1: by id, never by
+     * position -- the list on screen is filtered and sorted. The one lookup;
+     * three more were written beside it.
+     */
     internal fun indexOfId(array: JSONArray, id: Int): Int {
         for (i in 0 until array.length()) {
             val itsId = (array.opt(i) as? JSONObject)?.opt("id")
@@ -33,14 +35,89 @@ object Organizing {
         return -1
     }
 
-    internal fun maxId(array: JSONArray): Int {
-        var max = 0
+    /** The note [id] in [array], or null ([indexOfId]). */
+    internal fun noteById(array: JSONArray, id: Int): JSONObject? =
+        indexOfId(array, id).takeIf { it >= 0 }?.let { array.opt(it) as? JSONObject }
+
+    /** Where the first note wearing [uid] stands in [array], or -1. */
+    internal fun indexOfUid(array: JSONArray, uid: String): Int {
         for (i in 0 until array.length()) {
-            val itsId = (array.opt(i) as? JSONObject)?.opt("id")
-            if (itsId is Number && itsId.toInt() > max) max = itsId.toInt()
+            if (((array.opt(i) as? JSONObject)?.opt("uid") as? String) == uid) return i
         }
-        return max
+        return -1
     }
+
+    /**
+     * Where the note an action was taken on stands now, taken on [id] and
+     * known by [uid]: the note at [id] while it still wears that uid; else
+     * the first note wearing it (Undo brought it back under a new id); else
+     * -1, its id perhaps another note's now. Never the first wearing the uid
+     * while the note at [id] wears it too: a code or backup can hold two
+     * wearing one, and files picked for the second went to the first.
+     */
+    internal fun indexOfNote(array: JSONArray, id: Int, uid: String?): Int {
+        val byId = indexOfId(array, id)
+        if (uid.isNullOrEmpty()) return byId
+        if (byId >= 0 && ((array.opt(byId) as? JSONObject)?.opt("uid") as? String) == uid) return byId
+        return indexOfUid(array, uid)
+    }
+
+    /**
+     * A note's id as this phone holds it: `normalize_note`'s
+     * `int(str(id).strip())` -- a whole number as it is, text as Python's
+     * int() reads it stripped, never a float ("7.5" or "7.0") -- then only a
+     * positive number an Int holds; 0 for anything else, which [repairIds]
+     * renumbers. Read with toInt(), 4,294,967,301 wrapped onto 5, another
+     * note's id.
+     */
+    internal fun heldId(raw: Any?): Int {
+        val value = when (raw) {
+            is Boolean -> return 0
+            is Int, is Long, is Short, is Byte -> java.math.BigInteger.valueOf((raw as Number).toLong())
+            is java.math.BigInteger -> raw
+            is String -> Recurrence.pythonBigIntOf(PyText.strip(raw)) ?: return 0
+            else -> return 0
+        }
+        return if (value.signum() > 0 && value.bitLength() < Int.SIZE_BITS) value.toInt() else 0
+    }
+
+    /** An id as the file holds it, when it is a whole number a Long holds; null otherwise -- to tell an id written as wanted. */
+    private fun written(raw: Any?): Long? =
+        if (raw is Int || raw is Long || raw is Short || raw is Byte) (raw as Number).toLong() else null
+
+    /**
+     * New note ids for a notebook whose notes hold [inUse]: one more than the
+     * highest, as the desktop's `max(ids) + 1`, and once the highest is the
+     * most an Int holds, the lowest free number. `max + 1` there wrapped, and
+     * every new note after took one id: two notes edited as one. Every road
+     * that makes a note asks here: new, duplicate, restore, import, a day.
+     */
+    internal class Ids(inUse: Iterable<Int>) {
+        private val used = HashSet<Int>()
+        private var top = 0
+        private var free = 1
+
+        init {
+            for (id in inUse) if (id > 0) {
+                used.add(id)
+                if (id > top) top = id
+            }
+        }
+
+        fun next(): Int {
+            val id = if (top < Int.MAX_VALUE) top + 1 else {
+                while (free in used) free++
+                free
+            }
+            used.add(id)
+            if (id > top) top = id
+            return id
+        }
+    }
+
+    /** [Ids] for the notes of [array], each id read as [heldId] reads it. */
+    internal fun ids(array: JSONArray): Ids =
+        Ids((0 until array.length()).map { heldId((array.opt(it) as? JSONObject)?.opt("id")) })
 
     /** The live array the screen reads, given the written candidate's contents. */
     internal fun replace(live: JSONArray, from: JSONArray) {
@@ -48,7 +125,14 @@ object Organizing {
         for (i in 0 until from.length()) live.put(from.get(i))
     }
 
-    internal fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))
+    /** [array] written to [file], or why not, as a sentence a bar can say alone. */
+    internal fun write(file: File, array: JSONArray): String? = Files.writeAtomic(file, array.toString(2))?.let {
+        if (Files.writesHeld(file)) it else when (file.name) {
+            "notes_data.json" -> "Your notes could not be saved: $it."
+            "trash.json" -> "The Trash could not be saved: $it."
+            else -> "${file.name} could not be saved: $it."
+        }
+    }
 
     // ---- one note, or several ----
 
@@ -66,29 +150,40 @@ object Organizing {
         val original = array.getJSONObject(at)
         val clone = Normalize.normalizeNote(JSONObject(original.toString()).apply { remove("uid") })
         clone.remove("_prev")
-        val base = (original.opt("title") as? String ?: "").trim()
+        val base = PyText.strip(original.opt("title") as? String ?: "")
         clone.put("title", if (base.isNotEmpty()) "$base (copy)" else "(copy)")
-        val stamp = now()
+        val stamp = Files.now()
+        // Made now: it kept the original's "Created".
+        clone.put("created", stamp)
         clone.put("updated", stamp)
-        clone.put("id", maxId(array) + 1)
+        clone.put("id", ids(array).next())
         val atts = clone.getJSONArray("attachments")
         val fresh = JSONArray()
+        val made = ArrayList<String>()
         for (i in 0 until atts.length()) {
             val att = atts.getJSONObject(i)
             val copy = attachmentsDir?.let { Importing.copyAttachment(it, att.optString("stored_as")) }
+            copy?.let { made.add(it) }
             fresh.put(if (copy != null) JSONObject(att.toString()).put("stored_as", copy) else att)
         }
         clone.put("attachments", fresh)
         val candidate = JSONArray(array.toString()).put(clone)
-        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        // Refused (a nearly full phone), the copies are taken back, as Attach's:
+        // left, they took room on the phone whose fullness refused the write.
+        write(file, candidate)?.let { problem ->
+            attachmentsDir?.let { dir -> made.forEach { File(dir, it).delete() } }
+            return SaveResult.Failed(problem)
+        }
         replace(array, candidate)
         return SaveResult.Ok(clone.getInt("id"))
     }
 
     /**
-     * Several notes to the Trash in one go -- the Trash written first, as
-     * a single delete writes it. The entries keep their ids, so [restore]
-     * can bring exactly these back: the Undo after a delete.
+     * Notes to the Trash, one or several -- every delete in the app. The
+     * entries keep their ids, so [restore] can bring exactly these back (the
+     * Undo). The Trash is written FIRST, as on the desktop: a phone killed
+     * between the two writes leaves the notes in both files, a duplicate a
+     * person can see, never in neither; a Trash not written leaves the notes.
      */
     fun trashNotes(load: Notebook.Load, ids: Collection<Int>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -97,7 +192,7 @@ object Organizing {
         if (trashFile.exists() && load.trashRaw == null) return SaveResult.Failed(TRASH_UNREADABLE)
         val trash = load.trashRaw ?: JSONArray()
         val wanted = ids.toSet()
-        val stamp = now()
+        val stamp = Files.now()
         val trashCandidate = JSONArray(trash.toString())
         val notesCandidate = JSONArray()
         var moved = 0
@@ -112,20 +207,22 @@ object Organizing {
             }
         }
         if (moved == 0) return SaveResult.Failed("Those notes are no longer in the notes file.")
+        // The cause kept: "try again in a moment" told a full phone what could not help.
         write(trashFile, trashCandidate)?.let {
-            return SaveResult.Failed("The Trash could not be written ($it), so nothing was deleted.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. Nothing was deleted.")
         }
         load.trashRaw?.let { replace(it, trashCandidate) }
         write(file, notesCandidate)?.let {
-            return SaveResult.Failed("$it — the notes are in the Trash and still in the list; nothing was lost.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. The notes are in the Trash and still in the list; " +
+                "nothing was lost.")
         }
         replace(array, notesCandidate)
         return SaveResult.Ok(0, imported = moved)
     }
 
-    /** Pins or unpins several notes; one write. */
     /**
-     * Pinned or not, its "updated" time left alone, as the desktop's
+     * Pins or unpins several notes, in one write. Each keeps its "updated"
+     * time, as the desktop's
      * `toggle_pin` leaves it: a pin is where a note sits, not an edit, and
      * stamped, an unpinned note from last month jumped to the top of
      * "Recently updated" and said "Last updated: today".
@@ -135,16 +232,85 @@ object Organizing {
 
     /** Files several notes under one category; one write. */
     fun moveToCategory(load: Notebook.Load, ids: Collection<Int>, category: String): SaveResult {
-        val name = category.trim().ifEmpty { Themes.PROTECTED_CATEGORY }
+        val name = filedAs(category)
         return editEach(load, ids) { it.put("category", name) }
     }
+
+    private fun filedAs(category: String) = category.trim().ifEmpty { Themes.PROTECTED_CATEGORY }
+
+    /** Where one note was filed, and when it was last changed: what a move's Undo puts back. */
+    data class Filed(val id: Int, val uid: String?, val category: Any?, val updated: Any?)
+
+    /** Where each of [ids] is filed now, before a move. */
+    fun filedNow(load: Notebook.Load, ids: Collection<Int>): List<Filed> {
+        val array = load.raw ?: return emptyList()
+        return ids.mapNotNull { id ->
+            noteById(array, id)?.let { Filed(id, it.opt("uid") as? String, it.opt("category"), it.opt("updated")) }
+        }
+    }
+
+    /**
+     * A move to [category] taken back: each note back where [marks] say it
+     * was filed, its "updated" with it -- only one still under [category],
+     * as the desktop's _undo_bulk_category: one filed again since keeps it.
+     * One whose category was deleted since ([deleted]) stays, [notBack] counting
+     * it: put back, the next refresh adopted the deleted name again. A rename is
+     * carried into [marks] and [category] by the caller, as the desktop's offer is.
+     */
+    fun putBackFiled(load: Notebook.Load, marks: List<Filed>, category: String,
+                     deleted: Set<String> = emptySet()): SaveResult {
+        val file = load.file ?: return SaveResult.Failed(NOWHERE)
+        val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
+        val name = filedAs(category)
+        if (name !in load.categories) {
+            return SaveResult.Failed("The category they were moved to was renamed or deleted since, so they stay where they are.")
+        }
+        val candidate = JSONArray(array.toString())
+        var changed = 0
+        var kept = 0
+        for (mark in marks) {
+            val note = candidate.opt(indexOfNote(candidate, mark.id, mark.uid)) as? JSONObject ?: continue
+            if (note.opt("category") != name) continue
+            if (gone(mark, deleted, load.categories.keys)) {
+                kept += 1
+                continue
+            }
+            if (mark.category == null) note.remove("category") else note.put("category", mark.category)
+            if (mark.updated == null) note.remove("updated") else note.put("updated", mark.updated)
+            changed += 1
+        }
+        if (changed == 0) {
+            return SaveResult.Failed(if (kept == 0) "Those notes are no longer where the move put them."
+                else "Those notes could not go back to a category that no longer exists.")
+        }
+        write(file, candidate)?.let { return SaveResult.Failed(it) }
+        replace(array, candidate)
+        return SaveResult.Ok(0, imported = changed)
+    }
+
+    /**
+     * The [marks] a move's Undo leaves under [category]: still there, their own category
+     * deleted since -- not one filed again by hand meanwhile, as the desktop counts them.
+     */
+    fun notBack(load: Notebook.Load, marks: List<Filed>, category: String, deleted: Set<String>): List<Filed> {
+        val array = load.raw ?: return emptyList()
+        val name = filedAs(category)
+        return marks.filter { mark ->
+            gone(mark, deleted, load.categories.keys) &&
+                (array.opt(indexOfNote(array, mark.id, mark.uid)) as? JSONObject)?.opt("category") == name
+        }
+    }
+
+    /** Deleted since, and not made again: the desktop asks the map at the Undo too. */
+    private fun gone(mark: Filed, deleted: Set<String>, categories: Set<String>): Boolean =
+        (mark.category as? String)?.let { filedAs(it) in deleted && filedAs(it) !in categories } == true
 
     // ---- duplicates ----
 
     /**
      * Notes that are the same note twice: equal in title -- a trailing
      * "(copy)" aside -- text and comments, case and spacing aside, and in
-     * category, checklist and repeat. Date, colour, pin and files do not
+     * category, checklist, repeat and a series' own days. Date, colour, pin and files do not
      * count. The desktop's `find_duplicate_groups`, on its own key, the one
      * the import's look-alike question asks too. Groups of two or more, each
      * in the notebook's order, by id.
@@ -161,12 +327,11 @@ object Organizing {
     }
 
     /**
-     * The ticked copies ([remove]) of each group to the Trash, and their
-     * files handed to the first copy of the group left. Each file is copied
-     * for it: the copy going to the Trash keeps its own, and the Trash's
-     * purge deletes those. A group ticked whole goes whole. The desktop's
-     * `_cleanup_selected_duplicates`, after its question -- the files are
-     * merged only once it is answered, or every No would copy them again.
+     * The ticked copies ([remove]) of each group to the Trash, their files
+     * copied to the first copy left, up to the files a note holds (the copy
+     * going to the Trash keeps its own, for the purge). A group ticked whole
+     * goes whole. The desktop's `_cleanup_selected_duplicates`, after its
+     * question: merged before it, every No would copy the files again.
      */
     fun cleanUpDuplicates(load: Notebook.Load, groups: List<List<Int>>, remove: Set<Int>,
                           attachmentsDir: File?): SaveResult {
@@ -176,6 +341,7 @@ object Organizing {
         if (going.isEmpty()) return SaveResult.Failed("Tick the duplicates you want to remove first.")
         val candidate = JSONArray(array.toString())
         var grew = false
+        val made = ArrayList<String>()
         for (group in groups) {
             if (group.none { it in going }) continue
             val keptAt = group.firstOrNull { it !in going }?.let { indexOfId(candidate, it) }?.takeIf { it >= 0 } ?: continue
@@ -187,22 +353,66 @@ object Organizing {
                 val at = indexOfId(candidate, id).takeIf { it >= 0 } ?: continue
                 val atts = candidate.getJSONObject(at).opt("attachments") as? JSONArray ?: continue
                 for (j in 0 until atts.length()) {
+                    // A note holds MAX_ATTACHMENTS files, as the import's
+                    // adoptFiles stops: past them, the list hid the rest and
+                    // the purge took them. They stay with their copy, in the Trash.
+                    if (merged.length() >= Normalize.MAX_ATTACHMENTS) break
                     val att = atts.opt(j) as? JSONObject ?: continue
                     val stored = att.opt("stored_as") as? String ?: continue
                     if (!seen.add(stored)) continue
+                    // Duplicate gave the copy each file again under a new
+                    // name: the kept note holds it already, and merged, it
+                    // listed every file twice.
+                    if (attachmentsDir != null && (0 until merged.length()).any { k ->
+                            (merged.opt(k) as? JSONObject)?.let { sameFile(attachmentsDir, att, it) } == true }) continue
                     // A file that cannot be copied is left with the copy in
                     // the Trash, never shared with one the purge will empty.
                     val copy = attachmentsDir?.let { Importing.copyAttachment(it, stored) } ?: continue
                     merged.put(JSONObject(att.toString()).put("stored_as", copy))
+                    made.add(copy)
                     grew = true
                 }
             }
         }
         if (grew) {
-            write(file, candidate)?.let { return SaveResult.Failed(it) }
+            // Refused, the copies are taken back, as Duplicate's and Attach's.
+            write(file, candidate)?.let { problem ->
+                attachmentsDir?.let { dir -> made.forEach { File(dir, it).delete() } }
+                return SaveResult.Failed(problem)
+            }
             replace(array, candidate)
         }
         return trashNotes(load, going)
+    }
+
+    /** Whether two attachments are one file twice: the same name shown and the same bytes, under two stored names. */
+    private fun sameFile(dir: File, one: JSONObject, other: JSONObject): Boolean {
+        if ((one.opt("filename") as? String ?: "") != (other.opt("filename") as? String ?: "")) return false
+        val first = Normalize.bareFileName(one.opt("stored_as") as? String ?: "")
+        val second = Normalize.bareFileName(other.opt("stored_as") as? String ?: "")
+        if (first.isEmpty() || second.isEmpty()) return false
+        val a = File(dir, first)
+        val b = File(dir, second)
+        if (!a.isFile || !b.isFile || a.length() != b.length()) return false
+        return try {
+            java.io.DataInputStream(a.inputStream().buffered()).use { x ->
+                java.io.DataInputStream(b.inputStream().buffered()).use { y ->
+                    val p = ByteArray(65536)
+                    val q = ByteArray(65536)
+                    var left = a.length()
+                    while (left > 0) {
+                        val n = minOf(left, p.size.toLong()).toInt()
+                        x.readFully(p, 0, n)
+                        y.readFully(q, 0, n)
+                        for (i in 0 until n) if (p[i] != q[i]) return false
+                        left -= n
+                    }
+                    true
+                }
+            }
+        } catch (e: java.io.IOException) {
+            false
+        }
     }
 
     // ---- attached files ----
@@ -212,6 +422,38 @@ object Organizing {
 
     /** What [attach] did: the write, how many files joined, and the names that would not copy. */
     data class Attached(val result: SaveResult, val added: Int, val failed: List<String>)
+
+    /**
+     * Of the files picked -- each its name and a copy of its bytes -- the
+     * places of those the note already [held] (its files' shown and stored
+     * names, read on the main thread) as they are: the name it would show,
+     * then the size, then the bytes, as the desktop's _attached_already. The
+     * same file picked again made a second attachment and a second copy,
+     * unsaid (the review panel). A file that cannot be read counts as new.
+     */
+    fun alreadyAttached(held: List<Pair<String, String>>, attachmentsDir: File, picked: List<Pair<String, File>>): List<Int> {
+        val byName = HashMap<String, MutableList<File>>()
+        for ((shown, stored) in held) byName.getOrPut(shown) { ArrayList() }.add(File(attachmentsDir, stored))
+        return picked.indices.filter { at ->
+            val (name, copy) = picked[at]
+            byName[Normalize.bareFileName(name)]?.any { sameBytes(copy, it) } == true
+        }
+    }
+
+    /** Whether [a] and [b] hold the same bytes: the size first, which is cheap. */
+    private fun sameBytes(a: File, b: File): Boolean = try {
+        a.isFile && b.isFile && a.length() == b.length() &&
+            a.inputStream().buffered().use { x -> b.inputStream().buffered().use { y ->
+                var same = true
+                while (same) {
+                    val c = x.read()
+                    if (c != y.read()) same = false else if (c == -1) break
+                }
+                same
+            } }
+    } catch (_: java.io.IOException) {
+        false
+    }
 
     private val STAMP: java.time.format.DateTimeFormatter =
         java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSSSSS", Locale.US)
@@ -240,7 +482,9 @@ object Organizing {
         val own = Normalize.bareFileName(display)
             .map { if (it < ' ' || it in "\\/:*?\"<>|") '_' else it }
             .joinToString("").ifEmpty { "file" }
-        return STAMP.format(now) + "_" + own
+        // Within what the phone's storage holds: a long name in Cyrillic,
+        // legal where it came from, could not be copied once stamped.
+        return Backup.fittedPlace(STAMP.format(now) + "_" + own)
     }
 
     /**
@@ -251,12 +495,20 @@ object Organizing {
      * files back out, so nothing is left in the folder that no note names.
      */
     fun attach(load: Notebook.Load, id: Int, attachmentsDir: File, incoming: List<Incoming>,
-               clock: () -> java.time.LocalDateTime = { java.time.LocalDateTime.now() }): Attached {
+               clock: () -> java.time.LocalDateTime = { java.time.LocalDateTime.now() },
+               uid: String? = null): Attached {
         val file = load.file ?: return Attached(SaveResult.Failed(NOWHERE), 0, emptyList())
         val array = load.raw ?: return Attached(SaveResult.Failed(UNREADABLE), 0, emptyList())
-        val index = indexOfId(array, id)
-        if (index < 0) return Attached(SaveResult.Failed("This note is no longer in the notes file."), 0, emptyList())
-        val room = roomFor(load, id)
+        // The note the files were picked for, by its [uid] ([indexOfNote]): by
+        // the id alone, a note made since in a deleted one's freed id took its
+        // files, unsaid, and one Undo brought back under a new id refused them.
+        val index = indexOfNote(array, id, uid)
+        if (index < 0) {
+            return Attached(SaveResult.Failed("The note these files were picked for is no longer here, " +
+                "so nothing was attached."), 0, emptyList())
+        }
+        val noteId = ((array.opt(index) as? JSONObject)?.opt("id") as? Number)?.toInt() ?: id
+        val room = roomFor(load, noteId)
         if (room == 0) {
             return Attached(SaveResult.Failed("A note can keep ${Normalize.MAX_ATTACHMENTS} attached files. " +
                 "Remove one to add another, or split this into two notes."), 0, emptyList())
@@ -270,7 +522,7 @@ object Organizing {
             var stored = base
             var n = 2
             while (File(attachmentsDir, stored).exists()) {
-                stored = base.substringBefore('_') + "-" + (n++) + "_" + base.substringAfter('_')
+                stored = Backup.fittedPlace(base.substringBefore('_') + "-" + (n++) + "_" + base.substringAfter('_'))
             }
             val target = File(attachmentsDir, stored)
             try {
@@ -286,13 +538,13 @@ object Organizing {
         val note = candidate.getJSONObject(index)
         val atts = note.opt("attachments") as? JSONArray ?: JSONArray().also { note.put("attachments", it) }
         for ((display, stored) in copied) atts.put(JSONObject().put("filename", display).put("stored_as", stored))
-        note.put("updated", now())
+        note.put("updated", Files.now())
         write(file, candidate)?.let { problem ->
             copied.forEach { File(attachmentsDir, it.second).delete() }
             return Attached(SaveResult.Failed(problem), 0, failed)
         }
         replace(array, candidate)
-        return Attached(SaveResult.Ok(id), copied.size, failed)
+        return Attached(SaveResult.Ok(noteId), copied.size, failed)
     }
 
     /**
@@ -313,11 +565,11 @@ object Organizing {
             ?: return SaveResult.Failed("That file is no longer attached.")
         val removed = atts.getJSONObject(at)
         atts.remove(at)
-        note.put("updated", now())
+        note.put("updated", Files.now())
         write(file, candidate)?.let { return SaveResult.Failed(it) }
         replace(array, candidate)
         deleteFiles(listOf(JSONObject().put("attachments", JSONArray().put(removed))),
-                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir)
+                    storedNames(entriesOf(load.raw) + entriesOf(load.trashRaw)), attachmentsDir, load)
         return SaveResult.Ok(id)
     }
 
@@ -332,6 +584,22 @@ object Organizing {
      */
     fun sameBlock(a: Note, b: Note, grouped: Boolean): Boolean =
         a.pinned == b.pinned && (!grouped || a.category == b.category)
+
+    /**
+     * Where "Move up" ([step] -1) or "Move down" (+1) takes note [id] among
+     * [shown], the notes in the order the list shows them: the neighbour it
+     * goes before (up) or after (down), as a drag's drop names it for
+     * [moveNote] -- or null when there is no place that way in its block.
+     * Arranging by hand without a drag, which a screen reader, Switch Access
+     * or a hand that cannot drag could not do at all.
+     */
+    fun stepPlace(shown: List<Note>, id: Int, step: Int, grouped: Boolean): Pair<Int, Boolean>? {
+        val at = shown.indexOfFirst { it.id == id }
+        if (at < 0) return null
+        val other = shown.getOrNull(at + step) ?: return null
+        if (!sameBlock(shown[at], other, grouped)) return null
+        return other.id to (step < 0)
+    }
 
     /**
      * Every note given its place in Custom order from the way [order]
@@ -390,29 +658,24 @@ object Organizing {
 
     /**
      * Every note a positive id no other note has -- the desktop's
-     * `repair_note_ids`, with `normalize_note`'s reading of an id written
-     * as text: the first holder of a number keeps it, so a note remembered
-     * as open is still the same note, and every later holder takes the next
-     * free number. Two notes sharing an id were edited as one and went to
-     * the Trash together. Written when anything changed; true then.
+     * `repair_note_ids`, ids written as text read as `normalize_note` reads
+     * them: the first holder keeps its number, so a note remembered as open
+     * is still that note, and later holders take the next free one. Written
+     * when anything changed; true then. Unlike the desktop, an id past an
+     * Int ([heldId]) is renumbered too: held, the next new id wrapped.
      */
     fun repairIds(load: Notebook.Load): Boolean {
         val file = load.file ?: return false
         val array = load.raw ?: return false
-        fun idOf(note: JSONObject): Int = when (val raw = note.opt("id")) {
-            is Boolean -> 0
-            is Number -> raw.toInt()
-            is String -> raw.trim().toIntOrNull() ?: 0
-            else -> 0
-        }
         val notes = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
-        val ids = notes.map { idOf(it) }
-        var next = (ids.filter { it > 0 }.maxOrNull() ?: 0) + 1
+        val ids = notes.map { heldId(it.opt("id")) }
+        // The first holders kept, every one, before any number is handed out:
+        // a free number given early is not one a later note already holds.
         val seen = HashSet<Int>()
-        val wanted = ids.map { id -> if (id > 0 && seen.add(id)) id else next++.also { seen.add(it) } }
-        if (notes.indices.all { (notes[it].opt("id") as? Number)?.toInt() == wanted[it] && notes[it].opt("id") !is Boolean }) {
-            return false
-        }
+        val keeps = ids.map { id -> id > 0 && seen.add(id) }
+        val fresh = Ids(seen)
+        val wanted = ids.indices.map { if (keeps[it]) ids[it] else fresh.next() }
+        if (notes.indices.all { written(notes[it].opt("id")) == wanted[it].toLong() }) return false
         val candidate = JSONArray(array.toString())
         var k = 0
         for (i in 0 until candidate.length()) {
@@ -431,7 +694,7 @@ object Organizing {
         val wanted = ids.toSet()
         val candidate = JSONArray(array.toString())
         var changed = 0
-        val at = now()
+        val at = Files.now()
         for (i in 0 until candidate.length()) {
             val note = candidate.opt(i) as? JSONObject ?: continue
             val itsId = note.opt("id")
@@ -483,11 +746,13 @@ object Organizing {
             if (old in folded) changes[Settings.COLLAPSED_GROUPS] = JSONArray((folded - old + listOfNotNull(new)).sorted())
             if (settings.raw.opt(Settings.NOTE_FILTER) == old) changes[Settings.NOTE_FILTER] = new ?: Showing.ALL
         }
-        return Settings.putAll(settings, changes)
+        val saved = Settings.putAll(settings, changes)
+        // Refused for a moment: the desktop's words, not the system's with a private path in them.
+        return if (saved is SaveResult.Failed && !Files.writesHeld(settings.file)) SaveResult.Failed(CATEGORIES_UNSAVED) else saved
     }
 
     fun addCategory(load: Notebook.Load, name: String, colour: String): SaveResult {
-        val clean = name.trim()
+        val clean = PyText.strip(name)
         if (clean.isEmpty()) return SaveResult.Failed("A category needs a name.")
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories)?.let { return SaveResult.Failed(it) }
@@ -513,16 +778,37 @@ object Organizing {
      * place of six".
      */
     fun renameCategory(load: Notebook.Load, old: String, new: String): SaveResult {
-        val clean = new.trim()
+        val clean = PyText.strip(new)
         if (old == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be renamed.")
         if (old !in load.categories) return SaveResult.Failed("That category no longer exists.")
         if (clean.isEmpty()) return SaveResult.Failed("A category needs a name.")
         if (clean == old) return SaveResult.Ok(0)
         if (clean in load.categories) return SaveResult.Failed("There is already a category called “$clean”.")
         Settings.categoryNameRefusal(clean, load.categories, adding = false)?.let { return SaveResult.Failed(it) }
-        refile(load, old, clean)?.let { return SaveResult.Failed(it) }
-        return saveCategories(load, renamed(load.categories, old, clean), old, clean)
+        categoriesHeld(load)?.let { return SaveResult.Failed(it) }
+        var saved: SaveResult = SaveResult.Ok(0)
+        refile(load, old, clean) {
+            saved = saveCategories(load, renamed(load.categories, old, clean), old, clean)
+            // Every holder put back, said in saveCategories' words.
+            (saved as? SaveResult.Failed)?.reason
+        }?.let { return SaveResult.Failed(it) }
+        return saved
     }
+
+    private const val CATEGORIES_UNSAVED =
+        "The list of categories couldn't be saved just now, so nothing was changed. Try again in a moment."
+
+    private const val REFILE_REFUSED =
+        "A file of the notebook couldn't be written just now, so the category was left as it was. Try again in a moment."
+
+    /**
+     * Why the map cannot be written this run, or null: asked before any holder is
+     * moved, and by the delete before its question (the desktop asks nothing then).
+     */
+    internal fun categoriesHeld(load: Notebook.Load): String? =
+        load.settings?.file?.takeIf { Files.writesHeld(it) }?.let { Files.heldReason(it) + ". Nothing was changed." }
+            // A notes file not read: the delete asked "No note is filed under it", then refused.
+            ?: if (load.raw == null) "$UNREADABLE Nothing was changed." else null
 
     /** The map with one name changed in its own place, its colour kept. */
     internal fun renamed(map: Map<String, String>, old: String, new: String): LinkedHashMap<String, String> {
@@ -540,6 +826,8 @@ object Organizing {
     fun deleteCategory(load: Notebook.Load, name: String, trashNotes: Boolean): SaveResult {
         if (name == Themes.PROTECTED_CATEGORY) return SaveResult.Failed("“General” can't be deleted.")
         if (name !in load.categories) return SaveResult.Failed("That category no longer exists.")
+        categoriesHeld(load)?.let { return SaveResult.Failed(it) }
+        var trashed = false
         if (trashNotes) {
             val array = load.raw ?: return SaveResult.Failed(UNREADABLE)
             val doomed = (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
@@ -548,33 +836,74 @@ object Organizing {
             if (doomed.isNotEmpty()) {
                 val result = trashNotes(load, doomed)
                 if (result is SaveResult.Failed) return result
+                trashed = true
             }
         }
-        refile(load, name, Themes.PROTECTED_CATEGORY)?.let { return SaveResult.Failed(it) }
         val map = LinkedHashMap(load.categories)
         map.remove(name)
-        return saveCategories(load, map, old = name, new = null)
+        var saved: SaveResult = SaveResult.Ok(0)
+        refile(load, name, Themes.PROTECTED_CATEGORY) {
+            saved = saveCategories(load, map, old = name, new = null)
+            (saved as? SaveResult.Failed)?.let {
+                if (trashed) "The list of categories couldn't be saved just now, so the category stays; " +
+                    "its notes went to the Trash, where they can be restored."
+                else CATEGORIES_UNSAVED
+            }
+        }?.let {
+            // Its notes already in the Trash: said, as the map's refusal says it.
+            return SaveResult.Failed(if (trashed && it == REFILE_REFUSED) "A file of the notebook couldn't be " +
+                "written just now, so the category stays; its notes went to the Trash, where they can be restored."
+                else it)
+        }
+        return saved
     }
 
-    /** Every holder of [old], moved to [new]: notes, Trash, templates. */
-    private fun refile(load: Notebook.Load, old: String, new: String): String? {
+    /**
+     * Every holder of [old], moved to [new]: notes, Trash, templates; then [last],
+     * the map's own write, whose refusal puts every holder back as well.
+     */
+    private fun refile(load: Notebook.Load, old: String, new: String, last: () -> String?): String? {
         val file = load.file ?: return NOWHERE
         val array = load.raw ?: return UNREADABLE
+        // The notes first, the largest file and the write a nearly full phone refuses
+        // most: refused, nothing is renamed. A later refusal puts back what was
+        // written, or the rename stopped halfway, under a name no category had.
+        val notesBefore = JSONArray(array.toString())
+        val notesCandidate = JSONArray(array.toString())
+        val notesMoved = renameIn(notesCandidate, old, new) > 0
+        if (notesMoved) {
+            // Words of its own for every refusal here: the system's named a private path.
+            write(file, notesCandidate)?.let { return REFILE_REFUSED }
+            replace(array, notesCandidate)
+        }
+        fun putBack(trashBefore: JSONArray?) {
+            val trash = load.trashRaw
+            val trashFile = load.trashFile
+            if (trashBefore != null && trash != null && trashFile != null && write(trashFile, trashBefore) == null) {
+                replace(trash, trashBefore)
+            }
+            if (notesMoved && write(file, notesBefore) == null) replace(array, notesBefore)
+        }
+        var trashBefore: JSONArray? = null
         load.trashRaw?.let { trash ->
             val candidate = JSONArray(trash.toString())
             if (renameIn(candidate, old, new) > 0) {
-                load.trashFile?.let { write(it, candidate)?.let { problem -> return problem } }
+                load.trashFile?.let { write(it, candidate)?.let { putBack(null); return REFILE_REFUSED } }
+                trashBefore = JSONArray(trash.toString())
                 replace(trash, candidate)
             }
         }
+        // Not over a templates file held this run, as the desktop's rename leaves it.
         val templatesFile = file.parentFile?.let { File(it, "templates.json") }
-        if (templatesFile != null && templatesFile.isFile) {
+        var templatesBefore: JSONArray? = null
+        if (templatesFile != null && templatesFile.isFile && !Files.writesHeld(templatesFile)) {
             val templates = try {
-                JSONArray(templatesFile.readText(Charsets.UTF_8))
+                Files.parseOwn(templatesFile) { JSONArray(it) }
             } catch (e: Exception) {
                 null
             }
             if (templates != null) {
+                val before = JSONArray(templates.toString())
                 var moved = false
                 for (i in 0 until templates.length()) {
                     val tpl = templates.opt(i) as? JSONObject ?: continue
@@ -583,13 +912,16 @@ object Organizing {
                         moved = true
                     }
                 }
-                if (moved) write(templatesFile, templates)?.let { return it }
+                if (moved) {
+                    write(templatesFile, templates)?.let { putBack(trashBefore); return REFILE_REFUSED }
+                    templatesBefore = before
+                }
             }
         }
-        val candidate = JSONArray(array.toString())
-        if (renameIn(candidate, old, new) > 0) {
-            write(file, candidate)?.let { return it }
-            replace(array, candidate)
+        last()?.let { problem ->
+            templatesBefore?.let { before -> templatesFile?.let { write(it, before) } }
+            putBack(trashBefore)
+            return problem
         }
         return null
     }
@@ -670,12 +1002,31 @@ object Organizing {
         if (array == null) emptyList() else (0 until array.length()).mapNotNull { array.opt(it) as? JSONObject }
 
     /**
+     * Whether deleting for good keeps every attached file this run: the notes
+     * file or the Trash held, or set aside unreadable ([deleteFiles]) -- their
+     * entries, never read, may use any file (a backup's copy of a trashed note
+     * shared its file, and Remove attachment deleted it). The questions that
+     * name the files ask it too, as the desktop's `attached_files_kept`.
+     */
+    fun filesKept(load: Notebook.Load): Boolean = filesKept(load.file) || filesKept(load.trashFile)
+
+    /** Whether emptying the Trash deletes attached files, so its question names them. */
+    fun emptyTrashTakesFiles(load: Notebook.Load): Boolean =
+        load.trash.any { it.attachmentCount > 0 } && !filesKept(load)
+
+    private fun filesKept(file: File?): Boolean =
+        file != null && (Files.writesHeld(file) || Files.unreadAtLoad(file))
+
+    /**
      * The files these entries use, deleted -- except any a note, or
      * another entry, still uses ([spare]), and any whose name tries to
-     * leave the attachments folder. Only for PERMANENT deletion.
+     * leave the attachments folder. Only for PERMANENT deletion. None at all
+     * while the notes file or the Trash is held or was set aside unreadable
+     * ([filesKept]; the desktop's `_UNREAD_AT_LOAD`).
      */
-    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?) {
+    private fun deleteFiles(entries: List<JSONObject>, spare: Set<String>, attachmentsDir: File?, load: Notebook.Load) {
         val dir = attachmentsDir ?: return
+        if (filesKept(load)) return
         for (name in storedNames(entries)) {
             if (name in spare) continue
             val bare = Normalize.bareFileName(name)
@@ -689,15 +1040,31 @@ object Organizing {
         }
     }
 
+    /**
+     * When an entry went to the Trash, read as the desktop's strptime reads
+     * "%Y-%m-%d %H:%M:%S" ([DELETED_AT]: four year digits, a space or tab
+     * between, nothing around it, a real date). SimpleDateFormat took a
+     * leading space and any year, and refused the tab. The purge and the
+     * row's "days left" both ask this, so they agree. ASCII digits only;
+     * Python's take other scripts' too, which no app writes into a stamp.
+     */
+    internal fun deletedAt(stamp: String?): Date? {
+        val found = DELETED_AT.matchEntire(stamp ?: return null) ?: return null
+        val (year, month, day, hour, minute, second) = found.destructured
+        val calendar = java.util.Calendar.getInstance()
+        calendar.isLenient = false
+        calendar.clear()
+        calendar.set(year.toInt(), month.toInt() - 1, day.trim().toInt(), hour.toInt(), minute.toInt(), second.toInt())
+        return try { calendar.time } catch (e: IllegalArgumentException) { null }
+    }
+
+    /** Python's _strptime pattern for "%Y-%m-%d %H:%M:%S", its space a run of whitespace. */
+    private val DELETED_AT = Regex(
+        """(\d{4})-(1[0-2]|0[1-9]|[1-9])-(3[01]|[12]\d|0[1-9]|[1-9]| [1-9])\s+(2[0-3]|[01]\d|\d):([0-5]\d|\d):(6[01]|[0-5]\d|\d)""")
+
     /** Whether an entry has outlived the window; an unreadable stamp never has. */
     internal fun isPast(entry: JSONObject, days: Int, now: Date = Date()): Boolean {
-        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-        format.isLenient = false
-        val deleted = try {
-            format.parse(entry.opt("deleted_at") as? String ?: "")
-        } catch (e: Exception) {
-            null
-        } ?: return false
+        val deleted = deletedAt(entry.opt("deleted_at") as? String) ?: return false
         val window = days.coerceIn(1, 365).toLong() * 24 * 60 * 60 * 1000
         return deleted.time < now.time - window
     }
@@ -706,24 +1073,32 @@ object Organizing {
     fun pastWindow(load: Notebook.Load, days: Int): Int = entriesOf(load.trashRaw).count { isPast(it, days) }
 
     /**
+     * The file that keeps the Trash's window from being chosen this run, or
+     * null: held settings keep no choice, and a held Trash reads empty, so no
+     * question could say what a shorter window takes at the next start (it
+     * took old notes and their files unasked, as on the desktop).
+     */
+    fun windowHeldBy(load: Notebook.Load): File? =
+        load.settings?.file?.takeIf { Files.writesHeld(it) } ?: load.trashFile?.takeIf { Files.writesHeld(it) }
+
+    /**
      * The Trash emptied of what has outlived its window, at the start of
      * the app. With a notebook of its own, the phone runs this itself; the
      * reason it once did not -- a folder shared with the desktop, which
      * owns the purge there -- no longer holds. Files a note still uses are
-     * spared, a step safer than the desktop's own startup purge.
+     * spared, as the desktop's purge spares them.
      */
-    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, now: Date = Date(),
-                     days: Int = load.retentionDays): Int {
+    fun purgeExpired(load: Notebook.Load, attachmentsDir: File?, days: Int = load.retentionDays): Int {
         val trash = load.trashRaw ?: return 0
         val trashFile = load.trashFile ?: return 0
         val all = entriesOf(trash)
-        val gone = all.filter { isPast(it, days, now) }
+        val gone = all.filter { isPast(it, days) }
         if (gone.isEmpty()) return 0
         val kept = all.filter { it !in gone }
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         if (write(trashFile, candidate) != null) return 0
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load)
         return gone.size
     }
 
@@ -739,7 +1114,7 @@ object Organizing {
         val candidate = JSONArray().apply { kept.forEach { put(it) } }
         write(trashFile, candidate)?.let { return SaveResult.Failed(it) }
         replace(trash, candidate)
-        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir)
+        deleteFiles(gone, storedNames(entriesOf(load.raw) + kept), attachmentsDir, load)
         return SaveResult.Ok(0, imported = gone.size)
     }
 
@@ -748,13 +1123,11 @@ object Organizing {
         deleteForever(load, entriesOf(load.trashRaw).map { keyOf(it) }, attachmentsDir)
 
     /**
-     * These entries back in the notebook, each with a fresh id -- its old
-     * one may have been handed to a note made since -- the notebook written
-     * first. A category deleted in the meantime files a note under General.
-     * A uid another note now has is replaced, as the desktop's
-     * `restore_many_from_trash` replaces it: a copy that came by code while
-     * this one sat in the Trash took its identity, and two notes with one
-     * uid meant the next code updated one of them and never the other.
+     * These entries back in the notebook, each with a fresh id (its old one
+     * may be a newer note's), the notebook written first; a category deleted
+     * meanwhile files a note under General. A uid another note now has is
+     * replaced, as `restore_many_from_trash` does: a copy that came by code
+     * meanwhile took it, and the next code updated only one of the two.
      */
     fun restore(load: Notebook.Load, keys: Collection<TrashKey>): SaveResult {
         val file = load.file ?: return SaveResult.Failed(NOWHERE)
@@ -766,27 +1139,49 @@ object Organizing {
         val back = all.filter { keyOf(it) in wanted }
         if (back.isEmpty()) return SaveResult.Failed("Those notes are no longer in the Trash.")
         val notesCandidate = JSONArray(array.toString())
-        var nextId = maxId(array) + 1
+        val fresh = ids(array)
         var firstId = 0
         val worn = HashSet<String>()
-        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(it.opt("uid") as? String ?: "") }
+        for (i in 0 until array.length()) (array.opt(i) as? JSONObject)?.let { worn.add(PyText.strip(it.opt("uid") as? String ?: "")) }
+        val restored = HashSet<String>()
         for (entry in back) {
             val note = JSONObject(entry.toString())
             note.remove("deleted_at")
+            // Stamped where it has none (empty, or not text), as the desktop's
+            // normalize_note does: kept empty, it sorted oldest here and newest
+            // there. A stamp of spaces the desktop keeps as it is.
+            if ((note.opt("updated") as? String).isNullOrEmpty()) note.put("updated", Files.now())
+            if ((note.opt("created") as? String).isNullOrEmpty()) note.put("created", note.getString("updated"))
+            // Read from the Trash's file, as the notes are at load: a series an
+            // older release turned off and deleted takes its days back into the
+            // note (Notebook.settleAsRead), as the desktop's restore does.
+            Notebook.settleAsRead(note)
+            val nextId = fresh.next()
             note.put("id", nextId)
-            val uid = note.opt("uid") as? String ?: ""
-            if (uid in worn) note.put("uid", java.util.UUID.randomUUID().toString())
+            // Stripped, and one of its own when it has none or another note
+            // wears it, as the desktop's normalize_note leaves it: kept empty,
+            // the list knew it by an id a later note could take.
+            val uid = PyText.strip(note.opt("uid") as? String ?: "")
+            note.put("uid", if (uid.isEmpty() || uid in worn) java.util.UUID.randomUUID().toString() else uid)
             worn.add(note.opt("uid") as? String ?: "")
+            restored.add(note.opt("uid") as? String ?: "")
             if ((note.opt("category") as? String) !in load.categories) note.put("category", Themes.PROTECTED_CATEGORY)
+            // Its days too, as normalize_note's clean_override files them: a day under a category
+            // gone since kept it, and the next refresh brought the deleted category back.
+            Importing.fileUnder(note, load.categories.keys)
             if (firstId == 0) firstId = nextId
-            nextId += 1
             notesCandidate.put(note)
         }
+        // Days a series' copy set aside as one was read, notes of their own.
+        Notebook.settleAside(notesCandidate)
         write(file, notesCandidate)?.let { return SaveResult.Failed(it) }
         replace(array, notesCandidate)
+        // A note kept aside, put back, is the person's: no Undo spends it again
+        //.
+        Notebook.forgetAsides(load, restored)
         val trashCandidate = JSONArray().apply { all.filter { it !in back }.forEach { put(it) } }
         write(trashFile, trashCandidate)?.let {
-            return SaveResult.Failed("$it — the notes are restored, and are still in the Trash too.")
+            return SaveResult.Failed("${it.removeSuffix(".")}. The notes are restored, and are still in the Trash too.")
         }
         replace(trash, trashCandidate)
         return SaveResult.Ok(firstId, imported = back.size)

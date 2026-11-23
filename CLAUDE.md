@@ -12,7 +12,7 @@ desktop's is. No sync: notes move by share code or backup, and an
 arriving copy never overwrites a note without the person choosing.
 
 Note Organizer itself is a finished, shipping Windows desktop app —
-Python and Tkinter, fully offline, at version `0.97.405`. It lives at
+Python and Tkinter, fully offline; its version is its `APP_VERSION`. It lives at
 `D:\Projects\NoteOrganizer` and has **its own `CLAUDE.md` with its own
 rules**. Read that file before touching anything there.
 
@@ -36,15 +36,17 @@ matter for anything planned here:
 
 | layer | lines | what it is |
 |---|---|---|
-| `noteorganizer/core/` | ~8,400 in 18 modules | data and rules — **never imports tkinter** |
-| `noteorganizer/ui/` + the entry file | ~32,500 | the desktop interface |
+| `noteorganizer/core/` | ~10,400 in 18 modules | data and rules — **never imports tkinter** |
+| `noteorganizer/ui/` + the entry file | ~37,500 | the desktop interface |
+
+(Measured on 2 November 2026.)
 
 So there is no "port". Four fifths of that app *is* the desktop
 interface, and any Android version rewrites the interface whatever the
 technology. What is portable is the rules: recurrence, rich text,
 tables, the note model, share codes, backups, themes. The rest of
 `core/` — filesystem paths, the single-instance lock, the clipboard — is
-desktop too. Here the rules are twenty-six Kotlin files with no Android in
+desktop too. Here the rules are twenty-seven Kotlin files with no Android in
 them ([the map](docs/ARCHITECTURE.md#the-map)).
 
 **The Python is the specification.** When a rule is re-implemented here,
@@ -94,6 +96,25 @@ writes to the user's real data.
 Explain what the command will do in plain words before asking — not just
 a summary, the actual effect.
 
+### Code that arrives from GitHub is read before it runs
+
+The owner's rule, 2026-11-12, as on the desktop. This repository's code
+runs here all day (Gradle executes the build scripts, the walk and the
+tools run Python), and pulling asks nothing. A commit nobody here wrote,
+reaching `main` through a stolen account or a pull request merged
+unread, would run on the owner's computer with her rights.
+
+- After every `pull` or `fetch`, and after the owner merges on GitHub,
+  show what arrived (`git log --format='%h %an <%ae> %s' OLD..NEW` and
+  `git diff --stat OLD..NEW`) **before** building or running anything.
+- Expected: what was pushed from here, and the owner's merge of it. A
+  commit that is neither (another author, or a change nobody here made,
+  above all to the workflows, `gradlew`, `gradle/` or a `*.gradle.kts`
+  file, or `tools/`) means stop and ask before anything runs.
+- A stranger's pull request is read on GitHub, never checked out and run
+  here. CI runs it on GitHub's machines, with a token that can only read
+  (`tools/check_workflows.py`).
+
 ### Measure before believing
 
 The desktop project's hardest-won lesson, and it applies here too: when
@@ -136,10 +157,16 @@ past the others:
 
     gradlew.bat testDebugUnitTest      # then:
     py tools/check_test_results.py     # the XML, refused if older than the code
+    py tools/check_interop.py          # the desktop reads a code made here
     py tools/check_layering.py         # Android has not leaked into the rules
     py tools/check_note_shape.py       # the two programs agree on a note
     py tools/check_palettes.py         # ... and on the themes and colours
     py tools/check_english.py          # the repository is English
+    py tools/check_comments.py         # comments say why; stories go to the issues log
+    py tools/check_mutant_targets.py   # every mutant finds its code, and one left alive says why
+    py tools/check_workflows.py        # CI's token only reads; every action is pinned to a commit
+    py tools/check_fix_mutants.py      # a change to the app's code names its mutant, or why it has none
+    py tools/check_test_plan.py        # the test plan's count in qa/README is the plan's
 
 And for a change anybody will see, the walk on the emulator
 (`py tools/emulator/walk.py <folder>`), with its photographs looked at.
@@ -149,14 +176,18 @@ people run, shrunk and renamed by R8, which the debug build never is:
 
     gradlew.bat assembleRelease
     py tools/check_release_lookups.py  # every file the code looks up is where the renamed code looks
+    py tools/make_licenses.py --check  # the licenses page names every library the APK carries
 
 A phone is never given a test-only build that needs an uninstall to
 replace: an uninstall deletes the notebook. The release build is signed
 with the debug key until the upload key exists, so the two install over
 each other.
 
-CI runs all of the first six ([tests.yml](.github/workflows/tests.yml) and
-[gates.yml](.github/workflows/gates.yml)),
+CI runs the first list, all but `check_interop.py`, which needs the
+tests' output beside the desktop's code
+([tests.yml](.github/workflows/tests.yml),
+[gates.yml](.github/workflows/gates.yml) and, for the test plan,
+[docs.yml](.github/workflows/docs.yml)),
 which is a safety net rather than a substitute: finding out on GitHub what
 a five-second command would have said on this machine wastes the round
 trip, and the contract gate needs a token in CI that it does not need here.
@@ -168,19 +199,16 @@ robot in a circle — and this section used to say so, because claiming
 authorship of a template is worse than having no icon at all. On
 **2026-09-14** it was replaced.
 
-`py tools/make_launcher_icon.py` draws it, by importing the DESKTOP app's
-`tools/make_icon.py` and asking for the same drawing at Android's sizes.
-Not a copy of it, and not a second icon that merely rhymes: the same
-code, so the two programs are one product rather than two that look
-related. It reads that file and never writes to it, like everything else
-here that touches the desktop.
+`py tools/make_launcher_icon.py` draws it with the desktop's own
+`tools/make_icon.py` ([how](README.md#the-icon-is-the-desktops-icon)).
 
 What it produces: `mipmap-*/ic_launcher*.webp` at five densities for
 older devices, plus the two adaptive layers and the `mipmap-anydpi-v26`
-XML for Android 8 and later. The foreground is drawn at 66% and centred
-because the launcher crops to the middle 72 of 108 units — our mark is a
-square with a border, and a circle mask eats the corners of anything
-larger.
+XML for Android 8 and later. The mark is drawn at 72/108 ÷ √2, 47% of
+the canvas, and centred: the launcher keeps the middle 72 of 108 units and
+then masks that into a circle, and our mark is a square with a border, so
+only a square of 72/√2 keeps its corners whole
+([the story](docs/ISSUES_LOG.md#the-preview-that-flattered-the-icon)).
 
 Two things that cost a run each, both written into the script: the
 design draws no tile, so **its corner pixel is transparent** and reading
@@ -195,11 +223,29 @@ from anywhere else.
 
 ### The emulator runs without a window
 
-Start it with `-no-window`. The scripts see, tap and photograph it
-through `adb`, so a window adds nothing — and an emulator window, or a
-probe that moves windows around, can rearrange the desktop of the
-machine it runs on. Photographs are of the emulator's screen only, never
-of the computer's.
+Start it with `-no-window`, and photograph the emulator's screen only,
+never the computer's ([how](tools/emulator/README.md#the-five-tools)).
+
+### One heavy job at a time, and nothing left running after it
+
+The computer this is built on has 16 GB of memory, often a quarter of
+it free, and on 2026-10-29 one runaway test run took it down (the
+desktop's Issues Log, "The test that took the computer down"). So one
+heavy job runs at a time -- a Gradle build or test run, a mutant run, the
+emulator and a walk on it, the desktop's suite -- never two at once. And
+nothing heavy outlives its job:
+
+- **Gradle leaves no process behind.** No daemon between builds
+  (`org.gradle.daemon=false` in `gradle.properties`, and `--no-daemon` on
+  the command line), and the Kotlin compiler run inside the build
+  (`kotlin.compiler.execution.strategy=in-process`), not as a daemon of its
+  own that outlived every build with its memory.
+- **The emulator is stopped after a walk**, and every adb call has a time
+  limit ([the emulator's side](tools/emulator/README.md#one-heavy-job-at-a-time-and-the-emulator-stopped-after-it)).
+- **The desktop's code runs under the desktop's memory ceiling.** The
+  fixture makers import its core into their own process; they call its
+  `tools/guest.py` first (`tools/desktop_guest.py`), and stop if it is
+  missing.
 
 ### Plain language
 
@@ -216,48 +262,52 @@ the author's circumstances, plans or reasons for building it. Anything
 written for a reader is framed as readability: what the next person needs
 in order to understand this code. Carried over from the desktop project.
 
+### A commit's subject names the part of the app, then what changed
+
+The owner's rule, 2026-11-07, the same as the desktop's: `area: what
+changed`, in plain words, for example `snackbar: name the note when the
+list says it`, read from `git log --oneline` by someone who never saw the
+work. A review panel found subjects such as "a word names its note as it
+is when said" unreadable there. The body tells the story; the house words
+below belong in the body and the issues log, not in a subject. Earlier
+history stays as it is.
+
+From 2026-11-20 a commit that changes anything under `app/src/main` also
+names its mutant, on a line of its own: `Mutant: <id>` for each mutant
+that guards it, an id in `tools/mutants.json`, or `No mutant: <why>`
+(words only, a pure move, a write no test reaches).
+`tools/check_fix_mutants.py` holds it, in CI; a review panel found the
+rule only asked.
+
+#### House words
+
+The issues log, the commit bodies and the agent's reports use a few words
+in a sense of their own, the same as the desktop's:
+
+| Word | Means |
+|---|---|
+| bar (phone), banner (desktop) | the short message at the foot of the screen, or near the top of the desktop's window, often with one button: Undo, Show |
+| word | what a bar or banner says, as in "the list's word about a hidden note" |
+| road | one way a person can reach a piece of code: the same fix asked again "by every road" |
+| round | one pass of reviewer agents over the app, after which their findings are fixed |
+| wave | a group of rounds with one aim (lost data, an ordinary person's week, AI slop, the review panel) |
+| the lows | findings of low severity, fixed in a wave of their own |
+| mutant | a fix broken on purpose, to watch the check that guards it fail |
+| the walk | the scripted run of the built app on an emulator (`tools/emulator/walk.py`) |
+| a look | one reading of the screen during the walk |
+
 ### No heredocs for code containing escapes
 
 Corrupted files five or more times in the desktop project. Write the file
 with a tool, parse it before believing it.
 
-### PowerShell redirection writes TEXT, never binary
+### Four traps on this machine, told where the emulator is driven
 
-`adb exec-out screencap -p > shot.png` produces a corrupt file on
-Windows: PowerShell's `>` is a text pipeline, so it prepends a UTF-8 BOM
-and rewrites line endings inside the PNG. The image opens as garbage and
-the failure looks like a broken screenshot rather than a broken pipe.
-
-Take the picture on the device and copy the finished file instead:
-
-    adb shell screencap -p /sdcard/shot.png
-    adb pull /sdcard/shot.png .
-
-Same trap for any binary a tool writes to stdout — an APK, a zip, a
-`logcat -b all --dump` in binary form. If the bytes must cross
-PowerShell, they arrive damaged; let the tool write its own file.
-
-### Git Bash rewrites Android paths into Windows paths
-
-`adb push file /sdcard/Android/data/...` from Git Bash silently becomes
-`C:/Programs/Git/Git/sdcard/Android/data/...`, and the push either fails
-with `secure_mkdirs()` or lands somewhere nobody looks. MSYS converts any
-argument that looks like a Unix path. Export `MSYS_NO_PATHCONV=1` for the
-whole script — every `adb shell`, `push` and `pull` in it needs it.
-
-### The emulator's stylus tutorial eats typed text
-
-A fresh emulator opens a full-screen *"Try out your stylus"* panel the
-first time a text field takes focus. It sits over the app and swallows
-`adb shell input text`, so the words land in the tutorial's own box while
-the app's field stays empty — and the app looks broken. Dismiss it once
-and turn it off:
-
-    adb shell settings put secure stylus_handwriting_enabled 0
-    adb shell settings put secure stylus_handwriting_default_value 0
-
-The general lesson: when scripted input seems ignored, photograph the
-screen before debugging the code. The first look answered it.
+PowerShell's `>` damages any binary it carries, Git Bash rewrites
+Android paths into Windows ones, a fresh emulator's stylus tutorial
+eats typed text, and a launcher hung into the quick-boot snapshot hangs
+at every start. Each, with its commands, is in
+[tools/emulator/README.md](tools/emulator/README.md#four-traps-two-of-which-these-tools-remove-for-themselves).
 
 ### An emulator just started is busy for a minute and more
 

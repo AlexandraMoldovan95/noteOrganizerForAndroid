@@ -45,6 +45,46 @@ class FindingTest {
     }
 
     @Test
+    fun `prose and cells fold a letter as the list's search does - one for one, the basic plane alone`() {
+        // The desktop's fold_for_search, one rule for every search on both
+        // apps (the owner's choice, 2026-11-03): the diacritic dropped, then
+        // lowered, a letter only into one letter, past the basic plane kept.
+        fun hits(body: String, query: String) = scan(body, query).size
+        // Diacritics, both Romanian spellings of ș (a comma below, a cedilla), in prose and in a cell.
+        assertEquals(1, hits("Brașov at 10", "brasov"))
+        assertEquals(1, hits("Braşov", "brașov"))
+        assertEquals(1, hits("Crème brûlée", "creme brulee"))
+        assertEquals(listOf(Finding.InCell(0, 1, 0)),
+                     scan(listOf(row("What", "When"), sep, row("Brașov", "Monday")).joinToString("\n"), "brasov"))
+        assertEquals(0, scan("Brașov", "Brasov", matchCase = true).size)
+        // Lowered: the dotted capital I, the Kelvin sign, capital sharp s, sigma, the ohm sign.
+        assertEquals(1, hits("İstanbul", "istanbul"))
+        assertEquals(1, hits("5 K", "k"))
+        assertEquals(1, hits("Straẞe", "straße"))
+        assertEquals(1, hits("Σ", "σ"))
+        assertEquals(1, hits("Ω", "ω"))
+        // A and T with a stroke, whose lower case takes a byte more: Tk's
+        // own search kept them as they were, and the desktop's Find with it,
+        // until both apps' searches came to fold alike.
+        assertEquals(1, hits("Ⱥ", "ⱥ"))
+        assertEquals(1, hits("ⱥ", "Ⱥ"))
+        assertEquals(1, hits("Ⱦ", "ⱦ"))
+        assertEquals(listOf(Finding.InText(0, 0, 3)), scan("Ⱥ x Ⱥ", "Ⱥ x"))
+        // Never sharp s as "ss", nor sigma as the final sigma, nor a Korean
+        // syllable as its first letter: 한 is not 할.
+        assertEquals(0, hits("Straße", "strasse"))
+        assertEquals(0, hits("Σ", "ς"))
+        assertEquals(0, hits("할머니", "한"))
+        // A space picked up after the word from the keyboard's suggestions is
+        // not part of it, as in the list's search.
+        assertEquals(listOf(Finding.InChecklist(0, 0, 4)), Finding.scan("", "milk ", false, checklist = listOf("milk")))
+        // Kept: a letter past the basic plane (Deseret).
+        assertEquals(0, hits("𐐀", "𐐨"))
+        // With case asked, exact.
+        assertEquals(0, scan("K", "k", matchCase = true).size)
+    }
+
+    @Test
     fun `stepping goes round from the last to the first`() {
         assertEquals(1, Finding.step(0, 1, 3))
         assertEquals(0, Finding.step(2, 1, 3))
@@ -138,6 +178,29 @@ class FindingTest {
     }
 
     @Test
+    fun `a piece shown read-only is searched as written, each line one stop, and what follows is reached`() {
+        // Skipped, the bar said 0/0 in the colour of a word found nowhere
+        // while the list's search found the note by it.
+        val long = "W".repeat(Editing.MAX_UNBROKEN + 1)
+        val body = "intro\n$long needle needle\n$long needle\nafter needle"
+        val found = scan(body, "needle")
+        assertEquals(listOf(Finding.InText(1, long.length + 1, long.length + 7),
+                            Finding.InText(1, 2 * long.length + 16, 2 * long.length + 22),
+                            Finding.InText(2, 6, 12)), found)
+        // Where a read-only line is cut to show the match stepped to.
+        val line = "a".repeat(1_000)
+        assertEquals(Finding.Cut(0, 300), Finding.cutAround(line, 300, null))
+        assertEquals(Finding.Cut(0, 300), Finding.cutAround(line, 300, 200))
+        assertEquals(Finding.Cut(640, 940), Finding.cutAround(line, 300, 700))
+        val emoji = "👣".repeat(400)
+        val cut = Finding.cutAround(emoji, 300, 501)
+        assertTrue(!Character.isLowSurrogate(emoji[cut.from]) && !Character.isLowSurrogate(emoji[cut.to]))
+        val starts = Finding.lineStartsUtf16(listOf("ab", "", "cde"))
+        assertEquals(listOf(0, 3, 4), starts.toList())
+        assertEquals(listOf(0, 0, 1, 2, 2, 2), listOf(0, 2, 3, 4, 6, 99).map { Finding.lineAt(starts, it) })
+    }
+
+    @Test
     fun `nothing to find, nothing found`() {
         assertEquals(emptyList<Finding.Match>(), scan("anything", ""))
         assertEquals(emptyList<Finding.Match>(), scan("", "x"))
@@ -156,5 +219,15 @@ class FindingTest {
         assertNull(Finding.prefill("two\nlines"))
         assertNull(Finding.prefill(""))
         assertNull(Finding.prefill(null))
+    }
+
+    @Test
+    fun `a row the desktop writes in is searched as a field is, weighed in letters`() {
+        // 1,000 emoji and 1,000 x's: 3,000 UTF-16 units, 2,000 letters -- a
+        // field on the desktop, and on the phone now: every match a stop.
+        val row = "x😀".repeat(1_000)
+        assertEquals(1_000, Finding.scan("", "x", matchCase = false, checklist = listOf(row)).size)
+        // A row past the desktop's 2,000 is read-only: its line one stop.
+        assertEquals(1, Finding.scan("", "x", matchCase = false, checklist = listOf("x".repeat(2_001))).size)
     }
 }

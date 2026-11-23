@@ -8545,8 +8545,7 @@
 },
 "title": "Trip: day 1/2",
 "name": "Trip_ day 1_2.html",
-"html": null,
-"raises": "IndexError",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Trip: day 1/2</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">Trip: day 1/2</div>\n<div>◦ deeper 1. not a list</div><table><tr><th colspan=\"2\" rowspan=\"2\">l<span style=\"background-color:#ff0000;\">ine</span><br><span style=\"background-color:#ff0000;\">two</span></th></tr><tr></tr><tr><td style=\"text-align:center;\">☐</td><td>&lt;i&gt;</td></tr><tr><td>&lt;</td><td style=\"text-align:center;\">centre</td><td>^</td><td style=\"text-align:center;\">☑</td></tr></table><div>12. twelfth a|b</div><hr>\n<div><i>Comments</i></div>\n<div>😀</div>\n</body>\n</html>\n",
 "txt": "Trip: day 1/2\n\n◦ deeper 1. not a list\n| line<br>two | < |\n| :--- | ---: |\n | ^ | < |\n| [ ] | <i> |\n | < |  centre   | ^ | [X] |\n12. twelfth a|b\n\nComments:\n😀\n"
 },
 {
@@ -10222,8 +10221,7 @@
 },
 "title": "😀 party",
 "name": "😀 party.html",
-"html": null,
-"raises": "IndexError",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>😀 party</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">😀 party</div>\n<table><tr><th>&lt;i&gt;</th><th>line<br>two</th></tr><tr><td>a</td><td>x</td></tr><tr><td style=\"text-align:right;\">right</td><td>line<br>two</td></tr></table><div>the the 😀 naïve</div><div>- dash Bread</div><div>- dash →</div><table><tr><th>😀</th><th></th></tr><tr><td>a</td><td>&lt;i&gt;</td></tr><tr><td>x</td><td rowspan=\"2\" style=\"text-align:center;\">☑</td></tr><tr><td style=\"text-align:center;\">☑</td><td>^</td><td style=\"text-align:right;\">right</td></tr></table><hr>\n<div><i>Checklist</i></div>\n<div>☐   spaced  </div>\n<div>☐ 1. not a list</div>\n<div>☐ Bread</div>\n</body>\n</html>\n",
 "txt": "😀 party\n\n | <i> | line<br>two |\n| :-: | --: |\n| a | x |\n |  right | line<br>two |\nthe the 😀 naïve\n- dash Bread\n- dash →\n| 😀 |  |\n | a | <i> |\n  | x | [X] |\n| [x] | ^ | ^ |  right |\n\nChecklist:\n[ ]   spaced  \n[ ] 1. not a list\n[ ] Bread\n"
 },
 {
@@ -18671,8 +18669,7 @@
 },
 "title": "😀 party",
 "name": "😀 party.html",
-"html": null,
-"raises": "IndexError",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>😀 party</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">😀 party</div>\n<table><tr><th rowspan=\"2\" style=\"text-align:center;\">☐</th><th>x</th></tr><tr><td style=\"text-align:right;\"><b>right</b></td><td>Milk</td><td>^</td></tr><tr><td>line<br>two</td><td>😀</td></tr></table><div>café   spaced   naïve</div><div>1. first Bread</div><div>- dash &quot;quoted&quot;</div><div>it&#x27;s</div><div> 1. not a list   spaced   →</div><hr>\n<div><i>Checklist</i></div>\n<div>☐ 1. not a list</div>\n<div>☐ café</div>\n<div>☐ a &amp; b</div>\n</body>\n</html>\n",
 "txt": "😀 party\n\n  | [ ] | x |\n|---|---|\n| ^ |  right | Milk | ^ |\n| line<br>two | 😀 |\ncafé   spaced   naïve\n1. first Bread\n- dash \"quoted\"\nit's\n 1. not a list   spaced   →\n\nChecklist:\n[ ] 1. not a list\n[ ] café\n[ ] a & b\n"
 },
 {
@@ -18902,6 +18899,96 @@
 "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.html",
 "html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>\n<div>&lt;b&gt;tag&lt;/b&gt;</div><ul><li>| line&lt;br&gt;two | [ ] |</li></ul><table><tr><th style=\"text-align:center;\">centre</th><th>x</th></tr><tr><td>---</td><td>---</td></tr><tr><td><u>x</u></td><td style=\"text-align:right;background-color:#ff0000;\"><span style=\"background-color:#ff0000;\">right</span></td></tr><tr><td style=\"background-color:#ff0000;\"><span style=\"background-color:#ff0000;\">&lt;</span></td><td style=\"background-color:#ff0000;\"></td></tr></table><div><span style=\"background-color:#ff0000;\">12. twelfth →</span></div><hr>\n<div><i>Checklist</i></div>\n<div>☐ the</div>\n<div>☑ the</div><hr>\n<div><i>Comments</i></div>\n<div>a comment</div>\n</body>\n</html>\n",
 "txt": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n\n<b>tag</b>\n| line<br>two | [ ] |\n|  centre   | x |\n|---|---|\n| x |  right |\n  | < |  |\n12. twelfth →\n\nChecklist:\n[ ] the\n[x] the\n\nComments:\na comment\n"
+},
+{
+"note": {
+"title": "bell\u0007title",
+"body": "x"
+},
+"title": "bell\u0007title",
+"name": "bell_title.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>bell\u0007title</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">bell\u0007title</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "bell\u0007title\n\nx\n"
+},
+{
+"note": {
+"title": "esc\u001b[0m",
+"body": "x"
+},
+"title": "esc\u001b[0m",
+"name": "esc_[0m.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>esc\u001b[0m</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">esc\u001b[0m</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "esc\u001b[0m\n\nx\n"
+},
+{
+"note": {
+"title": "Invoice‮fdp.exe",
+"body": "x"
+},
+"title": "Invoice‮fdp.exe",
+"name": "Invoicefdp.exe.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Invoice‮fdp.exe</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">Invoice‮fdp.exe</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "Invoice‮fdp.exe\n\nx\n"
+},
+{
+"note": {
+"title": "delC1here",
+"body": "x"
+},
+"title": "delC1here",
+"name": "delC1here.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>delC1here</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">delC1here</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "delC1here\n\nx\n"
+},
+{
+"note": {
+"title": "‎‏marks⁦⁩",
+"body": "x"
+},
+"title": "‎‏marks⁦⁩",
+"name": "marks.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>‎‏marks⁦⁩</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">‎‏marks⁦⁩</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "‎‏marks⁦⁩\n\nx\n"
+},
+{
+"note": {
+"title": "line sep para﻿bom",
+"body": "x"
+},
+"title": "line sep para﻿bom",
+"name": "linesepparabom.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>line sep para﻿bom</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">line sep para﻿bom</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "line sep para﻿bom\n\nx\n"
+},
+{
+"note": {
+"title": " _.edges._ ",
+"body": "x"
+},
+"title": "_.edges._",
+"name": "edges.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>_.edges._</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">_.edges._</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "_.edges._\n\nx\n"
+},
+{
+"note": {
+"title": "\u0001\u0002",
+"body": "x"
+},
+"title": "\u0001\u0002",
+"name": "note.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>\u0001\u0002</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">\u0001\u0002</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "\u0001\u0002\n\nx\n"
+},
+{
+"note": {
+"title": "名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前",
+"body": "x"
+},
+"title": "名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前",
+"name": "名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前.html",
+"html": "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前</title>\n<style>\nbody { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; line-height: 1.5; }\n* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\ntable { border-collapse: collapse; margin: 0.5em 0; max-width: 100%; }\nth, td { border: 1px solid #999; padding: 4px 10px; overflow-wrap: anywhere; }\nth { text-align: left; }\n</style>\n</head>\n<body>\n<div style=\"font-size: 1.7em; font-weight: bold; margin: 0 0 0.6em 0;\">名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前</div>\n<div>x</div>\n</body>\n</html>\n",
+"txt": "名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前名前\n\nx\n"
 }
 ]
 }

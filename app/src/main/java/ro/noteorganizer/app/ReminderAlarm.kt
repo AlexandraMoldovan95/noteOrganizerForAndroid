@@ -18,8 +18,8 @@ import java.time.ZoneId
 /**
  * The phone's daily notification ([Reminders]): an alarm at the hour chosen,
  * which reads the notebook, says how many notes fall on the day, and sets
- * itself for the next day. Inexact -- Android may hold it a few minutes to
- * spare the battery -- because an exact one needs a permission Google Play
+ * itself for the next day. Inexact -- Android 12 and later may hold it up to
+ * an hour to spare the battery, Doze longer -- because an exact one needs a permission Google Play
  * reviews, for a reminder that does not need the minute.
  *
  * It only ever reads: no Trash purged, no file rescued or written, as the
@@ -35,10 +35,28 @@ object ReminderAlarm {
 
     private fun notebook(context: Context) = File(context.filesDir, "notebook")
 
+    // Held by the app's run in this process, not read again: held all run.
     private fun settingsOf(context: Context): JSONObject? = try {
-        JSONObject(File(notebook(context), "settings.json").readText(Charsets.UTF_8))
+        File(notebook(context), "settings.json").takeIf { !Files.writesHeld(it) }
+            ?.let { file -> Files.parseOwn(file) { JSONObject(it) } }
     } catch (e: Exception) {
         null
+    }
+
+    /**
+     * After a restart, an update or a new clock: set again from the settings,
+     * or, they not read, at the default hour -- a restart clears an app's
+     * alarms, so "the one set before" kept none, and the daily notification
+     * stopped unsaid. Fired over settings still unread, it posts nothing. A new
+     * clock clears none, and the one set at the person's hour stays.
+     */
+    fun rearm(context: Context, action: String? = null) {
+        val settings = settingsOf(context)
+        if (settings != null) return schedule(context, settings)
+        if (action in Reminders.KEEP_ALARMS) return
+        val at = Reminders.nextAt(LocalDateTime.now(), Reminders.DEFAULT_HOUR)
+        context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,
+            at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), alarm(context))
     }
 
     private fun alarm(context: Context): PendingIntent =
@@ -54,7 +72,10 @@ object ReminderAlarm {
      */
     fun schedule(context: Context, settings: JSONObject? = settingsOf(context)) {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return
-        if (settings == null || !Reminders.notifies(settings)) {
+        // Not read (refused, or damaged): the answer is unknown, so the alarm set
+        // before stays; cancelled, the daily notification stopped unsaid.
+        if (settings == null) return
+        if (!Reminders.notifies(settings)) {
             manager.cancel(alarm(context))
             return
         }
@@ -69,11 +90,17 @@ object ReminderAlarm {
         if (settings != null && Reminders.notifies(settings)) {
             val today = Recurrence.formatDate(LocalDate.now())
             val due = try {
-                Reminders.dueOn(File(notebook(context), "notes_data.json").readText(Charsets.UTF_8), today)
+                Files.parseOwn(File(notebook(context), "notes_data.json")) { Reminders.dueOn(it, today) }
             } catch (e: Exception) {
                 null
             }
             if (due != null && due > 0) post(context, due, today)
+        }
+        if (settings == null) {
+            // Unread at its own hour: the next set a day on, at the hour it fired.
+            context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 24L * 60 * 60 * 1000, alarm(context))
+            return
         }
         schedule(context, settings)
     }
@@ -98,6 +125,9 @@ object ReminderAlarm {
             .setContentText(words)
             .setContentIntent(open)
             .setAutoCancel(true)
+            // Gone at the day's end: a day with no notes posts nothing, and
+            // yesterday's stayed all day saying "for today".
+            .setTimeoutAfter(Days.untilNextDay(java.time.ZonedDateTime.now()))
             .build()
         try {
             notifications.notify(NOTIFICATION_ID, notification)
@@ -107,12 +137,12 @@ object ReminderAlarm {
     }
 }
 
-/** The alarm, the phone's restart and the app's update: each reaches [ReminderAlarm]. */
+/**
+ * The alarm, and the news that sets it again ([Reminders.RESCHEDULE_ON]: a
+ * restart, an update, a new time zone or clock): each reaches [ReminderAlarm].
+ */
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> ReminderAlarm.schedule(context)
-            else -> ReminderAlarm.fire(context)
-        }
+        if (intent.action in Reminders.RESCHEDULE_ON) ReminderAlarm.rearm(context, intent.action) else ReminderAlarm.fire(context)
     }
 }

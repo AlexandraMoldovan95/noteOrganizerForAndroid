@@ -11,6 +11,19 @@ import java.time.LocalDateTime
 /** The day's reminder: what it counts, when the bar shows, when the notification is next due. */
 class RemindersTest {
 
+    @Test
+    fun `a new time zone or clock sets the next reminder again, as a restart does, and does not ring it`() {
+        // Kept as an instant, a 09:00 reminder carried from Bucharest to New
+        // York rang at 03:00 until the app was next opened.
+        for (action in listOf("android.intent.action.BOOT_COMPLETED", "android.intent.action.MY_PACKAGE_REPLACED",
+                              "android.intent.action.TIMEZONE_CHANGED", "android.intent.action.TIME_SET")) {
+            assertTrue(action, action in Reminders.RESCHEDULE_ON)
+        }
+        assertFalse("the alarm itself rings", "ro.noteorganizer.app.REMIND" in Reminders.RESCHEDULE_ON)
+        // Over unread settings only a new clock keeps the alarm: after a new zone it is the old zone's hour.
+        assertEquals(setOf("android.intent.action.TIME_SET"), Reminders.KEEP_ALARMS)
+    }
+
     // A Monday series from 5 October, a note on Friday 23 October, one undated.
     private val notes = """[
         {"id": 1, "uid": "s", "title": "Stand-up", "date": "2026-10-05", "recurrence": {"freq": "weekly", "weekdays": [0]}},
@@ -24,6 +37,20 @@ class RemindersTest {
         assertEquals("a Monday of the series", 1, Reminders.dueOn(notes, "2026-10-26"))
         assertEquals("a Tuesday", 0, Reminders.dueOn(notes, "2026-10-27"))
         assertEquals("before the series began", 0, Reminders.dueOn(notes, "2026-09-28"))
+    }
+
+    @Test
+    fun `a file 0_13_0 wrote is counted as the app's read settles it, as the calendar shows it`() {
+        // Its series turned off and on, the blank-looking day deleted: the read
+        // makes the copy's words a note on that day, which the calendar shows and
+        // the notification did not count. Nothing is written.
+        val older = """[{"id": 1, "uid": "gym", "title": "Gym", "body": "plan", "date": "2026-11-02",
+            "recurrence": {"freq": "weekly"}, "exceptions": ["2026-11-09"],
+            "_prev": {"title": "Gym", "body": "plan", "comments": "", "formatting": [], "paragraphs": [],
+                      "date": "2026-11-02", "recurrence": {"freq": "weekly"}, "exceptions": [], "moved": {},
+                      "overrides": {"2026-11-09": {"body": "knee"}}}}]"""
+        assertEquals(1, Reminders.dueOn(older, "2026-11-09"))
+        assertEquals(1, Reminders.dueOn(older, "2026-11-16"))
     }
 
     @Test

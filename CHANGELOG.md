@@ -35,9 +35,1024 @@ first build used on a phone is `0.9.0`, which carries all three. They
 are numbered as the steps they were, each adding what the app could not
 do before, not as releases anyone ran.
 
+| Version | Date | In one line |
+|---|---|---|
+| [0.15.2](#0152--2026-11-23--what-using-the-app-found) | 2026-11-23 | What using the app found |
+| [0.15.1](#0151--2026-11-22--a-held-files-words-true-on-every-phone) | 2026-11-22 | A held file's words, true on every phone |
+| [0.15.0](#0150--2026-11-19--the-lows-fixed-before-the-stores) | 2026-11-19 | The lows, fixed before the stores |
+| [0.14.2](#0142--2026-11-12--every-category-counted) | 2026-11-12 | Every category counted |
+| [0.14.1](#0141--2026-11-12--what-a-full-reading-found) | 2026-11-12 | What a full reading found |
+| [0.14.0](#0140--2026-11-08--the-final-audit) | 2026-11-08 | The final audit |
+| [0.13.0](#0130--2026-10-27--open-source-licenses) | 2026-10-27 | Open-source licenses |
+| [0.12.0](#0120--2026-10-27--sections-fold-and-the-trash-picks-all) | 2026-10-27 | Sections fold, and the Trash picks all |
+| [0.11.1](#0111--2026-10-24--a-pasted-table-fits-its-words) | 2026-10-24 | A pasted table fits its words |
+| [0.11.0](#0110--2026-10-23--the-days-reminder-and-the-notes-menu) | 2026-10-23 | The day's reminder, and the note's menu |
+| [0.10.1](#0101--2026-10-22--numbered-lists-and-a-search-from-the-top) | 2026-10-22 | Numbered lists, and a search from the top |
+| [0.10.0](#0100--2026-10-21--the-privacy-policy) | 2026-10-21 | The privacy policy |
+| [0.9.1](#091--2026-10-20--light--dark) | 2026-10-20 | Light \| Dark |
+| [0.9.0](#090--2026-10-20--the-first-test-on-a-real-phone) | 2026-10-20 | The first test on a real phone |
+| [0.8.0](#080--2026-10-16--phase-3) | 2026-10-16 | Phase 3 |
+| [0.7.0](#070--2026-10-16--phase-2) | 2026-10-16 | Phase 2 |
+| [0.6.0](#060--2026-10-15--phase-1) | 2026-10-15 | Phase 1 |
+| [0.5.0](#050--2026-09-14) | 2026-09-14 | The app wears the desktop's icon |
+| [0.4.0](#040--2026-09-13) | 2026-09-13 | A note keeps one identity wherever it goes |
+| [0.3.0](#030--2026-09-13) | 2026-09-13 | An existing note's title and body can be edited |
+| [0.2.0](#020--2026-09-12) | 2026-09-12 | A new note is written to the notebook |
+| [0.1.0](#010--2026-09-12) | 2026-09-12 | A real 77-note `notes_data.json` reads without loss |
+
 ---
 
-## [Unreleased]
+## [0.15.2] — 2026-11-23 — What using the app found
+
+The review panel's fifth meeting, 22 November 2026, was the first whose
+readers also used the app, on an emulator, as a person would; the owner
+chose to fix all it found but one. What reaches a person is below, one
+entry for each defect, however many rounds its fix took; a fix of a fix
+made inside the work is folded into the entry it belongs to. Each was
+already in 0.15.0.
+
+### Fixed
+
+- **Undo on "Moved to Trash" opens the note again only if it was the
+  one open.** Deleted from the list's selection, the note came back over
+  the list, in the editor; it is back on the list now, as it was taken
+  from there.
+- **A repeat saved keeps the note's Undo and Redo.** Saving it from the
+  Repeat sheet read the note back into the editor, and emptied both.
+- **The Appearance line names the theme the other mode gives, at
+  first.** Before any dark theme had been worn it said "Tap Dark to go
+  back to the dark theme you used last"; until one has, it names the
+  theme Dark gives, the first of the dark ones, and the same of Light.
+- **A file that is not a whole backup is said as that.** An import
+  showed the library's words, "zip END header not found", and for a zip
+  with a password "Invalid General Purpose Bit Flag: 1"; it says now
+  that the file isn't a whole Note Organizer backup, or was damaged on
+  its way here, and a zip protected by a password is said as that, Note
+  Organizer's own backups having none.
+- **An import says when a note it brings back is in the Trash too.** A
+  backup made before a note was deleted brought it back into the list
+  while its deleted copy stayed in the Trash, and "Added 1 note" said
+  nothing of it; "It is in your Trash too (Settings → Trash)." follows
+  what was added now.
+- **A "|" typed into a table cell is said, as it is kept as "/".** A
+  cell cannot hold the table's own divider, so it became "/" without a
+  word; it says so once now.
+- **At the largest letters Show no longer breaks beside Sort, and a
+  sheet's Save stays in sight.** "Show: All" broke over two lines
+  beside Sort, and a category's sheet, refusing a name, pushed Delete
+  and Save out of sight under its message. Show moves to a line of its
+  own when Sort leaves it too little room; the category and Repeat
+  sheets keep Cancel and Save under a body that scrolls, with the reason
+  Save does nothing beside them.
+- **Each count in Duplicates and in an import's question is in the form
+  its number takes.** "Found 2 group(s), up to 1 note(s) could be
+  removed.", "Move 1 selected note(s) to the Trash?" and "1 of them are
+  OLDER than the copy on this device." say "Found 2 groups, up to 1
+  note could be removed.", "Move 1 selected note to the Trash?" and "One
+  of them is OLDER" now.
+- **Attaching a file the note already holds asks first, and an empty
+  file is said.** The same file picked again became a second attachment
+  and a second copy; it asks **Already attached** once for all such
+  files, Back or a tap outside meaning No, and an empty file is attached
+  with "is empty (0 bytes) — attached anyway".
+
+---
+
+## [0.15.1] — 2026-11-22 — A held file's words, true on every phone
+
+The final audit's lows wave, 21 and 22 November 2026: of the findings
+of low severity its rounds had left, the owner chose to fix the app's
+own and the test plan's rows that said something untrue. One fix
+reaches a person; the rest is the test plan, the documents and a gate.
+
+### Fixed
+
+- **A file the phone could not read at the start says how to end its
+  hold:** nothing is written over it "until the app is closed from the
+  recent apps and opened again". It said "closed and opened again", and
+  on Android 12 and later Back and Home leave the app's screen open, so
+  a person who pressed Back came back to a page still held.
+
+---
+
+## [0.15.0] — 2026-11-19 — The lows, fixed before the stores
+
+The final audit's findings of low severity, which its rule leaves for a
+wave of their own, 12 to 15 November 2026: the owner chose to fix every
+one before the stores. What reaches a person is written in below, one
+entry for each, however many rounds its fix took; a fix of a fix made
+inside the wave is folded into the entry it belongs to.
+
+### Added
+
+- **A note or a template keeps the fields a newer version of the app
+  wrote,** as the desktop does. Once the apps are in the stores they
+  update apart, and a newer version may add something to a note; this
+  one erased it at its next load. It keeps up to 32 such fields now,
+  65,536 characters in all, and a backup's Update keeps the note's own
+  for Restore previous. The owner's choice.
+
+### Fixed
+
+#### Your notes, kept
+
+- **A settings, templates or draft file the phone can neither read nor
+  copy aside is never written over.** The start replaced such a
+  `settings.json` with two keys, the category colours, painted days,
+  your name and the Trash's window gone with it, and one template saved
+  replaced every template.
+- **Nothing is decided over a file the phone could not read.** A
+  backup's Trash came in without the window it needed and the next
+  start removed it with its files; Remove attachment deleted a file a
+  trashed note it could not see still named; Android's backup could be
+  turned off for good, and the daily notification cancelled. Each
+  waits now, and the pages say the file could not be read, not "No
+  templates yet" or "The Trash is empty".
+- **Your name is kept as you type it,** when the app goes behind Home
+  and Android ends it there. It was saved only on Save, on Done or when
+  the page was left.
+- **A day taken off a series' schedule goes to the Trash once.** With
+  the notes' write refused, or the phone stopped between the Trash's
+  write and the notes', the day came back on the series with its copy
+  in the Trash, and taking it off again put a second copy there.
+- **A category renamed on a nearly full phone is put back whole when a
+  write is refused,** not left half moved, some notes under a name no
+  category had.
+- **A move's Undo after its category was renamed or deleted says so.**
+  It put a note back under a category deleted since, which then came
+  back.
+- **A selection is kept by the note, not by its place in the list.** On
+  a wide screen a note put in the Trash from the editor freed its
+  number, and a note arriving from a share code took it, ticked, into
+  the selection's own Trash. The History's open series are kept the
+  same way, and a phone on its side turned upright keeps its selection.
+- **A failed import takes back the files it brought and says what it
+  kept.** Recently deleted showed none of the Trash it said it kept,
+  and an error Android throws from a damaged backup was not caught.
+
+#### Sharing into the app
+
+- **A text file shared from Drive no longer freezes the screen** while
+  it downloads, long enough for "isn't responding"; it is read away from
+  the screen, and what is shared next waits its turn.
+- **A text file in another encoding is no longer saved with its letters
+  broken.** One saved in Notepad's old "ANSI" came in with marks for
+  every letter outside English, and a UTF-16 one as letters and NULs,
+  both said "Saved as a new note". A file is read in the encoding its
+  mark names, and refused, with a word, when it is neither that nor
+  UTF-8.
+- **A shared file that cannot be read, stalls, or is too long is said.**
+  One that could not be opened was dropped without a word, one that
+  never answered held back every share after it, and one past 500,000
+  characters was cut with "Saved as a new note".
+- **A share code reads, or is refused, as on the desktop.** A code whose
+  "NOTE1:" a chat app's wrapping broke, one that lost an "=" or gained
+  some, one holding a list or one plain value, one broken by an
+  invisible line end (NEL), or words that only say "NOTE 1:", each
+  answered otherwise on the two apps.
+
+#### Importing
+
+- **A backup imported again brings in nothing it already brought.** A
+  note or a trashed note whose attached file a note here used came in
+  on a copy of it, and every later import asked about the note again,
+  each Update added one more copy, and the trashed note came in again.
+  A file is matched by its name and its bytes now, as on the desktop.
+- **A backup's categories come in with its notes.** A note filed under
+  a category the backup's settings lacked came in under General for
+  good, unsaid; this phone's own backups lacked such categories.
+- **A skipped look-alike's attached files go to the note it looks
+  like,** as on the desktop, and Skip is offered wherever it still
+  brings something: a file, a category, a template, a Trash entry, a
+  day's marks. Cancel was the only no, and it dropped them.
+- **A note you chose to add as new is not asked about again.** The
+  look-alike question that came after could undo the whole import, or
+  skip the very note chosen.
+- **A copy asked for in an import no longer offers the original's older
+  words.** "Add as a new note" and "Add a copy anyway" kept the
+  original's rescue copy, so Restore previous on the copy offered to
+  put the original's words over a note just made.
+
+#### Large letters, narrow phones and a phone on its side
+
+- **No word breaks inside itself, and no figure is cut, at the largest
+  letters.** The Trash's "Delete for good" stood five lines tall
+  ("Dele / te / for / goo / d"), and Statistics' figures, the
+  calendar's month and weekdays, the bottom bar, every top bar's title
+  and the selection bar broke or were cut.
+- **Every question's text scrolls,** so its last sentence is never cut
+  under its answers: the import's warning that Update replaces the
+  earlier version was lost under the buttons.
+- **The Repeat sheet fits a narrow phone.** Saturday and Sunday were
+  squeezed to slivers on a 320 dp phone, Sunday could not be tapped, and
+  the stepper's − and + were smaller than a thumb.
+- **The Trash page has room for its list on a phone on its side,** and
+  its messages are drawn above its buttons: the delete's Undo bar lay
+  over Restore for its ten seconds.
+- **On Android 8 the keyboard no longer opens at every start,** over the
+  list's buttons, with nobody having asked.
+
+#### Smaller things
+
+- **The phone judges a note as the desktop does.** Two words joined by
+  a non-breaking space counted as one; 2.5 MB read "3 MB" here and "2
+  MB" there; a phone set to Arabic or Persian figures wrote its own in
+  a size; a tick written as "no" counted in templates and exports; a
+  note restored with no identity or no dates was known and sorted
+  otherwise.
+- **Restore previous's question names the previous version,** as the
+  button does: pressed a second time, it said the reverse of what it
+  did.
+- **Notes hidden in different ways are said of them all,** and Show all
+  unfolds every group holding one.
+- **A series of one says "1 time",** not "1 times".
+- **The welcome note and Settings → Backup say what Android's backup
+  does.** The welcome note opened with "It all stays on this phone",
+  where Android's backup, on unless you turn it off, copies the notes
+  to your Google account.
+
+### Changed
+
+- **Settings → Appearance says what a tap does:** "Dark themes. Tap
+  Light to go back to the light theme you used last.", and the same for
+  the light themes.
+- **What is shown read-only says it is kept whole,** not that the note
+  keeps it: the template editor shows the same blocks, where there is
+  no note.
+- **Every refusal is said as a whole sentence,** a held file's reason
+  included.
+
+---
+
+## [0.14.2] — 2026-11-12 — Every category counted
+
+### Fixed
+
+- **Settings → Statistics' Categories tile counts every category,**
+  those holding no note too, as the desktop's does now. It counted only
+  the categories notes were filed under: five categories, notes in one,
+  and it said 1. The list below it still shows how many notes each holds.
+
+---
+
+## [0.14.1] — 2026-11-12 — What a full reading found
+
+Read-only readers went through both apps' code and documents on
+11 November 2026, before the audit's pull request; what they found that
+reaches a person is fixed below.
+
+### Fixed
+
+- **A table inserted right above another leaves one empty line between
+  them,** not two, as the desktop does now.
+- **A second share code sent in while the first one's dialog is open
+  takes its place.** The dialog kept the first code's text, Import
+  brought that one, and the second was dropped without a word.
+- **Duplicate and Export as file on a new note with nothing in it write
+  nothing, and say why,** as Share does. They wrote an empty note, and
+  Duplicate its copy too.
+- **Paste as plain text keeps the blank lines and line ends of text that
+  is not a column,** as the desktop's does now. Every run of empty lines
+  closed to one, and each line lost its trailing spaces.
+- **Three texts say what is true.** Removing an attached file deletes the
+  stored copy only when no other note uses it; a reminder can come later
+  than an hour in Battery saver; and Settings → About names the file
+  Settings → Backup saves as the copy you can open, Android's own backup
+  being told there.
+
+---
+
+## [0.14.0] — 2026-11-08 — The final audit
+
+The final audit before the stores, 27 October to 8 November 2026. Its
+first five rounds were written in change by change; what the rounds
+after them, the waves of low findings, the ordinary person's week and
+the review panel found that reaches a person is written in at the
+release cut, from their stories in the [issues log](docs/ISSUES_LOG.md),
+one entry for each, however many rounds its fix took. A fix of a fix
+made inside the audit is folded into the entry it belongs to.
+
+### Added
+
+- **A template being written is kept when Android ends the app, and
+  offered back.** Settings → Templates asks "You were writing a
+  template. Continue it?" with Continue and Discard; the draft is this
+  phone's alone, kept outside Android's backup.
+- **Text shared into the app becomes a note,** its first line the
+  title, the whole text kept; a `.txt` shared as a file is read too. A
+  share code among words is still imported. The owner's choice.
+- **The note list's search finds words in a note's checklist.** The
+  owner's choice.
+- **An empty search that one day of a repeating note would answer says
+  so,** and offers **Search the Calendar's History**, which opens it
+  searching for them.
+
+- **Settings → Backup turns off the app's part in Android's own
+  backup** to the person's Google account, which stays on by default, as
+  it always was. Off, Android's backup — and its transfer to a new phone
+  — keeps none of the notes from then on, only that it is off: the copy
+  made while it was on is replaced, so a reinstall or a new phone no
+  longer brings it back with the switch on. A settings file that cannot
+  be read turns it off until the person turns it on again, and the start
+  says so; it read as on, and copied the notes. The page says what Android
+  does, about once a day while the phone charges on Wi-Fi, and that it
+  copies nothing more once the app's data passes 25 MB, where it used to
+  promise a copy with no condition; the welcome note says where the
+  switch is. Asked for by the owner after the final audit, 2026-10-27.
+
+### Fixed
+
+#### The first five rounds
+
+- **A note's words typed while the phone could not write stay "Not
+  saved" until they are written.** When a save failed — a full disk —
+  the new words stayed in the note the screen reads, so the next save
+  found nothing to write and said "Auto-saved", and a restart lost them.
+  Found by the final audit's break-it round.
+- **A note that cannot be saved stays open.** Back, another note, + and
+  the rail closed it anyway — a new note's words with it, kept nowhere
+  else — and a pin, a category or the Trash from the list beside it read
+  it back over the unsaved words. Now the note stays, the bar at the foot
+  says why with **Leave anyway**, and a change from outside waits. A
+  failed save is said aloud as well, where it was only drawn in red, out
+  of a screen reader's hearing. Found by the final audit's break-it round.
+- **A checklist row's new words, and words left in "A new item…", are
+  kept when the app goes to the background.** They waited in their field
+  until it was left, and Home leaves no field: swiped away from Recents,
+  or ended by Android, the app came back with the old words. The
+  keyboard's ✓ writes a renamed row now too, where it only put the
+  keyboard down. Found by the final audit's break-it round.
+- **A backup restored onto a new phone keeps its Trash as long as it
+  was kept before.** The Trash came with the days its notes were
+  deleted, but not the window: the phone, never told otherwise, read 30
+  days, and the next start emptied what had been kept for 60 or 90. A
+  notebook that never chose a window now takes the backup's when it is
+  longer and comes with Trash to keep by it; one chosen here is kept,
+  and a shorter one is never taken, so the phone's own Trash keeps the
+  30 days it was promised. The desktop takes the same rule. Found by the
+  final audit's break-it round, the shorter window by the round after.
+- **A share code or a backup nested deeper than any note is called
+  damaged, where it stopped the app.** A code of a few lines could hold
+  a million brackets one inside another, and the reader went one step
+  deeper for each until it ran out of room. Found by the final audit's
+  break-it round.
+- **A backup whose notes cannot be read says so in a sentence**, where it
+  showed the reader's own message — which on Android holds the whole
+  file it was reading: every note in the backup, PINs and all, in the
+  bar at the foot of the screen, and from a hostile file, tens of
+  megabytes of text. Found by the final audit's break-it round.
+- **A backup too large for the phone to read is refused with a sentence**,
+  where it could stop the app. A 48 KB backup could unpack to a 50 MB
+  note — under the desktop's bomb guard, sized for a computer — and the
+  phone ran out of memory reading it. Each JSON file a backup brings is
+  now held to a sixteenth of the memory Android gives the app, running
+  out of memory anyway reads as "too large", and a note's letters are
+  counted without an object for each. A notebook grown past that line is
+  still saved as a backup, and the bar says this phone cannot read it
+  back and the desktop can, where it said "Backup saved." and the import
+  then refused it. Found by the final audit's break-it round, the
+  backup's own side by the round after.
+- **A backup holding a long rescue copy no longer holds the app still at
+  every start.** Whether "↩ Restore previous" would keep a note's words
+  was worked out for every note at every load, by a search that, on a
+  copy of millions of letters, took seconds; it is worked out now when
+  the question is asked, for that note, by a search as quick as the
+  desktop's. Found by the final audit's break-it round.
+- **"↩ Restore previous" holds a backup's rescue copy to a note's
+  limits**, as the desktop does: the copy came in exactly as written, and
+  a restore could put fifty thousand checklist rows into the note, where
+  a checklist holds a thousand. It is shaped as it comes in, and again
+  when it is restored. Found by the final audit's break-it round.
+- **A note with a huge table opens.** A share code of 2.9 KB could carry
+  a table of 300 by 300, and the editor laid out its 90,000 cells at
+  once. A table of more than 1,000 cells now says it is too large to draw
+  and shows its first lines, read-only; the note keeps it whole. Its cells
+  are counted as the grid draws them, so a ragged table — one row of 500
+  over rows of two — no longer slips under the line; the template editor
+  shows such a table the same way, where it drew the grid; and Find
+  leaves it out, where its counter stepped through cells nobody could
+  see. Found by the final audit's break-it round, the three holes by the
+  round after.
+- **A share code followed by a full stop, a quote or a bracket imports**,
+  as on the desktop, which drops what is not part of a code where the
+  phone called the code damaged — as it is when it ends a sentence in a
+  mail. Found by the final audit's break-it round.
+- **A share code that started the app is offered once.** Sent to Note
+  Organizer from a chat while the app was closed, the code was offered
+  again each time Android brought the app back after ending it in the
+  background — with "Update this note" ready to put the older words back
+  over the newer. Found by the final audit's break-it round.
+- **Bold text, or a new language, leaves the open note open**, as
+  turning the phone does: both still rebuilt the screen and closed the
+  note, and an import's question with it, whose unpacked backup then
+  stayed in the app's cache. What an import or an attaching leaves there
+  is cleared at the next start. Found by the final audit's break-it
+  round.
+- **A backup saved over an older one keeps the older one when the new
+  one fails.** The file chosen was opened, and emptied, before the new
+  backup was built; a cache too full to build it then left the old
+  backup empty and deleted it. It is opened only once the new one is
+  built and checked, and a place that refuses to open leaves it as it
+  was, where the refusal still deleted it. Found by the final audit's
+  break-it round, the refusal by the round after.
+- **The buttons drawn as a symbol say what they do to a screen reader**:
+  + is "New note", ⋮ "More options", ← "Back", ⓘ "Note details", and the
+  selection bar's ✕, 📌, 🗂 and 🗑 their actions, as are the search's and
+  the start line's ✕. A checklist row's box is a checkbox named by the
+  row, and its ✕ says "Remove … from the checklist". TalkBack read the
+  symbols' names, or nothing. Found by the final audit's break-it round.
+- **What is on is said, and shown twice.** B, I, U, S and the list keys
+  are said as ticked or not, the alignment keys as chosen or not, a
+  day's markers and the repeat sheet's choices too; a key that is on
+  wears a bar in the accent under its fill, which alone differed from an
+  off key's by too little to see. The sort and Show in force carry a ✓,
+  colour swatches say their place and value, a group of notes says it is
+  folded, the size grid's squares say the table they make, the Sort and
+  Show buttons no longer read their arrow's name, and the find counter
+  is read out as it changes. Found by the final audit's break-it round.
+- **The day's reminder keeps its hour across a time zone.** Set for
+  09:00 and carried from Bucharest to New York with the app closed, it
+  rang at 03:00 until the app was opened; a new zone or clock now sets
+  it again. Found by the final audit, checked on the emulator.
+- **Today moves at midnight with the app open.** Left open across
+  midnight, the app kept the day it was opened on: "Calendar: soonest"
+  still put yesterday's note first, the calendar's ring stayed on
+  yesterday, and the new day's reminder bar never came until the app was
+  left and opened again. It now looks once a minute while in front, as
+  the desktop does. Found by the final audit, checked on the emulator.
+- **A template with very long comments opens, and survives Home.** With
+  600,000 letters of comments, which a backup can bring, the app stopped
+  as the template opened, and once that was fixed, as Home was pressed.
+  The comments field now stops at ten lines and scrolls inside, and its
+  words are no longer handed to the system while the app is away. Found
+  by the final audit, checked on the emulator.
+- **Export as file and Attach files finish when Android restarts the
+  app.** If Android ended the app behind its file picker, as it does when
+  it needs the memory, the exported file stayed empty and the picked
+  files were not attached, without a word; and Back while a large file
+  was copying lost it. Both now finish, and say so. Found by the final
+  audit, checked on the emulator.
+- **The app no longer takes in a notebook from its shared folder.** At a
+  first start, the released app copied in any notebook found in a folder
+  that other apps could write to on Android 8 to 10, and a file there too
+  large to read stopped it at every start. Only development builds look
+  there now, and one too large is left alone. Found by the final audit,
+  checked on the emulator.
+- **The app's own files are read as carefully as a backup.** A notes,
+  Trash, settings or templates file nested too deep, or too large for the
+  phone, could have stopped the app at every start; it is now kept aside
+  and the app opens. And a file, backup or share code whose letters are
+  not in UTF-8 is refused, as the desktop refuses it, instead of coming
+  in with its letters turned into marks that the next save kept.
+- **A large backup's questions no longer hold the screen still.** With a
+  thousand notes on each side, working out which arriving notes look
+  like ones already here held it 1.3 seconds on the emulator, two or
+  three times over; it is worked out once now, away from the screen. Found
+  by the final audit, measured on the emulator.
+- **A notebook file the app could not read can be reached.** It was kept
+  aside in the app's own storage, which no person can open, and the
+  notice said "beside the notes"; a backup saved at Settings → Backup
+  now carries it, in a folder of its own that an import leaves alone.
+  Found by the final audit's break-it round.
+- **At the phone's largest letters a calendar day keeps its marks.** Its
+  cell was held at one height, and a day with a marker lost half of it
+  and its note's dot below the edge; a week's cells now grow together to
+  hold them. Found by the final audit, seen on the emulator.
+- **A switch that is off, and a field's border, can be seen.** Both were
+  drawn in the theme's hairline, 1.2 to 1 from what lies around them; they
+  are drawn in its secondary text colour now, three to one at least in
+  every theme. Found by the final audit's break-it round.
+- **A checklist row taken off by its ✕ can be brought back.** It was
+  gone at once, unsaid, and the editor's Undo holds no checklist; now the
+  bar at the foot says what was taken, with Undo, as the desktop's toast
+  offers. Found by the final audit's break-it round.
+- **Every Undo at the foot lasts from the moment it shows, as long as
+  the phone asks.** Its eight seconds were counted from when it was
+  asked for: queued behind another message it flashed for a second, or
+  outlived its count and stayed for good, holding back every message
+  after it; and Android's "Time to take action" was never read. It now
+  lasts Android's long length, ten seconds from when it shows, longer
+  when the phone is set to give more time. A checklist row's Undo writes
+  the words being typed into another row first, where it dropped them.
+  Found by the final audit's second round.
+- **Undo on the bar, and a dialog's Cancel, can be read in every
+  theme.** Android drew them in the theme's raw accent: Undo stood 2.1
+  to 2.7 to 1 from the bar in six of the eight themes, the default Dark
+  among them, and Cancel 3.1 to 1 in Light Mint and Light Warm. Both,
+  and a focused field's label and the date picker's day, are drawn in a
+  shade of the accent held to 4.5 to 1 now. Found by the final audit's
+  second round.
+- **An attached file is opened as the kind of file it is, and its name
+  hides nothing.** The name shown — which a backup chooses freely —
+  decided what kind of file another app was handed: "Holiday photo.jpg"
+  over a web page went out as a picture, and a bidi mark could hide
+  ".apk" behind ".jpg". The stored file decides now, and the shown name
+  ends in its type and loses the characters that reorder or hide text,
+  as on the desktop. Found by the final audit's second round, the twin
+  of the desktop's.
+- **A share code sent as styled text arrives.** An app sharing
+  formatted text hands it over in a form the app did not read, and the
+  code was dropped without a word. Found by the final audit's second
+  round.
+- **The last symbol buttons say what they do, and a handle with
+  nowhere to go says so.** The template editor's checklist ↑, ✕ and box,
+  the repeat's − and +, and a table cell's "no highlight" ✕ were read by
+  their symbols' names; they are named now. The move handle of the only
+  note in its block, or of a one-row checklist, opened an empty menu; it
+  now says there is nothing to move it past. Found by the final audit's
+  second round.
+- **Notes in Custom order and checklist rows move without a drag.** A
+  tap on the ⠿ handle offers Move up and Move down, and a screen reader
+  or Switch Access finds the same two among the card's or the handle's
+  actions; dragging was the only way, and those could not arrange at
+  all. Found by the final audit's break-it round.
+- **A repeat ended by a share code keeps every day's own text.** An
+  Update whose copy no longer repeated left the series' days in the
+  note, out of sight, and kept no copy of them; a Save in the Repeat
+  sheet then cleared them for good, and "↩ Restore previous" brought the
+  repeat back without them. The days now stay in the note, a copy goes
+  beside the repeat in the rescue copy, a note that does not repeat
+  keeps its days, and a new rescue copy carries the days the one it
+  replaces held. The desktop takes the same rule. Found by the final
+  audit's second round.
+- **A series with thousands of moved days opens at once.** Its banner,
+  its days off the schedule and the History asked about each moved day
+  in turn, and each question read every moved day again: 5,000 of them,
+  which a backup may bring, made 25 million readings, and the note froze
+  as it opened and at every letter typed. The moved days are read once
+  for all the questions now, with the same answers. Found by the final
+  audit's second round, the twin of the desktop's.
+- **A pasted table can no longer grow past the paste ceiling once its
+  columns are lined up.** Every cell was padded to its column's widest
+  after the 100,000-character ceiling was checked: a page with one long
+  cell over 2,000 rows became 120 million characters and the app ran out
+  of memory, and a spreadsheet with one long comment made a note of three
+  million. A table whose padding would pass 100,000 spaces is left
+  ragged — each cell keeps the spaces its alignment needs, and the grid
+  looks the same — the same rule holds when a table is edited, and what
+  lands is held to the ceiling, said as before. Found by the final
+  audit's second round, the twin of the desktop's.
+- **Editing a template's text keeps its bold, colours and list lines on
+  the words they were on.** Settings → Templates kept them at their
+  places while the words moved: a line typed above put the bold on
+  other words, and every note made from the template began that way.
+  They move with the words now, as in a note. Found by the final audit's
+  second round, the twin of the desktop's.
+- **The list sorted by "Calendar: soonest" no longer stalls after every
+  save.** Each series' next day was worked out inside the sort's
+  comparisons, twice per comparison and each time over the whole
+  notebook: 15 million notes read for 2,000 of them. It is worked out
+  once per note now. Found by the final audit's second round.
+- **A backup's settings and templates come in within the desktop's
+  limits.** 700,000 "painted days" under keys that were no dates,
+  markers of 200,000 letters and 140,000 templates came in whole, and
+  left the calendar, every setting changed and the template picker slow
+  for good. The calendar now keeps real days only, 20,000 painted and as
+  many marked, each marker an emoji long, and templates stop at 1,000 —
+  a new day or template past that is refused with a word, never one
+  already there dropped. Found by the final audit's second round, the
+  twin of the desktop's.
+- **A backup or share code with "NaN" in a list no longer stops the
+  app.** Android's reader takes a number that is no number inside a
+  list, and every copy of the list then failed: a backup's template with
+  one in its checklist stopped the app at the import's tap. Such a
+  number now comes in as nothing, as the desktop's normalize drops it,
+  and anything else an import cannot read is refused with a sentence.
+  Found by the final audit's second round.
+- **A backup holding a file with a long name in Cyrillic, Greek or
+  Chinese comes in.** Windows counts a name's length in letters and
+  Android in bytes, so a name the desktop kept could be one the phone
+  cannot store, and the whole backup was refused with an error code and
+  an inner path. Such a file now comes in under a shorter name that
+  keeps its start and its type, and the note follows it; a file attached
+  on the phone with a long name fits the same way. Found by the final
+  audit's second round.
+- **A large import no longer holds the screen still.** A backup's
+  attached files were copied a second time, on the screen's own thread,
+  from the unpacked backup into the notebook — seconds for a notebook of
+  photos, with Android offering to close the app; they are moved now,
+  which costs nothing. And a share code is read, planned and weighed for
+  look-alikes away from the screen, as a backup is, with "Reading the
+  code…" while it is: a code of a few kilobytes can unpack to 20 MB.
+  Found by the final audit's second round.
+- **Text with a very long run of letters and no space opens at once.**
+  A share code of a few hundred characters could bring a body line, a
+  title, comments or a checklist row of 150,000 letters with no space;
+  laid out in a field, broken letter by letter at the edge, it held the
+  note 12.6 seconds at every opening, and a title such held the list 3.8
+  seconds at every start. A run past 10,000 letters is now shown as what
+  it is and its start, read-only — the note keeps every byte, and the
+  lines around it stay editable — and a list, a day or a picker shows a
+  glimpse of a title or a name. The code dialog shows a code past 5,000
+  characters as its start and its length, with Copy for the whole code:
+  120,000 characters shared to the app held the screen until Android
+  offered to close it. Found by the final audit's second round.
+- **Files picked for a note go to that note only.** The copy goes on
+  after the note is left; if, meanwhile, the note went to the Trash and
+  a new one took its number, the files went to the new note, unsaid. The
+  note is now known by its own identity too, and the files are not
+  attached elsewhere — the bar says the note is no longer here. Found by
+  the final audit's second round.
+- **Android's backup turned off stays off on a phone restored and not
+  yet opened.** Restored from a backup made while it was off, the phone
+  holds only the mark that says so, until the app's first start reads
+  it; Android's backup, run before that start, read the missing
+  settings as on, deleted the mark and kept nothing, and the app came up
+  on. The mark is now the answer until the start writes it into the
+  settings, for Android's backup and for Settings → Backup alike. Found
+  by the final audit's third round.
+- **A note sent to the Trash while a backup is read can no longer turn
+  its Update onto another note.** The import's plan is made while the
+  list stays usable, and it remembered each note by its place in the
+  list: one note trashed meanwhile moved the rest up, and "Update" wrote
+  the backup's copy over the note below the right one. Each is found by
+  its own identity now; one that has gone in the meantime comes in as a
+  new note, as it would have had it gone first. Found by the final
+  audit's third round.
+- **Text joined by no-break spaces, or many lines just under the limit,
+  opens at once too.** The rule that shows a run of more than 10,000
+  letters read-only counted a no-break space as a place to break the
+  line, which the layout never does: 150,000 letters joined by them went
+  into a field and held the note as before. A run now ends only where a
+  line can certainly break, and what a body's lines cost to lay out adds
+  up: past what one note may give its fields, the heavy lines left are
+  shown read-only as well — a hundred lines of 9,999 letters each passed
+  one by one before. Chinese and Japanese ideographs, which break between
+  any two, are not counted as one run. The note keeps every byte. Found
+  by the final audit's third round.
+- **A table holding a very long run of letters opens at once.** The rule
+  above looked at the lines around tables and never inside one: a row of
+  two cells, one of them 150,000 letters long, was drawn as a grid, its
+  letters in a column a few words wide, and froze the note as the line
+  alone had before. A table's cells are weighed as lines are now, and
+  such a table is shown as its start, read-only, in the note and in the
+  template editor. Found by the final audit's third round.
+- **A message or a question quotes a long title, row or file name
+  short.** Only the lists were given a glimpse: the Undo bar for a
+  checklist row taken off, Duplicate's bar, the attached-files bar, the
+  question about a day off the schedule, a template's save, replace and
+  delete, and an attached file's row and its Remove question took the
+  whole of what they named — and froze the app on a row or a title of
+  150,000 letters, by the very ✕ a person uses to be rid of the row. They
+  quote 80 characters now, with "…" where they cut, a file keeping its
+  type at the end; a screen reader's names for a row's controls are
+  glimpses too, and no bar or question is given more than 1,000
+  characters whatever a reason carries. The note keeps every byte, and
+  Undo puts it all back. Found by the final audit's third round.
+- **A template saved from a note with a very long checklist row opens
+  at once.** The template editor drew each row whole, wrapping: a row of
+  150,000 letters, kept by "Save as template", froze it as it opened,
+  where the note itself showed the row read-only. A row too long to lay
+  out is shown there as in the note, and any other row past 300
+  characters as its start with "…"; the template keeps every row whole.
+  Found by the final audit's third round.
+- **Sharing or exporting a note with a table too large to draw no
+  longer holds the app.** The page Share and Export make looked for a
+  row's pipes again for each empty cell, and asked every merge in the
+  table about every row: a row of 50,000 empty cells, from a code of 186
+  characters, came to billions of steps on the screen's own thread, until
+  Android offered to close the app. Each row is read once now, and the
+  page is made away from the screen. Found by the final audit's third
+  round.
+- **Share → Text says when a note is too long for a message.** It handed
+  Android the whole note with no limit, and a note of more than about
+  250,000 characters — a long journal, or a desktop note brought by a
+  backup — stopped the app at the share sheet. Past the ceiling a share
+  code is held to, Text is shown greyed with the reason and the way
+  that carries everything, the web page; a mail's subject is a long
+  title's start; and whatever Android still refuses to hand over is
+  said, never the app stopped. Found by the final audit's third round.
+- **A shared PDF says what it leaves out.** It stopped at 40 pages, and
+  cut anything wider than the paper at the margin — a long link's tail,
+  a table of many columns — and neither the person sending nor the one
+  reading was told. Any line now breaks at the paper's edge; what still
+  does not fit, or does not fit in 40 pages, is said in the bar before
+  the share sheet opens, with the web page named as carrying all of it,
+  and in a small line at the foot of the PDF's page. Found by the final
+  audit's third round.
+- **Export as file names a note's file as the desktop now does.** A
+  title holding a control character other than a line break or a tab
+  kept it in the name offered, and one holding a mark that reorders text
+  could show the file as another kind; both are taken out, as the
+  desktop's export takes them out since its own audit's second round.
+- **A note whose repeat was turned off is itself on its day.** A share
+  code or "↩ Restore previous" that ends a repeat keeps the series' days
+  in the note, for a repeat brought back; the calendar still read them:
+  the note's row on its date showed the first day's old title and words,
+  marked ✎, and a series whose first day had been deleted fell off the
+  calendar, and out of that day's reminder. They are read only while the
+  note repeats, as the desktop reads them since its fourth round; and a
+  restore's copy now carries the date the repeat hangs on, so the restore
+  after it brings the series back. Found by the desktop's fourth round.
+- **What is handed to another app is held to what Android delivers.** A
+  share code, and now a note's words, were refused past 250,000
+  characters, a ceiling reasoned rather than measured: on the emulator,
+  180,000 characters and more never reached the share sheet — Android
+  failed in its own process, after the app's call had returned, and
+  nothing was said. The ceiling is 100,000 now, under the 160,000 that
+  went through; past it a code says to share fewer notes or a backup, as
+  before, and Text says to send the web page.
+- **Files picked for a note that went to the Trash and came back by Undo
+  are attached to it.** Undo brings a note back under a new number, and
+  the files, still copying, were refused as for a note "no longer here"
+  with the note in the list; the note is found by its own identity first
+  now. Found by the final audit's third round.
+- **A note of many tables, or of many short lines, opens at once.** Each
+  table was held to 1,000 cells on its own, so ten such tables, from a
+  share code of 350 characters, were drawn at once; 3,000 small tables
+  were 6,000 pieces of the screen; and 200,000 empty lines were one field,
+  each line drawn by copying the whole field again. A note now draws at
+  most 1,000 cells as grids, 20,000 lines in its text and 100 pieces in
+  all; past that, the rest is shown as its start, read-only, with how
+  many lines it holds. Long text is drawn as several fields of at most
+  1,000 lines each, every one typed in as before, so a letter typed draws
+  a little again rather than the whole note. Found by the final audit's
+  fourth round.
+- **"↩ Restore previous" keeps a deleted paragraph through a column
+  added, a repeat turned off and an import's update.** A column added
+  pads every row again, and read as the whole table lost: the copy of a
+  paragraph deleted just before was replaced by one of the table. A
+  repeat turned off after a big delete kept only the note as it stood.
+  An update replaced the copy in silence. Now a column added loses
+  nothing, a turn-off keeps the deleted words beside the series, and the
+  update's question says it replaces an earlier version — as the
+  desktop does since its fourth round; and, as since its fifth, five
+  rows of a table's eight deleted at once keep a copy, where the table's
+  padding made them read as under a third of the note. Found by the
+  final audit's fourth round.
+- **Two notes with one identity no longer turn an update, a file or a
+  day's Undo onto the wrong one.** A code or a backup holding two notes
+  with one identity updated one note twice, its own words then in no
+  copy; files picked for the second of two went to the first. The second
+  comes in as a note of its own now, and so does a note restored from the
+  Trash while a backup was being read. Found by the final audit's fourth
+  round.
+- **Share says before the tap what is too long, by what Android
+  carries.** A share code too long to hand over is shown greyed with the
+  reason, as Text is, where it was refused only after the tap. The
+  ceiling is weighed in what Android carries rather than in letters: a
+  Chinese, Japanese or Korean letter takes as much room as five bytes, a
+  Latin one three, so Text says "about 60,000 of them" for a note in
+  Chinese and 100,000 for one in English — and the number it quotes is
+  the one it compares. Asked for by the owner after the final audit's
+  fourth round.
+- **A PDF that would leave part of a note out asks first, and nothing is
+  written into it.** The bar that said a PDF held only its first 40
+  pages, or cut what was wider than the page, opened under the share
+  sheet, and the small line written at the foot of the PDF is gone. A
+  question comes before anything is handed over: the web page, which
+  carries all of it, the PDF as it is, or Cancel. Asked for by the owner
+  after the final audit's fourth round.
+- **"↩ Restore previous" on one day of a series that no longer repeats
+  opens the whole note.** Restoring a copy without the repeat left the
+  editor on that day, and every save was refused: "This note no longer
+  repeats". Found by the final audit's fourth round.
+- **A checklist of very long rows opens at once.** Each row was weighed
+  alone and every row drawn as a field, all at once: 120 rows of 150,000
+  letters, from a share code of 38 KB, were 18 million letters laid out
+  at every opening. A row longer than 2,000 letters — the most the
+  desktop draws of one — is shown read-only, its start; the rows written
+  in hold 100,000 letters in all, and past that a row is shown short,
+  the list saying so. A row's field and "A new item…" take 2,000 letters,
+  as the desktop's box does. A list draws its first 200 rows and its last
+  five, a line between drawing 200 more when tapped: 1,000 short rows held
+  the screen 6.5 s on the emulator, and open in 2 now. Found by the final
+  audit's fifth round.
+- **Typing in a very long note no longer runs the app out of memory.**
+  Undo kept up to 200 steps, each the whole note: for a note of two
+  million letters, some 760 MB. It now keeps what a phone can hold —
+  about 50 steps of a journal of 300,000 letters, 200 of a page — and
+  always the last change. Found by the final audit's fifth round.
+- **The cursor goes where its line went.** A table row typed by hand
+  became a grid at its closing pipe and the next row was written above
+  it; Enter at the end of what a long note draws glued the next words onto
+  the line before; a paste too long to lay out left the cursor on the
+  line above it. Now the cursor goes under the grid, or past the
+  read-only line; where no field follows, the keyboard goes and the note
+  says why. The calculator no longer writes where no field shows it.
+  Found by the final audit's fifth round.
+- **A note of many small tables is drawn to its end, and what a note
+  shows read-only is found and read.** Fifty weekly tables under their
+  headings made the fiftieth and everything after it read-only, with
+  nowhere to write at the end; a note may now be 500 pieces, and 40,000
+  lines of text rather than 20,000, so a journal of 10,000 lines is
+  written in to its end. Find
+  searches what is shown read-only — a line too long to lay out, the rest
+  past what a note draws, a table too large to draw — each line one stop,
+  and shows the line it stopped at; such a part can be read on, forty
+  lines at a time. It said "0/0" there, while the list's search found
+  the note. Found by the final audit's fifth round.
+- **The template editor keeps the words left in "A new item…".** Save
+  left them out unsaid, and ✕ closed without asking when they were the
+  only change. Comments too long to edit are shown under their own label;
+  alone, they read as part of the body. Found by the final audit's fifth
+  round, and its walk.
+- **"↩ Restore previous" keeps a deleted paragraph when a list's markers
+  change after.** Numbers turned into bullets, or bullets taken one level
+  in, counted each marker as a word lost, and the copy of the paragraph
+  was replaced by the list's old markers. As the desktop does since the
+  same round, where it was found on the phone first.
+- **A series turned back on from another start no longer brings back its
+  old deleted days**, which could hide the new series' first day; days
+  with words of their own still come back. As the desktop does since the
+  same round.
+- **Smaller ones from the same round.** A note's Share sheet opens at
+  once however long the note (its code was built on the screen's thread
+  to grey its card); a letter typed in a long note saves without
+  splitting the whole note into words; underline and strike over
+  thousands of words no longer slow each letter typed; a repeat turned
+  off after a big delete keeps the deleted words when the series had been
+  turned off once before; the backup Update question no longer warns of
+  replacing an earlier version for a note that only gains a file; a "^"
+  under a row too short to have its column shows as text, as the desktop
+  shows it; a checklist row the phone cannot write is said once, and the
+  letters typed in the next row are kept. Found by the final audit's
+  fifth round.
+
+#### From the sixth round on
+
+- **Redo of a table row typed at a note's end keeps the table the right
+  way up,** and Insert table in a note past what it draws says where to
+  tap, where it wrote a blank table nobody could see at every tap.
+- **A checklist row near its 2,000 letters keeps its own words.** A
+  letter or a paste anywhere but at its end pushed its last words off,
+  unsaid; an emoji counts as one letter, as on the desktop.
+- **A checklist row moved by its menu, a screen reader or a drag stays
+  in sight,** where it went among the rows not drawn and vanished.
+- **A row longer than 2,000 letters can be read,** where it showed
+  "149,994 characters in 1 lines" and not a word: "Read all N characters
+  ›" shows it whole, in parts cut on the edges of letters, at once
+  however it is written, and a search's stop opens it at its word.
+- **The template editor keeps up with a long list,** keeps its "A new
+  item…" to a row's length, and refuses a 1,001st item with a word,
+  where Save dropped it.
+- **Comments wiped keep a rescue copy,** as the same words deleted from
+  the text do.
+- **Restore previous keeps what it writes over:** comments typed since,
+  and styles laid on part of the copy's words, went to no file.
+- **An Update's copy survives a later big delete.** The words the delete
+  takes become an "(earlier text)" note, as on the desktop.
+- **What an edit takes away is counted in letters:** eight emoji
+  deleted read as sixteen, and replaced a copy holding a deleted
+  paragraph.
+- **Every box with a limit keeps its own words.** The title, a
+  template's name and title, Save as template's name and Your name cut
+  their own end when a letter or a paste went anywhere but the end; a
+  title of 150 emoji kept 100. A paste is cut to the room left, and said
+  in the box's own words where it can be seen.
+- **At a full checklist "A new item…" says so as the words begin,**
+  where Home lost them unsaid.
+- **The calculator's answer goes where you are writing,** through Undo,
+  Redo, a list's markers and Enter in a list, never glued to the
+  cursor ("2+2=43×3=9") nor into a table's box ("[x]12×3=36"); and it
+  reads a keyboard's − * x / : and a decimal comma.
+- **Insert table and the calculator's Insert write where the cursor is
+  after Undo,** not at the note's end.
+- **A title holding a line break can be typed into.** Every letter was
+  dropped, and the next ones went into the note's words.
+- **A sheet or a dialog that refuses says so over itself:** the category
+  sheet's Save looked as if it did nothing. The details and category
+  sheets scroll on a phone on its side.
+- **The app's words said while typing show above the keyboard,** and
+  are read out to a screen reader.
+- **The list's search no longer stops the app** after 262,000 letters
+  pasted and Home.
+- **A line break that comes in as CR is one line break,** in the note's
+  text, its comments, a cell and a template, as the desktop's paste
+  makes it.
+- **A hand-made repeat rule, and an id, are read as the desktop reads
+  them** ("1_0", thousands of digits, true and false in the day lists).
+- **A note id past what an Int holds is renumbered,** where every new
+  note after it was given the same id.
+- **Find matches as the desktop's find does,** two letters it folded
+  apart now folded alike.
+- **Moving a day never writes over another day's words,** and the Undo
+  of a deleted day no longer brings it back over a day moved there since.
+- **Styles stay on their words** when a table, a caption or a
+  calculator answer goes in, a letter beside its twin is deleted, a
+  column is added, or a letter is typed in a cell aligned right or
+  centred.
+- **A day's text ending in a table keeps the line under it,** as the
+  desktop stores it: the same note read as changed in an import, and its
+  Update spent the real rescue copy.
+- **History lists a day moved past a series' end, or onto a deleted
+  date,** and finds its words; a day of a year to come is filed under
+  its year.
+- **Two moves onto one date no longer crash History,** and a meeting
+  moved under 0.13.0 stays on the date it was moved to.
+- **Restore previous on a day leaves a day the series no longer draws,**
+  where what was typed next was "Saved for this day only" to a day
+  never shown.
+- **A day of a repeating note keeps its lists' levels** and takes the
+  list rules the whole note has: Enter, Backspace and a cut across two
+  items dropped a nested item's depth, and a paste renumbered a nested
+  list as one run, stored.
+- **A copy and a paste carry the looks of their own lines only:** a cut
+  across two nested items pasted back went to the margin, a line moved
+  above a centred one centred the line it went before, and a copied
+  word set the level of the item it landed in.
+- **A list item pasted where a list item stands takes its place,**
+  where it read "2. 3. Bread", "3. 1. Milk" or "3. 1. Kiwi".
+- **The Trash's row and its purge read a deletion date one way:**
+  "2020-02-30" counted down to 0 days while the entry stayed for ever.
+- **A table cell left on "[x]" or "^" keeps it,** where it kept "[x".
+- **Duplicates says everything it compares and ignores,** and its
+  clean-up keeps every file and every series' own days: files past 200
+  were hidden and purged, and cleaning up the app's own Duplicate gave
+  the kept note every file twice.
+- **A new note of comments alone is saved** by Share and Move to Trash,
+  where it was closed unsaved.
+- **Every search ignores case and accents the same way,** in the list,
+  Find and History; a Korean syllable is no longer cut to its first
+  letter, Title A–Z sorts a marked initial beside its letter, and a
+  word picked from the suggestion strip finds its note.
+- **A new note that Show, the search or a folded group hides says so,**
+  by name, with **Show all**; so do notes restored, imported or put back
+  by Undo where the list does not look, and an empty list names what
+  hides its notes.
+- **A share code pasted among words is read,** and one whose "=" was
+  lost on the way.
+- **Two deletes in a row: the Undo on screen is the second's.**
+- **Words half typed in "A new item…" stay in the box:** on the way to
+  the background, and through a save the editor stays open after.
+- **The checklist and comments asked for on a new note stay** after its
+  first save, with the words in "A new item…".
+- **Share and Export as file from one day of a series send that day,**
+  its own words and looks, not the series'; Duplicate is not offered on
+  a day, where it copied the whole series.
+- **A template used on a note started from a calendar day keeps the
+  day.**
+- **When every note left in a code or a backup looks like one here,
+  Skip them is offered,** where Cancel dropped an Update already agreed
+  to; a backup older than the notes here no longer makes Update the
+  answer that stands out.
+- **A size from the format bar is drawn as the desktop draws it,**
+  points against a 12 pt body: 14 made words smaller, 16 changed
+  nothing, a line of a larger size ran into the next, and two sizes over
+  the same letters multiplied.
+- **Notes moved to a category offer Undo,** each back where it was filed.
+- **The list keeps up with what you do:** another sort, Show or
+  grouping starts at its top; a card pinned, duplicated, filed or put
+  back by the Trash's Undo is brought into sight; and the results under
+  the keyboard can be scrolled to.
+- **Custom order's drag keeps the card under your finger and on
+  screen.** The edge scroll starts slowly and goes only the way the
+  finger heads, where a one-place drag on a phone on its side landed
+  two or three places away; a press the system cancels is no tap; a
+  step is said to a screen reader.
+- **The editor is read back only when a change touched it:** an import
+  or a day's change elsewhere emptied its Undo and dropped its cursor.
+- **Settings → Reminders says which notification is off,** the app's or
+  the reminder's own kind, opens that page, and says Android may bring
+  the reminder up to an hour late.
+- **Ctrl+Z and Ctrl+Y from a keyboard stay in a checklist row, Find or
+  the calculator** when one holds the focus, where they took back the
+  note's last typing.
+- **Smaller ones.** A duplicate gets its own "Created"; the app is left
+  off its own share sheet; a new note's first Attach files is no longer
+  dropped while the picker is open; a file gone from the note's folder is
+  said missing when tapped; the day's reminder leaves the shade at
+  midnight; the date picker opens on the phone's today, not UTC's; Your
+  name is kept when its page is left by Back; the calendar follows a day
+  moved from the editor, and back with its Undo; a new note given a
+  deleted note's id no longer opens folded as that note was; "Leave
+  anyway" tapped late sets no day on another note; "Saved for this day
+  only" no longer squeezes ⋮; the template editor's ✓ adds its item; the
+  calendar's Today goes to the day the grid marks; text shared from
+  Notepad leaves its byte-order mark out of the title; the quieter words
+  on a chosen card, row or bar button read at 4.5 to 1 in every theme,
+  where they stood at 3.50; and the words on screen say what the app
+  does (Android's backup copies the notes while it is on, "1 repeating
+  note has", "No calendar entries match.", Colour and Centre spelled
+  once, "the whole series", "used last").
+
+### Changed
+
+- **A turned-off series' days live in the note,** as the desktop keeps
+  them, and 0.12.0's come back into it. Up to 0.12.0 the Repeat sheet
+  moved them into the series' rescue copy, and the desktop's next copy
+  of words erased them. Where a day holds words of its own and a
+  series' copy holds other words for it, the copy's words become a note
+  of their own on that date, "*title* (earlier text)", said with Show.
+- **A card keeps a note's lines apart with " · ",** shows a list item's
+  words without its marker and leaves out an item with no words, as the
+  desktop's card does.
+- **The Calendar tab is drawn in lines,** like Notes and Settings beside
+  it, where it was the 📅 emoji reading "July 17".
+- **On a wide screen the + heads the rail,** as the desktop's "+ New
+  Note" heads its sidebar, where it covered the chosen card.
+
+---
+
+## [0.13.0] — 2026-10-27 — Open-source licenses
+
+### Added
+
+- **Settings → About → Open-source licenses**: the app's own MIT
+  license, and the libraries it is built with — Android Jetpack, Compose,
+  Kotlin — with the Apache License they come under. The list is the
+  release build's own, written by `tools/make_licenses.py`, and the
+  repository now carries the `LICENSE` the app has always named.
 
 ---
 

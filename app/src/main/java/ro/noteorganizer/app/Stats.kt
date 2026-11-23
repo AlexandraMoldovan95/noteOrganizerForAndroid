@@ -21,6 +21,7 @@ object Stats {
 
     data class Snapshot(
         val total: Int,
+        /** Every category there is, those holding no note too, as the desktop's tile. */
         val categories: Int,
         val templates: Int,
         val withChecklist: Int,
@@ -82,7 +83,7 @@ object Stats {
         val stamped = settings?.opt(FIRST_LAUNCH_DATE) as? String
         return Snapshot(
             total = notes.size,
-            categories = counts.size,
+            categories = categoryOrder.size,
             templates = templates,
             withChecklist = withChecklist,
             inTrash = trash,

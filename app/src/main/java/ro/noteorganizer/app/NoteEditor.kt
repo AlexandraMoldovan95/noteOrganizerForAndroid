@@ -1,6 +1,7 @@
 package ro.noteorganizer.app
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isShiftPressed
@@ -20,8 +21,6 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,6 +81,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -95,6 +95,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -103,10 +108,20 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -114,6 +129,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -123,6 +139,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import ro.noteorganizer.app.ui.theme.LocalPalette
@@ -150,17 +167,25 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var date by mutableStateOf(note?.date ?: newDate)
     var pinned by mutableStateOf(note?.pinned ?: false)
 
+    /** Whether this editor began as a new note -- still true after its first save, which a template asks after. */
+    val startedNew: Boolean = note == null
+
     /**
      * Each line's indent and alignment, kept in step with the text as it
      * changes; a list item's kind is its marker, in the text itself. A day
-     * of a series has none of its own -- the desktop keeps them with the
-     * series -- so day mode keeps none.
+     * of a series shows the series' while it shows the series' words, and
+     * once it has text of its own, only its list lines' depth, which it
+     * keeps in its own paragraphs ([Paragraphs.dayProps]).
      */
     var props by mutableStateOf(linesOf(note))
 
-    private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> =
-        if (day != null || note == null) emptyMap()
-        else Paragraphs.propsOf(state.rawNote(note.id)?.opt("paragraphs"), note.body)
+    private fun linesOf(note: Note?): Map<Int, Paragraphs.Props> {
+        val raw = note?.let { state.rawNote(it.id) } ?: return emptyMap()
+        val onDay = day ?: return Paragraphs.propsOf(raw.opt("paragraphs"), note.body)
+        val shown = Recurrence.effectiveNote(raw, onDay).opt("body") as? String ?: return emptyMap()
+        val own = (raw.opt("overrides") as? org.json.JSONObject)?.optJSONObject(onDay)?.opt("paragraphs")
+        return Paragraphs.dayProps(raw.opt("paragraphs"), shown, Normalize.sameBody(shown, raw.opt("body") as? String ?: ""), own)
+    }
 
     init {
         if (day != null && note != null) showDay(note.id, day)
@@ -184,7 +209,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // A day's own text is plain -- but a day given only its own colour
         // or category keeps the series' words, and with them their styles,
         // as the desktop's load_note keeps them while the two bodies agree.
-        if (own?.has("body") == true && body != (raw.opt("body") as? String ?: "")) spans = emptyList()
+        if (own?.has("body") == true && !Normalize.sameBody(body, raw.opt("body") as? String ?: "")) spans = emptyList()
     }
 
     /** Counts changes; the autosave runs a moment after the last one. */
@@ -201,10 +226,33 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * details are not words: a colour or a date set stays set.
      */
     private data class Snap(val title: String, val body: String, val spans: List<FormatSpan>,
-                            val props: Map<Int, Paragraphs.Props>, val comments: String)
+                            val props: Map<Int, Paragraphs.Props>, val comments: String) {
+        /** What it holds, in characters: its words, and each style and line's entry as a short word's worth. */
+        fun weight(): Long = title.length.toLong() + body.length + comments.length + 24L * (spans.size + props.size)
+    }
 
     private fun snap() = Snap(title, body, spans, props, comments)
-    private val history = Editing.History<Snap>()
+
+    /**
+     * A step of Undo: the note as it was, and the edits that led from it to
+     * the note after it, each in the text the one before left, so the places
+     * remembered in the text ([caret], [calcMark]) go back and forth as Tk's
+     * marks do (ISSUES_LOG, "Every place a change made"). Mutable: a typing
+     * step joins letters typed after it, and its edits go from Undo to Redo.
+     */
+    private class Step(val words: Snap, val edits: MutableList<Paragraphs.Edit> = ArrayList())
+
+    private val history = Editing.History<Step>(budget = Editing.HISTORY_CHARS, weigh = { it.words.weight() })
+
+    /** The edits made since the note was last settled: what the next step records. */
+    private val made = ArrayList<Paragraphs.Edit>()
+
+    /** The step last kept, which typing joins. */
+    private var newest: Step? = null
+
+    /** How many steps Undo can take now: the tests' window on [history]'s budget. */
+    @VisibleForTesting
+    internal val undoSteps: Int get() = history.steps
 
     /** The note as the last change left it: what the next change records as "before". */
     private var settled: Snap? = null
@@ -224,14 +272,24 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     fun undo() {
-        history.undo(snap())?.let { restore(it) }
+        writeHeldCell()
+        val now = Step(snap())
+        val back = history.undo(now) ?: return
+        // Redo goes forward through the same edits.
+        now.edits.addAll(back.edits)
+        restore(back.words, back.edits, forward = false)
     }
 
     fun redo() {
-        history.redo(snap())?.let { restore(it) }
+        writeHeldCell()
+        val now = Step(snap())
+        val ahead = history.redo(now) ?: return
+        // ...and Undo back through them.
+        now.edits.addAll(ahead.edits)
+        restore(ahead.words, ahead.edits, forward = true)
     }
 
-    private fun restore(to: Snap) {
+    private fun restore(to: Snap, through: List<Paragraphs.Edit>, forward: Boolean) {
         val was = body
         val kept = focus to focused
         title = to.title
@@ -241,33 +299,42 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // The cell being written in shows its words as they are now.
         cellEpoch += 1
         comments = to.comments
-        // Places remembered in the old text mean nothing in this one.
+        // The places remembered in the text move through the step's own edits
+        // ([Step]), as Tk's marks through Ctrl+Z: every change to the words keeps
+        // its edit, so a step with none changed only styles, title or comments.
         focused = null
-        caret = null
-        calcMark = null
+        caret = if (forward) Calculator.follow(through, caret) else Calculator.back(through, caret)
+        calcMark = if (forward) Calculator.follow(through, calcMark) else Calculator.back(through, calcMark)
+        made.clear()
         settled = to
         steps()
         edits += 1
         status = null
-        // ...but the cursor stays in the note, as Tk leaves it: where the
-        // change undone or redone was, or where it stood when only styles
-        // changed. Left with no place, the field kept the keyboard and the
-        // next letter went to the end of the note.
+        // ...but the cursor stays in the note, as Tk leaves it, placed by the
+        // rule typing uses ([placeCaret]): left with no place, the next letter
+        // went to the note's end; by a copy of the rule, a Redo landed above a grid.
         val (index, value) = kept
-        if (was == body && index != null && value != null) {
-            ask(index, value)
+        if (was == body) {
+            // Only styles changed: the field asked back with its own value,
+            // the place it writes at kept above.
+            if (index != null && value != null) ask(index, value)
         } else {
             changeSite(was, body)?.let { at ->
-                val segments = Editing.segments(body)
-                val within = segments.indexOfFirst { s ->
-                    !s.table && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
-                }
-                if (within >= 0) {
-                    caret = at
-                    ask(within, fieldValue(within, at))
-                }
+                // A change in the table whose cell is being written in leaves the
+                // cursor in the cell, its field reading the words again
+                // ([cellEpoch]); by prose's rule the line under the grid took it.
+                if (inActiveTable(at)) return@let
+                caret = at
+                placeCaret(at)
             }
         }
+    }
+
+    /** True when [at], a place in the body in code points, is in the table that holds the cell being written in. */
+    private fun inActiveTable(at: Int): Boolean {
+        val cell = activeCell ?: return false
+        val table = Editing.segments(body).firstOrNull { it.table && it.firstLine == cell.firstLine } ?: return false
+        return at >= table.cpStart && at <= table.cpStart + table.text.codePointCount(0, table.text.length)
     }
 
     /** Where [was] and [now] differ, as a place in [now], in code points: the end of what changed. */
@@ -297,6 +364,48 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     var cellCaretNext: Int? = null
 
     /**
+     * While a letter typed in a cell is written: the cursor in the cell's
+     * words as they are stored (a line break counted as its "<br>"), so the
+     * words' styles move by the edit as made ([carryCellStyles]).
+     */
+    var cellWordsCaret: Int? = null
+
+    /**
+     * A cell's words as its field gives them, the cursor at [caret]: written,
+     * or held while they read as a merge's marker or a box ([isCellToken]: "<"
+     * on its way to "<5 €"), which written would turn the cell under the
+     * finger. Held words are written when the cell is left, as the desktop
+     * does, and first in every table operation (ISSUES_LOG, "A mark held").
+     */
+    fun typeInCell(segment: Editing.Segment, table: TableBlock, at: CellAt, words: String, caret: Int) {
+        val stored = words.replace("\n", LINE_BREAK)
+        if (isCellToken(words)) {
+            cellHeld = HeldCell(segment.firstLine, at, stored, body)
+            return
+        }
+        cellHeld = null
+        val upTo = words.substring(0, caret.coerceIn(0, words.length)).replace("\n", LINE_BREAK)
+        cellWordsCaret = maxOf(0, upTo.codePointCount(0, upTo.length) - (stored.length - PyText.lstrip(stored).length))
+        editTable(segment, Editing.History.TYPING + ":cell") { it.setCell(table.fileRow(at.row), at.column, stored) }
+        cellWordsCaret = null
+    }
+
+    /** Words [typeInCell] held: the table by its first line, the cell, the words as stored, the body they were typed over. */
+    class HeldCell(val firstLine: Int, val at: CellAt, val words: String, val over: String)
+
+    var cellHeld: HeldCell? = null
+
+    /** Writes [cellHeld], once -- not when the note has changed under it since. */
+    fun writeHeldCell() {
+        val held = cellHeld ?: return
+        cellHeld = null
+        if (body != held.over) return
+        val segment = Editing.segments(body).firstOrNull { it.table && it.firstLine == held.firstLine } ?: return
+        val table = parseTable(segment.text.split("\n"))
+        editTable(segment, Editing.History.TYPING + ":cell") { it.setCell(table.fileRow(held.at.row), held.at.column, held.words) }
+    }
+
+    /**
      * The table cell being written in, by the line its table starts on --
      * a table's segment is made anew with every edit, its first line is
      * not -- and the cell. Null when no cell is: a prose field taking the
@@ -324,18 +433,40 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     /** The end of the calculator's last insertion: the next goes after it. */
     private var calcMark: Int? = null
 
-    /** The body has changed: the places remembered in it move with the text, and the lines' properties too. */
-    private fun follow(next: String) {
-        caret = Calculator.follow(body, next, caret)
-        calcMark = Calculator.follow(body, next, calcMark)
-        props = Paragraphs.follow(body, next, props)
+    /**
+     * The body has changed in one place: the places remembered in it move
+     * with the text, and the lines' properties too -- through [edit], the
+     * change as it was made, when the one making it knows its place: read
+     * off the two texts alone ([Calculator.changeOf]), a change that begins
+     * with what follows it is read as made further on, and a place right at
+     * it stayed behind.
+     */
+    private fun follow(next: String, edit: Paragraphs.Edit? = null) {
+        carry(listOfNotNull(edit ?: Calculator.changeOf(body, next)))
+        props = Paragraphs.follow(body, next, props, edit)
     }
 
-    /** A list, indent or alignment change, the styles carried through it exactly. */
+    /**
+     * The body changes by [edits], each in the text the one before left: the
+     * places remembered in it carried through them one by one, as a Tk mark
+     * of right gravity moves, and the edits kept for the step Undo records.
+     */
+    private fun carry(edits: List<Paragraphs.Edit>) {
+        caret = Calculator.follow(edits, caret)
+        calcMark = Calculator.follow(edits, calcMark)
+        made.addAll(edits)
+    }
+
+    /**
+     * A list, indent or alignment change, the styles carried through it
+     * exactly -- and the places remembered in the text with them: followed
+     * as one change, a list's markers put on three lines, or Enter in a
+     * numbered list above the calculator's last answer, sent its next one
+     * into a later line ("3×3=9Rent", or into "4.").
+     */
     private fun apply(done: Paragraphs.Done) {
         spans = if (day != null) emptyList() else done.move(spans)
-        caret = Calculator.follow(body, done.body, caret)
-        calcMark = Calculator.follow(body, done.body, calcMark)
+        carry(done.inTurn())
         props = done.props
         body = done.body
         changed()
@@ -353,8 +484,14 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     fun applyLines(done: Paragraphs.Done?, index: Int, from: Int, to: Int) {
         if (done == null) return
         apply(done)
-        focused = fieldValue(index, done.movePoint(from), done.movePoint(to))
-        caret = done.movePoint(to)
+        val start = done.movePoint(from)
+        val end = done.movePoint(to)
+        caret = end
+        // Markers put on make lines longer, and a full field gives its last
+        // line to the next: then the rule for a cursor whose line moved.
+        val segment = Editing.segments(body).getOrNull(index)
+        if (segment != null && holds(segment, start) && holds(segment, end)) focused = fieldValue(index, start, end)
+        else placeCaret(end, start)
     }
 
     /** The format bar's alignment keys. */
@@ -421,54 +558,144 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /**
+     * After a letter typed into the field at [index], shown as [shown]: when
+     * the body is now cut otherwise -- a field past its share of lines
+     * ([Editing.FIELD_LINES]) gives its last line to the next -- the cursor
+     * goes to the field its line went to. Left where it was, the field
+     * showed its new text with the cursor at its end, and the next letter
+     * went there.
+     */
+    fun keepCaret(index: Int, shown: TextFieldValue) {
+        val at = caret ?: return
+        val segments = Editing.segments(body)
+        if (segments.getOrNull(index)?.let { it.text == shown.text && holds(it, at) } == true) return
+        placeCaret(at)
+    }
+
+    private fun holds(s: Editing.Segment, at: Int) =
+        s.field && at >= s.cpStart && at <= s.cpStart + s.text.codePointCount(0, s.text.length)
+
+    /**
+     * Counts the times the keyboard was let go of because the line being
+     * written is in no field ([placeCaret]): the screen takes it away.
+     */
+    var letGo by mutableIntStateOf(0)
+        private set
+
+    /** Whether the reason the keyboard went was said: once a visit. */
+    private var letGoSaid = false
+
+    /**
+     * The cursor put at [at], in code points, after a change: in the field
+     * that holds it, or past a table's closing pipe or a read-only piece, at
+     * the next field's start; with none after it, the keyboard goes, said
+     * once. The one rule for where the cursor goes after any change: each
+     * asked a copy of it, and the next letters went onto the line above, or
+     * out of sight. A selection from [from] to [at] is kept within one field.
+     */
+    private fun placeCaret(at: Int, from: Int = at) {
+        val segments = Editing.segments(body)
+        val within = segments.indexOfFirst { holds(it, at) }
+        if (within >= 0) {
+            ask(within, fieldValue(within, if (holds(segments[within], from)) from else at, at))
+            return
+        }
+        val piece = segments.indexOfLast { at >= it.cpStart }
+        val next = (piece + 1 until segments.size).firstOrNull { segments[it].field }
+        if (next != null) {
+            caret = segments[next].cpStart
+            ask(next, fieldValue(next, segments[next].cpStart))
+            return
+        }
+        focused = null
+        focus = null
+        letGo += 1
+        if (!letGoSaid) {
+            letGoSaid = true
+            state.say("The end of this note is more than the phone shows at once. It is kept whole, shown " +
+                "read-only here; write there on the computer.")
+        }
+    }
+
+    /**
      * The desktop's "Add caption below…": a numbered label line and a source
      * line under the table, placed as the table is, no style carried onto
      * them from its edge -- and "description" selected, so what is typed
      * replaces it.
      */
     fun addCaption(segment: Editing.Segment) {
+        writeHeldCell()
         val made = Editing.addCaption(body, segment.lastLine)
         val tableAlign = props[segment.firstLine]?.align
         val lines = made.body.split("\n")
-        val from = lines.take(made.line).sumOf { it.codePointCount(0, it.length) + 1 }
-        val to = from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
-            lines[made.line + 1].codePointCount(0, lines[made.line + 1].length)
-        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans.let { moved ->
+        val from = Paragraphs.lineStart(lines, made.line)
+        // The Source line's own line break too, as the desktop's clears to
+        // "{cap_line + 2}.0": a style past the table's end kept it, and its bar
+        // ran to the margin there.
+        val to = minOf(from + lines[made.line].codePointCount(0, lines[made.line].length) + 1 +
+            lines[made.line + 1].codePointCount(0, lines[made.line + 1].length) + 1,
+            made.body.codePointCount(0, made.body.length))
+        // Put in at the end of the table's last line, as the desktop's
+        // insert at "{below}.end": the edit as made, not read off the texts --
+        // the styles too, or a run starting where it went in took it all.
+        val edit = putIn(made.body, from - 1)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit)).let { moved ->
             moved.map { it.style }.toSet().fold(moved) { acc, style -> clearStyle(acc, from, to, style) }
         }
-        follow(made.body)
+        follow(made.body, edit)
         body = made.body
         if (day == null) props = withAlign(props, listOf(made.line, made.line + 1), tableAlign)
         changed()
-        val index = Editing.segments(body).indexOfFirst { !it.table && made.line in it.firstLine..it.lastLine }
-        ask(index, fieldValue(index, made.selectStart, made.selectEnd))
+        caret = made.selectEnd
+        placeCaret(made.selectEnd, made.selectStart)
     }
 
     /** "Add a line above the table": an empty line there, the cursor on it. */
     fun addLineAbove(segment: Editing.Segment) {
+        writeHeldCell()
         val lines = body.split("\n")
-        val at = lines.take(segment.firstLine).sumOf { it.codePointCount(0, it.length) + 1 }
+        val at = Paragraphs.lineStart(lines, segment.firstLine)
         val next = (lines.take(segment.firstLine) + "" + lines.drop(segment.firstLine)).joinToString("\n")
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // One line break at the table's first line's start, as the desktop's insert at "{first}.0".
+        val edit = putIn(next, at)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(next, edit)
         body = next
         changed()
-        val index = Editing.segments(body).indexOfFirst { !it.table && segment.firstLine in it.firstLine..it.lastLine }
-        ask(index, fieldValue(index, at))
+        caret = at
+        placeCaret(at)
     }
+
+    /** What putting text in at [at], in code points, and nothing else made of the body [next]: the edit as made. */
+    private fun putIn(next: String, at: Int): Paragraphs.Edit =
+        Paragraphs.Edit(at, 0, next.codePointCount(0, next.length) - body.codePointCount(0, body.length))
 
     /**
      * A column's width, hidden mark or fit: the separator line alone
      * rewritten, or one put under the header row, placed as the table is.
      */
     fun editColumns(segment: Editing.Segment, change: (List<String>) -> List<String>) {
+        writeHeldCell()
         val lines = body.split("\n")
         val table = lines.subList(segment.firstLine, segment.lastLine + 1)
         val changedTable = change(table)
         if (changedTable == table) return
         val next = replaceTable(body, segment.firstLine..segment.lastLine, changedTable)
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // The separator line alone put in or rewritten ([withColumnMechanics]),
+        // the edit as made: read off the texts, it was found inside the next row,
+        // and that row's first cell's colour spread over the separator.
+        fun width(line: String) = line.codePointCount(0, line.length)
+        fun startOf(line: Int) =
+            if (line < lines.size) Paragraphs.lineStart(lines, line) else width(body)
+        val edit = if (changedTable.size == table.size + 1) {
+            Paragraphs.Edit(startOf(segment.firstLine + 1), 0, width(changedTable[1]) + 1)
+        } else {
+            table.indices.singleOrNull { table[it] != changedTable[it] }
+                ?.let { Paragraphs.Edit(startOf(segment.firstLine + it), width(table[it]), width(changedTable[it])) }
+        }
+        spans = if (day != null) emptyList()
+                else edit?.let { Paragraphs.moveSpans(spans, listOf(it)) } ?: remapSpans(body, next, spans).spans
+        follow(next, edit)
         body = next
         if (changedTable.size > table.size && day == null) {
             props = withAlign(props, listOf(segment.firstLine + 1), props[segment.firstLine]?.align)
@@ -478,20 +705,41 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** The table taken out of the note. */
     fun deleteTable(segment: Editing.Segment) {
+        writeHeldCell()
         val next = Editing.deleteLines(body, segment.firstLine, segment.lastLine)
-        spans = if (day != null) emptyList() else remapSpans(body, next, spans).spans
-        follow(next)
+        // Taken out from its first line's start: the edit as made, the styles too.
+        val at = Paragraphs.lineStart(body.split("\n"), segment.firstLine)
+        val edit = Paragraphs.Edit(at, body.codePointCount(0, body.length) - next.codePointCount(0, next.length), 0)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(next, edit)
         body = next
         focused = null
         changed()
     }
 
-    /** A blank table at the cursor -- the end, when it was never in the note. The line it starts on. */
-    fun insertTable(rows: Int, columns: Int): Int {
+    /**
+     * A blank table at the cursor -- the end, when it was never in the note.
+     * The line it starts on; null when it would not be drawn as a table
+     * there -- past what the note draws, the cursor never in it or left in
+     * that part when the keyboard went -- and nothing is written, said. As
+     * the calculator's sum, it went where nothing showed it, one more blank
+     * table at every tap.
+     */
+    fun insertTable(rows: Int, columns: Int): Int? {
+        writeHeldCell()
         val length = body.codePointCount(0, body.length)
         val made = Editing.insertTable(body, caret ?: length, rows, columns)
-        spans = if (day != null) emptyList() else remapSpans(body, made.body, spans).spans
-        follow(made.body)
+        if (Editing.segments(made.body).none { it.table && it.firstLine == made.firstLine }) {
+            state.say("The end of this note is more than the phone shows at once. Tap in its text where the " +
+                "table should go, then insert it.")
+            return null
+        }
+        // Put in at the cursor (or the end, on a line of its own,
+        // [Editing.insertTable]): the edit as made, or a run starting at the
+        // cursor took the whole table.
+        val edit = putIn(made.body, (caret ?: length).coerceIn(0, length))
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        follow(made.body, edit)
         body = made.body
         focused = null
         changed()
@@ -507,9 +755,13 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val now = snap()
         val before = settled
         if (before != null && before != now) {
-            history.record(before, kind, System.currentTimeMillis())
+            val step = Step(before, ArrayList(made))
+            // Joined to the step before, its edits follow that step's.
+            if (history.record(step, kind, System.currentTimeMillis())) newest = step
+            else newest?.edits?.addAll(made)
             steps()
         }
+        made.clear()
         settled = now
         edits += 1
         status = null
@@ -517,26 +769,281 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     val unsaved: Boolean get() = edits != saved
 
-    /** Writes what is on screen. True when the file now holds it. */
-    fun save(force: Boolean = false): Boolean {
-        if (!force && edits == saved) return true
+    /**
+     * Nothing written in this note: no title, words, comments or checklist --
+     * one answer for Share and Move to Trash. Move to Trash asked of the title
+     * and words alone, and a new note of comments closed with no save.
+     */
+    val blank: Boolean get() = title.isBlank() && body.isBlank() && comments.isBlank() && adding.isBlank() &&
+        ((state.rawNote(id)?.opt("checklist") as? org.json.JSONArray)?.length() ?: 0) == 0
+
+    /**
+     * Writes what is on screen. True when the file now holds it. A failure
+     * is said as well as drawn in red, which a screen reader never reads
+     * out: every time when a tap asked for the save -- it is why the tap did
+     * nothing -- and by the [auto]save once, when saving starts to fail.
+     * [scheduleFollows]: the Repeat sheet's save, a write of the repeat
+     * after it ([Notebook.updateNote]).
+     */
+    fun save(force: Boolean = false, auto: Boolean = false, scheduleFollows: Boolean = false): Boolean {
+        val first = problem == null
+        // The checklist's waiting words go with a save a tap asks for, never
+        // with the autosave: it runs while a row or "A new item…" is being
+        // typed in, and would add the half-typed words as a row.
+        val why = (if (auto) writeNote(force) else write(force, scheduleFollows)) ?: return true
+        if (!auto || first) state.sayNotSaved(why)
+        return false
+    }
+
+    /**
+     * Writes what is on screen, the checklist's waiting words too, saying
+     * nothing: null when the file now holds it, or why it does not. What the
+     * app asks before the note is left or changed from outside
+     * (AppState.flush), which says it in its own words.
+     */
+    fun write(force: Boolean = false, scheduleFollows: Boolean = false): String? {
+        writeHeldCell()
+        return writeNote(force, scheduleFollows) ?: writeChecklist()
+    }
+
+    /**
+     * [write] for a save the editor stays open after -- a change from the
+     * list beside it, an Undo, an import -- leaving "A new item…" as it is:
+     * its words went in as a finished row, the box emptied under the thumb
+     *. A read-back ([reloadFrom]) keeps the box.
+     */
+    fun writeStaying(): String? {
+        writeHeldCell()
+        return writeNote(false) ?: writeRename()
+    }
+
+    /**
+     * [save] for a tap that asks something first -- reset or delete a day,
+     * the days off the schedule -- leaving "A new item…" in its box: the
+     * change asked about writes it if it closes the editor, and a Cancel left
+     * the item finished as a row.
+     */
+    fun saveStaying(): Boolean {
+        val why = writeStaying() ?: return true
+        state.sayNotSaved(why)
+        return false
+    }
+
+    /** The box's words a trip to the background wrote as a row: the note, the row, the words. */
+    private var awayRow: Triple<Int, Int, String>? = null
+
+    /**
+     * [write], as the app goes to the background: the words in "A new
+     * item…" go in as a row, kept if Android ends the app -- and given back
+     * to the box when the person returns ([backAgain]). Left as a row, a
+     * half-typed item came back finished and the box empty.
+     */
+    fun writeAway(): String? {
+        val words = adding
+        val why = write()
+        val rows = if (why == null && words.isNotBlank() && adding.isEmpty()) {
+            state.rawNote(id)?.optJSONArray("checklist")
+        } else null
+        awayRow = if (rows != null && rows.length() > 0) Triple(id, rows.length() - 1, words) else null
+        return why
+    }
+
+    /**
+     * Back in front: the row [writeAway] made, if it is still the last and as
+     * written, back in the box -- of the note still open only. Text shared in
+     * on the way back opens a note of its own first, and the words taken out
+     * of the row went into an editor about to close, kept nowhere.
+     */
+    fun backAgain() {
+        val (noteId, index, words) = awayRow ?: return
+        awayRow = null
+        if (noteId != id || state.openId != id || adding.isNotEmpty()) return
+        val rows = state.rawNote(id)?.optJSONArray("checklist") ?: return
+        if (rows.length() != index + 1 || rows.optJSONObject(index)?.optString("text") != words.trim()) return
+        if (state.report(Notebook.removeChecklistItem(state.load, id, index))) adding = words
+    }
+
+    /** A checklist row being renamed: the row at [index] read [was] when the change began. */
+    data class Renaming(val index: Int, val was: String, val now: String)
+
+    /**
+     * The checklist's words not written yet: a row being renamed -- written
+     * when its field is left, or by the keyboard's ✓ -- and the words in "A
+     * new item…", added by Add or ✓. Held here, not in the fields, so the
+     * flush writes them too: going to the background moves no focus, and a
+     * row renamed, then the app swiped away from Recents, lost its new words
+     * (ISSUES_LOG, "Words a field kept until it was left").
+     */
+    var renaming by mutableStateOf<Renaming?>(null)
+    var adding by mutableStateOf("")
+
+    /** The top of "A new item…" with its Add, in the window, while it is typed in; null otherwise ([AppState.editorFootTop]). */
+    var addBoxTop by mutableStateOf<Float?>(null)
+
+    /**
+     * The checklist row being renamed -- its key, and its top in the window
+     * -- for the window's messages to stand above it, its ⠿, ☐ and ✕ with it
+     * ([AppState.editorFootTop]); null while none is. Counted not, the row
+     * was brought just above the keyboard and a message stood over it,
+     * taking the taps meant for its ✕ -- or its own Undo's.
+     */
+    var renamingRow by mutableStateOf<Pair<Any, Float>?>(null)
+
+    /**
+     * A row's field and "A new item…" kept to a row's length, as the
+     * desktop keeps its box ([Editing.fitRow]): the row's own words whole,
+     * only what came in cut, said once while edits in one box meet the cap.
+     */
+    val rowCap = Editing.BoxCap({ state.say(it) })
+
+    /** The title kept to the desktop's 200 letters the same way, said in its title box's words. */
+    val titleCap = Editing.BoxCap({ state.say(it) }, Editing.TITLE_CHARS, "A note title",
+                                  "Pasted title shortened to ${Editing.TITLE_CHARS} characters")
+
+    /**
+     * [now] typed into "A new item…". A full list takes no more, and said
+     * only when Add or leaving the note tried, words waiting there were lost
+     * unsaid if Android ended the app behind Home -- the save on going to
+     * the background has no one to tell:
+     * the cap is said as the words begin, while the person is there to read it.
+     */
+    fun typeAdding(now: String) {
+        val began = adding.isBlank() && now.isNotBlank()
+        adding = now
+        if (began && (state.note(id)?.checklist?.size ?: 0) >= Notebook.MAX_CHECKLIST_ITEMS) state.say(Notebook.CHECKLIST_FULL)
+    }
+
+    /**
+     * The title's box, [field] as it was last left: the title on one line
+     * from the start, a break it holds shown as the space it becomes. Shown
+     * with the break, the first letter typed rewrote the box under the
+     * keyboard, and letters arriving in that moment were lost -- " list"
+     * came back " li" (the walk). The note
+     * keeps its break until something is typed in.
+     */
+    fun titleBox(field: TextFieldValue): TextFieldValue {
+        val line = Editing.oneLine(title)
+        return if (field.text == line) field else TextFieldValue(line, TextRange(line.length))
+    }
+
+    /**
+     * [next] typed into the title, shown as [shown]: one line, as the
+     * desktop's, a paste's breaks made spaces ([Editing.titleTyped]), and kept
+     * to 200 letters by [titleCap], only what came in weighed. The value to
+     * show, its cursor after what came in. A tap, moving only the cursor,
+     * writes nothing: a title holding a break was rewritten by a tap alone.
+     */
+    fun typeTitle(shown: TextFieldValue, next: TextFieldValue): TextFieldValue {
+        if (next.text == shown.text) return next
+        val (text, at) = Editing.titleTyped(shown.text, next.text, next.selection.end.takeIf { next.selection.collapsed })
+        val typed = if (at == null) next.copy(text = text) else TextFieldValue(text, TextRange(at))
+        val base = shown.copy(text = Editing.oneLine(shown.text))
+        val kept = keptBy(titleCap, base, typed)
+        // Refused at the cap: the title as it was, breaks and all.
+        if (kept.text == base.text && typed.text != base.text) return shown
+        if (kept.text != title) {
+            title = kept.text
+            changed(Editing.History.TYPING + ":title")
+        }
+        return kept
+    }
+
+    /**
+     * Rows renamed whose words could not be written when another row was
+     * typed in -- the phone refusing the file: held, in the order typed, and
+     * written first by the next write. Dropped, the second row's letters
+     * vanished one by one as they were typed.
+     */
+    val unwritten = androidx.compose.runtime.mutableStateListOf<Renaming>()
+
+    /** The words row [index] shows while they wait: being typed, or held by a failed write. */
+    fun waitingIn(index: Int, text: String): String? =
+        (renaming?.takeIf { it.index == index } ?: unwritten.lastOrNull { it.index == index })
+            ?.takeIf { it.was == text }?.now
+
+    /** The failure a row's write last met, said once until a write succeeds. */
+    private var renameFailure: String? = null
+
+    /**
+     * [now] typed into row [index]'s words: they wait, to be written when the
+     * field is left, another row's first. Read from the editor as it is, not
+     * the last drawing (ISSUES_LOG, "A row's second letter"). Null, or why the
+     * other row's words could not be written, said once as the autosave says
+     * its failure: tried at every letter, each queued a bar of its own.
+     */
+    fun typeInRow(index: Int, now: String): String? {
+        val pending = renaming
+        var why: String? = null
+        if (pending != null && pending.index != index) {
+            why = writeRename()
+            if (why != null) {
+                // Held for the next write; the words typed here wait beside them.
+                renaming?.let { unwritten.add(it) }
+                renaming = null
+                if (why == renameFailure) why = null else renameFailure = why
+            }
+        }
+        val held = unwritten.indexOfLast { it.index == index }
+        val was = if (renaming?.index == index) renaming!!.was
+                  else if (held >= 0) unwritten.removeAt(held).was
+                  else state.note(id)?.checklist?.getOrNull(index)?.text ?: return why
+        renaming = Renaming(index, was, now)
+        return why
+    }
+
+    /** The rows being renamed, written -- those held first: null, or why one could not be. */
+    fun writeRename(): String? {
+        while (true) {
+            val r = unwritten.firstOrNull() ?: renaming ?: break
+            // Only onto the row that still reads what it read: every change from
+            // here writes this first, so a list changed under it came from
+            // elsewhere, and the words are dropped, never put on another row.
+            val row = state.note(id)?.checklist?.getOrNull(r.index)
+            if (row != null && row.text == r.was && r.now != r.was) {
+                val result = Notebook.renameChecklistItem(state.load, id, r.index, r.now)
+                state.refresh()
+                if (result is SaveResult.Failed) return result.reason
+            }
+            if (unwritten.isNotEmpty()) unwritten.removeAt(0) else renaming = null
+        }
+        renameFailure = null
+        return null
+    }
+
+    /** The row being renamed, then the words in "A new item…" added: null, or why not. */
+    fun writeChecklist(): String? {
+        writeRename()?.let { return it }
+        if (adding.isBlank()) return null
+        // Only a saved note holds a checklist.
+        if (id == 0) writeNote(force = true)?.let { return it }
+        val result = Notebook.addChecklistItem(state.load, id, adding.trim())
+        state.refresh()
+        if (result is SaveResult.Failed) return result.reason
+        adding = ""
+        return null
+    }
+
+    private fun writeNote(force: Boolean, scheduleFollows: Boolean = false): String? {
+        if (!force && edits == saved) return null
         val target = edits
         val load = state.load
         var follows = false
         val result = if (day != null && id != 0) {
             // A day of a series saves to that day alone, never to the series.
-            Days.saveDay(load, id, day, title, body, comments, category, color) { follows = it == Days.DaySaved.FOLLOWS }
+            Days.saveDay(load, id, day, title, body, comments, category, color, Paragraphs.extract(body, props)) {
+                follows = it == Days.DaySaved.FOLLOWS
+            }
         } else if (id == 0) {
             if (!force && title.isBlank() && body.isBlank() && comments.isBlank()) {
                 saved = target
-                return true
+                return null
             }
             Notebook.createNote(load, title, body, category, color, date, pinned, spans,
                                 paragraphs = Paragraphs.extract(body, props), comments = comments)
         } else {
             Notebook.updateNote(load, id, title, body, category, color, date, pinned,
                                 formatting = spans, comments = comments,
-                                paragraphs = Paragraphs.extract(body, props))
+                                paragraphs = Paragraphs.extract(body, props), scheduleFollows = scheduleFollows)
         }
         state.refresh()
         return when (result) {
@@ -551,17 +1058,32 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                 if (result.lostStyles > 0) {
                     state.say("${result.lostStyles} styles could not be kept: their text was deleted.")
                 }
-                true
+                // The words taken beside an Update's copy, a note of their own:
+                // said with the way to it, and said by the list where it hides
+                // them (the desktop's `_keep_text_aside`).
+                state.load.notes.firstOrNull { result.keptAside != 0 && it.id == result.keptAside }?.let { made ->
+                    val what = if (result.keptComments) "The comments this cleared" else "The words this took away"
+                    state.offerAbout(listOf(made.id), "$what are kept as a note of their own: ${quoted(made.title)}",
+                                     "Show") { state.openNote(made.id) }
+                    state.waitWord(listOf(made.id), "kept as a note of its own", named = true)
+                }
+                // The bar that offered its Show goes with the note: left up, it
+                // waited for a note just gone.
+                state.asidesSpent(result.spentAside)
+                null
             }
             is SaveResult.Failed -> {
                 problem = result.reason
-                false
+                result.reason
             }
         }
     }
 
     /** The note on disk again, after something other than typing changed it. */
     fun reloadFrom(note: Note) {
+        // Open on a day the series no longer draws: the whole note is
+        // opened in this editor's place ([AppState.leaveDayIfNotDrawn]).
+        if (day != null && state.leaveDayIfNotDrawn(note.id)) return
         title = note.title
         body = note.body
         spans = note.formatting
@@ -582,37 +1104,48 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // a stale one would style the next word typed in the new body.
         pending = emptySet()
         history.clear()
+        made.clear()
+        newest = null
         settled = snap()
         steps()
         saved = edits
     }
 
     /**
-     * One prose field's new text, the body rebuilt around it. In a list a
-     * keystroke can mean more than its character -- Enter continues the
-     * list, Backspace against a marker takes it away -- and then the field
-     * is given back rewritten, its cursor where it belongs: the value to
-     * show. Null when the text stands as typed.
+     * One prose field's new text, the body rebuilt around it. In a list a key
+     * can mean more than its character (Enter continues the list, Backspace
+     * at a marker takes it away), and the field is given back rewritten: the
+     * value to show; null when the text stands as typed. A CR LF pasted in is
+     * the one line break the desktop's paste puts in ([Editing.breaksCame]).
      */
-    fun typeInto(segment: Editing.Segment, typed: TextFieldValue, index: Int): TextFieldValue? {
+    fun typeInto(segment: Editing.Segment, given: TextFieldValue, index: Int): TextFieldValue? {
+        val broken = Editing.breaksCame(segment.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
+        val typed = if (broken == null) given else TextFieldValue(broken.first, TextRange(broken.second))
         val next = Editing.replaceProse(body, segment, typed.text)
-        if (next == body) return null
-        if (day == null) {
-            Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
-                apply(done)
-                val at = done.caret ?: return null
-                caret = at
-                return fieldValue(index, at)
-            }
+        if (next == body) return if (broken == null) null else typed
+        // The list rules on a day too, as the desktop's day has them: a day keeps
+        // its lists (ISSUES_LOG, "A day's lists, read by line"), and without them
+        // Enter then Backspace at an item's start lost its depth.
+        Paragraphs.afterTyping(body, next, props, caretIn(segment, typed))?.let { done ->
+            apply(done)
+            if (day != null) props = Paragraphs.listDepths(props, body)
+            val at = done.caret ?: return null
+            caret = at
+            return fieldValue(index, at)
         }
         // A day's own text is plain: once typed in, it carries no styling.
         // Otherwise the letters take styles as the desktop's text box gives
         // them, found from the caret ([spansAfterTyping]).
         spans = if (day != null) emptyList() else spansAfterTyping(body, next, caretIn(segment, typed), spans, pending)
-        follow(next)
+        // The places and the lines' looks carried through the edit read at
+        // the cursor, as the list's path reads Enter ([Editing.proseEdit]).
+        follow(next, Editing.proseEdit(segment, typed.text, cursorOf(typed)))
         body = next
+        // ...and of the series' lines' looks, its lists' depth alone, as the
+        // day reads back once saved ([Paragraphs.dayProps]).
+        if (day != null) props = Paragraphs.listDepths(props, next)
         changed(Editing.History.TYPING)
-        return null
+        return if (broken == null) null else typed
     }
 
     /**
@@ -621,6 +1154,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * step, as typing in the note's text does.
      */
     fun editTable(segment: Editing.Segment, kind: String = "edit", change: (TableEdit) -> TableEdit) {
+        writeHeldCell()
         if (applyTable(segment, change(TableEdit(tableLines(segment))))) changed(kind)
     }
 
@@ -639,15 +1173,11 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
     }
 
     /**
-     * A table's styles carried through an edit cell by cell, as the
-     * desktop's `_grid_read_cell_styles` and `_grid_lay_cell_styles` carry
-     * them: the styles lying on a cell's words go with the words wherever
-     * the edit put them, while the words are the same, and a highlight laid
-     * pipe to pipe goes with its cell. Left to the remap alone, an edit
-     * that re-padded the rows dropped every style between its first change
-     * and its last -- a column added took the colour out of the cell beside
-     * it. A cell whose words the edit changed, and every style outside the
-     * table or across its cells, move as the remap moves them.
+     * A table's styles carried through an edit cell by cell, as the desktop's
+     * `_grid_read_cell_styles` and `_grid_lay_cell_styles` carry them: a cell's
+     * words' styles go with the unchanged words, a highlight pipe to pipe with
+     * its cell. By the remap alone, a re-padding edit dropped every style in
+     * between. Changed cells, and styles outside or across cells, are remapped.
      */
     private fun carryCellStyles(old: String, new: String, segment: Editing.Segment, count: Int,
                                 origins: List<List<Pair<Int, Int>?>>): List<FormatSpan> {
@@ -663,6 +1193,15 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             val was = before[origin] ?: continue
             if (origin !in goesTo) goesTo[origin] = p to (words(oldPoints, was) == words(newPoints, p))
         }
+        // The one cell a typed letter changed: its styles move by the edit as
+        // made, as the desktop's cell editor styles a typed letter; read off the
+        // texts, a padded or aligned cell's styles were cut or dropped.
+        val typedIn = goesTo.entries.singleOrNull { !it.value.second }
+        val typedWords = typedIn?.let { words(oldPoints, before.getValue(it.key)) }
+        val typed = cellWordsCaret?.let { caret ->
+            typedIn?.let { cellEdit(typedWords!!, words(newPoints, it.value.first), caret) } }
+        val afterBreak = typed != null && typed.at >= LINE_BREAK.length &&
+            String(codePointsOf(typedWords!!), typed.at - LINE_BREAK.length, LINE_BREAK.length) == LINE_BREAK
         val carried = ArrayList<FormatSpan>()
         val rest = ArrayList<FormatSpan>()
         // Only a style inside the table is looked for among its cells: this
@@ -686,6 +1225,11 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
                     val shift = now.wordsStart - was.wordsStart
                     carried.add(span.copy(start = span.start + shift, end = span.end + shift))
                     placed = true
+                } else if (typed != null && origin == typedIn?.key && span.end > span.start &&
+                           span.start >= was.wordsStart && span.end <= was.wordsEnd) {
+                    cellSpanThrough(span.start - was.wordsStart, span.end - was.wordsStart, typed, afterBreak)
+                        ?.let { (s, e) -> carried.add(span.copy(start = now.wordsStart + s, end = now.wordsStart + e)) }
+                    placed = true
                 }
                 if (placed) break
             }
@@ -694,16 +1238,46 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         return (remapSpans(old, new, rest).spans + carried).sortedWith(compareBy({ it.start }, { it.end }))
     }
 
+    /** A cell's words [old] become [new] with the cursor at [caret]: the edit as made, or null when what follows the cursor is not the old words' end. */
+    private fun cellEdit(old: String, new: String, caret: Int): Paragraphs.Edit? {
+        val a = codePointsOf(old)
+        val b = codePointsOf(new)
+        val c = caret.coerceIn(0, b.size)
+        val tail = b.size - c
+        if (tail > a.size) return null
+        for (i in 0 until tail) if (a[a.size - tail + i] != b[c + i]) return null
+        var at = 0
+        val limit = minOf(c, a.size - tail)
+        while (at < limit && a[at] == b[at]) at++
+        return Paragraphs.Edit(at, a.size - tail - at, c - at)
+    }
+
+    /**
+     * A style on a cell's words, [s] to [e], through [edit]: the letters put
+     * in take the style of the letter before them -- of the one ahead at the
+     * words' start, and none after a line break -- the desktop's
+     * `_editor_typing_style`. Null when nothing of it is left.
+     */
+    private fun cellSpanThrough(s: Int, e: Int, edit: Paragraphs.Edit, afterBreak: Boolean): Pair<Int, Int>? {
+        val at = edit.at
+        val k = edit.inserted
+        val s1 = if (s <= at) s else maxOf(at, s - edit.removed)
+        val e1 = if (e <= at) e else maxOf(at, e - edit.removed)
+        val takes = k > 0 && !afterBreak && (if (at > 0) s1 <= at - 1 && at - 1 < e1 else s1 == 0 && e1 > 0)
+        val s2 = if (s1 > at || (s1 == at && !takes)) s1 + k else s1
+        val e2 = if (e1 > at || (e1 == at && takes)) e1 + k else e1
+        return if (e2 > s2) s2 to e2 else null
+    }
+
     /**
      * A cell merged with its neighbour, on its left or above, the desktop's
-     * way ([mergePlan]): every word kept, joined in the cell kept -- and
-     * every style lying on those words carried with them, as the desktop's
-     * merge lays each piece's bold and colours on that piece. One cell is
-     * written at a time, so each remap of the styles sees one small change
-     * and keeps what is around it; all of it one step for Undo. Returns the
-     * cell kept, or null when there was nothing to merge with.
+     * way ([mergePlan]): every word kept, joined in the cell kept, each
+     * piece's styles carried with it. One cell is written at a time, so each
+     * remap of the styles sees one small change; all of it one step for Undo.
+     * The cell kept, or null when there was nothing to merge with.
      */
     fun mergeCells(segment: Editing.Segment, at: CellAt, up: Boolean): CellAt? {
+        writeHeldCell()
         val lines = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val plan = mergePlan(lines, at, up) ?: return null
         val table = parseTable(lines)
@@ -763,6 +1337,7 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /** A row made [lines] lines tall by a drag on its edge ([rowLinesPlan]); one step for Undo. */
     fun setRowLines(segment: Editing.Segment, row: Int, lines: Int) {
+        writeHeldCell()
         val table = body.split("\n").subList(segment.firstLine, segment.lastLine + 1)
         val writes = rowLinesPlan(table, row, lines)
         if (writes.isEmpty()) return
@@ -779,21 +1354,42 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         // A cell being written in takes the answer at its cursor, as the
         // desktop's _calc_insert_formula puts it in the open cell; the phone
         // put it on a line under the table.
+        writeHeldCell()
         val cell = activeCell
         val segment = cell?.let { c -> Editing.segments(body).firstOrNull { it.table && it.firstLine == c.firstLine } }
         if (cell != null && segment != null) {
             val table = parseTable(segment.text.split("\n"))
-            val words = cellTextAt(table, cell.at).replace("<br>", "\n")
+            // A box is ticked, not written in: the answer went in after its
+            // mark, and the box turned into the words "[x]12×3=36".
+            if (table.rows.getOrNull(cell.at.row)?.getOrNull(cell.at.column)?.checked != null) {
+                state.say("A box holds no answer. Tap a cell with words, or the note's text, where it should go.")
+                return
+            }
+            val words = cellTextAt(table, cell.at).replace(LINE_BREAK, "\n")
             val at = (cellCaret ?: words.trimEnd('\n').length).coerceIn(0, words.length)
             val now = (words.substring(0, at) + formula + words.substring(at)).replace("|", "/")
-            editTable(segment, "calculation") { it.setCell(table.fileRow(cell.at.row), cell.at.column, now.replace("\n", "<br>")) }
+            editTable(segment, "calculation") { it.setCell(table.fileRow(cell.at.row), cell.at.column, now.replace("\n", LINE_BREAK)) }
             cellCaretNext = at + formula.length
             cellEpoch += 1
             return
         }
         val placed = Calculator.place(body, formula, calcMark, caret)
-        spans = if (day != null) emptyList() else remapSpans(body, placed.body, spans).spans
-        props = Paragraphs.follow(body, placed.body, props)
+        // Written where no field shows it -- the end of a note past what the
+        // phone draws, the cursor never in it -- the sum was out of sight,
+        // and every tap added another.
+        if (Editing.segments(placed.body).none { holds(it, placed.mark) }) {
+            state.say("The end of this note is more than the phone shows at once. Tap in its text where the " +
+                "answer should go, then insert it.")
+            return
+        }
+        // Where it went in, exactly, for Undo and the styles: found by
+        // comparing the texts, "\n3×3=9" put before a line break read as
+        // "3×3=9\n" after it, and a run starting on the next line took it.
+        val came = placed.body.codePointCount(0, placed.body.length) - body.codePointCount(0, body.length)
+        val edit = Paragraphs.Edit(placed.mark - came, 0, came)
+        spans = if (day != null) emptyList() else Paragraphs.moveSpans(spans, listOf(edit))
+        props = Paragraphs.follow(body, placed.body, props, edit)
+        made.add(edit)
         body = placed.body
         calcMark = placed.mark
         caret = placed.mark
@@ -819,13 +1415,10 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 
     /**
      * The selection noted, brought up to the styling it has NOW, while its
-     * words are still the same. A style put on from the format bar after
-     * the words were selected -- bold, a size, a list -- changes the note's
-     * spans and no field reports it, so the selection's note had none of
-     * it, and the copy went out without the very formatting just given
-     * (found on a real phone's rehearsal: select, B, 14, copy -- pasted
-     * plain). Called as a copy is made, and before a field's change is
-     * applied, because a cut takes the words out before it copies them.
+     * words are the same: a style put on after selecting reaches no field,
+     * and the copy went out plain (ISSUES_LOG, "A copy of the selection").
+     * Called as a copy is made, and before a field's change is applied, as a
+     * cut takes the words out before it copies them.
      */
     fun freshenPick() {
         val p = picked ?: return
@@ -836,33 +1429,36 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
      * A copy or a cut of [plain] from a field: when it is the selection
      * noted, the HTML to put beside it on the clipboard -- so it arrives
      * elsewhere formatted -- and the copy kept for a paste back into a
-     * note. Null lets the plain copy stand: a day's own text is plain.
+     * note. A day's own text is plain: its copy carries its lists' depth
+     * alone, as the desktop's day copies it -- cut plain, a nested item
+     * pasted back went to the margin.
      */
     fun copyOut(plain: String): String? {
-        if (day != null) return null
         freshenPick()
         val p = picked ?: return null
-        val copy = Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to) ?: return null
+        val copy = (if (day != null) Pasting.copyOut(p.body, emptyList(), Paragraphs.listDepths(p.props, p.body), p.from, p.to)
+                    else Pasting.copyOut(p.body, p.spans, p.props, p.from, p.to)) ?: return null
         if (copy.text != plain) return null
         state.ownCopy = copy
         return copy.html
     }
 
     /**
-     * A paste the field was about to make, made here instead: HTML with its
-     * formatting, table rows on lines of their own, or words holding a
-     * table whose separator spells widths ([Pasting.foreignPlain]). False
-     * lets the field's own plain paste stand -- ordinary text, or a day's
-     * own text with no such table, which is plain.
+     * A paste the field was about to make, made here as the desktop's is:
+     * the lists it lands in renumbered and given their depth
+     * ([Pasting.insert]), HTML with its formatting, table rows on lines of
+     * their own ([Pasting.foreignPlain]). Left to the field, a list line cut
+     * and pasted back read 1, 2, 2. True: the paste is made.
      */
     fun paste(segment: Editing.Segment, old: TextFieldValue, html: String?, plain: String): Boolean {
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
         if (day != null) {
-            // A day's own text takes the words only -- but a table in them
-            // still comes without the widths its separator's dashes spell.
-            val text = Pasting.foreignPlain(plain, state.ownCopy)
-            if (text == plain.replace("\r\n", "\n").replace("\r", "\n")) return false
-            land(Pasting.insert(body, emptyList(), emptyMap(), from, to, text))
+            // A day's own text takes the words, and of its own copy the
+            // lists' depth -- never styles or centring.
+            val mine = state.ownCopy?.takeIf { !html.isNullOrEmpty() && html == it.html }
+            val text = mine?.text ?: Pasting.foreignPlain(plain, state.ownCopy)
+            val lines = mine?.paragraphs.orEmpty().filter { it.kind != null }.map { it.copy(align = null) }
+            land(Pasting.insert(body, emptyList(), Paragraphs.listDepths(props, body), from, to, text, emptyList(), lines))
             return true
         }
         val read = if (html.isNullOrEmpty()) null else Pasting.fromHtml(html, state.ownCopy)
@@ -870,15 +1466,8 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
             Pasting.insert(body, spans, props, from, to, read.text, read.formatting, read.paragraphs)
         } else {
             // Words from elsewhere: a table's separator at markdown's minimum.
-            // A table in the middle of the text, which pipeRows leaves to the
-            // field, is pasted here too, or its widths would come with it.
             val text = Pasting.foreignPlain(plain, state.ownCopy)
-            val rows = Pasting.pipeRows(text)
-            when {
-                rows != null -> Pasting.insert(body, spans, props, from, to, rows)
-                text != plain.replace("\r\n", "\n").replace("\r", "\n") -> Pasting.insert(body, spans, props, from, to, text)
-                else -> return false
-            }
+            Pasting.insert(body, spans, props, from, to, Pasting.pipeRows(text) ?: text)
         }
         land(done)
         if (read?.textCut == true) {
@@ -901,22 +1490,25 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
         val text = Pasting.plainText(Pasting.foreignPlain(raw, state.ownCopy))
         if (text.isEmpty() && old.selection.collapsed) return
         val (from, to) = Editing.bodyRange(segment, old.selection.min, old.selection.max)
-        land(Pasting.insert(body, spans, if (day != null) emptyMap() else props, from, to, text))
+        // On a day, its lists' depth goes in, or the paste renumbered a nested
+        // list as one run.
+        land(Pasting.insert(body, spans, if (day != null) Paragraphs.listDepths(props, body) else props, from, to, text))
     }
 
     /** A paste written: the note, one step of Undo, and the cursor after what came in. */
     private fun land(done: Pasting.Inserted) {
-        calcMark = Calculator.follow(body, done.body, calcMark)
+        // Through the paste and each marker it renumbered, one by one: as one
+        // change, a paste in a list above the calculator's last answer sent
+        // its next one into a later line.
+        carry(done.edits.ifEmpty { listOfNotNull(Calculator.changeOf(body, done.body)) })
         spans = if (day != null) emptyList() else done.spans
-        props = if (day != null) emptyMap() else done.props
+        props = if (day != null) Paragraphs.listDepths(done.props, done.body) else done.props
         body = done.body
         caret = done.caret
         changed()
-        val chars = done.body.codePoints().toArray()
-        val line = (0 until done.caret.coerceAtMost(chars.size)).count { chars[it] == '\n'.code }
-        // Rows pasted become a table, and the field the cursor is in may be another one now.
-        val index = Editing.segments(body).indexOfFirst { !it.table && line in it.firstLine..it.lastLine }
-        if (index >= 0) ask(index, fieldValue(index, done.caret)) else focused = null
+        // Rows pasted become a table, and words too long to lay out a piece
+        // shown read-only: the field the cursor is in may be another one now.
+        placeCaret(done.caret)
     }
 }
 
@@ -924,22 +1516,32 @@ class EditorModel(private val state: AppState, note: Note?, val day: String? = n
 @Composable
 fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val palette = LocalPalette.current
-    // Not keyed on the id: a new note's first save gives it one, and the
-    // editor goes on as it was.
+    // Not keyed on the id, which a new note's first save gives. Built anew on
+    // another of its days, the note takes the words waiting in "A new item…"
+    // along: left in the editor replaced, they were kept nowhere.
+    val built = remember { arrayOfNulls<EditorModel>(1) }
     val model = remember(state.opening, state.openDay) {
-        EditorModel(state, state.note(openId), state.openDay, state.newNoteDate)
+        EditorModel(state, state.note(openId), state.openDay, state.newNoteDate).also { made ->
+            built[0]?.takeIf { made.id != 0 && it.id == made.id }?.let { made.adding = it.adding }
+            built[0] = made
+        }
     }
-    val calc = remember(model) { CalculatorState() }
-    val exporter = rememberExporter(state)
+    // For the visit, as the checklist's and comments' flags are: rebuilt on
+    // the whole series or another day, it shut the calculator with its sum
+    // and the find bar. Both read the model at use.
+    val calc = remember { CalculatorState() }
     var exportAsk by remember { mutableStateOf(false) }
     var shareAsk by remember { mutableStateOf(false) }
     var pickTemplate by remember { mutableStateOf<List<org.json.JSONObject>?>(null) }
     var tableAsk by remember { mutableStateOf(false) }
     var saveTemplate by remember { mutableStateOf<org.json.JSONObject?>(null) }
     val templateNone = stringResource(R.string.template_none)
+    val templateUnreadable = stringResource(R.string.template_unreadable)
     val templateNothing = stringResource(R.string.template_nothing)
     val templateStarted = stringResource(R.string.template_started)
-    val find = remember(model) { FindState() }
+    val duplicateNothing = stringResource(R.string.duplicate_nothing_yet)
+    val exportNothing = stringResource(R.string.export_nothing_yet)
+    val find = remember { FindState() }
     val findFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     // Worked out again as the note or the search changes; nothing at all
@@ -960,13 +1562,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     val note = state.note(model.id)
     var details by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
-    // The checklist and the comments under the text: shown when the note has
-    // them, or once asked for from ⋮, where adding them and files lives --
-    // three links under every note made it busier than it needs to be (the
-    // owner's call, 2026-10-23). Shown once, they stay for this visit, even
-    // emptied, so a field never goes from under the finger.
-    var checklistOpen by remember(model.id) { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
-    var commentsOpen by remember(model.id) { mutableStateOf(model.comments.isNotEmpty()) }
+    // The checklist and comments: shown when the note has them, or once asked
+    // for from ⋮ (the owner's call), then for this visit even emptied, so a field
+    // never goes from under the finger. A visit is key(state.opening), not the id.
+    var checklistOpen by remember { mutableStateOf(note?.checklist.orEmpty().isNotEmpty()) }
+    var commentsOpen by remember { mutableStateOf(model.comments.isNotEmpty()) }
     val checklistShown = checklistOpen || note?.checklist.orEmpty().isNotEmpty()
     val commentsShown = commentsOpen || model.comments.isNotEmpty()
     var checklistAsk by remember { mutableIntStateOf(0) }
@@ -993,10 +1593,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     var moving by remember { mutableStateOf(false) }
     var walkingOff by remember { mutableStateOf<List<String>?>(null) }
 
-    fun leave() {
-        model.save()
-        state.closeNote()
-    }
+    // Closed once its words are saved; kept open, and asked, when they
+    // cannot be (AppState.leaving).
+    fun leave() = state.saveAndCloseNote()
 
     BackHandler { leave() }
     // Back closes the find bar first, then the calculator, then a cell being
@@ -1013,13 +1612,24 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     LaunchedEffect(model.edits) {
         if (model.unsaved) {
             delay(800)
-            model.save()
+            model.save(auto = true)
         }
     }
     DisposableEffect(model) {
-        state.flush = { model.save() }
-        onDispose { state.flush = null }
+        state.flush = { model.write() }
+        state.flushStaying = { model.writeStaying() }
+        state.flushAway = { model.writeAway() }
+        state.backAgain = { model.backAgain() }
+        onDispose {
+            state.flush = null
+            state.flushStaying = null
+            state.flushAway = null
+            state.backAgain = null
+        }
     }
+    // The line being written went where no field is: the keyboard goes
+    // with it, rather than writing on the line above (EditorModel.placeCaret).
+    LaunchedEffect(model.letGo) { if (model.letGo > 0) focusManager.clearFocus() }
     // Written from outside while open -- pinned from the list beside it,
     // updated by an import -- and saved first by whatever wrote it: read
     // back, so the next save cannot put the old fields back.
@@ -1027,6 +1637,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     LaunchedEffect(model, state.openNoteRewritten) {
         if (state.openNoteRewritten != rewrittenAt) state.note(model.id)?.let { model.reloadFrom(it) }
     }
+    // The keys in a box the note's Undo does not hold -- a checklist row, "A
+    // new item…", Find, the calculator -- are its own: Ctrl+Z there took the
+    // body's last words instead, again at every press.
+    var rowsHaveKeys by remember { mutableStateOf(false) }
+    var findHasKeys by remember { mutableStateOf(false) }
+    var calcHasKeys by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -1037,7 +1653,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             .imePadding()
             // A keyboard plugged into a tablet: the desktop's own keys.
             .onPreviewKeyEvent { event ->
-                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isCtrlPressed) {
+                if (event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown || !event.isCtrlPressed
+                    || rowsHaveKeys || findHasKeys || calcHasKeys) {
                     return@onPreviewKeyEvent false
                 }
                 when {
@@ -1053,7 +1670,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         // the note's lines stay above the keys. With the bar, none did.
         val compact = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP && WindowInsets.isImeVisible
         if (!compact) Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { leave() }) { Text("←", fontSize = 22.sp, color = palette.text) }
+            IconButton(onClick = { leave() }, modifier = Modifier.said(R.string.back_said)) {
+                Text("←", fontSize = 22.sp, color = palette.text)
+            }
             // Beside the list or the calendar: « puts it aside for a wider
             // note, » brings it back (asked for on the owner's phone).
             if (beside) {
@@ -1079,7 +1698,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                        modifier = Modifier.semantics { contentDescription = redoSaid }) {
                 Text("↷", fontSize = 22.sp, color = if (model.canRedo) palette.text else palette.hairline)
             }
-            Spacer(Modifier.weight(1f))
+            // The status takes what the buttons leave, and shortens: measured
+            // before them, "Saved for this day only" squeezed ⋮ to a sliver,
+            // and at a larger font to nothing.
             Text(
                 text = when {
                     model.problem != null -> stringResource(R.string.not_saved)
@@ -1090,6 +1711,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 },
                 color = if (model.problem != null) palette.dangerText else palette.subtext,
                 fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f),
             )
             // Share: one door out -- a PDF, a page, the words, a code --
             // where 🔗 and "Send by email" were two. A note with nothing in
@@ -1097,14 +1722,16 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             val shareSaid = stringResource(R.string.share_title)
             val nothingYet = stringResource(R.string.share_nothing_yet)
             IconButton(onClick = {
-                val empty = model.title.isBlank() && model.body.isBlank() && model.comments.isBlank() &&
-                    ((state.rawNote(model.id)?.opt("checklist") as? org.json.JSONArray)?.length() ?: 0) == 0
-                if (empty) state.say(nothingYet)
+                if (model.blank) state.say(nothingYet)
                 else if (model.save(force = model.id == 0)) shareAsk = true
             }, modifier = Modifier.semantics { contentDescription = shareSaid }) { ShareMark(palette.text) }
-            IconButton(onClick = { details = true }) { Text("ⓘ", fontSize = 20.sp, color = palette.text) }
+            IconButton(onClick = { details = true }, modifier = Modifier.said(R.string.note_details_said)) {
+                Text("ⓘ", fontSize = 20.sp, color = palette.text)
+            }
             Box {
-                IconButton(onClick = { menu = true }) { Text("⋮", fontSize = 20.sp, color = palette.text) }
+                IconButton(onClick = { menu = true }, modifier = Modifier.said(R.string.more_options_said)) {
+                    Text("⋮", fontSize = 20.sp, color = palette.text)
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.find_in_note)) },
@@ -1155,12 +1782,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             menu = false
                             val templates = Templates.load(state.dir)
                             if (templates.isEmpty()) {
-                                state.say(templateNone)
+                                // None read is not none kept: "You don't have any" was untrue.
+                                state.say(if (Templates.unreadable(state.dir)) templateUnreadable else templateNone)
                             } else {
                                 // What is here is saved first: the template
                                 // starts a new note, it replaces nothing.
-                                model.save()
-                                pickTemplate = templates
+                                if (model.save()) pickTemplate = templates
                             }
                         },
                     )
@@ -1168,11 +1795,13 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         text = { Text(stringResource(R.string.template_save_as)) },
                         onClick = {
                             menu = false
-                            model.save()
+                            // Refused (said "Not saved"), the note as saved is not what
+                            // the screen shows: no template is made of an older version.
+                            val saved = model.save()
                             val raw = state.rawNote(model.id)
                             // The note as saved -- with its styles and lines --
                             // or, on one day of a series, that day as shown.
-                            val tpl = if (day == null && raw != null) {
+                            val tpl = if (!saved) null else if (day == null && raw != null) {
                                 Templates.fromNote("", raw.optString("title"), raw.optString("body"),
                                     raw.optJSONArray("formatting"), raw.optJSONArray("paragraphs"),
                                     raw.optString("comments"), raw.optString("category"), raw.optJSONArray("checklist"))
@@ -1180,7 +1809,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                                 Templates.fromNote("", model.title, model.body, Templates.spansJson(model.spans), null,
                                     model.comments, model.category, raw?.optJSONArray("checklist"))
                             }
-                            if (Templates.hasContent(tpl.optString("title"), tpl.optString("body"),
+                            if (tpl == null) {
+                                // "Not saved" is already on the bar.
+                            } else if (Templates.hasContent(tpl.optString("title"), tpl.optString("body"),
                                     tpl.optString("comments"), tpl.optJSONArray("checklist"))) {
                                 saveTemplate = tpl
                             } else {
@@ -1188,19 +1819,28 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             }
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.menu_duplicate)) },
-                        onClick = {
-                            menu = false
-                            if (model.save(force = model.id == 0)) state.duplicate(model.id)
-                        },
-                    )
+                    // Not on a day: it copied the whole series, and the calendar
+                    // then showed two notes on every one of its days.
+                    if (day == null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_duplicate)) },
+                            onClick = {
+                                menu = false
+                                // A blank new note is not saved to be copied, as
+                                // Share refuses it: forced, it wrote two empty notes.
+                                if (model.id == 0 && model.blank) state.say(duplicateNothing)
+                                else if (model.save(force = model.id == 0)) state.duplicate(model.id)
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.note_export)) },
                         onClick = {
                             menu = false
-                            // The note as saved is what goes out: saved first.
-                            if (model.save(force = model.id == 0)) exportAsk = true
+                            // The note as saved is what goes out: saved first --
+                            // but a blank new note is not saved to be exported.
+                            if (model.id == 0 && model.blank) state.say(exportNothing)
+                            else if (model.save(force = model.id == 0)) exportAsk = true
                         },
                     )
                     if (day != null) {
@@ -1208,18 +1848,18 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         // is: the desktop's two answers, as two entries.
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_day_delete), color = palette.dangerText) },
-                            onClick = { menu = false; model.save(); asking = "day" },
+                            onClick = { menu = false; if (model.saveStaying()) asking = "day" },
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_series_delete), color = palette.dangerText) },
-                            onClick = { menu = false; model.save(); asking = "series" },
+                            onClick = { menu = false; if (model.saveStaying()) asking = "series" },
                         )
                     } else {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_trash), color = palette.dangerText) },
                             onClick = {
                                 menu = false
-                                if (model.id == 0 && model.title.isBlank() && model.body.isBlank()) {
+                                if (model.id == 0 && model.blank) {
                                     state.closeNote()
                                 } else if (model.save(force = model.id == 0)) {
                                     state.trash(listOf(model.id))
@@ -1231,7 +1871,8 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
         }
 
-        if (find.open) {
+        if (find.open) Box(Modifier.onFocusChanged { findHasKeys = it.hasFocus }) {
+            DisposableEffect(Unit) { onDispose { findHasKeys = false } }
             FindBar(
                 find = find,
                 counter = Finding.counter(currentIndex, matches.size, state.findQuery),
@@ -1261,7 +1902,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 .padding(horizontal = 18.dp),
         ) {
             model.problem?.let {
-                Text(stringResource(R.string.not_saved_because, it), color = palette.dangerText, fontSize = 13.sp,
+                Text(stringResource(R.string.not_saved_because, Files.ended(it)), color = palette.dangerText, fontSize = 13.sp,
                      modifier = Modifier.padding(bottom = 10.dp))
             }
             if (day != null) {
@@ -1287,23 +1928,25 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                             verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(stringResource(R.string.day_whole_series), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium,
-                             modifier = Modifier.clickable { model.save(); state.openWholeSeries() })
+                             // The editor built anew on the series carries "A new item…".
+                             modifier = Modifier.clickable { if (model.saveStaying()) state.openWholeSeries() })
                         Text(stringResource(R.string.day_move), color = palette.accentText, fontSize = 13.sp,
                              fontWeight = FontWeight.Medium, modifier = Modifier.clickable { moving = true })
                         if (ownEdit || cameFrom != null) {
                             Text(stringResource(R.string.day_reset), color = palette.accentText, fontSize = 13.sp,
-                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { model.save(); asking = "reset" })
+                                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { if (model.saveStaying()) asking = "reset" })
                         }
                     }
                 }
             }
-            // The whole series, with days whose own edits its repeat no longer
-            // reaches: no calendar shows them, so the note says so and offers
-            // the way to each -- the desktop's button under its banner.
-            // The series itself says that its edits reach every day but the
-            // ones keeping their own: the desktop's banner, wrapped.
-            if (day == null && raw != null && Recurrence.isRecurring(raw)) {
-                val (own, held) = Recurrence.seriesCounts(raw)
+            // The whole series, with days keeping their own edits, which no
+            // calendar shows: the note says so and offers the way to each, as the
+            // desktop's banner does. Worked out once per write, not per letter.
+            val counts = remember(raw, state.revision, day) {
+                if (day == null && raw != null && Recurrence.isRecurring(raw)) Recurrence.seriesCounts(raw) else null
+            }
+            if (day == null && raw != null && Recurrence.isRecurring(raw) && counts != null) {
+                val (own, held) = counts
                 val line = buildString {
                     append(stringResource(R.string.series_banner, Recurrence.describe(raw)))
                     if (own > 0) append(" · ").append(pluralStringResource(R.plurals.series_own_edits, own, own))
@@ -1311,7 +1954,9 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
                 Text(line, color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
             }
-            val offDays = if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
+            val offDays = remember(raw, state.revision, day) {
+                if (day == null && raw != null) Recurrence.offScheduleDays(raw) else emptyList()
+            }
             if (offDays.isNotEmpty()) {
                 Text(
                     pluralStringResource(R.plurals.off_schedule_banner, offDays.size, offDays.size),
@@ -1323,7 +1968,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(palette.card)
-                        .clickable { model.save(); walkingOff = offDays }
+                        .clickable { if (model.saveStaying()) walkingOff = offDays }
                         .padding(12.dp),
                 )
             }
@@ -1334,12 +1979,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(palette.card)
-                        // Saved first, as the desktop's restore saves first: the
-                        // question then names the copy that save just made.
-                        // Saved only on yes, it promised the checklist and the
-                        // repeat of an older copy, and brought back the words
-                        // just deleted instead.
-                        .clickable { model.save(); askRestore = true }
+                        // Saved first, as the desktop's restore saves first, so the
+                        // question names the copy that save just made: saved only on
+                        // yes, it brought back the words just deleted instead.
+                        .clickable { if (model.save()) askRestore = true }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -1350,20 +1993,19 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
-            BasicTextField(
-                value = model.title,
-                onValueChange = {
-                    // One line, as the desktop's title is: Enter goes on to
-                    // the note's words, and a break pasted in becomes a space.
-                    // It put a break in the title, which the list cut at.
-                    val enter = it.length == model.title.length + 1 && it.count { c -> c == '\n' } == 1
-                    val title = if (enter) it.replace("\n", "") else it.replace('\n', ' ')
-                    if (title != model.title) {
-                        // The desktop's ceiling: far more than a title needs.
-                        model.title = title.take(200)
-                        model.changed(Editing.History.TYPING + ":title")
-                    }
-                    if (enter) focusManager.moveFocus(FocusDirection.Down)
+            // The title with its cursor, so a paste cut to fit leaves it after
+            // what came in ([fittedValue]); the words themselves are the model's.
+            var titleField by remember { mutableStateOf(model.titleBox(TextFieldValue())) }
+            val titleShown = model.titleBox(titleField)
+            // A title too long to lay out -- a share code can bring one -- is
+            // shown, not edited: as a field it froze the note at every opening.
+            if (Editing.tooLongToLayOut(model.title)) LongText(model.title) else BasicTextField(
+                value = titleShown,
+                onValueChange = { next ->
+                    // Enter goes on to the note's words, the title as it was:
+                    // told by what came in, not by the whole value.
+                    if (Editing.isEnter(titleShown.text, next.text)) focusManager.moveFocus(FocusDirection.Down)
+                    else titleField = model.typeTitle(titleShown, next)
                 },
                 textStyle = TextStyle(color = palette.text, fontSize = 22.sp, fontWeight = FontWeight.Medium),
                 cursorBrush = SolidColor(palette.accent),
@@ -1382,9 +2024,11 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                     field()
                 },
             )
-            if (model.title.length >= 160) {
-                Text("${model.title.length}/200", fontSize = 11.sp,
-                     color = if (model.title.length >= 200) palette.dangerText else palette.subtext)
+            // In letters, as the cap and the desktop's counter count them.
+            val titleUsed = Editing.rowChars(model.title)
+            if (titleUsed >= 160) {
+                Text("$titleUsed/${Editing.TITLE_CHARS}", fontSize = 11.sp,
+                     color = if (titleUsed >= Editing.TITLE_CHARS) palette.dangerText else palette.subtext)
             }
             Text(
                 // On one day of a series, the day being written -- not the
@@ -1413,7 +2057,14 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             }
             if (!textFolded) segments.forEachIndexed { index, segment ->
                 val here = bySegment[index].orEmpty()
-                if (segment.table) {
+                // A piece shown read-only is searched as written ([Finding.scan]).
+                val foundIn = { here.filterIsInstance<Finding.InText>().map { it.start to it.end } }
+                val currentIn = (currentMatch as? Finding.InText)?.takeIf { it.segment == index }?.let { it.start to it.end }
+                if (segment.long) {
+                    LongText(segment.text, segment.heavy, foundIn(), currentIn, find.reveal)
+                } else if (segment.table && !segment.drawn) {
+                    LargeTable(segment, foundIn(), currentIn, find.reveal)
+                } else if (segment.table) {
                     val table = remember(segment.text) { parseTable(segment.text.split("\n")) }
                     // A cell's highlight as the export colours it, the
                     // file's line turned into the grid's row.
@@ -1459,11 +2110,20 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 }
             }
 
-            ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
-                             found = matches.filterIsInstance<Finding.InChecklist>(),
-                             current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
+            // The same lists while the search is the same: made anew at every
+            // pass, they made the checklist draw every row again for each
+            // letter typed in the text above it.
+            val inChecklist = remember(matches) { matches.filterIsInstance<Finding.InChecklist>() }
+            val inComments = remember(matches) { matches.filterIsInstance<Finding.InComments>() }
+            // A Column: the section draws its label, rows and box one under
+            // another, and a Box laid them over each other.
+            Column(Modifier.onFocusChanged { rowsHaveKeys = it.hasFocus }) {
+                ChecklistSection(state, model, shown = checklistShown, focusAsk = checklistAsk,
+                                 found = inChecklist,
+                                 current = currentMatch as? Finding.InChecklist, finding = find.open, reveal = find.reveal)
+            }
             CommentsSection(state, model, shown = commentsShown, focusAsk = commentsAsk,
-                            found = matches.filterIsInstance<Finding.InComments>(),
+                            found = inComments,
                             current = currentMatch as? Finding.InComments, finding = find.open, reveal = find.reveal)
             AttachmentsSection(state, model, pickAsk = attachAsk)
             Spacer(Modifier.height(48.dp))
@@ -1473,9 +2133,21 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         // the two together would leave no note to see -- and comes back when
         // it goes down. Typed into, its own display keeps it in place.
         val writingIn = model.activeCell
+        // Where the foot drawn here begins, and the box being typed in, told
+        // to the window: its messages are drawn above them ([AppState.editorFootTop]).
+        var footTop by remember { mutableStateOf<Float?>(null) }
+        val footShown = listOfNotNull(footTop, model.addBoxTop, model.renamingRow?.second).minOrNull()
+        LaunchedEffect(footShown) { state.editorFootTop = footShown }
+        DisposableEffect(Unit) { onDispose { state.editorFootTop = null } }
+        Box(Modifier.fillMaxWidth().onGloballyPositioned {
+            footTop = if (it.size.height > 0) it.boundsInWindow().top else null
+        }) {
         if (calc.open && (!WindowInsets.isImeVisible || calc.displayFocused)) {
-            CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
-                            onClose = { closeCalculator(calc, focusManager) })
+            Box(Modifier.onFocusChanged { calcHasKeys = it.hasFocus }) {
+                DisposableEffect(Unit) { onDispose { calcHasKeys = false } }
+                CalculatorPanel(calc, onInsert = { model.insertCalculation(it) },
+                                onClose = { closeCalculator(calc, focusManager) })
+            }
         } else if (writingIn != null && activeSegment != null) {
             // In a table, the table's own bar takes the format bar's place.
             TableBar(model, activeSegment, writingIn.at,
@@ -1485,16 +2157,16 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             else Text(stringResource(R.string.day_plain), color = palette.subtext, fontSize = 12.sp,
                       modifier = Modifier.fillMaxWidth().background(palette.card).padding(horizontal = 16.dp, vertical = 10.dp))
         }
+        }
     }
     walkingOff?.let { days ->
         OffScheduleQuestions(state, model.id, days, onDone = { walkingOff = null })
     }
     if (day != null && asking != null) {
-        DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) {
-            asking = null
-            // A reset changes what this day shows: shown again from the file.
-            state.note(model.id)?.let { model.reloadFrom(it) }
-        }
+        // What a change makes the day show is read back by the change itself
+        // (AppState.outside): read back here too, a Cancel emptied the text's
+        // Undo.
+        DayQuestions(state, model.id, day, cameFrom, ownEdit, asking) { asking = null }
     }
 
     if (moving && day != null) {
@@ -1513,7 +2185,7 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
                 // The new table's first cell, open for typing -- as the
                 // desktop opens it the moment the table is made.
                 val first = model.insertTable(rows, columns)
-                if (Editing.segments(model.body).any { it.table && it.firstLine == first }) {
+                if (first != null && Editing.segments(model.body).any { it.table && it.drawn && it.firstLine == first }) {
                     model.activeCell = ActiveCell(first, CellAt(0, 0))
                 }
             },
@@ -1525,7 +2197,10 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
             templates,
             onPick = { tpl ->
                 pickTemplate = null
-                state.useTemplate(tpl, templateStarted)
+                // A new note started on a calendar day keeps the day, typed in
+                // first or not: the template's note was made undated.
+                val begunNew = model.startedNew || (model.id != 0 && model.id == state.templateDayNote)
+                state.useTemplate(tpl, templateStarted, date = if (begunNew) model.date else "")
             },
             onDismiss = { pickTemplate = null },
         )
@@ -1537,12 +2212,12 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
         ExportDialog(
             onPick = { format ->
                 exportAsk = false
-                exporter.export(model.id, format)
+                state.exporter?.export(model.id, format, day)
             },
             onDismiss = { exportAsk = false },
         )
     }
-    if (shareAsk) ShareSheet(state, model.id) { shareAsk = false }
+    if (shareAsk) ShareSheet(state, model.id, day) { shareAsk = false }
     if (tableMore && model.activeCell != null && activeSegment != null) {
         TableMoreSheet(model, activeSegment, model.activeCell!!.at,
                        onDeleteTable = { tableMore = false; askDeleteTable = true },
@@ -1571,21 +2246,28 @@ fun NoteEditor(state: AppState, openId: Int, beside: Boolean = false) {
     }
     if (askRestore && note != null) {
         val also = note.previousAlso
+        // Worked out for this note, once, when the question is asked.
+        val keeps = remember(note) { Notebook.previousKeeps(state.load, note.id) }
         Ask(
             title = stringResource(R.string.restore_title),
             // ...and kept, said only when it is: an emptied note is not.
             text = (if (also.isEmpty()) stringResource(R.string.restore_text_only)
                     else stringResource(R.string.restore_text_with, joinWithAnd(also))) +
-                   (if (note.previousKeeps) " " + stringResource(R.string.restore_kept) else ""),
+                   (if (keeps) " " + stringResource(R.string.restore_kept) else "") +
+                   // On one day of a series, as the desktop asks: the copy is
+                   // of the whole note, and "the current text" read as the
+                   // day's.
+                   (if (day != null) "\n\n" + stringResource(R.string.restore_whole_note) else ""),
             confirm = stringResource(R.string.restore_confirm),
             onConfirm = {
                 askRestore = false
-                // Whatever waits for its autosave is saved first, so the
-                // version being replaced is the one on screen.
-                model.save()
-                if (state.report(Notebook.restorePrevious(state.load, model.id))) {
+                val onADay = day != null
+                // What waits for its autosave is saved first, so the version
+                // replaced is the one on screen; when it cannot be, nothing is,
+                // or the restore would take the place of words no file holds.
+                if (model.save() && state.report(Notebook.restorePrevious(state.load, model.id))) {
                     state.note(model.id)?.let { model.reloadFrom(it) }
-                    state.say("Restored the previous version")
+                    state.say(if (onADay) "Restored the previous version of the whole note" else "Restored the previous version")
                 }
             },
             onDismiss = { askRestore = false },
@@ -1642,10 +2324,9 @@ private fun ProseField(
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // Where the last press came down, for [tapLanding].
     var pressedAt by remember { mutableStateOf<Offset?>(null) }
-    // A press let go, and the field said nothing of it: it landed where the
-    // cursor already was -- the end of the text, past an empty last line's
-    // stand-in -- so the change that puts a tap back never came. Put back
-    // here, a frame later, once the field has had its say.
+    // A press let go that the field said nothing of (it landed where the cursor
+    // already was, past an empty last line's stand-in): put back here, a frame
+    // later, once the field has had its say.
     var letGo by remember { mutableIntStateOf(0) }
     LaunchedEffect(letGo) {
         if (letGo == 0) return@LaunchedEffect
@@ -1699,6 +2380,7 @@ private fun ProseField(
             model.focused = shown
             model.caret = caretIn(segment, shown)
             model.pick(segment, shown)
+            if (next.text != segment.text) model.keepCaret(index, shown)
         },
         visualTransformation = { text ->
             val drawn = renderBody(Note(body = text.text, formatting = local), palette.bg).text
@@ -1763,15 +2445,11 @@ private fun ProseField(
 private val PASTE_PLAIN = Any()
 
 /**
- * The phone's clipboard as a note's field sees it. A copy or a cut the
- * field makes gets its HTML beside the words; a paste the field makes is
- * recognised when its text arrives -- the clipboard read a moment before,
- * that very text put in place of the selection -- so the editor can make
- * it instead, with the formatting the clipboard's HTML carries.
- *
- * Done here, under the field, rather than by replacing the menu's Paste:
- * the menu's own items keep their place and their words, and a keyboard's
- * Ctrl+V comes the same way.
+ * The phone's clipboard as a note's field sees it: a copy or a cut the field
+ * makes gets its HTML beside the words, and a paste is recognised when its
+ * text arrives in place of the selection, so the editor can make it with the
+ * clipboard's formatting. Done under the field rather than by replacing the
+ * menu's Paste: the menu keeps its items, and a keyboard's Ctrl+V comes too.
  */
 private class NoteClipboard(private val inner: Clipboard, private val model: EditorModel,
                             private val context: android.content.Context) : Clipboard {
@@ -1826,31 +2504,29 @@ private const val BODY_SIZE = 16
 private const val BODY_LINE_HEIGHT = 24
 
 /**
+ * What a painted line break, and an empty last line, are drawn as: a
+ * zero-width space, written by its number -- typed in, it is invisible here.
+ */
+val STAND_IN = Char(0x200B)
+
+/**
  * The lines of one field with their indent and alignment, and a list
  * item's wrapped lines hanging after its marker, as the desktop's margins
  * draw them. [firstLine] is the field's first line in the whole body.
  */
 private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Paragraphs.Props>): AnnotatedString {
     val lines = text.text.split("\n")
-    val styled = lines.withIndex().any { (i, line) -> props[firstLine + i] != null || Paragraphs.parseListMarker(line).kind != null }
+    val grow = linesGrown(text, lines)
+    val styled = lines.withIndex().any { (i, line) ->
+        props[firstLine + i] != null || Paragraphs.parseListMarker(line).kind != null || grow[i] > 1f }
     if (!styled) return text
-    // Every line its own paragraph, and the line breaks drawn as nothing:
-    // a paragraph always starts on a new line, and a break kept inside one
-    // drew an empty line after it (a list came out double-spaced), while a
-    // break left between two became an empty paragraph of its own. The
-    // stand-in is one character for one, so every position stays where
-    // the field's text has it -- but a tap can land after it ([tapLanding]).
+    // Every line its own paragraph, the breaks drawn as nothing, one character
+    // for one so positions stay (ISSUES_LOG, "A list drawn double-spaced"); a
+    // tap can land after a break ([tapLanding]).
     val paragraphs = ArrayList<AnnotatedString.Range<ParagraphStyle>>()
-    // An empty last line is given a stand-in of its own, drawn after the text
-    // ([StandInAtEnd]), and so a paragraph and a style of its own. With no
-    // character it made no paragraph: the line was not drawn at all -- the
-    // cursor shown at the end of "2. two" was on it, hidden -- and kept as a
-    // real break inside the line above, it wore that line's style: centred,
-    // its cursor stayed at the left until a letter came, and put back to the
-    // left under a centred line, it stayed in the middle (the owner's phone,
-    // 2026-10-23). A tap past the end of the line above now lands on the end
-    // of the text, where the cursor may already be, and the field says
-    // nothing; the press is put back when it is let go ([tapLanding]).
+    // An empty last line gets a stand-in drawn after the text ([StandInAtEnd]),
+    // so a paragraph and style of its own: without one it was not drawn at all,
+    // or wore the line above's centring. A press there is put back ([tapLanding]).
     val standIn = lines.last().isEmpty()
     var at = 0
     for ((i, line) in lines.withIndex()) {
@@ -1865,18 +2541,43 @@ private fun paintLines(text: AnnotatedString, firstLine: Int, props: Map<Int, Pa
                 else -> TextAlign.Start
             },
             textIndent = TextIndent(indent.sp, (indent + if (list) 16 else 0).sp),
-            // The field's own spacing, which a paragraph's style replaces --
-            // untrimmed: trimmed at a paragraph's first and last line, a
-            // one-line paragraph kept none of it and the lines bunched up.
-            lineHeight = BODY_LINE_HEIGHT.sp,
+            // The field's own spacing, which a paragraph's style replaces,
+            // untrimmed (trimmed, a one-line paragraph bunched up), and grown
+            // with its largest size, in em as the letters are.
+            lineHeight = if (grow[i] > 1f) (BODY_LINE_HEIGHT / BODY_SIZE.toFloat() * grow[i]).em
+                         else BODY_LINE_HEIGHT.sp,
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         )
         val last = standIn && i == lines.lastIndex
         if (end > at || last) paragraphs.add(AnnotatedString.Range(style, at, if (last) end + 1 else end))
         at = end
     }
-    val drawn = text.text.replace('\n', '​') + if (standIn) "​" else ""
+    val drawn = text.text.replace('\n', STAND_IN) + if (standIn) STAND_IN.toString() else ""
     return AnnotatedString(drawn, text.spanStyles, paragraphs)
+}
+
+/**
+ * Each of [lines]' largest size, in ems of the body ([RichText]'s sizes),
+ * 1 for none larger: held to the body's 24 sp, two lines of 20 pt ran into
+ * each other. Each size span placed by its lines' starts,
+ * not each span tried against each line: a note keeps up to 10,000 spans.
+ */
+private fun linesGrown(text: AnnotatedString, lines: List<String>): FloatArray {
+    val grow = FloatArray(lines.size) { 1f }
+    val starts = IntArray(lines.size)
+    for (i in 1 until lines.size) starts[i] = starts[i - 1] + lines[i - 1].length + 1
+    fun lineOf(at: Int): Int {
+        val i = java.util.Arrays.binarySearch(starts, at)
+        return if (i >= 0) i else -i - 2
+    }
+    for (span in text.spanStyles) {
+        val size = span.item.fontSize
+        if (!size.isEm || size.value <= 1f || span.end <= span.start) continue
+        for (i in lineOf(span.start).coerceAtLeast(0)..lineOf(span.end - 1).coerceAtLeast(0)) {
+            if (size.value > grow[i]) grow[i] = size.value
+        }
+    }
+    return grow
 }
 
 /**
@@ -1890,15 +2591,11 @@ private class StandInAtEnd(private val length: Int) : OffsetMapping {
 }
 
 /**
- * Where a tap meant the cursor to go. [paintLines] draws each break as a
- * stand-in at the end of its line's paragraph, a character the layout can
- * be tapped after; a tap past a line's end landed there, at the start of
- * the next line, and what was typed went in front of its marker ("2. two"
- * then "more3. three"), Enter after "3. three" broke before "4. ". Put back
- * before the break when the press was on a line above the one the cursor
- * landed on. And a tap on a list's marker -- "3." or "•" -- puts the cursor
- * after it, at the item's words: before it, a letter typed made "x3. ham",
- * a line that is no item any more.
+ * Where a tap meant the cursor to go. Each break is a stand-in a tap can
+ * land after ([paintLines]): a tap past a line's end went to the next line's
+ * start, before its marker, and is put back before the break. A tap on a
+ * list's marker puts the cursor after it: before it, a letter made "x3. ham"
+ * (ISSUES_LOG, "A break drawn as a character").
  */
 private fun tapLanding(value: TextFieldValue, pressed: Offset, layout: TextLayoutResult?): TextFieldValue {
     val drawn = layout ?: return value
@@ -1923,8 +2620,9 @@ private fun caretIn(segment: Editing.Segment, value: TextFieldValue): Int {
 }
 
 /**
- * Bold, italic, underline, strike, a text colour and a highlight, over
- * what is selected in the field that has the cursor -- sitting above the
+ * The styles, colours, lists, depth, alignment, face, size, a table and
+ * Undo/Redo, over what is selected in the field that has the cursor or its
+ * lines -- sitting above the
  * keyboard, where the thumb already is and where Android's own selection
  * menu does not reach.
  */
@@ -2024,10 +2722,9 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                 }
             }
         }
-        // The phone on its side: one row of keys that scrolls, and no line of
-        // words above it. The line and two rows took what height the keyboard
-        // left, and not a word of the note showed while it was up; the keys'
-        // own pressed look says what waits for the next letter.
+        // The phone on its side: one row of keys that scrolls, no line of words
+        // above it (they took all the height the keyboard left); the keys'
+        // pressed look says what waits for the next letter.
         val short = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
         if (!hasSelection && !short) {
             val waiting = PENDING_STYLES.filter { it in model.pending }.map { stringResource(styleName(it)) }
@@ -2036,10 +2733,9 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                  color = if (waiting.isNotEmpty()) palette.accentText else palette.subtext, fontSize = 11.sp,
                  modifier = Modifier.padding(start = 12.dp, top = 6.dp))
         }
-        // The lines the cursor or the selection covers: lists, depth and
-        // alignment, which need no selection -- the cursor's line will do.
-        // Not in the empty field under a table that ends the note: it has
-        // no line of its own until something is typed there.
+        // The lines the cursor or selection covers, for lists, depth and
+        // alignment; not in the empty field under a table ending the note, which
+        // has no line of its own until something is typed there.
         val lineKeys = !segment.isVirtual
         val firstLine = segment.firstLine + value.text.substring(0, value.selection.min).count { it == '\n' }
         val lastLine = segment.firstLine + value.text.substring(0, value.selection.max).count { it == '\n' }
@@ -2049,10 +2745,10 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
         fun lines(done: Paragraphs.Done?) = model.applyLines(done, index, from, to)
         @Composable
         fun lineButtons() {
-            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet)) {
+            FormatKey("•", kind == "bullet", lineKeys, said = stringResource(R.string.list_bullet), toggle = true) {
                 lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "bullet"))
             }
-            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number)) {
+            FormatKey("1.", kind == "number", lineKeys, said = stringResource(R.string.list_number), toggle = true) {
                 lines(Paragraphs.toggleList(model.body, model.props, firstLine, lastLine, "number"))
             }
             FormatKey("⇤", false, lineKeys, said = stringResource(R.string.indent_less)) {
@@ -2079,23 +2775,28 @@ private fun FormatBar(model: EditorModel, onTable: () -> Unit) {
                 FormatKey("↶", false, model.canUndo, said = stringResource(R.string.undo)) { model.undo() }
                 FormatKey("↷", false, model.canRedo, said = stringResource(R.string.redo)) { model.redo() }
             }
-            FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold) { apply("bold") }
-            FormatKey("I", on("italic"), hasSelection || waits, italic = true) { apply("italic") }
-            FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline) { apply("underline") }
-            FormatKey("S", on("strike"), hasSelection || waits, decoration = TextDecoration.LineThrough) { apply("strike") }
-            FormatKey("A", "text_color" in active, hasSelection, weight = FontWeight.Bold) {
+            FormatKey("B", on("bold"), hasSelection || waits, weight = FontWeight.Bold,
+                      said = stringResource(R.string.key_bold), toggle = true) { apply("bold") }
+            FormatKey("I", on("italic"), hasSelection || waits, italic = true,
+                      said = stringResource(R.string.key_italic), toggle = true) { apply("italic") }
+            FormatKey("U", on("underline"), hasSelection || waits, decoration = TextDecoration.Underline,
+                      said = stringResource(R.string.key_underline), toggle = true) { apply("underline") }
+            FormatKey("S", on("strike"), hasSelection || waits, decoration = TextDecoration.LineThrough,
+                      said = stringResource(R.string.key_strike), toggle = true) { apply("strike") }
+            FormatKey("A", "text_color" in active, hasSelection, weight = FontWeight.Bold,
+                      said = stringResource(R.string.key_text_colour)) {
                 palettePicker = if (palettePicker == "text") "" else "text"
             }
-            FormatKey("🖍", "highlight" in active, hasSelection) {
+            FormatKey("🖍", "highlight" in active, hasSelection, said = stringResource(R.string.key_highlight)) {
                 palettePicker = if (palettePicker == "mark") "" else "mark"
             }
-            FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium) {
+            FormatKey("Aa", "font_family" in active, hasSelection, weight = FontWeight.Medium,
+                      said = stringResource(R.string.key_face)) {
                 palettePicker = if (palettePicker == "face") "" else "face"
             }
-            // The size box says the size of what is selected, as the
-            // desktop's does: "14" over text set at 14, "Default" over
-            // text that has none of its own, or a mix. With nothing
-            // selected, the size the next letter typed will take.
+            // The size box says the selection's size, as the desktop's does
+            // ("Default" for none of its own, or a mix); with nothing selected,
+            // the size the next letter typed will take.
             val sizeHere = if (hasSelection) uniformValue(model.spans, from, to, "font_size")
                            else if (to > 0) uniformValue(model.spans, to - 1, to, "font_size") else null
             val sizeLabel = sizeHere ?: Fonts.DEFAULT
@@ -2131,21 +2832,26 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.table_size, rows, columns)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Every column drawn, so the squares lit are the table's
-                // shape; the first column chooses two, the least a table
-                // has. (The desktop's grid starts at its second column, and
-                // lights one column of squares for a two-column table.)
+            // Scrolled, as every question's text is: on its side the last rows
+            // were squashed to nothing, and a five- or six-row table could not be picked.
+            DialogBody { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Every column drawn, so the squares lit are the table's shape;
+                // the first chooses two, the least a table has -- as the
+                // desktop's grid does since its 5f82daa.
                 for (r in 1..Editing.TABLE_ROWS) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         for (c in 1..Editing.TABLE_COLUMNS) {
                             val inside = r <= rows && c <= columns
                             val wide = maxOf(2, c)
+                            // Each square says the shape it makes: they were
+                            // buttons with no words at all.
+                            val shapeSaid = stringResource(R.string.table_size, r, wide)
                             Box(
                                 Modifier
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(if (inside) palette.accent else palette.inset)
+                                    .semantics { contentDescription = shapeSaid }
                                     .clickable {
                                         // A first tap shows the shape; tapping the
                                         // shape already shown makes it.
@@ -2157,7 +2863,7 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
                 }
                 Text(stringResource(R.string.table_tap_again), color = palette.subtext, fontSize = 12.sp,
                      modifier = Modifier.padding(top = 6.dp))
-            }
+            } }
         },
         confirmButton = {
             TextButton(onClick = { onPick(rows, columns) }) {
@@ -2170,6 +2876,17 @@ private fun TablePicker(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit) {
     )
 }
 
+/**
+ * A key's second sign that it is on, beside its fill: a bar in the accent
+ * along its foot. The fill alone differed from an off key's by 1.04 to 1.33
+ * to 1, under any theme -- not a difference most eyes can rely on.
+ */
+private fun Modifier.onBar(colour: Color): Modifier = drawBehind {
+    val bar = 3.dp.toPx()
+    drawRect(colour, topLeft = Offset(size.width * 0.2f, size.height - bar - 2.dp.toPx()),
+             size = Size(size.width * 0.6f, bar))
+}
+
 /** An alignment key: four lines, drawn as the text would sit. */
 @Composable
 private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String, onClick: () -> Unit) {
@@ -2180,7 +2897,9 @@ private fun AlignKey(align: String, on: Boolean, enabled: Boolean, said: String,
             .size(42.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
-            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (on) Modifier.onBar(palette.accent) else Modifier)
+            // One of three, as a radio button is: said selected or not.
+            .selectable(selected = on, enabled = enabled, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = said },
         contentAlignment = Alignment.Center,
     ) {
@@ -2218,15 +2937,26 @@ private fun FormatKey(
     said: String? = null,
     // A word rather than a mark ("Default"): a wider key, smaller letters.
     wide: Boolean = false,
+    // On and off, as B is: said as a checkbox is, ticked or not. A key that
+    // opens a choice (A, 🖍, Aa, the size) says, when on, that the selection
+    // uses it.
+    toggle: Boolean = false,
     onClick: () -> Unit,
 ) {
     val palette = LocalPalette.current
+    val usedSaid = stringResource(R.string.key_used)
     Box(
         Modifier
             .then(if (wide) Modifier.height(42.dp).widthIn(min = 64.dp) else Modifier.size(42.dp))
             .clip(RoundedCornerShape(8.dp))
             .background(if (on) palette.calendarHasNotes else palette.card)
-            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (on) Modifier.onBar(palette.accent) else Modifier)
+            .then(if (toggle) {
+                Modifier.toggleable(value = on, enabled = enabled, role = Role.Checkbox) { onClick() }
+            } else {
+                Modifier.clickable(enabled = enabled, onClick = onClick)
+                    .then(if (on) Modifier.semantics { stateDescription = usedSaid } else Modifier)
+            })
             .then(if (said != null) Modifier.semantics { contentDescription = said } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
@@ -2243,6 +2973,14 @@ private fun FormatKey(
     }
 }
 
+/** "… N more rows here", in a long checklist's gap: [onShow] draws the next of them. */
+@Composable
+internal fun HiddenRowsLink(hidden: Int, onShow: () -> Unit) {
+    Text(stringResource(R.string.checklist_rows_hidden, hidden, minOf(hidden, Editing.CHECKLIST_ROWS)),
+         color = LocalPalette.current.accentText, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+         modifier = Modifier.fillMaxWidth().clickable(onClick = onShow).padding(vertical = 10.dp))
+}
+
 /**
  * The checklist, under the text, when [shown]. Ticking, adding, renaming
  * and removing each write at once, as the desktop's do; the handle ⠿ drags
@@ -2257,19 +2995,22 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     val palette = LocalPalette.current
     val note = state.note(model.id)
     val items = note?.checklist ?: emptyList()
-    var adding by remember { mutableStateOf("") }
-    // The new row's box whole above the keyboard: the field brings only its
-    // line of words into view, and in a long note the box's lower half and
-    // Add stayed under the keys.
-    // Asked again at each height the keyboard passes through as it rises:
-    // asked once, when it began to, the screen had not shrunk yet and there
-    // was nothing to scroll.
+    // The new row's box whole above the keyboard, Add included, asked again at
+    // each height the keyboard passes as it rises: asked once, the screen had
+    // not shrunk yet (ISSUES_LOG, "A field that looked for its cursor once").
     val addRow = remember { BringIntoViewRequester() }
     var addFocused by remember { mutableStateOf(false) }
     val keyboardHeight = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(addFocused, keyboardHeight) {
         if (addFocused && keyboardHeight > 0) addRow.bringIntoView()
     }
+    // Where the box and its Add stand while typed in, for the window's
+    // messages to be drawn above them, never over them ([AppState.editorFootTop]).
+    var addTop by remember { mutableStateOf<Float?>(null) }
+    // Asked of each model: the same note built anew on another day keeps the
+    // box focused where it was, and messages were drawn over it.
+    LaunchedEffect(model, addFocused, addTop) { model.addBoxTop = if (addFocused) addTop else null }
+    DisposableEffect(model) { onDispose { model.addBoxTop = null } }
     // And again after each row added, once it is laid out: the new row
     // pushed the box down a row at a time, under the keys, and the newest
     // item was out of sight with it.
@@ -2281,10 +3022,9 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     }
     val addFocus = remember { FocusRequester() }
 
-    fun ensureSaved(): Int? {
-        if (model.id == 0 && !model.save(force = true)) return null
-        return model.id
-    }
+    // A row being renamed is written before the rows move under it: kept by
+    // its place, it would land on another row, or be dropped.
+    fun renameWritten(): Boolean = model.writeRename()?.let { state.sayRefused(it); false } ?: true
 
     // The last ask from ⋮ the box was given: kept while the section is folded,
     // so a section opened again does not raise the keyboard for an old ask.
@@ -2304,26 +3044,120 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     if (folded) return
     var dragging by remember { mutableIntStateOf(-1) }
     var offset by remember { mutableFloatStateOf(0f) }
-    val rowHeight = 44f * (androidx.compose.ui.platform.LocalDensity.current.density)
-    items.forEachIndexed { index, item ->
-        val moveLabel = stringResource(R.string.drag_to_move, item.text)
+    val tickedSaid = stringResource(R.string.checklist_ticked)
+    val notTickedSaid = stringResource(R.string.checklist_not_ticked)
+    val upSaid = stringResource(R.string.move_up)
+    val downSaid = stringResource(R.string.move_down)
+    val nowhereSaid = stringResource(R.string.move_nowhere)
+    // The row whose handle was tapped: its Move up and Move down.
+    var rowMenu by remember { mutableIntStateOf(-1) }
+    // Which rows are written in as fields, the rest shown short
+    // (Editing.checklistFields); and a search's matches, row by row, worked
+    // out once a search, not at every letter typed into a row.
+    val writable = remember(items) { Editing.checklistFields(items.map { it.text }) }
+    val firstShort = remember(writable, items) {
+        items.indices.firstOrNull { !writable[it] && Editing.rowChars(items[it].text) <= Editing.CHECKLIST_ROW_CHARS } ?: -1
+    }
+    val foundByRow = remember(found) { found.groupBy({ it.item }, { it.start to it.end }) }
+    // The rows drawn: the first ones and the last few, where a new item
+    // lands, a search's row among them; "Show" draws more (Editing.checklistShown).
+    var head by remember(model.id) { mutableIntStateOf(Editing.CHECKLIST_ROWS) }
+    var tail by remember(model.id) { mutableIntStateOf(Editing.CHECKLIST_TAIL_ROWS) }
+    val reach = current?.item ?: -1
+    val shownRows = remember(items.size, head, tail, reach) { Editing.checklistShown(items.size, head, reach, tail) }
+    // Each row drawn under a key of its words, so a moved row takes its focus
+    // along; kept by place, the focus stayed on the row a move put there, and
+    // a screen reader's next Move moved a row nobody chose.
+    val rowKeys = remember(items) { rowKeys(items.map { it.text }) }
+    // Where each drawn row lies, by its key: what a drag is dropped on.
+    val placed = remember(model.id) { HashMap<Any, LayoutCoordinates>() }
+
+    // A row moved from [from] to [to] -- by its handle's menu, a screen
+    // reader's or Switch Access's actions, or a drag -- and still drawn
+    // after it, the stretch it went into shown (Editing.keepMovedInSight).
+    fun move(from: Int, to: Int) {
+        val size = state.note(model.id)?.checklist?.size ?: return
+        if (to !in 0 until size || to == from || !renameWritten()) return
+        if (state.report(Notebook.moveChecklistItem(state.load, model.id, from, to))) {
+            val (h, t) = Editing.keepMovedInSight(size, head, tail, reach, from, to)
+            head = h
+            tail = t
+        }
+    }
+
+    // Where a row dragged from [from] by [by] pixels lands: on the drawn row
+    // its middle came nearest (Editing.dropTarget).
+    fun dropped(from: Int, by: Float): Int {
+        val middles = HashMap<Int, Float>()
+        for (i in shownRows) {
+            val at = placed[rowKeys.getOrNull(i) ?: continue]?.takeIf { it.isAttached } ?: continue
+            middles[i] = at.positionInRoot().y + at.size.height / 2f
+        }
+        val own = middles[from] ?: return from
+        return Editing.dropTarget(middles, own + by, from)
+    }
+
+    var drawnUpTo = -1
+    for (index in shownRows) key(rowKeys[index]) {
+        val item = items[index]
+        if (index > drawnUpTo + 1) {
+            val upTo = drawnUpTo
+            HiddenRowsLink(index - drawnUpTo - 1) { head = upTo + 1 + Editing.CHECKLIST_ROWS }
+        }
+        drawnUpTo = index
+        if (index == firstShort) {
+            Text(stringResource(R.string.checklist_shown_short, Editing.CHECKLIST_CHARS), color = palette.subtext,
+                 fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+        }
+        // The row's spoken name, as the template editor's: a glimpse, never
+        // the whole of a row a backup can bring at 150,000 letters, three
+        // times over for each row.
+        val rowName = glimpse(item.text)
+        val moveLabel = stringResource(R.string.drag_to_move, rowName)
+        val rowSaid = stringResource(R.string.checklist_row_said, rowName)
+        val removeSaid = stringResource(R.string.checklist_remove_said, rowName)
         // The row the current match is in, brought into sight as the bar steps.
         val sight = remember { BringIntoViewRequester() }
         val here = current?.takeIf { it.item == index }
-        if (here != null) LaunchedEffect(reveal, here) { sight.bringIntoView() }
+        // A row shown, not written in, brings the part its word is in into
+        // sight itself (ReadOnlyRow): brought whole, a row taller than the
+        // screen showed its top.
+        val readOnly = Editing.rowTooLong(item.text) || !writable[index]
+        if (here != null && !readOnly) LaunchedEffect(reveal, here) { sight.bringIntoView() }
+        val rowKey = rowKeys[index]
+        // Where the row stands while it is renamed, for the window's messages
+        // to stand above it ([EditorModel.renamingRow]); let go with the row.
+        var rowFocused by remember { mutableStateOf(false) }
+        fun renamed(on: Boolean) {
+            rowFocused = on
+            val at = placed[rowKey]?.takeIf { it.isAttached }?.boundsInWindow()?.top
+            if (on && at != null) model.renamingRow = rowKey to at
+            else if (model.renamingRow?.first == rowKey) model.renamingRow = null
+        }
+        DisposableEffect(rowKey) { onDispose { renamed(false) } }
+        // Told again to a model built anew on another day: the row keeps its
+        // focus, and the new model knew nothing of it.
+        LaunchedEffect(model) { if (rowFocused) renamed(true) }
         Row(
             Modifier
                 .fillMaxWidth()
+                // Where the row lies, before a drag moves its drawing.
+                .onPlaced { placed[rowKey] = it }
+                .onGloballyPositioned { if (model.renamingRow?.first == rowKey) renamed(true) }
                 .graphicsLayer { translationY = if (dragging == index) offset else 0f }
-                .height(44.dp)
+                // A finger's height at least; a row shown to be read is as
+                // tall as what it shows. Held to 44 dp, a row's read-only
+                // block was cut to the start of its first line.
+                .heightIn(min = 44.dp)
                 .bringIntoViewRequester(sight),
-            verticalAlignment = Alignment.CenterVertically,
+            // A row read whole keeps its handle, box and ✕ beside its start.
+            verticalAlignment = if (readOnly) Alignment.Top else Alignment.CenterVertically,
         ) {
-            // The handle drags at once, a finger's width wide and apart from
-            // the box: it waited for a long press nobody could guess, and sat
-            // close enough to the box to tick it by mistake (the owner,
-            // 2026-10-25). A drag that starts anywhere else scrolls the note.
-            Text(
+            // The handle drags at once, a finger wide and apart from the box (the
+            // owner's call); a tap or a screen reader's actions step one place
+            // (ISSUES_LOG, "Arranging only a finger could do").
+            fun step(by: Int) = move(index, index + by)
+            Box { Text(
                 "⠿",
                 color = palette.subtext,
                 fontSize = 20.sp,
@@ -2332,40 +3166,75 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                     .padding(end = 12.dp)
                     .size(width = 40.dp, height = 44.dp)
                     .wrapContentHeight()
-                    .semantics { contentDescription = moveLabel }
-                    .pointerInput(index, items.size) {
+                    .semantics {
+                        contentDescription = moveLabel
+                        customActions = listOfNotNull(
+                            CustomAccessibilityAction(upSaid) { step(-1); true }.takeIf { index > 0 },
+                            CustomAccessibilityAction(downSaid) { step(1); true }.takeIf { index < items.size - 1 },
+                        )
+                    }
+                    // A menu only when the row can go somewhere: the only
+                    // row opened an empty one, a dead end for a screen reader.
+                    .clickable { if (items.size > 1) rowMenu = index else state.say(nowhereSaid) }
+                    .pointerInput(index, shownRows, rowKeys) {
                         detectDragGestures(
                             onDragStart = { dragging = index; offset = 0f },
                             onDragEnd = {
-                                val to = (index + Math.round(offset / rowHeight)).coerceIn(0, items.size - 1)
+                                val to = dropped(index, offset)
                                 dragging = -1
                                 offset = 0f
-                                if (to != index) state.report(Notebook.moveChecklistItem(state.load, model.id, index, to))
+                                move(index, to)
                             },
                             onDragCancel = { dragging = -1; offset = 0f },
                             onDrag = { change, amount -> change.consume(); offset += amount.y },
                         )
                     },
             )
+            DropdownMenu(expanded = rowMenu == index, onDismissRequest = { rowMenu = -1 }) {
+                if (index > 0) DropdownMenuItem(text = { Text(upSaid) }, onClick = { rowMenu = -1; step(-1) })
+                if (index < items.size - 1) {
+                    DropdownMenuItem(text = { Text(downSaid) }, onClick = { rowMenu = -1; step(1) })
+                }
+            } }
             Text(
                 if (item.done) "☑" else "☐",
                 color = if (item.done) palette.successText else palette.text,
                 fontSize = 20.sp,
                 modifier = Modifier
+                    // A box a screen reader can name: the row's words, ticked
+                    // or not, a checkbox -- not the symbol's name alone.
+                    .semantics {
+                        contentDescription = rowSaid
+                        stateDescription = if (item.done) tickedSaid else notTickedSaid
+                        role = Role.Checkbox
+                    }
                     .clickable { state.report(Notebook.setChecklistDone(state.load, model.id, index, !item.done)) }
                     .padding(end = 10.dp),
             )
-            ChecklistText(item.text, item.done,
-                          found = found.filter { it.item == index }.map { it.start to it.end },
-                          current = here?.let { it.start to it.end }) { text ->
-                state.report(Notebook.renameChecklistItem(state.load, model.id, index, text))
-            }
+            val rowFound = foundByRow[index].orEmpty()
+            val rowCurrent = here?.let { it.start to it.end }
+            // A row too long to write in is shown, not edited, as the body's long
+            // lines are, and past what the list draws a row is shown short; either
+            // is read whole on asking, and a search opens it.
+            if (readOnly) {
+                ReadOnlyRow(item.text, item.done, rowFound, rowCurrent, reveal, Modifier.weight(1f))
+            } else ChecklistText(model.waitingIn(index, item.text) ?: item.text, item.done,
+                          found = rowFound, current = rowCurrent,
+                          onEdit = { was, now, cursor ->
+                              // Kept to a row's length, the row's own words whole.
+                              model.rowCap.fit(was, now, box = index, cursor = cursor).also { fit ->
+                                  if (fit.text != was) model.typeInRow(index, fit.text)?.let { state.sayRefused(it) }
+                              }
+                          },
+                          onLeave = { if (model.renaming?.index == index) renameWritten() },
+                          onFocus = { renamed(it) })
             Text(
                 "✕",
                 color = palette.subtext,
                 fontSize = 14.sp,
                 modifier = Modifier
-                    .clickable { state.report(Notebook.removeChecklistItem(state.load, model.id, index)) }
+                    .semantics { contentDescription = removeSaid }
+                    .clickable { if (renameWritten()) state.removeChecklistRow(model.id, index) }
                     .padding(8.dp),
             )
         }
@@ -2374,18 +3243,30 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     // next -- the desktop's Enter in its entry. It only closed the keyboard,
     // the words left in the box and the list still empty.
     fun add() {
-        if (adding.isBlank()) return
-        val id = ensureSaved() ?: return
-        if (state.report(Notebook.addChecklistItem(state.load, id, adding.trim()))) {
-            adding = ""
-            added += 1
-        }
+        if (model.adding.isBlank()) return
+        model.writeChecklist()?.let { state.sayRefused(it); return }
+        added += 1
     }
+    // The box's words with their cursor, so a paste cut to fit leaves it
+    // after what came in ([fittedValue]); the words themselves are the model's.
+    var addField by remember { mutableStateOf(TextFieldValue(model.adding, TextRange(model.adding.length))) }
+    val addShown = if (addField.text == model.adding) addField
+                   else TextFieldValue(model.adding, TextRange(model.adding.length))
     Row(verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)) {
+        modifier = Modifier.padding(top = 4.dp).bringIntoViewRequester(addRow)
+            .onGloballyPositioned { addTop = it.boundsInWindow().top }) {
         BasicTextField(
-            value = adding,
-            onValueChange = { adding = it },
+            value = addShown,
+            // At most what a row is written in at, as the desktop's box takes:
+            // the words already in it whole, what comes in cut, said once.
+            onValueChange = { next ->
+                if (next.text == addShown.text) {
+                    addField = next
+                } else {
+                    addField = keptBy(model.rowCap, addShown, next, box = Editing.NEW_ROW_BOX)
+                    model.typeAdding(addField.text)
+                }
+            },
             singleLine = true,
             textStyle = TextStyle(color = palette.text, fontSize = 15.sp),
             cursorBrush = SolidColor(palette.accent),
@@ -2400,16 +3281,16 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
                 .background(palette.card)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             decorationBox = { field ->
-                if (adding.isEmpty()) Text(stringResource(R.string.checklist_new), color = palette.subtext, fontSize = 15.sp)
+                if (model.adding.isEmpty()) Text(stringResource(R.string.checklist_new), color = palette.subtext, fontSize = 15.sp)
                 field()
             },
         )
         Text(
             stringResource(R.string.add),
-            color = if (adding.isBlank()) palette.subtext else palette.accentText,
+            color = if (model.adding.isBlank()) palette.subtext else palette.accentText,
             fontWeight = FontWeight.Medium,
             modifier = Modifier
-                .clickable(enabled = adding.isNotBlank()) { add() }
+                .clickable(enabled = model.adding.isNotBlank()) { add() }
                 .padding(12.dp),
         )
     }
@@ -2422,18 +3303,240 @@ private fun ChecklistSection(state: AppState, model: EditorModel, shown: Boolean
     }
 }
 
-/** A row's words, renamed when the field is left -- one write per edit, not per letter. */
+/** How much of a table too large to draw is shown: its first lines, each cut to a phone's worth. */
+private const val LARGE_TABLE_LINES = 40
+private const val LARGE_TABLE_CHARS = 300
+
+/** How many of a too-long text's lines are shown, each cut as a large table's are. */
+private const val LONG_TEXT_LINES = 3
+
+/**
+ * Text holding a run too long to lay out ([Editing.MAX_UNBROKEN]) -- of a
+ * body, a title, comments or a row -- shown as what it is and its start,
+ * read-only, each line slid sideways, never wrapped letter by letter; the
+ * note keeps it whole and the desktop shows it. A [heavy] one is more than
+ * is drawn here at once ([Editing.Segment.heavy]), and says so. Either way,
+ * how many lines it holds past those shown.
+ */
+@Composable
+internal fun LongText(text: String, heavy: Boolean = remember(text) { !Editing.runsTooLong(text) },
+                      found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null, reveal: Int = 0) {
+    val palette = LocalPalette.current
+    val lines = remember(text) { text.split("\n") }
+    val length = remember(text) { text.codePointCount(0, text.length) }
+    ReadOnlyBlock(lines, LONG_TEXT_LINES, found, current, reveal) {
+        Text(if (heavy) stringResource(R.string.text_too_much, length, lines.size)
+             else stringResource(R.string.text_too_long, length), color = palette.subtext, fontSize = 13.sp)
+    }
+}
+
+/** How many parts of a row a reading of it shows first: a desktop row of 2,000 letters, whole. */
+private const val ROW_PARTS_SHOWN = 7
+
+/**
+ * A checklist row shown, not written in (too long, past what the list draws
+ * to write in, or in the template editor): its start and "Read all N
+ * characters ›"; read, the whole row in parts a phone's width wraps
+ * ([Editing.rowParts]), and a search's stop opens it on its part, painted
+ * (ISSUES_LOG, "A cap that cut what it was meant to keep").
+ */
+@Composable
+internal fun ReadOnlyRow(text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(),
+                         current: Pair<Int, Int>? = null, reveal: Int = 0, modifier: Modifier = Modifier) {
+    val palette = LocalPalette.current
+    var read by remember(text) { mutableStateOf(false) }
+    val length = remember(text) { Editing.rowChars(text) }
+    Column(modifier.padding(vertical = 4.dp)) {
+        if (!read && current == null) {
+            Text(paintRanges(AnnotatedString(drawnRow(text)), found, null, palette),
+                 color = if (done) palette.subtext else palette.text, fontSize = 15.sp, maxLines = 1,
+                 overflow = TextOverflow.Ellipsis, textDecoration = if (done) TextDecoration.LineThrough else null)
+            Text(stringResource(R.string.row_read, length), color = palette.accentText, fontSize = 13.sp,
+                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { read = true }.padding(vertical = 4.dp))
+            return@Column
+        }
+        val parts = remember(text) { Editing.rowParts(text) }
+        val lines = remember(parts) { parts.map { (from, to) -> text.substring(from, to) } }
+        val starts = remember(parts) { IntArray(parts.size) { parts[it].first } }
+        ReadOnlyBlock(lines, ROW_PARTS_SHOWN, found, current, reveal, parts = starts) {
+            Text(stringResource(R.string.row_read_header, length), color = palette.subtext, fontSize = 13.sp)
+        }
+        if (read) {
+            Text(stringResource(R.string.row_read_less), color = palette.accentText, fontSize = 13.sp,
+                 fontWeight = FontWeight.Medium, modifier = Modifier.clickable { read = false }.padding(vertical = 4.dp))
+        }
+    }
+}
+
+/**
+ * What a box kept to a length by [cap] shows after [next]: a move of the
+ * cursor as it is, an edit as the cap keeps it ([fittedValue]) -- what came
+ * in read up to the cursor [next] leaves ([cursorOf]): every capped box, the
+ * title, a row, "A new item…", a template's name and title, the person's
+ * name, is kept this one way.
+ */
+internal fun keptBy(cap: Editing.BoxCap, shown: TextFieldValue, next: TextFieldValue, box: Any = Unit): TextFieldValue =
+    if (next.text == shown.text) next else fittedValue(shown, next, cap.fit(shown.text, next.text, box, cursorOf(next)))
+
+/** Where a field leaves its cursor after an edit; null while words are selected. */
+internal fun cursorOf(value: TextFieldValue): Int? = value.selection.end.takeIf { value.selection.collapsed }
+
+/**
+ * A box's next value under its cap ([Editing.fitRow]): [next] as typed
+ * when it fits; what [fit] kept, the cursor after what came in, when it was
+ * cut; the box as it was, [shown], when nothing could come in.
+ */
+internal fun fittedValue(shown: TextFieldValue, next: TextFieldValue, fit: Editing.Fit): TextFieldValue = when {
+    fit.text == next.text -> next
+    fit.caret != null -> TextFieldValue(fit.text, TextRange(fit.caret))
+    else -> shown
+}
+
+/** Each checklist row's key: its words, and how many rows before it read the same -- one per row, moving with it. */
+internal fun rowKeys(texts: List<String>): List<Pair<String, Int>> {
+    val seen = HashMap<String, Int>()
+    return texts.map { text -> text to (seen.merge(text, 1, Int::plus) ?: 1) }
+}
+
+/** How many lines a read-only piece shows at a time once the person reads on. */
+private const val READ_ON_LINES = 40
+
+/**
+ * A piece shown read-only, under its [header]: its first [shown] lines, each
+ * slid sideways, cut to a phone's worth, then [READ_ON_LINES] at a time. A
+ * search's matches are painted, and the one stepped to brings its line into
+ * sight, so the part past what the phone draws is read and found. Given a
+ * row's [parts] ([ReadOnlyRow]), each is shown whole, wrapped.
+ */
+@Composable
+private fun ReadOnlyBlock(lines: List<String>, shown: Int, found: List<Pair<Int, Int>>, current: Pair<Int, Int>?,
+                          reveal: Int, parts: IntArray? = null, header: @Composable () -> Unit) {
+    val palette = LocalPalette.current
+    val starts = remember(lines, parts) { parts ?: Finding.lineStartsUtf16(lines) }
+    var first by remember(lines) { mutableIntStateOf(0) }
+    var count by remember(lines) { mutableIntStateOf(shown) }
+    val sight = remember { BringIntoViewRequester() }
+    // The part a search stopped in, itself: a row read in parts is taller
+    // than the screen, and brought into sight whole, its top was shown and
+    // the word lay under the screen's edge (the walk, 2026-10-29).
+    val partSight = remember { BringIntoViewRequester() }
+    val matchLine = current?.let { Finding.lineAt(starts, it.first) }
+    LaunchedEffect(reveal, matchLine) {
+        if (matchLine == null) return@LaunchedEffect
+        if (matchLine !in first until first + count) first = maxOf(0, matchLine - 1)
+        withFrameNanos { }
+        if (parts != null) partSight.bringIntoView() else sight.bringIntoView()
+    }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).bringIntoViewRequester(sight)) {
+        header()
+        Column((if (parts == null) Modifier.horizontalScroll(rememberScrollState()) else Modifier).padding(top = 6.dp)) {
+            for (i in first until minOf(lines.size, first + count)) {
+                val line = lines[i]
+                val start = starts[i]
+                val at = current?.first?.takeIf { it in start..start + line.length }?.minus(start)
+                val cut = if (parts != null) Finding.Cut(0, line.length) else Finding.cutAround(line, LARGE_TABLE_CHARS, at)
+                // The matches on the part shown, counted from where it is cut.
+                fun local(range: Pair<Int, Int>): Pair<Int, Int>? {
+                    val a = maxOf(range.first - start, cut.from)
+                    val b = minOf(range.second - start, cut.to)
+                    return if (b > a) (a - cut.from) to (b - cut.from) else null
+                }
+                val painted = paintRanges(AnnotatedString(line.substring(cut.from, cut.to)),
+                                          found.mapNotNull { local(it) }, current?.let { local(it) }, palette)
+                val drawn = buildAnnotatedString {
+                    if (cut.from > 0) append("…")
+                    append(painted)
+                    if (cut.to < line.length) append("…")
+                }
+                if (parts != null) Text(drawn, color = palette.text, fontSize = 15.sp,
+                                        modifier = if (i == matchLine) Modifier.bringIntoViewRequester(partSight) else Modifier)
+                else Text(drawn, color = palette.text, fontSize = 13.sp, maxLines = 1, softWrap = false)
+            }
+        }
+        // Three lines shown of five hundred said nothing of the rest.
+        if (lines.size > first + count || first > 0) {
+            Text(if (parts != null) stringResource(R.string.row_parts, first + 1, minOf(lines.size, first + count), lines.size)
+                 else if (first == 0) stringResource(R.string.table_more_lines, lines.size - count)
+                 else stringResource(R.string.read_only_lines, first + 1, minOf(lines.size, first + count), lines.size),
+                 color = palette.subtext, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (first > 0) {
+                    Text(stringResource(R.string.read_only_earlier), color = palette.accentText, fontSize = 13.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { first = maxOf(0, first - READ_ON_LINES); count = READ_ON_LINES }
+                             .padding(vertical = 6.dp))
+                }
+                if (first + count < lines.size) {
+                    Text(stringResource(R.string.read_only_later), color = palette.accentText, fontSize = 13.sp,
+                         fontWeight = FontWeight.Medium,
+                         modifier = Modifier.clickable { first += count; count = READ_ON_LINES }.padding(vertical = 6.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A table too large to draw as a grid ([Editing.MAX_DRAWN_CELLS]): what it
+ * is, and its first lines as written, read-only, each on one line the
+ * person can slide sideways. The note keeps the table whole; only the
+ * drawing is short, so the note opens at once. The template editor shows
+ * one the same way: it drew the grid whatever its size, and a template saved
+ * from such a note froze the app as it opened.
+ */
+@Composable
+internal fun LargeTable(segment: Editing.Segment, found: List<Pair<Int, Int>> = emptyList(),
+                        current: Pair<Int, Int>? = null, reveal: Int = 0) {
+    val palette = LocalPalette.current
+    val lines = remember(segment.text) { segment.text.split("\n") }
+    // As the grid would be drawn, which is what made it too large -- or,
+    // under the line, the tables above it, which drew what a note may.
+    val cells = remember(segment.text) { Editing.gridCells(lines) }
+    ReadOnlyBlock(lines, LARGE_TABLE_LINES, found, current, reveal) {
+        Text(if (cells > Editing.MAX_DRAWN_CELLS) stringResource(R.string.table_too_large, cells, lines.size)
+             else stringResource(R.string.table_past_others, cells, lines.size, Editing.MAX_DRAWN_CELLS),
+             color = palette.subtext, fontSize = 13.sp)
+    }
+}
+
+/**
+ * A row's words. What is typed waits in the editor ([EditorModel.renaming]),
+ * written when the field is left, by the keyboard's ✓ or by the save on
+ * leaving: one write per edit, not per letter. [onEdit] is asked of each
+ * change, with the cursor the field leaves ([cursorOf]), and answers what is
+ * kept ([Editing.fitRow]); a paste cut to fit leaves the cursor after it.
+ */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
     text: String, done: Boolean, found: List<Pair<Int, Int>> = emptyList(), current: Pair<Int, Int>? = null,
-    onRename: (String) -> Unit,
+    onEdit: (was: String, now: String, cursor: Int?) -> Editing.Fit, onLeave: () -> Unit,
+    onFocus: (Boolean) -> Unit = {},
 ) {
     val palette = LocalPalette.current
-    var draft by remember(text) { mutableStateOf(text) }
+    var field by remember { mutableStateOf(TextFieldValue(text, TextRange(text.length))) }
+    val shown = if (field.text == text) field else TextFieldValue(text, TextRange(text.length))
+    var focused by remember { mutableStateOf(false) }
+    // A search's stop in a row not being typed in: the field, one line,
+    // slides to show it -- it showed its start, and a word past it was
+    // stepped to out of sight.
+    LaunchedEffect(current) {
+        if (current != null && !focused && current.second <= shown.text.length) {
+            field = shown.copy(selection = TextRange(current.second))
+        }
+    }
     BasicTextField(
-        value = draft,
-        onValueChange = { draft = it },
+        value = shown,
+        onValueChange = { next ->
+            field = if (next.text == shown.text) next else fittedValue(shown, next, onEdit(shown.text, next.text, cursorOf(next)))
+        },
         singleLine = true,
+        // ✓ writes the words and puts the keyboard down. It only put the
+        // keyboard down: the words stayed in the field, looking kept.
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = {
+            onLeave()
+            defaultKeyboardAction(ImeAction.Done)
+        }),
         // A search's matches painted on the words, as the note's own are.
         visualTransformation = { words -> TransformedText(paintRanges(words, found, current, palette), OffsetMapping.Identity) },
         textStyle = TextStyle(
@@ -2444,7 +3547,11 @@ private fun androidx.compose.foundation.layout.RowScope.ChecklistText(
         cursorBrush = SolidColor(palette.accent),
         modifier = Modifier
             .weight(1f)
-            .onFocusChanged { if (!it.isFocused && draft != text) onRename(draft) },
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocus(it.isFocused)
+                if (!it.isFocused) onLeave()
+            },
     )
 }
 
@@ -2481,9 +3588,15 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
             if (laid != null && current.start < laid.layoutInput.text.length) laid.getBoundingBox(current.start) else null)
     }
     val spots = found.map { it.start to it.end }
-    BasicTextField(
+    // Comments too long to lay out are shown, not edited, as the body's lines
+    // are -- and searched as those are, the line of the match shown.
+    if (Editing.tooLongToLayOut(model.comments)) {
+        LongText(model.comments, found = spots, current = current?.let { it.start to it.end }, reveal = reveal)
+    } else BasicTextField(
         value = model.comments,
-        onValueChange = { now ->
+        onValueChange = { given ->
+            // A CR that came in is one line break, as the desktop's paste puts it.
+            val now = Editing.breaksCame(model.comments, given)?.first ?: given
             // A table pasted here showed as rows of bars: the comments draw no table.
             val kept = Pasting.commentsAfter(model.comments, now)
             following.typed(model.comments, kept ?: now)
@@ -2521,45 +3634,43 @@ private fun CommentsSection(state: AppState, model: EditorModel, shown: Boolean,
 private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int) {
     val palette = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = rememberCoroutineScope()
     val files = if (model.id == 0) emptyList() else state.attachmentsOf(model.id)
     var removing by remember { mutableStateOf<Pair<String, String>?>(null) }
     var tooMany by remember { mutableStateOf<Pair<List<android.net.Uri>, Int>?>(null) }
     val fullText = stringResource(R.string.attach_full, Normalize.MAX_ATTACHMENTS)
 
-    fun attach(uris: List<android.net.Uri>) {
-        val id = model.id
-        scope.launch {
-            // Copied off the picker's stream into the app's cache first,
-            // away from the screen's thread; moved into place by the write.
-            val copied = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                uris.mapNotNull { uri -> copyToCache(context, uri) }
-            }
-            state.attach(id, copied.map { (name, temp) ->
-                Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
-            }, unreadable = uris.size - copied.size)
-            copied.forEach { (_, temp) -> temp.delete() }
-        }
-    }
+    fun attach(uris: List<android.net.Uri>) = attachPicked(state, context, model.id, uris)
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isEmpty()) return@rememberLauncherForActivityResult
-        // A new note is saved first: only a saved note can hold files.
-        if (!model.save(force = model.id == 0)) return@rememberLauncherForActivityResult
-        val room = Organizing.roomFor(state.load, model.id)
-        when {
-            room == 0 -> state.say(fullText)
-            uris.size > room -> tooMany = uris to room
-            else -> attach(uris)
+    // The picker is AppRoot's (AppState.pickAttachments); while this note
+    // is open, its answer comes here.
+    DisposableEffect(model) {
+        state.attachHere = handler@{ id, uris ->
+            // Asked for on this note new: saved meanwhile, as the app went
+            // behind the picker, it read as another note's, and the files
+            // were said lost.
+            if (id != model.id && !(id == 0 && model.startedNew)) return@handler false
+            // A new note is saved first: only a saved note can hold files.
+            if (!model.save(force = model.id == 0)) return@handler true
+            val room = Organizing.roomFor(state.load, model.id)
+            when {
+                room == 0 -> state.say(fullText)
+                uris.size > room -> tooMany = uris to room
+                else -> attach(uris)
+            }
+            true
         }
+        onDispose { state.attachHere = null }
     }
-    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) picker.launch(arrayOf("*/*")) }
+    LaunchedEffect(pickAsk) { if (pickAsk > 0 && model.day == null) state.pickAttachments?.invoke(model.id) }
 
     if (files.isNotEmpty()) SectionLabel(stringResource(R.string.files_label, files.size))
     for ((name, stored) in files) {
+        // Drawn short, its type kept: a backup can label a file with
+        // 150,000 letters, and the row laid them all out at every opening.
+        val shown = quotedFile(name)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "📎  $name",
+                "📎  $shown",
                 color = palette.accentText,
                 fontSize = 15.sp,
                 modifier = Modifier
@@ -2568,7 +3679,7 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
                     .padding(vertical = 8.dp),
             )
             if (model.day == null) {
-                val removeLabel = stringResource(R.string.attach_remove_said, name)
+                val removeLabel = stringResource(R.string.attach_remove_said, shown)
                 Text("✕", color = palette.subtext, fontSize = 14.sp,
                      modifier = Modifier
                          .semantics { contentDescription = removeLabel }
@@ -2580,7 +3691,9 @@ private fun AttachmentsSection(state: AppState, model: EditorModel, pickAsk: Int
     removing?.let { (name, stored) ->
         Ask(
             title = stringResource(R.string.attach_remove_title),
-            text = stringResource(R.string.attach_remove_text, name),
+            // A run that keeps every file (Organizing.filesKept) does not promise this one gone.
+            text = stringResource(if (Organizing.filesKept(state.load)) R.string.attach_remove_text_kept
+                                  else R.string.attach_remove_text, quotedFile(name)),
             confirm = stringResource(R.string.attach_remove_confirm),
             onConfirm = {
                 removing = null
@@ -2629,6 +3742,84 @@ private fun copyToCache(context: android.content.Context, uri: android.net.Uri):
 }
 
 /**
+ * Picked files attached to the note [id]: copied off the picker's stream
+ * into the app's cache first, away from the screen's thread, and moved into
+ * place by the write. In the app's own scope, not the editor's: Back while
+ * a large file was copying ended the copy's scope, the files were never
+ * attached, nothing was said, and the copy stayed in the cache.
+ */
+fun attachPicked(state: AppState, context: android.content.Context, id: Int, uris: List<android.net.Uri>,
+                 then: (() -> Unit)? = null) {
+    // The note they are for, by its uid too, taken now: the copy can outlive
+    // the editor, and the id be another note's by the time it ends.
+    val uid = state.rawNote(id)?.opt("uid") as? String
+    state.scope.launch {
+        val copied = mutableListOf<Pair<String, File>>()
+        try {
+            // The note's files read here, on the main thread the notebook is written on.
+            val held = state.attachmentsOf(id)
+            val repeats = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                uris.forEach { uri -> copyToCache(context, uri)?.let { copied.add(it) } }
+                Organizing.alreadyAttached(held, state.attachments, copied)
+            }
+            // The same file picked again: asked once for all, No kept them out.
+            val taking = if (repeats.isEmpty() || state.askAttachAgain(repeats.map { Normalize.bareFileName(copied[it].first) })) copied
+                         else copied.filterIndexed { at, _ -> at !in repeats }
+            if (taking.isEmpty()) {
+                // Nothing to write, and still said: a pick none of which would copy
+                // ("No file could be attached"), and the room it left (then).
+                val unread = uris.size - copied.size
+                if (unread > 0) state.attach(id, emptyList(), unreadable = unread, uid = uid)
+                then?.invoke()
+                return@launch
+            }
+            val empty = taking.filter { (_, temp) -> temp.length() == 0L }.map { Normalize.bareFileName(it.first) }
+            val before = state.attachmentsOf(id).size
+            state.attach(id, taking.map { (name, temp) ->
+                Organizing.Incoming(name) { dest -> if (!temp.renameTo(dest)) { temp.copyTo(dest); temp.delete() } }
+            }, unreadable = uris.size - copied.size, uid = uid)
+            // An empty file is attached, as asked, and said: it went in without a remark.
+            if (empty.isNotEmpty() && state.attachmentsOf(id).size > before) {
+                state.say(if (empty.size == 1) context.getString(R.string.attach_empty_one, quotedFile(empty[0]))
+                          else context.resources.getQuantityString(R.plurals.attach_empty_many, empty.size, empty.size))
+            }
+            then?.invoke()
+        } finally {
+            copied.forEach { (_, temp) -> temp.delete() }
+        }
+    }
+}
+
+/**
+ * Picked files with no editor open for them: Android ended the app behind
+ * the picker, and started it again on its list. Attached to the note
+ * still, as many as it has room for, and said so -- the note is not on the
+ * screen to show them; a new note never saved has nowhere to keep them,
+ * and says that instead.
+ */
+fun attachAfterReturn(state: AppState, context: android.content.Context, id: Int, uris: List<android.net.Uri>) {
+    val note = state.rawNote(id)
+    if (id == 0 || note == null) {
+        state.say(context.getString(R.string.attach_lost))
+        return
+    }
+    val room = Organizing.roomFor(state.load, id)
+    if (room == 0) {
+        state.say(context.getString(R.string.attach_full, Normalize.MAX_ATTACHMENTS))
+        return
+    }
+    val before = state.attachmentsOf(id).size
+    attachPicked(state, context, id, uris.take(room)) {
+        val added = state.attachmentsOf(id).size - before
+        when {
+            uris.size > room -> state.say(context.getString(R.string.attach_cut, room, Normalize.MAX_ATTACHMENTS))
+            added > 0 -> state.say(context.resources.getQuantityString(
+                R.plurals.attached_after_return, added, added, quoted(Exporting.titleOf(note))))
+        }
+    }
+}
+
+/**
  * Everything the desktop keeps around its editor: category, date, colour,
  * pin -- in a sheet that rises from the bottom, so the page stays the
  * note's. Plus how long the note is, and what can be done with it.
@@ -2641,8 +3832,12 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     var dating by remember { mutableStateOf(false) }
     var repeating by remember { mutableStateOf(false) }
     val onADay = model.day != null
-    AppSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+    // The Repeat sheet, opened from here, says what a turn-off kept while this stays open.
+    AppSheet(onDismissRequest = onDismiss, messages = state.snackbar) {
+        // Scrolled, on a phone on its side: taller than the window there, its
+        // foot was cut away -- the word count, on a repeating note Pin too --
+        // and the message under it had no room.
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.note_details), color = palette.text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             // On one day, its own category and colour: said, as the desktop
             // puts "This day:" beside them.
@@ -2690,7 +3885,8 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
             }
             val words = Editing.wordCount(model.body)
             Text(
-                listOf(pluralWords(words), Editing.readingTime(words)).filter { it.isNotEmpty() }.joinToString(" · "),
+                listOf(pluralStringResource(R.plurals.note_words, words, words), Editing.readingTime(words))
+                    .filter { it.isNotEmpty() }.joinToString(" · "),
                 color = palette.subtext,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 12.dp),
@@ -2707,8 +3903,6 @@ private fun DetailsSheet(state: AppState, model: EditorModel, note: Note?, onDis
     if (dating) DateDialog(model.date, onPick = { model.date = it; model.changed(); dating = false }) { dating = false }
     if (repeating) RepeatSheet(state, model) { repeating = false }
 }
-
-private fun pluralWords(n: Int) = if (n == 1) "1 word" else "$n words"
 
 @Composable
 internal fun DetailRow(label: String, content: @Composable () -> Unit) {
@@ -2755,9 +3949,9 @@ private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, o
     if (next == null || raw == null) return
     val day = days[next]
     val shown = Recurrence.effectiveNote(raw, day)
-    val title = (shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled"
+    val title = quoted((shown.opt("title") as? String)?.trim()?.ifEmpty { null } ?: "Untitled")
     val text = contentText(shown.opt("body") as? String ?: "").split(Regex("\\s+")).filter { it.isNotEmpty() }
-        .joinToString(" ").let { if (it.length > 160) it.take(160).trimEnd() + "…" else it }
+        .joinToString(" ").let { val cut = Editing.firstLetters(it, 160); if (cut != it) cut.trimEnd() + "…" else it }
     val whenDay = Recurrence.parseDate(day)?.let { Recurrence.showDay(it) } ?: day
 
     fun answer(how: Days.Settle?) {
@@ -2771,10 +3965,13 @@ private fun OffScheduleQuestions(state: AppState, id: Int, days: List<String>, o
         onDismissRequest = { answer(null) },
         title = { Text(stringResource(R.string.off_schedule_title, next + 1, days.size)) },
         text = {
-            Text(stringResource(R.string.off_schedule_text, whenDay, title,
-                                if (text.isEmpty()) "" else "\n$text", Recurrence.describe(raw),
-                                state.trashWindow?.let { stringResource(R.string.off_schedule_trash_days, it) }
-                                    ?: stringResource(R.string.off_schedule_trash_kept)))
+            // Keyed by the day: one dialog asks day after day, each from its top.
+            DialogBody(key = next) {
+                Text(stringResource(R.string.off_schedule_text, whenDay, title,
+                                    if (text.isEmpty()) "" else "\n$text", Recurrence.describe(raw),
+                                    state.trashWindow?.let { stringResource(R.string.off_schedule_trash_days, it) }
+                                        ?: stringResource(R.string.off_schedule_trash_kept)))
+            }
         },
         confirmButton = {
             TextButton(onClick = { answer(Days.Settle.NOTE) }) {
@@ -2803,10 +4000,11 @@ internal fun DateDialog(current: String, onPick: (String) -> Unit, onDismiss: ()
         SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
     }
     val initial = if (Notebook.isDate(current)) format.parse(current.trim())?.time else null
-    // Every year the desktop reads, 1 to 9999: the picker's own 1900 to
-    // 2100 refuses a date outside it, and a note dated 1026 by a slip on
-    // the desktop would have stopped the app the moment its date was tapped.
-    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: System.currentTimeMillis(),
+    // Every year the desktop reads, 1 to 9999: by the picker's 1900 to 2100, a
+    // note dated 1026 stopped the app. Today is the phone's own, at UTC midnight,
+    // as the picker reads days: the moment itself opened on the wrong day.
+    val today = java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    val picker = rememberDatePickerState(initialSelectedDateMillis = initial ?: today,
                                          yearRange = 1..9999)
     DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -2827,17 +4025,13 @@ private fun cellTextAt(table: TableBlock, at: CellAt): String {
         // it can be turned back into words by changing the marker.
         true -> "[x]"
         false -> "[ ]"
-        null -> cell.lines.joinToString("<br>")
+        null -> cell.lines.joinToString(LINE_BREAK)
     }
 }
 
 // ---- A table, written in place ----
-//
-// Samsung Notes' way, which the owner pointed at: a tap on a cell and the
-// words go right in it; while in a table, a bar of one-word buttons over
-// the keyboard; the rarer things in More. Everything the cell's long sheet
-// did is still here -- it was one sheet of twenty-one text buttons, read
-// as a wall of text on a real phone.
+// The owner's way: a tap on a cell writes in it; a bar of one-word buttons over
+// the keyboard, the rarer things in More, not one wall of twenty-one buttons.
 
 /**
  * A cell tapped: chosen to write in -- or, a checkbox, ticked or unticked
@@ -2868,7 +4062,7 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     val palette = LocalPalette.current
     val key = Triple(segment.firstLine, at, model.cellEpoch)
     var draft by remember(key) {
-        val text = cellTextAt(table, at).replace("<br>", "\n")
+        val text = cellTextAt(table, at).replace(LINE_BREAK, "\n")
         // At the end of the words, not under the empty lines a row made
         // taller keeps: typed there, the words went to its last line. After
         // the calculator wrote in, after what it wrote.
@@ -2879,25 +4073,29 @@ private fun CellEditor(model: EditorModel, segment: Editing.Segment, table: Tabl
     }
     val typing = remember(key) { FocusRequester() }
     LaunchedEffect(key) { typing.requestFocus() }
+    // The cell left: words it held back are written now ([EditorModel.typeInCell]).
+    DisposableEffect(key) { onDispose { model.writeHeldCell() } }
     val said = stringResource(R.string.cell)
+    // A "|" typed or pasted is the table's divider, kept as "/" -- said once
+    // a cell, as it was not (the review panel).
+    val pipeWords = stringResource(R.string.cell_pipe_kept)
+    var pipeSaid by remember(key) { mutableStateOf(false) }
     val following = rememberFollowing()
     BasicTextField(
         value = draft,
-        onValueChange = { next ->
+        onValueChange = { given ->
+            // A CR that came in is one line break, as the desktop's paste puts it.
+            val next = Editing.breaksCame(draft.text, given.text, given.selection.end.takeIf { given.selection.collapsed })
+                ?.let { (text, at) -> TextFieldValue(text, TextRange(at)) } ?: given
+            if ("|" in next.text && !pipeSaid) {
+                pipeSaid = true
+                model.say(pipeWords)
+            }
             val clean = next.text.replace("|", "/")
             following.typed(draft.text, clean, next.selection.end)
             draft = next.copy(text = clean)
             model.cellCaret = next.selection.end
-            // Not written while it is a merge's marker or a box's -- "<" on
-            // its way to "<5 €", "[ ]" to "[ ] milk": written, the cell would
-            // turn into a merge or a box under the finger, its field gone.
-            // The desktop writes a cell when it is left; the next letter
-            // writes this one.
-            if (!isCellToken(clean)) {
-                model.editTable(segment, Editing.History.TYPING + ":cell") {
-                    it.setCell(table.fileRow(at.row), at.column, clean.replace("\n", "<br>"))
-                }
-            }
+            model.typeInCell(segment, table, at, clean, next.selection.end)
         },
         onTextLayout = following::laidOut,
         textStyle = style,
@@ -2949,12 +4147,9 @@ private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
                 if (merged) {
                     Choice(stringResource(R.string.tb_split)) { edit(at) { it.split(row, at.column) } }
                 } else {
-                    // The words of both cells are kept, joined in the cell
-                    // kept -- the one on the left, or the one above -- as the
-                    // desktop's merge joins them ([EditorModel.mergeCells]).
-                    // Every way round, as the desktop's selection merges: with
-                    // the cell on the right or below is that cell's merge with
-                    // this one, this one kept (the owner, 2026-10-25).
+                    // Both cells' words joined in the one kept, left or above, as the
+                    // desktop's merge joins them ([EditorModel.mergeCells]); with the
+                    // cell right or below, that cell merges with this one (her call).
                     fun merge(from: CellAt, up: Boolean) {
                         val kept = model.mergeCells(segment, from, up)
                         open = null
@@ -2973,7 +4168,8 @@ private fun TableBar(model: EditorModel, segment: Editing.Segment, at: CellAt,
             }
             "color" -> ChoiceRow {
                 Text("✕", color = palette.subtext, fontSize = 14.sp, textAlign = TextAlign.Center,
-                     modifier = Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(palette.inset)
+                     modifier = Modifier.said(R.string.highlight_none)
+                         .size(34.dp).clip(RoundedCornerShape(17.dp)).background(palette.inset)
                          .clickable { model.highlightCell(segment, row, at.column, ""); open = null }.padding(top = 7.dp))
                 for ((i, colour) in Themes.HIGHLIGHT_COLOR_PALETTE.withIndex()) {
                     val said = stringResource(R.string.highlight_colour, i + 1)
@@ -3049,6 +4245,8 @@ private fun Choice(label: String, danger: Boolean = false, onClick: () -> Unit) 
 private fun BarButton(mark: String, word: String, open: Boolean, modifier: Modifier, danger: Boolean = false,
                       onClick: () -> Unit) {
     val palette = LocalPalette.current
+    // Open, it is filled: its warning and its word take the shade that reads there.
+    val warning = palette.dangerTextOn(open)
     Column(
         modifier.clip(RoundedCornerShape(10.dp)).background(if (open) palette.calendarHasNotes else Color.Transparent)
             .clickable(onClick = onClick).padding(vertical = 5.dp),
@@ -3057,9 +4255,9 @@ private fun BarButton(mark: String, word: String, open: Boolean, modifier: Modif
         // The marks' own heights differ ("＋" stands taller than "⊞"): one
         // box for all, so the words beneath sit on one line.
         Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
-            Text(mark, fontSize = 18.sp, color = if (danger) palette.dangerText else palette.text)
+            Text(mark, fontSize = 18.sp, color = if (danger) warning else palette.text)
         }
-        Text(word, fontSize = 11.sp, color = if (danger) palette.dangerText else palette.subtext, maxLines = 1,
+        Text(word, fontSize = 11.sp, color = if (danger) warning else palette.subtextOn(open), maxLines = 1,
              softWrap = false)
     }
 }

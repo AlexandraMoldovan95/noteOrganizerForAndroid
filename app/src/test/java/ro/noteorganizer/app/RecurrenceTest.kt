@@ -22,6 +22,94 @@ class RecurrenceTest {
     private fun expand(n: JSONObject, a: LocalDate, b: LocalDate, limit: Int? = null) =
         Recurrence.expand(n, a, b, limit)
 
+    // ---- many moved days, asked of all at once ----
+
+    /** A series with [moves] of its days held on the day after, and [own] days edited, some off its schedule. */
+    private fun busySeries(random: kotlin.random.Random, moves: Int, own: Int): JSONObject {
+        val freq = listOf("daily", "weekly", "monthly").random(random)
+        val rule = JSONObject().put("freq", freq).put("interval", 1 + random.nextInt(2))
+        if (freq == "weekly") rule.put("weekdays", JSONArray(listOf(0, 2, 4).shuffled(random).take(1 + random.nextInt(3))))
+        if (random.nextBoolean()) rule.put("count", 20 + random.nextInt(300))
+        val n = JSONObject().put("id", 1).put("date", "2026-01-05").put("recurrence", rule)
+        val days = Recurrence.expand(n, d(2026, 1, 1), d(2031, 12, 31))
+        val exceptions = days.shuffled(random).take(days.size / 10)
+        n.put("exceptions", JSONArray(exceptions))
+        val moved = JSONObject()
+        for (day in days.shuffled(random).take(minOf(moves, days.size))) {
+            moved.put(day, Recurrence.formatDate(Recurrence.parseDate(day)!!.plusDays(1L + random.nextInt(3))))
+        }
+        n.put("moved", moved)
+        val overrides = JSONObject()
+        for (day in (days.shuffled(random).take(own) + listOf("2026-01-06", "2027-03-03"))) {
+            overrides.put(day, JSONObject().put("title", "own $day"))
+        }
+        return n.put("overrides", overrides)
+    }
+
+    @Test
+    fun `days off the schedule and the banner's counts agree with asking one day at a time`() {
+        // The answers are the day-by-day ones exactly, on series of every kind.
+        val random = kotlin.random.Random(20261028)
+        repeat(120) {
+            val n = busySeries(random, moves = random.nextInt(40), own = random.nextInt(30))
+            val schedule = JSONObject(n.toString()).put("exceptions", JSONArray())
+            val exceptions = (0 until n.getJSONArray("exceptions").length()).map { n.getJSONArray("exceptions").getString(it) }.toSet()
+            val overrides = n.getJSONObject("overrides")
+            val off = overrides.keys().asSequence().sorted().filter { day ->
+                val on = Recurrence.parseDate(day)!!
+                day !in exceptions && Recurrence.expand(schedule, on, on) != listOf(day)
+            }.toList()
+            assertEquals(n.toString(), off, Recurrence.offScheduleDays(n))
+            val moved = n.getJSONObject("moved")
+            val held = moved.keys().asSequence().count { key ->
+                val now = moved.getString(key)
+                val on = Recurrence.parseDate(now)!!
+                Recurrence.expand(n, on, on) == listOf(now)
+            }
+            assertEquals(n.toString(), maxOf(0, overrides.length() - off.size) to held, Recurrence.seriesCounts(n))
+        }
+    }
+
+    @Test
+    fun `a series with thousands of moved days reads them once for its banner, its days off schedule and the History`() {
+        // 5,000 moved days, as a backup may bring: asked one day at a time,
+        // each question read all 5,000, and the note froze as it opened.
+        val n = note("""{"id": 1, "title": "Standup", "date": "2026-01-05",
+            "recurrence": {"freq": "weekly", "weekdays": [0]}}""")
+        val moved = JSONObject()
+        val overrides = JSONObject()
+        var monday = d(2026, 1, 5)
+        repeat(5000) {
+            moved.put(Recurrence.formatDate(monday), Recurrence.formatDate(monday.plusDays(1)))
+            if (it % 2 == 0) overrides.put(Recurrence.formatDate(monday.plusDays(1)), JSONObject().put("title", "own"))
+            monday = monday.plusWeeks(1)
+        }
+        n.put("moved", moved).put("overrides", overrides)
+        Recurrence.movesRead = 0
+        assertEquals(2500 to 5000, Recurrence.seriesCounts(n))
+        assertTrue(Recurrence.offScheduleDays(n).isEmpty())
+        assertTrue("read ${Recurrence.movesRead} times", Recurrence.movesRead <= 4)
+        Recurrence.movesRead = 0
+        val history = Recurrence.history(listOf(n), today = d(2026, 10, 28))
+        assertEquals(1, history.size)
+        assertTrue("read ${Recurrence.movesRead} times", Recurrence.movesRead <= 6)
+    }
+
+    @Test
+    fun `a History series is known by its uid, so a series given a freed id is not opened`() {
+        val today = d(2026, 10, 28)
+        val kept = note("""{"id":4,"uid":"uid-old","date":"2026-10-01","title":"Gym","recurrence":{"freq":"weekly","weekdays":[0]}}""")
+        val old = note("""{"id":5,"date":"2026-10-01","title":"Plants","recurrence":{"freq":"weekly","weekdays":[2]}}""")
+        val ids = Recurrence.history(listOf(kept, old), today = today)
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().associate { it.noteId to it.identity }
+        assertEquals("by its uid, and by its id where it has none", mapOf(4 to "uid-old", 5 to "id:5"), ids)
+        // Note 4 deleted, and a series made after it took the id: the open group was 4's.
+        val newcomer = note("""{"id":4,"uid":"uid-new","date":"2026-10-01","title":"Run","recurrence":{"freq":"weekly","weekdays":[1]}}""")
+        val now = Recurrence.history(listOf(newcomer), today = today)
+            .filterIsInstance<Recurrence.HistoryEntry.Series>().single()
+        assertTrue("the newcomer is someone else", now.identity != "uid-old")
+    }
+
     // ---- the frequencies ----
 
     @Test
@@ -219,12 +307,25 @@ class RecurrenceTest {
     }
 
     @Test
+    fun `the History's search folds case and diacritics, as the list's does`() {
+        val note = JSONObject("""{"id": 9, "title": "Crème brûlée night", "body": "x", "comments": "", "date": "2026-05-04"}""")
+        assertEquals(listOf(9), Recurrence.history(listOf(note), query = "CREME BRULEE", today = today).map { it.noteId })
+        assertEquals(listOf(9), Recurrence.history(listOf(note), query = "crême", today = today).map { it.noteId })
+    }
+
+    @Test
     fun `the year filter keeps only that year's activity`() {
         val last = Recurrence.history(historyNotes, yearBucket = "Last year", today = today)
         assertEquals(listOf(3), last.map { it.noteId })
         assertEquals(listOf("2025-12-01"), (last[0] as Recurrence.HistoryEntry.Series).days.map { it.date })
         assertEquals(listOf(2), Recurrence.history(historyNotes, yearBucket = "Older", today = today).map { it.noteId })
         assertTrue(Recurrence.history(historyNotes, yearBucket = "2 years ago", today = today).isEmpty())
+        // A day of a year to come is this year's work, not the archive's (it
+        // was filed under Older).
+        val next = listOf(JSONObject().put("id", 9).put("title", "Booked").put("body", "")
+            .put("date", "${today.year + 1}-01-05"))
+        assertEquals(listOf(9), Recurrence.history(next, yearBucket = "This year", today = today).map { it.noteId })
+        assertTrue(Recurrence.history(next, yearBucket = "Older", today = today).isEmpty())
     }
 
     // ---- days off the schedule ----
@@ -490,26 +591,15 @@ class RecurrenceTest {
     // ---- dates as the app shows them ----
 
     @Test
-    fun `a stored date, a moment and a day, as the app shows them`() {
+    fun `a stored date and a day, as the app shows them`() {
         assertEquals("17.10.2026", Recurrence.showDate("2026-10-17"))
         assertEquals("05.01.2026", Recurrence.showDate("2026-1-5"))
         assertEquals("17.10", Recurrence.showDate("17.10"))
         assertEquals("", Recurrence.showDate(""))
         assertEquals("", Recurrence.showDate(null))
-        assertEquals("01.09.2026 09:00", Recurrence.showStamp("2026-09-01 09:00"))
-        assertEquals("odd", Recurrence.showStamp("odd"))
         assertEquals("Saturday, 17 October 2026", Recurrence.showDay(oct17))
         assertEquals("Saturday, 17 October", Recurrence.showDay(oct17, year = false))
         assertEquals("Saturday, 17 Oct", Recurrence.showDay(oct17, year = false, shortMonth = true))
-    }
-
-    @Test
-    fun `a date and the field showing it are the same date, a half-typed one is not`() {
-        assertTrue(Recurrence.sameDate("17.10.2026", "2026-10-17"))
-        assertTrue(Recurrence.sameDate(" 30.09.2026 ", "30.09.2026"))
-        assertTrue(Recurrence.sameDate("", ""))
-        assertFalse(Recurrence.sameDate("17.10", "2026-10-17"))
-        assertFalse(Recurrence.sameDate("x", "y"))
     }
 
     @Test
@@ -604,5 +694,83 @@ class RecurrenceTest {
         // so the three are Wed, Mon, Wed -- not a phantom Monday and two.
         val n = note("""{"id":1,"date":"2026-07-01","recurrence":{"freq":"weekly","weekdays":[0,2],"count":3}}""")
         assertEquals(listOf("2026-07-01", "2026-07-06", "2026-07-08"), expand(n, d(2026, 6, 1), d(2026, 8, 31)))
+    }
+
+    @Test
+    fun `the days a note keeps after its repeat is turned off steer nothing while it does not repeat`() {
+        // A repeat ended by a code or "Restore previous" leaves the series' days
+        // in the note; read anyway, its date showed the first day's old words, or
+        // fell off the calendar and the reminder. As the desktop's test_recurrence.
+        val kept = note("""{"id":1,"title":"Weekly sync","body":"SERIES TEXT","date":"2026-09-07",
+            "recurrence":{"freq":""},"exceptions":["2026-09-07"],
+            "overrides":{"2026-09-07":{"title":"Kickoff","body":"FIRST DAY"}}}""")
+        assertTrue("itself on its day, kept days or not", Recurrence.effectiveNote(kept, "2026-09-07") === kept)
+        assertEquals("on the calendar on its date though the series deleted that day",
+            listOf("2026-09-07"), expand(kept, d(2026, 9, 1), d(2026, 9, 30)))
+        assertEquals(listOf(kept), Days.notesOn(listOf(kept), "2026-09-07"))
+        assertEquals("and in the day's reminder", 1, Reminders.dueOn(listOf(kept), "2026-09-07"))
+        val series = JSONObject(kept.toString()).put("recurrence", JSONObject().put("freq", "weekly"))
+        assertEquals("a series still shows its day's own words", "FIRST DAY",
+            Recurrence.effectiveNote(series, "2026-09-07").getString("body"))
+        assertEquals("and its deleted day stays deleted", listOf("2026-09-14", "2026-09-21", "2026-09-28"),
+            expand(series, d(2026, 9, 1), d(2026, 9, 30)))
+        assertEquals("what a kept day holds is still read, for the questions that keep it", "FIRST DAY",
+            Recurrence.dayAsKept(kept, "2026-09-07").getString("body"))
+    }
+
+    @Test
+    fun `a hand-made rule is read as the desktop's int() and isinstance read it`() {
+        // A code with interval "1_0" and weekdays [true, 3] repeated every ten
+        // weeks on Tuesday and Thursday on the desktop, and every Thursday here.
+        // The desktop's answers, from its own normalize_recurrence.
+        fun rule(vararg pairs: Pair<String, Any>): JSONObject {
+            val o = JSONObject().put("freq", "weekly").put("interval", 2).put("weekdays", JSONArray(listOf(1, 3)))
+                .put("month_days", JSONArray()).put("month_day_policy", "clamp").put("end", "").put("count", 0)
+            for ((k, v) in pairs) o.put(k, v)
+            return o
+        }
+        fun interval(text: String) = Recurrence.normalize(rule("interval" to text)).getInt("interval")
+        assertEquals(10, interval("1_0"))
+        assertEquals(1, interval("1__0"))
+        assertEquals(1, interval("_1"))
+        assertEquals(1, interval("1_"))
+        assertEquals(3, interval("+3"))
+        assertEquals(1, interval("-3"))
+        assertEquals(7, interval(" 0_7 "))
+        assertEquals(12, interval("１_２"))
+        assertEquals(Recurrence.MAX_INTERVAL, interval("9".repeat(99)))
+        assertEquals(Recurrence.MAX_INTERVAL, interval("1".repeat(4_300)))
+        assertEquals("past Python's 4,300 digits, refused", 1, interval("1".repeat(4_301)))
+        assertEquals(1, interval("-"))
+        assertEquals(1, interval("2.9"))
+        assertEquals(1_000, Recurrence.normalize(rule("count" to "1_000")).getInt("count"))
+        assertEquals(Recurrence.MAX_OCCURRENCES, Recurrence.normalize(rule("count" to "9_999")).getInt("count"))
+        fun days(key: String, vararg values: Any) =
+            Recurrence.normalize(rule(key to JSONArray(values.toList()))).getJSONArray(key).let { a -> (0 until a.length()).map { a.get(it) } }
+        assertEquals("true is 1, as Python's True", listOf(1, 3), days("weekdays", true, 3))
+        assertEquals("false is 0, and true and 1 the one day", listOf(0, 1), days("weekdays", false, true, 1))
+        assertEquals(listOf(1), days("month_days", true))
+        assertEquals("false, 0, is no day of a month", listOf(2), days("month_days", false, 2))
+        // "The same series", asked of a copy and its note, as the desktop answers it.
+        assertEquals(Recurrence.normalize(rule("weekdays" to JSONArray(listOf(true, 3)))).toString(),
+                     Recurrence.normalize(rule("weekdays" to JSONArray(listOf(1, 3)))).toString())
+    }
+
+    @Test
+    fun `int() skips only its own spaces, so the separators str-isspace counts are refused`() {
+        // pythonIntOf stripped with str.isspace(), which counts U+001C to
+        // U+001F: "\u001c7" was 7 on the phone, refused on the desktop, its
+        // interval 1 -- weekly here, daily there. Each answer is CPython's int().
+        val python = mapOf(
+            "\u001c7" to null, "7\u001f" to null, "\u001e2" to null, "\u001d3" to null, "\u001f3\u0085" to null,
+            "\u00857" to 7, " 7 " to 7, "\u000b7" to 7, "\u00A07" to 7, "\u30007\u3000" to 7, "\t7\n" to 7,
+            "\u000c7\r" to 7, "7\u001c" to null, "+\u001c7" to null, "1\u001c0" to null, "\u20287" to 7, "7\u2029" to 7)
+        for ((text, int) in python) {
+            assertEquals("int(${text.map { "%04x".format(it.code) }})", int, Recurrence.pythonIntOf(text))
+            val rule = JSONObject().put("freq", "weekly").put("interval", text).put("count", text)
+            val read = Recurrence.normalize(rule)
+            assertEquals(int ?: 1, read.getInt("interval"))
+            assertEquals(int ?: 0, read.getInt("count"))
+        }
     }
 }

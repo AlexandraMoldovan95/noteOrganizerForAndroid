@@ -102,6 +102,8 @@ MARKS_ONLY = {
         "the doc comment on the search fold shows what it folds",
     "app/src/test/java/ro/noteorganizer/app/NotebookTest.kt":
         "the tests that search with and without diacritics",
+    "app/src/test/java/ro/noteorganizer/app/FindingTest.kt":
+        "the tests that Find in note matches both Romanian spellings of a letter",
     "app/src/test/java/ro/noteorganizer/app/SharingTest.kt":
         "a share code must carry diacritics through untouched",
     "app/src/test/java/ro/noteorganizer/app/InteropTest.kt":
@@ -144,8 +146,9 @@ def hits_in(relative, marks_allowed=False):
     path = os.path.join(ROOT, relative)
     try:
         text = io.open(path, encoding="utf-8", errors="replace").read()
-    except OSError:
-        return []
+    except OSError as exc:
+        # A tracked file not read is not a clean one.
+        return [(0, "(unread)", "the file could not be read: %s" % exc)]
     found = []
     for number, line in enumerate(text.splitlines(), start=1):
         word = ROMANIAN.search(line)

@@ -37,7 +37,7 @@
 "end": "2030-09-18",
 "limit": null,
 "days": [],
-"said": "Every 7 months on day 5, 30, 1 times",
+"said": "Every 7 months on day 5, 30, 1 time",
 "off": []
 },
 {
@@ -2445,7 +2445,7 @@
 "end": "2026-11-03",
 "limit": 3,
 "days": [],
-"said": "Every month on day 1, 29, 1 times",
+"said": "Every month on day 1, 29, 1 time",
 "off": []
 },
 {
@@ -2465,7 +2465,7 @@
 "end": "2024-09-20",
 "limit": 3,
 "days": [],
-"said": "Every 3 days, 1 times",
+"said": "Every 3 days, 1 time",
 "off": []
 },
 {
@@ -2803,7 +2803,7 @@
 "end": "2025-12-10",
 "limit": 3,
 "days": [],
-"said": "Every week on Fri, Sat, 1 times",
+"said": "Every week on Fri, Sat, 1 time",
 "off": []
 },
 {
@@ -3427,7 +3427,7 @@
 "end": "2027-08-08",
 "limit": 1,
 "days": [],
-"said": "Every month, 1 times",
+"said": "Every month, 1 time",
 "off": []
 },
 {
@@ -3942,7 +3942,7 @@
 "end": "2026-03-06",
 "limit": null,
 "days": [],
-"said": "Every 5 days, 1 times",
+"said": "Every 5 days, 1 time",
 "off": [
 "2025-11-21"
 ]
@@ -6843,7 +6843,7 @@
 "end": "2027-03-11",
 "limit": 3,
 "days": [],
-"said": "Every 3 months, 1 times",
+"said": "Every 3 months, 1 time",
 "off": []
 },
 {
@@ -7111,7 +7111,7 @@
 "end": "2027-11-17",
 "limit": null,
 "days": [],
-"said": "Every 5 years, 1 times",
+"said": "Every 5 years, 1 time",
 "off": []
 },
 {
@@ -7198,7 +7198,7 @@
 "end": "2028-12-11",
 "limit": null,
 "days": [],
-"said": "Every week on Mon, Wed, 1 times",
+"said": "Every week on Mon, Wed, 1 time",
 "off": [
 "2026-06-04",
 "2026-10-24"
@@ -7804,7 +7804,7 @@
 "end": "2026-11-07",
 "limit": null,
 "days": [],
-"said": "Every 7 months on day 29, 30, 1 times",
+"said": "Every 7 months on day 29, 30, 1 time",
 "off": []
 },
 {

@@ -4,28 +4,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * One note out as a file: the desktop's "Export as file", byte for byte.
+ * One note out as a file: the desktop's "Export as file", byte for byte. A
+ * web page (.html) carries everything the note has -- styles, colours,
+ * lists, real tables -- and is the road to a PDF and to Word; plain text
+ * (.txt) is the body as stored. Both add the checklist and the comments,
+ * and neither carries attached files: those travel in a full backup.
  *
- * Two formats, as on the desktop. A web page (.html) carries everything
- * the note has -- styles, colours, lists, tables as real tables -- and is
- * the road to a PDF (a browser's print) and to Word, which opens one. Plain
- * text (.txt) is the body as stored. Both add the checklist and the
- * comments after the body, and neither carries attached files: those
- * travel in a full backup.
- *
- * The page is `note_to_html` and `html_document` from the desktop's
- * core/richtext.py, ported line for line, and `CalculatorTest`'s neighbour
- * `ExportingTest` holds a fixture of notes the desktop itself exported, so
- * a file from the phone is the file the desktop would have written.
- *
- * Everything here counts as Python does: a note's formatting and its
- * paragraph lines are positions in CODE POINTS, so each line is worked
- * on as an array of them, and Python's spaces are the ones stripped.
- *
- * The note's styles are read here through the desktop's own gatekeepers
- * (`normalize_formatting`, `normalize_paragraphs`) rather than the
- * phone's lenient reader, so a span the desktop would drop is dropped
- * from the page too.
+ * The page is the desktop's `note_to_html` and `html_document`, ported line
+ * for line and held to a fixture the desktop exported (`ExportingTest`). It
+ * counts in CODE POINTS, as Python does, and reads styles through the
+ * desktop's gatekeepers, so a span the desktop drops is dropped here too.
  */
 object Exporting {
 
@@ -47,7 +35,6 @@ object Exporting {
     private val LIST_KINDS = setOf("bullet", "number")
     private val ALIGNMENTS = setOf("left", "center", "right")
     private const val MAX_INDENT = 8L
-    private const val LINE_BREAK = "<br>"
 
     /** A JSON whole number as Python's json reads one: never a true/false, never 1.0. */
     private fun whole(value: Any?): Long? = when (value) {
@@ -214,15 +201,15 @@ object Exporting {
 
     // ---- the desktop's table helpers, on code points ----
 
-    private fun lstripCount(cps: IntArray, from: Int, to: Int, spaceOnly: Boolean = false): Int {
+    private fun lstripCount(cps: IntArray, from: Int, to: Int): Int {
         var n = 0
-        while (from + n < to && (if (spaceOnly) cps[from + n] == ' '.code else PyText.isSpace(cps[from + n]))) n++
+        while (from + n < to && PyText.isSpace(cps[from + n])) n++
         return n
     }
 
-    private fun rstripCount(cps: IntArray, from: Int, to: Int, spaceOnly: Boolean = false): Int {
+    private fun rstripCount(cps: IntArray, from: Int, to: Int): Int {
         var n = 0
-        while (to - n > from && (if (spaceOnly) cps[to - n - 1] == ' '.code else PyText.isSpace(cps[to - n - 1]))) n++
+        while (to - n > from && PyText.isSpace(cps[to - n - 1])) n++
         return n
     }
 
@@ -250,28 +237,21 @@ object Exporting {
     private fun pipePositions(line: String, cps: IntArray): List<Int> =
         if (!isTableRow(line)) emptyList() else cps.indices.filter { cps[it] == '|'.code }
 
-    /** `cell_alignments`: read off the padding, as the desktop stores alignment. */
-    private fun cellAlignments(line: String, cps: IntArray): List<String> {
-        val pipes = pipePositions(line, cps)
-        val aligns = ArrayList<String>()
-        for (i in 0 until pipes.size - 1) {
-            val from = pipes[i] + 1
-            val to = pipes[i + 1]
-            val stripped = (to - from) - lstripCount(cps, from, to)
-            if (stripped <= 0) {
-                aligns.add("left")
-                continue
+    /** How many of [sorted] lie strictly between [low] and [high], by halving rather than by reading them all. */
+    private fun countBetween(sorted: IntArray, low: Int, high: Int): Int {
+        if (high - low <= 1) return 0
+        fun atMost(x: Int): Int {
+            var lo = 0
+            var hi = sorted.size
+            while (lo < hi) {
+                val mid = (lo + hi) ushr 1
+                if (sorted[mid] <= x) lo = mid + 1 else hi = mid
             }
-            val lead = lstripCount(cps, from, to, spaceOnly = true)
-            val trail = rstripCount(cps, from, to, spaceOnly = true)
-            aligns.add(when {
-                lead >= 2 && trail >= 2 -> "center"
-                lead >= 2 -> "right"
-                else -> "left"
-            })
+            return lo
         }
-        return aligns
+        return atMost(high - 1) - atMost(low)
     }
+
 
     /**
      * Which cells of the table on lines [first]..[last] a highlight covers
@@ -459,6 +439,7 @@ object Exporting {
         val mergeAt = HashMap<Int, Pair<Map<Int, Pair<Int, Int>>, Set<Int>>>()
         val separatorLines = HashSet<Int>()
         val hiddenAt = HashMap<Int, Set<Int>>()
+        val hiddenSortedAt = HashMap<Int, IntArray>()
         for (block in tableBlocks(text)) {
             val first = block.first
             val blockLines = lineTexts.subList(block.first, block.last + 1)
@@ -476,10 +457,18 @@ object Exporting {
                 val (rs, cs) = spans[anchor] ?: (1 to 1)
                 spans[anchor] = maxOf(rs, covered.first - anchor.first + 1) to maxOf(cs, covered.second - anchor.second + 1)
             }
+            // Each row's merges, sorted out once: asked of every anchor for
+            // every row, 60,000 rows of "^" came to 7 billion steps, the
+            // screen held still for the page a share makes.
+            val spansOf = HashMap<Int, HashMap<Int, Pair<Int, Int>>>()
+            for ((anchor, span) in spans) spansOf.getOrPut(anchor.first) { HashMap() }[anchor.second] = span
+            val coveredOf = HashMap<Int, HashSet<Int>>()
+            for (covered in anchors.keys) coveredOf.getOrPut(covered.first) { HashSet() }.add(covered.second)
+            val hiddenInOrder = hidden.sorted().toIntArray()
             for ((r, n) in dataLines.withIndex()) {
-                mergeAt[n] = spans.filterKeys { it.first == r }.mapKeys { it.key.second } to
-                    anchors.keys.filter { it.first == r }.map { it.second }.toSet()
+                mergeAt[n] = (spansOf[r] ?: emptyMap<Int, Pair<Int, Int>>()) to (coveredOf[r] ?: emptySet<Int>())
                 hiddenAt[n] = hidden
+                hiddenSortedAt[n] = hiddenInOrder
             }
         }
 
@@ -553,14 +542,19 @@ object Exporting {
                 }
                 val (rowSpans, rowCovered) = mergeAt[number] ?: (emptyMap<Int, Pair<Int, Int>>() to emptySet())
                 val rowHidden = hiddenAt[number] ?: emptySet()
-                val rowAligns = cellAlignments(lineText, line)
+                val rowHiddenInOrder = hiddenSortedAt[number] ?: IntArray(0)
+                val rowAligns = cellAlignments(lineText).map { it.name.lowercase() }
+                // The row's pipes, found once for the row: found again for each
+                // empty cell, a row of 50,000 of them from a code of 186
+                // characters came to 7.5 billion steps.
+                val rowPipes by lazy(LazyThreadSafetyMode.NONE) { pipePositions(lineText, line) }
                 val cells = StringBuilder()
                 for ((c, bounds) in row.withIndex()) {
                     val (start, end) = bounds
                     if (c in rowCovered || c in rowHidden) continue
                     val (rs, colSpan) = rowSpans[c] ?: (1 to 1)
                     // A merge across a hidden column narrows by what the page will not show.
-                    val cs = colSpan - rowHidden.count { it > c && it < c + colSpan }
+                    val cs = colSpan - countBetween(rowHiddenInOrder, c, c + colSpan)
                     var attr = ""
                     if (cs > 1) attr += " colspan=\"$cs\""
                     if (rs > 1) attr += " rowspan=\"$rs\""
@@ -576,7 +570,7 @@ object Exporting {
                     var cellA = offset + start
                     var cellB = offset + end
                     if (cellB == cellA) {
-                        val pipes = pipePositions(lineText, line)
+                        val pipes = rowPipes
                         if (c + 1 < pipes.size) {
                             cellA = offset + pipes[c] + 1
                             cellB = offset + pipes[c + 1]
@@ -653,11 +647,18 @@ object Exporting {
     fun titleOf(note: JSONObject): String =
         PyText.strip(note.opt("title") as? String ?: "").ifEmpty { "Untitled note" }
 
-    private val FORBIDDEN_IN_NAME = Regex("[<>:\"/\\\\|?*\\n\\r\\t]")
+    /** What Windows refuses in a file name: its reserved punctuation and every control character. */
+    private val FORBIDDEN_IN_NAME = Regex("[<>:\"/\\\\|?*\\u0000-\\u001f]")
 
-    /** The file name offered: what Windows forbids replaced, at most 60 characters, "note" for none. */
+    /**
+     * The file name offered, the desktop's `export_file_stem` and the
+     * extension: what Windows refuses becomes "_", what hides or reorders
+     * text goes ([Normalize.HIDDEN_IN_NAMES]), the ends lose their dots,
+     * spaces and "_", 60 characters are kept, "note" when none are left.
+     * Every control character is refused, not only line breaks and tab.
+     */
     fun fileName(title: String, format: String): String {
-        val safe = FORBIDDEN_IN_NAME.replace(title, "_").trim(' ', '.', '_')
+        val safe = Normalize.HIDDEN_IN_NAMES.replace(FORBIDDEN_IN_NAME.replace(title, "_"), "").trim(' ', '.', '_')
         val cps = codePoints(safe)
         return slice(cps, 0, 60).ifEmpty { "note" } + extension(format)
     }
@@ -674,7 +675,8 @@ object Exporting {
             if (checklist.isNotEmpty()) {
                 // Glyphs, not form controls: a character renders everywhere.
                 val items = checklist.joinToString("\n") {
-                    "<div>${if (truthy(it.opt("done"))) "☑" else "☐"} ${escape(it.opt("text") as? String ?: "")}</div>"
+                    // Ticked only by true, as the list shows it and normalize_note keeps it.
+                    "<div>${if (it.opt("done") == true) "☑" else "☐"} ${escape(it.opt("text") as? String ?: "")}</div>"
                 }
                 fragment += "<hr>\n<div><i>Checklist</i></div>\n$items"
             }
@@ -684,7 +686,7 @@ object Exporting {
             var plain = "$title\n\n$body"
             if (checklist.isNotEmpty()) {
                 plain += "\n\nChecklist:\n" + checklist.joinToString("\n") {
-                    "[${if (truthy(it.opt("done"))) "x" else " "}] ${it.opt("text") as? String ?: ""}"
+                    "[${if (it.opt("done") == true) "x" else " "}] ${it.opt("text") as? String ?: ""}"
                 }
             }
             if (comments.isNotEmpty()) plain += "\n\nComments:\n$comments"

@@ -25,30 +25,49 @@ concurrency:
   group: gates-${{ github.ref }}
   cancel-in-progress: true
 
+# The token GitHub gives each run may read this repository and nothing
+# more; the desktop's is read with a token of its own (below).
+permissions:
+  contents: read
+
 jobs:
-  # Two boundaries that are easy to cross without noticing, in one cheap
-  # job: Android must stay out of the rules layer, and Romanian must stay
-  # out of anything written for a developer. Both were crossed once.
+  # Three boundaries that are easy to cross without noticing, in one cheap
+  # job: Android must stay out of the rules layer, Romanian out of anything
+  # written for a developer, and stories out of the comments. All three
+  # were crossed once. With them: every mutant aimed at today's code, and
+  # CI's own rights (a token that only reads, actions pinned to a commit).
   boundaries:
     name: The boundaries hold
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # All of the history: check_fix_mutants reads every commit since
+          # its start, and a cut one reads as changing every file.
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.x"
       - name: Android stays out of the rules layer
         run: python tools/check_layering.py
       - name: English in everything written for a developer
         run: python tools/check_english.py
+      - name: Comments say why, in a few lines
+        run: python tools/check_comments.py
+      - name: Every mutant finds the code it mutates
+        run: python tools/check_mutant_targets.py
+      - name: CI may only read, and runs only the actions it pinned
+        run: python tools/check_workflows.py
+      - name: A change to the app's code names its mutant, or why it has none
+        run: python tools/check_fix_mutants.py
 
   contract:
     name: The two programs still agree
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Both repositories are private, so reading the desktop app needs a
       # token of its own: a fine-grained personal access token with
@@ -60,6 +79,10 @@ jobs:
       # hunting for a repository that is right where it always was. A
       # token also EXPIRES: the same message is what a lapsed one looks
       # like months from now.
+      #
+      # Once the desktop repository is public it is read without a token:
+      # this step and the checkout's `token:` line go. Until then a pull
+      # request from a fork, which GitHub hands no secrets, fails here.
       - name: The token this job needs
         env:
           TOKEN: ${{ secrets.DESKTOP_REPO_TOKEN }}
@@ -74,14 +97,14 @@ jobs:
       # The desktop app is the specification. It is READ here and never
       # written to, exactly as on a development machine.
       - name: Fetch the desktop app, as the specification
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: AlexandraMoldovan95/noteOrganizer
           path: .desktop
           token: ${{ secrets.DESKTOP_REPO_TOKEN }}
           persist-credentials: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.x"
 

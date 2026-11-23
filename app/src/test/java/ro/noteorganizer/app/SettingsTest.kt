@@ -30,10 +30,203 @@ class SettingsTest {
     }
 
     @Test
+    fun `Android's backup takes the app's data unless the person turned it off, or their answer cannot be read`() {
+        // On by default, as it always was: nobody's backup stops silently.
+        assertTrue(Settings.googleBackupOn(Settings.load(dir())))
+        assertTrue(Settings.googleBackupOn(Settings.load(dir("""{"theme": "dark"}"""))))
+        assertTrue(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": true}"""))))
+        assertFalse(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": false}"""))))
+        // A file that cannot be read may hold an "off": nothing is taken.
+        assertFalse(Settings.googleBackupOn(Settings.load(dir("""{"phone_google_backup": fal"""))))
+    }
+
+    @Test
+    fun `a settings file that could not be read holds its marks in memory, and every later write carries them`() {
+        // The start's write of them refused on a full phone, the file copied aside
+        // and not held: the next write that went out dropped them, and the next
+        // start purged the Trash at thirty days, Android's backup on.
+        val folder = dir("""{"username": "Ana", "trash_retention_days": 365, "phone_google_backup": fal""")
+        val load = Settings.load(folder)
+        assertEquals(true, load.raw.opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        assertEquals(false, load.raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertTrue(Settings.put(load, Reminders.LAST_SHOWN, "2026-11-14") is SaveResult.Ok)
+        val again = Settings.load(folder)
+        assertNull("the window still unknown", Settings.purgeWindow(again))
+        assertFalse("the backup still off", Settings.googleBackupOn(again))
+        // ...and turned on, or a window chosen, in that same run, the page reads
+        // what was written: asked of the load's problem, it stayed Off and
+        // unknown while the file, and Android's backup agent, read on.
+        assertTrue(Settings.put(load, Settings.PHONE_GOOGLE_BACKUP, true) is SaveResult.Ok)
+        assertTrue(Settings.googleBackupOn(load))
+        assertTrue(Settings.putAll(load, mapOf(Settings.RETENTION_DAYS to 90,
+            Settings.PHONE_TRASH_WINDOW_UNKNOWN to null)) is SaveResult.Ok)
+        assertEquals(90, Settings.purgeWindow(load))
+    }
+
+    @Test
+    fun `a read the storage refuses holds the file, never copying a good one aside, and a new start reads it again`() {
+        // Taken for damage, a good settings file was copied aside and the start
+        // wrote its marks over it.
+        val folder = dir("""{"username": "Ana", "theme": "dark"}""")
+        val settings = File(folder, "settings.json")
+        val real = Files.readBytesOf
+        // Refused once, then allowed, as on that road: taken for damage, the copy's
+        // own read got through and the good file went aside.
+        var refusals = 1
+        Files.readBytesOf = { if (it.name == "settings.json" && refusals-- > 0) throw java.io.IOException("refused") else real(it) }
+        try {
+            val load = Settings.load(folder)
+            // A sentence, its full stop with it, as the notes' and the Trash's lines beside it.
+            assertEquals("settings.json could not be opened, so nothing is written over it until the app is closed " +
+                "from the recent apps and opened again.", load.problem)
+            assertTrue("held", Files.writesHeld(settings))
+            assertTrue("no copy aside", folder.list()!!.none { it.startsWith("settings_corrupt_") })
+            assertNotNull("nothing written over it", Settings.put(load, "x", 1).let { it as? SaveResult.Failed })
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertEquals("Ana", JSONObject(settings.readText()).getString("username"))
+        // Held, it reads as its marks all run though the file now reads, as the
+        // desktop's: read for real, the Trash page contradicted its own chips.
+        assertTrue(Settings.load(folder).problem!!.endsWith("opened again."))
+        assertEquals("", Settings.load(folder).raw.optString("username"))
+        assertEquals(true, Settings.load(folder).raw.opt(Settings.PHONE_TRASH_WINDOW_UNKNOWN))
+        // A new start (Android 8 to 11 reopening in the same process) reads it
+        // afresh: held past it, every write was refused after it read fine.
+        File(folder, "notes_data.json").writeText("[]")
+        Startup.prepare(folder, older = null)
+        assertFalse(Files.writesHeld(settings))
+        assertEquals("Ana", Settings.load(folder).raw.optString("username"))
+    }
+
+    @Test
+    fun `a refused write says why in words of its own, without the app's private path`() {
+        // The system's words were said on the bar: "/data/user/0/.../settings.json.tmp: open failed".
+        val folder = dir()
+        val settings = File(folder, "settings.json")
+        File(folder, "settings.json.tmp").mkdir()
+        val why = Files.writeAtomic(settings, "{}")
+        assertEquals("the phone's storage refused the write", why)
+    }
+
+    @Test
+    fun `a file that could be neither read nor copied aside is written over by nothing, as the desktop's`() {
+        // Settings and templates were written over then, their bytes in no other
+        // copy; only the notes held. Held, every writer is refused.
+        val folder = dir()
+        val settings = File(folder, "settings.json")
+        settings.writeText("""{"username": "Ana", "catego""")
+        Files.holdWrites(settings)
+        assertNotNull(Files.writeAtomic(settings, "{}"))
+        assertEquals("""{"username": "Ana", "catego""", settings.readText())
+        // ...and preserveCorrupt holds a file it cannot copy: here, one it cannot
+        // read at all (a folder where the file should be).
+        val unreadable = File(folder, "templates.json").apply { mkdir() }
+        assertNull(Files.preserveCorrupt(unreadable))
+        assertTrue(Files.writesHeld(unreadable))
+        // ...until a later read copies it aside (space freed, the app opened again
+        // on Android 8 to 11, where Back ends the activity, not the process).
+        unreadable.delete()
+        unreadable.writeText("[{")
+        assertNotNull(Files.preserveCorrupt(unreadable))
+        assertFalse("copied aside at last, it is no longer held", Files.writesHeld(unreadable))
+        // A template's draft held is not deleted either, when its editor closes.
+        val draft = File(folder, Templates.DRAFT).apply { writeText("""{"fields": {"title": "Shop""") }
+        Files.holdWrites(draft)
+        Templates.deleteDraft(folder)
+        assertTrue("a held draft stays", draft.exists())
+    }
+
+    @Test
+    fun `a phone restored from a backup made while off reads off before its first start, and Android's backup keeps the mark`() {
+        // Restored, the notebook holds the mark and no settings.json: read
+        // from the file alone that was "on", and Android's next backup,
+        // before the app was ever opened, deleted the mark and kept nothing.
+        val restored = dir()
+        val mark = File(restored, Settings.GOOGLE_BACKUP_OFF_MARK)
+        mark.writeText(Settings.offMark())
+        assertFalse("Settings → Backup's answer", Settings.googleBackupOn(Settings.load(restored)))
+        repeat(2) {
+            assertEquals(Settings.FullBackup.OnlyMark(mark), Settings.forFullBackup(restored))
+            assertTrue("the mark is still there to restore again", mark.isFile)
+            assertEquals(false, JSONObject(mark.readText()).get(Settings.PHONE_GOOGLE_BACKUP))
+        }
+        assertFalse("nothing else is written", File(restored, "settings.json").exists())
+        // Settings without an answer of their own are the same.
+        val unanswered = dir("""{"theme": "dark"}""")
+        File(unanswered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        assertFalse(Settings.googleBackupOn(Settings.load(unanswered)))
+        assertTrue(Settings.forFullBackup(unanswered) is Settings.FullBackup.OnlyMark)
+        // An answer in the file is the answer: on, the mark goes.
+        val answered = dir("""{"phone_google_backup": true}""")
+        File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).writeText(Settings.offMark())
+        assertTrue(Settings.googleBackupOn(Settings.load(answered)))
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(answered))
+        assertFalse(File(answered, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // Off in the file: only the mark, written for Android to keep.
+        val off = dir("""{"phone_google_backup": false}""")
+        assertTrue(Settings.forFullBackup(off) is Settings.FullBackup.OnlyMark)
+        assertTrue(File(off, Settings.GOOGLE_BACKUP_OFF_MARK).isFile)
+        // Nothing said anywhere: on, as it always was.
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(dir()))
+        // A file the system refuses hands nothing over, and writes no off mark:
+        // written, it outlived the read and turned the backup off for good.
+        val unread = dir("""{"theme": "dark", "phone_google_backup": true}""")
+        val real = Files.readBytesOf
+        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        try {
+            assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertFalse(File(unread, Settings.GOOGLE_BACKUP_OFF_MARK).exists())
+        // ...nor while the app's own run holds it, though this read got through:
+        // Settings → Backup says nothing new is taken while it stays open.
+        assertEquals(Settings.FullBackup.Nothing, Settings.forFullBackup(unread))
+        Files.newStart()
+        assertEquals(Settings.FullBackup.Everything, Settings.forFullBackup(unread))
+        // One damaged and copied aside is off by its marks, as the page says.
+        val damaged = dir("""{"theme": "dark", "phone_google_ba""")
+        assertTrue(Settings.forFullBackup(damaged) is Settings.FullBackup.OnlyMark)
+        assertFalse(Settings.googleBackupOn(Settings.load(damaged)))
+        // And the first start then writes the answer into the file.
+        File(restored, "notes_data.json").writeText("[]")
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.load(restored).raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertFalse(Settings.googleBackupOn(Settings.load(restored)))
+        assertFalse("read once, the mark goes", mark.exists())
+    }
+
+    @Test
+    fun `a restore's off mark outlives a start whose settings read was refused`() {
+        // Held in memory alone, the off was taken for the file's: the mark went,
+        // the file never said off, and the next start read on and handed it all.
+        val restored = dir("""{"welcome_offered": true}""")
+        val mark = File(restored, Settings.GOOGLE_BACKUP_OFF_MARK).apply { writeText(Settings.offMark()) }
+        File(restored, "notes_data.json").writeText("[]")
+        val real = Files.readBytesOf
+        Files.readBytesOf = { if (it.name == "settings.json") throw java.io.IOException("refused") else real(it) }
+        try {
+            Startup.prepare(restored, older = null)
+        } finally {
+            Files.readBytesOf = real
+        }
+        assertTrue("kept while its answer cannot be written", mark.isFile)
+        Startup.prepare(restored, older = null)
+        assertEquals(false, Settings.load(restored).raw.opt(Settings.PHONE_GOOGLE_BACKUP))
+        assertFalse("written, the mark goes", mark.exists())
+        assertTrue(Settings.forFullBackup(restored) is Settings.FullBackup.OnlyMark)
+    }
+
+    @Test
+    fun `the welcome note says where Android's backup is turned off`() {
+        assertTrue(Welcome.build().getString("body").contains("Settings → Backup turns that off for this app"))
+    }
+
+    @Test
     fun `a hand-edited retention window is clamped, not obeyed`() {
-        // The desktop's CODE is the specification -- `max(1, min(days,
-        // 365))` -- not its docstring, which says 0 and -3 fall back to the
-        // default. Only something that is not a whole number at all
+        // The desktop's CODE is the specification -- `max(1, min(days, 365))` --
+        // not its docstring: only something that is not a whole number at all
         // ("forever") reaches the default.
         fun days(json: String) = Settings.retentionDays(JSONObject(json))
         assertEquals(1, days("""{"trash_retention_days": 0}"""))
@@ -59,7 +252,8 @@ class SettingsTest {
         for (bad in listOf("0", "-3", "366", "\"90\"", "7.5", "true", "null")) {
             assertNull(bad, window("""{"trash_retention_days": $bad}"""))
         }
-        assertNull("a file that could not be read", window("{}", problem = "settings.json could not be read"))
+        assertNull("a file that could not be read, as Settings.load gives it",
+            Settings.purgeWindow(Settings.load(dir("{ broken"))))
         assertNull("lost at an earlier start", window("""{"trash_retention_days": 30, "phone_trash_window_unknown": true}"""))
         assertEquals(30, window("""{"trash_retention_days": 30, "phone_trash_window_unknown": false}"""))
     }
@@ -164,7 +358,9 @@ class SettingsTest {
         assertNotNull(load.problem)
         val kept = dir.listFiles()!!.single { it.name.startsWith("settings_corrupt_") }
         assertEquals("{ not json", kept.readText())
-        assertEquals(0, load.raw.length())
+        // Nothing of it read but its two marks, held in memory for every write.
+        assertEquals(setOf(Settings.PHONE_TRASH_WINDOW_UNKNOWN, Settings.PHONE_GOOGLE_BACKUP),
+            load.raw.keys().asSequence().toSet())
     }
 
     @Test
@@ -176,7 +372,7 @@ class SettingsTest {
         val earlier = File(dir, "settings_corrupt_20200101_000000.json")
         earlier.writeText("{ not json")
         val load = Settings.load(dir)
-        assertTrue(load.problem!!.contains(earlier.name))
+        assertEquals("settings.json could not be read; a copy was kept as ${earlier.name}.", load.problem)
         assertEquals(listOf(earlier.name),
             dir.listFiles()!!.filter { it.name.startsWith("settings_corrupt_") }.map { it.name })
     }
@@ -239,6 +435,25 @@ class SettingsTest {
         assertEquals("light_mint", Settings.themeForMode(raw, dark = false))
         val none = JSONObject("""{"theme": "light_mint", "phone_theme_follows_phone": false}""")
         assertEquals("dark", Settings.themeForMode(none, dark = true))
+    }
+
+    @Test
+    fun `a mode counts as worn once a theme of it was chosen here, not before`() {
+        // Appearance's line said "the dark theme you used last" at the first
+        // start, with none used (the review panel, 22 November).
+        val first = JSONObject(Settings.choosing("light").toMap())
+        assertTrue(Settings.wornInMode(first, dark = false))
+        assertFalse("nothing dark worn yet: the line names Midnight Purple", Settings.wornInMode(first, dark = true))
+        val both = JSONObject("""{"phone_theme_light": "light", "phone_theme_dark": "dark_forest"}""")
+        assertTrue(Settings.wornInMode(both, dark = true))
+        val crossed = JSONObject("""{"phone_theme_light": "dark", "phone_theme_dark": "neon"}""")
+        assertFalse(Settings.wornInMode(crossed, dark = false))
+        assertFalse(Settings.wornInMode(crossed, dark = true))
+        // The desktop's key, which Light | Dark falls back to, counts as worn
+        // when it names a theme of that mode other than the first one.
+        val desktop = JSONObject("""{"theme": "dark_forest"}""")
+        assertTrue("Dark gives Forest Green, not the first", Settings.wornInMode(desktop, dark = true))
+        assertFalse(Settings.wornInMode(JSONObject("""{"theme": "dark"}"""), dark = true))
     }
 
     @Test

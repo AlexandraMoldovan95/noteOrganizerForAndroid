@@ -1,30 +1,15 @@
 package ro.noteorganizer.app
 
-import java.util.Locale
-
 /**
- * Find in note: the desktop's find bar, as rules.
- *
- * It looks through the open note's body -- its prose and its tables' cells
- * -- then its checklist and comments, and never changes any of it. Matches come in reading order, each one a place
- * the editor can paint and scroll to; the bar counts them "3/12" and steps
- * through them, round from the last to the first.
- *
- * The desktop's own rules, kept:
- *
- *  - Case does not count unless asked ("Aa"). Prose compares letter by
- *    letter, as Tk's own search does; a cell compares its lower-cased text,
- *    as the desktop's cell scan does.
- *  - Matches may overlap: "aa" is found twice in "aaa", because each search
- *    starts one character after the last match began.
- *  - A cell is one match however often its words occur in it, and is
- *    searched as it reads: a line break inside it is a space; a merge
- *    marker or a checkbox is not a word.
- *  - At most [CAP] matches, and the count then says so with a "+".
- *
- * One rule differs, on purpose: the desktop steps through a table's
- * matches column by column -- a side effect of how it sorts them -- and the
- * phone goes row by row, the order a table is read in.
+ * Find in note: the desktop's find bar, as rules. It looks through the open
+ * note's body -- prose and tables' cells -- then its checklist and comments,
+ * and changes none of it; matches come in reading order, and the bar counts
+ * them "3/12" and steps round them. As on the desktop, case and diacritics
+ * count only when asked ("Aa", [searchFold]); matches may overlap ("aa" twice
+ * in "aaa"); a cell is one match, read with a line break as a space and no
+ * merge marker or checkbox as a word; at most [CAP] matches, then a "+".
+ * A table is stepped through row by row, as it is read -- as the desktop's
+ * is since its 15d6dae, which went down each column (a finding of this port).
  */
 object Finding {
 
@@ -55,21 +40,6 @@ object Finding {
     /** The [Match.segment] of a match outside the body. */
     const val OUTSIDE = -1
 
-    /** Letter by letter, so every position in the text stays where it was. */
-    private fun foldEach(text: String): String {
-        val out = StringBuilder(text.length)
-        var i = 0
-        while (i < text.length) {
-            val cp = text.codePointAt(i)
-            out.appendCodePoint(Character.toLowerCase(cp))
-            i += Character.charCount(cp)
-        }
-        return out.toString()
-    }
-
-    private const val MERGE_LEFT = "<"
-    private const val MERGE_UP = "^"
-
     /**
      * Every match of [query] in [body], top to bottom -- then in the
      * [checklist]'s rows and the [comments] under it, as the note reads
@@ -82,12 +52,15 @@ object Finding {
              checklist: List<String> = emptyList(), comments: String = ""): List<Match> {
         if (query.isEmpty()) return emptyList()
         val found = ArrayList<Match>()
-        val needle = if (matchCase) query else foldEach(query)
-        val cellNeedle = if (matchCase) query else query.lowercase(Locale.ROOT)
+        // The spaces at its ends are not part of it, unless it is nothing else:
+        // a word picked from the keyboard's suggestions comes with one, as in
+        // the list. A line break there is, to find the words that end a line.
+        val words = query.trim(' ').ifEmpty { query }
+        val needle = if (matchCase) words else searchFold(words)
 
         // Letter by letter, each search one character after the last match began.
         fun inText(text: String, add: (Int, Int) -> Match) {
-            val hay = if (matchCase) text else foldEach(text)
+            val hay = if (matchCase) text else searchFold(text)
             var at = hay.indexOf(needle)
             while (at >= 0 && found.size < CAP) {
                 found.add(add(at, at + needle.length))
@@ -95,10 +68,29 @@ object Finding {
             }
         }
 
+        // Read-only text: the first match on each line, its line one stop.
+        fun inLines(text: String, add: (Int, Int) -> Match) {
+            val hay = if (matchCase) text else searchFold(text)
+            var at = hay.indexOf(needle)
+            while (at >= 0 && found.size < CAP) {
+                found.add(add(at, at + needle.length))
+                val next = hay.indexOf('\n', at + needle.length - 1)
+                if (next < 0) break
+                at = hay.indexOf(needle, next + 1)
+            }
+        }
+
         for ((index, segment) in Editing.segments(body).withIndex()) {
             if (found.size >= CAP) break
-            if (!segment.table) {
+            if (segment.field) {
                 inText(segment.text) { start, end -> InText(index, start, end) }
+                continue
+            }
+            // A read-only piece (lines too long to lay out, the rest past what is
+            // drawn, a table too large to draw) is searched too, as the list's search
+            // does: unparsed, one stop a line as a cell is, so it cannot use up the count.
+            if (segment.long || !segment.drawn) {
+                inLines(segment.text) { start, end -> InText(index, start, end) }
                 continue
             }
             val table = parseTable(segment.text.split("\n"))
@@ -111,18 +103,70 @@ object Finding {
                     if (cell.checked != null) continue
                     val text = cell.lines.joinToString(" ")
                     if (text == MERGE_LEFT || text == MERGE_UP) continue
-                    val hay = if (matchCase) text else text.lowercase(Locale.ROOT)
-                    if (cellNeedle in hay) found.add(InCell(index, r, c))
+                    val hay = if (matchCase) text else searchFold(text)
+                    if (needle in hay) found.add(InCell(index, r, c))
                 }
             }
         }
+        // A row or comments shown read-only are searched too, as the body's
+        // pieces are, a line one stop: the row is brought into sight, the
+        // comments show the line of the match.
         for ((item, words) in checklist.withIndex()) {
             if (found.size >= CAP) break
-            inText(words) { start, end -> InChecklist(item, start, end) }
+            val add = { start: Int, end: Int -> InChecklist(item, start, end) }
+            if (Editing.rowTooLong(words)) inLines(words, add)
+            else inText(words, add)
         }
-        if (found.size < CAP) inText(comments) { start, end -> InComments(start, end) }
+        if (found.size < CAP) {
+            val add = { start: Int, end: Int -> InComments(start, end) }
+            if (Editing.tooLongToLayOut(comments)) inLines(comments, add) else inText(comments, add)
+        }
         return found
     }
+
+    /**
+     * Where each of [lines] starts, as one text joined by line breaks, in
+     * UTF-16 units -- the field's offsets; Paragraphs' lineStarts counts code
+     * points, the stored note's.
+     */
+    fun lineStartsUtf16(lines: List<String>): IntArray {
+        val starts = IntArray(lines.size)
+        var at = 0
+        for (i in lines.indices) {
+            starts[i] = at
+            at += lines[i].length + 1
+        }
+        return starts
+    }
+
+    /**
+     * The line holding offset [at], by its [starts] -- in whichever unit they
+     * count: [lineStartsUtf16]'s, or Paragraphs.lineStarts' code points.
+     */
+    fun lineAt(starts: IntArray, at: Int): Int {
+        var i = java.util.Arrays.binarySearch(starts, at)
+        if (i < 0) i = -i - 2
+        return i.coerceIn(0, maxOf(0, starts.size - 1))
+    }
+
+    /** What a read-only line shows of itself: [from] to [to] in the line, cut there with "…". */
+    data class Cut(val from: Int, val to: Int)
+
+    /**
+     * Where [line] is cut to [chars] to be shown read-only: at its start, or
+     * -- the match stepped to, [at] in the line, lying past what that shows --
+     * around it, a little before. Never through the middle of an emoji.
+     */
+    fun cutAround(line: String, chars: Int, at: Int?): Cut {
+        var from = if (at != null && at > chars - BEFORE) (at - BEFORE).coerceIn(0, line.length) else 0
+        if (from in 1 until line.length && Character.isLowSurrogate(line[from])) from--
+        var to = minOf(line.length, from + chars)
+        if (to in 1 until line.length && Character.isLowSurrogate(line[to])) to--
+        return Cut(from, to)
+    }
+
+    /** How much of a read-only line is shown before the match it is cut around. */
+    private const val BEFORE = 60
 
     /** The bar's count: nothing before a word is typed, "0/0" when it is found nowhere. */
     fun counter(current: Int, total: Int, query: String): String = when {

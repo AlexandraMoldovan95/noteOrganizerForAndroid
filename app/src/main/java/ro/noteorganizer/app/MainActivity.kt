@@ -27,15 +27,20 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -52,22 +57,39 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import ro.noteorganizer.app.ui.theme.AppTheme
 import ro.noteorganizer.app.ui.theme.LocalPalette
 import ro.noteorganizer.app.ui.theme.LocalThemeChange
@@ -87,8 +109,34 @@ import java.util.Locale
  */
 class MainActivity : ComponentActivity() {
 
-    /** A share code handed over by another app, for the import panel. */
-    private val incoming = mutableStateOf<String?>(null)
+    /**
+     * A share as the screen takes it in: its number, in the order shares came
+     * (the same words shared twice are two notes); its text, null while a
+     * shared file is still being read, which holds back the shares after it;
+     * whether the file was longer than what is read of it; and whether it
+     * could not be read at all (said, where it went without a word).
+     */
+    private data class Shared(val number: Long, val text: String?, val cut: Boolean = false, val unread: Boolean = false)
+
+    /**
+     * What shares handed the app and the screen has not taken in yet. One
+     * slot lost a shared file read late, behind Home, to the words shared
+     * next; taken as each read finished, a slow file's code replaced the one
+     * shared after it.
+     */
+    private val incoming = mutableStateListOf<Shared>()
+    private var shares = 0L
+
+    companion object {
+        /** Whether this process has cleared the cache's leftovers yet ([Startup.clearLeftovers]). */
+        private var leftoversCleared = false
+
+        /** The most of a shared file read: about what Android hands over as shared words. */
+        private const val SHARED_FILE_CHARS = 500_000
+
+        /** How long a shared file's read is waited for before it is given up and said. */
+        private const val SHARED_FILE_WAIT_MS = 30_000L
+    }
 
     /** Counts the times the reminder's notification was tapped: today, on the calendar. */
     private val todayTapped = mutableIntStateOf(0)
@@ -109,24 +157,71 @@ class MainActivity : ComponentActivity() {
         // Private to the app: no other app can read it, and uninstalling the
         // app removes it -- which is why Settings → Backup exists.
         val dir = File(filesDir, "notebook")
-        // Where the development tools pushed a notebook before this one.
-        val notice = Startup.prepare(dir, getExternalFilesDir(null))
-        incoming.value = codeIn(intent)
-        if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
+        // Where the development tools pushed a notebook before this one --
+        // on a development build only (Startup.olderFolder).
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val notice = Startup.prepare(dir, Startup.olderFolder(debuggable, getExternalFilesDir(null)))
+        // Once a process, before anything of its own can be there.
+        if (!leftoversCleared) {
+            leftoversCleared = true
+            Startup.clearLeftovers(cacheDir)
+        }
+        // What the app was started with is acted on once: restored or reopened
+        // from Recents, the activity is handed the same intent again, and a share
+        // code was offered again, its "Update this note" over newer words.
+        val fresh = savedInstanceState == null &&
+            ((intent?.flags ?: 0) and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
+        if (fresh) {
+            takeIn(intent)
+            if (intent?.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
+        }
         setContent {
             val scope = rememberCoroutineScope()
-            val state = remember { AppState(dir, scope).also { it.notice = notice } }
+            val state = remember { AppState(dir, scope).also { it.notice = notice; it.draftDir = noBackupFilesDir } }
             LaunchedEffect(state) {
                 state.sendText = { text -> share(text) }
-                state.openFile = { file, name -> open(file, name) }
-                flush = { state.flush?.invoke() }
-            }
-            val waiting by incoming
-            LaunchedEffect(waiting) {
-                if (waiting != null) {
-                    state.incomingCode = waiting
-                    incoming.value = null
+                // A file gone from the note's folder is said, as the desktop
+                // says it: it opened nothing, without a word.
+                state.openFile = { file, name ->
+                    if (file.isFile) open(file, name) else state.say(getString(R.string.file_missing))
                 }
+                flush = {
+                    (state.flushAway ?: state.flush)?.invoke()
+                    state.keepTemplateDraft?.invoke()
+                    state.keepNameDraft?.invoke()
+                }
+            }
+            val waiting = incoming.firstOrNull()
+            val sharedNoteSaid = stringResource(R.string.shared_text_note)
+            LaunchedEffect(waiting) {
+                val shared = waiting ?: return@LaunchedEffect
+                val first = "%,d".format(Locale.ENGLISH, SHARED_FILE_CHARS)
+                if (shared.unread) {
+                    state.say("Nothing could be read from what was shared: the file could not be opened, " +
+                        "held no text, was not written in UTF-8, or did not answer within half a minute.", long = true)
+                    incoming.remove(shared)
+                    return@LaunchedEffect
+                }
+                // None, or a file still being read: what came after it waits.
+                val text = shared.text ?: return@LaunchedEffect
+                // A code, with words around it or not, is imported; other text is a
+                // note (the owner's choice). A code cut off with its file is said cut;
+                // one whole in it goes on, refused or not, and the Import says why.
+                val isCode = withContext(Dispatchers.Default) { Sharing.holdsCode(text) }
+                val cutCode = isCode && shared.cut &&
+                    withContext(Dispatchers.Default) { Sharing.cutShort(text) }
+                when {
+                    cutCode -> state.say("The shared file was longer than $first characters and only " +
+                        "its start was read, so the share code in it is incomplete. Ask for a backup " +
+                        "instead (Settings → Backup on the other device).", long = true)
+                    // From a cut file, the code alone: its 500,000 characters were
+                    // named as the code's length.
+                    isCode -> state.incomingCode = if (shared.cut) Sharing.codeIn(text) else text
+                    !shared.cut -> state.noteFromShared(text, sharedNoteSaid)
+                    else -> state.noteFromShared(text, "$sharedNoteSaid. Only the first $first characters " +
+                        "of the file came in; the rest was left out.", long = true)
+                }
+                incoming.remove(shared)
             }
             val tapped by todayTapped
             LaunchedEffect(tapped) { if (tapped > 0) state.todayAsked += 1 }
@@ -135,8 +230,26 @@ class MainActivity : ComponentActivity() {
             // update, and the setting may have changed on another device.
             val resumed by resumes
             LaunchedEffect(resumed) {
-                state.checkReminder(Recurrence.formatDate(LocalDate.now()))
-                ReminderAlarm.schedule(this@MainActivity, state.settings)
+                state.resumed = resumed
+                state.backAgain?.invoke()
+                state.dayIs(Recurrence.formatDate(LocalDate.now()))
+                // Held, the settings are their marks, notifications off among
+                // them: the answer is unknown, so the alarm set before stays.
+                if (state.load.settings?.let { Files.writesHeld(it.file) } != true) {
+                    ReminderAlarm.schedule(this@MainActivity, state.settings)
+                }
+            }
+            // And while the app is in front, the day turns at midnight, looked at once
+            // a minute as the desktop's `_watch_the_day` does (a clock or zone changed
+            // is caught too); only in front, so a phone is never woken for it.
+            LaunchedEffect(Unit) {
+                lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    while (true) {
+                        delay(minOf(60_000L, Days.untilNextDay(java.time.ZonedDateTime.now()) + 1_000))
+                        val now = Recurrence.formatDate(LocalDate.now())
+                        if (now != state.today) state.dayIs(now)
+                    }
+                }
             }
             val phoneDark = isSystemInDarkTheme()
             val palette = paletteOf(state.themeName(phoneDark))
@@ -150,6 +263,16 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalThemeChange provides veil::change) {
                 AppTheme(palette) { veil.Over { AppRoot(state, versionName()) } }
             }
+        }
+        // Android 8 focuses the first focusable view as the window starts: the
+        // search box, whose keyboard covered the list's buttons at every start.
+        // An empty view first catches it (Android 9 and later focus none).
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.P) {
+            findViewById<android.view.ViewGroup>(android.R.id.content).addView(android.view.View(this).apply {
+                isFocusable = true
+                isFocusableInTouchMode = true
+                importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, 0, android.view.ViewGroup.LayoutParams(0, 0))
         }
     }
 
@@ -180,7 +303,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        codeIn(intent)?.let { incoming.value = it }
+        takeIn(intent)
         if (intent.action == ReminderAlarm.ACTION_TODAY) todayTapped.intValue += 1
     }
 
@@ -195,23 +318,82 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    private fun codeIn(intent: Intent?): String? =
-        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
-            intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
-        } else {
+    /**
+     * What a share handed the app, taken in: its words at once, a shared
+     * file read away from the screen's thread. A .txt from Drive is fetched
+     * as it is read, and read on that thread the screen froze while it came
+     * (an "isn't responding", which Play counts against the app).
+     */
+    private fun takeIn(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return
+        // As any text: styled text is a CharSequence, which getStringExtra
+        // gave as null, unsaid. An extra of a class this app lacks threw here
+        // and ended the app: read as no words.
+        val words = try {
+            intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+        } catch (e: RuntimeException) {
             null
+        }?.takeIf { PyText.strip(it).isNotEmpty() }
+        if (words != null) {
+            arrived(words)
+            return
         }
+        // Its place taken now, filled when the file is in. A read that does
+        // not return (a provider stalled) held back every share after it:
+        // given up after half a minute, and said, as one that fails is.
+        val place = arrived(null)
+        lifecycleScope.launch {
+            val reading = async(Dispatchers.IO) { sharedFile(intent) }
+            val read = withTimeoutOrNull(SHARED_FILE_WAIT_MS) { reading.await() }
+            if (read == null) reading.cancel()
+            val at = incoming.indexOfFirst { it.number == place.number }
+            if (at < 0) return@launch
+            incoming[at] = if (read == null) place.copy(unread = true)
+                else place.copy(text = read.first, cut = read.second)
+        }
+    }
+
+    private fun arrived(text: String?): Shared {
+        shares += 1
+        return Shared(shares, text).also { incoming.add(it) }
+    }
+
+    /**
+     * Text shared as a file -- a .txt from Files, a mail's attachment -- with
+     * no words in the share itself: read, up to [SHARED_FILE_CHARS], and
+     * whether there was more (said, where the rest went without a word).
+     */
+    private fun sharedFile(intent: Intent): Pair<String, Boolean>? = try {
+        // Inside the try: a stream extra that is not a Uri threw, and ended the app.
+        @Suppress("DEPRECATION")
+        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        uri?.let { contentResolver.openInputStream(it) }?.use { Files.sharedText(it, SHARED_FILE_CHARS) }
+    } catch (e: Exception) {
+        null
+    }
 
     private fun share(text: String) {
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-        startActivity(Intent.createChooser(send, getString(R.string.share_code)))
+        // A code is held to the ceiling before it comes here (Sharing.MAX_HANDED_CHARS);
+        // whatever Android still refuses is said, never the app stopped.
+        try {
+            startActivity(chooserWithoutThisApp(this, send, getString(R.string.share_code)))
+        } catch (e: ActivityNotFoundException) {
+            android.widget.Toast.makeText(this, R.string.share_no_app, android.widget.Toast.LENGTH_LONG).show()
+        } catch (e: RuntimeException) {
+            android.widget.Toast.makeText(this, R.string.share_handed_failed, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun open(file: File, name: String) {
         if (!file.isFile) return
         val uri = FileProvider.getUriForFile(this, "$packageName.files", file)
+        // The type of the file handed over, never of its label: a backup can
+        // label any file, and "Holiday photo.jpg" over a page went out as a
+        // picture, a name hiding ".apk" behind a bidi mark as a package.
         val type = MimeTypeMap.getSingleton()
-            .getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase()) ?: "*/*"
+            .getMimeTypeFromExtension(Normalize.fileTypeOf(file.name).removePrefix(".")) ?: "*/*"
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, type)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         try {
@@ -240,35 +422,39 @@ fun AppRoot(state: AppState, version: String) {
     val scope = rememberCoroutineScope()
     var importing by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf<String?>(null) }
-    var backupPlan by remember { mutableStateOf<Pair<Importing.Plan, Backup.Contents>?>(null) }
+    var backupPlan by remember { mutableStateOf<Triple<Importing.Plan, Backup.Contents, Importing.LookAlikes>?>(null) }
     var askBackup by remember { mutableStateOf<Backup.Contents?>(null) }
 
     val exportTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         busy = context.getString(R.string.exporting)
         scope.launch {
-            val problem = withContext(Dispatchers.IO) {
-                try {
-                    context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
-                        Backup.export(state.dir, context.cacheDir, out)
-                    } ?: return@withContext "The file could not be opened for writing."
-                    null
-                } catch (e: Exception) {
-                    // A half-written backup is worse than none: it looks like one.
-                    try {
-                        DocumentsContract.deleteDocument(context.contentResolver, uri)
-                    } catch (_: Exception) {
-                    }
-                    e.message ?: e.toString()
-                }
+            val result = withContext(Dispatchers.IO) {
+                // Opened for writing only once the backup is built and checked
+                // (Backup.exportTo); "wt" only, never "w": over a longer backup
+                // without emptying it, a zip keeps the old one's tail and index.
+                Backup.exportTo(state.dir, context.cacheDir,
+                    open = { context.contentResolver.openOutputStream(uri, "wt") },
+                    emptyPlace = { isEmptyDocument(context, uri) },
+                    discard = { DocumentsContract.deleteDocument(context.contentResolver, uri) })
             }
             busy = null
-            if (problem == null) {
-                state.putSetting(Settings.LAST_EXPORT_AT,
-                    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
-                state.say(context.getString(R.string.export_done))
-            } else {
-                state.say(context.getString(R.string.export_failed, problem))
+            when (result) {
+                // Holding no notes as notes, it is not remembered as the notebook's
+                // backup: the desktop's backup of a session alone, said so.
+                is Backup.Export.Saved -> if (result.notesUnread || result.notesUnchecked) {
+                    // ...and what the other words would have said, a file past what the phone reads back.
+                    state.say(context.getString(if (result.notesUnread) R.string.export_done_notes_unread
+                                                else R.string.export_done_notes_unchecked) +
+                        (result.tooLarge?.let { " " + context.getString(R.string.export_also_too_large, it) } ?: ""),
+                        long = true)
+                } else {
+                    state.putSetting(Settings.LAST_EXPORT_AT,
+                        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date()))
+                    result.tooLarge?.let { state.say(context.getString(R.string.export_done_too_large, it), long = true) }
+                        ?: state.say(context.getString(R.string.export_done))
+                }
+                is Backup.Export.Failed -> state.say(context.getString(R.string.export_failed, Files.ended(result.reason)), long = true)
             }
         }
     }
@@ -290,6 +476,22 @@ fun AppRoot(state: AppState, version: String) {
         busy = { busy },
     )
 
+    // A note's own pickers answered here with the backup's, where the answer
+    // arrives even when Android ended the app behind the picker (ISSUES_LOG,
+    // "Answers sent to"). "Allow notifications?" stays with its page: it only pauses.
+    state.exporter = rememberExporter(state)
+    var attachFor by rememberSaveable { mutableStateOf<Int?>(null) }
+    val attachPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val id = attachFor ?: return@rememberLauncherForActivityResult
+        attachFor = null
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        if (state.attachHere?.invoke(id, uris) != true) attachAfterReturn(state, context, id, uris)
+    }
+    state.pickAttachments = { id ->
+        attachFor = id
+        attachPicker.launch(arrayOf("*/*"))
+    }
+
     // Back from Settings or the Calendar goes to the notes, as Back from any
     // second place in an app does; only from the notes does it leave the
     // app. From the History, it goes back to the month first.
@@ -306,11 +508,9 @@ fun AppRoot(state: AppState, version: String) {
 
     BoxWithConstraints(Modifier.fillMaxSize().background(palette.bg)) {
         val open = state.openId
-        // Material's window widths: from a medium window -- a phone on its
-        // side, a small tablet -- the bar moves to a rail down the left
-        // edge, where a short, wide screen can spare it; from an expanded
-        // one the note opens beside the notes or the calendar, and the list
-        // stays in reach. Settings has no note to sit beside.
+        // Material's window widths: from a medium window (a phone on its side) the
+        // bar becomes a rail down the left; from an expanded one the note opens
+        // beside the notes or the calendar. Settings has no note to sit beside.
         val wide = maxWidth >= RAIL_FROM
         val panesFit = maxWidth >= TWO_PANES_FROM
         val twoPanes = panesFit && state.tab != Tab.SETTINGS
@@ -318,7 +518,7 @@ fun AppRoot(state: AppState, version: String) {
         val tabContent: @Composable () -> Unit = {
             tabsKept.SaveableStateProvider(state.tab.name) {
                 when (state.tab) {
-                    Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true })
+                    Tab.NOTES -> NotesScreen(state, onImportCode = { importing = true }, plusInRail = wide)
                     Tab.CALENDAR -> CalendarScreen(state)
                     Tab.SETTINGS -> SettingsScreen(state, backup, version,
                         openPrivacy = { openInBrowser(context, state, Links.PRIVACY) },
@@ -327,14 +527,16 @@ fun AppRoot(state: AppState, version: String) {
             }
         }
         val goTo = { tab: Tab ->
+            val show = {
+                state.tab = tab
+                state.settingsPage = null
+                // A tab asked for is a tab shown, beside the note again.
+                state.listAside = false
+            }
             // On two panes the note stays open beside the notes and the
             // calendar; anywhere else the rail leaves it, saved -- as Back
-            // would.
-            if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote()
-            state.tab = tab
-            state.settingsPage = null
-            // A tab asked for is a tab shown, beside the note again.
-            state.listAside = false
+            // would, and staying, as Back does, when it cannot be saved.
+            if (state.openId != null && !(panesFit && tab != Tab.SETTINGS)) state.saveAndCloseNote(show) else show()
         }
         // Today asked for -- the reminder's bar or its notification: the
         // calendar on the day, the way the rail would go there.
@@ -344,11 +546,9 @@ fun AppRoot(state: AppState, version: String) {
                 state.showToday(Recurrence.formatDate(LocalDate.now()))
             }
         }
-        // One shape at every width, the rail, the panes and the bar each
-        // there or not: the list and the editor keep their places in it, so
-        // turning the phone moves them without rebuilding them -- an editor
-        // built again would lose its find bar, its cursor and whatever it
-        // had not saved yet, and the list its selection.
+        // One shape at every width, rail, panes and bar each there or not, so
+        // turning the phone moves the list and the editor without rebuilding them:
+        // rebuilt, they lose the find bar, the cursor, unsaved words, the selection.
         val tabShown = open == null || (twoPanes && !state.listAside)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -357,13 +557,21 @@ fun AppRoot(state: AppState, version: String) {
                         containerColor = palette.sidebar,
                         windowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
                             .only(WindowInsetsSides.Vertical + WindowInsetsSides.Start),
+                        // The list's + at the rail's head, as the desktop's "+ New Note" heads
+                        // its sidebar: over the list's foot it covered a card, the chosen one too.
+                        // Its place kept while it steps aside, or the tabs below it jumped.
+                        header = {
+                            Box(Modifier.size(56.dp)) {
+                                if (state.tab == Tab.NOTES && tabShown && !state.listSelecting) NewNoteButton(state)
+                            }
+                        },
                     ) {
                         for ((tab, label, mark) in TABS) {
                             NavigationRailItem(
                                 selected = state.tab == tab,
                                 onClick = { goTo(tab) },
-                                icon = { Text(mark, fontSize = 20.sp) },
-                                label = { Text(stringResource(label)) },
+                                icon = { TabMark(tab, mark) },
+                                label = { OneLine(stringResource(label)) },
                                 colors = NavigationRailItemDefaults.colors(
                                     selectedIconColor = palette.text,
                                     selectedTextColor = palette.text,
@@ -375,10 +583,9 @@ fun AppRoot(state: AppState, version: String) {
                         }
                     }
                 }
-                // Beside the rail, the edges are kept here, once, for
-                // whatever is drawn inside -- the editor's own paddings then
-                // find nothing left to add. On a phone each screen keeps its
-                // own, as it always has.
+                // Beside the rail, the edges are kept here, once, for whatever is
+                // drawn inside, and the editor's paddings find nothing to add; on a
+                // phone each screen keeps its own.
                 Box(
                     Modifier
                         .weight(1f)
@@ -414,8 +621,10 @@ fun AppRoot(state: AppState, version: String) {
                         NavigationBarItem(
                             selected = state.tab == tab,
                             onClick = { goTo(tab) },
-                            icon = { Text(mark, fontSize = 20.sp) },
-                            label = { Text(stringResource(label)) },
+                            icon = { TabMark(tab, mark) },
+                            // One line: at the largest letters on a 320 dp phone
+                            // "Calendar" broke as "Calenda" / "r" ([OneLine]).
+                            label = { OneLine(stringResource(label)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = palette.text,
                                 selectedTextColor = palette.text,
@@ -428,26 +637,57 @@ fun AppRoot(state: AppState, version: String) {
                 }
             }
         }
-        // Above the bar at the bottom, and on the list above the + as well:
-        // a message that half covers the button it sits next to reads as
-        // a mistake.
+        // Above the bar at the bottom, and on a phone's list above the + too (half
+        // over a button it reads as a mistake), and above the keyboard, which covers
+        // both: under it, a word said while typing was drawn behind the keys.
         val listShown = state.tab == Tab.NOTES && tabShown
-        SnackbarHost(
+        val density = LocalDensity.current
+        val keys = WindowInsets.ime.getBottom(density)
+        val typing = keys > 0
+        // And above the editor's foot on the keyboard -- its bar, "A new item…"
+        // -- or a message covered them and took their taps for its four seconds;
+        // kept below the status bar however tall that foot is.
+        val footClear = (state.editorFootTop?.takeIf { open != null } ?: state.pageFootTop?.takeIf { open == null })?.let { top ->
+            val below = maxOf(keys, WindowInsets.navigationBars.getBottom(density))
+            with(density) { (constraints.maxHeight - below - top).coerceAtLeast(0f).toDp() }
+                .coerceAtMost((maxHeight - with(density) { below.toDp() } - 160.dp).coerceAtLeast(0.dp))
+        }
+        // One host for a message: while a sheet or the template editor draws
+        // the app's messages over the window, this one draws none, so each is
+        // read out once ([MessagesShown]).
+        if (!MessagesShown.elsewhere(state.snackbar)) SnackbarHost(
             state.snackbar,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(bottom = when {
-                    open != null && !twoPanes -> 8.dp
+                    typing || open != null && !twoPanes -> 8.dp
                     !wide -> if (listShown) 160.dp else 80.dp
-                    else -> if (listShown) 88.dp else 16.dp
-                }),
+                    else -> 16.dp
+                }.let { rule -> if (footClear == null) rule else maxOf(rule, footClear + 8.dp) }),
         )
     }
 
     val code = state.incomingCode
     if (importing || code != null) {
         CodeImportDialog(state, code ?: "", onClose = { importing = false; state.incomingCode = null })
+    }
+    // Share -> PDF, for a note the PDF would leave part of: asked before anything is handed over.
+    state.pdfQuestion?.let { PdfQuestionDialog(it, onAnswer = state::answerPdf) }
+    // Files picked that the note already holds: asked before they are attached again.
+    state.attachAgainQuestion?.let { question ->
+        Ask(
+            title = stringResource(R.string.attach_again_title),
+            text = if (question.names.size == 1) stringResource(R.string.attach_again_one, quotedFile(question.names[0]))
+                   else stringResource(R.string.attach_again_many,
+                       question.names.take(10).joinToString("\n") { "• " + quotedFile(it) } +
+                           if (question.names.size > 10) "\n… and ${question.names.size - 10} more" else ""),
+            confirm = stringResource(R.string.attach_again_yes),
+            onConfirm = { state.answerAttachAgain(true) },
+            onDismiss = { state.answerAttachAgain(false) },
+            dismiss = stringResource(R.string.attach_again_no),
+        )
     }
     askBackup?.let { contents ->
         Ask(
@@ -456,9 +696,33 @@ fun AppRoot(state: AppState, version: String) {
             confirm = stringResource(R.string.continue_label),
             onConfirm = {
                 askBackup = null
-                val theirs = contents.extras().categories?.keys()?.asSequence()?.toSet() ?: emptySet()
-                backupPlan = Importing.plan(state.load.raw ?: org.json.JSONArray(), contents.notes,
-                    Importing.Source.BACKUP, state.load.categories.keys + theirs) to contents
+                // The list as it is now, taken here: a save made meanwhile
+                // puts a new object in the live list rather than change one.
+                val notebook = org.json.JSONArray().also { copy ->
+                    state.load.raw?.let { raw -> for (i in 0 until raw.length()) copy.put(raw.opt(i)) }
+                }
+                val load = state.load
+                val trashNow = load.trashRaw?.let { raw -> org.json.JSONArray().also { copy ->
+                    for (i in 0 until raw.length()) copy.put(raw.opt(i)) } }
+                val settingsNow = load.settings?.raw?.let { org.json.JSONObject(it.toString()) }
+                // The names apply files by, adopted ones included (Importing.merged).
+                val categories = Importing.merged(state.load.categories, contents.extras().categories,
+                    contents.notes).map.keys
+                // Worked out away from the screen: the plan, and how many look like
+                // notes here, which normalizes every note of both notebooks -- 1.3 s
+                // with the screen held still, a thousand notes each side.
+                busy = context.getString(R.string.importing)
+                scope.launch {
+                    val ready = withContext(Dispatchers.Default) {
+                        val fileOf = Importing.filesIn(state.attachments, contents.attachments)
+                        val plan = Importing.plan(notebook, contents.notes, Importing.Source.BACKUP, categories, fileOf)
+                        Triple(plan, contents, Importing.LookAlikes(notebook, plan) { update ->
+                            Importing.bringsMore(notebook, plan, update, load, trashNow, settingsNow, contents.extras(), fileOf)
+                        }.warm(plan))
+                    }
+                    busy = null
+                    backupPlan = ready
+                }
             },
             onDismiss = {
                 askBackup = null
@@ -466,10 +730,10 @@ fun AppRoot(state: AppState, version: String) {
             },
         )
     }
-    backupPlan?.let { (plan, contents) ->
+    backupPlan?.let { (plan, contents, alikes) ->
         // The unpacked backup leaves the cache however the questions end:
         // nothing of an import that was not taken is kept.
-        ImportQuestions(state, plan, onCancel = {
+        ImportQuestions(state, plan, alikes, onCancel = {
             backupPlan = null
             contents.folder?.deleteRecursively()
         }) { answers ->
@@ -480,12 +744,39 @@ fun AppRoot(state: AppState, version: String) {
     }
 }
 
-/** The three places, in the bar's order and the rail's. */
+/** The three places, in the bar's order and the rail's; the calendar's mark is drawn ([TabMark]). */
 private val TABS = listOf(
     Triple(Tab.NOTES, R.string.nav_notes, "≣"),
-    Triple(Tab.CALENDAR, R.string.nav_calendar, "📅"),
+    Triple(Tab.CALENDAR, R.string.nav_calendar, ""),
     Triple(Tab.SETTINGS, R.string.nav_settings, "⚙"),
 )
+
+/**
+ * A tab's mark, in the tab's colour. The calendar's is drawn in lines: its
+ * glyph, 📅, is a coloured emoji that reads "July 17" beside two plain marks.
+ * All three in one box: a glyph's line is taller than the drawing, and the
+ * Calendar label sat higher than the other two.
+ */
+@Composable
+private fun TabMark(tab: Tab, glyph: String) {
+    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+        if (tab == Tab.CALENDAR) Icon(CALENDAR_MARK, contentDescription = null, modifier = Modifier.size(24.dp))
+        else Text(glyph, fontSize = 20.sp)
+    }
+}
+
+/** A calendar page in lines: its frame, the band at its top, two rings. */
+private val CALENDAR_MARK: ImageVector by lazy {
+    ImageVector.Builder("calendar", 24.dp, 24.dp, 24f, 24f).path(
+        stroke = SolidColor(Color.Black), strokeLineWidth = 1.8f,
+        strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
+    ) {
+        moveTo(4f, 6f); lineTo(20f, 6f); lineTo(20f, 20f); lineTo(4f, 20f); close()
+        moveTo(4f, 10.5f); lineTo(20f, 10.5f)
+        moveTo(8.5f, 3.5f); lineTo(8.5f, 7.5f)
+        moveTo(15.5f, 3.5f); lineTo(15.5f, 7.5f)
+    }.build()
+}
 
 /** Material's medium window: the rail. */
 private val RAIL_FROM = 600.dp
@@ -508,6 +799,14 @@ private fun NothingOpen(calendar: Boolean) {
     }
 }
 
+/** Whether the document at [uri] holds nothing -- a file the picker has just made. */
+private fun isEmptyDocument(context: android.content.Context, uri: Uri): Boolean = try {
+    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.SIZE), null, null, null)
+        ?.use { c -> c.moveToFirst() && !c.isNull(0) && c.getLong(0) == 0L } ?: false
+} catch (e: Exception) {
+    false
+}
+
 /**
  * A backup the person picked, copied into the app's cache first -- a
  * document from a file picker can only be streamed, and the guards read
@@ -526,7 +825,14 @@ private fun readBackup(context: android.content.Context, uri: Uri): Backup.Read 
         }
     } catch (e: Exception) {
         work.deleteRecursively()
-        Backup.Read.Failed("That file couldn't be read as a backup:\n${e.message ?: e}")
+        // A backup bigger than the room left fails here, while it is copied in.
+        Backup.Read.Failed(Backup.unreadable(e, work))
+    } catch (e: OutOfMemoryError) {
+        // An Error, which the catch above lets through: a backup too big for
+        // the phone ended the app. Its guard (Backup.memoryProblem) should
+        // stop one first; this is the boundary for whatever gets past.
+        work.deleteRecursively()
+        Backup.Read.Failed("That file couldn't be read as a backup:\n${Files.TOO_LARGE}")
     } finally {
         zip.delete()
     }

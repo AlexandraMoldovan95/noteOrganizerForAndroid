@@ -43,7 +43,7 @@ class StylingTest {
     @Test
     fun `bold and italic stored as two spans are read as one, so B takes the bold alone off`() {
         // A desktop file from before its normalize_formatting folded the two.
-        val note = Notebook.parseNotes("""[{"id": 1, "body": "Note it",
+        val note = notesFrom("""[{"id": 1, "body": "Note it",
             "formatting": [{"start": 0, "end": 4, "style": "bold"}, {"start": 0, "end": 7, "style": "italic"}]}]""").single()
         assertEquals(listOf("0-4:bold_italic", "4-7:italic"), shape(note.formatting))
         assertEquals("the italic stays where the bold goes", listOf("0-7:italic"), shape(toggleStyle(note.formatting, 0, 4, "bold")))
@@ -174,6 +174,16 @@ class StylingTest {
 
     private fun typed(old: String, new: String, caret: Int, spans: List<FormatSpan>, pending: Set<String> = emptySet()) =
         shape(spansAfterTyping(old, new, caret, spans, pending))
+
+    @Test
+    fun `a letter deleted beside its twin takes its own style away, as Tk deletes at the cursor`() {
+        // Read off the texts, the deletion was found one letter late: the
+        // twin kept the deleted letter's bold.
+        assertEquals("Backspace after the bold first l of Hello", emptyList<String>(),
+                     typed("Hello", "Helo", 2, listOf(s(2, 3, "bold"))))
+        assertEquals("Backspace after the first t of tthe: the bold the stays whole", listOf("0-3:bold"),
+                     typed("tthe end", "the end", 0, listOf(s(1, 4, "bold"))))
+    }
 
     @Test
     fun `letters typed before a styled word stay plain`() {
