@@ -15,8 +15,10 @@ the surprises live.
 - [Decision: the notebook is the app's own](#decision-the-notebook-is-the-apps-own)
 - [Decision: `org.json`, and the trap that comes with it](#decision-orgjson-and-the-trap-that-comes-with-it)
 - [Decision: a paste is recognised under the field, not taken from the menu](#decision-a-paste-is-recognised-under-the-field-not-taken-from-the-menu)
+- [Decision: the reminder's alarm reads, inexactly, and asks late](#decision-the-reminders-alarm-reads-inexactly-and-asks-late)
 - [The desktop is the specification](#the-desktop-is-the-specification)
 - [Words on the phone's own surfaces, measured](#words-on-the-phones-own-surfaces-measured)
+- [A large notebook, measured](#a-large-notebook-measured)
 - [Where this will hurt next](#where-this-will-hurt-next)
 
 ## The short version
@@ -486,15 +488,70 @@ person picks is shaded the same way. A ratio says nothing of size: the
 card's first words are 13 sp and the tags 11 sp, which only an eye on the
 phone can judge (the test plan's case for it).
 
+## A large notebook, measured
+
+The largest real notebook seen so far is half a megabyte, the size of the
+thousand generated notes below. The app was measured at that size, at
+five thousand notes and at ten thousand. Scrolling the list, searching
+and opening a note cost about the same at every size. A save is the one
+cost that grows with the notebook, because it writes the whole file.
+
+`py -I tools/emulator/big_notebook.py <folder>` reproduces these numbers.
+It generates a notebook from a fixed seed: a few lines of words in each
+note, a checklist on one note in five, a date on one in ten, and
+"cinnamon" in one in a hundred, for the search. It writes the notebook into
+the app on an emulator started cold (Android 17, four cores, 1080 × 2400,
+drawing in software) and reads each cost from the app's own frames and from
+the slow messages on its main thread. Measured on 0.15.2, 23 November 2026:
+
+| | 1,000 notes | 5,000 | 10,000 |
+|---|---|---|---|
+| the notes file | 0.5 MB | 2.3 MB | 4.7 MB |
+| a cold start to the first frame, twice | 3.0 and 3.0 s | 2.9 and 2.8 s | 3.4 and 3.0 s |
+| scrolling, 15 flings: the longest of 120 frames | 36 ms | 48 ms | 51 ms (2 over 50) |
+| a search typed: the longest pause | 0.44 s | 0.27 s | 0.32 s |
+| a note opened: the longest pause | 0.37 s | 0.36 s | 0.28 s |
+| a word typed and saved: the longest pause | 0.13 s | 0.21 s | 0.29 s |
+| memory (PSS) | 87 MB | 89 MB | 105 MB |
+
+- **The list draws only the cards on the screen** (a `LazyColumn`), so
+  scrolling it costs much the same at ten thousand notes as at a
+  thousand: in two runs its longest frame was 36 ms at a thousand, and
+  35 and 51 ms at ten thousand. The search found its notes at every
+  size, and the photographs of the list, the search and the open note,
+  which were looked at, are right at every size.
+- **A save writes the whole file**
+  ([write to a copy, then to disk](#decision-write-to-a-copy-then-to-disk-then-to-the-screen)),
+  on the main thread, so the longest pause after a typed word, its save
+  included, grows with the notebook: 0.13 s at a thousand notes, 0.29 s
+  at ten thousand. In a very large notebook that is a short hitch while
+  typing. No word is lost: the typed word reached the file at every
+  size. The desktop pays the same cost, and its
+  [ROADMAP](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/ROADMAP.md#under-consideration)
+  holds the answer, "A save that writes one note".
+- **The numbers compare the sizes with each other.** The emulator draws
+  on the computer's processor, so a frame there is slower than on a
+  phone. Between two runs one number moved by up to a half. An earlier
+  run by the script's first draft gave a longest frame of 35–36 ms at
+  every size, and a longest pause after a typed word of 0.12, 0.30 and
+  0.30 s. Its first start took 5.9 s, most likely the emulator's own work
+  just after starting: the script now waits for the emulator to settle
+  (`walk.wait_for_boot`), and the same first start took 3.0 s.
+- The first measurement, on 13 November at up to 5,000 notes on an
+  emulator held to two cores, is in
+  [STATUS](STATUS.md#how-each-part-was-verified).
+
 ## Where this will hurt next
 
 Named here so nobody has to discover them by surprise:
 
 - **Notes are written on the main thread.** Fine for the notebooks seen
-  so far — the largest real one is half a megabyte — and not fine for one
-  ten times that on a slow phone. A backup already moved off it, and a
-  shared PDF's file. Its pages are still drawn there, as a WebView must
-  be — 0.35 s for the forty a PDF holds at most, on the emulator.
+  so far — the largest real one is half a megabyte. At ten times that the
+  longest pause after a typed word, its save included, is 0.3 s on the
+  emulator ([measured](#a-large-notebook-measured)), and longer on a slow
+  phone. A backup already moved off it, and a shared PDF's file. Its
+  pages are still drawn there, as a WebView must be — 0.35 s for the
+  forty a PDF holds at most, on the emulator.
 - **Where you were does not survive the process being killed.** The note
   is saved before that can happen (`onStop`), but the app reopens on the
   list rather than in the note.
