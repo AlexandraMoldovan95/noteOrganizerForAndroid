@@ -186,17 +186,26 @@ unreadable. The second found a password-protected backup still told it
 was damaged on older phones, whose libcore says "Invalid General Purpose
 Bit Flag" where the desktop's Java says "encrypted".
 
-Two of the faults were mine. Moving the Repeat sheet's Save out of the
+Four of the faults were mine. Moving the Repeat sheet's Save out of the
 scroll left the reason it does nothing ("A repeating note needs a start
-date.") at the scroll's far end, out of sight at large letters. And a
-walk check of mine found "Midnight Purple" on the Appearance page in
-the line I had just made name it, so it would have passed with the
-switch broken; it now looks for tiles the line never names.
+date.") at the scroll's far end, out of sight at large letters. A walk
+check of mine found "Midnight Purple" on the Appearance page in the line
+I had just made name it, so it would have passed with the switch broken;
+it now looks for tiles the line never names. And the whole walk, run
+once at the end, failed two checks my changes had left behind, in parts
+I had not walked after them: the Trash page's step still waited for the
+duplicates' "You can restore them from there." over one note, and the
+320 dp step measured Sunday without scrolling the sheet, whose second
+row of days now starts at the edge above the pinned buttons. The app
+was right both times; each check now reads it as it is, and the three
+mutants that guard that sheet were walked again.
 
 **The lesson:** a reader of the code finds what it says; a person
 using the app finds where it is said, and when: a reason below the
 fold, an offer made before the note moved, a word for a theme nobody
-chose. Whatever moves a part out of a scroll asks what was left in it.
+chose. Whatever moves a part out of a scroll asks what was left in it;
+and words or a layout changed are searched for in every walk part that
+reads them, not only in the part the change was made for.
 
 ---
 
