@@ -1850,8 +1850,9 @@ def trash_select(folder):
     tap("Duplicates", exact=True, wait=1.5)
     tap("Tick all but first", wait=0.8)
     tap("Move ticked duplicates", wait=1.2)
+    # One note ticked, said as one (the counts' plurals).
     check("with the window not known, moving duplicates promises no number of days",
-          not says_soon("You can restore them from there.") and find("within 30 days") is None,
+          not says_soon("You can restore it from there.") and find("within 30 days") is None,
           " | ".join(t for t, d, _ in nodes() if t)[:200])
     back(wait=1.0)
     back_to("Your name")
@@ -6261,13 +6262,20 @@ def calendar_large_letters(folder):
         tap("ⓘ", wait=1.2)
         tap("Does not repeat", wait=1.5)
         tap("Weekly", exact=True, wait=0.8)
+        # "Weekly" as well: "Su" alone was found in the calendar's "Sun", and
+        # the sheet that never opened was photographed as if it had.
+        shot(folder, "90d-repeat-sheet-320dp", "Su", "Weekly")
+        # With Cancel and Save held under the scroll, the days' second row
+        # starts at its edge: scrolled to, as a person scrolls a sheet.
+        seek(lambda: any(glyphs_drawn(b) == 2 for b in bounds("Su")), tries=3)
         sunday = bounds("Su")
         su = glyphs_drawn(sunday[0]) if sunday else None
         check("...and the repeat sheet's weekdays stay whole there, Sunday tappable",
               su == 2 and sunday[0][2] - sunday[0][0] > 10 * 540 / 160.0, "%r, %s letters" % (sunday, su))
-        # "Weekly" as well: "Su" alone was found in the calendar's "Sun", and
-        # the sheet that never opened was photographed as if it had.
-        shot(folder, "90d-repeat-sheet-320dp", "Su", "Weekly")
+        # Opened again at its top for the stepper: a swipe back down could
+        # pull the sheet away instead.
+        tap("Cancel", exact=True, wait=1.0)
+        tap("Does not repeat", wait=1.5)
         # ...and its stepper there: last in a plain Row, the + had what "2 months"
         # left, the row's end, and a number of two digits took it away. By its
         # width, not its ink: a dash draws one run as a + does. And the value on
