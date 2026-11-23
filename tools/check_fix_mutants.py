@@ -9,7 +9,9 @@ changes anything under app/src/main carries, on a line of its own,
     No mutant: <why>          (words only, a move, a write no test reaches)
 
 Commits before START, merges, and commits that change only tests, tools or
-documents are not read for it. A shallow clone checks what history it has.
+documents are not read for it. A shallow clone is refused: its cut commit
+has no parents, so it reads as changing every file, and a merge there is no
+merge to --no-merges (a pull request's merge commit failed so).
 The desktop's repository holds the same rule with a gate of the same name.
 
     py tools/check_fix_mutants.py
@@ -62,6 +64,9 @@ def main():
     if not known:
         sys.exit("check_fix_mutants: the catalogue holds no mutant; a gate with nothing to read must not pass")
     self_test(known)
+    if git("rev-parse", "--is-shallow-repository").strip() == "true":
+        sys.exit("check_fix_mutants: the history is cut short (a shallow clone), so the commit at the cut "
+                 "reads as changing every file; check out all of it (actions/checkout: fetch-depth: 0)")
     commits = git("log", "--no-merges", "--since=" + START + "T00:00:00", "--format=%H", "HEAD").split()
     read, bad = 0, []
     for sha in commits:
@@ -72,15 +77,13 @@ def main():
         why = problem(git("show", "-s", "--format=%B", sha), known)
         if why:
             bad.append("%s %s: %s" % (sha[:8], git("show", "-s", "--format=%s", sha).strip(), why))
-    shallow = git("rev-parse", "--is-shallow-repository").strip() == "true"
     for line in bad:
         print(line)
     if bad:
         print("%d commit(s) change the app's code and name no mutant, nor why there is none." % len(bad))
         sys.exit(1)
     print("Every change to the app's code since %s names its mutant or why it has none: %d commit(s) read, "
-          "%d of them the app's%s." % (START, len(commits), read, " (a shallow clone: its history only)"
-                                         if shallow else ""))
+          "%d of them the app's." % (START, len(commits), read))
 
 
 main()
