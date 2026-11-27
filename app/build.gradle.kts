@@ -1,7 +1,43 @@
+// Imported rather than spelled java.util.Properties: in a build script
+// `java` is also the project's Java extension, and inside a lambda the
+// name resolves to it and not to the package.
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// The upload key, which Google Play's App Signing checks every bundle
+// against, never enters the repository. A properties file outside it names
+// the keystore and its passwords -- storeFile, storePassword, keyAlias,
+// keyPassword -- and is found through the Gradle property noteorgUploadKey
+// (in the user's own ~/.gradle/gradle.properties) or the environment
+// variable NOTEORG_UPLOAD_KEY. A file or a keystore inside the repository
+// is refused: a key committed by mistake is a key anybody can sign with.
+val uploadKey: Properties? =
+    (providers.gradleProperty("noteorgUploadKey").orNull
+        ?: providers.environmentVariable("NOTEORG_UPLOAD_KEY").orNull)
+        ?.let { path ->
+            val repository = rootDir.canonicalFile
+            fun outside(f: File, what: String): File {
+                val real = f.canonicalFile
+                if (!real.isFile) throw GradleException("the upload key's $what is not at $real")
+                if (real.toPath().startsWith(repository.toPath())) {
+                    throw GradleException("the upload key's $what is inside the repository ($real): keep it outside")
+                }
+                return real
+            }
+            val properties = Properties()
+            outside(file(path), "properties file").inputStream().use { properties.load(it) }
+            val missing = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+                .filter { properties.getProperty(it).isNullOrBlank() }
+            if (missing.isNotEmpty()) {
+                throw GradleException("the upload key's properties file has no ${missing.joinToString()}")
+            }
+            properties.setProperty("storeFile", outside(file(properties.getProperty("storeFile")), "keystore").path)
+            properties
+        }
 
 android {
     namespace = "ro.noteorganizer.app"
@@ -27,6 +63,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (uploadKey != null) {
+            create("upload") {
+                storeFile = file(uploadKey.getProperty("storeFile"))
+                storePassword = uploadKey.getProperty("storePassword")
+                keyAlias = uploadKey.getProperty("keyAlias")
+                keyPassword = uploadKey.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // R8: the code and resources nothing reaches are left out, the
@@ -34,13 +81,14 @@ android {
             optimization {
                 enable = true
             }
-            // Signed with this machine's debug key for now, so a release
-            // build installs OVER the debug one on a test phone and keeps
-            // its notes: a different key would make Android refuse it, and
-            // uninstalling first would delete the notebook. Play refuses a
-            // debug-signed upload, so this changes before the first upload,
-            // to an upload key that never enters the repository.
-            signingConfig = signingConfigs.getByName("debug")
+            // With the upload key named (above), the build Google Play takes.
+            // Without it, this machine's debug key, so a release build
+            // installs OVER the debug one on a test phone and keeps its
+            // notes: a different key would make Android refuse it, and
+            // uninstalling first would delete the notebook. Google Play
+            // refuses a debug-signed upload, and tools/keep_release.py
+            // refuses to keep one for it.
+            signingConfig = signingConfigs.getByName(if (uploadKey != null) "upload" else "debug")
         }
     }
     compileOptions {

@@ -616,16 +616,27 @@ no `<queries>` entry at all — the phone's share sheet lists the apps that
 can take a note, so the app never looks at what is installed. Still to
 do, each a decision or an account step for the owner:
 
-* **An upload key**, made once and kept outside the repository, with
-  Play App Signing; the release build's signing moves to it. A phone
-  holding a debug-signed build has to uninstall it to take the store's,
-  so its notebook goes to a backup `.zip` first.
-* **Each release's `mapping.txt`, kept.** R8 writes it to
-  `app/build/outputs/mapping/release/`, and the next build writes over
-  it. Play reads the copy the bundle carries; another goes beside the
-  bundle uploaded, named for its version, so a crash's trace from an
-  older version can still be read here. To be added to the release
-  build's steps (CLAUDE.md's list) before the first upload.
+* **An upload key**, made once with the owner and kept outside the
+  repository, with Play App Signing. The release build is ready for it
+  since 2026-11-27: named through `noteorgUploadKey` (the user's own
+  `~/.gradle/gradle.properties`) or `NOTEORG_UPLOAD_KEY`, a properties
+  file outside the repository, it signs with it, and a key or file inside
+  the repository is refused; without it, the debug key, as before. Proved
+  with a throwaway keystore, never the real one. A phone holding a
+  debug-signed build has to uninstall it to take the store's, so its
+  notebook goes to a backup `.zip` first.
+* **Each release's `mapping.txt`, kept** (since 2026-11-27). R8 writes it
+  to `app/build/outputs/mapping/release/`, and the next build writes over
+  it. Play reads the copy the bundle carries; `tools/keep_release.py`
+  keeps another beside the bundle, once per version, in a folder outside
+  the repository, so a crash's trace from an older version can still be
+  read here. It refuses a debug-signed bundle, one older than the code,
+  and a version already kept (CLAUDE.md's list).
+* **The test plan's Google Play cases** (545 to 549, since 2026-11-27):
+  the install from the closed test and the notebook back from a backup,
+  an update keeping every note, the page saying what the listing says,
+  the pre-launch report, and Write a review once the page is live --
+  walked when each step comes.
 * **The privacy policy: published** (2026-10-21). One page for both
   apps, on Google Sites (`Links.PRIVACY`), its text the desktop
   repository's `docs/PRIVACY.md`, copied there by hand; in the app at
