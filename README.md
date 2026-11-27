@@ -125,6 +125,7 @@ Start wherever your question is.
 | [docs/DATA_FORMAT.md](docs/DATA_FORMAT.md) | What a note IS, in both programs; the settings, codes and backups they share — and the traps that come with re-implementing the same rules in a second language. Read before touching anything that reads or writes a note. |
 | [docs/ISSUES_LOG.md](docs/ISSUES_LOG.md) | What actually went wrong, how it was found, and what kind of failure it turned out to be. The most useful document here, and the least flattering. |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version, and how the numbers are decided. |
+| [docs/PLAY_LISTING.md](docs/PLAY_LISTING.md) | The app's page on Google Play and every answer typed into Play Console, ready to paste, and the steps from the developer account to production. |
 | [qa/README.md](qa/README.md) | How this app is tested: the layers, and what only each one can catch. |
 | [tools/emulator/README.md](tools/emulator/README.md) | The scripts that drive the emulator — walk, tap, type, photograph — and the ways the emulator lies to a script. |
 | [docs/screenshots/README.md](docs/screenshots/README.md) | Where the pictures come from, and how one command remakes them. |

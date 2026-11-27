@@ -679,13 +679,16 @@ do, each a decision or an account step for the owner:
   account made after November 2023 to run one with at least 12 testers
   for 14 days in a row before the app can go to production — the
   Console's current wording is the one to follow.
-* The store listing: the 512 px icon, a feature graphic, phone
-  screenshots (`tools/emulator/take_screenshots.py` makes those), the
-  content rating questionnaire and the target audience. Contact: the
-  project's address, noteorganizer.app@gmail.com (required); the website
-  field stays empty — the project's site is kept apart from the apps'
-  users (the owner's rule, 2026-10-21), and this repository must never
-  name it.
+* **The store listing**, every field and form, in
+  [PLAY_LISTING](PLAY_LISTING.md): the texts, the graphics still to make
+  (the 512 px icon, a feature graphic, and screenshots at 1080 × 1920 —
+  today's 1080 × 2400 are longer than Google Play takes), the content
+  rating questionnaire, the target audience, and the closed test's steps.
+  The developer account exists since 2026-11-27, a personal one, its
+  identity with Google for verification. Contact: the project's address,
+  noteorganizer.app@gmail.com (required); the website field stays empty —
+  the project's site is kept apart from the apps' users (the owner's rule,
+  2026-10-21), and this repository must never name it.
 
 ### The welcome note's words
 
