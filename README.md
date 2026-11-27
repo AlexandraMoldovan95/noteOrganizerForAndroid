@@ -26,27 +26,9 @@ in the desktop app's repository.
   <img src="docs/screenshots/demo.gif" alt="A note opened, a table, a new note written on the phone's keyboard, the month on the calendar, and the list in a dark theme" width="300">
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/11-empty.png" alt="Before the first note: the list says how to begin" width="270">
-  <img src="docs/screenshots/01-note-list.png" alt="The note list" width="270">
-  <img src="docs/screenshots/06-dark.png" alt="The same list in a dark theme" width="270">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/12-writing.png" alt="Writing in a note: the format bar above the keyboard" width="170">
-  <img src="docs/screenshots/03-a-table.png" alt="A table drawn as a grid" width="170">
-  <img src="docs/screenshots/04-search.png" alt="Search narrowing four notes to one" width="170">
-  <img src="docs/screenshots/05-appearance.png" alt="Settings, Appearance" width="170">
-  <img src="docs/screenshots/07-calendar.png" alt="The calendar, a series' days and a painted day" width="170">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/08-wide.png" alt="On its side: the note open beside the list" width="560">
-</p>
-
 <p align="center"><sub>The app running on an emulator, on a notebook written
 for the camera rather than anybody&rsquo;s real one &mdash;
-<a href="docs/screenshots/README.md">how these are made</a>.</sub></p>
+<a href="docs/screenshots/README.md">every screen one by one, and how they are made</a>.</sub></p>
 
 ## What it does
 

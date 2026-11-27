@@ -6,6 +6,62 @@ them is not a picture at all: it is drawn from code by
 [`tools/make_launcher_icon.py`](../../tools/make_launcher_icon.py), which
 asks the desktop app's own drawing for Android's sizes.
 
+## The pictures
+
+<p align="center">
+  <img src="11-empty.png" alt="Before the first note: the list says how to begin" width="190">
+  <img src="01-note-list.png" alt="The note list" width="190">
+  <img src="02-a-note.png" alt="A note and its checklist" width="190">
+  <img src="12-writing.png" alt="Writing in a note: the format bar above the keyboard" width="190">
+</p>
+
+<p align="center">
+  <img src="03-a-table.png" alt="A table drawn as a grid" width="190">
+  <img src="04-search.png" alt="Search narrowing four notes to one" width="190">
+  <img src="05-appearance.png" alt="Settings, Appearance" width="190">
+  <img src="07-calendar.png" alt="The calendar: a series' days and a painted day" width="190">
+</p>
+
+<p align="center">
+  <img src="08-wide.png" alt="On its side: the note open beside the list" width="390">
+  <img src="09-wide-calendar.png" alt="On its side: the calendar, the note open beside it" width="390">
+</p>
+
+<p align="center">
+  <img src="10-wide-settings.png" alt="On its side: Settings, Categories open" width="390">
+</p>
+
+<details>
+<summary>The same screens in Midnight Purple</summary>
+
+<p align="center">
+  <img src="11-empty-dark.png" alt="Before the first note, in Midnight Purple" width="190">
+  <img src="01-note-list-dark.png" alt="The note list in Midnight Purple" width="190">
+  <img src="02-a-note-dark.png" alt="A note and its checklist in Midnight Purple" width="190">
+  <img src="12-writing-dark.png" alt="Writing in a note in Midnight Purple" width="190">
+</p>
+
+<p align="center">
+  <img src="03-a-table-dark.png" alt="A table in Midnight Purple" width="190">
+  <img src="04-search-dark.png" alt="Search in Midnight Purple" width="190">
+  <img src="05-appearance-dark.png" alt="Settings, Appearance, the dark themes" width="190">
+  <img src="07-calendar-dark.png" alt="The calendar in Midnight Purple" width="190">
+</p>
+
+<p align="center">
+  <img src="08-wide-dark.png" alt="On its side in Midnight Purple: the note beside the list" width="390">
+  <img src="09-wide-calendar-dark.png" alt="On its side in Midnight Purple: the calendar, the note beside it" width="390">
+</p>
+
+<p align="center">
+  <img src="10-wide-settings-dark.png" alt="On its side in Midnight Purple: Settings, Categories open" width="390">
+</p>
+
+</details>
+
+What each one shows is in [the set](#the-set), below; the README shows
+the moving picture, `demo.gif`, alone.
+
 ## They are taken by a script, not by hand
 
     py tools/emulator/take_screenshots.py          the stills, both themes
@@ -91,8 +147,11 @@ The files ending in `-dark` are the same screens taken again in Midnight
 Purple, by the same run, after the light ones: the website shows every
 picture in the theme its page is in, and a dark page showing a light
 phone read as a mistake (the owner, 2026-10-24). `06-dark.png` stays as
-the set's one dark picture where only one set is shown, as in the
-README's gallery.
+the light set's one dark picture, for where only one set is shown:
+Google Play's set has it among the light ones (`7-dark.png`). The
+README showed it in a gallery of its own until, on 2026-11-27, the
+owner kept the moving picture there alone and the stills moved to the
+gallery above.
 
 The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
