@@ -124,10 +124,16 @@ line in Roboto, Android's own font, read from the emulator; and
 
 **Current Play set:** made 2026-11-27 for 0.15.2, each picture looked at.
 
-**Current set:** captured 2026-11-21 on the emulator, in English, for
-0.15.0 — the light set, the dark one and `demo.gif` in one run — after
-Appearance's sentence changed, with the writing picture and the table's
-third column new in it (the review panel's asks of 2026-11-15: the
+**Current set:** the light set and the dark one captured 2026-11-27 on
+the emulator, in English, for 0.15.2, so that Appearance shows the line
+under its switch that names the other mode's first theme (new on
+2026-11-22, after the set before was taken); beside it only the dates
+the seed works out from the day moved. `demo.gif` was not retaken, as
+none of its frames shows Appearance. The set before it was captured
+2026-11-21 for 0.15.0 — the light set, the dark one and `demo.gif` in
+one run — after Appearance's sentence changed, with the writing picture
+and the table's third column new in it (the review panel's asks of
+2026-11-15: the
 editor had been shown only at rest, its tools out of sight, and two
 columns filled a third of the screen). The notebook marks the
 day's reminder as already shown, so a day the series falls on does not
