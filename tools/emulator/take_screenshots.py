@@ -24,10 +24,18 @@ looking like proof.
 
     py tools/emulator/take_screenshots.py          the stills, both themes
     py tools/emulator/take_screenshots.py --gif    demo.gif alone (needs Pillow)
+    py tools/emulator/take_screenshots.py --play   Google Play's set (needs Pillow)
+
+--play takes the listing's eight (docs/PLAY_LISTING.md) at the size Google
+Play accepts: the emulator's screen set to 1080 x 1920 for the run and put
+back after it, each picture saved without alpha into build/play-listing/,
+numbered in the listing's order. The README's set is 1080 x 2400, longer
+than twice its width, which Google Play refuses.
 
 Needs: a running emulator with the debug app installed, and adb on the
 SDK path. Writes the app's own storage and scratch files on the emulator,
-and on the computer rewrites docs/screenshots/; never a real notebook.
+and on the computer rewrites docs/screenshots/ (or build/play-listing/
+with --play); never a real notebook.
 """
 import io
 import json
@@ -137,7 +145,7 @@ DARK = dict(SETTINGS, theme="dark")
 DARK_PASS_SKIPS = {"06-dark"}
 DARK_WORDS = {
     "05-appearance": (["Light", "Dark", "Midnight Purple", "Ocean Blue"],
-                      ["Soft Lavender", "Follow the phone"]),
+                      ["Sky Blue", "Follow the phone"]),
 }
 
 # name, what it shows, the steps that get there, what the screen must
@@ -164,9 +172,12 @@ SHOTS = [
     ("04-search", "Search narrowing four notes to one, on a word in its body",
      [("back_to", "Search notes"), ("tap", "Search notes"), ("type", "boat")],
      ["boat trip"], ["Home-made bread", "September expenses"]),
+    # Not the other mode's first theme as what must be gone: the line under
+    # the switch names it ("Tap Dark for Midnight Purple, ...", since
+    # 2026-11-22), so its second theme stands for the list.
     ("05-appearance", "Settings, Appearance: the Light | Dark switch and the light themes",
      [("clear_search",), ("tap_exact", "Settings"), ("tap", "Appearance")],
-     ["Light", "Dark", "Soft Lavender", "Warm Cream"], ["Midnight Purple", "Follow the phone"]),
+     ["Light", "Dark", "Soft Lavender", "Warm Cream"], ["Ocean Blue", "Follow the phone"]),
     ("07-calendar", "The calendar: a series' days, a dated note, a painted day",
      [("back_to", "Your name"), ("tap_exact", "Calendar")],
      ["📋 History", "Mon", "Sun", "🎂"], []),
@@ -217,6 +228,43 @@ GIF_FRAMES = [
     (2200, [("tap_exact", "Notes"), ("settings", DARK)], ["Hi Maria,", "Weekend trip"], [], False),
 ]
 GIF_WIDTH = 360
+
+# Google Play's set (--play): the shots the listing shows, by the number it
+# shows them in -- the list, a note, a table, writing, the calendar,
+# search, the dark list, the themes. The others are not run: the wide ones
+# turn the phone, and Google Play's phone set is upright.
+PLAY_OUT = os.path.join(ANDROID, "build", "play-listing")
+PLAY_SIZE = (1080, 1920)
+PLAY_ORDER = {"01-note-list": 1, "02-a-note": 2, "03-a-table": 3, "12-writing": 4,
+              "07-calendar": 5, "04-search": 6, "06-dark": 7, "05-appearance": 8}
+# On a 9:16 screen the editor scrolls the cursor's line above the keyboard
+# and the note's title goes up out of view: the words around the cursor
+# and the format bar's hint say the shot instead.
+PLAY_WORDS = {
+    "12-writing": (["Knead for 10", "Select text to format it"], []),
+}
+
+
+def screen_size():
+    """The emulator's screen as `wm size` says it: (physical, override or None)."""
+    said = adb("shell", "wm", "size")
+    physical = re.search(r"Physical size:\s*(\d+x\d+)", said)
+    override = re.search(r"Override size:\s*(\d+x\d+)", said)
+    return (physical.group(1) if physical else None,
+            override.group(1) if override else None)
+
+
+def play_picture(data, name):
+    """One of Google Play's set: checked for its size, saved without alpha.
+    Its path, or None, said why."""
+    from PIL import Image
+    image = Image.open(io.BytesIO(data))
+    if image.size != PLAY_SIZE:
+        print("   %dx%d, not %dx%d -- not saved" % (image.size + PLAY_SIZE))
+        return None
+    path = os.path.join(PLAY_OUT, "%d-%s.png" % (PLAY_ORDER[name], name[3:]))
+    image.convert("RGB").save(path, "PNG", optimize=True)
+    return path
 
 
 def put(name, value):
@@ -523,9 +571,34 @@ def main():
     night = adb("shell", "cmd", "uimode", "night").strip().rsplit(":", 1)[-1].strip()
 
     gif = "--gif" in sys.argv[1:]
-    passes = () if gif else ((SETTINGS, ""), (DARK, "-dark"))
+    play = "--play" in sys.argv[1:]
+    if gif and play:
+        print("--gif and --play are two runs: ask for one at a time")
+        return 2
+    if play:
+        try:
+            import PIL  # noqa: F401 -- asked now, not after the emulator's screen has changed
+        except ImportError:
+            print("--play needs Pillow (py -m pip install Pillow)")
+            return 2
+        os.makedirs(PLAY_OUT, exist_ok=True)
+    # The screen's size as found, put back in the finally below: --play
+    # sets it to Google Play's 9:16 for the run.
+    _physical, found_override = screen_size()
+    if gif:
+        passes = ()
+    elif play:
+        passes = ((SETTINGS, ""),)
+    else:
+        passes = ((SETTINGS, ""), (DARK, "-dark"))
     failed = []
     try:
+        if play:
+            adb("shell", "wm", "size", "%dx%d" % PLAY_SIZE)
+            time.sleep(2)
+            if screen_size()[1] != "%dx%d" % PLAY_SIZE:
+                print("the emulator's screen did not take %dx%d: %s" % (PLAY_SIZE + (adb("shell", "wm", "size").strip(),)))
+                return 1
         for settings, suffix in passes:
             adb("shell", "cmd", "uimode", "night", "yes" if suffix else "no")
             if not seed(settings):
@@ -534,6 +607,10 @@ def main():
             for name, caption, steps, present, absent, *rest in SHOTS:
                 if suffix and name in DARK_PASS_SKIPS:
                     continue
+                if play and name not in PLAY_ORDER:
+                    continue
+                if play:
+                    present, absent = PLAY_WORDS.get(name, (present, absent))
                 if suffix:
                     present, absent = DARK_WORDS.get(name, (present, absent))
                 keyboard = KEYBOARD in rest
@@ -550,9 +627,15 @@ def main():
                 if data is None:
                     failed.append(name)
                     continue
-                target = os.path.join(OUT, name + ".png")
-                with open(target, "wb") as f:
-                    f.write(data)
+                if play:
+                    target = play_picture(data, name)
+                    if target is None:
+                        failed.append(name)
+                        continue
+                else:
+                    target = os.path.join(OUT, name + ".png")
+                    with open(target, "wb") as f:
+                        f.write(data)
                 print("   %s" % os.path.relpath(target, ANDROID))
             # Upright again: the dark pass ends on its side, at 08-wide.
             act(("turn", 0))
@@ -584,6 +667,18 @@ def main():
             now = "(adb did not answer)"
         if now != night:
             print("the emulator's night mode is %s, not %r as found: set it back by hand" % (now, night))
+        if play:
+            try:
+                if found_override:
+                    adb("shell", "wm", "size", found_override)
+                else:
+                    adb("shell", "wm", "size", "reset")
+                now = screen_size()[1]
+            except (Exception, SystemExit):  # noqa: BLE001 -- under the run's own error
+                now = "(adb did not answer)"
+            if now != found_override:
+                print("the emulator's screen size is %s, not %s as found: `adb shell wm size reset`"
+                      % (now or "its own", found_override or "its own"))
         demo_status_bar(False)
 
     print()

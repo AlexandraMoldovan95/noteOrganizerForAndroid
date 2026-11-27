@@ -25,6 +25,12 @@ densities. Both are produced here.
 
     py tools/make_launcher_icon.py            # write them
     py tools/make_launcher_icon.py --preview  # one big PNG to look at
+    py tools/make_launcher_icon.py --play     # Google Play's 512 px icon
+
+--play writes build/play-listing/icon-512.png for the store listing
+(docs/PLAY_LISTING.md): the adaptive icon's two layers as one full square,
+which Google Play rounds itself. Its mask is a rounded square, not a
+circle, so the mark is drawn larger there than on a launcher.
 
 Set NOTEORGANIZER_HOME if the desktop project is not at its usual path.
 """
@@ -66,6 +72,16 @@ SAFE_SQUARE = 72.0 / 108.0
 # approved it composed the two layers WITHOUT the system's 108 -> 72
 # crop, so it was flattering by exactly the amount that mattered.
 SAFE_FRACTION = SAFE_SQUARE / (2 ** 0.5)
+
+# Google Play's icon: 512 px, a full square, which Google Play masks into a
+# rounded square -- its corners cut on a radius of about a fifth of the side,
+# nothing else. A mark at 70% of the side stands clear of those corners
+# (its own corner is 77 px in, inside the 102 px radius's kept area), where
+# the launcher's 47% is sized for a circle and would look lost here.
+PLAY_ICON = 512
+PLAY_MARK = 0.70
+PLAY_MAX_BYTES = 1024 * 1024
+PLAY_OUT = os.path.join(ANDROID, "build", "play-listing")
 
 
 def load_desktop_drawing():
@@ -174,6 +190,33 @@ def write_all(drawing):
     return written
 
 
+def play_icon(drawing):
+    """build/play-listing/icon-512.png: the launcher icon's ground as a full
+    square, the mark on it at PLAY_MARK of the side. Its path, or None."""
+    from PIL import Image
+
+    _background, _foreground, ground = adaptive_layers(drawing)
+    # Drawn at twice the size and shrunk once, for clean edges; the mark is
+    # what the drawing paints, measured by its own alpha.
+    flat = flat_icon(drawing, PLAY_ICON * 2)
+    mark = flat.crop(flat.getbbox())
+    side = int(PLAY_ICON * PLAY_MARK)
+    mark = mark.resize((side, round(side * mark.height / mark.width)), Image.LANCZOS)
+    icon = Image.new("RGBA", (PLAY_ICON, PLAY_ICON), ground)
+    icon.alpha_composite(mark, ((PLAY_ICON - mark.width) // 2, (PLAY_ICON - mark.height) // 2))
+    os.makedirs(PLAY_OUT, exist_ok=True)
+    path = os.path.join(PLAY_OUT, "icon-512.png")
+    icon.save(path, "PNG", optimize=True)
+    size = os.path.getsize(path)
+    if size > PLAY_MAX_BYTES:
+        print("%s is %d KB, over Google Play's 1,024 KB" % (path, size // 1024))
+        return None
+    print("Google Play's icon, %dx%d, %d KB, ground #%02x%02x%02x"
+          % (icon.width, icon.height, size // 1024, *ground[:3]))
+    print("   %s" % os.path.relpath(path, ANDROID))
+    return path
+
+
 def preview(drawing):
     from PIL import Image
 
@@ -198,5 +241,7 @@ if __name__ == "__main__":
         sys.exit(2)
     if "--preview" in sys.argv:
         preview(drawing)
+    elif "--play" in sys.argv:
+        sys.exit(0 if play_icon(drawing) else 1)
     else:
         write_all(drawing)

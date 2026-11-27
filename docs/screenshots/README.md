@@ -98,6 +98,32 @@ The calendar opens on the month it is run in, so the seed's dates are
 worked out from that day: a month photographed later with an earlier
 month's notes in it would be an empty grid.
 
+## Google Play's set
+
+    py tools/emulator/take_screenshots.py --play    the eight the store listing shows
+    py tools/make_launcher_icon.py --play           its 512 px icon
+    py tools/make_feature_graphic.py                its 1024 x 500 banner, after --play
+
+Google Play takes a phone screenshot only when its longer side is at most
+twice the shorter, and without alpha; the set above is 1080 × 2400, 2.22
+times as long, and keeps its alpha. So `--play` sets the emulator's screen
+to 1080 × 1920 for the run (Android's `wm size`, put back and read back
+after), takes the eight shots [the listing](../PLAY_LISTING.md#graphics)
+shows, numbered in its order, and saves them as 24-bit PNG into
+`build/play-listing/`, which git ignores: like the desktop's pictures for
+the Microsoft Store, they are remade by one command rather than kept. On
+the shorter screen the editor scrolls the note's title out of view while
+the keyboard is up, so `4-writing` is checked by the words around the
+cursor and the format bar's hint instead.
+
+The icon is the launcher icon's ground as a full square with the mark at
+70% of it, since Google Play rounds only the corners. The banner is
+Midnight Purple's ground, read from `Themes.kt`; the app's name and one
+line in Roboto, Android's own font, read from the emulator; and
+`1-note-list` on the right, its foot past the edge.
+
+**Current Play set:** made 2026-11-27 for 0.15.2, each picture looked at.
+
 **Current set:** captured 2026-11-21 on the emulator, in English, for
 0.15.0 — the light set, the dark one and `demo.gif` in one run — after
 Appearance's sentence changed, with the writing picture and the table's
