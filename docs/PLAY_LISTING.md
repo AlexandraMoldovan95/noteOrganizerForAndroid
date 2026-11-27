@@ -7,8 +7,8 @@ the app.
 
 **Where it stands (2026-11-27).** The developer account exists: a personal account, made on
 2026-11-27, its identity document with Google for verification. The app is not created in the
-console yet; that waits for the verification and the contact phone. Nothing here has been
-submitted.
+console yet; that waits for the verification and the contact phone. The texts and the
+[graphics](#graphics) are ready. Nothing here has been submitted.
 
 Three things keep it true, as for the desktop app's listing in the Microsoft Store:
 
@@ -145,26 +145,33 @@ store.
 
 ## Graphics
 
-None of these exists yet at the size Google Play asks for. Each is made from the app itself or
-drawn by code, like the launcher icon: nothing comes from a template or a stock library.
+Each is made from the app itself or drawn by code, like the launcher icon: nothing comes from a
+template or a stock library. Three commands make them all, into `build/play-listing/`, which git
+ignores; they are remade rather than kept, like the desktop's pictures for the Microsoft Store
+([how](screenshots/README.md#google-plays-set)):
 
-| Asset | Google Play's rule | Where it comes from |
+    py tools/emulator/take_screenshots.py --play    1-note-list.png ... 8-appearance.png
+    py tools/make_launcher_icon.py --play           icon-512.png
+    py tools/make_feature_graphic.py                feature-graphic.png
+
+| Asset | Google Play's rule | What it is |
 |---|---|---|
-| App icon | 512 × 512 px, 32-bit PNG with alpha, at most 1 MB; full square, Google Play rounds its corners and adds the shadow | The launcher icon's drawing (`tools/make_launcher_icon.py`, the desktop's `tools/make_icon.py`) asked for at 512 px: a step to add |
-| Feature graphic | 1024 × 500 px, JPEG or 24-bit PNG, no alpha; shown on the page and where Google Play features the app | To make: the icon's mark and the app's name, drawn by a script |
-| Phone screenshots | 2 to 8; JPEG or 24-bit PNG, no alpha; each side 320 to 3,840 px, the longer at most twice the shorter; Google Play's help asks for at least four at 1080 px or more, 9:16, for the app to be eligible for its recommendations | `tools/emulator/take_screenshots.py`, on the emulator, on a notebook written for the camera |
-| Tablet screenshots | Optional, 7-inch and 10-inch | The same script at a tablet's size, if the owner wants the page to show the tablet layout |
+| App icon | 512 × 512 px, 32-bit PNG with alpha, at most 1 MB; full square, Google Play rounds its corners and adds the shadow | The launcher icon's drawing (the desktop's `tools/make_icon.py`) on its ground as a full square, the mark at 70% of the side, since Google Play cuts only the corners |
+| Feature graphic | 1024 × 500 px, JPEG or 24-bit PNG, no alpha; shown on the page and where Google Play features the app | The app's name and "Offline notes, on your phone" on Midnight Purple, the note list on the right (the owner's choice, 2026-11-27); the colours from `Themes.kt`, the letters in Roboto, Android's own font |
+| Phone screenshots | 2 to 8; JPEG or 24-bit PNG, no alpha; each side 320 to 3,840 px, the longer at most twice the shorter; Google Play's help asks for at least four at 1080 px or more, 9:16, for the app to be eligible for its recommendations | Eight at 1080 × 1920, on the emulator, on a notebook written for the camera |
+| Tablet screenshots | Optional, 7-inch and 10-inch | Not made; the same script at a tablet's size, if the owner wants the page to show the tablet layout |
 
-**Today's screenshots do not pass.** `docs/screenshots/` holds them at 1080 × 2400, whose
-longer side is 2.22 times the shorter, and as 32-bit PNG with alpha. The rule on the longer
-side is read from Google Play's help on preview assets
-([Add preview assets](https://support.google.com/googleplay/android-developer/answer/9866151));
-the console says it again when one is refused. So the listing's set is taken at 1080 × 1920 and
-saved without alpha, beside the README's, not instead of them.
+The README's own set in `docs/screenshots/` is 1080 × 2400, whose longer side is 2.22 times the
+shorter, and keeps its alpha, so Google Play would refuse it; the rule on the longer side is read
+from Google Play's help on preview assets
+([Add preview assets](https://support.google.com/googleplay/android-developer/answer/9866151)),
+and the console says it again when one is refused. `--play` sets the emulator's screen to
+1080 × 1920 for its run instead, and puts it back.
 
-Proposed set, in this order, each in the light theme with one dark among them: the note list,
-a note with its checklist, a table, writing with the format bar, the calendar, search, the
-list in a dark theme, Settings → Appearance.
+The set, in the order it is uploaded, all in the light theme but one: the note list, a note with
+its checklist, a table, writing with the format bar (the note's title scrolled out of view above
+the keyboard, as on a 9:16 phone), the calendar, search, the list in Midnight Purple, Settings →
+Appearance. **Made on 2026-11-27 for 0.15.2**, each picture looked at.
 
 ## Store settings
 

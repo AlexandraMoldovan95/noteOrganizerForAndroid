@@ -219,12 +219,17 @@ the icon as-is rather than the cropped adaptive foreground.
 Screenshots of the app are captures of it running on the emulator, made
 by `tools/emulator/take_screenshots.py` on a notebook written for the
 camera ([how](docs/screenshots/README.md)). Say so; nothing here comes
-from anywhere else.
+from anywhere else. Google Play's graphics are made the same way: its
+screenshots by the same script (`--play`), its 512 px icon from the
+launcher icon's drawing (`--play`), and its feature graphic by
+`tools/make_feature_graphic.py` from the app's colours, a screenshot and
+Roboto, Android's own font, read from the emulator
+([how](docs/screenshots/README.md#google-plays-set)).
 
 ### The emulator runs without a window
 
 Start it with `-no-window`, and photograph the emulator's screen only,
-never the computer's ([how](tools/emulator/README.md#the-five-tools)).
+never the computer's ([how](tools/emulator/README.md#the-tools)).
 
 ### One heavy job at a time, and nothing left running after it
 
