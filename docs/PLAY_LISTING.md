@@ -236,13 +236,18 @@ the person's own message in another app, not an exchange inside this one.
   ([STATUS](STATUS.md#before-the-first-upload-to-google-play)).
 - **Play App Signing.** Google keeps the key that signs what people install; the bundle is
   uploaded signed with an **upload key**, made once with the owner and kept outside the
-  repository. The release build signs with the debug key until then.
+  repository. The build is ready for it: a properties file outside the repository names the
+  keystore and its passwords, and `noteorgUploadKey` in the user's own
+  `~/.gradle/gradle.properties` (or `NOTEORG_UPLOAD_KEY`) names that file
+  (`app/build.gradle.kts`). Without it the release build signs with the debug key, as before.
 - **The owner's phone** holds a build signed with the debug key, so the store's build cannot
   install over it: it is uninstalled first, and an uninstall deletes the notebook. Its notes go
   to a backup `.zip` first; and the app's next start empties the Trash past its window, so the
   owner is told before.
-- **Each release's `mapping.txt`** is kept beside the bundle, named for its version, so a crash's
-  trace from an older version can still be read.
+- **The bundle and its `mapping.txt` kept, once per version**, outside the repository, so a
+  crash's trace from an older version can still be read: `gradlew.bat bundleRelease`, then
+  `py tools/keep_release.py`, which refuses a debug-signed bundle, one older than the code, and a
+  version kept already.
 - **The version at launch is 1.0.0** for both apps (the desktop's ROADMAP,
   [At the real launch](https://github.com/AlexandraMoldovan95/noteOrganizer/blob/main/docs/ROADMAP.md#at-the-real-launch-100-and-after)),
   computed and shown to the owner before it is set.
@@ -273,6 +278,10 @@ How it runs, once the app exists in the console:
 4. **Fourteen days**, with the app kept installed and used. Notes kept during the test (what
    testers said, what changed) answer the questions of the next step.
 5. **Apply for production**: a short questionnaire about the test, then Google's review.
+
+The test plan's Google Play area (cases 545 to 549) is walked along the way: the install from
+the closed test with the notebook back from a backup, an update keeping every note, the page
+saying what this file says, the pre-launch report, and Write a review once the page is live.
 
 ## Release notes
 

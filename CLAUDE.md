@@ -179,9 +179,18 @@ people run, shrunk and renamed by R8, which the debug build never is:
     py tools/make_licenses.py --check  # the licenses page names every library the APK carries
 
 A phone is never given a test-only build that needs an uninstall to
-replace: an uninstall deletes the notebook. The release build is signed
-with the debug key until the upload key exists, so the two install over
-each other.
+replace: an uninstall deletes the notebook. Without the upload key named,
+the release build is signed with the debug key, so the two install over
+each other; the store's build, signed with the upload key, does not, and
+the owner's phone moves to it once, its notebook in a backup first.
+
+For Google Play, the bundle, signed with the upload key -- named outside
+the repository, as `app/build.gradle.kts` says (`noteorgUploadKey` in the
+user's own `~/.gradle/gradle.properties`, or `NOTEORG_UPLOAD_KEY`) -- and
+kept once per version beside its R8 mapping, outside the repository:
+
+    gradlew.bat bundleRelease
+    py tools/keep_release.py           # refuses a debug-signed bundle, keeps the .aab and mapping.txt
 
 CI runs the first list, all but `check_interop.py`, which needs the
 tests' output beside the desktop's code
