@@ -434,11 +434,11 @@ and decoded **in the desktop's own Python**.
 
 ## The test plan
 
-`NoteOrganizer_Android_TestPlan.xlsx` — 538 cases on 23 November 2026,
-across eighteen areas (Reading, Search, Writing, Editing, Organising,
+`NoteOrganizer_Android_TestPlan.xlsx` — 543 cases on 27 November 2026,
+across nineteen areas (Reading, Search, Writing, Editing, Organising,
 Trash, Backup, Sharing, Settings, The phone, Interop, Look & feel,
-Reminders, and since Phase 2 Calendar, Repeating, Tools, Templates and
-Wide screens), kept in this repository rather than
+Reminders, Google Play, and since Phase 2 Calendar, Repeating, Tools,
+Templates and Wide screens), kept in this repository rather than
 the desktop's because the two projects are deliberately separate. Since
 2026-10-20 it has the desktop plan's shape — its sixteen columns, a
 Summary that counts itself, and a **Merged cases** sheet where a case
